@@ -35,12 +35,14 @@ const config: Config = {
   testPathIgnorePatterns: ['/node_modules/'],
 
   // A map from regular expressions to paths to transformers
-  transform: {
-    '^.+\\.ts$': 'ts-jest',
-  },
+  transform: {}, // disabled for ESM
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   transformIgnorePatterns: ['/node_modules/'],
+
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
 };
 
 export default config;

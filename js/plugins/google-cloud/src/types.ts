@@ -70,3 +70,8 @@ export interface GcpTelemetryConfig {
   exportIO: boolean;
   export: boolean;
 }
+
+export interface GcpPrincipal {
+  projectId?: string;
+  serviceAccountEmail?: string;
+}

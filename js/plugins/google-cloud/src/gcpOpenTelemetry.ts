@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
+import { logger } from '@genkit-ai/core/logging';
+import {
+  ExporterOptions,
+  MetricExporter,
+} from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { Span, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
@@ -36,6 +40,7 @@ import {
   InstrumentType,
   PeriodicExportingMetricReader,
   PushMetricExporter,
+  ResourceMetrics,
 } from '@opentelemetry/sdk-metrics';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
@@ -52,7 +57,13 @@ import { featuresTelemetry } from './telemetry/feature.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { pathsTelemetry } from './telemetry/path.js';
 import { GcpTelemetryConfig } from './types';
-import { extractErrorName } from './utils';
+import {
+  extractErrorName,
+  metricsDenied,
+  metricsDeniedHelpText,
+  tracingDenied,
+  tracingDeniedHelpText,
+} from './utils';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -88,26 +99,34 @@ export class GcpOpenTelemetry {
     record['logging.googleapis.com/spanId'] ??= spanContext.spanId;
   };
 
-  getConfig(): Partial<NodeSDKConfiguration> {
-    spanProcessor = new BatchSpanProcessor(this.createSpanExporter());
+  async getConfig(): Promise<Partial<NodeSDKConfiguration>> {
+    spanProcessor = new BatchSpanProcessor(await this.createSpanExporter());
     return {
       resource: this.resource,
       spanProcessor: spanProcessor,
       sampler: this.config.sampler,
       instrumentations: this.getInstrumentations(),
-      metricReader: this.createMetricReader(),
+      metricReader: await this.createMetricReader(),
     };
   }
 
-  private createSpanExporter(): SpanExporter {
+  private async createSpanExporter(): Promise<SpanExporter> {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
+            // Creds for non-GCP environments; otherwise credentials will be
+            // automatically detected via ADC
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
       this.config.exportIO,
-      this.config.projectId
+      this.config.projectId,
+      getErrorHandler(
+        (err) => {
+          return tracingDenied(err);
+        },
+        await tracingDeniedHelpText()
+      )
     );
     return spanExporter;
   }
@@ -115,8 +134,8 @@ export class GcpOpenTelemetry {
   /**
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
-  private createMetricReader(): PeriodicExportingMetricReader {
-    metricExporter = this.buildMetricExporter();
+  private async createMetricReader(): Promise<PeriodicExportingMetricReader> {
+    metricExporter = await this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
       exportIntervalMillis: this.config.metricExportIntervalMillis,
       exportTimeoutMillis: this.config.metricExportTimeoutMillis,
@@ -150,15 +169,25 @@ export class GcpOpenTelemetry {
     ];
   }
 
-  private buildMetricExporter(): PushMetricExporter {
+  private async buildMetricExporter(): Promise<PushMetricExporter> {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
-      ? new MetricExporter({
-          userAgent: {
-            product: 'genkit',
-            version: GENKIT_VERSION,
+      ? new MetricExporterWrapper(
+          {
+            userAgent: {
+              product: 'genkit',
+              version: GENKIT_VERSION,
+            },
+            // Creds for non-GCP environments; otherwise credentials will be
+            // automatically detected via ADC
+            credentials: this.config.credentials,
           },
-          credentials: this.config.credentials,
-        })
+          getErrorHandler(
+            (err) => {
+              return metricsDenied(err);
+            },
+            await metricsDeniedHelpText()
+          )
+        )
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     exporter.selectAggregation = (instrumentType: InstrumentType) => {
       if (instrumentType === InstrumentType.HISTOGRAM) {
@@ -176,6 +205,31 @@ export class GcpOpenTelemetry {
 }
 
 /**
+ * Rewrites the export method to include an error handler which logs
+ * helpful information about how to set up metrics/telemetry in GCP.
+ */
+class MetricExporterWrapper extends MetricExporter {
+  constructor(
+    private options?: ExporterOptions,
+    private errorHandler?: (error: Error) => void
+  ) {
+    super(options);
+  }
+
+  export(
+    metrics: ResourceMetrics,
+    resultCallback: (result: ExportResult) => void
+  ): void {
+    super.export(metrics, (result) => {
+      if (this.errorHandler && result.error) {
+        this.errorHandler(result.error);
+      }
+      resultCallback(result);
+    });
+  }
+}
+
+/**
  * Adjusts spans before exporting to GCP. Redacts model input
  * and output content, and augments span attributes before sending to GCP.
  */
@@ -183,14 +237,20 @@ class AdjustingTraceExporter implements SpanExporter {
   constructor(
     private exporter: SpanExporter,
     private logIO: boolean,
-    private projectId?: string
+    private projectId?: string,
+    private errorHandler?: (error: Error) => void
   ) {}
 
   export(
     spans: ReadableSpan[],
     resultCallback: (result: ExportResult) => void
   ): void {
-    this.exporter?.export(this.adjust(spans), resultCallback);
+    this.exporter?.export(this.adjust(spans), (result) => {
+      if (this.errorHandler && result.error) {
+        this.errorHandler(result.error);
+      }
+      resultCallback(result);
+    });
   }
 
   shutdown(): Promise<void> {
@@ -360,6 +420,30 @@ class AdjustingTraceExporter implements SpanExporter {
     }
     return span;
   }
+}
+
+function getErrorHandler(
+  shouldLogFn: (err: Error) => boolean,
+  helpText: string
+): (err: Error) => void {
+  // only log the first time
+  let instructionsLogged = false;
+
+  return (err) => {
+    // Use the defaultLogger so that logs don't get swallowed by the open
+    // telemetry exporter
+    const defaultLogger = logger.defaultLogger;
+    if (err && shouldLogFn(err)) {
+      if (!instructionsLogged) {
+        instructionsLogged = true;
+        defaultLogger.error(
+          `Unable to send telemetry to Google Cloud: ${err.message}\n\n${helpText}\n`
+        );
+      }
+    } else if (err) {
+      defaultLogger.error(`Unable to send telemetry to Google Cloud: ${err}`);
+    }
+  };
 }
 
 export function __getMetricExporterForTesting(): InMemoryMetricExporter {

@@ -26,6 +26,7 @@
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "firebase-admin": ">=12.2",
