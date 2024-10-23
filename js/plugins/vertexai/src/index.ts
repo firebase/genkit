@@ -67,7 +67,7 @@ import {
   VectorSearchOptions,
   vertexAiIndexers,
   vertexAiRetrievers,
-} from './vector-search';
+} from './vector-search/index.js';
 export {
   DocumentIndexer,
   DocumentRetriever,
@@ -81,7 +81,7 @@ export {
   vertexAiIndexers,
   vertexAiRetrieverRef,
   vertexAiRetrievers,
-} from './vector-search';
+} from './vector-search/index.js';
 export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
