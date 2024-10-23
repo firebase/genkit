@@ -112,9 +112,9 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
+  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
-  PromptMetadata as DotpromptPromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
