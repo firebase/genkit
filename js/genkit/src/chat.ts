@@ -28,9 +28,9 @@ import { z } from '@genkit-ai/core';
 import { Genkit } from './genkit';
 import {
   BaseGenerateOptions,
-  runWithSession,
   Session,
   SessionStore,
+  runWithSession,
 } from './session';
 import { runInNewSpan } from './tracing';
 

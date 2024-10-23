@@ -112,7 +112,10 @@ export async function resolveTools<
   );
 }
 
-export async function lookupToolByName(registry: Registry, name: string): Promise<ToolAction> {
+export async function lookupToolByName(
+  registry: Registry,
+  name: string
+): Promise<ToolAction> {
   let tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||

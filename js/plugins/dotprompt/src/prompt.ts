@@ -120,7 +120,12 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     if (pm.output?.schema) {
       pm.output.jsonSchema = options.output?.schema;
     }
-    const prompt = new Dotprompt(registry, options as PromptMetadata, template, action);
+    const prompt = new Dotprompt(
+      registry,
+      options as PromptMetadata,
+      template,
+      action
+    );
     return prompt;
   }
 
@@ -128,7 +133,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     private registry: Registry,
     options: PromptMetadata,
     template: string,
-    action?: PromptAction,
+    action?: PromptAction
   ) {
     this.name = options.name || 'untitledPrompt';
     this.variant = options.variant;
@@ -185,7 +190,11 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
     });
-    return this._render({ ...this.input?.default, ...input }, options, sessionStateData);
+    return this._render(
+      { ...this.input?.default, ...input },
+      options,
+      sessionStateData
+    );
   }
 
   toJSON(): PromptData {

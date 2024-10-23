@@ -187,11 +187,13 @@ describe('preabmle', () => {
       },
       async () => {
         return {
-          messages: [{
-            role: 'system',
-            content: [{text: ' agent a'}]
-          }]
-        }
+          messages: [
+            {
+              role: 'system',
+              content: [{ text: ' agent a' }],
+            },
+          ],
+        };
       }
     );
 

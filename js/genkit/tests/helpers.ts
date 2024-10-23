@@ -16,7 +16,7 @@
 
 import { MessageData } from '@genkit-ai/ai';
 import { ModelAction } from '@genkit-ai/ai/model';
-import { StreamingCallback, z } from '@genkit-ai/core';
+import { StreamingCallback } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
 import {
   GenerateRequest,
@@ -89,13 +89,11 @@ export function defineEchoModel(ai: Genkit): ModelAction {
 
 export async function runAsync<O>(fn: () => O): Promise<O> {
   return new Promise((resolve) => {
-    setTimeout(() => resolve(fn()), 0)
+    setTimeout(() => resolve(fn()), 0);
   });
 }
 
-export class TestMemorySessionStore<S>
-  implements SessionStore<S>
-{
+export class TestMemorySessionStore<S> implements SessionStore<S> {
   private data: Record<string, SessionData<S>> = {};
 
   async get(sessionId: string): Promise<SessionData<S> | undefined> {

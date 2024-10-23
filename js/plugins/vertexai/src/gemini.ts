@@ -18,29 +18,29 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
+  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
   HarmBlockThreshold,
   HarmCategory,
-  Part as GeminiPart,
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,

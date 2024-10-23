@@ -615,7 +615,11 @@ export async function generate<
   return await runWithStreamingCallback(
     resolvedOptions.streamingCallback,
     async () => {
-      const response = await generateHelper(registry, params, resolvedOptions.use);
+      const response = await generateHelper(
+        registry,
+        params,
+        resolvedOptions.use
+      );
       return new GenerateResponse<O>(
         response,
         response.request ??
@@ -636,7 +640,10 @@ function stripUndefinedOptions(input?: any): any {
   return copy;
 }
 
-async function resolveFullToolName(registry: Registry, name: string): Promise<string> {
+async function resolveFullToolName(
+  registry: Registry,
+  name: string
+): Promise<string> {
   if (await registry.lookupAction(`/tool/${name}`)) {
     return `/tool/${name}`;
   } else if (await registry.lookupAction(`/prompt/${name}`)) {
