@@ -3,6 +3,7 @@ import { Neo4jGraphConfig } from './types';
 import { Neo4jVectorStore } from './vector';
 import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { defineIndexer } from '@genkit-ai/ai/retriever';
+import { Document } from '@genkit-ai/ai/retriever';
 
 /**
  * Configures a Neo4j indexer.
@@ -23,7 +24,7 @@ export function configureNeo4jIndexer<EmbedderOptions extends z.ZodTypeAny>(para
       name: `neo4j/${params.indexName}`,
     },
     async (docs: Document[]) => {
-      return await Neo4jVectorStore.fromDocuments(
+      await Neo4jVectorStore.fromDocuments(
         docs, embedder, embedderOptions, neo4jConfig);
     }
   );

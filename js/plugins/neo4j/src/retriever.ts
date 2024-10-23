@@ -18,7 +18,7 @@ import * as z from 'zod';
 import { Neo4jGraphConfig } from './types';
 import { Neo4jVectorStore } from './vector';
 import { EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { defineRetriever } from '@genkit-ai/ai/retriever';
+import { Document, defineRetriever } from '@genkit-ai/ai/retriever';
 
 /**
  * Configures a Neo4j retriever.
@@ -40,10 +40,14 @@ export function configureNeo4jRetriever<
     {
       name: `neo4j/${params.indexName}`
     },
-    async (query: string, options) => {
-      return await Neo4jVectorStore.fromExistingIndex(
+    async (query: Document, options) => {
+      const docs = await Neo4jVectorStore.fromExistingIndex(
         embedder, embedderOptions, neo4jConfig
-      ).then(store => store.similaritySearch(query, options.k));
+      ).then(store => store.similaritySearch(query.text(), options.k));
+
+      return {
+        documents: docs.map(doc => doc.toJSON())
+      };
     }
   );
 }

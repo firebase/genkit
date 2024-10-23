@@ -1,4 +1,4 @@
-import neo4j from "neo4j-driver";
+import * as neo4j from "neo4j-driver";
 import * as uuid from "uuid";
 import * as z from 'zod';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
@@ -42,7 +42,7 @@ const DEFAULT_NODE_EMBEDDING_PROPERTY = "embedding";
 type EmbedderOptions = z.ZodTypeAny;
 
 export class Neo4jVectorStore {
-  private driver: neo4j.Driver;
+  private driver!: neo4j.Driver;
 
   private database: string;
 
@@ -72,15 +72,17 @@ export class Neo4jVectorStore {
 
   private isEnterprise = false;
 
-  private embedder: EmbedderArgument<EmbedderOptions>;
+  private embedder!: EmbedderArgument<EmbedderOptions>;
 
   private embedderOptions: z.infer<EmbedderOptions>;
   
   constructor(config: Neo4jVectorStoreArgs,
     embedder?: EmbedderArgument<EmbedderOptions>,
     embedderOptions?: z.infer<EmbedderOptions>) {
-      this.embedder = embedder;
-      this.embedderOptions = embedderOptions;
+      if (embedder) {
+        this.embedder = embedder;
+        this.embedderOptions = embedderOptions;
+      }
 
       this.database = config.database || DEFAULT_DATABASE;
       this.preDeleteCollection = config.preDeleteCollection || false;
@@ -115,6 +117,10 @@ export class Neo4jVectorStore {
       searchType = DEFAULT_SEARCH_TYPE,
       indexType = DEFAULT_INDEX_TYPE,
     } = config;
+
+    if(!embedder) {
+      return store;
+    }
 
     store.embeddingDimension = (await embed({
       embedder,
@@ -225,7 +231,7 @@ export class Neo4jVectorStore {
     embedderOptions: z.infer<EmbedderOptions>,
     config: Neo4jVectorStoreArgs
   ): Promise<Neo4jVectorStore> {
-    const docs = [];
+    const docs: Document[] = [];
 
     for (let i = 0; i < texts.length; i += 1) {
       const metadata = Array.isArray(metadatas) ? metadatas[i] : metadatas;
@@ -661,14 +667,14 @@ export class Neo4jVectorStore {
   }
 
   async addDocuments(documents: Document[]): Promise<string[]> {
-    const texts = documents.map(({ text }) => text);
+    const texts = documents.map((d) => d.text());
 
     return this.addVectors(
       await Promise.all(
-        documents.map(({ text }) =>
+        documents.map((d) =>
           embed({
             embedder:this.embedder,
-            content: text,
+            content: d.text(),
             options: this.embedderOptions,
           })
         )
