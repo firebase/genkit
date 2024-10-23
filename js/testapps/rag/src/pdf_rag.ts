@@ -129,5 +129,5 @@ export const synthesizeQuestions = ai.defineFlow(
 );
 
 ai.startFlowServer({
-  flows: [pdfQA]
+  flows: [pdfQA],
 });
