@@ -383,10 +383,6 @@ export async function toGenerateRequest(
     messages.push(...options.messages);
   }
   if (options.prompt) {
-    const promptMessage: MessageData = {
-      role: 'user',
-      content: normalizePart(options.prompt),
-    };
     messages.push({ role: 'user', content: normalizePart(options.prompt) });
   }
   if (messages.length === 0) {
