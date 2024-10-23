@@ -26,10 +26,7 @@ import {
   toGenerateRequest,
 } from '../../src/generate.js';
 import { GenerateResponseChunkData } from '../../src/model';
-import {
-  CandidateData,
-  GenerateRequest,
-} from '../../src/model.js';
+import { CandidateData, GenerateRequest } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
 describe('Candidate', () => {

@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
-import { Candidate, GenerateOptions, GenerateResponse, GenerateResponseChunk } from './generate';
-import { GenerateResponseChunkData } from './model';
-import { extractJson } from './extract';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
+import { extractJson } from './extract';
+import {
+  Candidate,
+  GenerateOptions,
+  GenerateResponse,
+  GenerateResponseChunk,
+} from './generate';
+import { GenerateResponseChunkData } from './model';
 
 export type FormatParser<T = unknown> = {
   name: string;
@@ -51,41 +56,43 @@ const isValidCandidate = (candidate: Candidate): boolean => {
   return validateSchema(jsonOutput, { jsonSchema: schema }).valid;
 };
 
-const getAccumulatedChunksText = (accumulatedChunks?: GenerateResponseChunkData[]) => {
-    if (!accumulatedChunks) return null;
-    return accumulatedChunks
-        .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
-        .join('');
-}
+const getAccumulatedChunksText = (
+  accumulatedChunks?: GenerateResponseChunkData[]
+) => {
+  if (!accumulatedChunks) return null;
+  return accumulatedChunks
+    .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
+    .join('');
+};
 
 const formatRegistry: Record<string, FormatParser> = {
   text: {
     name: 'text',
     parseResponse: (res, candidateIdx) => {
-        const candidate = findCandidate(res.candidates, candidateIdx);
-        return candidate.text() || null;
+      const candidate = findCandidate(res.candidates, candidateIdx);
+      return candidate.text() || null;
     },
     parseChunk: (chunk) => {
-        return getAccumulatedChunksText(chunk.accumulatedChunks);
+      return getAccumulatedChunksText(chunk.accumulatedChunks);
     },
   },
   json: {
     name: 'json',
     parseResponse: (res, candidateIdx) => {
-        const candidate = findCandidate(res.candidates, candidateIdx);
-        return extractJson(candidate.text(), true);
+      const candidate = findCandidate(res.candidates, candidateIdx);
+      return extractJson(candidate.text(), true);
     },
     parseChunk: (chunk) => {
-        const accumulatedText = getAccumulatedChunksText(chunk.accumulatedChunks);
-        if (!accumulatedText) return null;
-        return extractJson(accumulatedText, false);
+      const accumulatedText = getAccumulatedChunksText(chunk.accumulatedChunks);
+      if (!accumulatedText) return null;
+      return extractJson(accumulatedText, false);
     },
     instructions: (req) => {
       let jsonSchema = toJsonSchema({
         schema: req.output?.schema,
         jsonSchema: req.output?.jsonSchema,
       });
-    
+
       return `Output should be in JSON format with the following schema:
 ${JSON.stringify(jsonSchema, null, 0)}`;
     },

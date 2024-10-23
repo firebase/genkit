@@ -17,8 +17,18 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
-import { getAvailableFormats, defineFormat, getFormatParser, FormatParser } from '../../src/format';
-import { GenerateResponse, GenerateResponseChunk, Candidate, GenerateOptions } from '../../src/generate';
+import {
+  FormatParser,
+  defineFormat,
+  getAvailableFormats,
+  getFormatParser,
+} from '../../src/format';
+import {
+  Candidate,
+  GenerateOptions,
+  GenerateResponse,
+  GenerateResponseChunk,
+} from '../../src/generate';
 
 describe('format', () => {
   describe('getAvailableFormats()', () => {
@@ -68,13 +78,13 @@ describe('format', () => {
       const textParser = getFormatParser('text');
       const mockResponse = {
         candidates: [
-            new Candidate({
-                message: { role: 'model', content: [{ text: 'Hello, world!' }] },
-                index: 0,
-                usage: {},
-                finishReason: 'stop',
-                custom: {}
-              }),
+          new Candidate({
+            message: { role: 'model', content: [{ text: 'Hello, world!' }] },
+            index: 0,
+            usage: {},
+            finishReason: 'stop',
+            custom: {},
+          }),
         ],
       } as unknown as GenerateResponse;
 
@@ -101,13 +111,13 @@ describe('format', () => {
       const jsonParser = getFormatParser('json');
       const mockResponse = {
         candidates: [
-            new Candidate({
-                message: { role: 'model', content: [{ text: '{"key": "value"}' }] },
-                index: 0,
-                usage: {},
-                finishReason: 'stop',
-                custom: {}
-            }),
+          new Candidate({
+            message: { role: 'model', content: [{ text: '{"key": "value"}' }] },
+            index: 0,
+            usage: {},
+            finishReason: 'stop',
+            custom: {},
+          }),
         ],
       } as unknown as GenerateResponse;
 
@@ -140,8 +150,16 @@ describe('format', () => {
       };
 
       const instructions = jsonParser!.instructions!(mockRequest);
-      assert(instructions?.includes('Output should be in JSON format with the following schema:'));
-      assert(instructions?.includes('{"type":"object","properties":{"key":{"type":"string"}},"required":["key"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}'));
+      assert(
+        instructions?.includes(
+          'Output should be in JSON format with the following schema:'
+        )
+      );
+      assert(
+        instructions?.includes(
+          '{"type":"object","properties":{"key":{"type":"string"}},"required":["key"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}'
+        )
+      );
     });
   });
 });

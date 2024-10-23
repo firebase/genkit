@@ -29,6 +29,7 @@ import {
 } from '@genkit-ai/core/schema';
 import { z } from 'zod';
 import { DocumentData } from './document.js';
+import { FormatParser, getFormatParser } from './format.js';
 import {
   CandidateData,
   GenerateRequest,
@@ -51,7 +52,6 @@ import {
   ToolArgument,
   toToolDefinition,
 } from './tool.js';
-import { FormatParser, getFormatParser } from './format.js';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -411,7 +411,9 @@ export class GenerateResponseChunk<T = unknown>
     }
 
     if (!parser.parseChunk) {
-      throw new Error(`Format ${format} does not support partial output extraction`);
+      throw new Error(
+        `Format ${format} does not support partial output extraction`
+      );
     }
 
     return parser.parseChunk(this);
@@ -627,7 +629,6 @@ export async function generate<
     tools = await resolveTools(resolvedOptions.tools);
   }
 
-
   const format = resolvedOptions.output?.format || 'json';
   const parser = getFormatParser(format);
   if (parser && parser.instructions) {
@@ -639,7 +640,10 @@ export async function generate<
       } else if (Array.isArray(resolvedOptions.prompt)) {
         resolvedOptions.prompt.push({ text: formatInstructions });
       } else {
-        resolvedOptions.prompt = [resolvedOptions.prompt, { text: formatInstructions }];
+        resolvedOptions.prompt = [
+          resolvedOptions.prompt,
+          { text: formatInstructions },
+        ];
       }
     }
   }
