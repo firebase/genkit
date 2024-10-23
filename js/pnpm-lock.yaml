@@ -134,6 +134,25 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  doc-snippets:
+    dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../plugins/firebase
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../plugins/googleai
+      genkit:
+        specifier: workspace:*
+        version: link:../genkit
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.3.3
+        version: 5.6.2
+
   genkit:
     dependencies:
       '@genkit-ai/ai':
@@ -5071,10 +5090,6 @@ packages:
     resolution: {integrity: sha512-3FnjYuehv9k6ovOEbyOswadCDPX1piCfhV8ncmYtHOjuPwylVWsghTLo7rabjC3Rx5xD4HDx8Wm1xnMF7S5qFQ==}
     engines: {node: '>=8'}
 
-  minipass@7.0.4:
-    resolution: {integrity: sha512-jYofLM5Dam9279rdkWzqHozUo4ybjdZmCsDHePy5V/PbBcVMiSZR97gmAy45aqi8CK1lG2ECd356FU86avfwUQ==}
-    engines: {node: '>=16 || 14 >=14.17'}
-
   minipass@7.1.2:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -9315,7 +9330,7 @@ snapshots:
       foreground-child: 3.1.1
       jackspeak: 2.3.6
       minimatch: 9.0.4
-      minipass: 7.0.4
+      minipass: 7.1.2
       path-scurry: 1.10.2
 
   glob@11.0.0:
@@ -10461,8 +10476,6 @@ snapshots:
   minipass@5.0.0:
     optional: true
 
-  minipass@7.0.4: {}
-
   minipass@7.1.2: {}
 
   minizlib@2.1.2:
@@ -10704,7 +10717,7 @@ snapshots:
   path-scurry@1.10.2:
     dependencies:
       lru-cache: 10.2.0
-      minipass: 7.0.4
+      minipass: 7.1.2
 
   path-scurry@2.0.0:
     dependencies:
