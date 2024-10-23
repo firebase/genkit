@@ -134,6 +134,25 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  doc-snippets:
+    dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../plugins/firebase
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../plugins/googleai
+      genkit:
+        specifier: workspace:*
+        version: link:../genkit
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.3.3
+        version: 5.6.2
+
   genkit:
     dependencies:
       '@genkit-ai/ai':
@@ -817,25 +836,6 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
-
-  testapps/doc-snippets:
-    dependencies:
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/googleai':
-        specifier: workspace:*
-        version: link:../../plugins/googleai
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-    devDependencies:
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      typescript:
-        specifier: ^5.3.3
-        version: 5.6.2
 
   testapps/docs-menu-basic:
     dependencies:
