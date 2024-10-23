@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import {
-  defineEmbedder,
-  embedderRef,
-  EmbedderReference,
-} from 'genkit/embedder';
+import { Genkit, z } from 'genkit';
+import { EmbedderReference, embedderRef } from 'genkit/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './index.js';
 import { PredictClient, predictModel } from './predict.js';
@@ -31,9 +27,10 @@ export const TaskTypeSchema = z.enum([
   'CLASSIFICATION',
   'CLUSTERING',
 ]);
+
 export type TaskType = z.infer<typeof TaskTypeSchema>;
 
-export const TextEmbeddingGeckoConfigSchema = z.object({
+export const VertexEmbeddingConfigSchema = z.object({
   /**
    * The `task_type` parameter is defined as the intended downstream application to help the model
    * produce better quality embeddings.
@@ -41,92 +38,47 @@ export const TextEmbeddingGeckoConfigSchema = z.object({
   taskType: TaskTypeSchema.optional(),
   title: z.string().optional(),
   location: z.string().optional(),
+  version: z.string().optional(),
 });
-export type TextEmbeddingGeckoConfig = z.infer<
-  typeof TextEmbeddingGeckoConfigSchema
->;
 
-export const textEmbeddingGecko003 = embedderRef({
-  name: 'vertexai/textembedding-gecko@003',
-  configSchema: TextEmbeddingGeckoConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Vertex AI - Text Embedding Gecko',
-    supports: {
-      input: ['text'],
+export type VertexEmbeddingConfig = z.infer<typeof VertexEmbeddingConfigSchema>;
+
+function commonRef(
+  name: string,
+  input?: ('text' | 'image')[]
+): EmbedderReference<typeof VertexEmbeddingConfigSchema> {
+  return embedderRef({
+    name: `vertexai/${name}`,
+    configSchema: VertexEmbeddingConfigSchema,
+    info: {
+      dimensions: 768,
+      label: `Vertex AI - ${name}`,
+      supports: {
+        input: input ?? ['text'],
+      },
     },
-  },
-});
+  });
+}
 
-export const textEmbeddingGecko002 = embedderRef({
-  name: 'vertexai/textembedding-gecko@002',
-  configSchema: TextEmbeddingGeckoConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Vertex AI - Text Embedding Gecko',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textEmbeddingGecko001 = embedderRef({
-  name: 'vertexai/textembedding-gecko@001',
-  configSchema: TextEmbeddingGeckoConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Vertex AI - Text Embedding Gecko (Legacy)',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textEmbedding004 = embedderRef({
-  name: 'vertexai/text-embedding-004',
-  configSchema: TextEmbeddingGeckoConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Vertex AI - Text Embedding 004',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textMultilingualEmbedding002 = embedderRef({
-  name: 'vertexai/text-multilingual-embedding-002',
-  configSchema: TextEmbeddingGeckoConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Vertex AI - Text Multilingual Embedding 002',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textEmbeddingGeckoMultilingual001 = embedderRef({
-  name: 'vertexai/textembedding-gecko-multilingual@001',
-  configSchema: TextEmbeddingGeckoConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Vertex AI - Multilingual Text Embedding Gecko 001',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textEmbeddingGecko = textEmbeddingGecko003;
+export const textEmbeddingGecko003 = commonRef('textembedding-gecko@003');
+export const textEmbedding004 = commonRef('text-embedding-004');
+export const textEmbeddingGeckoMultilingual001 = commonRef(
+  'textembedding-gecko-multilingual@001'
+);
+export const textMultilingualEmbedding002 = commonRef(
+  'text-multilingual-embedding-002'
+);
 
 export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko@003': textEmbeddingGecko003,
-  'textembedding-gecko@002': textEmbeddingGecko002,
-  'textembedding-gecko@001': textEmbeddingGecko001,
   'text-embedding-004': textEmbedding004,
   'textembedding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
   'text-multilingual-embedding-002': textMultilingualEmbedding002,
+  // TODO: add support for multimodal embeddings
+  // 'multimodalembedding@001': commonRef('multimodalembedding@001', [
+  //   'image',
+  //   'text',
+  // ]),
 };
 
 interface EmbeddingInstance {
@@ -144,7 +96,8 @@ interface EmbeddingPrediction {
   };
 }
 
-export function textEmbeddingGeckoEmbedder(
+export function defineVertexAIEmbedder(
+  ai: Genkit,
   name: string,
   client: GoogleAuth,
   options: PluginOptions
@@ -155,7 +108,7 @@ export function textEmbeddingGeckoEmbedder(
     PredictClient<EmbeddingInstance, EmbeddingPrediction>
   > = {};
   const predictClientFactory = (
-    config: TextEmbeddingGeckoConfig
+    config: VertexEmbeddingConfig
   ): PredictClient<EmbeddingInstance, EmbeddingPrediction> => {
     const requestLocation = config?.location || options.location;
     if (!predictClients[requestLocation]) {
@@ -175,7 +128,7 @@ export function textEmbeddingGeckoEmbedder(
     return predictClients[requestLocation];
   };
 
-  return defineEmbedder(
+  return ai.defineEmbedder(
     {
       name: embedder.name,
       configSchema: embedder.configSchema,
@@ -186,7 +139,7 @@ export function textEmbeddingGeckoEmbedder(
       const response = await predictClient(
         input.map((i) => {
           return {
-            content: i.text(),
+            content: i.text,
             task_type: options?.taskType,
             title: options?.title,
           };

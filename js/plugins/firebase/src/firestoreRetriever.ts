@@ -20,8 +20,8 @@ import {
   QueryDocumentSnapshot,
   VectorQuerySnapshot,
 } from '@google-cloud/firestore';
-import { EmbedderArgument, RetrieverAction, embed, z } from 'genkit';
-import { DocumentData, Part, defineRetriever } from 'genkit/retriever';
+import { EmbedderArgument, Genkit, RetrieverAction, z } from 'genkit';
+import { DocumentData, Part } from 'genkit/retriever';
 
 function toContent(
   d: QueryDocumentSnapshot,
@@ -69,32 +69,35 @@ function toDocuments(
  * You must create a vector index on the associated field before you can perform nearest-neighbor
  * search.
  **/
-export function defineFirestoreRetriever(config: {
-  /** The name of the retriever. */
-  name: string;
-  /** Optional label for display in Developer UI. */
-  label?: string;
-  /** The Firestore database instance from which to query. */
-  firestore: Firestore;
-  /** The name of the collection from which to query. */
-  collection?: string;
-  /** The embedder to use with this retriever. */
-  embedder: EmbedderArgument;
-  /** The name of the field within the collection containing the vector data. */
-  vectorField: string;
-  /** The name of the field containing the document content you wish to return. */
-  contentField: string | ((snap: QueryDocumentSnapshot) => Part[]);
-  /** The distance measure to use when comparing vectors. Defaults to 'COSINE'. */
-  distanceMeasure?: 'EUCLIDEAN' | 'COSINE' | 'DOT_PRODUCT';
-  /**
-   * A list of fields to include in the returned document metadata. If not supplied, all fields other
-   * than the vector are included. Alternatively, provide a transform function to extract the desired
-   * metadata fields from a snapshot.
-   **/
-  metadataFields?:
-    | string[]
-    | ((snap: QueryDocumentSnapshot) => Record<string, any>);
-}): RetrieverAction {
+export function defineFirestoreRetriever(
+  ai: Genkit,
+  config: {
+    /** The name of the retriever. */
+    name: string;
+    /** Optional label for display in Developer UI. */
+    label?: string;
+    /** The Firestore database instance from which to query. */
+    firestore: Firestore;
+    /** The name of the collection from which to query. */
+    collection?: string;
+    /** The embedder to use with this retriever. */
+    embedder: EmbedderArgument;
+    /** The name of the field within the collection containing the vector data. */
+    vectorField: string;
+    /** The name of the field containing the document content you wish to return. */
+    contentField: string | ((snap: QueryDocumentSnapshot) => Part[]);
+    /** The distance measure to use when comparing vectors. Defaults to 'COSINE'. */
+    distanceMeasure?: 'EUCLIDEAN' | 'COSINE' | 'DOT_PRODUCT';
+    /**
+     * A list of fields to include in the returned document metadata. If not supplied, all fields other
+     * than the vector are included. Alternatively, provide a transform function to extract the desired
+     * metadata fields from a snapshot.
+     **/
+    metadataFields?:
+      | string[]
+      | ((snap: QueryDocumentSnapshot) => Record<string, any>);
+  }
+): RetrieverAction {
   const {
     name,
     label,
@@ -106,7 +109,7 @@ export function defineFirestoreRetriever(config: {
     contentField,
     distanceMeasure,
   } = config;
-  return defineRetriever(
+  return ai.defineRetriever(
     {
       name,
       info: {
@@ -120,7 +123,7 @@ export function defineFirestoreRetriever(config: {
       }),
     },
     async (input, options) => {
-      const embedding = await embed({ embedder, content: input });
+      const embedding = await ai.embed({ embedder, content: input });
       if (!options.collection && !collection) {
         throw new Error(
           'Must specify a collection to query in Firestore retriever.'

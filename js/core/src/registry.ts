@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage } from 'async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
 import { logger } from './logging.js';
@@ -47,17 +46,6 @@ export interface Schema {
   jsonSchema?: JSONSchema;
 }
 
-/**
- * Looks up a registry key (action type and key) in the registry.
- */
-export function lookupAction<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  R extends Action<I, O>,
->(key: string): Promise<R> {
-  return getRegistryInstance().lookupAction(key);
-}
-
 function parsePluginName(registryKey: string) {
   const tokens = registryKey.split('/');
   if (tokens.length === 4) {
@@ -66,98 +54,7 @@ function parsePluginName(registryKey: string) {
   return undefined;
 }
 
-/**
- * Registers an action in the registry.
- */
-export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  type: ActionType,
-  action: Action<I, O>
-) {
-  return getRegistryInstance().registerAction(type, action);
-}
-
 type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
-
-/**
- * Initialize all plugins in the registry.
- */
-export async function initializeAllPlugins() {
-  await getRegistryInstance().initializeAllPlugins();
-}
-
-/**
- * Returns all actions in the registry.
- */
-export function listActions(): Promise<ActionsRecord> {
-  return getRegistryInstance().listActions();
-}
-
-/**
- * Registers a plugin provider.
- * @param name The name of the plugin to register.
- * @param provider The plugin provider.
- */
-export function registerPluginProvider(name: string, provider: PluginProvider) {
-  return getRegistryInstance().registerPluginProvider(name, provider);
-}
-
-/**
- * Looks up a plugin.
- * @param name The name of the plugin to lookup.
- * @returns The plugin.
- */
-export function lookupPlugin(name: string) {
-  return getRegistryInstance().lookupPlugin(name);
-}
-
-/**
- * Initializes a plugin that has already been registered.
- * @param name The name of the plugin to initialize.
- * @returns The plugin.
- */
-export async function initializePlugin(name: string) {
-  return getRegistryInstance().initializePlugin(name);
-}
-
-/**
- * Registers a schema.
- * @param name The name of the schema to register.
- * @param data The schema to register (either a Zod schema or a JSON schema).
- */
-export function registerSchema(name: string, data: Schema) {
-  return getRegistryInstance().registerSchema(name, data);
-}
-
-/**
- * Looks up a schema.
- * @param name The name of the schema to lookup.
- * @returns The schema.
- */
-export function lookupSchema(name: string) {
-  return getRegistryInstance().lookupSchema(name);
-}
-
-const registryAls = new AsyncLocalStorage<Registry>();
-
-/**
- * @returns The active registry instance.
- */
-export function getRegistryInstance(): Registry {
-  const registry = registryAls.getStore();
-  if (!registry) {
-    throw new Error('getRegistryInstance() called before runWithRegistry()');
-  }
-  return registry;
-}
-
-/**
- * Runs a function with a specific registry instance.
- * @param registry The registry instance to use.
- * @param fn The function to run.
- */
-export function runWithRegistry<R>(registry: Registry, fn: () => R) {
-  return registryAls.run(registry, fn);
-}
 
 /**
  * The registry is used to store and lookup actions, trace stores, flow state stores, plugins, and schemas.
@@ -169,14 +66,6 @@ export class Registry {
   private allPluginsInitialized = false;
 
   constructor(public parent?: Registry) {}
-
-  /**
-   * Creates a new registry overlaid onto the currently active registry.
-   * @returns The new overlaid registry.
-   */
-  static withCurrent() {
-    return new Registry(getRegistryInstance());
-  }
 
   /**
    * Creates a new registry overlaid onto the provided registry.

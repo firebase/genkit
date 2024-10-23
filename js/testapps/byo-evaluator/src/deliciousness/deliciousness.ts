@@ -40,6 +40,7 @@ export async function deliciousnessScore<
       throw new Error('Output is required for Funniness detection');
     }
     const finalPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(__dirname, '../../prompts/deliciousness.prompt')
     );
     const response = await ai.generate({
@@ -52,9 +53,9 @@ export async function deliciousnessScore<
         schema: DeliciousnessDetectionResponseSchema,
       },
     });
-    const parsedResponse = response.output();
+    const parsedResponse = response.output;
     if (!parsedResponse) {
-      throw new Error(`Unable to parse evaluator response: ${response.text()}`);
+      throw new Error(`Unable to parse evaluator response: ${response.text}`);
     }
     return {
       score: parsedResponse.verdict,

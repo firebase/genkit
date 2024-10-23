@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import axios from 'axios';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Runtime } from '../manager/types';
@@ -78,10 +77,13 @@ export async function detectRuntime(directory: string): Promise<Runtime> {
  */
 export async function checkServerHealth(url: string): Promise<boolean> {
   try {
-    const response = await axios.get(`${url}/api/__health`);
+    const response = await fetch(`${url}/api/__health`);
     return response.status === 200;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+    if (
+      error instanceof Error &&
+      (error.cause as any).code === 'ECONNREFUSED'
+    ) {
       return false;
     }
   }
@@ -98,7 +100,7 @@ export async function waitUntilHealthy(
   const startTime = Date.now();
   while (Date.now() - startTime < maxTimeout) {
     try {
-      const response = await axios.get(`${url}/api/__health`);
+      const response = await fetch(`${url}/api/__health`);
       if (response.status === 200) {
         return true;
       }
@@ -120,9 +122,12 @@ export async function waitUntilUnresponsive(
   const startTime = Date.now();
   while (Date.now() - startTime < maxTimeout) {
     try {
-      await axios.get(`${url}/api/__health`);
+      const health = await fetch(`${url}/api/__health`);
     } catch (error) {
-      if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+      if (
+        error instanceof Error &&
+        (error.cause as any).code === 'ECONNREFUSED'
+      ) {
         return true;
       }
     }

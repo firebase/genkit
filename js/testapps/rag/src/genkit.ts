@@ -16,12 +16,11 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import {
   claude3Sonnet,
-  geminiPro,
   llama31,
-  textEmbeddingGecko,
+  textEmbedding004,
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
@@ -45,7 +44,7 @@ export const ai = genkit({
   plugins: [
     googleAI({ apiVersion: ['v1'] }),
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: {
         safetySettings: [
           {
@@ -72,7 +71,7 @@ export const ai = genkit({
       evaluators: {
         criteria: ['coherence'],
         labeledCriteria: ['correctness'],
-        judge: geminiPro,
+        judge: gemini15Flash,
       },
     }),
     vertexAI({
@@ -84,17 +83,17 @@ export const ai = genkit({
     pinecone([
       {
         indexId: 'cat-facts',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
       {
         indexId: 'pdf-chat',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
     ]),
     chroma([
       {
         collectionName: 'dogfacts_collection',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         createCollectionIfMissing: true,
         clientParams: async () => {
           // Replace this with your Cloud Run Instance URL
@@ -115,13 +114,13 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'dog-facts',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
       {
         indexName: 'pdfQA',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
     ]),
   ],
-  model: geminiPro,
+  model: gemini15Flash,
 });

@@ -55,8 +55,7 @@ class ActionTelemetry implements Telemetry {
 
     const actionName = (attributes['genkit:name'] as string) || '<unknown>';
     const path = (attributes['genkit:path'] as string) || '<unknown>';
-    let featureName = (attributes['genkit:metadata:flow:name'] ||
-      extractOuterFeatureNameFromPath(path)) as string;
+    let featureName = extractOuterFeatureNameFromPath(path);
     if (!featureName || featureName === '<unknown>') {
       featureName = actionName;
     }
@@ -68,13 +67,11 @@ class ActionTelemetry implements Telemetry {
 
     if (state === 'success') {
       this.writeSuccess(actionName, featureName, path, latencyMs);
-      return;
-    }
-    if (state === 'error') {
+    } else if (state === 'error') {
       this.writeFailure(actionName, featureName, path, latencyMs, errorName);
+    } else {
+      logger.warn(`Unknown action state; ${state}`);
     }
-
-    logger.warn(`Unknown action state; ${state}`);
   }
 
   private writeSuccess(

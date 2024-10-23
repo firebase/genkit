@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import express, { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
@@ -23,7 +23,7 @@ import z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
 import { GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
-import { Registry, runWithRegistry } from './registry.js';
+import { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
 import {
   flushTracing,
@@ -111,16 +111,6 @@ export class ReflectionServer {
     server.use(function (req, res, next) {
       res.header('x-genkit-version', GENKIT_VERSION);
       next();
-    });
-
-    server.use((req: Request, res: Response, next: NextFunction) => {
-      runWithRegistry(this.registry, async () => {
-        try {
-          next();
-        } catch (err) {
-          next(err);
-        }
-      });
     });
 
     server.get('/api/__health', async (_, response) => {
@@ -213,6 +203,7 @@ export class ReflectionServer {
               return await action(input);
             }
           );
+          await flushTracing();
           response.send({
             result,
             telemetry: traceId

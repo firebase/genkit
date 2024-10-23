@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
@@ -147,24 +147,21 @@ describe('validateSupport', () => {
 });
 
 const registry = new Registry();
-const echoModel = runWithRegistry(registry, () =>
-  defineModel({ name: 'echo' }, async (req) => {
-    return {
-      finishReason: 'stop',
-      message: {
-        role: 'model',
-        content: [{ data: req }],
-      },
-    };
-  })
-);
-
+const echoModel = defineModel(registry, { name: 'echo' }, async (req) => {
+  return {
+    finishReason: 'stop',
+    message: {
+      role: 'model',
+      content: [{ data: req }],
+    },
+  };
+});
 describe('conformOutput (default middleware)', () => {
   const schema = { type: 'object', properties: { test: { type: 'boolean' } } };
 
   // return the output tagged part from the request
   async function testRequest(req: GenerateRequest): Promise<Part> {
-    const response = await runWithRegistry(registry, () => echoModel(req));
+    const response = await echoModel(req);
     const treq = response.message!.content[0].data as GenerateRequest;
 
     const lastUserMessage = treq.messages
@@ -191,7 +188,7 @@ describe('conformOutput (default middleware)', () => {
         { role: 'user', content: [{ text: 'hello again' }] },
       ],
       output: { format: 'json', schema },
-      context: [{ content: [{ text: 'hi' }] }],
+      docs: [{ content: [{ text: 'hi' }] }],
     });
     assert(
       part?.text?.includes(JSON.stringify(schema)),
@@ -341,7 +338,7 @@ describe('augmentWithContext', () => {
         augmentWithContext(options)(
           {
             messages,
-            context,
+            docs: context,
           },
           resolve as any
         );
@@ -521,7 +518,7 @@ describe('augmentWithContext', () => {
           metadata: { uid: 'second' },
         },
       ],
-      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n` }
+      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text}\n` }
     );
     assert.deepEqual(result[0].content.at(-1), {
       text: `${CONTEXT_PREFACE}* (first) -- i am context\n* (second) -- i am more context\n\n`,

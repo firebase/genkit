@@ -88,7 +88,7 @@ export const uiStart = new Command('ui:start')
       logger.debug('No UI running. Starting a new one...');
     }
     logger.info('Starting...');
-    await startAndWaitUntilHealthy(port).catch((error) => {
+    await startAndWaitUntilHealthy(port, serversDir).catch((error) => {
       logger.error(`Failed to start Genkit Developer UI: ${error}`);
       return;
     });
@@ -122,15 +122,20 @@ export const uiStart = new Command('ui:start')
 /**
  * Starts the UI server in a child process and waits until it is healthy. Once it's healthy, the child process is detached.
  */
-async function startAndWaitUntilHealthy(port: number): Promise<ChildProcess> {
+async function startAndWaitUntilHealthy(
+  port: number,
+  serversDir: string
+): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const serverPath = path.join(__dirname, '../utils/server-harness.js');
-    const child = spawn('node', [serverPath, port.toString()], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      'node',
+      [serverPath, port.toString(), serversDir + '/devui.log'],
+      {
+        stdio: ['ignore', 'ignore', 'ignore'],
+      }
+    );
     // Only print out logs from the child process to debug output.
-    child.stdout.on('data', (data) => logger.debug(data));
-    child.stderr.on('data', (data) => logger.debug(data));
     child.on('error', (error) => reject(error));
     child.on('exit', (code) =>
       reject(new Error(`UI process exited (code ${code}) unexpectedly`))

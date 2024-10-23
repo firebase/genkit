@@ -59,6 +59,6 @@ export const menuSuggestionFlow = onFlow(
 		// convert it to a string, but more complicated flows might coerce the
 		// response into structured output or chain the response into another
 		// LLM call, etc.
-    return llmResponse.text();
+    return llmResponse.text;
   }
 );

@@ -16,23 +16,20 @@
 
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
-import { defineTool, generate, genkit, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI(), vertexAI()],
 });
 
-const jokeSubjectGenerator = runWithRegistry(ai.registry, () =>
-  defineTool(
-    {
-      name: 'jokeSubjectGenerator',
-      description: 'Can be called to generate a subject for a joke',
-    },
-    async () => {
-      return 'banana';
-    }
-  )
+const jokeSubjectGenerator = ai.defineTool(
+  {
+    name: 'jokeSubjectGenerator',
+    description: 'Can be called to generate a subject for a joke',
+  },
+  async () => {
+    return 'banana';
+  }
 );
 
 export const jokeFlow = ai.defineFlow(
@@ -42,7 +39,7 @@ export const jokeFlow = ai.defineFlow(
     outputSchema: z.any(),
   },
   async () => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: gemini15Flash,
       config: {
         temperature: 2,
@@ -53,6 +50,6 @@ export const jokeFlow = ai.defineFlow(
       tools: [jokeSubjectGenerator],
       prompt: `come up with a subject to joke about (using the function provided)`,
     });
-    return llmResponse.output();
+    return llmResponse.output;
   }
 );

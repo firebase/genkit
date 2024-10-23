@@ -15,26 +15,23 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { genkitPlugin, Plugin, z } from 'genkit';
+import { Genkit, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
-import { IndexerAction, RetrieverAction } from 'genkit/retriever';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
+  SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
-  SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
+  defineVertexAIEmbedder,
   textEmbedding004,
-  textEmbeddingGecko,
-  textEmbeddingGecko001,
-  textEmbeddingGecko002,
   textEmbeddingGecko003,
-  textEmbeddingGeckoEmbedder,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 } from './embedder.js';
@@ -44,31 +41,28 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
-  gemini15Flash,
-  gemini15FlashPreview,
-  gemini15Pro,
-  gemini15ProPreview,
   GeminiConfigSchema,
-  geminiModel,
-  geminiPro,
-  geminiProVision,
   SUPPORTED_GEMINI_MODELS,
+  defineGeminiModel,
+  gemini10Pro,
+  gemini15Flash,
+  gemini15Pro,
 } from './gemini.js';
 import {
+  SUPPORTED_IMAGEN_MODELS,
   imagen2,
   imagen3,
   imagen3Fast,
   imagenModel,
-  SUPPORTED_IMAGEN_MODELS,
 } from './imagen.js';
 import {
+  SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
   llama31,
   llama32,
   modelGardenOpenaiCompatibleModel,
-  SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
-import { vertexAiRerankers, VertexRerankerConfig } from './reranker.js';
+import { VertexRerankerConfig, vertexAiRerankers } from './reranker.js';
 import {
   VectorSearchOptions,
   vertexAiIndexers,
@@ -77,28 +71,26 @@ import {
 export {
   DocumentIndexer,
   DocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
   vertexAiIndexerRef,
   vertexAiIndexers,
   vertexAiRetrieverRef,
   vertexAiRetrievers,
 } from './vector-search';
 export {
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  gemini10Pro,
   gemini15Flash,
-  gemini15FlashPreview,
   gemini15Pro,
-  gemini15ProPreview,
-  geminiPro,
-  geminiProVision,
   imagen2,
   imagen3,
   imagen3Fast,
@@ -106,13 +98,9 @@ export {
   llama31,
   llama32,
   textEmbedding004,
-  textEmbeddingGecko,
-  textEmbeddingGecko001,
-  textEmbeddingGecko002,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -146,9 +134,8 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
-export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertexai',
-  async (options?: PluginOptions) => {
+export function vertexAI(options?: PluginOptions): GenkitPlugin {
+  return genkitPlugin('vertexai', async (ai: Genkit) => {
     let authClient;
     let authOptions = options?.googleAuth;
 
@@ -203,14 +190,12 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         ? options.evaluation.metrics
         : [];
 
-    const models = [
-      ...Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-        imagenModel(name, authClient, { projectId, location })
-      ),
-      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClientFactory, { projectId, location })
-      ),
-    ];
+    Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+      imagenModel(ai, name, authClient, { projectId, location })
+    );
+    Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+      defineGeminiModel(ai, name, vertexClientFactory, { projectId, location })
+    );
 
     if (options?.modelGardenModels || options?.modelGarden?.models) {
       const mgModels =
@@ -220,21 +205,20 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
           ([_, value]) => value.name === m.name
         );
         if (anthropicEntry) {
-          models.push(anthropicModel(anthropicEntry[0], projectId, location));
+          anthropicModel(ai, anthropicEntry[0], projectId, location);
           return;
         }
         const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
           ([_, value]) => value.name === m.name
         );
         if (openaiModel) {
-          models.push(
-            modelGardenOpenaiCompatibleModel(
-              openaiModel[0],
-              projectId,
-              location,
-              authClient,
-              options.modelGarden?.openAiBaseUrlTemplate
-            )
+          modelGardenOpenaiCompatibleModel(
+            ai,
+            openaiModel[0],
+            projectId,
+            location,
+            authClient,
+            options.modelGarden?.openAiBaseUrlTemplate
           );
           return;
         }
@@ -243,11 +227,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     }
 
     const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-      textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+      defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
     );
-
-    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
-    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
 
     if (
       options?.vectorSearchOptions &&
@@ -255,13 +236,13 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     ) {
       const defaultEmbedder = embedders[0];
 
-      indexers = vertexAiIndexers({
+      vertexAiIndexers(ai, {
         pluginOptions: options,
         authClient,
         defaultEmbedder,
       });
 
-      retrievers = vertexAiRetrievers({
+      vertexAiRetrievers(ai, {
         pluginOptions: options,
         authClient,
         defaultEmbedder,
@@ -273,18 +254,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       authClient,
       projectId,
     };
-
-    const rerankers = await vertexAiRerankers(rerankOptions);
-
-    return {
-      models,
-      embedders,
-      evaluators: vertexEvaluators(authClient, metrics, projectId, location),
-      retrievers,
-      indexers,
-      rerankers,
-    };
-  }
-);
+    await vertexAiRerankers(ai, rerankOptions);
+    vertexEvaluators(ai, authClient, metrics, projectId, location);
+  });
+}
 
 export default vertexAI;

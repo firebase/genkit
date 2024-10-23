@@ -14,4 +14,13 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/core/schema';
+export {
+  ValidationError,
+  parseSchema,
+  toJsonSchema,
+  validateSchema,
+  type JSONSchema,
+  type ProvidedSchema,
+  type ValidationErrorDetail,
+  type ValidationResponse,
+} from '@genkit-ai/core/schema';

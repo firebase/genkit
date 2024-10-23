@@ -110,9 +110,9 @@ export async function deliciousnessScore<
   });
 
   // Parse the output
-  const parsedResponse = response.output();
+  const parsedResponse = response.output;
   if (!parsedResponse) {
-    throw new Error(`Unable to parse evaluator response: ${response.text()}`);
+    throw new Error(`Unable to parse evaluator response: ${response.text}`);
   }
 
   // Return a scored response

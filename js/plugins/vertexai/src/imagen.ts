@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
+import { Genkit, z } from 'genkit';
 import {
   CandidateData,
-  defineModel,
   GenerateRequest,
   GenerationCommonConfigSchema,
+  ModelReference,
   getBasicUsageStats,
   modelRef,
-  ModelReference,
 } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './index.js';
@@ -215,6 +214,7 @@ interface ImagenInstance {
 }
 
 export function imagenModel(
+  ai: Genkit,
   name: string,
   client: GoogleAuth,
   options: PluginOptions
@@ -248,7 +248,7 @@ export function imagenModel(
     return predictClients[requestLocation];
   };
 
-  return defineModel(
+  return ai.defineModel(
     {
       name: modelName,
       ...model.info,

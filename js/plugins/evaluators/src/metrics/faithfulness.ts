@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
+import { loadPromptFile } from '@genkit-ai/dotprompt';
+import { Genkit, ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
@@ -39,6 +40,7 @@ const NliResponseSchema = z.union([
 export async function faithfulnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
@@ -52,9 +54,10 @@ export async function faithfulnessScore<
       throw new Error('Output was not provided');
     }
     const longFormPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_long_form.prompt')
     );
-    const longFormResponse = await generate({
+    const longFormResponse = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
       prompt: longFormPrompt.renderText({
@@ -65,7 +68,7 @@ export async function faithfulnessScore<
         schema: LongFormResponseSchema,
       },
     });
-    const parsedLongFormResponse = longFormResponse.output();
+    const parsedLongFormResponse = longFormResponse.output;
     let statements = parsedLongFormResponse?.statements ?? [];
     if (statements.length === 0) {
       throw new Error('No statements returned');
@@ -73,9 +76,10 @@ export async function faithfulnessScore<
     const allStatements = statements.map((s) => `statement: ${s}`).join('\n');
     const allContext = context.join('\n');
     const nliPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_nli.prompt')
     );
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       prompt: nliPrompt.renderText({
         context: allContext,
@@ -85,7 +89,7 @@ export async function faithfulnessScore<
         schema: NliResponseSchema,
       },
     });
-    const parsedResponse = response.output();
+    const parsedResponse = response.output;
     return nliResponseToScore(parsedResponse);
   } catch (err) {
     console.debug(

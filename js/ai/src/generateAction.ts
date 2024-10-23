@@ -21,7 +21,7 @@ import {
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
@@ -33,11 +33,9 @@ import {
   GenerateRequestSchema,
   GenerateResponseChunkData,
   GenerateResponseData,
-  MessageData,
   MessageSchema,
   ModelAction,
   Part,
-  PartSchema,
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
@@ -47,12 +45,10 @@ import { ToolAction, toToolDefinition } from './tool.js';
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
   model: z.string(),
-  /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
-  prompt: z.union([z.string(), PartSchema, z.array(PartSchema)]).optional(),
   /** Retrieved documents to be used as context for this generation. */
-  context: z.array(DocumentDataSchema).optional(),
+  docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
-  messages: z.array(MessageSchema).optional(),
+  messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
   /** Configuration for the generation request. */
@@ -74,6 +70,7 @@ export const GenerateUtilParamSchema = z.object({
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
  */
 export async function generateHelper(
+  registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
@@ -90,7 +87,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(input, middleware);
+      const output = await generate(registry, input, middleware);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -98,10 +95,11 @@ export async function generateHelper(
 }
 
 async function generate(
+  registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
-  const model = (await lookupAction(
+  const model = (await registry.lookupAction(
     `/model/${rawRequest.model}`
   )) as ModelAction;
   if (!model) {
@@ -124,7 +122,7 @@ async function generate(
     tools = await Promise.all(
       rawRequest.tools.map(async (toolRef) => {
         if (typeof toolRef === 'string') {
-          const tool = (await lookupAction(toolRef)) as ToolAction;
+          const tool = (await registry.lookupAction(toolRef)) as ToolAction;
           if (!tool) {
             throw new Error(`Tool ${toolRef} not found`);
           }
@@ -207,35 +205,17 @@ async function generate(
     messages: [...request.messages, message],
     prompt: toolResponses,
   };
-  return await generateHelper(nextRequest, middleware);
+  return await generateHelper(registry, nextRequest, middleware);
 }
 
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
   resolvedTools?: ToolAction[]
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [...(options.messages || [])];
-  if (options.prompt) {
-    const promptMessage: MessageData = { role: 'user', content: [] };
-    if (typeof options.prompt === 'string') {
-      promptMessage.content.push({ text: options.prompt });
-    } else if (Array.isArray(options.prompt)) {
-      promptMessage.role = inferRoleFromParts(options.prompt);
-      promptMessage.content.push(...(options.prompt as Part[]));
-    } else {
-      promptMessage.role = inferRoleFromParts([options.prompt]);
-      promptMessage.content.push(options.prompt);
-    }
-    messages.push(promptMessage);
-  }
-  if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
-  }
-
   const out = {
-    messages,
+    messages: options.messages,
     config: options.config,
-    context: options.context,
+    docs: options.docs,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:

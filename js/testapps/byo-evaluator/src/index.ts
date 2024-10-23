@@ -13,16 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import {
-  EvaluatorAction,
-  ModelReference,
-  PluginProvider,
-  dotprompt,
-  genkit,
-  genkitPlugin,
-  z,
-} from 'genkit';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { Genkit, ModelReference, genkit, z } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   PERMISSIVE_SAFETY_SETTINGS,
   URL_REGEX,
@@ -46,10 +39,9 @@ import {
 
 export const ai = genkit({
   plugins: [
-    dotprompt(),
     googleAI({ apiVersion: ['v1', 'v1beta'] }),
     byoEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
       metrics: [
         // regexMatcher will register an evaluator with a name in the format
@@ -86,44 +78,32 @@ export interface PluginOptions<ModelCustomOptions extends z.ZodTypeAny> {
  */
 export function byoEval<ModelCustomOptions extends z.ZodTypeAny>(
   params: PluginOptions<ModelCustomOptions>
-): PluginProvider {
+): GenkitPlugin {
   // Define the new plugin
-  const plugin = genkitPlugin(
-    'byo',
-    async (params: PluginOptions<ModelCustomOptions>) => {
-      const { judge, judgeConfig, metrics } = params;
-      if (!metrics) {
-        throw new Error(`Found no configured metrics.`);
-      }
-      const regexMetrics = metrics?.filter((metric) => isRegexMetric(metric));
-      const hasPiiMetric = metrics?.includes(PII_DETECTION);
-      const hasFunninessMetric = metrics?.includes(FUNNINESS);
-      const hasDelicousnessMetric = metrics?.includes(DELICIOUSNESS);
-
-      let evaluators: EvaluatorAction[] = [];
-
-      if (regexMetrics) {
-        evaluators = [...createRegexEvaluators(regexMetrics as RegexMetric[])];
-      }
-
-      if (hasPiiMetric) {
-        evaluators.push(createPiiEvaluator(judge, judgeConfig));
-      }
-
-      if (hasFunninessMetric) {
-        evaluators.push(createFunninessEvaluator(judge, judgeConfig));
-      }
-
-      if (hasDelicousnessMetric) {
-        evaluators.push(createDeliciousnessEvaluator(judge, judgeConfig));
-      }
-
-      return { evaluators };
+  return genkitPlugin('byo', async (ai: Genkit) => {
+    const { judge, judgeConfig, metrics } = params;
+    if (!metrics) {
+      throw new Error(`Found no configured metrics.`);
     }
-  );
+    const regexMetrics = metrics?.filter((metric) => isRegexMetric(metric));
+    const hasPiiMetric = metrics?.includes(PII_DETECTION);
+    const hasFunninessMetric = metrics?.includes(FUNNINESS);
+    const hasDelicousnessMetric = metrics?.includes(DELICIOUSNESS);
 
-  // create the plugin with the passed params
-  return plugin(params);
+    if (regexMetrics) {
+      createRegexEvaluators(ai, regexMetrics as RegexMetric[]);
+    }
+
+    if (hasPiiMetric) {
+      createPiiEvaluator(ai, judge, judgeConfig);
+    }
+
+    if (hasFunninessMetric) {
+      createFunninessEvaluator(ai, judge, judgeConfig);
+    }
+
+    if (hasDelicousnessMetric) {
+      createDeliciousnessEvaluator(ai, judge, judgeConfig);
+    }
+  });
 }
-
-export default byoEval;

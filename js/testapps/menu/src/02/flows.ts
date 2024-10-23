@@ -32,7 +32,7 @@ export const s02_menuQuestionFlow = ai.defineFlow(
         input: { question: input.question },
       })
       .then((response) => {
-        return { answer: response.text() };
+        return { answer: response.text };
       });
   }
 );

@@ -27,7 +27,7 @@ import {
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -39,7 +39,6 @@ import {
   ModelReference,
   Part,
   ToolDefinitionSchema,
-  defineModel,
   getBasicUsageStats,
   modelRef,
 } from 'genkit/model';
@@ -74,11 +73,11 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
 });
 
-export const geminiPro = modelRef({
+export const gemini10Pro = modelRef({
   name: 'vertexai/gemini-1.0-pro',
   info: {
     label: 'Vertex AI - Gemini Pro',
-    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-001'],
+    versions: ['gemini-1.0-pro-001', 'gemini-1.0-pro-002'],
     supports: {
       multiturn: true,
       media: false,
@@ -89,29 +88,11 @@ export const geminiPro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const geminiProVision = modelRef({
-  name: 'vertexai/gemini-1.0-pro-vision',
-  info: {
-    label: 'Vertex AI - Gemini Pro Vision',
-    versions: ['gemini-1.0-pro-vision', 'gemini-1.0-pro-vision-001'],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: false,
-      systemRole: false,
-    },
-  },
-  configSchema: GeminiConfigSchema.omit({
-    googleSearchRetrieval: true,
-    vertexRetrieval: true,
-  }),
-});
-
 export const gemini15Pro = modelRef({
   name: 'vertexai/gemini-1.5-pro',
   info: {
     label: 'Vertex AI - Gemini 1.5 Pro',
-    versions: ['gemini-1.5-pro-001'],
+    versions: ['gemini-1.5-pro-001', 'gemini-1.5-pro-002'],
     supports: {
       multiturn: true,
       media: true,
@@ -120,45 +101,13 @@ export const gemini15Pro = modelRef({
     },
   },
   configSchema: GeminiConfigSchema,
-});
-
-export const gemini15ProPreview = modelRef({
-  name: 'vertexai/gemini-1.5-pro-preview',
-  info: {
-    label: 'Vertex AI - Gemini 1.5 Pro Preview',
-    versions: ['gemini-1.5-pro-preview-0409'],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      systemRole: true,
-    },
-  },
-  configSchema: GeminiConfigSchema,
-  version: 'gemini-1.5-pro-preview-0409',
-});
-
-export const gemini15FlashPreview = modelRef({
-  name: 'vertexai/gemini-1.5-flash-preview',
-  info: {
-    label: 'Vertex AI - Gemini 1.5 Flash',
-    versions: ['gemini-1.5-flash-preview-0514'],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      systemRole: true,
-    },
-  },
-  configSchema: GeminiConfigSchema,
-  version: 'gemini-1.5-flash-preview-0514',
 });
 
 export const gemini15Flash = modelRef({
   name: 'vertexai/gemini-1.5-flash',
   info: {
     label: 'Vertex AI - Gemini 1.5 Flash',
-    versions: ['gemini-1.5-flash-001'],
+    versions: ['gemini-1.5-flash-001', 'gemini-1.5-flash-002'],
     supports: {
       multiturn: true,
       media: true,
@@ -170,16 +119,12 @@ export const gemini15Flash = modelRef({
 });
 
 export const SUPPORTED_V1_MODELS = {
-  'gemini-1.0-pro': geminiPro,
-  'gemini-1.0-pro-vision': geminiProVision,
-  // 'gemini-ultra': geminiUltra,
+  'gemini-1.0-pro': gemini10Pro,
 };
 
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
-  'gemini-1.5-pro-preview': gemini15ProPreview,
-  'gemini-1.5-flash-preview': gemini15FlashPreview,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -459,9 +404,10 @@ const convertSchemaProperty = (property) => {
 };
 
 /**
- *
+ * Define a Vertex AI Gemini model.
  */
-export function geminiModel(
+export function defineGeminiModel(
+  ai: Genkit,
   name: string,
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
@@ -482,7 +428,7 @@ export function geminiModel(
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
 
-  return defineModel(
+  return ai.defineModel(
     {
       name: modelName,
       ...model.info,

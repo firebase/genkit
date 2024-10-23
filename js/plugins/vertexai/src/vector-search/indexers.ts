@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { embedMany } from 'genkit/embedder';
-import { defineIndexer, IndexerAction, indexerRef } from 'genkit/retriever';
+import { Genkit, z } from 'genkit';
+import { IndexerAction, indexerRef } from 'genkit/retriever';
 import {
   Datapoint,
   VertexAIVectorIndexerOptionsSchema,
@@ -55,6 +54,7 @@ export const vertexAiIndexerRef = (params: {
  * @returns {IndexerAction<z.ZodTypeAny>[]} - An array of indexer actions.
  */
 export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
+  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): IndexerAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
@@ -70,7 +70,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const indexer = defineIndexer(
+    const indexer = ai.defineIndexer(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorIndexerOptionsSchema.optional(),
@@ -86,7 +86,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const embeddings = await embedMany({
+        const embeddings = await ai.embedMany({
           embedder,
           content: docs,
           options: embedderOptions,

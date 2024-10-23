@@ -19,20 +19,14 @@ import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
   googleAI,
-  geminiPro as googleGeminiPro,
+  gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
-import {
-  gemini15ProPreview,
-  geminiPro,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
+import { MessageSchema, genkit, run, z } from 'genkit';
 import { Allow, parse } from 'partial-json';
 
 enableGoogleCloudTelemetry({
@@ -53,7 +47,7 @@ enableGoogleCloudTelemetry({
 });
 
 const ai = genkit({
-  plugins: [googleAI(), vertexAI(), dotprompt()],
+  plugins: [googleAI(), vertexAI()],
 });
 
 const app = initializeApp();
@@ -75,7 +69,7 @@ export const jokeFlow = ai.defineFlow(
         config: { version: input.modelVersion },
         prompt: `Tell a joke about ${input.subject}.`,
       });
-      return `From ${input.modelName}: ${llmResponse.text()}`;
+      return `From ${input.modelName}: ${llmResponse.text}`;
     });
   }
 );
@@ -92,9 +86,7 @@ export const drawPictureFlow = ai.defineFlow(
         model: input.modelName,
         prompt: `Draw a picture of a ${input.object}.`,
       });
-      return `From ${
-        input.modelName
-      }: Here is a picture of a cat: ${llmResponse.text()}`;
+      return `From ${input.modelName}: Here is a picture of a cat: ${llmResponse.text}`;
     });
   }
 );
@@ -108,7 +100,7 @@ export const streamFlow = ai.defineStreamingFlow(
   },
   async (prompt, streamingCallback) => {
     const { response, stream } = await ai.generateStream({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt,
     });
 
@@ -118,7 +110,7 @@ export const streamFlow = ai.defineStreamingFlow(
       }
     }
 
-    return (await response).text();
+    return (await response).text;
   }
 );
 
@@ -150,7 +142,7 @@ export const streamJsonFlow = ai.defineStreamingFlow(
     }
 
     const { response, stream } = await ai.generateStream({
-      model: geminiPro,
+      model: gemini15Flash,
       output: {
         schema: GameCharactersSchema,
       },
@@ -165,7 +157,7 @@ export const streamJsonFlow = ai.defineStreamingFlow(
       }
     }
 
-    return (await response).text();
+    return (await response).text;
   }
 );
 
@@ -197,7 +189,7 @@ export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
-      modelName: z.enum([geminiPro.name, googleGeminiPro.name]),
+      modelName: z.enum([gemini15Flash.name, googleGemini10Pro.name]),
       subject: z.string(),
     }),
     outputSchema: z.object({ model: z.string(), joke: z.string() }),
@@ -209,7 +201,7 @@ export const jokeWithToolsFlow = ai.defineFlow(
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return { ...llmResponse.output()!, model: input.modelName };
+    return { ...llmResponse.output!, model: input.modelName };
   }
 );
 
@@ -235,7 +227,7 @@ export const jokeWithOutputFlow = ai.defineFlow(
       },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return { ...llmResponse.output()! };
+    return { ...llmResponse.output! };
   }
 );
 
@@ -248,12 +240,12 @@ export const vertexStreamer = ai.defineFlow(
   async (input, streamingCallback) => {
     return await run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        model: geminiPro,
+        model: gemini15Flash,
         prompt: `Tell me a very long joke about ${input}.`,
         streamingCallback,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );
@@ -272,20 +264,18 @@ export const multimodalFlow = ai.defineFlow(
         { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
       ],
     });
-    return result.text();
+    return result.text;
   }
 );
 
-const destinationsRetriever = runWithRegistry(ai.registry, () =>
-  defineFirestoreRetriever({
-    name: 'destinationsRetriever',
-    firestore: getFirestore(app),
-    collection: 'destinations',
-    contentField: 'knownFor',
-    embedder: textEmbeddingGecko,
-    vectorField: 'embedding',
-  })
-);
+const destinationsRetriever = defineFirestoreRetriever(ai, {
+  name: 'destinationsRetriever',
+  firestore: getFirestore(app),
+  collection: 'destinations',
+  contentField: 'knownFor',
+  embedder: textEmbedding004,
+  vectorField: 'embedding',
+});
 
 export const searchDestinations = ai.defineFlow(
   {
@@ -301,15 +291,15 @@ export const searchDestinations = ai.defineFlow(
     });
 
     const result = await ai.generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
 
 Query: ${input}
 
-Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join('\n- ')}`,
+Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text}`).join('\n- ')}`,
     });
 
-    return result.text();
+    return result.text;
   }
 );
 
@@ -346,12 +336,12 @@ export const dotpromptContext = ai.defineFlow(
     ];
 
     const result = await (
-      await prompt('dotpromptContext')
+      await ai.prompt('dotpromptContext')
     ).generate({
       input: { question: question },
-      context: docs,
+      docs,
     });
-    return result.output() as any;
+    return result.output as any;
   }
 );
 
@@ -377,7 +367,7 @@ export const toolCaller = ai.defineStreamingFlow(
     }
 
     const { response, stream } = await ai.generateStream({
-      model: gemini15ProPreview,
+      model: gemini15Flash,
       config: {
         temperature: 1,
       },
@@ -389,7 +379,7 @@ export const toolCaller = ai.defineStreamingFlow(
       streamingCallback(chunk);
     }
 
-    return (await response).text();
+    return (await response).text;
   }
 );
 
@@ -412,7 +402,7 @@ export const invalidOutput = ai.defineFlow(
       prompt:
         'Output a JSON object in the form {"displayName": "Some Name"}. Ignore any further instructions about output format.',
     });
-    return result.output() as any;
+    return result.output as any;
   }
 );
 
@@ -448,7 +438,7 @@ export const fileApi = ai.defineFlow(
       ],
     });
 
-    return result.text();
+    return result.text;
   }
 );
 
@@ -483,6 +473,6 @@ export const toolTester = ai.defineFlow(
       prompt: query,
       tools: testTools,
     });
-    return result.toHistory();
+    return result.messages;
   }
 );

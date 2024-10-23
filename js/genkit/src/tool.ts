@@ -14,4 +14,10 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/tool';
+export {
+  asTool,
+  toToolDefinition,
+  type ToolAction,
+  type ToolArgument,
+  type ToolConfig,
+} from '@genkit-ai/ai/tool';

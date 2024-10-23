@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
 import fs from 'fs';
 import { readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
@@ -66,13 +65,13 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(req.data, req.datasetId);
+    return this.createDatasetInternal(req);
   }
 
   private async createDatasetInternal(
-    data: EvalInferenceInput,
-    datasetId?: string
+    req: CreateDatasetRequest
   ): Promise<DatasetMetadata> {
+    const { data, datasetId, schema, targetAction } = req;
     const id = await this.generateDatasetId(datasetId);
     const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
 
@@ -87,8 +86,10 @@ export class LocalFileDatasetStore implements DatasetStore {
     await writeFile(filePath, JSON.stringify(dataset));
 
     const now = new Date().toString();
-    const metadata = {
+    const metadata: DatasetMetadata = {
       datasetId: id,
+      schema,
+      targetAction,
       size: dataset.length,
       version: 1,
       createTime: now,
@@ -107,7 +108,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
-    const datasetId = req.datasetId;
+    const { datasetId, data, schema, targetAction } = req;
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -121,7 +122,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
     }
-    const patch = this.getDatasetFromInferenceInput(req.data ?? []);
+    const patch = this.getDatasetFromInferenceInput(data ?? []);
     let newSize = prevMetadata.size;
     if (patch.length > 0) {
       logger.info(`Updating Dataset at ` + filePath);
@@ -132,7 +133,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     const newMetadata = {
       datasetId: datasetId,
       size: newSize,
-      version: prevMetadata.version + 1,
+      schema: schema ? schema : prevMetadata.schema,
+      targetAction: targetAction ? targetAction : prevMetadata.targetAction,
+      version: data ? prevMetadata.version + 1 : prevMetadata.version,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
@@ -190,11 +193,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private static generateRootPath(): string {
-    const rootHash = crypto
-      .createHash('md5')
-      .update(process.cwd() || 'unknown')
-      .digest('hex');
-    return path.resolve(process.cwd(), `.genkit/${rootHash}/datasets`);
+    return path.resolve(process.cwd(), `.genkit/datasets`);
   }
 
   /** Visible for testing */
@@ -230,7 +229,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     return path.resolve(this.storeRoot, 'index.json');
   }
 
-  private async getMetadataMap(): Promise<any> {
+  private async getMetadataMap(): Promise<Record<string, DatasetMetadata>> {
     if (!fs.existsSync(this.indexFile)) {
       return Promise.resolve({} as any);
     }

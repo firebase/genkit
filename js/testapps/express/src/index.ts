@@ -47,7 +47,7 @@ export const jokeFlow = ai.defineFlow(
         streamingCallback,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );

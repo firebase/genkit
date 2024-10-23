@@ -25,7 +25,7 @@ import {
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
 import { z } from '@genkit-ai/core';
-import { lookupSchema } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { picoschema } from './picoschema.js';
 
@@ -38,6 +38,9 @@ export interface PromptMetadata<
 > {
   /** The name of the prompt. */
   name?: string;
+
+  /** Description (intent) of the prompt, used when prompt passed as tool to an LLM. */
+  description?: string;
 
   /** The variant name for the prompt. */
   variant?: string;
@@ -119,27 +122,33 @@ function stripUndefinedOrNull(obj: any) {
   return obj;
 }
 
-function fmSchemaToSchema(fmSchema: any) {
+function fmSchemaToSchema(registry: Registry, fmSchema: any) {
   if (!fmSchema) return {};
-  if (typeof fmSchema === 'string') return lookupSchema(fmSchema);
+  if (typeof fmSchema === 'string') return registry.lookupSchema(fmSchema);
   return { jsonSchema: picoschema(fmSchema) };
 }
 
-export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
+export function toMetadata(
+  registry: Registry,
+  attributes: unknown
+): Partial<PromptMetadata> {
   const fm = parseSchema<z.infer<typeof PromptFrontmatterSchema>>(attributes, {
     schema: PromptFrontmatterSchema,
   });
 
   let input: PromptMetadata['input'] | undefined;
   if (fm.input) {
-    input = { default: fm.input.default, ...fmSchemaToSchema(fm.input.schema) };
+    input = {
+      default: fm.input.default,
+      ...fmSchemaToSchema(registry, fm.input.schema),
+    };
   }
 
   let output: PromptMetadata['output'] | undefined;
   if (fm.output) {
     output = {
       format: fm.output.format,
-      ...fmSchemaToSchema(fm.output.schema),
+      ...fmSchemaToSchema(registry, fm.output.schema),
     };
   }
 

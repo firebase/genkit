@@ -186,7 +186,7 @@ export async function getMatchingEvaluatorActions(
   }
   const allEvaluatorActions = await getAllEvaluatorActions(manager);
   const filteredEvaluatorActions = allEvaluatorActions.filter((action) =>
-    evaluators.includes(action.name)
+    evaluators.includes(action.key)
   );
   if (filteredEvaluatorActions.length === 0) {
     if (allEvaluatorActions.length == 0) {
@@ -216,11 +216,12 @@ async function bulkRunAction(params: {
         testCaseId: c.testCaseId ?? generateTestCaseId(),
       }));
 
+  let states: InferenceRunState[] = [];
   let evalInputs: EvalInput[] = [];
   for (const testCase of testCases) {
-    logger.info(`Running '${actionRef}' ...`);
+    logger.info(`Running inference '${actionRef}' ...`);
     if (isModelAction) {
-      evalInputs.push(
+      states.push(
         await runModelAction({
           manager,
           actionRef,
@@ -229,7 +230,7 @@ async function bulkRunAction(params: {
         })
       );
     } else {
-      evalInputs.push(
+      states.push(
         await runFlowAction({
           manager,
           actionRef,
@@ -239,6 +240,11 @@ async function bulkRunAction(params: {
       );
     }
   }
+
+  logger.info(`Gathering evalInputs...`);
+  for (const state of states) {
+    evalInputs.push(await gatherEvalInput({ manager, actionRef, state }));
+  }
   return evalInputs;
 }
 
@@ -247,7 +253,7 @@ async function runFlowAction(params: {
   actionRef: string;
   testCase: TestCase;
   auth?: any;
-}): Promise<EvalInput> {
+}): Promise<InferenceRunState> {
   const { manager, actionRef, testCase, auth } = { ...params };
   let state: InferenceRunState;
   try {
@@ -274,7 +280,7 @@ async function runFlowAction(params: {
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
   }
-  return gatherEvalInput({ manager, actionRef, state });
+  return state;
 }
 
 async function runModelAction(params: {
@@ -282,7 +288,7 @@ async function runModelAction(params: {
   actionRef: string;
   testCase: TestCase;
   modelConfig?: any;
-}): Promise<EvalInput> {
+}): Promise<InferenceRunState> {
   const { manager, actionRef, modelConfig, testCase } = { ...params };
   let state: InferenceRunState;
   try {
@@ -304,7 +310,7 @@ async function runModelAction(params: {
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
   }
-  return gatherEvalInput({ manager, actionRef, state });
+  return state;
 }
 
 async function gatherEvalInput(params: {

@@ -13,41 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { z } from 'genkit';
-import { defineEmbedder } from 'genkit/embedder';
+import { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { OllamaPluginParams } from './index.js';
-// Define the schema for Ollama embedding configuration
-export const OllamaEmbeddingConfigSchema = z.object({
-  modelName: z.string(),
-  serverAddress: z.string(),
-});
-export type OllamaEmbeddingConfig = z.infer<typeof OllamaEmbeddingConfigSchema>;
-// Define the structure of the request and response for embedding
-interface OllamaEmbeddingInstance {
-  content: string;
-}
+
 interface OllamaEmbeddingPrediction {
   embedding: number[];
 }
+
 interface DefineOllamaEmbeddingParams {
   name: string;
   modelName: string;
   dimensions: number;
   options: OllamaPluginParams;
 }
-export function defineOllamaEmbedder({
-  name,
-  modelName,
-  dimensions,
-  options,
-}: DefineOllamaEmbeddingParams) {
-  return defineEmbedder(
+
+export function defineOllamaEmbedder(
+  ai: Genkit,
+  { name, modelName, dimensions, options }: DefineOllamaEmbeddingParams
+) {
+  return ai.defineEmbedder(
     {
       name,
-      configSchema: OllamaEmbeddingConfigSchema, // Use the Zod schema directly here
       info: {
-        // TODO: do we want users to be able to specify the label when they call this method directly?
         label: 'Ollama Embedding - ' + modelName,
         dimensions,
         supports: {
@@ -56,17 +44,16 @@ export function defineOllamaEmbedder({
         },
       },
     },
-    async (input, _config) => {
+    async (input) => {
       const serverAddress = options.serverAddress;
       const responses = await Promise.all(
         input.map(async (i) => {
           const requestPayload = {
             model: modelName,
-            prompt: i.text(),
+            prompt: i.text,
           };
           let res: Response;
           try {
-            console.log('MODEL NAME: ', modelName);
             res = await fetch(`${serverAddress}/api/embeddings`, {
               method: 'POST',
               headers: {

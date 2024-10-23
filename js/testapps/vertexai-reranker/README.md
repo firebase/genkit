@@ -82,7 +82,7 @@ const reranker = 'vertexai/reranker';
     });
 
     return rerankedDocuments.map((doc) => ({
-      text: doc.text(),
+      text: doc.text,
       score: doc.metadata.score,
     }));
 

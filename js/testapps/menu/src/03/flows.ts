@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { run } from 'genkit';
 import { MessageData } from 'genkit/model';
 import { ai } from '../index.js';
@@ -78,7 +78,7 @@ export const s03_multiTurnChatFlow = ai.defineFlow(
 
     // Generate the response
     const llmResponse = await ai.generate({
-      model: geminiPro,
+      model: gemini15Flash,
       messages: history,
       prompt: {
         text: input.question,
@@ -86,7 +86,7 @@ export const s03_multiTurnChatFlow = ai.defineFlow(
     });
 
     // Add the exchange to the history store and return it
-    history = llmResponse.toHistory();
+    history = llmResponse.messages;
     chatHistoryStore.write(input.sessionId, history);
     return {
       sessionId: input.sessionId,

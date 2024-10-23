@@ -17,7 +17,7 @@
 import { PromptAction } from '@genkit-ai/ai';
 import { GenkitError } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { existsSync, readdir, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';
@@ -37,23 +37,27 @@ export function registryLookupKey(name: string, variant?: string, ns?: string) {
 }
 
 export async function lookupPrompt(
+  registry: Registry,
   name: string,
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
   let registryPrompt =
-    (await lookupAction(registryLookupKey(name, variant))) ||
-    (await lookupAction(registryLookupKey(name, variant, 'dotprompt')));
+    (await registry.lookupAction(registryLookupKey(name, variant))) ||
+    (await registry.lookupAction(
+      registryLookupKey(name, variant, 'dotprompt')
+    ));
   if (registryPrompt) {
-    return Dotprompt.fromAction(registryPrompt as PromptAction);
+    return Dotprompt.fromAction(registry, registryPrompt as PromptAction);
   } else {
     // Handle the case where initialization isn't complete
     // or a file was added after the prompt folder was loaded.
-    return maybeLoadPrompt(dir, name, variant);
+    return maybeLoadPrompt(registry, dir, name, variant);
   }
 }
 
 async function maybeLoadPrompt(
+  registry: Registry,
   dir: string,
   name: string,
   variant?: string
@@ -62,7 +66,7 @@ async function maybeLoadPrompt(
   const promptFolder = resolve(dir);
   const promptExists = existsSync(join(promptFolder, expectedFileName));
   if (promptExists) {
-    return loadPrompt(promptFolder, expectedFileName);
+    return loadPrompt(registry, promptFolder, expectedFileName);
   } else {
     throw new GenkitError({
       source: 'dotprompt',
@@ -73,6 +77,8 @@ async function maybeLoadPrompt(
 }
 
 export async function loadPromptFolder(
+  registry: Registry,
+
   dir: string = './prompts'
 ): Promise<void> {
   const promptsPath = resolve(dir);
@@ -114,7 +120,7 @@ export async function loadPromptFolder(
                       .replace(`${promptsPath}/`, '')
                       .replace(/\//g, '-');
                   }
-                  loadPrompt(dirEnt.path, dirEnt.name, prefix);
+                  loadPrompt(registry, dirEnt.path, dirEnt.name, prefix);
                 }
               }
             });
@@ -129,6 +135,7 @@ export async function loadPromptFolder(
 }
 
 export function loadPrompt(
+  registry: Registry,
   path: string,
   filename: string,
   prefix = ''
@@ -141,7 +148,7 @@ export function loadPrompt(
     variant = parts[1];
   }
   const source = readFileSync(join(path, filename), 'utf8');
-  const prompt = Dotprompt.parse(name, source);
+  const prompt = Dotprompt.parse(registry, name, source);
   if (variant) {
     prompt.variant = variant;
   }

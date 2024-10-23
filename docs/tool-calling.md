@@ -169,7 +169,7 @@ while (true) {
           throw Error('Tool not found');
         }
       }));
-    generateOptions.history = llmResponse.toHistory();
+    generateOptions.history = llmResponse.messages;
     generateOptions.prompt = toolResponses;
 }
 ```
