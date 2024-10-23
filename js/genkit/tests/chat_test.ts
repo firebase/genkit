@@ -185,7 +185,14 @@ describe('preabmle', () => {
         description: 'Agent A description',
         tools: [agentB],
       },
-      '{{role "system"}} agent a'
+      async () => {
+        return {
+          messages: [{
+            role: 'system',
+            content: [{text: ' agent a'}]
+          }]
+        }
+      }
     );
 
     // simple hi, nothing interesting...

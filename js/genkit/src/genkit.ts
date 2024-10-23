@@ -901,7 +901,7 @@ export class Genkit {
   /**
    * Create a session for this environment.
    */
-  createSession<S>(options?: SessionOptions<S>): Session<S> {
+  createSession<S = any>(options?: SessionOptions<S>): Session<S> {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       id: sessionId,

@@ -88,10 +88,12 @@ export function defineEchoModel(ai: Genkit): ModelAction {
 }
 
 export async function runAsync<O>(fn: () => O): Promise<O> {
-  return Promise.resolve(fn());
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(fn()), 0)
+  });
 }
 
-export class TestMemorySessionStore<S extends z.ZodTypeAny>
+export class TestMemorySessionStore<S>
   implements SessionStore<S>
 {
   private data: Record<string, SessionData<S>> = {};
