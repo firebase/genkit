@@ -113,6 +113,7 @@ import {
   defineHelper,
   definePartial,
   loadPromptFolder,
+  prompt,
   PromptMetadata as DotpromptPromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
@@ -285,11 +286,17 @@ export class Genkit {
     name: string,
     options?: { variant?: string }
   ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
-    const action = (await this.registry.lookupAction(
+    // check if functional prompt exists.
+    let action = (await this.registry.lookupAction(
       `/prompt/${name}`
     )) as PromptAction<I>;
+    // if not, lookup with dotprompt.
+    if (!action) {
+      action = (await prompt(this.registry, name, options))
+        .promptAction as PromptAction<I>;
+    }
     return this.wrapPromptActionInExecutablePrompt(
-      action,
+      action as PromptAction<I>,
       {}
     ) as ExecutablePrompt<I, O, CustomOptions>;
   }
@@ -399,9 +406,9 @@ export class Genkit {
         async (input: z.infer<I>) => {
           const response = await (templateOrFn as PromptFn<I>)(input);
           if (!response.tools && options.tools) {
-            response.tools = (await resolveTools(this.registry, options.tools)).map(
-              toToolDefinition
-            );
+            response.tools = (
+              await resolveTools(this.registry, options.tools)
+            ).map(toToolDefinition);
           }
           if (!response.output && options.output) {
             response.output = options.output;
@@ -474,8 +481,12 @@ export class Genkit {
       } catch (e) {
         // ignore, no model on a render is OK?
       }
-
-      const promptResult = await p(opt.input);
+      const promptResult = await p({
+        // this feels a litte hacky, but we need to pass session state as action input
+        // to make it replayable from trace view in the dev ui.
+        __genkit__sessionState: { state: getCurrentSession()?.state },
+        ...opt.input,
+      });
       const resultOptions = {
         messages: promptResult.messages,
         docs: promptResult.docs,
@@ -890,7 +901,7 @@ export class Genkit {
   /**
    * Create a session for this environment.
    */
-  createSession(options?: SessionOptions): Session {
+  createSession<S>(options?: SessionOptions<S>): Session<S> {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
@@ -899,7 +910,6 @@ export class Genkit {
     return new Session(this, {
       id: sessionId,
       sessionData,
-      stateSchema: options?.stateSchema,
       store: options?.store,
     });
   }
@@ -919,7 +929,6 @@ export class Genkit {
     return new Session(this, {
       id: sessionId,
       sessionData,
-      stateSchema: options?.stateSchema,
       store: options.store,
     });
   }
@@ -927,7 +936,7 @@ export class Genkit {
   /**
    * Gets the current session from async local storage.
    */
-  get currentSession(): Session {
+  currentSession<S = any>(): Session<S> {
     const currentSession = getCurrentSession();
     if (!currentSession) {
       throw new SessionError('not running within a session');

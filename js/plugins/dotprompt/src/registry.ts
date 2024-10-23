@@ -97,7 +97,6 @@ export async function loadPromptFolder(
             dirEnts.forEach(async (dirEnt) => {
               if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
                 if (dirEnt.name.startsWith('_')) {
-                  console.log(dirEnt.name);
                   const partialName = dirEnt.name.substring(
                     1,
                     dirEnt.name.length - 7

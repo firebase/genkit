@@ -47,6 +47,8 @@ import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
 
+export const GENKIT_SESSION_STATE_INPUT_KEY = '__genkit__sessionState';
+
 export type PromptGenerateOptions<
   V = unknown,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -79,7 +81,11 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
 
   private _promptAction?: PromptAction;
 
-  private _render: (input: I, options?: RenderMetadata) => MessageData[];
+  private _render: (
+    input: I,
+    options?: RenderMetadata,
+    data?: Record<string, any>
+  ) => MessageData[];
 
   static parse(registry: Registry, name: string, source: string) {
     try {
@@ -114,14 +120,15 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     if (pm.output?.schema) {
       pm.output.jsonSchema = options.output?.schema;
     }
-    const prompt = new Dotprompt(registry, options as PromptMetadata, template);
+    const prompt = new Dotprompt(registry, options as PromptMetadata, template, action);
     return prompt;
   }
 
   constructor(
     private registry: Registry,
     options: PromptMetadata,
-    template: string
+    template: string,
+    action?: PromptAction,
   ) {
     this.name = options.name || 'untitledPrompt';
     this.variant = options.variant;
@@ -134,6 +141,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
 
     this._render = compile(this.template, options);
+    this._promptAction = action;
   }
 
   /**
@@ -167,11 +175,17 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    * @returns an array of messages representing an exchange between a user and a model.
    */
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
+    let sessionStateData: Record<string, any> | undefined = undefined;
+    if (input?.hasOwnProperty(GENKIT_SESSION_STATE_INPUT_KEY)) {
+      sessionStateData = input[GENKIT_SESSION_STATE_INPUT_KEY];
+      input = { ...input };
+      delete input[GENKIT_SESSION_STATE_INPUT_KEY];
+    }
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
     });
-    return this._render({ ...this.input?.default, ...input }, options);
+    return this._render({ ...this.input?.default, ...input }, options, sessionStateData);
   }
 
   toJSON(): PromptData {
