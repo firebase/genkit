@@ -12,18 +12,18 @@ export function configureNeo4jIndexer<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   clientParams: Neo4jGraphConfig;
-  indexName: string;
+  indexId: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
-  const { indexName, embedder, embedderOptions } = {
+  const { indexId, embedder, embedderOptions } = {
     ...params,
   };
   const neo4jConfig = params.clientParams;
 
   return defineIndexer(
     {
-      name: `neo4j/${params.indexName}`,
+      name: `neo4j/${params.indexId}`,
     },
     async (docs: Document[]) => {
       await Neo4jVectorStore.fromDocuments(

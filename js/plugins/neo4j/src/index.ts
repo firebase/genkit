@@ -32,7 +32,7 @@ import * as z from 'zod';
 export function neo4j<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
     clientParams: Neo4jGraphConfig;
-    indexName: string;
+    indexId: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }[]
@@ -42,7 +42,7 @@ export function neo4j<EmbedderCustomOptions extends z.ZodTypeAny>(
     async (
       params: {
         clientParams: Neo4jGraphConfig;
-        indexName: string;
+        indexId: string;
         embedder: EmbedderArgument<EmbedderCustomOptions>;
         embedderOptions?: z.infer<EmbedderCustomOptions>;
       }[]
@@ -62,26 +62,26 @@ const Neo4jIndexerOptionsSchema = z.object({
 });
 
 export const neo4jRetrieverRef = (params: {
-  indexName: string;
+  indexId: string;
   displayName?: string;
 }) => {
   return retrieverRef({
-    name: `neo4j/${params.indexName}`,
+    name: `neo4j/${params.indexId}`,
     info: {
-      label: params.displayName ?? `Neo4j - ${params.indexName}`,
+      label: params.displayName ?? `Neo4j - ${params.indexId}`,
     },
     configSchema: Neo4jRetrieverOptionsSchema,
   });
 };
 
 export const neo4jIndexerRef = (params: {
-  indexName: string;
+  indexId: string;
   displayName?: string;
 }) => {
   return indexerRef({
-    name: `neo4j/${params.indexName}`,
+    name: `neo4j/${params.indexId}`,
     info: {
-      label: params.displayName ?? `Neo4j - ${params.indexName}`,
+      label: params.displayName ?? `Neo4j - ${params.indexId}`,
     },
     configSchema: Neo4jIndexerOptionsSchema.optional(),
   });

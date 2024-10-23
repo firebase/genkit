@@ -27,24 +27,24 @@ export function configureNeo4jRetriever<
 EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   clientParams: Neo4jGraphConfig;
-  indexName: string;
+  indexId: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
-  const { indexName, embedder, embedderOptions } = {
+  const { indexId, embedder, embedderOptions } = {
     ...params,
   };
   const neo4jConfig = params.clientParams;
 
   return defineRetriever(
     {
-      name: `neo4j/${params.indexName}`
+      name: `neo4j/${params.indexId}`
     },
-    async (query: Document, options) => {
+    async (query, options) => {
       const docs = await Neo4jVectorStore.fromExistingIndex(
         embedder, embedderOptions, neo4jConfig
-      ).then(store => store.similaritySearch(query.text(), options.k));
-
+      ).then(store => store.similaritySearch(query, options.k));
+      
       return {
         documents: docs.map(doc => doc.toJSON())
       };

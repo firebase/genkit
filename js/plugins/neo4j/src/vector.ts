@@ -2,7 +2,7 @@ import * as neo4j from "neo4j-driver";
 import * as uuid from "uuid";
 import * as z from 'zod';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { Document } from '@genkit-ai/ai/retriever';
+import { Document, DocumentData } from '@genkit-ai/ai/retriever';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -684,12 +684,12 @@ export class Neo4jVectorStore {
   }
 
   async similaritySearch(
-    query: string,
+    query: string | DocumentData,
     k = 4,
     params: Record<string, Any> = {}
   ): Promise<Document[]> {
     const embedding = await embed({
-      embedder:this.embedder,
+      embedder: this.embedder,
       content: query,
       options: this.embedderOptions,
     });
@@ -701,11 +701,12 @@ export class Neo4jVectorStore {
       params
     );
 
-    return results.map((result) => result[0]);
+    // Explicitly return a promise
+    return Promise.resolve(results.map((result) => result[0]));
   }
 
   async similaritySearchWithScore(
-    query: string,
+    query: string | DocumentData,
     k = 4,
     params: Record<string, Any> = {}
   ): Promise<[Document, number][]> {
@@ -720,7 +721,7 @@ export class Neo4jVectorStore {
   async similaritySearchVectorWithScore(
     vector: number[],
     k: number,
-    query: string,
+    query: string | DocumentData,
     params: Record<string, Any> = {}
   ): Promise<[Document, number][]> {
     let indexQuery: string;
@@ -793,7 +794,7 @@ export class Neo4jVectorStore {
       k: Number(k),
       embedding: vector,
       keyword_index: this.keywordIndexName,
-      query: removeLuceneChars(query),
+      query: removeLuceneChars(query.toString()),
       ...params,
       ...filterParams,
     };
