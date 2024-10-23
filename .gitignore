@@ -38,4 +38,3 @@ last_recording.mp4
 /js/core/src/__codegen
 
 !samples/chatbot/server/genkit-ai-vertexai-*.tgz
-js/testapps/rag/src/foo.ts
