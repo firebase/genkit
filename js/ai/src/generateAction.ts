@@ -20,7 +20,7 @@ import {
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
@@ -73,6 +73,7 @@ export const GenerateUtilParamSchema = z.object({
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
  */
 export async function generateHelper(
+  registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
@@ -89,7 +90,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(input, middleware);
+      const output = await generate(registry, input, middleware);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -97,10 +98,11 @@ export async function generateHelper(
 }
 
 async function generate(
+  registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
-  const model = (await lookupAction(
+  const model = (await registry.lookupAction(
     `/model/${rawRequest.model}`
   )) as ModelAction;
   if (!model) {
@@ -123,9 +125,9 @@ async function generate(
     tools = await Promise.all(
       rawRequest.tools.map(async (toolRef) => {
         if (typeof toolRef === 'string') {
-          return lookupToolByName(toolRef as string);
+          return lookupToolByName(registry, toolRef as string);
         } else if (toolRef.name) {
-          return lookupToolByName(toolRef.name);
+          return lookupToolByName(registry, toolRef.name);
         }
         throw `Unable to resolve tool ${JSON.stringify(toolRef)}`;
       })
@@ -227,7 +229,7 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
-  return await generateHelper(nextRequest, middleware);
+  return await generateHelper(registry, nextRequest, middleware);
 }
 
 async function actionToGenerateRequest(

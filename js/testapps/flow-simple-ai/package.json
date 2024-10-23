@@ -22,7 +22,7 @@
     "@genkit-ai/vertexai": "workspace:*",
     "@google/generative-ai": "^0.15.0",
     "@opentelemetry/sdk-trace-base": "^1.25.0",
-    "firebase-admin": "^12.1.0",
+    "firebase-admin": ">=12.2",
     "partial-json": "^0.1.7"
   },
   "devDependencies": {

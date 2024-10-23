@@ -21,7 +21,7 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
@@ -372,6 +372,7 @@ export function normalizePart(input: string | Part | Part[]): Part[] {
 }
 
 export async function toGenerateRequest(
+  registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
   const messages: MessageData[] = [];
@@ -393,7 +394,7 @@ export async function toGenerateRequest(
   }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
-    tools = await resolveTools(options.tools);
+    tools = await resolveTools(registry, options.tools);
   }
 
   const out = {
@@ -455,21 +456,28 @@ interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
   version?: string;
 }
 
-async function resolveModel(options: GenerateOptions): Promise<ResolvedModel> {
+async function resolveModel(
+  registry: Registry,
+  options: GenerateOptions
+): Promise<ResolvedModel> {
   let model = options.model;
   if (!model) {
     throw new Error('Model is required.');
   }
   if (typeof model === 'string') {
     return {
-      modelAction: (await lookupAction(`/model/${model}`)) as ModelAction,
+      modelAction: (await registry.lookupAction(
+        `/model/${model}`
+      )) as ModelAction,
     };
   } else if (model.hasOwnProperty('__action')) {
     return { modelAction: model as ModelAction };
   } else {
     const ref = model as ModelReference<any>;
     return {
-      modelAction: (await lookupAction(`/model/${ref.name}`)) as ModelAction,
+      modelAction: (await registry.lookupAction(
+        `/model/${ref.name}`
+      )) as ModelAction,
       config: {
         ...ref.config,
       },
@@ -516,13 +524,14 @@ export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
+  registry: Registry,
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const resolvedModel = await resolveModel(resolvedOptions);
+  const resolvedModel = await resolveModel(registry, resolvedOptions);
   const model = resolvedModel.modelAction;
   if (!model) {
     let modelId: string;
@@ -542,7 +551,7 @@ export async function generate<
     tools = [];
     for (const t of resolvedOptions.tools) {
       if (typeof t === 'string') {
-        tools.push(await resolveFullToolName(t));
+        tools.push(await resolveFullToolName(registry, t));
       } else if ((t as Action).__action) {
         tools.push(
           `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
@@ -551,7 +560,7 @@ export async function generate<
         const promptToolAction = (t as ExecutablePrompt).asTool();
         tools.push(`/prompt/${promptToolAction.__action.name}`);
       } else if (t.name) {
-        tools.push(await resolveFullToolName(t.name));
+        tools.push(await resolveFullToolName(registry, t.name));
       } else {
         throw new Error(
           `Unable to determine type of of tool: ${JSON.stringify(t)}`
@@ -587,9 +596,9 @@ export async function generate<
     messages,
     tools,
     config: {
-      ...resolvedModel.config,
       version: resolvedModel.version,
-      ...resolvedOptions.config,
+      ...stripUndefinedOptions(resolvedModel.config),
+      ...stripUndefinedOptions(resolvedOptions.config),
     },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
@@ -606,20 +615,31 @@ export async function generate<
   return await runWithStreamingCallback(
     resolvedOptions.streamingCallback,
     async () => {
-      const response = await generateHelper(params, resolvedOptions.use);
+      const response = await generateHelper(registry, params, resolvedOptions.use);
       return new GenerateResponse<O>(
         response,
         response.request ??
-          (await toGenerateRequest({ ...resolvedOptions, tools }))
+          (await toGenerateRequest(registry, { ...resolvedOptions, tools }))
       );
     }
   );
 }
 
-async function resolveFullToolName(name: string): Promise<string> {
-  if (await lookupAction(`/tool/${name}`)) {
+function stripUndefinedOptions(input?: any): any {
+  if (!input) return input;
+  const copy = { ...input };
+  Object.keys(input).forEach((key) => {
+    if (copy[key] === undefined) {
+      delete copy[key];
+    }
+  });
+  return copy;
+}
+
+async function resolveFullToolName(registry: Registry, name: string): Promise<string> {
+  if (await registry.lookupAction(`/tool/${name}`)) {
     return `/tool/${name}`;
-  } else if (await lookupAction(`/prompt/${name}`)) {
+  } else if (await registry.lookupAction(`/prompt/${name}`)) {
     return `/prompt/${name}`;
   } else {
     throw new Error(`Unable to determine type of of tool: ${name}`);
@@ -650,6 +670,7 @@ export async function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
+  registry: Registry,
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
@@ -675,7 +696,7 @@ export async function generateStream<
       }
 
       try {
-        generate<O, CustomOptions>({
+        generate<O, CustomOptions>(registry, {
           ...options,
           streamingCallback: (chunk) => {
             firstChunkSent = true;

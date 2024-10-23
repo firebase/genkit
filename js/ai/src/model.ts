@@ -22,6 +22,7 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
@@ -330,6 +331,7 @@ export type DefineModelOptions<
 export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
@@ -344,6 +346,7 @@ export function defineModel<
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   middleware.push(conformOutput());
   const act = defineAction(
+    registry,
     {
       actionType: 'model',
       name: options.name,
@@ -386,15 +389,36 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   info?: ModelInfo;
   version?: string;
   config?: z.infer<CustomOptions>;
+
+  withConfig(cfg: z.infer<CustomOptions>): ModelReference<CustomOptions>;
+  withVersion(version: string): ModelReference<CustomOptions>;
 }
 
 /** Cretes a model reference. */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: ModelReference<CustomOptionsSchema>
+  options: Omit<
+    ModelReference<CustomOptionsSchema>,
+    'withConfig' | 'withVersion'
+  >
 ): ModelReference<CustomOptionsSchema> {
-  return { ...options };
+  const ref: Partial<ModelReference<CustomOptionsSchema>> = { ...options };
+  ref.withConfig = (
+    cfg: z.infer<CustomOptionsSchema>
+  ): ModelReference<CustomOptionsSchema> => {
+    return modelRef({
+      ...options,
+      config: cfg,
+    });
+  };
+  ref.withVersion = (version: string): ModelReference<CustomOptionsSchema> => {
+    return modelRef({
+      ...options,
+      version,
+    });
+  };
+  return ref as ModelReference<CustomOptionsSchema>;
 }
 
 /** Container for counting usage stats for a single input/output {Part} */
