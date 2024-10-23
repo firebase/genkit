@@ -24,12 +24,12 @@ import { Document, defineRetriever } from '@genkit-ai/ai/retriever';
  * Configures a Neo4j retriever.
  */
 export function configureNeo4jRetriever<
-  EmbedderOptions extends z.ZodTypeAny,
+EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   clientParams: Neo4jGraphConfig;
   indexName: string;
-  embedder: EmbedderArgument<EmbedderOptions>;
-  embedderOptions?: z.infer<EmbedderOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { indexName, embedder, embedderOptions } = {
     ...params,

@@ -8,11 +8,13 @@ import { Document } from '@genkit-ai/ai/retriever';
 /**
  * Configures a Neo4j indexer.
  */
-export function configureNeo4jIndexer<EmbedderOptions extends z.ZodTypeAny>(params: {
+export function configureNeo4jIndexer<
+  EmbedderCustomOptions extends z.ZodTypeAny
+>(params: {
   clientParams: Neo4jGraphConfig;
   indexName: string;
-  embedder: EmbedderArgument<EmbedderOptions>;
-  embedderOptions?: z.infer<EmbedderOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { indexName, embedder, embedderOptions } = {
     ...params,

@@ -16,6 +16,11 @@
 
 import { Neo4jGraphConfig } from './types';
 import { EmbedderArgument } from '@genkit-ai/ai/embedder';
+import {
+  CommonRetrieverOptionsSchema,
+  indexerRef,
+  retrieverRef,
+} from '@genkit-ai/ai/retriever';
 import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import { configureNeo4jIndexer } from './indexer';
 import { configureNeo4jRetriever } from './retriever';
@@ -24,12 +29,12 @@ import * as z from 'zod';
 /**
  * Neo4j plugin for indexing and retrieval
  */
-export function neo4j<EmbedderOptions extends z.ZodTypeAny>(
+export function neo4j<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
     clientParams: Neo4jGraphConfig;
     indexName: string;
-    embedder: EmbedderArgument<EmbedderOptions>;
-    embedderOptions?: z.infer<EmbedderOptions>;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
   }[]
 ): PluginProvider {
   const plugin = genkitPlugin(
@@ -38,8 +43,8 @@ export function neo4j<EmbedderOptions extends z.ZodTypeAny>(
       params: {
         clientParams: Neo4jGraphConfig;
         indexName: string;
-        embedder: EmbedderArgument<EmbedderOptions>;
-        embedderOptions?: z.infer<EmbedderOptions>;
+        embedder: EmbedderArgument<EmbedderCustomOptions>;
+        embedderOptions?: z.infer<EmbedderCustomOptions>;
       }[]
     ) => ({
       retrievers: params.map((i) => configureNeo4jRetriever(i)),
@@ -48,5 +53,38 @@ export function neo4j<EmbedderOptions extends z.ZodTypeAny>(
   );
   return plugin(params);
 }
+
+const Neo4jRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
+  k: z.number().max(1000)
+});
+
+const Neo4jIndexerOptionsSchema = z.object({
+});
+
+export const neo4jRetrieverRef = (params: {
+  indexName: string;
+  displayName?: string;
+}) => {
+  return retrieverRef({
+    name: `neo4j/${params.indexName}`,
+    info: {
+      label: params.displayName ?? `Neo4j - ${params.indexName}`,
+    },
+    configSchema: Neo4jRetrieverOptionsSchema,
+  });
+};
+
+export const neo4jIndexerRef = (params: {
+  indexName: string;
+  displayName?: string;
+}) => {
+  return indexerRef({
+    name: `neo4j/${params.indexName}`,
+    info: {
+      label: params.displayName ?? `Neo4j - ${params.indexName}`,
+    },
+    configSchema: Neo4jIndexerOptionsSchema.optional(),
+  });
+};
 
 export default neo4j;

@@ -39,7 +39,7 @@ const DEFAULT_INDEX_TYPE = "NODE";
 const DEFAULT_DISTANCE_STRATEGY = "cosine";
 const DEFAULT_NODE_EMBEDDING_PROPERTY = "embedding";
 
-type EmbedderOptions = z.ZodTypeAny;
+type EmbedderCustomOptions = z.ZodTypeAny;
 
 export class Neo4jVectorStore {
   private driver!: neo4j.Driver;
@@ -72,13 +72,13 @@ export class Neo4jVectorStore {
 
   private isEnterprise = false;
 
-  private embedder!: EmbedderArgument<EmbedderOptions>;
+  private embedder!: EmbedderArgument<EmbedderCustomOptions>;
 
-  private embedderOptions: z.infer<EmbedderOptions>;
+  private embedderOptions: z.infer<EmbedderCustomOptions>;
   
   constructor(config: Neo4jVectorStoreArgs,
-    embedder?: EmbedderArgument<EmbedderOptions>,
-    embedderOptions?: z.infer<EmbedderOptions>) {
+    embedder?: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions?: z.infer<EmbedderCustomOptions>) {
       if (embedder) {
         this.embedder = embedder;
         this.embedderOptions = embedderOptions;
@@ -99,8 +99,8 @@ export class Neo4jVectorStore {
 
   static async initialize( 
     config: Neo4jVectorStoreArgs,
-    embedder?: EmbedderArgument<EmbedderOptions>,
-    embedderOptions?: z.infer<EmbedderOptions>
+    embedder?: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions?: z.infer<EmbedderCustomOptions>
   ) {
     const store = new Neo4jVectorStore(config, embedder, embedderOptions);
     await store._initializeDriver(config);
@@ -227,8 +227,8 @@ export class Neo4jVectorStore {
   static async fromTexts(
     texts: string[],
     metadatas: Any,
-    embedder: EmbedderArgument<EmbedderOptions>,
-    embedderOptions: z.infer<EmbedderOptions>,
+    embedder: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions: z.infer<EmbedderCustomOptions>,
     config: Neo4jVectorStoreArgs
   ): Promise<Neo4jVectorStore> {
     const docs: Document[] = [];
@@ -247,8 +247,8 @@ export class Neo4jVectorStore {
 
   static async fromDocuments(
     docs: Document[],
-    embedder: EmbedderArgument<EmbedderOptions>,
-    embedderOptions: z.infer<EmbedderOptions>,
+    embedder: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions: z.infer<EmbedderCustomOptions>,
     config: Neo4jVectorStoreArgs
   ): Promise<Neo4jVectorStore> {
     const {
@@ -297,8 +297,8 @@ export class Neo4jVectorStore {
   }
 
   static async fromExistingIndex(
-    embedder: EmbedderArgument<EmbedderOptions>,
-    embedderOptions: z.infer<EmbedderOptions>,
+    embedder: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions: z.infer<EmbedderCustomOptions>,
     config: Neo4jVectorStoreArgs
   ) {
     const { searchType = DEFAULT_SEARCH_TYPE, keywordIndexName = "keyword" } =
@@ -347,8 +347,8 @@ export class Neo4jVectorStore {
   }
 
   static async fromExistingGraph(
-    embedder: EmbedderArgument<EmbedderOptions>,
-    embedderOptions: z.infer<EmbedderOptions>,
+    embedder: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions: z.infer<EmbedderCustomOptions>,
     config: Neo4jVectorStoreArgs
   ) {
     const {
