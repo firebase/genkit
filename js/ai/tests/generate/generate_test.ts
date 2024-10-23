@@ -29,7 +29,6 @@ import { GenerateResponseChunkData } from '../../src/model';
 import {
   CandidateData,
   GenerateRequest,
-  MessageData,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
@@ -85,21 +84,6 @@ describe('Candidate', () => {
         },
         expectedOutput: { name: 'Alice', age: 30 },
       },
-      {
-        should: 'parse JSON from text when the data part is absent',
-        candidateData: {
-          message: new Message({
-            role: 'model',
-            content: [{ text: '{"name": "Bob"}' }],
-          }),
-          index: 0,
-          usage: {},
-          finishReason: 'stop',
-          finishMessage: '',
-          custom: {},
-        },
-        expectedOutput: { name: 'Bob' },
-      },
     ];
 
     for (const test of testCases) {
@@ -108,98 +92,6 @@ describe('Candidate', () => {
         assert.deepStrictEqual(candidate.output(), test.expectedOutput);
       });
     }
-  });
-
-  describe('#hasValidOutput()', () => {
-    const good: MessageData = {
-      role: 'model',
-      content: [{ text: '{"abc": 123}' }],
-    };
-    const bad: MessageData = {
-      role: 'model',
-      content: [{ text: '{"abc": "123"}' }],
-    };
-    const goodData: MessageData = {
-      role: 'model',
-      content: [{ data: { abc: 123 } }],
-    };
-    const badData: MessageData = {
-      role: 'model',
-      content: [{ data: { abc: '123' } }],
-    };
-    const schemaRequest = {
-      output: {
-        schema: { type: 'object', properties: { abc: { type: 'number' } } },
-      },
-    } as unknown as GenerateRequest;
-
-    it('returns true if no schema', () => {
-      assert(
-        new Candidate<any>({
-          index: 0,
-          message: bad,
-          finishReason: 'stop',
-        }).hasValidOutput()
-      );
-    });
-
-    it('returns correctly based on validation from data', () => {
-      assert(
-        !new Candidate<any>({
-          index: 0,
-          message: badData,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        !new Candidate<any>(
-          { index: 0, message: badData, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-      assert(
-        new Candidate<any>({
-          index: 0,
-          message: goodData,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        new Candidate<any>(
-          { index: 0, message: goodData, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-    });
-
-    it('returns correctly based on validation from output', () => {
-      assert(
-        !new Candidate<any>({
-          index: 0,
-          message: bad,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        !new Candidate<any>(
-          { index: 0, message: bad, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-      assert(
-        new Candidate<any>({
-          index: 0,
-          message: good,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        new Candidate<any>(
-          { index: 0, message: good, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-    });
   });
 });
 

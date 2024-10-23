@@ -31,6 +31,7 @@ import {
   conformOutput,
   validateSupport,
 } from './model/middleware.js';
+import { getAvailableFormats } from './format.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -121,7 +122,7 @@ export const MessageSchema = z.object({
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
-const OutputFormatSchema = z.enum(['json', 'text', 'media']);
+const OutputFormatSchema = z.enum(getAvailableFormats() as [string, ...string[]]);
 
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
