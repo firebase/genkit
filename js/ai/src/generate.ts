@@ -22,11 +22,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import {
-  parseSchema,
-  toJsonSchema,
-  validateSchema,
-} from '@genkit-ai/core/schema';
+import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
 import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { FormatParser, getFormatParser } from './format.js';
@@ -677,34 +673,6 @@ export async function generate<
       message: `All candidates returned finishReason issues: ${JSON.stringify(response.candidates.map((c) => c.finishReason))}`,
       response,
     });
-  }
-
-  if (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) {
-    // find a candidate with valid output schema
-    const candidateErrors = response.candidates.map((c) => {
-      // don't validate messages that have no text or data
-      if (c.text() === '' && c.data() === null) return null;
-
-      try {
-        parseSchema(c.output(), {
-          jsonSchema: resolvedOptions.output?.jsonSchema,
-          schema: resolvedOptions.output?.schema,
-        });
-        return null;
-      } catch (e) {
-        return e as Error;
-      }
-    });
-    // if all candidates have a non-null error...
-    if (candidateErrors.every((c) => !!c)) {
-      throw new NoValidCandidatesError({
-        message: `Generation resulted in no candidates matching provided output schema.${candidateErrors.map((e, i) => `\n\nCandidate[${i}] ${e!.toString()}`)}`,
-        response,
-        detail: {
-          candidateErrors: candidateErrors,
-        },
-      });
-    }
   }
 
   // Pick the first valid candidate.
