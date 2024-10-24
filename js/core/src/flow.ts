@@ -511,9 +511,7 @@ export class FlowServer {
         flow.flow.middleware?.forEach((middleware) =>
           server.post(flowPath, middleware)
         );
-        server.post(flowPath, (req, res) =>
-          flow.flow.expressHandler(req, res)
-        );
+        server.post(flowPath, (req, res) => flow.flow.expressHandler(req, res));
       });
     } else {
       logger.warn('No flows registered in flow server.');
