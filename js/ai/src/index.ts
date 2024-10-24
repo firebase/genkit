@@ -36,11 +36,11 @@ export {
   type EvaluatorReference,
 } from './evaluator.js';
 export {
-  generate,
   GenerateResponse,
-  generateStream,
   GenerationBlockedError,
   GenerationResponseError,
+  generate,
+  generateStream,
   tagAsPreamble,
   toGenerateRequest,
   type GenerateOptions,
