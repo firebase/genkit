@@ -296,7 +296,7 @@ export async function toGenerateRequest(
     });
   }
   if (options.messages) {
-    messages.push(...options.messages);
+    messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
   if (options.prompt) {
     messages.push({
@@ -346,7 +346,7 @@ export interface GenerateOptions<
   /** Retrieved documents to be used as context for this generation. */
   docs?: DocumentData[];
   /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
-  messages?: MessageData[];
+  messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** Configuration for the generation request. */
