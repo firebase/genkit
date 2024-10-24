@@ -97,6 +97,15 @@ export class GcpOpenTelemetry {
       `projects/${projectId}/traces/${spanContext.traceId}`;
     record['logging.googleapis.com/trace_sampled'] ??= isSampled ? '1' : '0';
     record['logging.googleapis.com/spanId'] ??= spanContext.spanId;
+
+    // Clear out the duplicate trace and span information in the log metadata.
+    // These will be incorrect for logs written during span export time since
+    // the logs are written after the span has fully executed. Those logs are
+    // explicitly tied to the correct span in createCommonLogAttributes in
+    // utils.ts.
+    delete record['span_id'];
+    delete record['trace_id'];
+    delete record['trace_flags'];
   };
 
   async getConfig(): Promise<Partial<NodeSDKConfiguration>> {
