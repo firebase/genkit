@@ -54,11 +54,11 @@ export function neo4j<EmbedderCustomOptions extends z.ZodTypeAny>(
   return plugin(params);
 }
 
-const Neo4jRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
+export const Neo4jRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000)
 });
 
-const Neo4jIndexerOptionsSchema = z.object({
+export const Neo4jIndexerOptionsSchema = z.object({
 });
 
 export const neo4jRetrieverRef = (params: {

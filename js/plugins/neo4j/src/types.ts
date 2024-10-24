@@ -13,13 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+export type SearchType = "vector" | "hybrid";
+
+export type IndexType = "NODE" | "RELATIONSHIP";
 
 export interface Neo4jGraphConfig {
   url: string;
   username: string;
   password: string;
   database?: string;
-  timeoutMs?: number;
-  enhancedSchema?: boolean;
+  preDeleteCollection?: boolean;
+  textNodeProperty?: string;
+  textNodeProperties?: string[];
+  embeddingNodeProperty?: string;
+  keywordIndexName?: string;
+  indexName?: string;
+  searchType?: SearchType;
+  indexType?: IndexType;
+  retrievalQuery?: string;
+  nodeLabel?: string;
+  createIdIndex?: boolean;
 }
 
+export class Neo4jDocument {
+  text: string;
+  metadata: Record<string, unknown>;
+  score: number;
+
+  constructor(text: string, 
+    metadata: Record<string, unknown>, score: number) {
+    this.text = text;
+    this.metadata = metadata;
+    this.score = score;
+  }
+}

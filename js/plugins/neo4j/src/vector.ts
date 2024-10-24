@@ -3,35 +3,14 @@ import * as uuid from "uuid";
 import * as z from 'zod';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { Document, DocumentData } from '@genkit-ai/ai/retriever';
+import { SearchType, IndexType, Neo4jGraphConfig, Neo4jDocument} from './types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 
-export type SearchType = "vector" | "hybrid";
-
-export type IndexType = "NODE" | "RELATIONSHIP";
-
 export type DistanceStrategy = "euclidean" | "cosine";
 
 export type Metadata = Record<string, unknown>;
-
-interface Neo4jVectorStoreArgs {
-  url: string;
-  username: string;
-  password: string;
-  database?: string;
-  preDeleteCollection?: boolean;
-  textNodeProperty?: string;
-  textNodeProperties?: string[];
-  embeddingNodeProperty?: string;
-  keywordIndexName?: string;
-  indexName?: string;
-  searchType?: SearchType;
-  indexType?: IndexType;
-  retrievalQuery?: string;
-  nodeLabel?: string;
-  createIdIndex?: boolean;
-}
 
 const DEFAULT_DATABASE = "neo4j";
 const DEFAULT_SEARCH_TYPE = "vector";
@@ -76,7 +55,7 @@ export class Neo4jVectorStore {
 
   private embedderOptions: z.infer<EmbedderCustomOptions>;
   
-  constructor(config: Neo4jVectorStoreArgs,
+  constructor(config: Neo4jGraphConfig,
     embedder?: EmbedderArgument<EmbedderCustomOptions>,
     embedderOptions?: z.infer<EmbedderCustomOptions>) {
       if (embedder) {
@@ -98,7 +77,7 @@ export class Neo4jVectorStore {
   }
 
   static async initialize( 
-    config: Neo4jVectorStoreArgs,
+    config: Neo4jGraphConfig,
     embedder?: EmbedderArgument<EmbedderCustomOptions>,
     embedderOptions?: z.infer<EmbedderCustomOptions>
   ) {
@@ -149,7 +128,7 @@ export class Neo4jVectorStore {
     username,
     password,
     database = "neo4j",
-  }: Neo4jVectorStoreArgs) {
+  }: Neo4jGraphConfig) {
     try {
       this.driver = neo4j.driver(url, neo4j.auth.basic(username, password));
       this.database = database;
@@ -229,7 +208,7 @@ export class Neo4jVectorStore {
     metadatas: Any,
     embedder: EmbedderArgument<EmbedderCustomOptions>,
     embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jVectorStoreArgs
+    config: Neo4jGraphConfig
   ): Promise<Neo4jVectorStore> {
     const docs: Document[] = [];
 
@@ -249,7 +228,7 @@ export class Neo4jVectorStore {
     docs: Document[],
     embedder: EmbedderArgument<EmbedderCustomOptions>,
     embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jVectorStoreArgs
+    config: Neo4jGraphConfig
   ): Promise<Neo4jVectorStore> {
     const {
       searchType = DEFAULT_SEARCH_TYPE,
@@ -299,7 +278,7 @@ export class Neo4jVectorStore {
   static async fromExistingIndex(
     embedder: EmbedderArgument<EmbedderCustomOptions>,
     embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jVectorStoreArgs
+    config: Neo4jGraphConfig
   ) {
     const { searchType = DEFAULT_SEARCH_TYPE, keywordIndexName = "keyword" } =
       config;
@@ -349,7 +328,7 @@ export class Neo4jVectorStore {
   static async fromExistingGraph(
     embedder: EmbedderArgument<EmbedderCustomOptions>,
     embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jVectorStoreArgs
+    config: Neo4jGraphConfig
   ) {
     const {
       textNodeProperties = [],
@@ -461,31 +440,31 @@ export class Neo4jVectorStore {
     return store;
   }
 
-  static async deleteIndex(config: Neo4jVectorStoreArgs) {
+  static async deleteIndex(config: Neo4jGraphConfig) {
     const store = await this.initialize(config);
 
     return await store._dropIndex();
   }
 
-  static async createIndex(config: Neo4jVectorStoreArgs) {
+  static async createIndex(config: Neo4jGraphConfig) {
     const store = await this.initialize(config);
 
     return await store.createNewIndex();
   }
 
-  static async createTextIndex(config: Neo4jVectorStoreArgs, textNodeProperties: string[]=[]) {
+  static async createTextIndex(config: Neo4jGraphConfig, textNodeProperties: string[]=[]) {
     const store = await this.initialize(config);
 
     return await store.createNewKeywordIndex(textNodeProperties);
   }
 
-  static async getIndex(config: Neo4jVectorStoreArgs) {
+  static async getIndex(config: Neo4jGraphConfig) {
     const store = await this.initialize(config);
 
     return await store.retrieveExistingIndex();
   }
 
-  static async getTextIndex(config: Neo4jVectorStoreArgs, textNodeProperties: string[]=[]) {
+  static async getTextIndex(config: Neo4jGraphConfig, textNodeProperties: string[]=[]) {
     const store = await this.initialize(config);
 
     return await store.retrieveExistingFtsIndex(textNodeProperties  );
@@ -687,29 +666,26 @@ export class Neo4jVectorStore {
     query: string | DocumentData,
     k = 4,
     params: Record<string, Any> = {}
-  ): Promise<Document[]> {
+  ): Promise<Neo4jDocument[]> {
     const embedding = await embed({
       embedder: this.embedder,
       content: query,
       options: this.embedderOptions,
     });
 
-    const results = await this.similaritySearchVectorWithScore(
+    return this.similaritySearchVectorWithScore(
       embedding,
       k,
       query,
       params
     );
-
-    // Explicitly return a promise
-    return Promise.resolve(results.map((result) => result[0]));
   }
 
   async similaritySearchWithScore(
     query: string | DocumentData,
     k = 4,
     params: Record<string, Any> = {}
-  ): Promise<[Document, number][]> {
+  ): Promise<Neo4jDocument[]> {
     const embedding = await embed({
       embedder:this.embedder,
       content: query,
@@ -723,7 +699,7 @@ export class Neo4jVectorStore {
     k: number,
     query: string | DocumentData,
     params: Record<string, Any> = {}
-  ): Promise<[Document, number][]> {
+  ): Promise<Neo4jDocument[]> {
     let indexQuery: string;
     let filterParams: Record<string, Any>;
 
@@ -818,15 +794,15 @@ export class Neo4jVectorStore {
         }
       }
 
-      const docs: [Document, number][] = results.map((result: Any) => [
-        Document.fromText(
-          result.text,
-          Object.fromEntries(
-            Object.entries(result.metadata).filter(([_, v]) => v !== null)
-          ),
-        ),
-        result.score,
-      ]);
+      const docs: Neo4jDocument[] = results.map((result: Any) => {
+        const text = typeof result.text === 'object' ? JSON.stringify(result.text) : result.text;
+        return new Neo4jDocument(text,
+            Object.fromEntries(
+              Object.entries(result.metadata).filter(([_, v]) => v !== null)
+            ),
+            result.score
+          )
+        });
 
       return docs;
     }
