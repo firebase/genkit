@@ -36,19 +36,18 @@ export {
   type EvaluatorReference,
 } from './evaluator.js';
 export {
+  generate,
   GenerateResponse,
+  generateStream,
   GenerationBlockedError,
   GenerationResponseError,
-  Message,
-  generate,
-  generateStream,
-  normalizePart,
   tagAsPreamble,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
 } from './generate.js';
+export { Message } from './message.js';
 export {
   GenerationCommonConfigSchema,
   MessageSchema,
