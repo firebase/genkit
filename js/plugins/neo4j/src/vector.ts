@@ -632,9 +632,9 @@ export class Neo4jVectorStore {
     `;
 
     const parameters = {
-      data: documents.map(({ text, metadata }, index) => ({
-        text: text,
-        metadata: _metadatas ? _metadatas[index] : metadata,
+      data: documents.map((doc, index) => ({
+        text: doc.text(),
+        metadata: _metadatas ? _metadatas[index] : doc.metadata,
         embedding: vectors[index],
         id: _ids ? _ids[index] : null,
       })),
@@ -646,8 +646,6 @@ export class Neo4jVectorStore {
   }
 
   async addDocuments(documents: Document[]): Promise<string[]> {
-    const texts = documents.map((d) => d.text());
-
     return this.addVectors(
       await Promise.all(
         documents.map((d) =>
