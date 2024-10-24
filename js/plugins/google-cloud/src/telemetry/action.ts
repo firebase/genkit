@@ -19,14 +19,18 @@ import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata } from 'genkit/tracing';
+import { PathMetadata, toDisplayPath } from 'genkit/tracing';
 import {
   MetricCounter,
   MetricHistogram,
   Telemetry,
   internalMetricNamespaceWrap,
 } from '../metrics.js';
-import { extractErrorName, extractOuterFeatureNameFromPath } from '../utils';
+import {
+  createCommonLogAttributes,
+  extractErrorName,
+  extractOuterFeatureNameFromPath,
+} from '../utils';
 
 class ActionTelemetry implements Telemetry {
   /**
@@ -54,6 +58,7 @@ class ActionTelemetry implements Telemetry {
     const attributes = span.attributes;
 
     const actionName = (attributes['genkit:name'] as string) || '<unknown>';
+    const subtype = attributes['genkit:metadata:subtype'] as string;
     const path = (attributes['genkit:path'] as string) || '<unknown>';
     let featureName = extractOuterFeatureNameFromPath(path);
     if (!featureName || featureName === '<unknown>') {
@@ -71,6 +76,17 @@ class ActionTelemetry implements Telemetry {
       this.writeFailure(actionName, featureName, path, latencyMs, errorName);
     } else {
       logger.warn(`Unknown action state; ${state}`);
+    }
+
+    if (subtype === 'tool' && logIO) {
+      const input = attributes['genkit:input'] as string;
+      const output = attributes['genkit:output'] as string;
+      if (input) {
+        this.recordIO(span, 'Input', featureName, path, input, projectId);
+      }
+      if (output) {
+        this.recordIO(span, 'Output', featureName, path, output, projectId);
+      }
     }
   }
 
@@ -110,6 +126,27 @@ class ActionTelemetry implements Telemetry {
     };
     this.actionCounter.add(1, dimensions);
     this.actionLatencies.record(latencyMs, dimensions);
+  }
+
+  private recordIO(
+    span: ReadableSpan,
+    tag: string,
+    featureName: string,
+    qualifiedPath: string,
+    input: string,
+    projectId?: string
+  ) {
+    const path = toDisplayPath(qualifiedPath);
+    const sharedMetadata = {
+      ...createCommonLogAttributes(span, projectId),
+      path,
+      qualifiedPath,
+      featureName,
+    };
+    logger.logStructured(`${tag}[${path}, ${featureName}]`, {
+      ...sharedMetadata,
+      content: input,
+    });
   }
 }
 

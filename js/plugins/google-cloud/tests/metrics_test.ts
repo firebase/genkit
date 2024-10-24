@@ -175,8 +175,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.status, 'failure');
   }, 10000); //timeout
 
-  // SKIPPED -- we don't allow defining arbitrary actions anymore....
-  it.skip('writes action metrics', async () => {
+  it('writes action metrics', async () => {
     const testAction = createAction(ai, 'testAction');
     const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
       await Promise.all([
@@ -279,13 +278,15 @@ describe('GoogleCloudMetrics', () => {
     );
   });
 
-  // SKIPPED -- we don't allow defining arbitrary actions anymore....
-  it.skip('writes action failure metrics', async () => {
-    const testAction = createAction(ai, 'testActionWithFailure', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
-    });
+  it('writes action failure metrics', async () => {
+    const testAction = ai.defineTool(
+      { name: 'testActionWithFailure', description: 'Just a test' },
+      async () => {
+        const nothing: { missing?: any } = { missing: 1 };
+        delete nothing.missing;
+        return nothing.missing.explode;
+      }
+    );
 
     assert.rejects(async () => {
       return testAction(null);
@@ -406,8 +407,7 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(requestCounter.attributes.sourceVersion);
   }, 10000); //timeout
 
-  // SKIPPED -- we don't allow defining arbitrary actions anymore....
-  it.skip('writes flow label to action metrics when running inside flow', async () => {
+  it('writes flow label to action metrics when running inside flow', async () => {
     const testAction = createAction(ai, 'testAction');
     const flow = createFlow(ai, 'flowNameLabelTestFlow', async () => {
       return await testAction(undefined);
@@ -927,9 +927,10 @@ describe('GoogleCloudMetrics', () => {
     name: string,
     fn: () => Promise<void> = async () => {}
   ) {
-    return ai.defineFlow(
+    return ai.defineTool(
       {
         name,
+        description: "I don't do much...",
       },
       fn
     );

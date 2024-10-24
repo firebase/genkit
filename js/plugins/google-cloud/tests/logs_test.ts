@@ -115,7 +115,7 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
 
     const logMessages = await getLogs(1, 100, logLines);
-    console.log(logMessages);
+
     assert.equal(
       logMessages.includes(
         "[error] Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
@@ -232,6 +232,18 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
     const logMessages = await getLogs(1, 100, logLines);
     assert.equal(logMessages.includes('[info] UserAcceptance[flowName]'), true);
+  });
+
+  it('writes tool input and output logs', async () => {
+    const echoTool = ai.defineTool(
+      { name: 'echoTool', description: 'echo' },
+      async (input) => input
+    );
+    await echoTool('Helllooooo!');
+    await getExportedSpans();
+    const logMessages = await getLogs(2, 100, logLines);
+    assert.ok(logMessages.includes('[info] Input[echoTool, echoTool]'));
+    assert.ok(logMessages.includes('[info] Output[echoTool, echoTool]'));
   });
 });
 
