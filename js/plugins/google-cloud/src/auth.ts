@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 import { logger } from 'genkit/logging';
-import { GoogleAuth } from 'google-auth-library';
-import { GcpTelemetryConfig } from './types';
+import { auth, GoogleAuth } from 'google-auth-library';
+import { GcpPrincipal, GcpTelemetryConfig } from './types';
 
 /**
- * Allow customers to pass in cloud credentials from environment variables
- * following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+ * Allows Google Cloud credentials to be to passed in "raw" as an environment
+ * variable. This is helpful in environments where the developer has limited
+ * ability to configure their compute environment, but does have the ablilty to
+ * set environment variables.
+ *
+ * This is different from the GOOGLE_APPLICATION_CREDENTIALS used by ADC, which
+ * represents a path to a credential file on disk. In *most* cases, even for
+ * 3rd party cloud providers, developers *should* attempt to use ADC, which
+ * searches for credential files in standard locations, before using this
+ * method.
+ *
+ * See also: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
  */
 export async function credentialsFromEnvironment(): Promise<
   Partial<GcpTelemetryConfig>
@@ -46,4 +56,28 @@ export async function credentialsFromEnvironment(): Promise<
     logger.warn(error);
   }
   return options;
+}
+
+/**
+ * Resolve the currently configured principal, either from the Genkit specific
+ * GCLOUD_SERVICE_ACCOUNT_CREDS environment variable, or from ADC.
+ *
+ * Since the Google Cloud Telemetry Exporter will discover credentials on its
+ * own, we don't immediately have access to the current principal. This method
+ * can be handy to get access to the current credential for logging debugging
+ * information or other purposes.
+ **/
+export async function resolveCurrentPrincipal(): Promise<GcpPrincipal> {
+  const envCredentials = await credentialsFromEnvironment();
+  const adcCredentials = await auth.getCredentials();
+
+  // TODO(michaeldoyle): How to look up if the user provided credentials in the
+  // plugin config (i.e. GcpTelemetryOptions)
+  let serviceAccountEmail =
+    envCredentials.credentials?.client_email ?? adcCredentials.client_email;
+
+  return {
+    projectId: envCredentials.projectId,
+    serviceAccountEmail,
+  };
 }

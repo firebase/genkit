@@ -14,22 +14,51 @@
  * limitations under the License.
  */
 
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  it,
+  jest,
+} from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, genkit, run, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
 import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
-import { after, before, beforeEach, describe, it } from 'node:test';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
 } from '../src/gcpOpenTelemetry.js';
 import { enableGoogleCloudTelemetry } from '../src/index.js';
 
+jest.mock('../src/auth.js', () => {
+  const original = jest.requireActual('../src/auth.js');
+  return {
+    ...(original || {}),
+    resolveCurrentPrincipal: jest.fn().mockImplementation(() => {
+      return Promise.resolve({
+        projectId: 'test',
+        serviceAccountEmail: 'test@test.com',
+      });
+    }),
+    credentialsFromEnvironment: jest.fn().mockImplementation(() => {
+      return Promise.resolve({
+        projectId: 'test',
+        credentials: {
+          client_email: 'test@genkit.com',
+          private_key: '-----BEGIN PRIVATE KEY-----',
+        },
+      });
+    }),
+  };
+});
+
 describe('GoogleCloudTracing', () => {
   let ai: Genkit;
 
-  before(async () => {
+  beforeAll(async () => {
+    process.env.GCLOUD_PROJECT = 'test';
     process.env.GENKIT_ENV = 'dev';
     await enableGoogleCloudTelemetry({
       projectId: 'test',
@@ -40,7 +69,7 @@ describe('GoogleCloudTracing', () => {
   beforeEach(async () => {
     __getSpanExporterForTesting().reset();
   });
-  after(async () => {
+  afterAll(async () => {
     await ai.stopServers();
   });
 
@@ -135,29 +164,27 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('adds the genkit/model label for model actions', async () => {
-    const echoModel = runWithRegistry(ai.registry, () =>
-      ai.defineModel(
-        {
-          name: 'echoModel',
-        },
-        async (request) => {
-          return {
-            message: {
-              role: 'model',
-              content: [
-                {
-                  text:
-                    'Echo: ' +
-                    request.messages
-                      .map((m) => m.content.map((c) => c.text).join())
-                      .join(),
-                },
-              ],
-            },
-            finishReason: 'stop',
-          };
-        }
-      )
+    const echoModel = ai.defineModel(
+      {
+        name: 'echoModel',
+      },
+      async (request) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              {
+                text:
+                  'Echo: ' +
+                  request.messages
+                    .map((m) => m.content.map((c) => c.text).join())
+                    .join(),
+              },
+            ],
+          },
+          finishReason: 'stop',
+        };
+      }
     );
     const testFlow = createFlow(ai, 'modelFlow', async () => {
       return run('runFlow', async () => {

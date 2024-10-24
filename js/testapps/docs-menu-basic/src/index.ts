@@ -16,12 +16,11 @@
 
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  flowServer: true,
 });
 
 export const menuSuggestionFlow = ai.defineFlow(
@@ -33,7 +32,7 @@ export const menuSuggestionFlow = ai.defineFlow(
   async (subject) => {
     const llmResponse = await ai.generate({
       prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
-      model: geminiPro,
+      model: gemini15Flash,
       config: {
         temperature: 1,
       },
@@ -42,3 +41,7 @@ export const menuSuggestionFlow = ai.defineFlow(
     return llmResponse.text;
   }
 );
+
+ai.startFlowServer({
+  flows: [menuSuggestionFlow],
+});

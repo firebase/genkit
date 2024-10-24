@@ -15,7 +15,7 @@
  */
 
 import { Action, defineAction, z } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { Part, PartSchema } from './document.js';
 import { Document, DocumentData, DocumentDataSchema } from './retriever.js';
 
@@ -101,6 +101,7 @@ function rerankerWithMetadata<
  *  Creates a reranker action for the provided {@link RerankerFn} implementation.
  */
 export function defineReranker<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
+  registry: Registry,
   options: {
     name: string;
     configSchema?: OptionsType;
@@ -109,6 +110,7 @@ export function defineReranker<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
   runner: RerankerFn<OptionsType>
 ) {
   const reranker = defineAction(
+    registry,
     {
       actionType: 'reranker',
       name: options.name,
@@ -157,13 +159,14 @@ export type RerankerArgument<
  * Reranks documents from a {@link RerankerArgument} based on the provided query.
  */
 export async function rerank<CustomOptions extends z.ZodTypeAny>(
+  registry: Registry,
   params: RerankerParams<CustomOptions>
 ): Promise<Array<RankedDocument>> {
   let reranker: RerankerAction<CustomOptions>;
   if (typeof params.reranker === 'string') {
-    reranker = await lookupAction(`/reranker/${params.reranker}`);
+    reranker = await registry.lookupAction(`/reranker/${params.reranker}`);
   } else if (Object.hasOwnProperty.call(params.reranker, 'info')) {
-    reranker = await lookupAction(`/reranker/${params.reranker.name}`);
+    reranker = await registry.lookupAction(`/reranker/${params.reranker.name}`);
   } else {
     reranker = params.reranker as RerankerAction<CustomOptions>;
   }

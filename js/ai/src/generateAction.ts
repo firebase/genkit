@@ -15,24 +15,27 @@
  */
 
 import {
-  Action,
   getStreamingCallback,
   Middleware,
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
-import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
+import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from './document.js';
-import { GenerateResponse, GenerateResponseChunk } from './generate.js';
 import {
-  CandidateData,
+  GenerateResponse,
+  GenerateResponseChunk,
+  tagAsPreamble,
+} from './generate.js';
+import {
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkData,
   GenerateResponseData,
+  MessageData,
   MessageSchema,
   ModelAction,
   Part,
@@ -40,7 +43,7 @@ import {
   ToolDefinitionSchema,
   ToolResponsePart,
 } from './model.js';
-import { ToolAction, toToolDefinition } from './tool.js';
+import { lookupToolByName, ToolAction, toToolDefinition } from './tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -70,6 +73,7 @@ export const GenerateUtilParamSchema = z.object({
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
  */
 export async function generateHelper(
+  registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
@@ -86,7 +90,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(input, middleware);
+      const output = await generate(registry, input, middleware);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -94,10 +98,11 @@ export async function generateHelper(
 }
 
 async function generate(
+  registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
-  const model = (await lookupAction(
+  const model = (await registry.lookupAction(
     `/model/${rawRequest.model}`
   )) as ModelAction;
   if (!model) {
@@ -120,17 +125,14 @@ async function generate(
     tools = await Promise.all(
       rawRequest.tools.map(async (toolRef) => {
         if (typeof toolRef === 'string') {
-          const tool = (await lookupAction(toolRef)) as ToolAction;
-          if (!tool) {
-            throw new Error(`Tool ${toolRef} not found`);
-          }
-          return tool;
+          return lookupToolByName(registry, toolRef as string);
+        } else if (toolRef.name) {
+          return lookupToolByName(registry, toolRef.name);
         }
-        throw '';
+        throw `Unable to resolve tool ${JSON.stringify(toolRef)}`;
       })
     );
   }
-
   const request = await actionToGenerateRequest(rawRequest, tools);
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
@@ -164,7 +166,7 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request));
+      return new GenerateResponse(await dispatch(0, request), request);
     }
   );
 
@@ -176,34 +178,58 @@ async function generate(
   if (rawRequest.returnToolRequests || toolCalls.length === 0) {
     return response.toJSON();
   }
-  const toolResponses: ToolResponsePart[] = await Promise.all(
-    toolCalls.map(async (part) => {
-      if (!part.toolRequest) {
-        throw Error(
-          'Tool request expected but not provided in tool request part'
-        );
-      }
-      const tool = tools?.find(
-        (tool) => tool.__action.name === part.toolRequest?.name
+  const toolResponses: ToolResponsePart[] = [];
+  let messages: MessageData[] = [...request.messages, message];
+  let newTools = rawRequest.tools;
+  for (const part of toolCalls) {
+    if (!part.toolRequest) {
+      throw Error(
+        'Tool request expected but not provided in tool request part'
       );
-      if (!tool) {
-        throw Error('Tool not found');
-      }
-      return {
+    }
+    const tool = tools?.find(
+      (tool) => tool.__action.name === part.toolRequest?.name
+    );
+    if (!tool) {
+      throw Error(`Tool ${part.toolRequest?.name} not found`);
+    }
+    if ((tool.__action.metadata.type as string) === 'prompt') {
+      const newPreamble = await tool(part.toolRequest?.input);
+      toolResponses.push({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: `transferred to ${part.toolRequest.name}`,
+        },
+      });
+      // swap out the preamble
+      messages = [
+        ...tagAsPreamble(newPreamble.messages)!,
+        ...messages.filter((m) => !m?.metadata?.preamble),
+      ];
+      newTools = newPreamble.tools;
+    } else {
+      toolResponses.push({
         toolResponse: {
           name: part.toolRequest.name,
           ref: part.toolRequest.ref,
           output: await tool(part.toolRequest?.input),
         },
-      };
-    })
-  );
+      });
+    }
+  }
   const nextRequest = {
     ...rawRequest,
-    messages: [...request.messages, message],
-    prompt: toolResponses,
+    messages: [
+      ...messages,
+      {
+        role: 'tool',
+        content: toolResponses,
+      },
+    ] as MessageData[],
+    tools: newTools,
   };
-  return await generateHelper(nextRequest, middleware);
+  return await generateHelper(registry, nextRequest, middleware);
 }
 
 async function actionToGenerateRequest(
@@ -227,29 +253,6 @@ async function actionToGenerateRequest(
   if (!out.output.schema) delete out.output.schema;
   return out;
 }
-
-const isValidCandidate = (
-  candidate: CandidateData,
-  tools: Action<any, any>[]
-): boolean => {
-  // Check if tool calls are vlaid
-  const toolCalls = candidate.message.content.filter(
-    (part) => !!part.toolRequest
-  );
-
-  // make sure every tool called exists and has valid input
-  return toolCalls.every((toolCall) => {
-    const tool = tools?.find(
-      (tool) => tool.__action.name === toolCall.toolRequest?.name
-    );
-    if (!tool) return false;
-    const { valid } = validateSchema(toolCall.toolRequest?.input, {
-      schema: tool.__action.inputSchema,
-      jsonSchema: tool.__action.inputJsonSchema,
-    });
-    return valid;
-  });
-};
 
 export function inferRoleFromParts(parts: Part[]): Role {
   const uniqueRoles = new Set<Role>();

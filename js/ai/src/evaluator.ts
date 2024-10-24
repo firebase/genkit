@@ -16,7 +16,7 @@
 
 import { Action, defineAction, z } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { randomUUID } from 'crypto';
 
@@ -127,6 +127,7 @@ export function defineEvaluator<
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   options: {
     name: string;
     displayName: string;
@@ -143,6 +144,7 @@ export function defineEvaluator<
   metadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
   metadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
   const evaluator = defineAction(
+    registry,
     {
       actionType: 'evaluator',
       name: options.name,
@@ -239,12 +241,17 @@ export type EvaluatorArgument<
 export async function evaluate<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(params: EvaluatorParams<DataPoint, CustomOptions>): Promise<EvalResponses> {
+>(
+  registry: Registry,
+  params: EvaluatorParams<DataPoint, CustomOptions>
+): Promise<EvalResponses> {
   let evaluator: EvaluatorAction<DataPoint, CustomOptions>;
   if (typeof params.evaluator === 'string') {
-    evaluator = await lookupAction(`/evaluator/${params.evaluator}`);
+    evaluator = await registry.lookupAction(`/evaluator/${params.evaluator}`);
   } else if (Object.hasOwnProperty.call(params.evaluator, 'info')) {
-    evaluator = await lookupAction(`/evaluator/${params.evaluator.name}`);
+    evaluator = await registry.lookupAction(
+      `/evaluator/${params.evaluator.name}`
+    );
   } else {
     evaluator = params.evaluator as EvaluatorAction<DataPoint, CustomOptions>;
   }

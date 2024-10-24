@@ -17,8 +17,8 @@
     "genkit": "*",
     "@genkit-ai/firebase": "*",
     "@genkit-ai/vertexai": "*",
-    "firebase-admin": "^11.8.0",
-    "firebase-functions": "^4.8.0 || ^5.0.0"
+    "firebase-admin": ">=12.2",
+    "firebase-functions": ">=4.8"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0",

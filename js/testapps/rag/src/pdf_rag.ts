@@ -18,7 +18,7 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import fs from 'fs';
 import { Document, run, z } from 'genkit';
 import { chunk } from 'llm-chunk';
@@ -117,7 +117,7 @@ export const synthesizeQuestions = ai.defineFlow(
     const questions: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const qResponse = await ai.generate({
-        model: geminiPro,
+        model: gemini15Flash,
         prompt: {
           text: `Generate one question about the text below: ${chunks[i]}`,
         },
@@ -127,3 +127,7 @@ export const synthesizeQuestions = ai.defineFlow(
     return questions;
   }
 );
+
+ai.startFlowServer({
+  flows: [pdfQA],
+});

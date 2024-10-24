@@ -166,11 +166,13 @@ export function compile<Variables = any>(
 
   return (
     input: Variables,
-    options?: { context?: DocumentData[]; messages?: MessageData[] }
+    options?: { context?: DocumentData[]; messages?: MessageData[] },
+    data?: Record<string, any>
   ) => {
     const renderedString = renderString(input, {
       data: {
         metadata: { prompt: metadata, context: options?.context || null },
+        ...data,
       },
     });
     return toMessages(renderedString, options);

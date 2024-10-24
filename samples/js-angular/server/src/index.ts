@@ -21,7 +21,6 @@ export const ai = genkit({
   plugins: [vertexAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
-  flowServer: true,
 });
 
 export * from './chatbot.js';

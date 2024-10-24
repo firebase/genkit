@@ -27,6 +27,7 @@ import {
 import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
 import { GenkitError, z } from '@genkit-ai/core';
+import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema } from '@genkit-ai/core/schema';
 import {
   runInNewSpan,
@@ -45,6 +46,8 @@ import { lookupPrompt, registryDefinitionKey } from './registry.js';
 import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
+
+export const GENKIT_SESSION_STATE_INPUT_KEY = '__genkit__sessionState';
 
 export type PromptGenerateOptions<
   V = unknown,
@@ -78,16 +81,24 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
 
   private _promptAction?: PromptAction;
 
-  private _render: (input: I, options?: RenderMetadata) => MessageData[];
+  private _render: (
+    input: I,
+    options?: RenderMetadata,
+    data?: Record<string, any>
+  ) => MessageData[];
 
-  static parse(name: string, source: string) {
+  static parse(registry: Registry, name: string, source: string) {
     try {
       const fmResult = (fm as any)(source.trimStart(), {
         allowUnsafe: false,
       }) as FrontMatterResult<unknown>;
 
       return new Dotprompt(
-        { ...toMetadata(fmResult.attributes), name } as PromptMetadata,
+        registry,
+        {
+          ...toMetadata(registry, fmResult.attributes),
+          name,
+        } as PromptMetadata,
         fmResult.body
       );
     } catch (e: any) {
@@ -99,7 +110,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     }
   }
 
-  static fromAction(action: PromptAction): Dotprompt {
+  static fromAction(registry: Registry, action: PromptAction): Dotprompt {
     const { template, ...options } = action.__action.metadata!.prompt;
     const pm = options as PromptMetadata;
     if (pm.input?.schema) {
@@ -109,11 +120,21 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     if (pm.output?.schema) {
       pm.output.jsonSchema = options.output?.schema;
     }
-    const prompt = new Dotprompt(options as PromptMetadata, template);
+    const prompt = new Dotprompt(
+      registry,
+      options as PromptMetadata,
+      template,
+      action
+    );
     return prompt;
   }
 
-  constructor(options: PromptMetadata, template: string) {
+  constructor(
+    private registry: Registry,
+    options: PromptMetadata,
+    template: string,
+    action?: PromptAction
+  ) {
     this.name = options.name || 'untitledPrompt';
     this.variant = options.variant;
     this.model = options.model;
@@ -125,6 +146,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
 
     this._render = compile(this.template, options);
+    this._promptAction = action;
   }
 
   /**
@@ -158,11 +180,21 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    * @returns an array of messages representing an exchange between a user and a model.
    */
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
+    let sessionStateData: Record<string, any> | undefined = undefined;
+    if (input?.hasOwnProperty(GENKIT_SESSION_STATE_INPUT_KEY)) {
+      sessionStateData = input[GENKIT_SESSION_STATE_INPUT_KEY];
+      input = { ...input };
+      delete input[GENKIT_SESSION_STATE_INPUT_KEY];
+    }
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
     });
-    return this._render({ ...this.input?.default, ...input }, options);
+    return this._render(
+      { ...this.input?.default, ...input },
+      options,
+      sessionStateData
+    );
   }
 
   toJSON(): PromptData {
@@ -171,6 +203,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
 
   define(options?: { ns?: string; description?: string }): void {
     this._promptAction = definePrompt(
+      this.registry,
       {
         name: registryDefinitionKey(this.name, this.variant, options?.ns),
         description: options?.description ?? 'Defined by Dotprompt',
@@ -181,7 +214,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
           prompt: this.toJSON(),
         },
       },
-      async (input?: I) => toGenerateRequest(this.render({ input }))
+      async (input?: I) =>
+        toGenerateRequest(this.registry, this.render({ input }))
     );
   }
 
@@ -276,7 +310,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
     const renderedOpts = this.renderInNewSpan<CustomOptions, O>(opt);
-    return generate<CustomOptions, O>(renderedOpts);
+    return generate<CustomOptions, O>(this.registry, renderedOpts);
   }
 
   /**
@@ -289,7 +323,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateStreamResponse> {
     const renderedOpts = await this.renderInNewSpan<CustomOptions>(opt);
-    return generateStream(renderedOpts);
+    return generateStream(this.registry, renderedOpts);
   }
 }
 
@@ -312,9 +346,10 @@ export class DotpromptRef<Variables = unknown> {
   }
 
   /** Loads the prompt which is referenced. */
-  async loadPrompt(): Promise<Dotprompt<Variables>> {
+  async loadPrompt(registry: Registry): Promise<Dotprompt<Variables>> {
     if (this._prompt) return this._prompt;
     this._prompt = (await lookupPrompt(
+      registry,
       this.name,
       this.variant,
       this.dir
@@ -333,9 +368,10 @@ export class DotpromptRef<Variables = unknown> {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
   >(
+    registry: Registry,
     opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    const prompt = await this.loadPrompt();
+    const prompt = await this.loadPrompt(registry);
     return prompt.generate<CustomOptions, O>(opt);
   }
 
@@ -349,9 +385,11 @@ export class DotpromptRef<Variables = unknown> {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
   >(
+    registry: Registry,
+
     opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateOptions<z.ZodTypeAny, O>> {
-    const prompt = await this.loadPrompt();
+    const prompt = await this.loadPrompt(registry);
     return prompt.render<CustomOptions, O>(opt);
   }
 }
@@ -367,10 +405,11 @@ export function defineDotprompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   options: PromptMetadata<I, CustomOptions>,
   template: string
 ): Dotprompt<z.infer<I>> {
-  const prompt = new Dotprompt(options, template);
+  const prompt = new Dotprompt(registry, options, template);
   prompt.define({ description: options.description });
   return prompt;
 }

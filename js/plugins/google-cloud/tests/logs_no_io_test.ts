@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  it,
+  jest,
+} from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, genkit, run, z } from 'genkit';
-import { GenerateResponseData } from 'genkit/model';
+import { GenerateResponseData, Genkit, genkit, run, z } from 'genkit';
 import assert from 'node:assert';
-import { after, before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
 import {
   __addTransportStreamForTesting,
@@ -26,6 +32,28 @@ import {
   __getSpanExporterForTesting,
   enableGoogleCloudTelemetry,
 } from '../src/index.js';
+
+jest.mock('../src/auth.js', () => {
+  const original = jest.requireActual('../src/auth.js');
+  return {
+    ...(original || {}),
+    resolveCurrentPrincipal: jest.fn().mockImplementation(() => {
+      return Promise.resolve({
+        projectId: 'test',
+        serviceAccountEmail: 'test@test.com',
+      });
+    }),
+    credentialsFromEnvironment: jest.fn().mockImplementation(() => {
+      return Promise.resolve({
+        projectId: 'test',
+        credentials: {
+          client_email: 'test@genkit.com',
+          private_key: '-----BEGIN PRIVATE KEY-----',
+        },
+      });
+    }),
+  };
+});
 
 describe('GoogleCloudLogs no I/O', () => {
   let logLines = '';
@@ -37,7 +65,8 @@ describe('GoogleCloudLogs no I/O', () => {
 
   let ai: Genkit;
 
-  before(async () => {
+  beforeAll(async () => {
+    process.env.GCLOUD_PROJECT = 'test';
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
     await enableGoogleCloudTelemetry({
@@ -55,7 +84,7 @@ describe('GoogleCloudLogs no I/O', () => {
     logLines = '';
     __getSpanExporterForTesting().reset();
   });
-  after(async () => {
+  afterAll(async () => {
     await ai.stopServers();
   });
 
@@ -90,7 +119,7 @@ describe('GoogleCloudLogs no I/O', () => {
       ),
       true
     );
-  });
+  }, 10000); //timeout
 
   it('writes generate logs', async () => {
     const testModel = createModel(ai, 'testModel', async () => {

@@ -14,19 +14,25 @@
  * limitations under the License.
  */
 
+import { Registry } from '@genkit-ai/core/registry';
 import { readFileSync } from 'fs';
 import { basename } from 'path';
 import {
   defineDotprompt,
   Dotprompt,
   DotpromptRef,
-  PromptGenerateOptions,
+  type PromptGenerateOptions,
 } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
 
 export { type PromptMetadata } from './metadata.js';
 export { defineHelper, definePartial } from './template.js';
-export { defineDotprompt, Dotprompt, loadPromptFolder, PromptGenerateOptions };
+export {
+  defineDotprompt,
+  Dotprompt,
+  loadPromptFolder,
+  type PromptGenerateOptions,
+};
 
 export interface DotpromptPluginOptions {
   // Directory to look for .prompt files.
@@ -38,10 +44,15 @@ export interface DotpromptPluginOptions {
 }
 
 export async function prompt<Variables = unknown>(
+  registry: Registry,
   name: string,
   options?: { variant?: string }
 ): Promise<Dotprompt<Variables>> {
-  return (await lookupPrompt(name, options?.variant)) as Dotprompt<Variables>;
+  return (await lookupPrompt(
+    registry,
+    name,
+    options?.variant
+  )) as Dotprompt<Variables>;
 }
 
 export function promptRef<Variables = unknown>(
@@ -51,19 +62,22 @@ export function promptRef<Variables = unknown>(
   return new DotpromptRef(name, options);
 }
 
-export function loadPromptFile(path: string): Dotprompt {
+export function loadPromptFile(registry: Registry, path: string): Dotprompt {
   return Dotprompt.parse(
+    registry,
     basename(path).split('.')[0],
     readFileSync(path, 'utf-8')
   );
 }
 
 export async function loadPromptUrl(
+  registry: Registry,
+
   name: string,
   url: string
 ): Promise<Dotprompt> {
   const fetch = (await import('node-fetch')).default;
   const response = await fetch(url);
   const text = await response.text();
-  return Dotprompt.parse(name, text);
+  return Dotprompt.parse(registry, name, text);
 }

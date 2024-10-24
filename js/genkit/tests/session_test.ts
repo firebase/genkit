@@ -91,7 +91,7 @@ describe('session', () => {
     );
 
     const gotState = await store.get(session.id);
-    delete gotState.id; // ignore
+    delete (gotState as any).id; // ignore
     assert.deepStrictEqual(gotState, {
       state: {
         name: 'Genkit',
@@ -105,7 +105,11 @@ describe('session', () => {
           },
         ],
         lawyerChat: [
-          { content: [{ text: 'talk like a lawyer' }], role: 'system' },
+          {
+            content: [{ text: 'talk like a lawyer' }],
+            role: 'system',
+            metadata: { preamble: true },
+          },
           { content: [{ text: 'hi lawyerChat' }], role: 'user' },
           {
             content: [
@@ -116,7 +120,11 @@ describe('session', () => {
           },
         ],
         pirateChat: [
-          { content: [{ text: 'talk like a pirate' }], role: 'system' },
+          {
+            content: [{ text: 'talk like a pirate' }],
+            role: 'system',
+            metadata: { preamble: true },
+          },
           { content: [{ text: 'hi pirateChat' }], role: 'user' },
           {
             content: [
@@ -186,7 +194,7 @@ describe('session', () => {
     await chat.send('bye');
 
     const state = await store.get(session.id);
-    delete state.id;
+    delete (state as any).id;
     assert.deepStrictEqual(state, {
       state: {
         foo: 'bar',
@@ -321,6 +329,63 @@ describe('session', () => {
           },
         ],
       });
+    });
+  });
+
+  it('can read current session state from a prompt', async () => {
+    const agent = ai.definePrompt(
+      {
+        name: 'agent',
+        config: { temperature: 1 },
+        description: 'Agent description',
+      },
+      '{{role "system"}} foo={{@state.foo}}'
+    );
+
+    const session = ai.createSession({
+      initialState: {
+        foo: 'bar',
+      },
+    });
+    const chat = session.chat({ prompt: agent });
+    const respose = await chat.send('hi');
+    assert.deepStrictEqual(respose.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' foo=bar' }],
+        metadata: { preamble: true },
+      },
+      {
+        content: [{ text: 'hi' }],
+        role: 'user',
+      },
+      {
+        content: [
+          { text: 'Echo: system:  foo=bar,hi' },
+          { text: '; config: {"temperature":1}' },
+        ],
+        role: 'model',
+      },
+    ]);
+  });
+
+  it('can run arbitrary code within the session context', async () => {
+    const testFlow = ai.defineFlow('text', () => ai.currentSession().state);
+
+    const sess = ai.createSession({
+      initialState: {
+        foo: 'bar',
+      },
+    });
+
+    // running the flow directly throws because it's trying to access currentSession
+    assert.rejects(() => testFlow(), {
+      message: 'not running within a session',
+    });
+
+    const response = await sess.run(testFlow);
+    assert.deepStrictEqual(response, {
+      foo: 'bar',
     });
   });
 });

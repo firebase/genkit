@@ -37,8 +37,8 @@ const ai = genkit({
       ],
     }),
   ],
-  flowServer: true,
 });
+
 const FAKE_DOCUMENT_CONTENT = [
   'pythagorean theorem',
   'e=mc^2',
@@ -86,3 +86,7 @@ export const rerankFlow = ai.defineFlow(
     }));
   }
 );
+
+ai.startFlowServer({
+  flows: [rerankFlow],
+});

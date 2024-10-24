@@ -15,8 +15,10 @@
  */
 
 import { LoggingWinston } from '@google-cloud/logging-winston';
+import { logger } from 'genkit/logging';
 import { Writable } from 'stream';
 import { GcpTelemetryConfig } from './types';
+import { loggingDenied, loggingDeniedHelpText } from './utils';
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.
@@ -54,6 +56,7 @@ export class GcpLogger {
             prefix: 'genkit',
             logName: 'genkit_log',
             credentials: this.config.credentials,
+            defaultCallback: await this.getErrorHandler(),
           })
         : new winston.transports.Console()
     );
@@ -66,6 +69,28 @@ export class GcpLogger {
       transports: transports,
       ...format,
     });
+  }
+
+  private async getErrorHandler(): Promise<(err: Error | null) => void> {
+    // only log the first time
+    let instructionsLogged = false;
+    let helpInstructions = await loggingDeniedHelpText();
+
+    return (err: Error | null) => {
+      // Use the defaultLogger so that logs don't get swallowed by
+      // the open telemetry exporter
+      const defaultLogger = logger.defaultLogger;
+      if (err && loggingDenied(err)) {
+        if (!instructionsLogged) {
+          instructionsLogged = true;
+          defaultLogger.error(
+            `Unable to send logs to Google Cloud: ${err.message}\n\n${helpInstructions}\n`
+          );
+        }
+      } else if (err) {
+        defaultLogger.error(`Unable to send logs to Google Cloud: ${err}`);
+      }
+    };
   }
 
   private shouldExport(env?: string) {

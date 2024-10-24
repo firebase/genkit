@@ -15,14 +15,13 @@
  */
 
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
-import { geminiPro } from '@genkit-ai/googleai';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/googleai';
+import { textEmbedding004 } from '@genkit-ai/vertexai';
 import { FieldValue } from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFile } from 'fs/promises';
 import { run, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
@@ -58,17 +57,15 @@ Question: ${question}
 Helpful Answer:`;
 }
 
-export const pdfChatRetrieverFirebase = runWithRegistry(ai.registry, () =>
-  defineFirestoreRetriever(ai, {
-    name: 'pdfChatRetrieverFirebase',
-    firestore,
-    collection: 'pdf-qa',
-    contentField: 'facts',
-    vectorField: 'embedding',
-    embedder: textEmbeddingGecko,
-    distanceMeasure: 'COSINE',
-  })
-);
+export const pdfChatRetrieverFirebase = defineFirestoreRetriever(ai, {
+  name: 'pdfChatRetrieverFirebase',
+  firestore,
+  collection: 'pdf-qa',
+  contentField: 'facts',
+  vectorField: 'embedding',
+  embedder: textEmbedding004,
+  distanceMeasure: 'COSINE',
+});
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQAFirebase = ai.defineFlow(
@@ -90,7 +87,7 @@ export const pdfQAFirebase = ai.defineFlow(
       context: docs.map((d) => d.text).join('\n\n'),
     });
     const llmResponse = await ai.generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: augmentedPrompt,
     });
     return llmResponse.text;
@@ -102,7 +99,7 @@ const indexConfig = {
   collection: 'pdf-qa',
   contentField: 'facts',
   vectorField: 'embedding',
-  embedder: textEmbeddingGecko,
+  embedder: textEmbedding004,
 };
 
 const chunkingConfig = {
