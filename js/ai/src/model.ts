@@ -26,6 +26,7 @@ import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
+import { getAvailableFormats } from './format.js';
 import {
   augmentWithContext,
   conformOutput,
@@ -121,7 +122,9 @@ export const MessageSchema = z.object({
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
-const OutputFormatSchema = z.enum(['json', 'text', 'media']);
+const OutputFormatSchema = z.enum(
+  getAvailableFormats() as [string, ...string[]]
+);
 
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
