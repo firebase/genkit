@@ -25,6 +25,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
+import { FormatArgument } from './formats/index.js';
 import { generateHelper, GenerateUtilParamSchema } from './generateAction.js';
 import {
   GenerateRequest,
@@ -415,11 +416,7 @@ export async function toGenerateRequest(
     docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.schema || options.output?.jsonSchema
-          ? 'json'
-          : 'text'),
+      format: options.output?.format,
       schema: toJsonSchema({
         schema: options.output?.schema,
         jsonSchema: options.output?.jsonSchema,
@@ -450,7 +447,8 @@ export interface GenerateOptions<
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'text' | 'json' | 'media';
+    format?: FormatArgument;
+    constrained?: boolean;
     schema?: O;
     jsonSchema?: any;
   };
