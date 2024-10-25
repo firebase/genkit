@@ -1,0 +1,11 @@
+---
+model: googleai/gemini-1.5-flash
+config:
+  temperature: 1.4
+  topK: 50
+  topP: 0.4
+  maxOutputTokens: 400
+  stopSequences:
+    -   "<end>"
+    -   "<fin>"
+---

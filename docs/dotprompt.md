@@ -27,23 +27,8 @@ Genkit.
 Your prompt definitions each go in a file with a `.prompt` extension. Here's an
 example of what these files look like:
 
-```none
----
-model: vertexai/gemini-1.5-flash-latest
-config:
-  temperature: 0.9
-input:
-  schema:
-    location: string
-    style?: string
-    name?: string
-  default:
-    location: a restaurant
----
-
-{% verbatim %}You are the world's most welcoming AI assistant and are currently working at {{location}}.
-
-Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.{% endverbatim %}
+```handlebars
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex01.prompt" %}
 ```
 
 The portion in the triple-dashes is YAML front matter, similar to the front
@@ -61,34 +46,6 @@ Before reading this page, you should be familiar with the content covered on the
 If you want to run the code examples on this page, first complete the steps in
 the [Getting started](get-started) guide. All of the examples assume that you
 have already installed Genkit as a dependency in your project.
-
-## Installing the dotprompt plugin
-
-Dotprompt Is an optional component of Genkit, so you must install the plugin
-into your project before you can use it:
-
-```posix-terminal
-npm i –save @genkit-ai/dotprompt
-```
-
-Then, import the `dotprompt` function and call it in your plugin configuration:
-
-```ts
-import { configureGenkit } from "@genkit-ai/core";
-import { dotprompt} from "@genkit-ai/dotprompt";
-
-configureGenkit({
-  plugins: [
-    // ...
-    dotprompt(),
-  ],
-  // ...
-});
-```
-
-The `dotprompt` configuration function can accept an optional parameter, `dir`,
-which sets the directory in which the plug-in will look for prompt files.
-Continue to the next section for more information.
 
 ## Creating prompt files
 
@@ -117,17 +74,17 @@ your-project/
 ```
 
 If you want to use a different directory, you can specify it when you configure
-the plugin:
+Genkit:
 
 ```ts
-dotprompt({ dir: './llm_prompts'})
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="promptDir" adjust_indentation="auto" %}
 ```
 
 Alternatively, you can specify a complete path from which to load a single
 prompt:
 
 ```ts
-const helloPrompt = loadPromptFile('./llm_prompts/hello.prompt');
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptFile" adjust_indentation="auto" %}
 ```
 
 ### Creating a prompt file
@@ -143,12 +100,8 @@ the `.prompt` extension in your prompts directory: for example,
 
 Here is a minimal example of a prompt file:
 
-```none
----
-model: vertexai/gemini-1.5-flash-latest
----
-
-You are the world's most welcoming AI assistant. Greet the user and offer your assistance.
+```handlebars
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex02.prompt" %}
 ```
 
 The portion in the dashes is YAML front matter, similar to the front matter
@@ -165,10 +118,7 @@ Start with application code that imports the Genkit library and configures it to
 use the model plugin you're interested in. For example:
 
 ```ts
-import { configureGenkit } from "@genkit-ai/core";
-import { googleAI } from "@genkit-ai/googleai";
-
-configureGenkit({ plugins: [googleAI()] });
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/minimal.ts" region_tag="mini" adjust_indentation="auto" %}
 ```
 
 It's okay if the file contains other code, but the above is all that's required.
@@ -176,7 +126,11 @@ It's okay if the file contains other code, but the above is all that's required.
 Load the developer UI in the same project:
 
 ```posix-terminal
-npx genkit start
+export GENKIT_ENV=dev
+
+npx genkit ui:start
+
+npx tsx your-code.ts
 ```
 
 In the Models section, choose the model you want to use from the list of models
@@ -193,53 +147,40 @@ prompts directory.
 After you've created prompt files, you can run them from your application code,
 or using the tooling provided by Genkit. Regardless of how you want to run your
 prompts, first start with application code that imports the Genkit library as
-well as the `dotprompt` plugin and the model plugins you're interested in. For
-example:
+the model plugins you're interested in. For example:
 
 ```ts
-import { configureGenkit } from "@genkit-ai/core";
-import { dotprompt } from "@genkit-ai/dotprompt";
-import { googleAI } from "@genkit-ai/googleai";
-
-configureGenkit({
-  plugins: [googleAI(),  dotprompt() ],
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/minimal.ts" region_tag="mini" adjust_indentation="auto" %}
 ```
 
 It's okay if the file contains other code, but the above is all that's required.
 If you're storing your prompts in a directory other than the default, be sure to
-specify it when you configure the plugin.
+specify it when you configure Genkit.
 
 ### Run prompts from code
 
-To use a prompt, load it using `promptRef('file_name')`:
+To use a prompt, first load it using the `prompt('file_name')` method:
 
 ```ts
-import { promptRef } from '@genkit-ai/dotprompt';
-
-const greetingPrompt = promptRef('hello');
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPrompt" adjust_indentation="auto" %}
 ```
 
-Then, call the prompt's `generate()` method:
+Once loaded, you can call the prompt like a function:
 
 ```ts
-const result = await greetingPrompt.generate({});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="callPrompt" adjust_indentation="auto" %}
 ```
 
-The `generate()` method is similar to the `generate()` function from
-`@genkit-ai/ai`, and accepts most of the same options, with the exception of the
-prompt itself. For example:
+A callable prompt takes two optional parameters: the input to the prompt (see
+the section below on [specifying input schemas](#schemas)), and a configuration
+object, similar to that of the `generate()` method. For example:
 
 ```ts
-const response = await helloPrompt.generate({
-  config: {
-    temperature: 0.4,
-  }
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="callPromptOpts" adjust_indentation="auto" %}
 ```
 
-Any parameters you pass to the `generate()` method will override the same
-parameters specified in the prompt file.
+Any parameters you pass to the prompt call will override the same parameters
+specified in the prompt file.
 
 See [Generate content with AI models](models) for descriptions of the available
 options.
@@ -253,7 +194,11 @@ your application code.
 Load the developer UI from your project directory:
 
 ```posix-terminal
-npx genkit start
+export GENKIT_ENV=dev
+
+npx genkit ui:start
+
+npx tsx your-code.ts
 ```
 
 ![Genkit developer UI prompt runner](resources/prompts-in-developer-ui.png)
@@ -269,55 +214,27 @@ back into your project directory.
 In the front matter block of your prompt files, you can optionally specify model
 configuration values for your prompt:
 
-```none
----
-config:
-  temperature: 1.4
-  topK: 50
-  topP: 0.4
-  maxOutputTokens: 400
-  stopSequences:
-    -   "<end>"
-    -   "<fin>"
----
+```yaml
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex03.prompt" %}
 ```
 
-These values map directly to the `config` parameter accepted by `generate()`:
+These values map directly to the `config` parameter accepted by the callable
+prompt:
 
 ```ts
-config: {
-  temperature: 1.4,
-  topK: 50,
-  topP: 0.4,
-  maxOutputTokens: 400,
-  stopSequences: ["<end>", "<fin>"],
-}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="callPromptCfg" adjust_indentation="auto" %}
 ```
 
 See [Generate content with AI models](models) for descriptions of the available
 options.
 
-## Input and output schemas
+## Input and output schemas {:#schemas}
 
 You can specify input and output schemas for your prompt by defining them in the
 front matter section:
 
-```none
----
-model: googleai/gemini-1.5-flash-latest
-input:
-  schema:
-    theme?: string
-  default:
-    theme: "pirate"
-output:
-  schema:
-    dishname: string
-    description: string
-    calories: integer
-    allergens(array): string
----
-{% verbatim %}Invent a menu item for a {{theme}} themed restaurant.{% endverbatim %}
+```handlebars
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex04.prompt" %}
 ```
 
 These schemas are used in much the same way as those passed to a `generate()`
@@ -325,14 +242,7 @@ request or a flow definition. For example, the prompt defined above produces
 structured output:
 
 ```ts
-const menuPrompt = promptRef("menu");
-const response = await menuPrompt.generate({
-  input: { theme: "medieval" },
-});
-
-const menuItem = response.data();
-const dishName = menuItem['dishname'];
-const description = menuItem['description'];
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="outSchema" adjust_indentation="auto" %}
 ```
 
 You have several options for defining schemas in a `.prompt` file: Dotprompt's
@@ -435,18 +345,7 @@ type checking features when you work with prompts.
 To register a schema:
 
 ```ts
-import { defineSchema } from '@genkit-ai/core';
-import { z } from 'zod';
-
-const MenuItemSchema = defineSchema(
-  'MenuItemSchema',
-  z.object({
-    dishname: z.string(),
-    description: z.string(),
-    calories: z.coerce.number(),
-    allergens: z.array(z.string())
-  }),
-);
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="MenuItemSchema" adjust_indentation="auto" %}
 ```
 
 Within your prompt, provide the name of the registered schema:
@@ -464,10 +363,7 @@ registered Zod schema. You can then utilize the schema to strongly type the
 output of a Dotprompt:
 
 ```ts
-const menuPrompt = promptRef("menu");
-const response = await menuPrompt.generate<typeof MenuItemSchema>({});
-
-const menuItem = response.data(); // Now strongly typed as MenuItemSchema
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="outSchema2" adjust_indentation="auto" %}
 ```
 
 ## Prompt templates
@@ -482,46 +378,29 @@ your prompt's input schema.
 
 You already saw this in action in the section on input and output schemas:
 
-```none
----
-model: googleai/gemini-1.5-flash-latest
-input:
-  schema:
-    theme?: string
-  default:
-    theme: "pirate"
----
-{% verbatim %}Invent a menu item for a {{theme}} themed restaurant.{% endverbatim %}
+```handlebars
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex03.prompt" %}
 ```
 
-In this example, the Handlebars expression, {% verbatim %}`{{theme}}`{% endverbatim
-%}, resolves to the value of the input's `theme` property when you run the
-prompt. To pass input to the prompt, call `generate()` as in the following
+In this example, the Handlebars expression, {% verbatim %}`{{theme}}`{% endverbatim %},
+resolves to the value of the input's `theme` property when you run the
+prompt. To pass input to the prompt, call the prompt as in the following
 example:
 
 ```ts
-const menuPrompt = promptRef("menu");
-const response = await menuPrompt.generate({
-  input: { theme: "medieval" },
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="inSchema" adjust_indentation="auto" %}
 ```
 
 Note that because the input schema declared the `theme` property to be optional
-and provided a default, you could have passed an empty object to `generate()`,
+and provided a default, you could have omitted the oroperty,
 and the prompt would have resolved using the default value.
 
 Handlebars templates also support some limited logical constructs. For example,
 as an alternative to providing a default, you could define the prompt using
 Handlebars's `#if` helper:
 
-```none
----
-model: googleai/gemini-1.5-flash-latest
-input:
-  schema:
-    theme?: string
----
-{% verbatim %}Invent a menu item for a {{#if theme}}{{theme}} themed{{/if}} restaurant{% endverbatim %}
+```handlebars
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex05.prompt" %}
 ```
 
 In this example, the prompt renders as "Invent a menu item for a restaurant"
@@ -544,20 +423,8 @@ such as a system prompt.
 The {% verbatim %}`{{role}}`{% endverbatim %} helper provides a simple way to
 construct multi-message prompts:
 
-```none
----
-model: vertexai/gemini-1.5-flash
-input:
-  schema:
-    userQuestion: string
----
-{% verbatim %}
-{{role "system"}}
-You are a helpful AI assistant that really loves to talk about food. Try to work
-food items into all of your conversations.
-{{role "user"}}
-{{userQuestion}}
-{% endverbatim %}
+```handlebars
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex06.prompt" %}
 ```
 
 ### Multi-turn prompts and history

@@ -136,9 +136,6 @@ importers:
 
   doc-snippets:
     dependencies:
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../plugins/firebase
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../plugins/googleai
