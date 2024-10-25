@@ -475,8 +475,8 @@ export class Genkit {
         // ignore, no model on a render is OK?
       }
       const promptResult = await p({
-        // this feels a litte hacky, but we need to pass session state as action input
-        // to make it replayable from trace view in the dev ui.
+        // this feels a litte hacky, but we need to pass session state as action
+        // input to make it replayable from trace view in the dev ui.
         __genkit__sessionState: { state: getCurrentSession()?.state },
         ...opt.input,
       });
