@@ -1,7 +1,18 @@
 {
   "name": "genkitx-neo4j",
   "version": "1.0.0",
-  "keywords": [],
+  "keywords": [
+    "genkit",
+    "genkit-retriever",
+    "genkit-plugin",
+    "genkit-indexer",
+    "neo4j",
+    "vector",
+    "embedding",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "author": "",
   "license": "ISC",
   "description": "Genkit AI framework plugin for Neo4j Graph database",
