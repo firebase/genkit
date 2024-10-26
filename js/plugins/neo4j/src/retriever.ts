@@ -14,28 +14,21 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
-import { Neo4jGraphConfig } from './types';
 import { Neo4jVectorStore } from './vector';
-import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { Document, defineRetriever } from '@genkit-ai/ai/retriever';
 import { Neo4jRetrieverOptionsSchema } from './index'
 
 /**
  * Configures a Neo4j retriever.
  */
-export function configureNeo4jRetriever<
-EmbedderCustomOptions extends z.ZodTypeAny,
->(params: {
-  clientParams: Neo4jGraphConfig;
+export function configureNeo4jRetriever(params: {
+  neo4jStore: Neo4jVectorStore;
   indexId: string;
-  embedder: EmbedderArgument<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
-  const { indexId, embedder, embedderOptions } = {
+  const { indexId } = {
     ...params,
   };
-  const neo4jConfig = params.clientParams;
+  const neo4jStore = params.neo4jStore;
 
   return defineRetriever(
     {
@@ -43,9 +36,10 @@ EmbedderCustomOptions extends z.ZodTypeAny,
       configSchema: Neo4jRetrieverOptionsSchema,
     },
     async (query, options) => {
-      const docs = await Neo4jVectorStore.fromExistingIndex(
-        embedder, embedderOptions, neo4jConfig
-      ).then(store => store.similaritySearch(query, options.k));
+      const docs = await neo4jStore.fromExistingIndex(
+        options.vectorConfig
+      ).then(
+          store => store.similaritySearch(query, options.k));
       
       return {
         documents: docs.map(doc => {

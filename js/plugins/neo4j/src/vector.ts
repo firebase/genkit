@@ -3,7 +3,7 @@ import * as uuid from "uuid";
 import * as z from 'zod';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { Document, DocumentData } from '@genkit-ai/ai/retriever';
-import { SearchType, IndexType, Neo4jGraphConfig, Neo4jDocument} from './types';
+import { SearchType, IndexType, Neo4jGraphConfig, Neo4jDocument, Neo4jVectorConfig} from './types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -54,6 +54,8 @@ export class Neo4jVectorStore {
   private embedder!: EmbedderArgument<EmbedderCustomOptions>;
 
   private embedderOptions: z.infer<EmbedderCustomOptions>;
+
+  private config!: Neo4jGraphConfig;
   
   constructor(config: Neo4jGraphConfig,
     embedder?: EmbedderArgument<EmbedderCustomOptions>,
@@ -62,65 +64,41 @@ export class Neo4jVectorStore {
         this.embedder = embedder;
         this.embedderOptions = embedderOptions;
       }
-
       this.database = config.database || DEFAULT_DATABASE;
-      this.preDeleteCollection = config.preDeleteCollection || false;
-      this.nodeLabel = config.nodeLabel || "Chunk";
-      this.embeddingNodeProperty = config.embeddingNodeProperty || DEFAULT_NODE_EMBEDDING_PROPERTY;
+      this.preDeleteCollection = false;
+      this.nodeLabel = "Chunk";
+      this.embeddingNodeProperty = DEFAULT_NODE_EMBEDDING_PROPERTY;
       this.embeddingDimension = 0;
-      this.textNodeProperty = config.textNodeProperty || "text";
-      this.keywordIndexName = config.keywordIndexName || "keyword";
-      this.indexName = config.indexName || "vector";
-      this.retrievalQuery = config.retrievalQuery || "" ;
-      this.searchType = config.searchType || DEFAULT_SEARCH_TYPE;
-      this.indexType = config.indexType || DEFAULT_INDEX_TYPE;
+      this.textNodeProperty = "text";
+      this.keywordIndexName = "keyword";
+      this.indexName = "vector";
+      this.retrievalQuery = "" ;
+      this.searchType = DEFAULT_SEARCH_TYPE;
+      this.indexType = DEFAULT_INDEX_TYPE;
+      this.config = config
+
+      this.initialize()
   }
 
-  static async initialize( 
-    config: Neo4jGraphConfig,
-    embedder?: EmbedderArgument<EmbedderCustomOptions>,
-    embedderOptions?: z.infer<EmbedderCustomOptions>
-  ) {
-    const store = new Neo4jVectorStore(config, embedder, embedderOptions);
-    await store._initializeDriver(config);
-    await store._verifyConnectivity();
+  async initialize() {
+    await this._initializeDriver(this.config);
+    await this._verifyConnectivity();
 
-    const {
-      preDeleteCollection = false,
-      nodeLabel = "Chunk",
-      textNodeProperty = "text",
-      embeddingNodeProperty = DEFAULT_NODE_EMBEDDING_PROPERTY,
-      keywordIndexName = "keyword",
-      indexName = "vector",
-      retrievalQuery = "",
-      searchType = DEFAULT_SEARCH_TYPE,
-      indexType = DEFAULT_INDEX_TYPE,
-    } = config;
-
-    if(!embedder) {
-      return store;
+    if(!this.embedder) {
+      return;
     }
 
-    store.embeddingDimension = (await embed({
+    const embedder = this.embedder
+    const embedderOptions = this.embedderOptions
+    this.embeddingDimension = (await embed({
       embedder,
       content: "foo",
       options: embedderOptions,
     })).length;
-    store.preDeleteCollection = preDeleteCollection;
-    store.nodeLabel = nodeLabel;
-    store.textNodeProperty = textNodeProperty;
-    store.embeddingNodeProperty = embeddingNodeProperty;
-    store.keywordIndexName = keywordIndexName;
-    store.indexName = indexName;
-    store.retrievalQuery = retrievalQuery;
-    store.searchType = searchType;
-    store.indexType = indexType;
 
-    if (store.preDeleteCollection) {
-      await store._dropIndex();
+    if (this.preDeleteCollection) {
+      await this._dropIndex();
     }
-
-    return store;
   }
 
   async _initializeDriver({
@@ -198,18 +176,33 @@ export class Neo4jVectorStore {
   }
 
   async query(query: string, params: Any = {}): Promise<Any[]> {
+    try {
+      await this._verifyConnectivity();
+    } catch(error) {
+      await this._initializeDriver(this.config);
+      await this._verifyConnectivity();
+    }
     const session = this.driver.session({ database: this.database });
     const result = await session.run(query, params);
     return toObjects(result.records);
   }
 
-  static async fromTexts(
-    texts: string[],
-    metadatas: Any,
-    embedder: EmbedderArgument<EmbedderCustomOptions>,
-    embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jGraphConfig
-  ): Promise<Neo4jVectorStore> {
+  async setVectorConfig(options: Neo4jVectorConfig) {
+    this.preDeleteCollection = options.preDeleteCollection || false;
+    this.nodeLabel = options.nodeLabel || "Chunk";
+    this.embeddingNodeProperty = options.embeddingNodeProperty || DEFAULT_NODE_EMBEDDING_PROPERTY;
+    this.embeddingDimension = 0;
+    this.textNodeProperty = options.textNodeProperty || "text";
+    this.keywordIndexName = options.keywordIndexName || "keyword";
+    this.indexName = options.indexName || "vector";
+    this.retrievalQuery = options.retrievalQuery || "" ;
+    this.searchType = options.searchType || DEFAULT_SEARCH_TYPE;
+    this.indexType = options.indexType || DEFAULT_INDEX_TYPE;
+  }
+
+  async fromTexts(
+    texts: string[], config: Neo4jVectorConfig, 
+    metadatas: Any): Promise<Neo4jVectorStore> {
     const docs: Document[] = [];
 
     for (let i = 0; i < texts.length; i += 1) {
@@ -221,42 +214,37 @@ export class Neo4jVectorStore {
       docs.push(newDoc);
     }
 
-    return Neo4jVectorStore.fromDocuments(docs, embedder, embedderOptions, config);
+    return this.fromDocuments(docs, config);
   }
 
-  static async fromDocuments(
-    docs: Document[],
-    embedder: EmbedderArgument<EmbedderCustomOptions>,
-    embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jGraphConfig
-  ): Promise<Neo4jVectorStore> {
+  async fromDocuments(
+    docs: Document[], config: Neo4jVectorConfig): Promise<Neo4jVectorStore> {
+    this.setVectorConfig(config)
     const {
       searchType = DEFAULT_SEARCH_TYPE,
       createIdIndex = true,
       textNodeProperties = [],
     } = config;
 
-    const store = await this.initialize(config, embedder, embedderOptions);
-
-    const embeddingDimension = await store.retrieveExistingIndex();
+    const embeddingDimension = await this.retrieveExistingIndex();
 
     if (!embeddingDimension) {
-      await store.createNewIndex();
-    } else if (store.embeddingDimension !== embeddingDimension) {
+      await this.createNewIndex();
+    } else if (this.embeddingDimension !== embeddingDimension) {
       throw new Error(
-        `Index with name "${store.indexName}" already exists. The provided embedding function and vector index dimensions do not match.
-        Embedding function dimension: ${store.embeddingDimension}
+        `Index with name "${this.indexName}" already exists. The provided embedding function and vector index dimensions do not match.
+        Embedding function dimension: ${this.embeddingDimension}
         Vector index dimension: ${embeddingDimension}`
       );
     }
 
     if (searchType === "hybrid") {
-      const ftsNodeLabel = await store.retrieveExistingFtsIndex();
+      const ftsNodeLabel = await this.retrieveExistingFtsIndex();
 
       if (!ftsNodeLabel) {
-        await store.createNewKeywordIndex(textNodeProperties);
+        await this.createNewKeywordIndex(textNodeProperties);
       } else {
-        if (ftsNodeLabel !== store.nodeLabel) {
+        if (ftsNodeLabel !== this.nodeLabel) {
           throw Error(
             "Vector and keyword index don't index the same node label"
           );
@@ -265,21 +253,18 @@ export class Neo4jVectorStore {
     }
 
     if (createIdIndex) {
-      await store.query(
-        `CREATE CONSTRAINT IF NOT EXISTS FOR (n:${store.nodeLabel}) REQUIRE n.id IS UNIQUE;`
+      await this.query(
+        `CREATE CONSTRAINT IF NOT EXISTS FOR (n:${this.nodeLabel}) REQUIRE n.id IS UNIQUE;`
       );
     }
 
-    await store.addDocuments(docs);
+    await this.addDocuments(docs);
 
-    return store;
+    return this;
   }
 
-  static async fromExistingIndex(
-    embedder: EmbedderArgument<EmbedderCustomOptions>,
-    embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jGraphConfig
-  ) {
+  async fromExistingIndex(config: Neo4jVectorConfig) {
+    this.setVectorConfig(config)
     const { searchType = DEFAULT_SEARCH_TYPE, keywordIndexName = "keyword" } =
       config;
 
@@ -289,8 +274,7 @@ export class Neo4jVectorStore {
       );
     }
 
-    const store = await this.initialize(config, embedder, embedderOptions);
-    const embeddingDimension = await store.retrieveExistingIndex();
+    const embeddingDimension = await this.retrieveExistingIndex();
 
     if (!embeddingDimension) {
       throw Error(
@@ -298,23 +282,23 @@ export class Neo4jVectorStore {
       );
     }
 
-    if (store.embeddingDimension !== embeddingDimension) {
+    if (this.embeddingDimension !== embeddingDimension) {
       throw new Error(
         `The provided embedding function and vector index dimensions do not match.
-         Embedding function dimension: ${store.embeddingDimension}
+         Embedding function dimension: ${this.embeddingDimension}
          Vector index dimension: ${embeddingDimension}`
       );
     }
 
     if (searchType === "hybrid") {
-      const ftsNodeLabel = await store.retrieveExistingFtsIndex();
+      const ftsNodeLabel = await this.retrieveExistingFtsIndex();
 
       if (!ftsNodeLabel) {
         throw Error(
           "The specified keyword index name does not exist. Make sure to check if you spelled it correctly"
         );
       } else {
-        if (ftsNodeLabel !== store.nodeLabel) {
+        if (ftsNodeLabel !== this.nodeLabel) {
           throw Error(
             "Vector and keyword index don't index the same node label"
           );
@@ -322,14 +306,10 @@ export class Neo4jVectorStore {
       }
     }
 
-    return store;
+    return this;
   }
 
-  static async fromExistingGraph(
-    embedder: EmbedderArgument<EmbedderCustomOptions>,
-    embedderOptions: z.infer<EmbedderCustomOptions>,
-    config: Neo4jGraphConfig
-  ) {
+  async fromExistingGraph(config: Neo4jVectorConfig) {
     const {
       textNodeProperties = [],
       embeddingNodeProperty = DEFAULT_NODE_EMBEDDING_PROPERTY,
@@ -356,30 +336,25 @@ export class Neo4jVectorStore {
       `;
     }
 
-    const store = await this.initialize({
-      ...config,
-      retrievalQuery: _retrievalQuery,
-    },embedder, embedderOptions);
-
-    const embeddingDimension = await store.retrieveExistingIndex();
+    const embeddingDimension = await this.retrieveExistingIndex();
 
     if (!embeddingDimension) {
-      await store.createNewIndex();
-    } else if (store.embeddingDimension !== embeddingDimension) {
+      await this.createNewIndex();
+    } else if (this.embeddingDimension !== embeddingDimension) {
       throw new Error(
-        `Index with name ${store.indexName} already exists. The provided embedding function and vector index dimensions do not match.\nEmbedding function dimension: ${store.embeddingDimension}\nVector index dimension: ${embeddingDimension}`
+        `Index with name ${this.indexName} already exists. The provided embedding function and vector index dimensions do not match.\nEmbedding function dimension: ${this.embeddingDimension}\nVector index dimension: ${embeddingDimension}`
       );
     }
 
     if (searchType === "hybrid") {
-      const ftsNodeLabel = await store.retrieveExistingFtsIndex(
+      const ftsNodeLabel = await this.retrieveExistingFtsIndex(
         textNodeProperties
       );
 
       if (!ftsNodeLabel) {
-        await store.createNewKeywordIndex(textNodeProperties);
+        await this.createNewKeywordIndex(textNodeProperties);
       } else {
-        if (ftsNodeLabel !== store.nodeLabel) {
+        if (ftsNodeLabel !== this.nodeLabel) {
           throw Error(
             "Vector and keyword index don't index the same node label"
           );
@@ -398,11 +373,13 @@ export class Neo4jVectorStore {
         LIMIT 1000
       `;
 
-      const data = await store.query(fetchQuery, { props: textNodeProperties });
+      const data = await this.query(fetchQuery, { props: textNodeProperties });
 
       if (!data) {
         break;
       }
+      const embedder = this.embedder;
+      const embedderOptions = this.embedderOptions;
 
       const textEmbeddings = await Promise.all(
         data.map((el) =>
@@ -421,7 +398,7 @@ export class Neo4jVectorStore {
         })),
       };
 
-      await store.query(
+      await this.query(
         `
         UNWIND $data AS row
         MATCH (n:\`${nodeLabel}\`)
@@ -437,37 +414,27 @@ export class Neo4jVectorStore {
       }
     }
 
-    return store;
+    return this;
   }
 
-  static async deleteIndex(config: Neo4jGraphConfig) {
-    const store = await this.initialize(config);
-
-    return await store._dropIndex();
+  async deleteIndex() {
+    return await this._dropIndex();
   }
 
-  static async createIndex(config: Neo4jGraphConfig) {
-    const store = await this.initialize(config);
-
-    return await store.createNewIndex();
+  async createIndex() {
+    return await this.createNewIndex();
   }
 
-  static async createTextIndex(config: Neo4jGraphConfig, textNodeProperties: string[]=[]) {
-    const store = await this.initialize(config);
-
-    return await store.createNewKeywordIndex(textNodeProperties);
+  async createTextIndex(textNodeProperties: string[]=[]) {
+    return await this.createNewKeywordIndex(textNodeProperties);
   }
 
-  static async getIndex(config: Neo4jGraphConfig) {
-    const store = await this.initialize(config);
-
-    return await store.retrieveExistingIndex();
+  async getIndex() {
+    return await this.retrieveExistingIndex();
   }
 
-  static async getTextIndex(config: Neo4jGraphConfig, textNodeProperties: string[]=[]) {
-    const store = await this.initialize(config);
-
-    return await store.retrieveExistingFtsIndex(textNodeProperties  );
+  async getTextIndex(textNodeProperties: string[]=[]) {
+    return await this.retrieveExistingFtsIndex(textNodeProperties  );
   }
 
   async createNewIndex(): Promise<void> {

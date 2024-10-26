@@ -25,6 +25,7 @@ import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import { configureNeo4jIndexer } from './indexer';
 import { configureNeo4jRetriever } from './retriever';
 import * as z from 'zod';
+import { Neo4jVectorStore } from './vector';
 
 /**
  * Neo4j plugin for indexing and retrieval
@@ -47,18 +48,32 @@ export function neo4j<EmbedderCustomOptions extends z.ZodTypeAny>(
         embedderOptions?: z.infer<EmbedderCustomOptions>;
       }[]
     ) => ({
-      retrievers: params.map((i) => configureNeo4jRetriever(i)),
-      indexers: params.map((i) => configureNeo4jIndexer(i)),
+      retrievers: params.map((i) => {
+        return configureNeo4jRetriever({
+          neo4jStore: new Neo4jVectorStore(
+            i.clientParams, i.embedder, i.embedderOptions),
+          indexId: i.indexId
+        })
+    }),
+      indexers: params.map((i) => {
+        return configureNeo4jIndexer({
+          neo4jStore: new Neo4jVectorStore(
+            i.clientParams, i.embedder, i.embedderOptions),
+          indexId: i.indexId
+        })
+      })
     })
   );
   return plugin(params);
 }
 
 export const Neo4jRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
-  k: z.number().max(1000)
+  k: z.number().max(1000),
+  vectorConfig: z.any()
 });
 
 export const Neo4jIndexerOptionsSchema = z.object({
+  vectorConfig: z.any()
 });
 
 export const neo4jRetrieverRef = (params: {

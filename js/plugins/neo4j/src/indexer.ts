@@ -1,33 +1,30 @@
 import * as z from 'zod';
 import { Neo4jGraphConfig } from './types';
 import { Neo4jVectorStore } from './vector';
-import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { defineIndexer } from '@genkit-ai/ai/retriever';
 import { Document } from '@genkit-ai/ai/retriever';
+import { Neo4jIndexerOptionsSchema } from '.';
 
 /**
  * Configures a Neo4j indexer.
  */
-export function configureNeo4jIndexer<
-  EmbedderCustomOptions extends z.ZodTypeAny
->(params: {
-  clientParams: Neo4jGraphConfig;
+export function configureNeo4jIndexer(params: {
+  neo4jStore: Neo4jVectorStore;
   indexId: string;
-  embedder: EmbedderArgument<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
-  const { indexId, embedder, embedderOptions } = {
+  const { indexId } = {
     ...params,
   };
-  const neo4jConfig = params.clientParams;
+  const neo4jStore = params.neo4jStore;
 
   return defineIndexer(
     {
       name: `neo4j/${params.indexId}`,
+      configSchema: Neo4jIndexerOptionsSchema
     },
-    async (docs: Document[]) => {
-      await Neo4jVectorStore.fromDocuments(
-        docs, embedder, embedderOptions, neo4jConfig);
+    async (docs: Document[], options) => {
+      await neo4jStore.fromDocuments(
+        docs, options.vectorConfig);
     }
   );
 }
@@ -38,7 +35,8 @@ export function configureNeo4jIndexer<
 export async function createNeo4jVectorIndex(params: {
   clientParams: Neo4jGraphConfig;
 }) {
-  return await Neo4jVectorStore.createIndex(params.clientParams);
+  const store = new Neo4jVectorStore(params.clientParams)
+  return await store.createIndex();
 }
 
 /**
@@ -47,7 +45,8 @@ export async function createNeo4jVectorIndex(params: {
 export async function describeNeo4jVectorIndex(params: {
   clientParams: Neo4jGraphConfig;
 }) {
-  return await Neo4jVectorStore.getIndex(params.clientParams);
+  const store = new Neo4jVectorStore(params.clientParams)
+  return await store.getIndex();
 }
 
 /**
@@ -56,5 +55,6 @@ export async function describeNeo4jVectorIndex(params: {
 export async function deleteNeo4jVectorIndex(params: {
   clientParams: Neo4jGraphConfig;
 }) {
-  return await Neo4jVectorStore.deleteIndex(params.clientParams);
+  const store = new Neo4jVectorStore(params.clientParams)
+  return await store.deleteIndex();
 }

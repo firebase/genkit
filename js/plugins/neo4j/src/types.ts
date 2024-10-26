@@ -22,6 +22,9 @@ export interface Neo4jGraphConfig {
   username: string;
   password: string;
   database?: string;
+}
+
+export interface Neo4jVectorConfig {
   preDeleteCollection?: boolean;
   textNodeProperty?: string;
   textNodeProperties?: string[];
