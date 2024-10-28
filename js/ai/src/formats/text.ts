@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-import { GenerateResponse, GenerateResponseChunk } from '../generate';
 import type { Formatter } from './types';
 
-export const textParser: Formatter = (request) => {
+export const textParser: Formatter<string, string, never> = () => {
   return {
-    parseChunk: (chunk: GenerateResponseChunk, emit: (chunk: any) => void) => {
-      emit(chunk.text);
+    parseChunk: (chunk) => {
+      return {
+        output: chunk.text,
+      };
     },
 
-    parseResponse: (response: GenerateResponse) => {
+    parseResponse: (response) => {
       return response.text;
     },
+    contentType: 'text/plain',
   };
 };

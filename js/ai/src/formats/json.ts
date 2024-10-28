@@ -17,9 +17,8 @@
 import { extractJson } from '../extract';
 import type { Formatter } from './types';
 
-export const jsonParser: Formatter = (request) => {
-  let accumulatedText: string = '';
-  let instructions: boolean | string = false;
+export const jsonParser: Formatter<unknown, unknown, string> = (request) => {
+  let instructions: string | undefined;
 
   if (request.output?.schema) {
     instructions = `Output should be in JSON format and conform to the following schema:
@@ -31,9 +30,11 @@ ${JSON.stringify(request.output!.schema!)}
   }
 
   return {
-    parseChunk: (chunk, emit) => {
-      accumulatedText = chunk.accumulatedText;
-      emit(extractJson(accumulatedText));
+    parseChunk: (chunk, cursor = '') => {
+      return {
+        output: extractJson(chunk.accumulatedText),
+        cursor: chunk.accumulatedText,
+      };
     },
 
     parseResponse: (response) => {
@@ -41,5 +42,6 @@ ${JSON.stringify(request.output!.schema!)}
     },
 
     instructions,
+    contentType: 'application/json',
   };
 };

@@ -67,20 +67,21 @@ describe('arrayFormat', () => {
     it(st.desc, () => {
       const parser = arrayParser({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
-      let lastEmitted: any[] = [];
+      let lastCursor = 0;
+
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
         chunks.push(newChunk);
 
-        lastEmitted = [];
-        const emit = (item: any) => {
-          lastEmitted.push(item);
-        };
-        parser.parseChunk!(new GenerateResponseChunk(newChunk, chunks), emit);
+        const result = parser.parseChunk!(
+          new GenerateResponseChunk(newChunk, chunks),
+          lastCursor
+        );
 
-        assert.deepStrictEqual(lastEmitted, chunk.want);
+        assert.deepStrictEqual(result.output, chunk.want);
+        lastCursor = result.cursor!;
       }
     });
   }

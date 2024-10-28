@@ -17,7 +17,7 @@
 import { GenkitError } from '@genkit-ai/core';
 import type { Formatter } from './types';
 
-export const enumParser: Formatter = (request) => {
+export const enumParser: Formatter<string, string> = (request) => {
   const schemaType = request.output?.schema?.type;
   if (schemaType && schemaType !== 'string' && schemaType !== 'enum') {
     throw new GenkitError({
@@ -26,7 +26,7 @@ export const enumParser: Formatter = (request) => {
     });
   }
 
-  let instructions: boolean | string = false;
+  let instructions: string | undefined;
   if (request.output?.schema?.enum) {
     instructions = `Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n${request.output?.schema?.enum.map((v) => v.toString()).join('\n')}`;
   }

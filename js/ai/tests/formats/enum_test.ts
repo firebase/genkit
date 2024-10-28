@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { GenkitError } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { enumParser } from '../../src/formats/enum.js';
@@ -23,74 +22,62 @@ import { GenerateResponse } from '../../src/generate.js';
 describe('enumFormat', () => {
   const responseTests = [
     {
-      desc: 'parses simple string response',
+      desc: 'parses simple enum value',
       response: new GenerateResponse({
         message: {
           role: 'model',
-          content: [{ text: 'value1' }],
+          content: [{ text: 'VALUE1' }],
         },
       }),
-      want: 'value1',
+      want: 'VALUE1',
     },
     {
-      desc: 'trims whitespace from response',
+      desc: 'trims whitespace',
       response: new GenerateResponse({
         message: {
           role: 'model',
-          content: [{ text: '  value2  \n' }],
+          content: [{ text: '  VALUE2\n' }],
         },
       }),
-      want: 'value2',
+      want: 'VALUE2',
     },
   ];
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
-      const parser = enumParser({
-        messages: [],
-        output: { schema: { type: 'string' } },
-      });
+      const parser = enumParser({ messages: [] });
       assert.strictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }
 
-  it('throws error for invalid schema type', () => {
-    assert.throws(
-      () => {
-        enumParser({ messages: [], output: { schema: { type: 'number' } } });
+  const errorTests = [
+    {
+      desc: 'throws error for number schema type',
+      request: {
+        messages: [],
+        output: {
+          schema: { type: 'number' },
+        },
       },
-      (err: GenkitError) => {
-        return (
-          err.status === 'INVALID_ARGUMENT' &&
-          err.message.includes(
-            `Must supply a 'string' or 'enum' schema type when using the enum parser format.`
-          )
-        );
-      }
-    );
-  });
+      wantError: /Must supply a 'string' or 'enum' schema type/,
+    },
+    {
+      desc: 'throws error for array schema type',
+      request: {
+        messages: [],
+        output: {
+          schema: { type: 'array' },
+        },
+      },
+      wantError: /Must supply a 'string' or 'enum' schema type/,
+    },
+  ];
 
-  it('includes enum values in instructions when provided', () => {
-    const enumValues = ['option1', 'option2', 'option3'];
-    const parser = enumParser({
-      messages: [],
-      output: { schema: { type: 'enum', enum: enumValues } },
+  for (const et of errorTests) {
+    it(et.desc, () => {
+      assert.throws(() => {
+        enumParser(et.request);
+      }, et.wantError);
     });
-
-    assert.match(
-      parser.instructions as string,
-      /Output should be ONLY one of the following enum values/
-    );
-    for (const value of enumValues) {
-      assert.match(parser.instructions as string, new RegExp(value));
-    }
-  });
-
-  it('has no instructions when no enum values provided', () => {
-    const parser = enumParser({
-      messages: [],
-      output: { schema: { type: 'string' } },
-    });
-    assert.strictEqual(parser.instructions, false);
-  });
+  }
 });

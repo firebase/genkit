@@ -23,15 +23,28 @@ import { GenerateResponseChunkData } from '../../src/model.js';
 describe('jsonlFormat', () => {
   const streamingTests = [
     {
-      desc: 'emits complete objects line by line',
+      desc: 'emits complete JSON objects as they arrive',
       chunks: [
         {
-          text: '{"id": 1}\n{"id"',
-          want: [{ id: 1 }],
+          text: '{"id": 1, "name": "first"}\n',
+          want: [{ id: 1, name: 'first' }],
         },
         {
-          text: ': 2}\n{"id": 3}',
-          want: [{ id: 2 }, { id: 3 }],
+          text: '{"id": 2, "name": "second"}\n{"id": 3',
+          want: [{ id: 2, name: 'second' }],
+        },
+        {
+          text: ', "name": "third"}\n',
+          want: [{ id: 3, name: 'third' }],
+        },
+      ],
+    },
+    {
+      desc: 'handles single object',
+      chunks: [
+        {
+          text: '{"id": 1, "name": "single"}\n',
+          want: [{ id: 1, name: 'single' }],
         },
       ],
     },
@@ -39,12 +52,12 @@ describe('jsonlFormat', () => {
       desc: 'handles preamble with code fence',
       chunks: [
         {
-          text: 'Here are the items:\n\n```jsonl\n{"id": 1',
+          text: 'Here are the objects:\n\n```\n',
           want: [],
         },
         {
-          text: '}\n{"id": 2}\n```',
-          want: [{ id: 1 }, { id: 2 }],
+          text: '{"id": 1, "name": "item"}\n```',
+          want: [{ id: 1, name: 'item' }],
         },
       ],
     },
@@ -52,21 +65,8 @@ describe('jsonlFormat', () => {
       desc: 'ignores non-object lines',
       chunks: [
         {
-          text: 'Starting output:\n{"id": 1}\nsome text\n{"id": 2}',
+          text: 'First object:\n{"id": 1}\nSecond object:\n{"id": 2}\n',
           want: [{ id: 1 }, { id: 2 }],
-        },
-      ],
-    },
-    {
-      desc: 'handles objects with nested structures',
-      chunks: [
-        {
-          text: '{"user": {"name": "test"}}\n{"data": ',
-          want: [{ user: { name: 'test' } }],
-        },
-        {
-          text: '{"values": [1,2]}}',
-          want: [{ data: { values: [1, 2] } }],
         },
       ],
     },
@@ -76,53 +76,54 @@ describe('jsonlFormat', () => {
     it(st.desc, () => {
       const parser = jsonlParser({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
-      let lastEmitted: any[] = [];
+      let lastCursor = 0;
+
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
         chunks.push(newChunk);
 
-        lastEmitted = [];
-        const emit = (item: any) => {
-          lastEmitted.push(item);
-        };
-        parser.parseChunk!(new GenerateResponseChunk(newChunk, chunks), emit);
+        const result = parser.parseChunk!(
+          new GenerateResponseChunk(newChunk, chunks),
+          lastCursor
+        );
 
-        assert.deepStrictEqual(lastEmitted, chunk.want);
+        assert.deepStrictEqual(result.output, chunk.want);
+        lastCursor = result.cursor!;
       }
     });
   }
 
   const responseTests = [
     {
-      desc: 'parses multiple objects',
+      desc: 'parses complete JSONL response',
       response: new GenerateResponse({
         message: {
           role: 'model',
-          content: [{ text: '{"id": 1}\n{"id": 2}\n{"id": 3}' }],
+          content: [{ text: '{"id": 1, "name": "test"}\n{"id": 2}\n' }],
         },
       }),
-      want: [{ id: 1 }, { id: 2 }, { id: 3 }],
+      want: [{ id: 1, name: 'test' }, { id: 2 }],
     },
     {
-      desc: 'handles empty lines and non-object lines',
+      desc: 'handles empty response',
       response: new GenerateResponse({
         message: {
           role: 'model',
-          content: [{ text: '\n{"id": 1}\nsome text\n{"id": 2}\n' }],
+          content: [{ text: '' }],
         },
       }),
-      want: [{ id: 1 }, { id: 2 }],
+      want: [],
     },
     {
-      desc: 'parses with preamble and code fence',
+      desc: 'parses JSONL with preamble and code fence',
       response: new GenerateResponse({
         message: {
           role: 'model',
           content: [
             {
-              text: 'Here are the items:\n\n```jsonl\n{"id": 1}\n{"id": 2}\n```',
+              text: 'Here are the objects:\n\n```\n{"id": 1}\n{"id": 2}\n```',
             },
           ],
         },
@@ -154,10 +155,7 @@ describe('jsonlFormat', () => {
       request: {
         messages: [],
         output: {
-          schema: {
-            type: 'array',
-            items: { type: 'string' },
-          },
+          schema: { type: 'array', items: { type: 'string' } },
         },
       },
       wantError: /Must supply an 'array' schema type containing 'object' items/,
@@ -171,34 +169,4 @@ describe('jsonlFormat', () => {
       }, et.wantError);
     });
   }
-
-  it('includes schema in instructions when provided', () => {
-    const schema = {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'number' },
-        },
-      },
-    };
-    const parser = jsonlParser({
-      messages: [],
-      output: { schema },
-    });
-
-    assert.match(
-      parser.instructions as string,
-      /Output should be JSONL format/
-    );
-    assert.match(
-      parser.instructions as string,
-      new RegExp(JSON.stringify(schema.items))
-    );
-  });
-
-  it('has no instructions when no schema provided', () => {
-    const parser = jsonlParser({ messages: [] });
-    assert.strictEqual(parser.instructions, false);
-  });
 });

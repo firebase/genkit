@@ -23,10 +23,25 @@ import { GenerateResponseChunkData } from '../../src/model.js';
 describe('textFormat', () => {
   const streamingTests = [
     {
-      desc: 'emits each chunk as it comes',
+      desc: 'emits text chunks as they arrive',
       chunks: [
-        { text: 'this is', want: ['this is'] },
-        { text: ' a two-chunk response', want: [' a two-chunk response'] },
+        {
+          text: 'Hello',
+          want: 'Hello',
+        },
+        {
+          text: ' world',
+          want: ' world',
+        },
+      ],
+    },
+    {
+      desc: 'handles empty chunks',
+      chunks: [
+        {
+          text: '',
+          want: '',
+        },
       ],
     },
   ];
@@ -35,41 +50,49 @@ describe('textFormat', () => {
     it(st.desc, () => {
       const parser = textParser({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
-      let lastEmitted: string[] = [];
+
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
         chunks.push(newChunk);
 
-        lastEmitted = [];
-        const emit = (chunk: string) => {
-          lastEmitted.push(chunk);
-        };
-        parser.parseChunk!(new GenerateResponseChunk(newChunk, chunks), emit);
+        const result = parser.parseChunk!(
+          new GenerateResponseChunk(newChunk, chunks)
+        );
 
-        assert.deepStrictEqual(lastEmitted, chunk.want);
+        assert.strictEqual(result.output, chunk.want);
       }
     });
   }
 
   const responseTests = [
     {
-      desc: 'it returns the concatenated text',
+      desc: 'parses complete text response',
       response: new GenerateResponse({
         message: {
           role: 'model',
-          content: [{ text: 'chunk one.' }, { text: 'chunk two.' }],
+          content: [{ text: 'Hello world' }],
         },
       }),
-      want: 'chunk one.chunk two.',
+      want: 'Hello world',
+    },
+    {
+      desc: 'handles empty response',
+      response: new GenerateResponse({
+        message: {
+          role: 'model',
+          content: [{ text: '' }],
+        },
+      }),
+      want: '',
     },
   ];
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
       const parser = textParser({ messages: [] });
-      assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
+      assert.strictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }
 });

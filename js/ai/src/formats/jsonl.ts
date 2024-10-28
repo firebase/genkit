@@ -26,7 +26,9 @@ function objectLines(text: string): string[] {
     .filter((line) => line.startsWith('{'));
 }
 
-export const jsonlParser: Formatter = (request) => {
+export const jsonlParser: Formatter<unknown[], unknown[], number> = (
+  request
+) => {
   if (
     request.output?.schema &&
     (request.output?.schema.type !== 'array' ||
@@ -38,7 +40,7 @@ export const jsonlParser: Formatter = (request) => {
     });
   }
 
-  let instructions: boolean | string = false;
+  let instructions: string | undefined;
   if (request.output?.schema?.items) {
     instructions = `Output should be JSONL format, a sequence of JSON objects (one per line). Each line should conform to the following schema:
 
@@ -48,25 +50,28 @@ ${JSON.stringify(request.output.schema.items)}
     `;
   }
 
-  let cursor = 0;
-
   return {
-    parseChunk: (chunk, emit) => {
+    parseChunk: (chunk, cursor = 0) => {
       const jsonLines = objectLines(chunk.accumulatedText);
+      const results: unknown[] = [];
+      let newCursor = cursor;
 
       for (let i = cursor; i < jsonLines.length; i++) {
         try {
           const result = JSON5.parse(jsonLines[i]);
           if (result) {
-            emit(result);
+            results.push(result);
           }
+          newCursor = i + 1;
         } catch (e) {
-          cursor = i;
-          return;
+          break;
         }
       }
 
-      cursor = jsonLines.length;
+      return {
+        output: results,
+        cursor: newCursor,
+      };
     },
 
     parseResponse: (response) => {
@@ -78,5 +83,6 @@ ${JSON.stringify(request.output.schema.items)}
     },
 
     instructions,
+    contentType: 'application/jsonl',
   };
 };

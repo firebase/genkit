@@ -18,7 +18,9 @@ import { GenkitError } from '@genkit-ai/core';
 import { extractItems } from '../extract';
 import type { Formatter } from './types';
 
-export const arrayParser: Formatter = (request) => {
+export const arrayParser: Formatter<unknown[], unknown[], number> = (
+  request
+) => {
   if (request.output?.schema && request.output?.schema.type !== 'array') {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
@@ -26,7 +28,7 @@ export const arrayParser: Formatter = (request) => {
     });
   }
 
-  let instructions: boolean | string = false;
+  let instructions: string | undefined;
   if (request.output?.schema) {
     instructions = `Output should be a JSON array conforming to the following schema:
     
@@ -36,22 +38,17 @@ export const arrayParser: Formatter = (request) => {
     `;
   }
 
-  let cursor: number = 0;
-
   return {
-    parseChunk: (chunk, emit) => {
+    parseChunk: (chunk, cursor = 0) => {
       const { items, cursor: newCursor } = extractItems(
         chunk.accumulatedText,
         cursor
       );
 
-      // Emit any complete items
-      for (const item of items) {
-        emit(item);
-      }
-
-      // Update cursor position
-      cursor = newCursor;
+      return {
+        output: items,
+        cursor: newCursor,
+      };
     },
 
     parseResponse: (response) => {
@@ -60,5 +57,6 @@ export const arrayParser: Formatter = (request) => {
     },
 
     instructions,
+    contentType: 'application/json',
   };
 };

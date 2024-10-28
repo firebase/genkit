@@ -15,15 +15,31 @@
  */
 
 import { GenerateResponse, GenerateResponseChunk } from '../generate';
-import { GenerateRequest } from '../model';
+import { GenerateRequest, Part } from '../model';
 
-export interface Formatter {
+export interface ParsedChunk<CO = unknown, CC = unknown> {
+  output: CO;
+  /**
+   * The cursor of a parsed chunk response holds context that is relevant to continue parsing.
+   * The returned cursor will be passed into the next iteration of the chunk parser. Cursors
+   * are not exposed to external consumers of the formatter.
+   */
+  cursor?: CC;
+}
+
+type OutputContentTypes =
+  | 'application/json'
+  | 'text/plain'
+  | 'application/jsonl';
+
+export interface Formatter<O = unknown, CO = unknown, CC = unknown> {
   (req: GenerateRequest): {
+    parseResponse(response: GenerateResponse): O;
     parseChunk?: (
       chunk: GenerateResponseChunk,
-      emit: (chunk: any) => void
-    ) => void;
-    parseResponse(response: GenerateResponse): any;
-    instructions?: boolean | string;
+      cursor?: CC
+    ) => ParsedChunk<CO, CC>;
+    instructions?: string | Part[];
+    contentType?: OutputContentTypes | Omit<string, OutputContentTypes>;
   };
 }
