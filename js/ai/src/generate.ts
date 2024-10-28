@@ -26,6 +26,7 @@ import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import { generateHelper, GenerateUtilParamSchema } from './generateAction.js';
+import { Message } from './message.js';
 import {
   GenerateRequest,
   GenerateResponseChunkData,
@@ -41,87 +42,9 @@ import {
   Part,
   ToolDefinition,
   ToolRequestPart,
-  ToolResponsePart,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
-
-/**
- * Message represents a single role's contribution to a generation. Each message
- * can contain multiple parts (for example text and an image), and each generation
- * can contain multiple messages.
- */
-export class Message<T = unknown> implements MessageData {
-  role: MessageData['role'];
-  content: Part[];
-
-  constructor(message: MessageData) {
-    this.role = message.role;
-    this.content = message.content;
-  }
-
-  /**
-   * If a message contains a `data` part, it is returned. Otherwise, the `output()`
-   * method extracts the first valid JSON object or array from the text contained in
-   * the message and returns it.
-   *
-   * @returns The structured output contained in the message.
-   */
-  get output(): T {
-    return this.data || extractJson<T>(this.text);
-  }
-
-  toolResponseParts(): ToolResponsePart[] {
-    const res = this.content.filter((part) => !!part.toolResponse);
-    return res as ToolResponsePart[];
-  }
-
-  /**
-   * Concatenates all `text` parts present in the message with no delimiter.
-   * @returns A string of all concatenated text parts.
-   */
-  get text(): string {
-    return this.content.map((part) => part.text || '').join('');
-  }
-
-  /**
-   * Returns the first media part detected in the message. Useful for extracting
-   * (for example) an image from a generation expected to create one.
-   * @returns The first detected `media` part in the message.
-   */
-  get media(): { url: string; contentType?: string } | null {
-    return this.content.find((part) => part.media)?.media || null;
-  }
-
-  /**
-   * Returns the first detected `data` part of a message.
-   * @returns The first `data` part detected in the message (if any).
-   */
-  get data(): T | null {
-    return this.content.find((part) => part.data)?.data as T | null;
-  }
-
-  /**
-   * Returns all tool request found in this message.
-   * @returns Array of all tool request found in this message.
-   */
-  get toolRequests(): ToolRequestPart[] {
-    return this.content.filter(
-      (part) => !!part.toolRequest
-    ) as ToolRequestPart[];
-  }
-
-  /**
-   * Converts the Message to a plain JS object.
-   * @returns Plain JS object representing the data contained in the message.
-   */
-  toJSON(): MessageData {
-    return {
-      role: this.role,
-      content: [...this.content],
-    };
-  }
-}
 
 /**
  * GenerateResponse is the result from a `generate()` call and contains one or
@@ -377,29 +300,25 @@ export class GenerateResponseChunk<T = unknown>
   }
 }
 
-export function normalizePart(input: string | Part | Part[]): Part[] {
-  if (typeof input === 'string') {
-    return [{ text: input }];
-  } else if (Array.isArray(input)) {
-    return input;
-  } else {
-    return [input];
-  }
-}
-
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
   const messages: MessageData[] = [];
   if (options.system) {
-    messages.push({ role: 'system', content: normalizePart(options.system) });
+    messages.push({
+      role: 'system',
+      content: Message.parseContent(options.system),
+    });
   }
   if (options.messages) {
-    messages.push(...options.messages);
+    messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
   if (options.prompt) {
-    messages.push({ role: 'user', content: normalizePart(options.prompt) });
+    messages.push({
+      role: 'user',
+      content: Message.parseContent(options.prompt),
+    });
   }
   if (messages.length === 0) {
     throw new Error('at least one message is required in generate request');
@@ -443,7 +362,7 @@ export interface GenerateOptions<
   /** Retrieved documents to be used as context for this generation. */
   docs?: DocumentData[];
   /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
-  messages?: MessageData[];
+  messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** Configuration for the generation request. */
@@ -585,7 +504,7 @@ export async function generate<
   if (resolvedOptions.system) {
     messages.push({
       role: 'system',
-      content: normalizePart(resolvedOptions.system),
+      content: Message.parseContent(resolvedOptions.system),
     });
   }
   if (resolvedOptions.messages) {
@@ -594,7 +513,7 @@ export async function generate<
   if (resolvedOptions.prompt) {
     messages.push({
       role: 'user',
-      content: normalizePart(resolvedOptions.prompt),
+      content: Message.parseContent(resolvedOptions.prompt),
     });
   }
 

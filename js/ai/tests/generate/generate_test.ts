@@ -25,10 +25,10 @@ import {
   GenerateResponseChunk,
   GenerationBlockedError,
   GenerationResponseError,
-  Message,
   generate,
   toGenerateRequest,
 } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
 import {
   GenerateRequest,
   GenerateResponseChunkData,

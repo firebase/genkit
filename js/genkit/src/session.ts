@@ -16,8 +16,8 @@
 
 import {
   GenerateOptions,
+  Message,
   MessageData,
-  normalizePart,
   tagAsPreamble,
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
@@ -186,7 +186,7 @@ export class Session<S = any> {
         if (baseOptions.system) {
           messages.push({
             role: 'system',
-            content: normalizePart(baseOptions.system),
+            content: Message.parseContent(baseOptions.system),
           });
         }
         delete baseOptions.system;
