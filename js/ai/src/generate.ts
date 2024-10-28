@@ -415,7 +415,11 @@ export async function toGenerateRequest(
     docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format: options.output?.format,
+      format:
+        options.output?.format ||
+        (options.output?.schema || options.output?.jsonSchema
+          ? 'json'
+          : 'text'),
       schema: toJsonSchema({
         schema: options.output?.schema,
         jsonSchema: options.output?.jsonSchema,
