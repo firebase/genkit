@@ -200,6 +200,9 @@ export class Neo4jVectorStore {
   }
 
   async setVectorConfig(options: Neo4jVectorConfig) {
+    if(!options) {
+      return
+    }
     this.preDeleteCollection = options.preDeleteCollection || false;
     this.nodeLabel = options.nodeLabel || "Chunk";
     this.embeddingNodeProperty = options.embeddingNodeProperty || DEFAULT_NODE_EMBEDDING_PROPERTY;
