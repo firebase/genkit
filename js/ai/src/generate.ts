@@ -318,6 +318,22 @@ export class GenerateResponseChunk<T = unknown>
   }
 
   /**
+   * Concatenates all `text` parts of all chunks from the response thus far.
+   * @returns A string of all concatenated chunk text content.
+   */
+  get accumulatedText(): string {
+    if (!this.accumulatedChunks)
+      throw new GenkitError({
+        status: 'FAILED_PRECONDITION',
+        message: 'Cannot compose accumulated text without accumulated chunks.',
+      });
+
+    return this.accumulatedChunks
+      ?.map((c) => c.content.map((p) => p.text || '').join(''))
+      .join('');
+  }
+
+  /**
    * Returns the first media part detected in the chunk. Useful for extracting
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the chunk.
@@ -434,7 +450,7 @@ export interface GenerateOptions<
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'text' | 'json' | 'media';
+    format?: 'json' | 'text' | 'media';
     schema?: O;
     jsonSchema?: any;
   };
