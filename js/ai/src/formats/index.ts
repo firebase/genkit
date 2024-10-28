@@ -51,5 +51,5 @@ export async function resolveFormat(
   if (typeof arg === 'string') {
     return registry.lookupValue<Formatter>('format', arg);
   }
-  return arg;
+  return arg as Formatter;
 }
