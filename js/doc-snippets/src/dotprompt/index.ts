@@ -42,6 +42,10 @@ async function fn02() {
   const helloPrompt = await ai.prompt('hello');
   // [END loadPrompt]
 
+  // [START loadPromptVariant]
+  const myPrompt = await ai.prompt('my_prompt', { variant: 'gemini15pro' });
+  // [END loadPromptVariant]
+
   // [START callPrompt]
   const response = await helloPrompt();
 
@@ -110,6 +114,55 @@ async function fn05() {
   const description = data?.description;
   // [END outSchema2]
 }
+
+async function fn06() {
+  // [START multiTurnPrompt]
+  const multiTurnPrompt = await ai.prompt('multiTurnPrompt');
+  const result = await multiTurnPrompt({
+    messages: [
+      { role: 'user', content: [{ text: 'Hello.' }] },
+      { role: 'model', content: [{ text: 'Hi there!' }] },
+    ],
+  });
+  // [END multiTurnPrompt]
+}
+
+async function fn07() {
+  // [START multiModalPrompt]
+  const multimodalPrompt = await ai.prompt('multimodal');
+  const { text } = await multimodalPrompt({
+    photoUrl: 'https://example.com/photo.jpg',
+  });
+  // [END multiModalPrompt]
+}
+
+async function fn08() {
+  // [START definePartial]
+  ai.definePartial(
+    'personality',
+    'Talk like a {{#if style}}{{style}}{{else}}helpful assistant{{/if}}.'
+  );
+  // [END definePartial]
+
+  // [START defineHelper]
+  ai.defineHelper('shout', (text: string) => text.toUpperCase());
+  // [END defineHelper]
+}
+
+// [START definePromptMethod]
+const myPrompt = ai.definePrompt(
+  {
+    name: 'myPrompt',
+    model: 'googleai/gemini-1.5-flash',
+    input: {
+      schema: z.object({
+        name: z.string(),
+      }),
+    },
+  },
+  'Hello {{name}}, how are you today?'
+);
+// [END definePromptMethod]
 
 async function fn01() {
   // [START loadPromptFile]
