@@ -48,20 +48,20 @@ export function neo4j<EmbedderCustomOptions extends z.ZodTypeAny>(
         embedderOptions?: z.infer<EmbedderCustomOptions>;
       }[]
     ) => ({
-      retrievers: params.map((i) => {
+      retrievers: await Promise.all(params.map(async (i) => {
         return configureNeo4jRetriever({
-          neo4jStore: new Neo4jVectorStore(
+          neo4jStore: await Neo4jVectorStore.create(
             i.clientParams, i.embedder, i.embedderOptions),
           indexId: i.indexId
-        })
-    }),
-      indexers: params.map((i) => {
+        });
+      })),
+      indexers: await Promise.all(params.map(async (i) => {
         return configureNeo4jIndexer({
-          neo4jStore: new Neo4jVectorStore(
+          neo4jStore: await Neo4jVectorStore.create(
             i.clientParams, i.embedder, i.embedderOptions),
           indexId: i.indexId
-        })
-      })
+        });
+      }))
     })
   );
   return plugin(params);

@@ -4,6 +4,7 @@ import { Neo4jVectorStore } from './vector';
 import { defineIndexer } from '@genkit-ai/ai/retriever';
 import { Document } from '@genkit-ai/ai/retriever';
 import { Neo4jIndexerOptionsSchema } from '.';
+import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 
 /**
  * Configures a Neo4j indexer.
@@ -29,13 +30,17 @@ export function configureNeo4jIndexer(params: {
   );
 }
 
+type EmbedderCustomOptions = z.ZodTypeAny;
+
 /**
  * Create a Neo4j Vector index.
  */
 export async function createNeo4jVectorIndex(params: {
-  clientParams: Neo4jGraphConfig;
+  clientParams: Neo4jGraphConfig,
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
 }) {
-  const store = new Neo4jVectorStore(params.clientParams)
+  const store = await Neo4jVectorStore.create(
+    params.clientParams, params.embedder)
   return await store.createIndex();
 }
 
@@ -45,7 +50,7 @@ export async function createNeo4jVectorIndex(params: {
 export async function describeNeo4jVectorIndex(params: {
   clientParams: Neo4jGraphConfig;
 }) {
-  const store = new Neo4jVectorStore(params.clientParams)
+  const store = await Neo4jVectorStore.create(params.clientParams)
   return await store.getIndex();
 }
 
@@ -55,6 +60,6 @@ export async function describeNeo4jVectorIndex(params: {
 export async function deleteNeo4jVectorIndex(params: {
   clientParams: Neo4jGraphConfig;
 }) {
-  const store = new Neo4jVectorStore(params.clientParams)
+  const store = await Neo4jVectorStore.create(params.clientParams)
   return await store.deleteIndex();
 }

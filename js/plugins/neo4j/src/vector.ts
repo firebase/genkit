@@ -31,7 +31,7 @@ export class Neo4jVectorStore {
 
   private embeddingNodeProperty: string;
 
-  private embeddingDimension: number;
+  private embeddingDimension: number = 0;
 
   private textNodeProperty: string;
 
@@ -57,44 +57,56 @@ export class Neo4jVectorStore {
 
   private config!: Neo4jGraphConfig;
   
-  constructor(config: Neo4jGraphConfig,
+  private constructor(
+    config: Neo4jGraphConfig,
     embedder?: EmbedderArgument<EmbedderCustomOptions>,
-    embedderOptions?: z.infer<EmbedderCustomOptions>) {
-      if (embedder) {
-        this.embedder = embedder;
-        this.embedderOptions = embedderOptions;
-      }
-      this.database = config.database || DEFAULT_DATABASE;
-      this.preDeleteCollection = false;
-      this.nodeLabel = "Chunk";
-      this.embeddingNodeProperty = DEFAULT_NODE_EMBEDDING_PROPERTY;
-      this.embeddingDimension = 0;
-      this.textNodeProperty = "text";
-      this.keywordIndexName = "keyword";
-      this.indexName = "vector";
-      this.retrievalQuery = "" ;
-      this.searchType = DEFAULT_SEARCH_TYPE;
-      this.indexType = DEFAULT_INDEX_TYPE;
-      this.config = config
+    embedderOptions?: z.infer<EmbedderCustomOptions>
+  ) {
+    if (embedder) {
+      this.embedder = embedder;
+      this.embedderOptions = embedderOptions;
+    }
+    this.database = config.database || DEFAULT_DATABASE;
+    this.preDeleteCollection = false;
+    this.nodeLabel = "Chunk";
+    this.embeddingNodeProperty = DEFAULT_NODE_EMBEDDING_PROPERTY;
+    this.textNodeProperty = "text";
+    this.keywordIndexName = "keyword";
+    this.indexName = "vector";
+    this.retrievalQuery = "";
+    this.searchType = DEFAULT_SEARCH_TYPE;
+    this.indexType = DEFAULT_INDEX_TYPE;
+    this.config = config;
+  }
 
-      this.initialize()
+  static async create(
+    config: Neo4jGraphConfig,
+    embedder?: EmbedderArgument<EmbedderCustomOptions>,
+    embedderOptions?: z.infer<EmbedderCustomOptions>
+  ): Promise<Neo4jVectorStore> {
+    const instance = new Neo4jVectorStore(config, embedder, embedderOptions);
+    if (embedder) {
+      await instance.setEmbeddingDims();
+    }
+    await instance.initialize();
+    return instance;
+  }
+
+  async setEmbeddingDims() {
+    const embedder = this.embedder;
+    const embedderOptions = this.embedderOptions;
+    this.embeddingDimension = (
+      await embed({
+        embedder,
+        content: "foo",
+        options: embedderOptions,
+      })
+    ).length;
   }
 
   async initialize() {
     await this._initializeDriver(this.config);
     await this._verifyConnectivity();
-
-    if(!this.embedder) {
-      return;
-    }
-
-    const embedder = this.embedder
-    const embedderOptions = this.embedderOptions
-    this.embeddingDimension = (await embed({
-      embedder,
-      content: "foo",
-      options: embedderOptions,
-    })).length;
 
     if (this.preDeleteCollection) {
       await this._dropIndex();
@@ -191,7 +203,6 @@ export class Neo4jVectorStore {
     this.preDeleteCollection = options.preDeleteCollection || false;
     this.nodeLabel = options.nodeLabel || "Chunk";
     this.embeddingNodeProperty = options.embeddingNodeProperty || DEFAULT_NODE_EMBEDDING_PROPERTY;
-    this.embeddingDimension = 0;
     this.textNodeProperty = options.textNodeProperty || "text";
     this.keywordIndexName = options.keywordIndexName || "keyword";
     this.indexName = options.indexName || "vector";
@@ -1161,3 +1172,4 @@ function constructMetadataFilter(
     throw new Error("Filter condition contains no entries.");
   }
 }
+
