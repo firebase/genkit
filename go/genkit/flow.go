@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -476,6 +477,20 @@ func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb streamin
 	return state, nil
 }
 
+func isInputMissing(input any) bool {
+	if input == nil {
+		return true
+	}
+	v := reflect.ValueOf(input)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface, reflect.Chan, reflect.Func:
+		return v.IsNil()
+	default:
+		// For other types like structs, zero value might be a valid input.
+		return false
+	}
+}
+
 // execute performs one flow execution.
 // Using its flowState argument as a starting point, it runs the flow function until
 // it finishes or is interrupted.
@@ -510,7 +525,22 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		traceID := rootSpanContext.TraceID().String()
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
 		// TODO: Save rootSpanContext in the state.
-		// TODO: If input is missing, get it from state.input and overwrite metadata.input.
+		if isInputMissing(input) {
+			if state == nil {
+				return base.Zero[Out](), errors.New("input is missing and state is nil")
+			}
+			if isInputMissing(state.Input) {
+				return base.Zero[Out](), errors.New("input is missing and state.Input is also empty")
+			}
+			input = state.Input
+
+			// Convert input to JSON string for tracing metadata
+			bytes, err := json.Marshal(input)
+			if err != nil {
+				return base.Zero[Out](), fmt.Errorf("failed to marshal input for tracing: %w", err)
+			}
+			tracing.SetCustomMetadataAttr(ctx, "input", string(bytes))
+		}
 		start := time.Now()
 		var err error
 		if err = base.ValidateValue(input, f.inputSchema); err != nil {
