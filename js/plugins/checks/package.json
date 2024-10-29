@@ -1,0 +1,71 @@
+{
+  "name": "@genkit-ai/checks",
+  "description": "Genkit AI framework plugin for Google Cloud Vertex AI APIs including Gemini APIs, Imagen, and more.",
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "genkit-embedder",
+    "genkit-model",
+    "google cloud",
+    "vertex ai",
+    "imagen",
+    "image-generation",
+    "gemini",
+    "google gemini",
+    "google ai",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
+  "version": "0.9.0-dev.2",
+  "type": "commonjs",
+  "scripts": {
+    "check": "tsc",
+    "compile": "tsup-node",
+    "build:clean": "rimraf ./lib",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
+    "test": "tsx --test ./tests/*_test.ts ./tests/**/*_test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "js/plugins/checks"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.3",
+    "@anthropic-ai/vertex-sdk": "^0.4.0",
+    "@google-cloud/aiplatform": "^3.23.0",
+    "@google-cloud/vertexai": "^1.1.0",
+    "google-auth-library": "^9.6.3",
+    "googleapis": "^140.0.1",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.52.7"
+  },
+  "peerDependencies": {
+    "genkit": "workspace:*"
+  },
+  "optionalDependencies": {
+    "firebase-admin": ">=12.2",
+    "@google-cloud/bigquery": "^7.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.0.2",
+    "tsx": "^4.7.0",
+    "typescript": "^4.9.0"
+  },
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs",
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  }
+}

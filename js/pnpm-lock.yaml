@@ -193,6 +193,62 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0
 
+  plugins/checks:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.24.3
+        version: 0.24.3(encoding@0.1.13)
+      '@anthropic-ai/vertex-sdk':
+        specifier: ^0.4.0
+        version: 0.4.0(encoding@0.1.13)
+      '@google-cloud/aiplatform':
+        specifier: ^3.23.0
+        version: 3.25.0(encoding@0.1.13)
+      '@google-cloud/vertexai':
+        specifier: ^1.1.0
+        version: 1.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      google-auth-library:
+        specifier: ^9.6.3
+        version: 9.7.0(encoding@0.1.13)
+      googleapis:
+        specifier: ^140.0.1
+        version: 140.0.1(encoding@0.1.13)
+      node-fetch:
+        specifier: ^3.3.2
+        version: 3.3.2
+      openai:
+        specifier: ^4.52.7
+        version: 4.53.0(encoding@0.1.13)
+    optionalDependencies:
+      '@google-cloud/bigquery':
+        specifier: ^7.8.0
+        version: 7.8.0(encoding@0.1.13)
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 12.3.1(encoding@0.1.13)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.11.30
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsup:
+        specifier: ^8.0.2
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
+      tsx:
+        specifier: ^4.7.0
+        version: 4.7.1
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/chroma:
     dependencies:
       chromadb:
