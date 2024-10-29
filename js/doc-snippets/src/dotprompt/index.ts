@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkit, loadPromptFile } from 'genkit';
+import { GenerateRequest, genkit, loadPromptFile } from 'genkit';
 
 // [START promptDir]
 const ai = genkit({
@@ -149,20 +149,48 @@ async function fn08() {
   // [END defineHelper]
 }
 
-// [START definePromptMethod]
-const myPrompt = ai.definePrompt(
-  {
-    name: 'myPrompt',
-    model: 'googleai/gemini-1.5-flash',
-    input: {
-      schema: z.object({
-        name: z.string(),
-      }),
+function fn09() {
+  // [START definePromptTempl]
+  const myPrompt = ai.definePrompt(
+    {
+      name: 'myPrompt',
+      model: 'googleai/gemini-1.5-flash',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
     },
-  },
-  'Hello {{name}}, how are you today?'
-);
-// [END definePromptMethod]
+    'Hello, {{name}}. How are you today?'
+  );
+  // [END definePromptTempl]
+}
+
+function fn10() {
+  // [START definePromptFn]
+  const myPrompt2 = ai.definePrompt(
+    {
+      name: 'myPrompt',
+      model: 'googleai/gemini-1.5-flash',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+    },
+    async (input): Promise<GenerateRequest> => {
+      return {
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: `Hello, ${input.name}. How are you today?` }],
+          },
+        ],
+      };
+    }
+  );
+  // [END definePromptFn]
+}
 
 async function fn01() {
   // [START loadPromptFile]

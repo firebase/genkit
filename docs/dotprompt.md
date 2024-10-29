@@ -80,13 +80,6 @@ Genkit:
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="promptDir" adjust_indentation="auto" %}
 ```
 
-Alternatively, you can specify a complete path from which to load a single
-prompt:
-
-```ts
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptFile" adjust_indentation="auto" %}
-```
-
 ### Creating a prompt file
 
 There are two ways to create a `.prompt` file: using a text editor, or with the
@@ -577,7 +570,7 @@ The name of the variant is included in the metadata of generation traces, so you
 can compare and contrast actual performance between variants in the Genkit trace
 inspector.
 
-## Alternative ways to define and load prompts {:#alternatives}
+## Defining prompts in code {:#alternatives}
 
 All of the examples discussed so far have assumed that your prompts are defined
 in individual `.prompt` files in a single directory (or subdirectories thereof),
@@ -585,39 +578,16 @@ accessible to your app at runtime. Dotprompt is designed around this setup, and
 its authors consider it to be the best developer experience overall.
 
 However, if you have use cases that are not well supported by this setup,
-Dotprompt provides some alternative ways to define and load prompts.
-
-### Defining prompts in code
-
-You can define prompts in code using the `definePrompt()` function:
-
-```ts
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptMethod" adjust_indentation="auto" %}
-```
+you can also define prompts in code using the `definePrompt()` function:
 
 The first parameter to this function is analogous to the front matter block of a
-`.prompt` file.
-
-### Loading prompts from specific files
-
-You can load a prompt from an explicitly specified file path using the
-`loadPromptFile()` function:
+`.prompt` file; the second parameter can either be a Handlebars template string,
+as in a prompt file, or a function that returns a `GenerateRequest`:
 
 ```ts
-import { loadPromptFile } from '@genkit-ai/dotprompt';
-import path from 'path';
-
-const myPrompt = await loadPromptFile(
-  path.resolve(__dirname, './path/to/my_prompt.pt')
-);
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptTempl" adjust_indentation="auto" %}
 ```
 
-### Loading prompts from URLs
-
-You can load a prompt from a website using the `loadPromptUrl()` function:
-
 ```ts
-import { loadPromptUrl } from '@genkit-ai/dotprompt';
-
-const myPrompt = await loadPromptUrl('https://example.com/my_prompt.txt');
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptFn" adjust_indentation="auto" %}
 ```
