@@ -41,6 +41,7 @@ import {
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
+export { GenerateResponse, GenerateResponseChunk };
 
 export interface GenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,

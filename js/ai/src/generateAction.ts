@@ -25,9 +25,11 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from './document.js';
-import { tagAsPreamble } from './generate.js';
-import { GenerateResponseChunk } from './generate/chunk.js';
-import { GenerateResponse } from './generate/response.js';
+import {
+  GenerateResponse,
+  GenerateResponseChunk,
+  tagAsPreamble,
+} from './generate.js';
 import {
   GenerateRequest,
   GenerateRequestSchema,

@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { enumFormatter } from '../../src/formats/enum.js';
-import { GenerateResponse } from '../../src/generate/response.js';
+import { GenerateResponse } from '../../src/generate.js';
 
 describe('enumFormat', () => {
   const responseTests = [
