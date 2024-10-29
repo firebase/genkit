@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { arrayParser } from '../../src/formats/array.js';
+import { arrayFormatter } from '../../src/formats/array.js';
 import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
 import { GenerateResponseChunkData } from '../../src/model.js';
 
@@ -65,7 +65,7 @@ describe('arrayFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = arrayParser({ messages: [] });
+      const parser = arrayFormatter.handler({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
       let lastCursor = 0;
 
@@ -123,7 +123,7 @@ describe('arrayFormat', () => {
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
-      const parser = arrayParser({ messages: [] });
+      const parser = arrayFormatter.handler({ messages: [] });
       assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }
@@ -154,7 +154,7 @@ describe('arrayFormat', () => {
   for (const et of errorTests) {
     it(et.desc, () => {
       assert.throws(() => {
-        arrayParser(et.request);
+        arrayFormatter.handler(et.request);
       }, et.wantError);
     });
   }

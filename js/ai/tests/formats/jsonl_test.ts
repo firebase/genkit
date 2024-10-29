@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { jsonlParser } from '../../src/formats/jsonl.js';
+import { jsonlFormatter } from '../../src/formats/jsonl.js';
 import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
 import { GenerateResponseChunkData } from '../../src/model.js';
 
@@ -74,7 +74,7 @@ describe('jsonlFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = jsonlParser({ messages: [] });
+      const parser = jsonlFormatter.handler({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
       let lastCursor = 0;
 
@@ -134,7 +134,7 @@ describe('jsonlFormat', () => {
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
-      const parser = jsonlParser({ messages: [] });
+      const parser = jsonlFormatter.handler({ messages: [] });
       assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }
@@ -165,7 +165,7 @@ describe('jsonlFormat', () => {
   for (const et of errorTests) {
     it(et.desc, () => {
       assert.throws(() => {
-        jsonlParser(et.request);
+        jsonlFormatter.handler(et.request);
       }, et.wantError);
     });
   }

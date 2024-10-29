@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { enumParser } from '../../src/formats/enum.js';
+import { enumFormatter } from '../../src/formats/enum.js';
 import { GenerateResponse } from '../../src/generate.js';
 
 describe('enumFormat', () => {
@@ -45,7 +45,7 @@ describe('enumFormat', () => {
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
-      const parser = enumParser({ messages: [] });
+      const parser = enumFormatter.handler({ messages: [] });
       assert.strictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }
@@ -76,7 +76,7 @@ describe('enumFormat', () => {
   for (const et of errorTests) {
     it(et.desc, () => {
       assert.throws(() => {
-        enumParser(et.request);
+        enumFormatter.handler(et.request);
       }, et.wantError);
     });
   }

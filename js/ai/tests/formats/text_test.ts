@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { textParser } from '../../src/formats/text.js';
+import { textFormatter } from '../../src/formats/text.js';
 import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
 import { GenerateResponseChunkData } from '../../src/model.js';
 
@@ -48,7 +48,7 @@ describe('textFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = textParser({ messages: [] });
+      const parser = textFormatter.handler({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
 
       for (const chunk of st.chunks) {
@@ -91,7 +91,7 @@ describe('textFormat', () => {
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
-      const parser = textParser({ messages: [] });
+      const parser = textFormatter.handler({ messages: [] });
       assert.strictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }

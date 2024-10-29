@@ -16,17 +16,22 @@
 
 import type { Formatter } from './types';
 
-export const textParser: Formatter<string, string, never> = () => {
-  return {
-    parseChunk: (chunk) => {
-      return {
-        output: chunk.text,
-      };
-    },
-
-    parseResponse: (response) => {
-      return response.text;
-    },
+export const textFormatter: Formatter<string, string> = {
+  name: 'text',
+  config: {
     contentType: 'text/plain',
-  };
+  },
+  handler: () => {
+    return {
+      parseChunk: (chunk) => {
+        return {
+          output: chunk.text,
+        };
+      },
+
+      parseResponse: (response) => {
+        return response.text;
+      },
+    };
+  },
 };

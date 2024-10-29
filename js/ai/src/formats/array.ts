@@ -18,45 +18,49 @@ import { GenkitError } from '@genkit-ai/core';
 import { extractItems } from '../extract';
 import type { Formatter } from './types';
 
-export const arrayParser: Formatter<unknown[], unknown[], number> = (
-  request
-) => {
-  if (request.output?.schema && request.output?.schema.type !== 'array') {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: `Must supply an 'array' schema type when using the 'items' parser format.`,
-    });
-  }
+export const arrayFormatter: Formatter<unknown[], unknown[], number> = {
+  name: 'array',
+  config: {
+    contentType: 'application/json',
+    constrained: true,
+  },
+  handler: (request) => {
+    if (request.output?.schema && request.output?.schema.type !== 'array') {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Must supply an 'array' schema type when using the 'items' parser format.`,
+      });
+    }
 
-  let instructions: string | undefined;
-  if (request.output?.schema) {
-    instructions = `Output should be a JSON array conforming to the following schema:
+    let instructions: string | undefined;
+    if (request.output?.schema) {
+      instructions = `Output should be a JSON array conforming to the following schema:
     
     \`\`\`
     ${JSON.stringify(request.output!.schema!)}
     \`\`\`
     `;
-  }
+    }
 
-  return {
-    parseChunk: (chunk, cursor = 0) => {
-      const { items, cursor: newCursor } = extractItems(
-        chunk.accumulatedText,
-        cursor
-      );
+    return {
+      parseChunk: (chunk, cursor = 0) => {
+        const { items, cursor: newCursor } = extractItems(
+          chunk.accumulatedText,
+          cursor
+        );
 
-      return {
-        output: items,
-        cursor: newCursor,
-      };
-    },
+        return {
+          output: items,
+          cursor: newCursor,
+        };
+      },
 
-    parseResponse: (response) => {
-      const { items } = extractItems(response.text, 0);
-      return items;
-    },
+      parseResponse: (response) => {
+        const { items } = extractItems(response.text, 0);
+        return items;
+      },
 
-    instructions,
-    contentType: 'application/json',
-  };
+      instructions,
+    };
+  },
 };

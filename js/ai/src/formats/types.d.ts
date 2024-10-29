@@ -15,7 +15,7 @@
  */
 
 import { GenerateResponse, GenerateResponseChunk } from '../generate';
-import { GenerateRequest, Part } from '../model';
+import { ModelRequest, Part } from '../model';
 
 export interface ParsedChunk<CO = unknown, CC = unknown> {
   output: CO;
@@ -33,13 +33,14 @@ type OutputContentTypes =
   | 'application/jsonl';
 
 export interface Formatter<O = unknown, CO = unknown, CC = unknown> {
-  (req: GenerateRequest): {
+  name: string;
+  config: ModelRequest['output'];
+  handler: (req: ModelRequest) => {
     parseResponse(response: GenerateResponse): O;
     parseChunk?: (
       chunk: GenerateResponseChunk,
       cursor?: CC
     ) => ParsedChunk<CO, CC>;
     instructions?: string | Part[];
-    contentType?: OutputContentTypes | Omit<string, OutputContentTypes>;
   };
 }

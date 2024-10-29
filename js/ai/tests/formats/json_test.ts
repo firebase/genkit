@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { jsonParser } from '../../src/formats/json.js';
+import { jsonFormatter } from '../../src/formats/json.js';
 import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
 import { GenerateResponseChunkData } from '../../src/model.js';
 
@@ -61,7 +61,7 @@ describe('jsonFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = jsonParser({ messages: [] });
+      const parser = jsonFormatter.handler({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
       let lastCursor = '';
 
@@ -117,7 +117,7 @@ describe('jsonFormat', () => {
 
   for (const rt of responseTests) {
     it(rt.desc, () => {
-      const parser = jsonParser({ messages: [] });
+      const parser = jsonFormatter.handler({ messages: [] });
       assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
     });
   }
