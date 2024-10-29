@@ -14,93 +14,16 @@
  * limitations under the License.
  */
 
-import { VertexAI } from '@google-cloud/vertexai';
 import { Genkit, z } from 'genkit';
-import { GenerateRequest, ModelReference } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
-import {
-  SUPPORTED_ANTHROPIC_MODELS,
-  anthropicModel,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-} from './anthropic.js';
-import {
-  SUPPORTED_EMBEDDER_MODELS,
-  defineVertexAIEmbedder,
-  textEmbedding004,
-  textEmbeddingGecko003,
-  textEmbeddingGeckoMultilingual001,
-  textMultilingualEmbedding002,
-} from './embedder.js';
 import {
   VertexAIEvaluationMetric,
   VertexAIEvaluationMetricType,
   vertexEvaluators,
 } from './evaluation.js';
-import {
-  GeminiConfigSchema,
-  SUPPORTED_GEMINI_MODELS,
-  defineGeminiModel,
-  gemini10Pro,
-  gemini15Flash,
-  gemini15Pro,
-} from './gemini.js';
-import {
-  SUPPORTED_IMAGEN_MODELS,
-  imagen2,
-  imagen3,
-  imagen3Fast,
-  imagenModel,
-} from './imagen.js';
-import {
-  SUPPORTED_OPENAI_FORMAT_MODELS,
-  llama3,
-  llama31,
-  llama32,
-  modelGardenOpenaiCompatibleModel,
-} from './model_garden.js';
-import { VertexRerankerConfig, vertexAiRerankers } from './reranker.js';
-import {
-  VectorSearchOptions,
-  vertexAiIndexers,
-  vertexAiRetrievers,
-} from './vector-search/index.js';
-export {
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-  getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetriever,
-  getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetriever,
-  vertexAiIndexerRef,
-  vertexAiIndexers,
-  vertexAiRetrieverRef,
-  vertexAiRetrievers,
-} from './vector-search/index.js';
 export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-  gemini10Pro,
-  gemini15Flash,
-  gemini15Pro,
-  imagen2,
-  imagen3,
-  imagen3Fast,
-  llama3,
-  llama31,
-  llama32,
-  textEmbedding004,
-  textEmbeddingGecko003,
-  textEmbeddingGeckoMultilingual001,
-  textMultilingualEmbedding002,
 };
 
 export interface PluginOptions {
@@ -114,18 +37,6 @@ export interface PluginOptions {
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
   };
-  /**
-   * @deprecated use `modelGarden.models`
-   */
-  modelGardenModels?: ModelReference<any>[];
-  modelGarden?: {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
-  };
-  /** Configure Vertex AI vector search index options */
-  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
-  /** Configure reranker options */
-  rerankOptions?: VertexRerankerConfig[];
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -171,90 +82,10 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       throw confError('project', 'GCLOUD_PROJECT');
     }
 
-    const vertexClientFactoryCache: Record<string, VertexAI> = {};
-    const vertexClientFactory = (
-      request: GenerateRequest<typeof GeminiConfigSchema>
-    ): VertexAI => {
-      const requestLocation = request.config?.location || location;
-      if (!vertexClientFactoryCache[requestLocation]) {
-        vertexClientFactoryCache[requestLocation] = new VertexAI({
-          project: projectId,
-          location: requestLocation,
-          googleAuthOptions: authOptions,
-        });
-      }
-      return vertexClientFactoryCache[requestLocation];
-    };
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
-
-    Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-      imagenModel(ai, name, authClient, { projectId, location })
-    );
-    Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-      defineGeminiModel(ai, name, vertexClientFactory, { projectId, location })
-    );
-
-    if (options?.modelGardenModels || options?.modelGarden?.models) {
-      const mgModels =
-        options?.modelGardenModels || options?.modelGarden?.models;
-      mgModels!.forEach((m) => {
-        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (anthropicEntry) {
-          anthropicModel(ai, anthropicEntry[0], projectId, location);
-          return;
-        }
-        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (openaiModel) {
-          modelGardenOpenaiCompatibleModel(
-            ai,
-            openaiModel[0],
-            projectId,
-            location,
-            authClient,
-            options.modelGarden?.openAiBaseUrlTemplate
-          );
-          return;
-        }
-        throw new Error(`Unsupported model garden model: ${m.name}`);
-      });
-    }
-
-    const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-      defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
-    );
-
-    if (
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      const defaultEmbedder = embedders[0];
-
-      vertexAiIndexers(ai, {
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-
-      vertexAiRetrievers(ai, {
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-    }
-
-    const rerankOptions = {
-      pluginOptions: options,
-      authClient,
-      projectId,
-    };
-    await vertexAiRerankers(ai, rerankOptions);
     vertexEvaluators(ai, authClient, metrics, projectId, location);
   });
 }
