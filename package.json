@@ -4,10 +4,10 @@
   "version": "0.5.10",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
+    "setup": "cross-env NODE_OPTIONS='--max-old-space-size=8192' npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
     "format": "(prettier . --write) && (ts-node scripts/copyright.ts)",
     "format:check": "(prettier . --check) && (ts-node scripts/copyright.ts --check)",
-    "build": "pnpm build:js && pnpm build:genkit-tools",
+    "build": "cross-env NODE_OPTIONS='--max-old-space-size=8192' pnpm build:js && pnpm build:genkit-tools",
     "build:js": "cd js && pnpm i && pnpm build",
     "build:genkit-tools": "cd genkit-tools && pnpm i && pnpm build",
     "link-genkit-cli": "cd genkit-tools/cli && npm link",
@@ -29,6 +29,7 @@
     "format:check"
   ],
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "inquirer": "^8.0.0",
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",

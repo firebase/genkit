@@ -135,7 +135,6 @@ As you make changes you may want to build and test things by running test apps.
 You can reduce the scope of what you're building by running a specific build command:
 
 ```
-pnpm build:genkit
 pnpm build:genkit-tools
 ```
 
