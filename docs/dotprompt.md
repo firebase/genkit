@@ -375,7 +375,7 @@ You already saw this in action in the section on input and output schemas:
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex03.prompt" %}
 ```
 
-In this example, the Handlebars expression, {% verbatim %}`{{theme}}`{% endverbatim %},
+In this example, the Handlebars expression, `{{theme}}`,
 resolves to the value of the input's `theme` property when you run the
 prompt. To pass input to the prompt, call the prompt as in the following
 example:
@@ -413,7 +413,7 @@ By default, Dotprompt constructs a single message with a "user" role.
 However, some prompts are best expressed as a combination of multiple messages,
 such as a system prompt.
 
-The {% verbatim %}`{{role}}`{% endverbatim %} helper provides a simple way to
+The `{{role}}` helper provides a simple way to
 construct multi-message prompts:
 
 ```handlebars
@@ -423,7 +423,7 @@ construct multi-message prompts:
 ### Multi-modal prompts
 
 For models that support multimodal input, such as images alongside text, you can
-use the {% verbatim %}`{{media}}`{% endverbatim %} helper:
+use the `{{media}}` helper:
 
 ```handlebars
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex08.prompt" %}
@@ -447,15 +447,15 @@ can be especially helpful for related prompts that share common behavior.
 When loading a prompt directory, any file prefixed with an underscore (`_`) is
 considered a partial. So a file `_personality.prompt` might contain:
 
-{% verbatim %}
+
 ```handlebars
 You should speak like a {{#if style}}{{style}}{{else}}helpful assistant.{{/else}}.
 ```
-{% endverbatim %}
+
 
 This can then be included in other prompts:
 
-{% verbatim %}
+
 ```handlebars
 ---
 model: googleai/gemini-1.5-flash
@@ -472,10 +472,10 @@ Give the user a friendly greeting.
 
 User's Name: {{name}}
 ```
-{% endverbatim %}
+
 
 Partials are inserted using the
-{% verbatim %}`{{>NAME_OF_PARTIAL args...}}`{% endverbatim %}
+`{{>NAME_OF_PARTIAL args...}}`
 syntax. If no arguments are provided to the partial, it executes with the same
 context as the parent prompt.
 
@@ -485,15 +485,15 @@ members of a list.
 
 **_destination.prompt**
 
-{% verbatim %}
+
 ```handlebars
 - {{name}} ({{country}})
 ```
-{% endverbatim %}
+
 
 **chooseDestination.prompt**
 
-{% verbatim %}
+
 ```handlebars
 ---
 model: googleai/gemini-1.5-flash-latest
@@ -509,7 +509,7 @@ Help the user decide between these vacation destinations:
 {{>destination this}}
 {{/each}}
 ```
-{% endverbatim %}
+
 
 #### Defining partials in code
 
@@ -532,7 +532,7 @@ Helpers are registered globally using `defineHelper`:
 
 Once a helper is defined you can use it in any prompt:
 
-{% verbatim %}
+
 ```handlebars
 ---
 model: googleai/gemini-1.5-flash
@@ -543,7 +543,7 @@ input:
 
 HELLO, {{shout name}}!!!
 ```
-{% endverbatim %}
+
 
 ## Prompt variants
 
