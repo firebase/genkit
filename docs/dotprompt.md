@@ -65,8 +65,8 @@ name, your project structure might look something like this:
 your-project/
 ├── lib/
 ├── node_modules/
-{{'<b>'}}├── prompts/
-│   └── hello.prompt{{'</b>'}}
+├── prompts/
+│   └── hello.prompt
 ├── src/
 ├── package-lock.json
 ├── package.json
@@ -139,7 +139,7 @@ prompts directory.
 
 After you've created prompt files, you can run them from your application code,
 or using the tooling provided by Genkit. Regardless of how you want to run your
-prompts, first start with application code that imports the Genkit library as
+prompts, first start with application code that imports the Genkit library and
 the model plugins you're interested in. For example:
 
 ```ts
@@ -385,7 +385,7 @@ example:
 ```
 
 Note that because the input schema declared the `theme` property to be optional
-and provided a default, you could have omitted the oroperty,
+and provided a default, you could have omitted the property,
 and the prompt would have resolved using the default value.
 
 Handlebars templates also support some limited logical constructs. For example,
@@ -433,7 +433,7 @@ The URL can be `https:` or base64-encoded `data:` URIs for "inline" image usage.
 In code, this would be:
 
 ```ts
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="multimodalPrompt" adjust_indentation="auto" %}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="multiModalPrompt" adjust_indentation="auto" %}
 ```
 
 See also [Multimodal input](/docs/genkit/models#multimodal-input), on the Models
@@ -585,9 +585,9 @@ The first parameter to this function is analogous to the front matter block of a
 as in a prompt file, or a function that returns a `GenerateRequest`:
 
 ```ts
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptTempl" adjust_indentation="auto" %}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="definePromptTempl" adjust_indentation="auto" %}
 ```
 
 ```ts
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="loadPromptFn" adjust_indentation="auto" %}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/index.ts" region_tag="definePromptFn" adjust_indentation="auto" %}
 ```

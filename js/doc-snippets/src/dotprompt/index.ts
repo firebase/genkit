@@ -168,7 +168,7 @@ function fn09() {
 
 function fn10() {
   // [START definePromptFn]
-  const myPrompt2 = ai.definePrompt(
+  const myPrompt = ai.definePrompt(
     {
       name: 'myPrompt',
       model: 'googleai/gemini-1.5-flash',
