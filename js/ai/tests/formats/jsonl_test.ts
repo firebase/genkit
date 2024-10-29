@@ -17,8 +17,8 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { jsonlFormatter } from '../../src/formats/jsonl.js';
-import { GenerateResponse } from '../../src/generate.js';
 import { GenerateResponseChunk } from '../../src/generate/chunk.js';
+import { GenerateResponse } from '../../src/generate/response.js';
 import { GenerateResponseChunkData } from '../../src/model.js';
 
 describe('jsonlFormat', () => {

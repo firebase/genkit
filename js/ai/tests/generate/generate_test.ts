@@ -22,12 +22,12 @@ import { beforeEach, describe, it } from 'node:test';
 import {
   generate,
   GenerateOptions,
-  GenerateResponse,
   GenerationBlockedError,
   GenerationResponseError,
   toGenerateRequest,
 } from '../../src/generate.js';
 import { GenerateResponseChunk } from '../../src/generate/chunk.js';
+import { GenerateResponse } from '../../src/generate/response.js';
 import { Message } from '../../src/message.js';
 import {
   defineModel,

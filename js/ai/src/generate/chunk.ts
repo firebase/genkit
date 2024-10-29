@@ -1,6 +1,6 @@
 import { GenkitError } from '@genkit-ai/core';
 import { extractJson } from '../extract';
-import { GenerateResponseChunkData, ToolRequestPart } from '../model';
+import { GenerateResponseChunkData, Part, ToolRequestPart } from '../model';
 
 export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData
