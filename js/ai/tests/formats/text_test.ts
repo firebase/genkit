@@ -17,7 +17,8 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { textFormatter } from '../../src/formats/text.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
+import { GenerateResponse } from '../../src/generate.js';
+import { GenerateResponseChunk } from '../../src/generate/chunk.js';
 import { GenerateResponseChunkData } from '../../src/model.js';
 
 describe('textFormat', () => {
