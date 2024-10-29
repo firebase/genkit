@@ -24,12 +24,12 @@ import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
-import { DocumentDataSchema } from './document.js';
+import { DocumentDataSchema } from '../document.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
   tagAsPreamble,
-} from './generate.js';
+} from '../generate.js';
 import {
   GenerateRequest,
   GenerateRequestSchema,
@@ -42,8 +42,8 @@ import {
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
-} from './model.js';
-import { lookupToolByName, ToolAction, toToolDefinition } from './tool.js';
+} from '../model.js';
+import { lookupToolByName, ToolAction, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
