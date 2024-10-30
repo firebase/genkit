@@ -15,8 +15,11 @@
  */
 
 import { parseSchema } from '@genkit-ai/core/schema';
-import { GenerationBlockedError, GenerationResponseError } from '../generate';
-import { Message } from '../message';
+import {
+  GenerationBlockedError,
+  GenerationResponseError,
+} from '../generate.js';
+import { Message } from '../message.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -24,7 +27,7 @@ import {
   MessageData,
   ModelResponseData,
   ToolRequestPart,
-} from '../model';
+} from '../model.js';
 
 /**
  * GenerateResponse is the result from a `generate()` call and contains one or

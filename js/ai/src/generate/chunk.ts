@@ -15,13 +15,13 @@
  */
 
 import { GenkitError } from '@genkit-ai/core';
-import { extractJson } from '../extract';
+import { extractJson } from '../extract.js';
 import {
   GenerateResponseChunkData,
   Part,
   Role,
   ToolRequestPart,
-} from '../model';
+} from '../model.js';
 
 export interface ChunkParser<T = unknown> {
   (chunk: GenerateResponseChunk<T>): T;

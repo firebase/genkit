@@ -145,7 +145,7 @@ async function generate(
           if (streamingCallback) {
             streamingCallback!(
               new GenerateResponseChunk(chunk, {
-                previousChunks: [...accumulatedChunks],
+                previousChunks: accumulatedChunks,
               })
             );
           }

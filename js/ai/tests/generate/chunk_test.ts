@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { GenerateResponseChunk } from '../../src/generate';
+import { GenerateResponseChunk } from '../../src/generate.js';
 
 describe('GenerateResponseChunk', () => {
   describe('text accumulation', () => {

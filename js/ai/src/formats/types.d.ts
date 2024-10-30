@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { GenerateResponse } from '../generate';
-import { GenerateResponseChunk } from '../generate/chunk';
-import { ModelRequest, Part } from '../model';
+import { GenerateResponse, GenerateResponseChunk } from '../generate.js';
+import { ModelRequest, Part } from '../model.js';
 
 type OutputContentTypes =
   | 'application/json'
