@@ -19,11 +19,11 @@ import { GoogleAuth } from 'google-auth-library';
 import { EvaluatorFactory } from './evaluator_factory.js';
 
 /**
- * Vertex AI Evaluation metrics. See API documentation for more information.
- * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
+ * Checks AI Safety policies. See API documentation for more information.
+ * TODO: add documentation link.
  */
-export enum VertexAIEvaluationMetricType {
-  // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums
+export enum ChecksEvaluationMetricType {
+  // TODO: Change to match checks policies. 
   BLEU = 'BLEU',
   ROUGE = 'ROUGE',
   FLUENCY = 'FLEUNCY',
@@ -40,19 +40,19 @@ export enum VertexAIEvaluationMetricType {
  * for details on the possible values of `metricSpec` for each metric.
  * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
  */
-export type VertexAIEvaluationMetricConfig = {
-  type: VertexAIEvaluationMetricType;
+export type ChecksEvaluationMetricConfig = {
+  type: ChecksEvaluationMetricType;
   metricSpec: any;
 };
 
-export type VertexAIEvaluationMetric =
-  | VertexAIEvaluationMetricType
-  | VertexAIEvaluationMetricConfig;
+export type ChecksEvaluationMetric =
+  | ChecksEvaluationMetricType
+  | ChecksEvaluationMetricConfig;
 
-export function vertexEvaluators(
+export function checksEvaluators(
   ai: Genkit,
   auth: GoogleAuth,
-  metrics: VertexAIEvaluationMetric[],
+  metrics: ChecksEvaluationMetric[],
   projectId: string,
   location: string
 ): Action[] {
@@ -62,28 +62,28 @@ export function vertexEvaluators(
     const metricSpec = isConfig(metric) ? metric.metricSpec : {};
 
     switch (metricType) {
-      case VertexAIEvaluationMetricType.BLEU: {
+      case ChecksEvaluationMetricType.BLEU: {
         return createBleuEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.ROUGE: {
+      case ChecksEvaluationMetricType.ROUGE: {
         return createRougeEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.FLUENCY: {
+      case ChecksEvaluationMetricType.FLUENCY: {
         return createFluencyEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.SAFETY: {
+      case ChecksEvaluationMetricType.SAFETY: {
         return createSafetyEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.GROUNDEDNESS: {
+      case ChecksEvaluationMetricType.GROUNDEDNESS: {
         return createGroundednessEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY: {
+      case ChecksEvaluationMetricType.SUMMARIZATION_QUALITY: {
         return createSummarizationQualityEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
+      case ChecksEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
         return createSummarizationHelpfulnessEvaluator(ai, factory, metricSpec);
       }
-      case VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
+      case ChecksEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
         return createSummarizationVerbosityEvaluator(ai, factory, metricSpec);
       }
     }
@@ -91,9 +91,9 @@ export function vertexEvaluators(
 }
 
 function isConfig(
-  config: VertexAIEvaluationMetric
-): config is VertexAIEvaluationMetricConfig {
-  return (config as VertexAIEvaluationMetricConfig).type !== undefined;
+  config: ChecksEvaluationMetric
+): config is ChecksEvaluationMetricConfig {
+  return (config as ChecksEvaluationMetricConfig).type !== undefined;
 }
 
 const BleuResponseSchema = z.object({
@@ -111,7 +111,7 @@ function createBleuEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.BLEU,
+      metric: ChecksEvaluationMetricType.BLEU,
       displayName: 'BLEU',
       definition:
         'Computes the BLEU score by comparing the output against the ground truth',
@@ -153,7 +153,7 @@ function createRougeEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.ROUGE,
+      metric: ChecksEvaluationMetricType.ROUGE,
       displayName: 'ROUGE',
       definition:
         'Computes the ROUGE score by comparing the output against the ground truth',
@@ -194,7 +194,7 @@ function createFluencyEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.FLUENCY,
+      metric: ChecksEvaluationMetricType.FLUENCY,
       displayName: 'Fluency',
       definition: 'Assesses the language mastery of an output',
       responseSchema: FluencyResponseSchema,
@@ -236,7 +236,7 @@ function createSafetyEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.SAFETY,
+      metric: ChecksEvaluationMetricType.SAFETY,
       displayName: 'Safety',
       definition: 'Assesses the level of safety of an output',
       responseSchema: SafetyResponseSchema,
@@ -278,7 +278,7 @@ function createGroundednessEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.GROUNDEDNESS,
+      metric: ChecksEvaluationMetricType.GROUNDEDNESS,
       displayName: 'Groundedness',
       definition:
         'Assesses the ability to provide or reference information included only in the context',
@@ -322,7 +322,7 @@ function createSummarizationQualityEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY,
+      metric: ChecksEvaluationMetricType.SUMMARIZATION_QUALITY,
       displayName: 'Summarization quality',
       definition: 'Assesses the overall ability to summarize text',
       responseSchema: SummarizationQualityResponseSchema,
@@ -366,7 +366,7 @@ function createSummarizationHelpfulnessEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS,
+      metric: ChecksEvaluationMetricType.SUMMARIZATION_HELPFULNESS,
       displayName: 'Summarization helpfulness',
       definition:
         'Assesses the ability to provide a summarization, which contains the details necessary to substitute the original text',
@@ -411,7 +411,7 @@ function createSummarizationVerbosityEvaluator(
   return factory.create(
     ai,
     {
-      metric: VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY,
+      metric: ChecksEvaluationMetricType.SUMMARIZATION_VERBOSITY,
       displayName: 'Summarization verbosity',
       definition: 'Aassess the ability to provide a succinct summarization',
       responseSchema: SummarizationVerbositySchema,

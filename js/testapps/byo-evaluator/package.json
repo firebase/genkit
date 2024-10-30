@@ -19,6 +19,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "@genkit-ai/checks": "workspace:*",
     "genkit": "workspace:*",
     "path": "^0.12.7"
   },

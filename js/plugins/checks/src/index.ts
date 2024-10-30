@@ -18,12 +18,12 @@ import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
-  VertexAIEvaluationMetric,
-  VertexAIEvaluationMetricType,
-  vertexEvaluators,
+  ChecksEvaluationMetric,
+  ChecksEvaluationMetricType,
+  checksEvaluators,
 } from './evaluation.js';
 export {
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
+  ChecksEvaluationMetricType as ChecksEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -35,7 +35,7 @@ export interface PluginOptions {
   googleAuth?: GoogleAuthOptions;
   /** Configure Vertex AI evaluators */
   evaluation?: {
-    metrics: VertexAIEvaluationMetric[];
+    metrics: ChecksEvaluationMetric[];
   };
 }
 
@@ -43,10 +43,10 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform';
 
 /**
- * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
+ * Add Google Checks evaluators. 
  */
-export function vertexAI(options?: PluginOptions): GenkitPlugin {
-  return genkitPlugin('vertexai', async (ai: Genkit) => {
+export function checks(options?: PluginOptions): GenkitPlugin {
+  return genkitPlugin('checks', async (ai: Genkit) => {
     let authClient;
     let authOptions = options?.googleAuth;
 
@@ -72,7 +72,7 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
     const location = options?.location || 'us-central1';
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
-        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
+        `Checks Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
       );
     };
     if (!location) {
@@ -86,8 +86,8 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
-    vertexEvaluators(ai, authClient, metrics, projectId, location);
+      checksEvaluators(ai, authClient, metrics, projectId, location);
   });
 }
 
-export default vertexAI;
+export default checks;

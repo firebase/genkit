@@ -18,7 +18,7 @@ import { Action, Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-import { VertexAIEvaluationMetricType } from './evaluation.js';
+import { ChecksEvaluationMetricType } from './evaluation.js';
 
 export class EvaluatorFactory {
   constructor(
@@ -30,7 +30,7 @@ export class EvaluatorFactory {
   create<ResponseType extends z.ZodTypeAny>(
     ai: Genkit,
     config: {
-      metric: VertexAIEvaluationMetricType;
+      metric: ChecksEvaluationMetricType;
       displayName: string;
       definition: string;
       responseSchema: ResponseType;
