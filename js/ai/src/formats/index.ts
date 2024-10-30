@@ -15,26 +15,20 @@
  */
 
 import { Registry } from '@genkit-ai/core/registry';
-import { arrayParser } from './array';
-import { enumParser } from './enum';
-import { jsonParser } from './json';
-import { jsonlParser } from './jsonl';
-import { textParser } from './text';
+import { arrayFormatter } from './array';
+import { enumFormatter } from './enum';
+import { jsonFormatter } from './json';
+import { jsonlFormatter } from './jsonl';
+import { textFormatter } from './text';
 import { Formatter } from './types';
-
-export const DEFAULT_FORMATS = {
-  json: jsonParser,
-  array: arrayParser,
-  text: textParser,
-  enum: enumParser,
-  jsonl: jsonlParser,
-};
 
 export function defineFormat(
   registry: Registry,
-  name: string,
-  formatter: Formatter
+  options: { name: string } & Formatter['config'],
+  handler: Formatter['handler']
 ) {
+  const { name, ...config } = options;
+  const formatter = { config, handler };
   registry.registerValue('format', name, formatter);
   return formatter;
 }
@@ -52,4 +46,25 @@ export async function resolveFormat(
     return registry.lookupValue<Formatter>('format', arg);
   }
   return arg as Formatter;
+}
+
+export const DEFAULT_FORMATS: Formatter<any, any>[] = [
+  jsonFormatter,
+  arrayFormatter,
+  textFormatter,
+  enumFormatter,
+  jsonlFormatter,
+];
+
+/**
+ * initializeFormats registers the default built-in formats on a registry.
+ */
+export function initializeFormats(registry: Registry) {
+  for (const format of DEFAULT_FORMATS) {
+    defineFormat(
+      registry,
+      { name: format.name, ...format.config },
+      format.handler
+    );
+  }
 }

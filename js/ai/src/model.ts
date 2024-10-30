@@ -186,6 +186,8 @@ export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 const OutputConfigSchema = z.object({
   format: OutputFormatSchema.optional(),
   schema: z.record(z.any()).optional(),
+  constrained: z.boolean().optional(),
+  contentType: z.string().optional(),
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 

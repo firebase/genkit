@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-import { GenerateResponse, GenerateResponseChunk } from '../generate';
-import { GenerateRequest } from '../model';
+import { GenerateResponse, GenerateResponseChunk } from '../generate.js';
+import { ModelRequest, Part } from '../model.js';
 
-export interface Formatter {
-  (req: GenerateRequest): {
-    parseChunk?: (
-      chunk: GenerateResponseChunk,
-      emit: (chunk: any) => void
-    ) => void;
-    parseResponse(response: GenerateResponse): any;
-    instructions?: boolean | string;
+type OutputContentTypes =
+  | 'application/json'
+  | 'text/plain'
+  | 'application/jsonl';
+
+export interface Formatter<O = unknown, CO = unknown> {
+  name: string;
+  config: ModelRequest['output'];
+  handler: (req: ModelRequest) => {
+    parseResponse(response: GenerateResponse): O;
+    parseChunk?: (chunk: GenerateResponseChunk, cursor?: CC) => CO;
+    instructions?: string | Part[];
   };
 }

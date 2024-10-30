@@ -26,57 +26,75 @@ function objectLines(text: string): string[] {
     .filter((line) => line.startsWith('{'));
 }
 
-export const jsonlParser: Formatter = (request) => {
-  if (
-    request.output?.schema &&
-    (request.output?.schema.type !== 'array' ||
-      request.output?.schema.items?.type !== 'object')
-  ) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: `Must supply an 'array' schema type containing 'object' items when using the 'jsonl' parser format.`,
-    });
-  }
+export const jsonlFormatter: Formatter<unknown[], unknown[]> = {
+  name: 'jsonl',
+  config: {
+    contentType: 'application/jsonl',
+  },
+  handler: (request) => {
+    if (
+      request.output?.schema &&
+      (request.output?.schema.type !== 'array' ||
+        request.output?.schema.items?.type !== 'object')
+    ) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Must supply an 'array' schema type containing 'object' items when using the 'jsonl' parser format.`,
+      });
+    }
 
-  let instructions: boolean | string = false;
-  if (request.output?.schema?.items) {
-    instructions = `Output should be JSONL format, a sequence of JSON objects (one per line). Each line should conform to the following schema:
+    let instructions: string | undefined;
+    if (request.output?.schema?.items) {
+      instructions = `Output should be JSONL format, a sequence of JSON objects (one per line). Each line should conform to the following schema:
 
 \`\`\`
 ${JSON.stringify(request.output.schema.items)}
 \`\`\`
     `;
-  }
+    }
 
-  let cursor = 0;
+    return {
+      parseChunk: (chunk) => {
+        const results: unknown[] = [];
 
-  return {
-    parseChunk: (chunk, emit) => {
-      const jsonLines = objectLines(chunk.accumulatedText);
+        const text = chunk.accumulatedText;
 
-      for (let i = cursor; i < jsonLines.length; i++) {
-        try {
-          const result = JSON5.parse(jsonLines[i]);
-          if (result) {
-            emit(result);
+        let startIndex = 0;
+        if (chunk.previousChunks?.length) {
+          const lastNewline = chunk.previousText.lastIndexOf('\n');
+          if (lastNewline !== -1) {
+            startIndex = lastNewline + 1;
           }
-        } catch (e) {
-          cursor = i;
-          return;
         }
-      }
 
-      cursor = jsonLines.length;
-    },
+        const lines = text.slice(startIndex).split('\n');
 
-    parseResponse: (response) => {
-      const items = objectLines(response.text)
-        .map((l) => extractJson(l))
-        .filter((l) => !!l);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('{')) {
+            try {
+              const result = JSON5.parse(trimmed);
+              if (result) {
+                results.push(result);
+              }
+            } catch (e) {
+              break;
+            }
+          }
+        }
 
-      return items;
-    },
+        return results;
+      },
 
-    instructions,
-  };
+      parseResponse: (response) => {
+        const items = objectLines(response.text)
+          .map((l) => extractJson(l))
+          .filter((l) => !!l);
+
+        return items;
+      },
+
+      instructions,
+    };
+  },
 };
