@@ -1,0 +1,7 @@
+---
+model: googleai/gemini-1.5-flash
+input:
+  schema:
+    theme?: string
+---
+Invent a menu item for a {{#if theme}}{{theme}} themed{{/if}} restaurant.
