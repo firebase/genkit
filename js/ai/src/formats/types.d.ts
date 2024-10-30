@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { GenerateResponse, GenerateResponseChunk } from '../generate';
-import { ModelRequest, Part } from '../model';
+import { GenerateResponse, GenerateResponseChunk } from '../generate.js';
+import { ModelRequest, Part } from '../model.js';
 
 export interface ParsedChunk<CO = unknown, CC = unknown> {
   output: CO;

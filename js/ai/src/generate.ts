@@ -22,282 +22,57 @@ import {
   z,
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
-import { extractJson } from './extract.js';
-import { generateHelper, GenerateUtilParamSchema } from './generateAction.js';
+import { generateHelper, GenerateUtilParamSchema } from './generate/action.js';
+import { GenerateResponseChunk } from './generate/chunk.js';
+import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
   GenerateRequest,
-  GenerateResponseChunkData,
-  GenerateResponseData,
   GenerationCommonConfigSchema,
-  GenerationUsage,
   MessageData,
   ModelAction,
   ModelArgument,
   ModelMiddleware,
   ModelReference,
-  ModelResponseData,
   Part,
   ToolDefinition,
-  ToolRequestPart,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
+export { GenerateResponse, GenerateResponseChunk };
 
-/**
- * GenerateResponse is the result from a `generate()` call and contains one or
- * more generated candidate messages.
- */
-export class GenerateResponse<O = unknown> implements ModelResponseData {
-  /** The generated message. */
-  message?: Message<O>;
-  /** The reason generation stopped for this request. */
-  finishReason: ModelResponseData['finishReason'];
-  /** Additional information about why the model stopped generating, if any. */
-  finishMessage?: string;
-  /** Usage information. */
-  usage: GenerationUsage;
-  /** Provider-specific response data. */
-  custom: unknown;
-  /** The request that generated this response. */
-  request?: GenerateRequest;
-
-  constructor(response: GenerateResponseData, request?: GenerateRequest) {
-    // Check for candidates in addition to message for backwards compatibility.
-    const generatedMessage =
-      response.message || response.candidates?.[0]?.message;
-    if (generatedMessage) {
-      this.message = new Message(generatedMessage);
-    }
-    this.finishReason =
-      response.finishReason || response.candidates?.[0]?.finishReason!;
-    this.finishMessage =
-      response.finishMessage || response.candidates?.[0]?.finishMessage;
-    this.usage = response.usage || {};
-    this.custom = response.custom || {};
-    this.request = request;
-  }
-
-  private get assertMessage(): Message<O> {
-    if (!this.message)
-      throw new Error(
-        'Operation could not be completed because the response does not contain a generated message.'
-      );
-    return this.message;
-  }
-
-  /**
-   * Throws an error if the response does not contain valid output.
-   */
-  assertValid(request?: GenerateRequest): void {
-    if (this.finishReason === 'blocked') {
-      throw new GenerationBlockedError(
-        this,
-        `Generation blocked${this.finishMessage ? `: ${this.finishMessage}` : '.'}`
-      );
-    }
-
-    if (!this.message) {
-      throw new GenerationResponseError(
-        this,
-        `Model did not generate a message. Finish reason: '${this.finishReason}': ${this.finishMessage}`
-      );
-    }
-
-    if (request?.output?.schema || this.request?.output?.schema) {
-      const o = this.output;
-      parseSchema(o, {
-        jsonSchema: request?.output?.schema || this.request?.output?.schema,
-      });
-    }
-  }
-
-  isValid(request?: GenerateRequest): boolean {
-    try {
-      this.assertValid(request);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /**
-   * If the selected candidate's message contains a `data` part, it is returned. Otherwise,
-   * the `output()` method extracts the first valid JSON object or array from the text
-   * contained in the selected candidate's message and returns it.
-   *
-   * @param index The candidate index from which to extract output. If not provided, finds first candidate that conforms to output schema.
-   * @returns The structured output contained in the selected candidate.
-   */
-  get output(): O | null {
-    return this.message?.output || null;
-  }
-
-  /**
-   * Concatenates all `text` parts present in the candidate's message with no delimiter.
-   * @param index The candidate index from which to extract text, defaults to first candidate.
-   * @returns A string of all concatenated text parts.
-   */
-  get text(): string {
-    return this.message?.text || '';
-  }
-
-  /**
-   * Returns the first detected media part in the selected candidate's message. Useful for
-   * extracting (for example) an image from a generation expected to create one.
-   * @param index The candidate index from which to extract media, defaults to first candidate.
-   * @returns The first detected `media` part in the candidate.
-   */
-  get media(): { url: string; contentType?: string } | null {
-    return this.message?.media || null;
-  }
-
-  /**
-   * Returns the first detected `data` part of the selected candidate's message.
-   * @param index The candidate index from which to extract data, defaults to first candidate.
-   * @returns The first `data` part detected in the candidate (if any).
-   */
-  get data(): O | null {
-    return this.message?.data || null;
-  }
-
-  /**
-   * Returns all tool request found in the candidate.
-   * @param index The candidate index from which to extract tool requests, defaults to first candidate.
-   * @returns Array of all tool request found in the candidate.
-   */
-  get toolRequests(): ToolRequestPart[] {
-    return this.message?.toolRequests || [];
-  }
-
-  /**
-   * Appends the message generated by the selected candidate to the messages already
-   * present in the generation request. The result of this method can be safely
-   * serialized to JSON for persistence in a database.
-   * @param index The candidate index to utilize during conversion, defaults to first candidate.
-   * @returns A serializable list of messages compatible with `generate({history})`.
-   */
-  get messages(): MessageData[] {
-    if (!this.request)
-      throw new Error(
-        "Can't construct history for response without request reference."
-      );
-    if (!this.message)
-      throw new Error(
-        "Can't construct history for response without generated message."
-      );
-    return [...this.request?.messages, this.message.toJSON()];
-  }
-
-  get raw(): unknown {
-    return this.raw ?? this.custom;
-  }
-
-  toJSON(): ModelResponseData {
-    const out = {
-      message: this.message?.toJSON(),
-      finishReason: this.finishReason,
-      finishMessage: this.finishMessage,
-      usage: this.usage,
-      custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
-      request: this.request,
-    };
-    if (!out.finishMessage) delete out.finishMessage;
-    if (!out.request) delete out.request;
-    return out;
-  }
-}
-
-export class GenerateResponseChunk<T = unknown>
-  implements GenerateResponseChunkData
-{
-  /** The index of the candidate this chunk corresponds to. */
-  index?: number;
-  /** The content generated in this chunk. */
-  content: Part[];
-  /** Custom model-specific data for this chunk. */
-  custom?: unknown;
-  /** Accumulated chunks for partial output extraction. */
-  accumulatedChunks?: GenerateResponseChunkData[];
-
-  constructor(
-    data: GenerateResponseChunkData,
-    accumulatedChunks?: GenerateResponseChunkData[]
-  ) {
-    this.index = data.index;
-    this.content = data.content || [];
-    this.custom = data.custom;
-    this.accumulatedChunks = accumulatedChunks;
-  }
-
-  /**
-   * Concatenates all `text` parts present in the chunk with no delimiter.
-   * @returns A string of all concatenated text parts.
-   */
-  get text(): string {
-    return this.content.map((part) => part.text || '').join('');
-  }
-
-  /**
-   * Concatenates all `text` parts of all chunks from the response thus far.
-   * @returns A string of all concatenated chunk text content.
-   */
-  get accumulatedText(): string {
-    if (!this.accumulatedChunks)
-      throw new GenkitError({
-        status: 'FAILED_PRECONDITION',
-        message: 'Cannot compose accumulated text without accumulated chunks.',
-      });
-
-    return this.accumulatedChunks
-      ?.map((c) => c.content.map((p) => p.text || '').join(''))
-      .join('');
-  }
-
-  /**
-   * Returns the first media part detected in the chunk. Useful for extracting
-   * (for example) an image from a generation expected to create one.
-   * @returns The first detected `media` part in the chunk.
-   */
-  get media(): { url: string; contentType?: string } | null {
-    return this.content.find((part) => part.media)?.media || null;
-  }
-
-  /**
-   * Returns the first detected `data` part of a chunk.
-   * @returns The first `data` part detected in the chunk (if any).
-   */
-  get data(): T | null {
-    return this.content.find((part) => part.data)?.data as T | null;
-  }
-
-  /**
-   * Returns all tool request found in this chunk.
-   * @returns Array of all tool request found in this chunk.
-   */
-  get toolRequests(): ToolRequestPart[] {
-    return this.content.filter(
-      (part) => !!part.toolRequest
-    ) as ToolRequestPart[];
-  }
-
-  /**
-   * Attempts to extract the longest valid JSON substring from the accumulated chunks.
-   * @returns The longest valid JSON substring found in the accumulated chunks.
-   */
-  get output(): T | null {
-    if (!this.accumulatedChunks) return null;
-    const accumulatedText = this.accumulatedChunks
-      .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
-      .join('');
-    return extractJson<T>(accumulatedText, false);
-  }
-
-  toJSON(): GenerateResponseChunkData {
-    return { index: this.index, content: this.content, custom: this.custom };
-  }
+export interface GenerateOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
+  model?: ModelArgument<CustomOptions>;
+  /** The system prompt to be included in the generate request. Can be a string for a simple text prompt or one or more parts for multi-modal prompts (subject to model support). */
+  system?: string | Part | Part[];
+  /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
+  prompt?: string | Part | Part[];
+  /** Retrieved documents to be used as context for this generation. */
+  docs?: DocumentData[];
+  /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
+  messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
+  /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
+  tools?: ToolArgument[];
+  /** Configuration for the generation request. */
+  config?: z.infer<CustomOptions>;
+  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
+  output?: {
+    format?: 'json' | 'text' | 'media';
+    schema?: O;
+    jsonSchema?: any;
+  };
+  /** When true, return tool calls for manual processing instead of automatically resolving them. */
+  returnToolRequests?: boolean;
+  /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
+  streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+  /** Middleware to be used with this model call. */
+  use?: ModelMiddleware[];
 }
 
 export async function toGenerateRequest(
@@ -347,38 +122,6 @@ export async function toGenerateRequest(
   };
   if (!out.output.schema) delete out.output.schema;
   return out;
-}
-
-export interface GenerateOptions<
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
-  model?: ModelArgument<CustomOptions>;
-  /** The system prompt to be included in the generate request. Can be a string for a simple text prompt or one or more parts for multi-modal prompts (subject to model support). */
-  system?: string | Part | Part[];
-  /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
-  prompt?: string | Part | Part[];
-  /** Retrieved documents to be used as context for this generation. */
-  docs?: DocumentData[];
-  /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
-  messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
-  /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
-  tools?: ToolArgument[];
-  /** Configuration for the generation request. */
-  config?: z.infer<CustomOptions>;
-  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
-  output?: {
-    format?: 'json' | 'text' | 'media';
-    schema?: O;
-    jsonSchema?: any;
-  };
-  /** When true, return tool calls for manual processing instead of automatically resolving them. */
-  returnToolRequests?: boolean;
-  /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
-  streamingCallback?: StreamingCallback<GenerateResponseChunk>;
-  /** Middleware to be used with this model call. */
-  use?: ModelMiddleware[];
 }
 
 interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
