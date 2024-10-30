@@ -76,21 +76,18 @@ describe('jsonlFormat', () => {
     it(st.desc, () => {
       const parser = jsonlFormatter.handler({ messages: [] });
       const chunks: GenerateResponseChunkData[] = [];
-      let lastCursor = 0;
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
-        chunks.push(newChunk);
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, chunks),
-          lastCursor
+          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
         );
+        chunks.push(newChunk);
 
-        assert.deepStrictEqual(result.output, chunk.want);
-        lastCursor = result.cursor!;
+        assert.deepStrictEqual(result, chunk.want);
       }
     });
   }

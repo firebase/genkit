@@ -36,11 +36,8 @@ ${JSON.stringify(request.output!.schema!)}
     }
 
     return {
-      parseChunk: (chunk, cursor = '') => {
-        return {
-          output: extractJson(chunk.accumulatedText),
-          cursor: chunk.accumulatedText,
-        };
+      parseChunk: (chunk) => {
+        return extractJson(chunk.accumulatedText);
       },
 
       parseResponse: (response) => {

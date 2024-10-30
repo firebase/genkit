@@ -17,77 +17,25 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { GenerateResponseChunk } from '../../src/generate';
-import { GenerateResponseChunkData } from '../../src/model';
 
 describe('GenerateResponseChunk', () => {
-  describe('#output()', () => {
-    const testCases = [
+  describe('text accumulation', () => {
+    const testChunk = new GenerateResponseChunk(
+      { content: [{ text: 'new' }] },
       {
-        should: 'parse ``` correctly',
-        accumulatedChunksTexts: ['```'],
-        correctJson: null,
-      },
-      {
-        should: 'parse valid json correctly',
-        accumulatedChunksTexts: [`{"foo":"bar"}`],
-        correctJson: { foo: 'bar' },
-      },
-      {
-        should: 'if json invalid, return null',
-        accumulatedChunksTexts: [`invalid json`],
-        correctJson: null,
-      },
-      {
-        should: 'handle missing closing brace',
-        accumulatedChunksTexts: [`{"foo":"bar"`],
-        correctJson: { foo: 'bar' },
-      },
-      {
-        should: 'handle missing closing bracket in nested object',
-        accumulatedChunksTexts: [`{"foo": {"bar": "baz"`],
-        correctJson: { foo: { bar: 'baz' } },
-      },
-      {
-        should: 'handle multiple chunks',
-        accumulatedChunksTexts: [`{"foo": {"bar"`, `: "baz`],
-        correctJson: { foo: { bar: 'baz' } },
-      },
-      {
-        should: 'handle multiple chunks with nested objects',
-        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: {"baz": "qux`],
-        correctJson: { foo: { bar: { baz: 'qux' } } },
-      },
-      {
-        should: 'handle array nested in object',
-        accumulatedChunksTexts: [`{"foo": ["bar`],
-        correctJson: { foo: ['bar'] },
-      },
-      {
-        should: 'handle array nested in object with multiple chunks',
-        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: ["baz`],
-        correctJson: { foo: { bar: ['baz'] } },
-      },
-    ];
-
-    for (const test of testCases) {
-      if (test.should) {
-        it(test.should, () => {
-          const accumulatedChunks: GenerateResponseChunkData[] =
-            test.accumulatedChunksTexts.map((text, index) => ({
-              index,
-              content: [{ text }],
-            }));
-
-          const chunkData = accumulatedChunks[accumulatedChunks.length - 1];
-
-          const responseChunk: GenerateResponseChunk =
-            new GenerateResponseChunk(chunkData, accumulatedChunks);
-
-          const output = responseChunk.output;
-
-          assert.deepStrictEqual(output, test.correctJson);
-        });
+        previousChunks: [
+          { content: [{ text: 'old1' }] },
+          { content: [{ text: 'old2' }] },
+        ],
       }
-    }
+    );
+
+    it('#previousText should concatenate the text of previous parts', () => {
+      assert.strictEqual(testChunk.previousText, 'old1old2');
+    });
+
+    it('#accumulatedText should concatenate previous with current text', () => {
+      assert.strictEqual(testChunk.accumulatedText, 'old1old2new');
+    });
   });
 });

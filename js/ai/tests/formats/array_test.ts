@@ -73,15 +73,13 @@ describe('arrayFormat', () => {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
-        chunks.push(newChunk);
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, chunks),
-          lastCursor
+          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
         );
+        chunks.push(newChunk);
 
-        assert.deepStrictEqual(result.output, chunk.want);
-        lastCursor = result.cursor!;
+        assert.deepStrictEqual(result, chunk.want);
       }
     });
   }

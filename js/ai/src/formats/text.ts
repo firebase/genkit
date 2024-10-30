@@ -24,9 +24,7 @@ export const textFormatter: Formatter<string, string> = {
   handler: () => {
     return {
       parseChunk: (chunk) => {
-        return {
-          output: chunk.text,
-        };
+        return chunk.text;
       },
 
       parseResponse: (response) => {
