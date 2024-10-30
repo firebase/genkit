@@ -16,8 +16,8 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { GenerateResponseChunk } from '../../src/generate';
-import { GenerateResponseChunkData } from '../../src/model';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { GenerateResponseChunkData } from '../../src/model.js';
 
 describe('GenerateResponseChunk', () => {
   describe('#output()', () => {

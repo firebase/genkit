@@ -22,9 +22,9 @@ import {
   GenerateResponse,
   GenerationBlockedError,
   GenerationResponseError,
-} from '../../src/generate';
-import { Message } from '../../src/message';
-import { GenerateRequest, GenerateResponseData } from '../../src/model';
+} from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateRequest, GenerateResponseData } from '../../src/model.js';
 
 describe('GenerateResponse', () => {
   describe('#toJSON()', () => {
