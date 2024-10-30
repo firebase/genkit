@@ -24,7 +24,7 @@ import {
   MessageData,
   ModelResponseData,
   ToolRequestPart,
-} from '../model';
+} from '../model.js';
 
 /**
  * GenerateResponse is the result from a `generate()` call and contains one or
