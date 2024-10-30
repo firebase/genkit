@@ -96,12 +96,49 @@ ai.defineStreamingFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = await ai.prompt('codeDefinedPrompt');
-    const response = await prompt.generate({
-      input,
-    });
-
+    const response = await codeDefinedPrompt(input);
     return response.text;
+  }
+);
+
+//
+// Function(al) prompts
+//
+
+export const promptFn = ai.definePrompt(
+  {
+    name: 'functionalPrompt',
+    input: {
+      schema: HelloSchema,
+      default: {
+        persona: 'Space Pirate',
+      },
+    },
+    model: gemini15Flash,
+  },
+  async (input) => ({
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text: `say hello to ${input.name} in the voice of ${input.persona}`,
+          },
+        ],
+      },
+    ],
+  })
+);
+
+ai.defineFlow(
+  {
+    name: 'flowFunctionalPrompt',
+    inputSchema: HelloSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    const hello = await ai.prompt('functionalPrompt');
+    return (await hello(input)).text;
   }
 );
 
@@ -116,8 +153,8 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = await ai.prompt('hello');
-    return (await prompt.generate({ input })).text;
+    const hello = await ai.prompt('hello');
+    return (await hello(input)).text;
   }
 );
 
@@ -132,8 +169,10 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = await ai.prompt('hello', { variant: 'first-last-name' });
-    return (await prompt.generate({ input })).text;
+    const hello = await ai.prompt('hello', {
+      variant: 'first-last-name',
+    });
+    return (await hello(input)).text;
   }
 );
 
@@ -148,8 +187,10 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const prompt = await ai.prompt('hello', { variant: 'json-output' });
-    return (await prompt.generate({ input })).output;
+    const hello = await ai.prompt('hello', {
+      variant: 'json-output',
+    });
+    return (await hello(input)).output;
   }
 );
 
@@ -164,8 +205,10 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const prompt = await ai.prompt('hello', { variant: 'system' });
-    return (await prompt.generate({ input })).text;
+    const hello = await ai.prompt('hello', {
+      variant: 'system',
+    });
+    return (await hello(input)).text;
   }
 );
 
@@ -180,8 +223,10 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const prompt = await ai.prompt('hello', { variant: 'history' });
-    return (await prompt.generate({ input })).text;
+    const hello = await ai.prompt('hello', {
+      variant: 'history',
+    });
+    return (await hello(input)).text;
   }
 );
 
