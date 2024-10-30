@@ -48,7 +48,7 @@ export async function resolveFormat(
   return arg as Formatter;
 }
 
-export const DEFAULT_FORMATS: Formatter<any, any, any>[] = [
+export const DEFAULT_FORMATS: Formatter<any, any>[] = [
   jsonFormatter,
   arrayFormatter,
   textFormatter,
