@@ -29,9 +29,9 @@ features:
 *   **Simplified deployment**: Deploy flows directly as web API endpoints, using
     Cloud Functions for Firebase or any platform that can host a web app.
 
-Unlike similar features in other frameworks, Genkit’s flows are lightweight and
-unobtrusive, and don’t force your app to conform to any specific abstraction.
-All of the flow’s logic is written in standard TypeScript, and code inside a
+Unlike similar features in other frameworks, Genkit's flows are lightweight and
+unobtrusive, and don't force your app to conform to any specific abstraction.
+All of the flow's logic is written in standard TypeScript, and code inside a
 flow doesn't need to be flow-aware.
 
 ## Defining and calling flows
@@ -56,7 +56,7 @@ can define schemas for them using Zod, in much the same way as you define the
 output schema of a `generate()` call; however, unlike with `generate()`, you can
 also specify an input schema.
 
-Here’s a refinement of the last example, which defines a flow that takes a
+Here's a refinement of the last example, which defines a flow that takes a
 string as input and outputs an object:
 
 ```ts
@@ -93,7 +93,7 @@ contain its properties:
 
 ## Streaming flows 
 
-Flows support streaming using an interface similar to `generate()`’s streaming
+Flows support streaming using an interface similar to `generate()`'s streaming
 interface. Streaming is useful when your flow generates a large amount of
 output, because you can present the output to the user as it's being generated,
 which improves the perceived responsiveness of your app. As a familiar example,
@@ -108,7 +108,7 @@ Here's an example of a flow that supports streaming:
 
 *   The `streamSchema` option specifies the type of values your flow streams.
     This does not necessarily need to be the same type as the `outputSchema`,
-    which is the type of the flow’s complete output.
+    which is the type of the flow's complete output.
 *   `streamingCallback` is a callback function that takes a single parameter, of
     the type specified by `streamSchema`. Whenever data becomes available within
     your flow, send the data to the output stream by calling this function. Note
@@ -118,7 +118,7 @@ Here's an example of a flow that supports streaming:
 
 In the above example, the values streamed by the flow are directly coupled to
 the values streamed by the `generate()` call inside the flow. Although this is
-often the case, it doesn’t have to be: you can output values to the stream using
+often the case, it doesn't have to be: you can output values to the stream using
 the callback as often as is useful for your flow.
 
 ### Calling streaming flows
@@ -209,7 +209,7 @@ request including its output:
 ### Flow steps
 
 In the last example, you saw that each `generate()` call showed up as a separate
-step in the trace viewer. Each of Genkit’s fundamental actions show up as
+step in the trace viewer. Each of Genkit's fundamental actions show up as
 separate steps of a flow:
 
 *   `generate()`
@@ -223,12 +223,12 @@ by wrapping the code in a `run()` call. You might do this for calls to
 third-party libraries that are not Genkit-aware, or for any critical section of
 code.
 
-For example, here’s a flow with two steps: the first step retrieves a menu using
+For example, here's a flow with two steps: the first step retrieves a menu using
 some unspecified method, and the second step includes the menu as context for a
 `generate()` call.
 
 ```ts
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/index.ts" region_tag="ex10" adjust_indentation="auto" %}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/index.ts" region_tag="ex11" adjust_indentation="auto" %}
 ```
 
 Because the retrieval step is wrapped in a `run()` call, it's included as a step
