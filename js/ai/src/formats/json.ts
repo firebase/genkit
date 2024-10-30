@@ -17,7 +17,7 @@
 import { extractJson } from '../extract';
 import type { Formatter } from './types';
 
-export const jsonFormatter: Formatter<unknown, unknown, string> = {
+export const jsonFormatter: Formatter<unknown, unknown> = {
   name: 'json',
   config: {
     contentType: 'application/json',
