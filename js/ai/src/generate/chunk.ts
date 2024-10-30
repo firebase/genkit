@@ -16,28 +16,50 @@
 
 import { GenkitError } from '@genkit-ai/core';
 import { extractJson } from '../extract.js';
-import { GenerateResponseChunkData, Part, ToolRequestPart } from '../model.js';
+import {
+  GenerateResponseChunkData,
+  Part,
+  Role,
+  ToolRequestPart,
+} from '../model.js';
+
+export interface ChunkParser<T = unknown> {
+  (chunk: GenerateResponseChunk<T>): T;
+}
 
 export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData
 {
-  /** The index of the candidate this chunk corresponds to. */
+  /** The index of the message this chunk corresponds to, starting with `0` for the first model response of the generation. */
   index?: number;
+  /** The role of the message this chunk corresponds to. Will always be `model` or `tool`. */
+  role?: Role;
   /** The content generated in this chunk. */
   content: Part[];
   /** Custom model-specific data for this chunk. */
   custom?: unknown;
   /** Accumulated chunks for partial output extraction. */
-  accumulatedChunks?: GenerateResponseChunkData[];
+  previousChunks?: GenerateResponseChunkData[];
+  /** The parser to be used to parse `output` from this chunk. */
+  parser?: ChunkParser<T>;
 
   constructor(
     data: GenerateResponseChunkData,
-    accumulatedChunks?: GenerateResponseChunkData[]
+    options?: {
+      previousChunks?: GenerateResponseChunkData[];
+      role?: Role;
+      index?: number;
+      parser?: ChunkParser<T>;
+    }
   ) {
-    this.index = data.index;
     this.content = data.content || [];
     this.custom = data.custom;
-    this.accumulatedChunks = accumulatedChunks;
+    this.previousChunks = options?.previousChunks
+      ? [...options.previousChunks]
+      : undefined;
+    this.index = options?.index;
+    this.role = options?.role;
+    this.parser = options?.parser;
   }
 
   /**
@@ -53,13 +75,20 @@ export class GenerateResponseChunk<T = unknown>
    * @returns A string of all concatenated chunk text content.
    */
   get accumulatedText(): string {
-    if (!this.accumulatedChunks)
+    return this.previousText + this.text;
+  }
+
+  /**
+   * Concatenates all `text` parts of all preceding chunks.
+   */
+  get previousText(): string {
+    if (!this.previousChunks)
       throw new GenkitError({
         status: 'FAILED_PRECONDITION',
-        message: 'Cannot compose accumulated text without accumulated chunks.',
+        message: 'Cannot compose accumulated text without previous chunks.',
       });
 
-    return this.accumulatedChunks
+    return this.previousChunks
       ?.map((c) => c.content.map((p) => p.text || '').join(''))
       .join('');
   }
@@ -92,18 +121,15 @@ export class GenerateResponseChunk<T = unknown>
   }
 
   /**
-   * Attempts to extract the longest valid JSON substring from the accumulated chunks.
-   * @returns The longest valid JSON substring found in the accumulated chunks.
+   * Parses the chunk into the desired output format using the parser associated
+   * with the generate request, or falls back to naive JSON parsing otherwise.
    */
   get output(): T | null {
-    if (!this.accumulatedChunks) return null;
-    const accumulatedText = this.accumulatedChunks
-      .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
-      .join('');
-    return extractJson<T>(accumulatedText, false);
+    if (this.parser) return this.parser(this);
+    return this.data || extractJson(this.accumulatedText);
   }
 
   toJSON(): GenerateResponseChunkData {
-    return { index: this.index, content: this.content, custom: this.custom };
+    return { content: this.content, custom: this.custom };
   }
 }

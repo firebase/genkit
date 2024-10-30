@@ -17,30 +17,17 @@
 import { GenerateResponse, GenerateResponseChunk } from '../generate.js';
 import { ModelRequest, Part } from '../model.js';
 
-export interface ParsedChunk<CO = unknown, CC = unknown> {
-  output: CO;
-  /**
-   * The cursor of a parsed chunk response holds context that is relevant to continue parsing.
-   * The returned cursor will be passed into the next iteration of the chunk parser. Cursors
-   * are not exposed to external consumers of the formatter.
-   */
-  cursor?: CC;
-}
-
 type OutputContentTypes =
   | 'application/json'
   | 'text/plain'
   | 'application/jsonl';
 
-export interface Formatter<O = unknown, CO = unknown, CC = unknown> {
+export interface Formatter<O = unknown, CO = unknown> {
   name: string;
   config: ModelRequest['output'];
   handler: (req: ModelRequest) => {
     parseResponse(response: GenerateResponse): O;
-    parseChunk?: (
-      chunk: GenerateResponseChunk,
-      cursor?: CC
-    ) => ParsedChunk<CO, CC>;
+    parseChunk?: (chunk: GenerateResponseChunk, cursor?: CC) => CO;
     instructions?: string | Part[];
   };
 }

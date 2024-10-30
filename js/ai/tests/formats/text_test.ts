@@ -55,13 +55,13 @@ describe('textFormat', () => {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
-        chunks.push(newChunk);
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, chunks)
+          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
         );
+        chunks.push(newChunk);
 
-        assert.strictEqual(result.output, chunk.want);
+        assert.strictEqual(result, chunk.want);
       }
     });
   }

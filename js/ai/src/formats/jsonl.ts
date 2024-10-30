@@ -26,7 +26,7 @@ function objectLines(text: string): string[] {
     .filter((line) => line.startsWith('{'));
 }
 
-export const jsonlFormatter: Formatter<unknown[], unknown[], number> = {
+export const jsonlFormatter: Formatter<unknown[], unknown[]> = {
   name: 'jsonl',
   config: {
     contentType: 'application/jsonl',
@@ -54,27 +54,36 @@ ${JSON.stringify(request.output.schema.items)}
     }
 
     return {
-      parseChunk: (chunk, cursor = 0) => {
-        const jsonLines = objectLines(chunk.accumulatedText);
+      parseChunk: (chunk) => {
         const results: unknown[] = [];
-        let newCursor = cursor;
 
-        for (let i = cursor; i < jsonLines.length; i++) {
-          try {
-            const result = JSON5.parse(jsonLines[i]);
-            if (result) {
-              results.push(result);
-            }
-            newCursor = i + 1;
-          } catch (e) {
-            break;
+        const text = chunk.accumulatedText;
+
+        let startIndex = 0;
+        if (chunk.previousChunks?.length) {
+          const lastNewline = chunk.previousText.lastIndexOf('\n');
+          if (lastNewline !== -1) {
+            startIndex = lastNewline + 1;
           }
         }
 
-        return {
-          output: results,
-          cursor: newCursor,
-        };
+        const lines = text.slice(startIndex).split('\n');
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('{')) {
+            try {
+              const result = JSON5.parse(trimmed);
+              if (result) {
+                results.push(result);
+              }
+            } catch (e) {
+              break;
+            }
+          }
+        }
+
+        return results;
       },
 
       parseResponse: (response) => {

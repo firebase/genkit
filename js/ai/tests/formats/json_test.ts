@@ -69,15 +69,14 @@ describe('jsonFormat', () => {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
-        chunks.push(newChunk);
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, chunks),
+          new GenerateResponseChunk(newChunk, { previousChunks: [...chunks] }),
           lastCursor
         );
+        chunks.push(newChunk);
 
-        assert.deepStrictEqual(result.output, chunk.want);
-        lastCursor = result.cursor!;
+        assert.deepStrictEqual(result, chunk.want);
       }
     });
   }

@@ -18,7 +18,7 @@ import { GenkitError } from '@genkit-ai/core';
 import { extractItems } from '../extract';
 import type { Formatter } from './types';
 
-export const arrayFormatter: Formatter<unknown[], unknown[], number> = {
+export const arrayFormatter: Formatter<unknown[], unknown[]> = {
   name: 'array',
   config: {
     contentType: 'application/json',
@@ -43,16 +43,15 @@ export const arrayFormatter: Formatter<unknown[], unknown[], number> = {
     }
 
     return {
-      parseChunk: (chunk, cursor = 0) => {
-        const { items, cursor: newCursor } = extractItems(
-          chunk.accumulatedText,
-          cursor
-        );
+      parseChunk: (chunk) => {
+        // first, determine the cursor position from the previous chunks
+        const cursor = chunk.previousChunks?.length
+          ? extractItems(chunk.previousText).cursor
+          : 0;
+        // then, extract the items starting at that cursor
+        const { items } = extractItems(chunk.accumulatedText, cursor);
 
-        return {
-          output: items,
-          cursor: newCursor,
-        };
+        return items;
       },
 
       parseResponse: (response) => {

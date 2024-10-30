@@ -17,7 +17,7 @@
 import { extractJson } from '../extract';
 import type { Formatter } from './types';
 
-export const jsonFormatter: Formatter<unknown, unknown, string> = {
+export const jsonFormatter: Formatter<unknown, unknown> = {
   name: 'json',
   config: {
     contentType: 'application/json',
@@ -36,11 +36,8 @@ ${JSON.stringify(request.output!.schema!)}
     }
 
     return {
-      parseChunk: (chunk, cursor = '') => {
-        return {
-          output: extractJson(chunk.accumulatedText),
-          cursor: chunk.accumulatedText,
-        };
+      parseChunk: (chunk) => {
+        return extractJson(chunk.accumulatedText);
       },
 
       parseResponse: (response) => {

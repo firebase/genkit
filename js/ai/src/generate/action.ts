@@ -142,12 +142,14 @@ async function generate(
     streamingCallback
       ? (chunk: GenerateResponseChunkData) => {
           // Store accumulated chunk data
-          accumulatedChunks.push(chunk);
           if (streamingCallback) {
             streamingCallback!(
-              new GenerateResponseChunk(chunk, accumulatedChunks)
+              new GenerateResponseChunk(chunk, {
+                previousChunks: accumulatedChunks,
+              })
             );
           }
+          accumulatedChunks.push(chunk);
         }
       : undefined,
     async () => {
