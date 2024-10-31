@@ -42,6 +42,8 @@ export interface PluginOptions {
 const CLOUD_PLATFROM_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform';
 
+const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
+
 /**
  * Add Google Checks evaluators. 
  */
@@ -53,19 +55,23 @@ export function checks(options?: PluginOptions): GenkitPlugin {
     // Allow customers to pass in cloud credentials from environment variables
     // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
     if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+      console.log("HSH initilizing google auth via path 1")
       const serviceAccountCreds = JSON.parse(
         process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
       );
       authOptions = {
         credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
+        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
       };
       authClient = new GoogleAuth(authOptions);
     } else {
+      console.log("HSH initilizing google auth via path 2")
       authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
+        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE] }
       );
     }
+
+    console.log("HSH Google auth client initialized: ", authClient)
 
     const projectId = options?.projectId || (await authClient.getProjectId());
 

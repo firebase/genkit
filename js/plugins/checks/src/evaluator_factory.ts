@@ -40,7 +40,7 @@ export class EvaluatorFactory {
   ): Action {
     return ai.defineEvaluator(
       {
-        name: `vertexai/${config.metric.toLocaleLowerCase()}`,
+        name: `checks/${config.metric.toLocaleLowerCase()}`,
         displayName: config.displayName,
         definition: config.definition,
       },
@@ -64,6 +64,7 @@ export class EvaluatorFactory {
     responseSchema: ResponseType
   ): Promise<z.infer<ResponseType>> {
     const locationName = `projects/${this.projectId}/locations/${this.location}`;
+
     return await runInNewSpan(
       {
         metadata: {
@@ -75,6 +76,7 @@ export class EvaluatorFactory {
           location: locationName,
           ...partialRequest,
         };
+
 
         metadata.input = request;
         const client = await this.auth.getClient();
@@ -89,8 +91,30 @@ export class EvaluatorFactory {
         });
         metadata.output = response.data;
 
+        const checksResponse = await client.request({
+          url: "https://checks.googleapis.com/v1alpha/aisafety:classifyContent",
+          method: "POST",
+          body: `{ 
+            "input": { 
+              "text_input": { 
+                "content": "I hate you and all people on earth" 
+              } 
+            }, 
+            "policies": { "policy_type": "HARASSMENT" } 
+          }`,
+          headers: {
+            "X-Goog-User-Project": "checks-api-370419",
+            "Content-Type": "application/json",
+          }
+        })
+        
         try {
           return responseSchema.parse(response.data);
+          // return responseSchema.parse({
+          //   score: 1,
+          //   explanation: "the explanation",
+          //   confidence: 100
+          // });
         } catch (e) {
           throw new Error(`Error parsing ${url} API response: ${e}`);
         }
