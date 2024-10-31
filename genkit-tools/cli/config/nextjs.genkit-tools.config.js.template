@@ -1,6 +1,0 @@
-module.exports = {
-  runner: {
-    mode: 'harness',
-    files: [$GENKIT_HARNESS_FILES],
-  },
-};
