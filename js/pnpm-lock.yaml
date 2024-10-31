@@ -655,6 +655,28 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  testapps/3P-anthropic:
+    dependencies:
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../../plugins/google-cloud
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      genkitx-anthropic:
+        specifier: file:genkitx-anthropic-0.10.1.tgz
+        version: file:testapps/3P-anthropic/genkitx-anthropic-0.10.1.tgz(genkit@genkit)
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.5
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.2
+
   testapps/anthropic-models:
     dependencies:
       '@genkit-ai/firebase':
@@ -1151,7 +1173,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.1)(@genkit-ai/core@0.9.0-dev.1)
+        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.2)(@genkit-ai/core@0.9.0-dev.2)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1918,11 +1940,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.0-dev.1':
-    resolution: {integrity: sha512-ETAlyS/tX5bvv9NrPZ+6cuDStNwy5Yl2CBZjoXQle0jBuBCQr3HLjUH8ntbBX55E8mCQ+5A6Bpi2TXOx1yu1dw==}
+  '@genkit-ai/ai@0.9.0-dev.2':
+    resolution: {integrity: sha512-O5l5H5v2Lb78HjZVg105iUGb8MR1Cc4snGB3iAac2uKGB24IjIlxTs2vHlDO0QB5Yi56woZ4ZsWbbYg7gmMmIA==}
 
-  '@genkit-ai/core@0.9.0-dev.1':
-    resolution: {integrity: sha512-zWlzCaAKpNRwtMrZaA2h0o0yx4uj9OBmPhN5vMUTipWsaKIF1A3STvzRjxz4vFF2U87Uzvl2287JqyUNEXwQbA==}
+  '@genkit-ai/core@0.9.0-dev.2':
+    resolution: {integrity: sha512-xqTFEV/XTYswlBa3l0zL+k/OfexxxHLs3zIDR0TdSBKBdau5KgW0Xcf2RgAjakDp4LaxSs2+0qbWxwZzy/apmg==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -4121,6 +4143,12 @@ packages:
   gcp-metadata@6.1.0:
     resolution: {integrity: sha512-Jh/AIwwgaxan+7ZUUmRLCjtchyDiqh4KjBJ5tW3plBZb5iL/BPcso8A5DlzeD9qlw0duCamnNdpFjxwaT0KyKg==}
     engines: {node: '>=14'}
+
+  genkitx-anthropic@file:testapps/3P-anthropic/genkitx-anthropic-0.10.1.tgz:
+    resolution: {integrity: sha512-OLO2QFjqxSWHXr8TbaTp/v9VIK2lQnr2bo2edWJJw5f/pkOvk/W/rginQvsE+6FTSpZbU4CPjX300L4corzDAQ==, tarball: file:testapps/3P-anthropic/genkitx-anthropic-0.10.1.tgz}
+    version: 0.10.1
+    peerDependencies:
+      genkit: ^0.9.0-dev.2
 
   genkitx-openai@0.10.1:
     resolution: {integrity: sha512-E9/DzyQcBUSTy81xT2pvEmdnn9Q/cKoojEt6lD/EdOeinhqE9oa59d/kuXTokCMekTrj3Rk7LtNBQIDjnyjNOA==}
@@ -6693,9 +6721,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.0-dev.1':
+  '@genkit-ai/ai@0.9.0-dev.2':
     dependencies:
-      '@genkit-ai/core': 0.9.0-dev.1
+      '@genkit-ai/core': 0.9.0-dev.2
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -6705,7 +6733,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.0-dev.1':
+  '@genkit-ai/core@0.9.0-dev.2':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.26.0(@opentelemetry/api@1.9.0)
@@ -9271,10 +9299,18 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.1)(@genkit-ai/core@0.9.0-dev.1):
+  genkitx-anthropic@file:testapps/3P-anthropic/genkitx-anthropic-0.10.1.tgz(genkit@genkit):
     dependencies:
-      '@genkit-ai/ai': 0.9.0-dev.1
-      '@genkit-ai/core': 0.9.0-dev.1
+      '@anthropic-ai/sdk': 0.24.3(encoding@0.1.13)
+      genkit: link:genkit
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - encoding
+
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.2)(@genkit-ai/core@0.9.0-dev.2):
+    dependencies:
+      '@genkit-ai/ai': 0.9.0-dev.2
+      '@genkit-ai/core': 0.9.0-dev.2
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
