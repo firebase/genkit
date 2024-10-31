@@ -611,14 +611,14 @@ importers:
         specifier: ^3.23.0
         version: 3.25.0(encoding@0.1.13)
       '@google-cloud/vertexai':
-        specifier: ^1.1.0
-        version: 1.1.0(encoding@0.1.13)
+        specifier: ^1.9.0
+        version: 1.9.0(encoding@0.1.13)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
       google-auth-library:
-        specifier: ^9.6.3
-        version: 9.7.0(encoding@0.1.13)
+        specifier: ^9.14.2
+        version: 9.14.2(encoding@0.1.13)
       googleapis:
         specifier: ^140.0.1
         version: 140.0.1(encoding@0.1.13)
@@ -1151,7 +1151,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.1)(@genkit-ai/core@0.9.0-dev.1)
+        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.2)(@genkit-ai/core@0.9.0-dev.2)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1918,11 +1918,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.0-dev.1':
-    resolution: {integrity: sha512-ETAlyS/tX5bvv9NrPZ+6cuDStNwy5Yl2CBZjoXQle0jBuBCQr3HLjUH8ntbBX55E8mCQ+5A6Bpi2TXOx1yu1dw==}
+  '@genkit-ai/ai@0.9.0-dev.2':
+    resolution: {integrity: sha512-O5l5H5v2Lb78HjZVg105iUGb8MR1Cc4snGB3iAac2uKGB24IjIlxTs2vHlDO0QB5Yi56woZ4ZsWbbYg7gmMmIA==}
 
-  '@genkit-ai/core@0.9.0-dev.1':
-    resolution: {integrity: sha512-zWlzCaAKpNRwtMrZaA2h0o0yx4uj9OBmPhN5vMUTipWsaKIF1A3STvzRjxz4vFF2U87Uzvl2287JqyUNEXwQbA==}
+  '@genkit-ai/core@0.9.0-dev.2':
+    resolution: {integrity: sha512-xqTFEV/XTYswlBa3l0zL+k/OfexxxHLs3zIDR0TdSBKBdau5KgW0Xcf2RgAjakDp4LaxSs2+0qbWxwZzy/apmg==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -2002,8 +2002,8 @@ packages:
     resolution: {integrity: sha512-sZW14pfxEQZSIbBPs6doFYtcbK31Bs3E4jH5Ly3jJnBkYfkMPX8sXG3ZQXCJa88MKtUNPlgBdMN2OJUzmFe5/g==}
     engines: {node: '>=14'}
 
-  '@google-cloud/vertexai@1.1.0':
-    resolution: {integrity: sha512-hfwfdlVpJ+kM6o2b5UFfPnweBcz8tgHAFRswnqUKYqLJsvKU0DDD0Z2/YKoHyAUoPJAv20qg6KlC3msNeUKUiw==}
+  '@google-cloud/vertexai@1.9.0':
+    resolution: {integrity: sha512-8brlcJwFXI4fPuBtsDNQqCdWZmz8gV9jeEKOU0vc5H2SjehCQpXK/NwuSEr916zbhlBHtg/sU37qQQdgvh5BRA==}
     engines: {node: '>=18.0.0'}
 
   '@google/generative-ai@0.15.0':
@@ -4205,6 +4205,10 @@ packages:
     resolution: {integrity: sha512-epX3ww/mNnhl6tL45EQ/oixsY8JLEgUFoT4A5E/5iAR4esld9Kqv6IJGk7EmGuOgDvaarwF95hU2+v7Irql9lw==}
     engines: {node: '>=14'}
 
+  google-auth-library@9.14.2:
+    resolution: {integrity: sha512-R+FRIfk1GBo3RdlRYWPdwk8nmtVUOn6+BkDomAC46KoU8kzXzE1HLmOasSCbWUByMMAGkknVF0G5kQ69Vj7dlA==}
+    engines: {node: '>=14'}
+
   google-auth-library@9.7.0:
     resolution: {integrity: sha512-I/AvzBiUXDzLOy4iIZ2W+Zq33W4lcukQv1nl7C8WUA6SQwyQwUwu3waNmWNAvzds//FG8SZ+DnKnW/2k6mQS8A==}
     engines: {node: '>=14'}
@@ -6293,7 +6297,7 @@ snapshots:
   '@anthropic-ai/vertex-sdk@0.4.0(encoding@0.1.13)':
     dependencies:
       '@anthropic-ai/sdk': 0.24.3(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -6693,9 +6697,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.0-dev.1':
+  '@genkit-ai/ai@0.9.0-dev.2':
     dependencies:
-      '@genkit-ai/core': 0.9.0-dev.1
+      '@genkit-ai/core': 0.9.0-dev.2
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -6705,7 +6709,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.0-dev.1':
+  '@genkit-ai/core@0.9.0-dev.2':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.26.0(@opentelemetry/api@1.9.0)
@@ -6759,7 +6763,7 @@ snapshots:
       duplexify: 4.1.3
       ent: 2.2.0
       extend: 3.0.2
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       retry-request: 7.0.2(encoding@0.1.13)
       teeny-request: 9.0.0(encoding@0.1.13)
     transitivePeerDependencies:
@@ -6789,7 +6793,7 @@ snapshots:
   '@google-cloud/logging-winston@6.0.0(encoding@0.1.13)(winston@3.13.0)':
     dependencies:
       '@google-cloud/logging': 11.0.0(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       lodash.mapvalues: 4.6.0
       winston: 3.13.0
       winston-transport: 4.7.0
@@ -6826,7 +6830,7 @@ snapshots:
       '@opentelemetry/core': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/resources': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.0)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       googleapis: 137.1.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
@@ -6882,7 +6886,7 @@ snapshots:
       ent: 2.2.0
       fast-xml-parser: 4.3.6
       gaxios: 6.3.0(encoding@0.1.13)
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       mime: 3.0.0
       p-limit: 3.1.0
       retry-request: 7.0.2(encoding@0.1.13)
@@ -6893,9 +6897,9 @@ snapshots:
       - supports-color
     optional: true
 
-  '@google-cloud/vertexai@1.1.0(encoding@0.1.13)':
+  '@google-cloud/vertexai@1.9.0(encoding@0.1.13)':
     dependencies:
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -9271,10 +9275,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.1)(@genkit-ai/core@0.9.0-dev.1):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.2)(@genkit-ai/core@0.9.0-dev.2):
     dependencies:
-      '@genkit-ai/ai': 0.9.0-dev.1
-      '@genkit-ai/core': 0.9.0-dev.1
+      '@genkit-ai/ai': 0.9.0-dev.2
+      '@genkit-ai/core': 0.9.0-dev.2
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
@@ -9391,6 +9395,18 @@ snapshots:
       - encoding
       - supports-color
 
+  google-auth-library@9.14.2(encoding@0.1.13):
+    dependencies:
+      base64-js: 1.5.1
+      ecdsa-sig-formatter: 1.0.11
+      gaxios: 6.3.0(encoding@0.1.13)
+      gcp-metadata: 6.1.0(encoding@0.1.13)
+      gtoken: 7.1.0(encoding@0.1.13)
+      jws: 4.0.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   google-auth-library@9.7.0(encoding@0.1.13):
     dependencies:
       base64-js: 1.5.1
@@ -9428,7 +9444,7 @@ snapshots:
       '@types/long': 4.0.2
       abort-controller: 3.0.0
       duplexify: 4.1.3
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       node-fetch: 2.7.0(encoding@0.1.13)
       object-hash: 3.0.0
       proto3-json-serializer: 2.0.2
@@ -9448,7 +9464,7 @@ snapshots:
     dependencies:
       extend: 3.0.2
       gaxios: 6.3.0(encoding@0.1.13)
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       qs: 6.12.0
       url-template: 2.0.8
       uuid: 9.0.1
@@ -9466,7 +9482,7 @@ snapshots:
 
   googleapis@140.0.1(encoding@0.1.13):
     dependencies:
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       googleapis-common: 7.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
