@@ -28,7 +28,6 @@ import { evalFlow } from './commands/eval-flow';
 import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowRun } from './commands/flow-run';
-import { init } from './commands/init';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
@@ -48,7 +47,6 @@ const commands: Command[] = [
   evalExtractData,
   evalRun,
   evalFlow,
-  init,
   config,
 ];
 
