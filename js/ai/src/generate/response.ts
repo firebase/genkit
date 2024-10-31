@@ -29,6 +29,10 @@ import {
   ToolRequestPart,
 } from '../model.js';
 
+export interface ResponseParser<T> {
+  (response: GenerateResponse<T>): T;
+}
+
 /**
  * GenerateResponse is the result from a `generate()` call and contains one or
  * more generated candidate messages.
@@ -46,8 +50,13 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   custom: unknown;
   /** The request that generated this response. */
   request?: GenerateRequest;
+  /** The parser for output parsing of this response. */
+  parser?: ResponseParser<O>;
 
-  constructor(response: GenerateResponseData, request?: GenerateRequest) {
+  constructor(
+    response: GenerateResponseData,
+    options?: { request?: GenerateRequest; parser?: ResponseParser<O> }
+  ) {
     // Check for candidates in addition to message for backwards compatibility.
     const generatedMessage =
       response.message || response.candidates?.[0]?.message;
@@ -60,7 +69,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       response.finishMessage || response.candidates?.[0]?.finishMessage;
     this.usage = response.usage || {};
     this.custom = response.custom || {};
-    this.request = request;
+    this.request = options?.request;
+    this.parser = options?.parser;
   }
 
   private get assertMessage(): Message<O> {
@@ -115,7 +125,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @returns The structured output contained in the selected candidate.
    */
   get output(): O | null {
-    return this.message?.output || null;
+    return this.parser?.(this) || this.message?.output || null;
   }
 
   /**

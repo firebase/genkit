@@ -17,17 +17,20 @@
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
+  gemini10Pro as googleGemini10Pro,
   gemini15Flash,
   googleAI,
-  gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, genkit, run, z } from 'genkit';
+import { genkit, MessageSchema, run, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import { Allow, parse } from 'partial-json';
+
+logger.setLogLevel('debug');
 
 enableGoogleCloudTelemetry({
   // These are configured for demonstration purposes. Sensible defaults are
@@ -474,5 +477,60 @@ export const toolTester = ai.defineFlow(
       tools: testTools,
     });
     return result.messages;
+  }
+);
+
+export const arrayStreamTester = ai.defineStreamingFlow(
+  {
+    name: 'arrayStreamTester',
+    inputSchema: z.string().nullish(),
+    outputSchema: z.any(),
+    streamSchema: z.any(),
+  },
+  async (input, streamingCallback) => {
+    try {
+      const { stream, response } = await ai.generateStream({
+        model: gemini15Flash,
+        config: {
+          safetySettings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              threshold: 'BLOCK_NONE',
+            },
+          ],
+        },
+        prompt: `Generate a list of ingredients for ${input || 'Nachos'}`,
+        output: {
+          format: 'array',
+          schema: z.array(
+            z.object({
+              name: z.string(),
+              quantity: z.string(),
+              purpose: z.string().nullish(),
+            })
+          ),
+        },
+      });
+
+      for await (const { output, text } of stream) {
+        streamingCallback?.({ text, output });
+      }
+
+      return (await response).output;
+    } catch (e: any) {
+      return 'Error: ' + e.message;
+    }
   }
 );

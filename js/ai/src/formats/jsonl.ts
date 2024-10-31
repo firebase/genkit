@@ -29,6 +29,7 @@ function objectLines(text: string): string[] {
 export const jsonlFormatter: Formatter<unknown[], unknown[]> = {
   name: 'jsonl',
   config: {
+    format: 'text',
     contentType: 'application/jsonl',
   },
   handler: (request) => {
@@ -45,7 +46,7 @@ export const jsonlFormatter: Formatter<unknown[], unknown[]> = {
 
     let instructions: string | undefined;
     if (request.output?.schema?.items) {
-      instructions = `Output should be JSONL format, a sequence of JSON objects (one per line). Each line should conform to the following schema:
+      instructions = `Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline \`\\n\` character. Each line should be a JSON object conforming to the following schema:
 
 \`\`\`
 ${JSON.stringify(request.output.schema.items)}

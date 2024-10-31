@@ -24,6 +24,7 @@ import {
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
+import { resolveFormat } from './formats/index.js';
 import { generateHelper, GenerateUtilParamSchema } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
@@ -63,7 +64,7 @@ export interface GenerateOptions<
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'json' | 'text' | 'media';
+    format?: string;
     schema?: O;
     jsonSchema?: any;
   };
@@ -103,17 +104,15 @@ export async function toGenerateRequest(
     tools = await resolveTools(registry, options.tools);
   }
 
+  const resolvedFormat = await resolveFormat(registry, options.output?.format);
+
   const out = {
     messages,
     config: options.config,
     docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.schema || options.output?.jsonSchema
-          ? 'json'
-          : 'text'),
+      ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({
         schema: options.output?.schema,
         jsonSchema: options.output?.jsonSchema,
@@ -167,7 +166,7 @@ export class GenerationResponseError extends GenkitError {
   };
 
   constructor(
-    response: GenerateResponse,
+    response: GenerateResponse<any>,
     message: string,
     status?: GenkitError['status'],
     detail?: Record<string, any>
@@ -294,11 +293,11 @@ export async function generate<
         params,
         resolvedOptions.use
       );
-      return new GenerateResponse<O>(
-        response,
-        response.request ??
-          (await toGenerateRequest(registry, { ...resolvedOptions, tools }))
-      );
+      return new GenerateResponse<O>(response, {
+        request:
+          response.request ??
+          (await toGenerateRequest(registry, { ...resolvedOptions, tools })),
+      });
     }
   );
 }

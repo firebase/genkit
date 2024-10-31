@@ -371,9 +371,9 @@ function toGeminiPart(part: Part): GeminiPart {
 }
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
-  }
+  // if (jsonMode && part.text !== undefined) {
+  //   return { data: JSON.parse(part.text) };
+  // }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part);
@@ -566,7 +566,9 @@ export function defineGoogleAIModel(
 
       //  cannot use tools with json mode
       const jsonMode =
-        (request.output?.format === 'json' || !!request.output?.schema) &&
+        (request.output?.contentType === 'application/json' ||
+          request.output?.format === 'json' ||
+          !!request.output?.schema) &&
         tools.length === 0;
 
       const generationConfig: GenerationConfig = {
@@ -578,6 +580,10 @@ export function defineGoogleAIModel(
         stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
+
+      if (request.output?.constrained) {
+        generationConfig.responseSchema = request.output.schema;
+      }
 
       const chatRequest = {
         systemInstruction,

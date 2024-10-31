@@ -212,9 +212,17 @@ export class Registry {
       await this.initializePlugin(pluginName);
     }
     return (
-      (this.valueByTypeAndName[type][key] as T) ||
+      (this.valueByTypeAndName[type]?.[key] as T) ||
       this.parent?.lookupValue(type, key)
     );
+  }
+
+  async listValues<T>(type: string): Promise<Record<string, T>> {
+    await this.initializeAllPlugins();
+    return {
+      ...((await this.parent?.listValues(type)) || {}),
+      ...(this.valueByTypeAndName[type] || {}),
+    } as Record<string, T>;
   }
 
   /**

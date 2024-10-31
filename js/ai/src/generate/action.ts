@@ -25,6 +25,8 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
+import { resolveFormat } from '../formats/index.js';
+import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
@@ -59,9 +61,7 @@ export const GenerateUtilParamSchema = z.object({
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output: z
     .object({
-      format: z
-        .union([z.literal('text'), z.literal('json'), z.literal('media')])
-        .optional(),
+      format: z.string().optional(),
       jsonSchema: z.any().optional(),
     })
     .optional(),
@@ -133,7 +133,16 @@ async function generate(
       })
     );
   }
-  const request = await actionToGenerateRequest(rawRequest, tools);
+
+  const resolvedFormat = rawRequest.output?.format
+    ? await resolveFormat(registry, rawRequest.output?.format)
+    : undefined;
+
+  const request = await actionToGenerateRequest(
+    rawRequest,
+    tools,
+    resolvedFormat
+  );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
@@ -145,7 +154,10 @@ async function generate(
           if (streamingCallback) {
             streamingCallback!(
               new GenerateResponseChunk(chunk, {
+                index: 0,
+                role: 'model',
                 previousChunks: accumulatedChunks,
+                parser: resolvedFormat?.handler(request).parseChunk,
               })
             );
           }
@@ -168,7 +180,10 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), request);
+      return new GenerateResponse(await dispatch(0, request), {
+        request,
+        parser: resolvedFormat?.handler(request).parseResponse,
+      });
     }
   );
 
@@ -236,7 +251,8 @@ async function generate(
 
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[]
+  resolvedTools?: ToolAction[],
+  resolvedFormat?: Formatter
 ): Promise<GenerateRequest> {
   const out = {
     messages: options.messages,
@@ -244,9 +260,7 @@ async function actionToGenerateRequest(
     docs: options.docs,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.jsonSchema ? 'json' : 'text'),
+      ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({
         jsonSchema: options.output?.jsonSchema,
       }),

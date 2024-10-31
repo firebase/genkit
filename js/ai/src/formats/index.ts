@@ -40,8 +40,9 @@ export type FormatArgument =
 
 export async function resolveFormat(
   registry: Registry,
-  arg: FormatArgument
+  arg?: FormatArgument
 ): Promise<Formatter | undefined> {
+  if (!arg) return undefined;
   if (typeof arg === 'string') {
     return registry.lookupValue<Formatter>('format', arg);
   }
@@ -59,7 +60,7 @@ export const DEFAULT_FORMATS: Formatter<any, any>[] = [
 /**
  * initializeFormats registers the default built-in formats on a registry.
  */
-export function initializeFormats(registry: Registry) {
+export function configureFormats(registry: Registry) {
   for (const format of DEFAULT_FORMATS) {
     defineFormat(
       registry,
