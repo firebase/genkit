@@ -22,6 +22,7 @@ import { Server } from 'http';
 import os from 'os';
 import path from 'path';
 import { RuntimeManager } from '../manager/manager';
+import { ServerEvent } from '../types';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
@@ -79,6 +80,32 @@ export async function startServer(manager: RuntimeManager, port: number) {
     res.end();
   });
 
+  app.get('/api/sse', async (_, res) => {
+    res.writeHead(200, {
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+      'Content-Type': 'text/event-stream',
+      Connection: 'keep-alive',
+    });
+
+    // On connection, immediately send the "current" runtime (i.e. most recent)
+    const runtimeInfo = JSON.stringify(getRuntimeUpdateEvent(manager));
+    res.write(`data: ${runtimeInfo}\n\n`);
+
+    // When runtimes are added or removed, notify the Dev UI which runtime
+    // is considered "current" (i.e. most recent). In the future, we will send
+    // updates and let the Dev UI decide which to use. For now, we are limiting
+    // to a single runtime.
+    manager.onRuntimeEvent(() => {
+      const runtimeInfo = JSON.stringify(getRuntimeUpdateEvent(manager));
+      res.write(`data: ${runtimeInfo}\n\n`);
+    });
+
+    res.on('close', () => {
+      res.end();
+    });
+  });
+
   app.get('/api/__health', (_, res) => {
     res.status(200).send('');
   });
@@ -128,4 +155,11 @@ export async function startServer(manager: RuntimeManager, port: number) {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
   });
+}
+
+function getRuntimeUpdateEvent(manager: RuntimeManager): ServerEvent {
+  return {
+    eventName: 'current-runtime',
+    data: manager.getMostRecentRuntime(),
+  };
 }

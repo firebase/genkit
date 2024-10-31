@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+export { RuntimeEvent, RuntimeInfo } from '../manager/types';
 export * from './action';
 export * from './analytics';
 export * from './apis';

@@ -170,3 +170,9 @@ export const RunNewEvaluationRequestSchema = z.object({
 export type RunNewEvaluationRequest = z.infer<
   typeof RunNewEvaluationRequestSchema
 >;
+
+export const ServerEventSchema = z.object({
+  eventName: z.enum(['current-runtime']),
+  data: z.any(),
+});
+export type ServerEvent = z.infer<typeof ServerEventSchema>;

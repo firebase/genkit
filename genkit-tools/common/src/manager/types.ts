@@ -26,3 +26,19 @@ export class GenkitToolsError extends Error {
 
 // Streaming callback function.
 export type StreamingCallback<T> = (chunk: T) => void;
+
+export interface RuntimeInfo {
+  /** Runtime ID (either user-set or `pid`). */
+  id: string;
+  /** Process ID of the runtime. */
+  pid: number;
+  /** URL of the reflection server. */
+  reflectionServerUrl: string;
+  /** Timestamp when the runtime was started. */
+  timestamp: string;
+}
+
+export enum RuntimeEvent {
+  Add = 'add',
+  Remove = 'remove',
+}
