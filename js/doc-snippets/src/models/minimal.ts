@@ -14,27 +14,19 @@
  * limitations under the License.
  */
 
-import { imagen3Fast, vertexAI } from '@genkit-ai/vertexai';
-import parseDataURL from 'data-urls';
+// [START minimal]
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
-import { writeFile } from 'node:fs/promises';
-
 const ai = genkit({
-  plugins: [vertexAI({ location: 'us-central1' })],
+  plugins: [googleAI()],
+  model: gemini15Flash,
 });
 
 (async () => {
-  const { media } = await ai.generate({
-    model: imagen3Fast,
-    prompt: 'photo of a meal fit for a pirate',
-    output: { format: 'media' },
-  });
-
-  if (media === null) throw new Error('No media generated.');
-
-  const data = parseDataURL(media.url);
-  if (data === null) throw new Error('Invalid "data:" URL.');
-
-  await writeFile(`output.${data.mimeType.subtype}`, data.body);
+  const { text } = await ai.generate(
+    'Invent a menu item for a pirate themed restaurant.'
+  );
+  console.log(text);
 })();
+// [END minimal]

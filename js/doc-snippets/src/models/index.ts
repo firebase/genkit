@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
 const ai = genkit({
@@ -23,22 +23,27 @@ const ai = genkit({
 });
 
 async function fn01() {
+  // [START ex01]
   const { text } = await ai.generate({
-    model: gemini15Flash,
-    prompt: [{ text: 'Invent a menu item for a pirate themed restaurant.' }],
+    model: gemini15Pro,
+    prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
+  // [END ex01]
 }
 
 async function fn02() {
+  // [START ex02]
   const { text } = await ai.generate({
-    model: 'googleai/gemini-1.5-flash-latest',
-    prompt: [{ text: 'Invent a menu item for a pirate themed restaurant.' }],
+    model: 'googleai/gemini-1.5-pro-latest',
+    prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
+  // [END ex02]
 }
 
 async function fn03() {
+  // [START ex04]
   const { text } = await ai.generate({
-    prompt: [{ text: 'Invent a menu item for a pirate themed restaurant.' }],
+    prompt: 'Invent a menu item for a pirate themed restaurant.',
     config: {
       maxOutputTokens: 400,
       stopSequences: ['<end>', '<fin>'],
@@ -47,11 +52,15 @@ async function fn03() {
       topK: 50,
     },
   });
+  // [END ex04]
 }
 
-import { z } from 'genkit'; // Import Zod, re-exported by Genkit
+// [START importZod]
+import { z } from 'genkit'; // Import Zod, which is re-exported by Genkit.
+// [END importZod]
 
 async function fn04() {
+  // [START ex05]
   const MenuItemSchema = z.object({
     name: z.string(),
     description: z.string(),
@@ -60,34 +69,45 @@ async function fn04() {
   });
 
   const { output } = await ai.generate({
-    prompt: [{ text: 'Invent a menu item for a pirate themed restaurant.' }],
+    prompt: 'Invent a menu item for a pirate themed restaurant.',
     output: { schema: MenuItemSchema },
   });
+  // [END ex05]
 
+  // [START ex06]
   if (output) {
     const { name, description, calories, allergens } = output;
   }
+  // [END ex06]
 }
 
 function fn05() {
+  // [START ex07]
   const MenuItemSchema = z.object({
     name: z.string(),
     description: z.string(),
     calories: z.coerce.number(),
     allergens: z.array(z.string()),
   });
+  // [END ex07]
 }
 
 async function fn06() {
+  // [START ex08]
   const { response, stream } = await ai.generateStream(
     'Suggest a complete menu for a pirate themed restaurant.'
   );
+  // [END ex08]
 
+  // [START ex09]
   for await (const chunk of stream) {
     console.log(chunk.text);
   }
+  // [END ex09]
 
+  // [START ex10]
   const completeText = (await response).text;
+  // [END ex10]
 }
 
 async function fn07() {
@@ -98,6 +118,7 @@ async function fn07() {
     allergens: z.array(z.string()),
   });
 
+  // [START ex11]
   const MenuSchema = z.object({
     starters: z.array(MenuItemSchema),
     mains: z.array(MenuItemSchema),
@@ -116,27 +137,39 @@ async function fn07() {
 
   // Get the completed output.
   const { output } = await response;
+  // [END ex11]
 }
 
 async function fn08() {
-  const { text } = await ai.generate({
-    prompt: [
-      { media: { url: 'https://example.com/photo.jpg' } },
-      { text: 'Compose a poem about this image.' },
-    ],
-  });
+  // [START ex12]
+  const { text } = await ai.generate([
+    { media: { url: 'https://example.com/photo.jpg' } },
+    { text: 'Compose a poem about this image.' },
+  ]);
+  // [END ex12]
 }
 
+// [START importReadFileAsync]
 import { readFile } from 'node:fs/promises';
+// [END importReadFileAsync]
 
 async function fn09() {
+  // [START ex13]
   const b64Data = await readFile('photo.jpg', { encoding: 'base64url' });
   const dataUrl = `data:image/jpeg;base64,${b64Data}`;
 
+  const { text } = await ai.generate([
+    { media: { url: dataUrl } },
+    { text: 'Compose a poem about this image.' },
+  ]);
+  // [END ex13]
+}
+
+async function fn10() {
+  // [START ex03]
   const { text } = await ai.generate({
-    prompt: [
-      { media: { url: dataUrl } },
-      { text: 'Compose a poem about this image.' },
-    ],
+    system: 'You are a food industry marketing consultant.',
+    prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
+  // [END ex03]
 }
