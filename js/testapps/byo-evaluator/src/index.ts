@@ -36,7 +36,7 @@ import {
   isRegexMetric,
   regexMatcher,
 } from './regex/regex_evaluator.js';
-import {checks, ChecksEvaluationMetricType} from "@genkit-ai/checks"
+import { checks, ChecksEvaluationMetricType } from "@genkit-ai/checks"
 
 export const ai = genkit({
   plugins: [
@@ -59,7 +59,7 @@ export const ai = genkit({
       location: "us-central1",
       projectId: "checks-prod",
       evaluation: {
-        metrics:[ChecksEvaluationMetricType.SAFETY],
+        metrics: [ChecksEvaluationMetricType.SAFETY, ChecksEvaluationMetricType.HARASSMENT],
       },
     })
   ],

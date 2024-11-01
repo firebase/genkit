@@ -25,7 +25,7 @@ export class EvaluatorFactory {
     private readonly auth: GoogleAuth,
     private readonly location: string,
     private readonly projectId: string
-  ) {}
+  ) { }
 
   create<ResponseType extends z.ZodTypeAny>(
     ai: Genkit,
@@ -34,6 +34,7 @@ export class EvaluatorFactory {
       displayName: string;
       definition: string;
       responseSchema: ResponseType;
+      checksEval?: boolean;
     },
     toRequest: (datapoint: BaseEvalDataPoint) => any,
     responseHandler: (response: z.infer<ResponseType>) => Score
@@ -46,15 +47,91 @@ export class EvaluatorFactory {
       },
       async (datapoint: BaseEvalDataPoint) => {
         const responseSchema = config.responseSchema;
-        const response = await this.evaluateInstances(
-          toRequest(datapoint),
-          responseSchema
-        );
+        let response;
+
+        if (config.checksEval) {
+          response = await this.checksEvalInstance(
+            toRequest(datapoint),
+            responseSchema
+          );
+        } else {
+          response = await this.evaluateInstances(
+            toRequest(datapoint),
+            responseSchema
+          );
+        }
 
         return {
           evaluation: responseHandler(response),
           testCaseId: datapoint.testCaseId,
         };
+      }
+    );
+  }
+
+
+  async checksEvalInstance<ResponseType extends z.ZodTypeAny>(
+    partialRequest: any,
+    responseSchema: ResponseType
+  ): Promise<z.infer<ResponseType>> {
+
+    console.log('HSH::partialRequest: ', partialRequest)
+    return await runInNewSpan(
+      {
+        metadata: {
+          name: 'EvaluationService#evaluateInstances',
+        },
+      },
+      async (metadata, _otSpan) => {
+        const request = {
+          ...partialRequest,
+        };
+
+        console.log("HSH::request: ", request)
+
+        /**
+          gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/checks
+          
+          curl -X POST https://checks.googleapis.com/v1alpha/aisafety:classifyContent \
+               -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+               -H "X-Goog-User-Project: checks-api-370419" \
+               -H "Content-Type: application/json" \
+               -d '{ \
+                     "input": { \
+                       "text_input": { \
+                         "content": "I hate you and all people on earth" \
+                       } \
+                     }, \
+                     "policies": { "policy_type": "HARASSMENT" } \
+                   }'\
+         */
+
+        metadata.input = request;
+        const client = await this.auth.getClient();
+        const url = "https://checks.googleapis.com/v1alpha/aisafety:classifyContent"
+
+        const response = await client.request({
+          url,
+          method: "POST",
+          body: JSON.stringify(request),
+          headers: {
+            "X-Goog-User-Project": "checks-api-370419",
+            "Content-Type": "application/json",
+          }
+        })
+        metadata.output = response.data;
+
+        console.log("HSH::response: ", response)
+        console.log("HSH::response.data: ", response.data)
+
+        // console.log("HSH::response: ", response)
+        // console.log("HSH::metadata: ", metadata)
+
+        try {
+          return responseSchema.parse(response.data);
+        } catch (e) {
+          throw new Error(`Error parsing ${url} API response: ${e}`);
+        }
       }
     );
   }
@@ -65,6 +142,7 @@ export class EvaluatorFactory {
   ): Promise<z.infer<ResponseType>> {
     const locationName = `projects/${this.projectId}/locations/${this.location}`;
 
+    console.log('HSH::partialRequest: ', partialRequest)
     return await runInNewSpan(
       {
         metadata: {
@@ -77,6 +155,24 @@ export class EvaluatorFactory {
           ...partialRequest,
         };
 
+        console.log("HSH::request: ", request)
+
+        /**
+          gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/checks
+          
+          curl -X POST https://checks.googleapis.com/v1alpha/aisafety:classifyContent \
+               -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
+               -H "X-Goog-User-Project: checks-api-370419" \
+               -H "Content-Type: application/json" \
+               -d '{ \
+                     "input": { \
+                       "text_input": { \
+                         "content": "I hate you and all people on earth" \
+                       } \
+                     }, \
+                     "policies": { "policy_type": "HARASSMENT" } \
+                   }'\
+         */
 
         metadata.input = request;
         const client = await this.auth.getClient();
@@ -107,7 +203,13 @@ export class EvaluatorFactory {
             "Content-Type": "application/json",
           }
         })
-        
+
+        console.log("HSH::checksResponse: ", checksResponse)
+        console.log("HSH::checksResponse.data: ", checksResponse.data)
+
+        // console.log("HSH::response: ", response)
+        // console.log("HSH::metadata: ", metadata)
+
         try {
           return responseSchema.parse(response.data);
           // return responseSchema.parse({

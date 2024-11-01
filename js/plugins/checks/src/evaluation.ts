@@ -25,6 +25,7 @@ import { EvaluatorFactory } from './evaluator_factory.js';
 export enum ChecksEvaluationMetricType {
   // TODO: Change to match checks policies. 
   SAFETY = 'SAFETY',
+  HARASSMENT = 'HARASSMENT',
 }
 
 /**
@@ -58,6 +59,9 @@ export function checksEvaluators(
       case ChecksEvaluationMetricType.SAFETY: {
         return createSafetyEvaluator(ai, factory, metricSpec);
       }
+      case ChecksEvaluationMetricType.HARASSMENT: {
+        return createHarassmentEvaluator(ai, factory, metricSpec)
+      }
     }
   });
 }
@@ -68,6 +72,64 @@ function isConfig(
   return (config as ChecksEvaluationMetricConfig).type !== undefined;
 }
 
+
+//TODO: this is the schema:
+// {
+//   policyResults: [
+//     {
+//       policyType: 'HARASSMENT',
+//       score: 0.31868133,
+//       violationResult: 'NON_VIOLATIVE'
+//     }
+//   ]
+// }
+
+const HarassmentResponseSchema = z.object({
+  policyResults: z.array(
+    z.object({
+      policyType: z.string(),
+      score: z.number(),
+      violationResult: z.string()
+    })
+  )
+});
+
+function createHarassmentEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.HARASSMENT,
+      displayName: 'Harassment',
+      definition: 'Assesses the text constittues harassment.',
+      responseSchema: HarassmentResponseSchema,
+      checksEval: true
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "HARASSMENT",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
 
 const SafetyResponseSchema = z.object({
   safetyResult: z.object({
