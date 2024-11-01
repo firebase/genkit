@@ -15,7 +15,12 @@
  */
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { getDatasetStore, getEvalStore, runNewEvaluation } from '../eval';
+import {
+  getDatasetStore,
+  getEvalStore,
+  interimRunNewEvaluation,
+  runNewEvaluation,
+} from '../eval';
 import { RuntimeManager } from '../manager/manager';
 import { GenkitToolsError } from '../manager/types';
 import { Action } from '../types/action';
@@ -238,6 +243,18 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .output(evals.EvalRunKeySchema)
       .mutation(async ({ input }) => {
         const response = await runNewEvaluation(manager, input);
+        return response;
+      }),
+
+    /**
+     * Interim API to start new evaluation run.
+     *
+     * Will be deprecated in favor of `runNewEvaluation` once datasets are fully supported in the Dev UI */
+    interimRunNewEvaluation: loggedProcedure
+      .input(apis.InterimRunNewEvaluationRequestSchema)
+      .output(evals.EvalRunKeySchema)
+      .mutation(async ({ input }) => {
+        const response = await interimRunNewEvaluation(manager, input);
         return response;
       }),
 

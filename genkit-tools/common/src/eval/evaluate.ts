@@ -29,6 +29,7 @@ import {
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseSchema,
+  InterimRunNewEvaluationRequest,
   MessageData,
   RunNewEvaluationRequest,
   SpanData,
@@ -95,6 +96,38 @@ export async function runNewEvaluation(
     evaluatorActions,
     evalDataset,
     augments: { actionRef, datasetId, datasetVersion },
+  });
+  return evalRun.key;
+}
+
+/**
+ * Starts a new evaluation run. Intended to be used via the reflection API.
+ */
+export async function interimRunNewEvaluation(
+  manager: RuntimeManager,
+  request: InterimRunNewEvaluationRequest
+): Promise<EvalRunKey> {
+  const { input, actionRef, evaluators } = request;
+  const evaluatorActions = await getMatchingEvaluatorActions(
+    manager,
+    evaluators
+  );
+
+  const evalDataset = await runInference({
+    manager,
+    actionRef,
+    evalFlowInput: input,
+    auth: request.options?.auth,
+    actionConfig: request.options?.actionConfig,
+  });
+
+  const evalRun = await runEvaluation({
+    manager,
+    evaluatorActions,
+    evalDataset,
+    augments: {
+      actionRef,
+    },
   });
   return evalRun.key;
 }
