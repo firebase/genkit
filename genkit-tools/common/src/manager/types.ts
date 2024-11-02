@@ -39,6 +39,6 @@ export interface RuntimeInfo {
 }
 
 export enum RuntimeEvent {
-  Add = 'add',
-  Remove = 'remove',
+  ADD = 'add',
+  REMOVE = 'remove',
 }

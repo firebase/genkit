@@ -22,7 +22,6 @@ import { Server } from 'http';
 import os from 'os';
 import path from 'path';
 import { RuntimeManager } from '../manager/manager';
-import { ServerEvent } from '../types';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
@@ -80,6 +79,9 @@ export async function startServer(manager: RuntimeManager, port: number) {
     res.end();
   });
 
+  // General purpose endpoint for Server Side Events to the Developer UI.
+  // Currently only event type "current-time" is supported, which notifies the
+  // subsriber of the currently selected Genkit Runtime (typically most recent).
   app.get('/api/sse', async (_, res) => {
     res.writeHead(200, {
       'Access-Control-Allow-Origin': '*',
@@ -89,15 +91,16 @@ export async function startServer(manager: RuntimeManager, port: number) {
     });
 
     // On connection, immediately send the "current" runtime (i.e. most recent)
-    const runtimeInfo = JSON.stringify(getRuntimeUpdateEvent(manager));
+    const runtimeInfo = JSON.stringify(manager.getMostRecentRuntime() ?? {});
+    res.write('event: current-runtime\n');
     res.write(`data: ${runtimeInfo}\n\n`);
 
     // When runtimes are added or removed, notify the Dev UI which runtime
-    // is considered "current" (i.e. most recent). In the future, we will send
-    // updates and let the Dev UI decide which to use. For now, we are limiting
-    // to a single runtime.
+    // is considered "current" (i.e. most recent). In the future, we could send
+    // updates and let the developer decide which to use.
     manager.onRuntimeEvent(() => {
-      const runtimeInfo = JSON.stringify(getRuntimeUpdateEvent(manager));
+      const runtimeInfo = JSON.stringify(manager.getMostRecentRuntime() ?? {});
+      res.write('event: current-runtime\n');
       res.write(`data: ${runtimeInfo}\n\n`);
     });
 
@@ -155,11 +158,4 @@ export async function startServer(manager: RuntimeManager, port: number) {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
   });
-}
-
-function getRuntimeUpdateEvent(manager: RuntimeManager): ServerEvent {
-  return {
-    eventName: 'current-runtime',
-    data: manager.getMostRecentRuntime(),
-  };
 }

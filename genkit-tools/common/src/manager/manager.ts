@@ -317,7 +317,7 @@ export class RuntimeManager {
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
           this.filenameToRuntimeMap[fileName] = runtimeInfo;
           this.idToFileMap[runtimeInfo.id] = fileName;
-          this.eventEmitter.emit(RuntimeEvent.Add, runtimeInfo);
+          this.eventEmitter.emit(RuntimeEvent.ADD, runtimeInfo);
           await this.notifyRuntime(runtimeInfo);
           logger.debug(
             `Added runtime with ID ${runtimeInfo.id} at URL: ${runtimeInfo.reflectionServerUrl}`
@@ -342,7 +342,7 @@ export class RuntimeManager {
       const runtime = this.filenameToRuntimeMap[fileName];
       delete this.filenameToRuntimeMap[fileName];
       delete this.idToFileMap[runtime.id];
-      this.eventEmitter.emit(RuntimeEvent.Remove, runtime);
+      this.eventEmitter.emit(RuntimeEvent.REMOVE, runtime);
       logger.debug(`Removed runtime with id ${runtime.id}.`);
     }
   }
