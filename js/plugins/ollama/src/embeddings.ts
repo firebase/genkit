@@ -13,12 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { GenerateRequest } from '@genkit-ai/ai';
 import { defineEmbedder } from '@genkit-ai/ai/embedder';
 import { Document } from '@genkit-ai/ai/retriever';
 import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
-import { OllamaPluginParams } from './index.js';
+import {
+  DefineOllamaEmbeddingParams,
+  OllamaEmbeddingPrediction,
+  RequestHeaders,
+} from './types.js';
+
 // Define the schema for Ollama embedding configuration
 export const OllamaEmbeddingConfigSchema = z
   .object({
@@ -26,37 +30,16 @@ export const OllamaEmbeddingConfigSchema = z
   })
   .passthrough();
 
-export type EmbeddingModelDefinition = { name: string; dimensions: number };
-
 export type OllamaEmbeddingConfig = z.infer<typeof OllamaEmbeddingConfigSchema>;
-
-// Define the structure of the request and response for embedding
-interface OllamaEmbeddingPrediction {
-  embedding: number[];
-}
-
-interface DefineOllamaEmbeddingParams {
-  name: string;
-  modelName: string;
-  dimensions: number;
-  options: OllamaPluginParams;
-}
-
-type RequestHeaders =
-  | Record<string, string>
-  | ((
-      params: { serverAddress: string; model: EmbeddingModelDefinition },
-      request: GenerateRequest
-    ) => Promise<Record<string, string> | void>);
-
 /**
  * Helper function to create the Ollama embed request and headers.
  */
 async function toOllamaEmbedRequest(
   modelName: string,
+  dimensions: number,
   document: Document,
   serverAddress: string,
-  requestHeaders?: Record<string, string> | ((params: any, request: any) => any)
+  requestHeaders?: RequestHeaders
 ): Promise<{
   url: string;
   requestPayload: any;
@@ -70,13 +53,16 @@ async function toOllamaEmbedRequest(
   // Determine headers
   const extraHeaders = requestHeaders
     ? typeof requestHeaders === 'function'
-      ? await requestHeaders(
-          {
+      ? await requestHeaders({
+          params: {
             serverAddress,
-            modelName,
+            model: {
+              name: modelName,
+              dimensions,
+            },
           },
-          document
-        )
+          document,
+        })
       : requestHeaders
     : {};
 
@@ -118,6 +104,7 @@ export function defineOllamaEmbedder({
           // Generate the request and headers using the helper function
           const { url, requestPayload, headers } = await toOllamaEmbedRequest(
             modelName,
+            dimensions,
             doc,
             serverAddress,
             options.requestHeaders

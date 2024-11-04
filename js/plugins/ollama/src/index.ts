@@ -22,43 +22,25 @@ import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   MessageData,
+  Role,
 } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { defineOllamaEmbedder, EmbeddingModelDefinition } from './embeddings';
+import { defineOllamaEmbedder } from './embeddings';
+import {
+  ApiType,
+  ModelDefinition,
+  OllamaPluginParams,
+  OllamaRole,
+  RequestHeaders,
+} from './types';
 
-type ApiType = 'chat' | 'generate';
-
-type RequestHeaders =
-  | Record<string, string>
-  | ((
-      params: { serverAddress: string; model: ModelDefinition },
-      request: GenerateRequest
-    ) => Promise<Record<string, string> | void>);
-
-type ModelDefinition = { name: string; type?: ApiType };
-
-export interface OllamaPluginParams {
-  /*
-   * Models to be defined.
-   */
-  models?: ModelDefinition[];
-  /**
-   * Embedding models to be defined.
-   */
-  embedders?: EmbeddingModelDefinition[];
-  /**
-   *  ollama server address.
-   */
-  serverAddress: string;
-
-  requestHeaders?: RequestHeaders;
-}
+export { OllamaPluginParams };
 
 export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
   'ollama',
   async (params: OllamaPluginParams) => {
-    const serverAddress = params?.serverAddress;
+    const serverAddress = params.serverAddress;
     return {
       models: params.models?.map((model) =>
         ollamaModel(model, serverAddress, params.requestHeaders)
@@ -92,20 +74,20 @@ function ollamaModel(
     },
     async (input, streamingCallback) => {
       const options: Record<string, any> = {};
-      if (input.config?.hasOwnProperty('temperature')) {
-        options.temperature = input.config?.temperature;
+      if (input.config?.temperature !== undefined) {
+        options.temperature = input.config.temperature;
       }
-      if (input.config?.hasOwnProperty('topP')) {
-        options.top_p = input.config?.topP;
+      if (input.config?.topP !== undefined) {
+        options.top_p = input.config.topP;
       }
-      if (input.config?.hasOwnProperty('topK')) {
-        options.top_k = input.config?.topK;
+      if (input.config?.topK !== undefined) {
+        options.top_k = input.config.topK;
       }
-      if (input.config?.hasOwnProperty('stopSequences')) {
-        options.stop = input.config?.stopSequences?.join('');
+      if (input.config?.stopSequences !== undefined) {
+        options.stop = input.config.stopSequences.join('');
       }
-      if (input.config?.hasOwnProperty('maxOutputTokens')) {
-        options.num_predict = input.config?.maxOutputTokens;
+      if (input.config?.maxOutputTokens !== undefined) {
+        options.num_predict = input.config.maxOutputTokens;
       }
       const type = model.type ?? 'chat';
       const request = toOllamaRequest(
@@ -119,13 +101,13 @@ function ollamaModel(
 
       const extraHeaders = requestHeaders
         ? typeof requestHeaders === 'function'
-          ? await requestHeaders(
-              {
+          ? await requestHeaders({
+              params: {
                 serverAddress,
                 model,
               },
-              input
-            )
+              request: input,
+            })
           : requestHeaders
         : {};
 
@@ -144,13 +126,12 @@ function ollamaModel(
         );
       } catch (e) {
         const cause = (e as any).cause;
-        if (cause) {
-          if (
-            cause instanceof Error &&
-            cause.message?.includes('ECONNREFUSED')
-          ) {
-            cause.message += '. Make sure ollama server is running.';
-          }
+        if (
+          cause &&
+          cause instanceof Error &&
+          cause.message?.includes('ECONNREFUSED')
+        ) {
+          cause.message += '. Make sure the Ollama server is running.';
           throw cause;
         }
         throw e;
@@ -239,29 +220,24 @@ function toOllamaRequest(
   type: ApiType,
   stream: boolean
 ) {
-  const request = {
+  const request: any = {
     model: name,
     options,
     stream,
-  } as any;
+  };
   if (type === 'chat') {
-    const messages: Message[] = [];
-    input.messages.forEach((m) => {
+    const messages: Message[] = input.messages.map((m) => {
       let messageText = '';
       const images: string[] = [];
       m.content.forEach((c) => {
-        if (c.text) {
-          messageText += c.text;
-        }
-        if (c.media) {
-          images.push(c.media.url);
-        }
+        if (c.text) messageText += c.text;
+        if (c.media) images.push(c.media.url);
       });
-      messages.push({
+      return {
         role: toOllamaRole(m.role),
         content: messageText,
         images: images.length > 0 ? images : undefined,
-      });
+      };
     });
     request.messages = messages;
   } else {
@@ -271,21 +247,15 @@ function toOllamaRequest(
   return request;
 }
 
-function toOllamaRole(role) {
-  if (role === 'model') {
-    return 'assistant';
-  }
-  return role; // everything else seems to match
+function toOllamaRole(role: Role): OllamaRole {
+  return role === 'model' ? 'assistant' : role;
 }
 
-function toGenkitRole(role) {
-  if (role === 'assistant') {
-    return 'model';
-  }
-  return role; // everything else seems to match
+function toGenkitRole(role: OllamaRole): Role {
+  return role === 'assistant' ? 'model' : role;
 }
 
-function readChunks(reader) {
+function readChunks(reader: ReadableStreamDefaultReader<Uint8Array>) {
   return {
     async *[Symbol.asyncIterator]() {
       let readResult = await reader.read();
@@ -300,15 +270,15 @@ function readChunks(reader) {
 function getPrompt(input: GenerateRequest): string {
   return input.messages
     .filter((m) => m.role !== 'system')
-    .map((m) => m.content.map((c) => c.text).join())
-    .join();
+    .map((m) => m.content.map((c) => c.text).join(''))
+    .join('');
 }
 
 function getSystemMessage(input: GenerateRequest): string {
   return input.messages
     .filter((m) => m.role === 'system')
-    .map((m) => m.content.map((c) => c.text).join())
-    .join();
+    .map((m) => m.content.map((c) => c.text).join(''))
+    .join('');
 }
 
 interface Message {
