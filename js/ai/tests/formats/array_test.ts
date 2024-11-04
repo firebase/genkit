@@ -66,7 +66,7 @@ describe('arrayFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = arrayFormatter.handler({ messages: [] });
+      const parser = arrayFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
       let lastCursor = 0;
 
@@ -114,7 +114,7 @@ describe('arrayFormat', () => {
 
   for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = arrayFormatter.handler({ messages: [] });
+      const parser = arrayFormatter.handler();
       assert.deepStrictEqual(
         parser.parseMessage(new Message(rt.message as MessageData)),
         rt.want

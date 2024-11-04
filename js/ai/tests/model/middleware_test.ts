@@ -23,7 +23,6 @@ import {
   GenerateRequest,
   GenerateResponseData,
   MessageData,
-  Part,
   defineModel,
 } from '../../src/model.js';
 import {
@@ -132,19 +131,6 @@ describe('validateSupport', () => {
       /does not support multiple messages/
     );
   });
-
-  it('throws on unsupported output format', async () => {
-    const runner = validateSupport({
-      name: 'test-model',
-      supports: {
-        output: ['text', 'media'],
-      },
-    });
-    await assert.rejects(
-      runner(examples.json, noopNext),
-      /does not support requested output format/
-    );
-  });
 });
 
 const registry = new Registry();
@@ -158,130 +144,6 @@ const echoModel = defineModel(registry, { name: 'echo' }, async (req) => {
       content: [{ data: req }],
     },
   };
-});
-describe('conformOutput (default middleware)', () => {
-  const schema = { type: 'object', properties: { test: { type: 'boolean' } } };
-
-  // return the output tagged part from the request
-  async function testRequest(req: GenerateRequest): Promise<Part> {
-    const response = await echoModel(req);
-    const treq = response.message!.content[0].data as GenerateRequest;
-
-    const lastUserMessage = treq.messages
-      .reverse()
-      .find((m) => m.role === 'user');
-    if (
-      lastUserMessage &&
-      lastUserMessage.content.filter((p) => p.metadata?.purpose === 'output')
-        .length > 1
-    ) {
-      throw new Error('too many output parts');
-    }
-
-    return lastUserMessage?.content.find(
-      (p) => p.metadata?.purpose === 'output'
-    )!;
-  }
-
-  it('adds output instructions to the last message', async () => {
-    const part = await testRequest({
-      messages: [
-        { role: 'user', content: [{ text: 'hello' }] },
-        { role: 'model', content: [{ text: 'hi' }] },
-        { role: 'user', content: [{ text: 'hello again' }] },
-      ],
-      output: { format: 'json', schema },
-      docs: [{ content: [{ text: 'hi' }] }],
-    });
-    assert(
-      part?.text?.includes(JSON.stringify(schema)),
-      "schema wasn't found in output part"
-    );
-  });
-
-  it('adds output to the last message with "user" role', async () => {
-    const part = await testRequest({
-      messages: [
-        {
-          content: [
-            {
-              text: 'First message.',
-            },
-          ],
-          role: 'user',
-        },
-        {
-          content: [
-            {
-              toolRequest: {
-                name: 'localRestaurant',
-                input: {
-                  location: 'wtf',
-                },
-              },
-            },
-          ],
-          role: 'model',
-        },
-        {
-          content: [
-            {
-              toolResponse: {
-                name: 'localRestaurant',
-                output: 'McDonalds',
-              },
-            },
-          ],
-          role: 'tool',
-        },
-      ],
-      output: { format: 'json', schema },
-    });
-
-    assert(
-      part?.text?.includes(JSON.stringify(schema)),
-      "schema wasn't found in output part"
-    );
-  });
-
-  it('does not add output instructions if already provided', async () => {
-    const part = await testRequest({
-      messages: [
-        {
-          role: 'user',
-          content: [{ text: 'hello again', metadata: { purpose: 'output' } }],
-        },
-      ],
-      output: { format: 'json', schema },
-    });
-    assert.equal(part.text, 'hello again');
-  });
-
-  it('augments a pending output part', async () => {
-    const part = await testRequest({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { metadata: { purpose: 'output', pending: true } },
-            { text: 'after' },
-          ],
-        },
-      ],
-      output: { format: 'json', schema },
-    });
-    assert(
-      part?.text?.includes(JSON.stringify(schema)),
-      "schema wasn't found in output part"
-    );
-  });
-
-  it('does not add output instructions if no output schema is provided', async () => {
-    const part = await testRequest({
-      messages: [{ role: 'user', content: [{ text: 'hello' }] }],
-    });
-    assert(!part, 'output part added to non-schema request');
-  });
 });
 
 describe('simulateSystemPrompt', () => {
