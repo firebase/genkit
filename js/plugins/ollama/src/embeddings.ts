@@ -54,14 +54,12 @@ async function toOllamaEmbedRequest(
   const extraHeaders = requestHeaders
     ? typeof requestHeaders === 'function'
       ? await requestHeaders({
-          params: {
-            serverAddress,
-            model: {
-              name: modelName,
-              dimensions,
-            },
+          serverAddress,
+          model: {
+            name: modelName,
+            dimensions,
           },
-          document,
+          embedRequest: { docs: [document] },
         })
       : requestHeaders
     : {};

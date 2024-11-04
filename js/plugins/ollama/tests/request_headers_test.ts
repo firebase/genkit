@@ -64,7 +64,7 @@ describe('Ollama Embedder - Request Headers', () => {
     const options: OllamaPluginParams = {
       serverAddress: 'http://localhost:3000',
       models: [{ name: 'test-model' }],
-      requestHeaders: async ({ params, request }) => ({
+      requestHeaders: async (params) => ({
         'X-Custom-Header': 'custom-value',
         Authorization: 'Bearer token-value',
       }),

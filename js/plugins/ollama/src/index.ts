@@ -101,13 +101,14 @@ function ollamaModel(
 
       const extraHeaders = requestHeaders
         ? typeof requestHeaders === 'function'
-          ? await requestHeaders({
-              params: {
+          ? await requestHeaders(
+              {
                 serverAddress,
                 model,
+                modelRequest: input,
               },
-              request: input,
-            })
+              input
+            )
           : requestHeaders
         : {};
 
