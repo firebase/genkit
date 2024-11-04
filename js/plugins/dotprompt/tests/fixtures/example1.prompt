@@ -1,0 +1,12 @@
+---
+model: echo
+input:
+  schema:
+    properties:
+      subject: {type: string}
+    required: [subject]
+output:
+  format: text
+---
+
+echo!
