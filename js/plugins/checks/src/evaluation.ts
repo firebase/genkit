@@ -23,9 +23,27 @@ import { EvaluatorFactory } from './evaluator_factory.js';
  * TODO: add documentation link.
  */
 export enum ChecksEvaluationMetricType {
-  // TODO: Change to match checks policies. 
-  SAFETY = 'SAFETY',
+  // The model facilitates, promotes or enables access to harmful goods,
+  // services, and activities.
+  DANGEROUS_CONTENT = 'DANGEROUS_CONTENT',
+  // The model reveals an individual’s personal information and data.
+  PII_SOLICITING_RECITING = 'PII_SOLICITING_RECITING',
+  // The model generates content that is malicious, intimidating, bullying, or
+  // abusive towards another individual.
   HARASSMENT = 'HARASSMENT',
+  // The model generates content that is sexually explicit in nature.
+  SEXUALLY_EXPLICIT = 'SEXUALLY_EXPLICIT',
+  // The model promotes violence, hatred, discrimination on the basis of race,
+  // religion, etc.
+  HATE_SPEECH = 'HATE_SPEECH',
+  // The model facilitates harm by providing health advice or guidance.
+  MEDICAL_INFO = 'MEDICAL_INFO',
+  // The model generates content that contains gratuitous, realistic
+  // descriptions of violence or gore.
+  VIOLENCE_AND_GORE = 'VIOLENCE_AND_GORE',
+  // The model generates content that contains vulgar, profane, or offensive
+  // language.
+  OBSCENITY_AND_PROFANITY = 'OBSCENITY_AND_PROFANITY',
 }
 
 /**
@@ -56,11 +74,29 @@ export function checksEvaluators(
     const metricSpec = isConfig(metric) ? metric.metricSpec : {};
 
     switch (metricType) {
-      case ChecksEvaluationMetricType.SAFETY: {
-        return createSafetyEvaluator(ai, factory, metricSpec);
+      case ChecksEvaluationMetricType.DANGEROUS_CONTENT: {
+        return createDangerousContentEvaluator(ai, factory, metricSpec)
+      }
+      case ChecksEvaluationMetricType.PII_SOLICITING_RECITING: {
+        return createPiiSolicitingEvaluator(ai, factory, metricSpec)
       }
       case ChecksEvaluationMetricType.HARASSMENT: {
         return createHarassmentEvaluator(ai, factory, metricSpec)
+      }
+      case ChecksEvaluationMetricType.SEXUALLY_EXPLICIT: {
+        return createSexuallyExplicitEvaluator(ai, factory, metricSpec)
+      }
+      case ChecksEvaluationMetricType.HATE_SPEECH: {
+        return createHateSpeachEvaluator(ai, factory, metricSpec)
+      }
+      case ChecksEvaluationMetricType.MEDICAL_INFO: {
+        return createMedicalInfoEvaluator(ai, factory, metricSpec)
+      }
+      case ChecksEvaluationMetricType.VIOLENCE_AND_GORE: {
+        return createViolenceAndGoreEvaluator(ai, factory, metricSpec)
+      }
+      case ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY: {
+        return createObscenityAndProfanityEvaluator(ai, factory, metricSpec)
       }
     }
   });
@@ -72,19 +108,7 @@ function isConfig(
   return (config as ChecksEvaluationMetricConfig).type !== undefined;
 }
 
-
-//TODO: this is the schema:
-// {
-//   policyResults: [
-//     {
-//       policyType: 'HARASSMENT',
-//       score: 0.31868133,
-//       violationResult: 'NON_VIOLATIVE'
-//     }
-//   ]
-// }
-
-const HarassmentResponseSchema = z.object({
+const ResponseSchema = z.object({
   policyResults: z.array(
     z.object({
       policyType: z.string(),
@@ -93,6 +117,78 @@ const HarassmentResponseSchema = z.object({
     })
   )
 });
+
+function createDangerousContentEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.DANGEROUS_CONTENT,
+      displayName: 'Dangerous Content',
+      definition: 'Assesses the text constittues dangerous content.',
+      responseSchema: ResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "DANGEROUS_CONTENT",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
+
+function createPiiSolicitingEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.PII_SOLICITING_RECITING,
+      displayName: 'PII soliciting reciting',
+      definition: 'Assesses the text constittues PII solicitation.',
+      responseSchema: ResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "PII_SOLICITING_RECITING",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
 
 function createHarassmentEvaluator(
   ai: Genkit,
@@ -105,8 +201,7 @@ function createHarassmentEvaluator(
       metric: ChecksEvaluationMetricType.HARASSMENT,
       displayName: 'Harassment',
       definition: 'Assesses the text constittues harassment.',
-      responseSchema: HarassmentResponseSchema,
-      checksEval: true
+      responseSchema: ResponseSchema,
     },
     (datapoint) => {
       return {
@@ -131,15 +226,7 @@ function createHarassmentEvaluator(
   );
 }
 
-const SafetyResponseSchema = z.object({
-  safetyResult: z.object({
-    score: z.number(),
-    explanation: z.string(),
-    confidence: z.number(),
-  }),
-});
-
-function createSafetyEvaluator(
+function createSexuallyExplicitEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
@@ -147,28 +234,176 @@ function createSafetyEvaluator(
   return factory.create(
     ai,
     {
-      metric: ChecksEvaluationMetricType.SAFETY,
-      displayName: 'Safety',
-      definition: 'Assesses the level of safety of an output',
-      responseSchema: SafetyResponseSchema,
+      metric: ChecksEvaluationMetricType.SEXUALLY_EXPLICIT,
+      displayName: 'Sexually explicit',
+      definition: 'Assesses the text is sexually explicit.',
+      responseSchema: ResponseSchema,
     },
     (datapoint) => {
       return {
-        safetyInput: {
-          metricSpec,
-          instance: {
-            prediction: datapoint.output as string,
+        input: {
+          text_input: {
+            content: datapoint.output as string
           },
         },
+        policies: {
+          policy_type: "SEXUALLY_EXPLICIT",
+        }
       };
     },
     (response) => {
       return {
-        score: response.safetyResult.score,
+        score: response.policyResults[0].score,
         details: {
-          reasoning: response.safetyResult.explanation,
-        },
+          reasoning: response.policyResults[0].violationResult
+        }
       };
     }
   );
 }
+
+function createHateSpeachEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.HATE_SPEECH,
+      displayName: 'Sexually explicit',
+      definition: 'Assesses the text is sexually explicit.',
+      responseSchema: ResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "HATE_SPEECH",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
+
+function createMedicalInfoEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.MEDICAL_INFO,
+      displayName: 'Sexually explicit',
+      definition: 'Assesses the text is sexually explicit.',
+      responseSchema: ResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "MEDICAL_INFO",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
+
+function createViolenceAndGoreEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.VIOLENCE_AND_GORE,
+      displayName: 'Sexually explicit',
+      definition: 'Assesses the text is sexually explicit.',
+      responseSchema: ResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "VIOLENCE_AND_GORE",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
+
+function createObscenityAndProfanityEvaluator(
+  ai: Genkit,
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    ai,
+    {
+      metric: ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY,
+      displayName: 'Sexually explicit',
+      definition: 'Assesses the text is sexually explicit.',
+      responseSchema: ResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        input: {
+          text_input: {
+            content: datapoint.output as string
+          },
+        },
+        policies: {
+          policy_type: "OBSCENITY_AND_PROFANITY",
+        }
+      };
+    },
+    (response) => {
+      return {
+        score: response.policyResults[0].score,
+        details: {
+          reasoning: response.policyResults[0].violationResult
+        }
+      };
+    }
+  );
+}
+
+

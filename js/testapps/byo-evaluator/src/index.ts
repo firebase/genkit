@@ -59,7 +59,16 @@ export const ai = genkit({
       location: "us-central1",
       projectId: "checks-prod",
       evaluation: {
-        metrics: [ChecksEvaluationMetricType.SAFETY, ChecksEvaluationMetricType.HARASSMENT],
+        metrics: [
+          ChecksEvaluationMetricType.DANGEROUS_CONTENT,
+          ChecksEvaluationMetricType.PII_SOLICITING_RECITING,
+          ChecksEvaluationMetricType.HARASSMENT,
+          ChecksEvaluationMetricType.SEXUALLY_EXPLICIT,
+          ChecksEvaluationMetricType.HATE_SPEECH,
+          ChecksEvaluationMetricType.MEDICAL_INFO,
+          ChecksEvaluationMetricType.VIOLENCE_AND_GORE,
+          ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY,
+        ],
       },
     })
   ],

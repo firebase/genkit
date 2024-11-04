@@ -34,7 +34,6 @@ export class EvaluatorFactory {
       displayName: string;
       definition: string;
       responseSchema: ResponseType;
-      checksEval?: boolean;
     },
     toRequest: (datapoint: BaseEvalDataPoint) => any,
     responseHandler: (response: z.infer<ResponseType>) => Score
@@ -49,17 +48,11 @@ export class EvaluatorFactory {
         const responseSchema = config.responseSchema;
         let response;
 
-        if (config.checksEval) {
-          response = await this.checksEvalInstance(
-            toRequest(datapoint),
-            responseSchema
-          );
-        } else {
-          response = await this.evaluateInstances(
-            toRequest(datapoint),
-            responseSchema
-          );
-        }
+        response = await this.checksEvalInstance(
+          toRequest(datapoint),
+          responseSchema
+        );
+
 
         return {
           evaluation: responseHandler(response),
@@ -129,94 +122,6 @@ export class EvaluatorFactory {
 
         try {
           return responseSchema.parse(response.data);
-        } catch (e) {
-          throw new Error(`Error parsing ${url} API response: ${e}`);
-        }
-      }
-    );
-  }
-
-  async evaluateInstances<ResponseType extends z.ZodTypeAny>(
-    partialRequest: any,
-    responseSchema: ResponseType
-  ): Promise<z.infer<ResponseType>> {
-    const locationName = `projects/${this.projectId}/locations/${this.location}`;
-
-    console.log('HSH::partialRequest: ', partialRequest)
-    return await runInNewSpan(
-      {
-        metadata: {
-          name: 'EvaluationService#evaluateInstances',
-        },
-      },
-      async (metadata, _otSpan) => {
-        const request = {
-          location: locationName,
-          ...partialRequest,
-        };
-
-        console.log("HSH::request: ", request)
-
-        /**
-          gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/checks
-          
-          curl -X POST https://checks.googleapis.com/v1alpha/aisafety:classifyContent \
-               -H "Authorization: Bearer $(gcloud auth application-default print-access-token)" \
-               -H "X-Goog-User-Project: checks-api-370419" \
-               -H "Content-Type: application/json" \
-               -d '{ \
-                     "input": { \
-                       "text_input": { \
-                         "content": "I hate you and all people on earth" \
-                       } \
-                     }, \
-                     "policies": { "policy_type": "HARASSMENT" } \
-                   }'\
-         */
-
-        metadata.input = request;
-        const client = await this.auth.getClient();
-        const url = `https://${this.location}-aiplatform.googleapis.com/v1beta1/${locationName}:evaluateInstances`;
-        const response = await client.request({
-          url,
-          method: 'POST',
-          body: JSON.stringify(request),
-          headers: {
-            'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-          },
-        });
-        metadata.output = response.data;
-
-        const checksResponse = await client.request({
-          url: "https://checks.googleapis.com/v1alpha/aisafety:classifyContent",
-          method: "POST",
-          body: `{ 
-            "input": { 
-              "text_input": { 
-                "content": "I hate you and all people on earth" 
-              } 
-            }, 
-            "policies": { "policy_type": "HARASSMENT" } 
-          }`,
-          headers: {
-            "X-Goog-User-Project": "checks-api-370419",
-            "Content-Type": "application/json",
-          }
-        })
-
-        console.log("HSH::checksResponse: ", checksResponse)
-        console.log("HSH::checksResponse.data: ", checksResponse.data)
-
-        // console.log("HSH::response: ", response)
-        // console.log("HSH::metadata: ", metadata)
-
-        try {
-          return responseSchema.parse(response.data);
-          // return responseSchema.parse({
-          //   score: 1,
-          //   explanation: "the explanation",
-          //   confidence: 100
-          // });
         } catch (e) {
           throw new Error(`Error parsing ${url} API response: ${e}`);
         }
