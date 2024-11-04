@@ -23,13 +23,15 @@ import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 import { TelemetryConfigs } from './telemetry/defaults.js';
 import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from './types.js';
 
-export async function enableGoogleCloudTelemetry(
+export function enableGoogleCloudTelemetry(
   options?: GcpTelemetryConfigOptions
 ) {
-  const pluginConfig = await configureGcpPlugin(options);
-
-  enableTelemetry(await new GcpOpenTelemetry(pluginConfig).getConfig());
-  logger.init(await new GcpLogger(pluginConfig).getLogger(getCurrentEnv()));
+  return enableTelemetry(
+    configureGcpPlugin(options).then(async (pluginConfig) => {
+      logger.init(await new GcpLogger(pluginConfig).getLogger(getCurrentEnv()));
+      return new GcpOpenTelemetry(pluginConfig).getConfig();
+    })
+  );
 }
 
 /**
