@@ -24,6 +24,7 @@ import { ChildProcess, spawn } from 'child_process';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import fs from 'fs/promises';
+import getPort, { makeRange } from 'get-port';
 import open from 'open';
 import path from 'path';
 
@@ -55,13 +56,18 @@ export const uiStart = new Command('ui:start')
   .description(
     'start the Developer UI which connects to runtimes in the same directory'
   )
-  .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
-  .option('-o, --open', 'Open the browser with the Developer UI')
+  .option('-p, --port <number>', 'Port to serve on (defaults to 4000')
+  .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: StartOptions) => {
-    const port = Number(options.port);
-    if (isNaN(port) || port < 0) {
-      logger.error(`"${options.port}" is not a valid port number.`);
-      return;
+    let port: number;
+    if (options.port) {
+      port = Number(options.port);
+      if (isNaN(port) || port < 0) {
+        logger.error(`"${options.port}" is not a valid port number`);
+        return;
+      }
+    } else {
+      port = await getPort({ port: makeRange(4000, 4099) });
     }
     const serversDir = await findServersDir();
     const toolsJsonPath = path.join(serversDir, 'tools.json');
@@ -88,10 +94,12 @@ export const uiStart = new Command('ui:start')
       logger.debug('No UI running. Starting a new one...');
     }
     logger.info('Starting...');
-    await startAndWaitUntilHealthy(port, serversDir).catch((error) => {
+    try {
+      await startAndWaitUntilHealthy(port, serversDir);
+    } catch (error) {
       logger.error(`Failed to start Genkit Developer UI: ${error}`);
       return;
-    });
+    }
     try {
       await fs.mkdir(serversDir, { recursive: true });
       await fs.writeFile(
@@ -114,6 +122,13 @@ export const uiStart = new Command('ui:start')
       `\n  ${clc.green(`Genkit Developer UI started at: http://localhost:${port}`)}`
     );
     logger.info(`  To stop the UI, run \`genkit ui:stop\`.\n`);
+    try {
+      await axios.get(`http://localhost:${port}/api/trpc/listActions`);
+    } catch (error) {
+      logger.info(
+        'Set env variable `GENKIT_ENV` to `dev` and start your app code to interact with it in the UI.'
+      );
+    }
     if (options.open) {
       open(`http://localhost:${port}`);
     }
