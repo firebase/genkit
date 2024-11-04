@@ -14,16 +14,19 @@
  * limitations under the License.
  */
 
-export { RuntimeEvent, RuntimeInfo } from '../manager/types';
-export * from './action';
-export * from './analytics';
-export * from './apis';
-export * from './env';
-export * from './eval';
-export * from './evaluators';
-export * from './flow';
-export * from './model';
-export * from './prompt';
-export * from './retrievers';
-export * from './status';
-export * from './trace';
+// [START minimal]
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
+
+const ai = genkit({
+  plugins: [googleAI()],
+  model: gemini15Flash,
+});
+
+(async () => {
+  const { text } = await ai.generate(
+    'Invent a menu item for a pirate themed restaurant.'
+  );
+  console.log(text);
+})();
+// [END minimal]
