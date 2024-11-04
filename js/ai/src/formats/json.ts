@@ -23,14 +23,14 @@ export const jsonFormatter: Formatter<unknown, unknown> = {
     contentType: 'application/json',
     constrained: true,
   },
-  handler: (request) => {
+  handler: (schema) => {
     let instructions: string | undefined;
 
-    if (request.output?.schema) {
+    if (schema) {
       instructions = `Output should be in JSON format and conform to the following schema:
 
 \`\`\`
-${JSON.stringify(request.output!.schema!)}
+${JSON.stringify(schema)}
 \`\`\`
 `;
     }
@@ -40,8 +40,8 @@ ${JSON.stringify(request.output!.schema!)}
         return extractJson(chunk.accumulatedText);
       },
 
-      parseResponse: (response) => {
-        return extractJson(response.text);
+      parseMessage: (message) => {
+        return extractJson(message.text);
       },
 
       instructions,

@@ -31,7 +31,7 @@ import {
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
@@ -99,7 +99,6 @@ export const gemini15Pro = modelRef({
       media: true,
       tools: true,
       systemRole: true,
-      output: ['text', 'json'],
     },
     versions: [
       'gemini-1.5-pro-latest',
@@ -119,7 +118,6 @@ export const gemini15Flash = modelRef({
       media: true,
       tools: true,
       systemRole: true,
-      output: ['text', 'json'],
     },
     versions: [
       'gemini-1.5-flash-latest',
@@ -139,7 +137,6 @@ export const gemini15Flash8b = modelRef({
       media: true,
       tools: true,
       systemRole: true,
-      output: ['text', 'json'],
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
   },
@@ -438,6 +435,20 @@ export function fromGeminiCandidate(
   };
 }
 
+function cleanSchema(schema: JSONSchema): JSONSchema {
+  const out = structuredClone(schema);
+  for (const key in out) {
+    if (key === '$schema' || key === 'additionalProperties') {
+      delete out[key];
+      continue;
+    }
+    if (typeof out[key] === 'object') {
+      out[key] = cleanSchema(out[key]);
+    }
+  }
+  return out;
+}
+
 /**
  * Defines a new GoogleAI model.
  */
@@ -566,9 +577,8 @@ export function defineGoogleAIModel(
 
       //  cannot use tools with json mode
       const jsonMode =
-        (request.output?.contentType === 'application/json' ||
-          request.output?.format === 'json' ||
-          !!request.output?.schema) &&
+        (request.output?.format === 'json' ||
+          request.output?.contentType === 'application/json') &&
         tools.length === 0;
 
       const generationConfig: GenerationConfig = {
@@ -582,7 +592,7 @@ export function defineGoogleAIModel(
       };
 
       if (request.output?.constrained) {
-        generationConfig.responseSchema = request.output.schema;
+        generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
       const chatRequest = {
@@ -595,6 +605,7 @@ export function defineGoogleAIModel(
         safetySettings: requestConfig.safetySettings,
       } as StartChatParams;
       const msg = toGeminiMessage(messages[messages.length - 1], model);
+
       const fromJSONModeScopedGeminiCandidate = (
         candidate: GeminiCandidate
       ) => {

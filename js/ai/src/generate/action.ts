@@ -62,6 +62,8 @@ export const GenerateUtilParamSchema = z.object({
   output: z
     .object({
       format: z.string().optional(),
+      contentType: z.string().optional(),
+      instructions: z.union([z.boolean(), z.string()]).optional(),
       jsonSchema: z.any().optional(),
     })
     .optional(),
@@ -157,7 +159,8 @@ async function generate(
                 index: 0,
                 role: 'model',
                 previousChunks: accumulatedChunks,
-                parser: resolvedFormat?.handler(request).parseChunk,
+                parser: resolvedFormat?.handler(request.output?.schema)
+                  .parseChunk,
               })
             );
           }
@@ -182,7 +185,7 @@ async function generate(
 
       return new GenerateResponse(await dispatch(0, request), {
         request,
-        parser: resolvedFormat?.handler(request).parseResponse,
+        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
     }
   );

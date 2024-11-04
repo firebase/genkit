@@ -511,14 +511,15 @@ export const arrayStreamTester = ai.defineStreamingFlow(
             },
           ],
         },
-        prompt: `Generate a list of ingredients for ${input || 'Nachos'}`,
+        prompt: `Generate a list of 20 characters from ${input || 'Futurama'}`,
         output: {
           format: 'array',
           schema: z.array(
             z.object({
               name: z.string(),
-              quantity: z.string(),
-              purpose: z.string().nullish(),
+              description: z.string(),
+              friends: z.array(z.string()),
+              enemies: z.array(z.string()),
             })
           ),
         },
@@ -528,9 +529,20 @@ export const arrayStreamTester = ai.defineStreamingFlow(
         streamingCallback?.({ text, output });
       }
 
-      return (await response).output;
+      const result = await response;
+      console.log(result.parser);
+      return result.output;
     } catch (e: any) {
       return 'Error: ' + e.message;
     }
   }
 );
+
+// async function main() {
+//   const { stream, output } = arrayStreamTester();
+//   for await (const chunk of stream) {
+//     console.log(chunk);
+//   }
+//   console.log(await output);
+// }
+// main();

@@ -17,8 +17,9 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { jsonlFormatter } from '../../src/formats/jsonl.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
 
 describe('jsonlFormat', () => {
   const streamingTests = [
@@ -74,7 +75,7 @@ describe('jsonlFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = jsonlFormatter.handler({ messages: [] });
+      const parser = jsonlFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
 
       for (const chunk of st.chunks) {
@@ -92,69 +93,56 @@ describe('jsonlFormat', () => {
     });
   }
 
-  const responseTests = [
+  const messageTests = [
     {
       desc: 'parses complete JSONL response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '{"id": 1, "name": "test"}\n{"id": 2}\n' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '{"id": 1, "name": "test"}\n{"id": 2}\n' }],
+      },
       want: [{ id: 1, name: 'test' }, { id: 2 }],
     },
     {
       desc: 'handles empty response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '' }],
+      },
       want: [],
     },
     {
       desc: 'parses JSONL with preamble and code fence',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [
-            {
-              text: 'Here are the objects:\n\n```\n{"id": 1}\n{"id": 2}\n```',
-            },
-          ],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [
+          {
+            text: 'Here are the objects:\n\n```\n{"id": 1}\n{"id": 2}\n```',
+          },
+        ],
+      },
       want: [{ id: 1 }, { id: 2 }],
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = jsonlFormatter.handler({ messages: [] });
-      assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = jsonlFormatter.handler();
+      assert.deepStrictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
 
   const errorTests = [
     {
       desc: 'throws error for non-array schema type',
-      request: {
-        messages: [],
-        output: {
-          schema: { type: 'string' },
-        },
-      },
+      schema: { type: 'string' },
       wantError: /Must supply an 'array' schema type/,
     },
     {
       desc: 'throws error for array schema with non-object items',
-      request: {
-        messages: [],
-        output: {
-          schema: { type: 'array', items: { type: 'string' } },
-        },
-      },
+      schema: { type: 'array', items: { type: 'string' } },
       wantError: /Must supply an 'array' schema type containing 'object' items/,
     },
   ];
@@ -162,7 +150,7 @@ describe('jsonlFormat', () => {
   for (const et of errorTests) {
     it(et.desc, () => {
       assert.throws(() => {
-        jsonlFormatter.handler(et.request);
+        jsonlFormatter.handler(et.schema);
       }, et.wantError);
     });
   }

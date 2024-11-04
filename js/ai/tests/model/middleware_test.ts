@@ -18,6 +18,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
+import { configureFormats } from '../../src/formats/index.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -147,6 +148,8 @@ describe('validateSupport', () => {
 });
 
 const registry = new Registry();
+configureFormats(registry);
+
 const echoModel = defineModel(registry, { name: 'echo' }, async (req) => {
   return {
     finishReason: 'stop',

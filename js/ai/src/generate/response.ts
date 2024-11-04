@@ -19,7 +19,7 @@ import {
   GenerationBlockedError,
   GenerationResponseError,
 } from '../generate.js';
-import { Message } from '../message.js';
+import { Message, MessageParser } from '../message.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -28,10 +28,6 @@ import {
   ModelResponseData,
   ToolRequestPart,
 } from '../model.js';
-
-export interface ResponseParser<T> {
-  (response: GenerateResponse<T>): T;
-}
 
 /**
  * GenerateResponse is the result from a `generate()` call and contains one or
@@ -51,17 +47,22 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   /** The request that generated this response. */
   request?: GenerateRequest;
   /** The parser for output parsing of this response. */
-  parser?: ResponseParser<O>;
+  parser?: MessageParser<O>;
 
   constructor(
     response: GenerateResponseData,
-    options?: { request?: GenerateRequest; parser?: ResponseParser<O> }
+    options?: {
+      request?: GenerateRequest;
+      parser?: MessageParser<O>;
+    }
   ) {
     // Check for candidates in addition to message for backwards compatibility.
     const generatedMessage =
       response.message || response.candidates?.[0]?.message;
     if (generatedMessage) {
-      this.message = new Message(generatedMessage);
+      this.message = new Message<O>(generatedMessage, {
+        parser: options?.parser,
+      });
     }
     this.finishReason =
       response.finishReason || response.candidates?.[0]?.finishReason!;
@@ -70,7 +71,6 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     this.usage = response.usage || {};
     this.custom = response.custom || {};
     this.request = options?.request;
-    this.parser = options?.parser;
   }
 
   private get assertMessage(): Message<O> {
@@ -125,7 +125,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @returns The structured output contained in the selected candidate.
    */
   get output(): O | null {
-    return this.parser?.(this) || this.message?.output || null;
+    return this.message?.output || null;
   }
 
   /**

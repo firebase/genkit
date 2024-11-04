@@ -29,14 +29,12 @@ function objectLines(text: string): string[] {
 export const jsonlFormatter: Formatter<unknown[], unknown[]> = {
   name: 'jsonl',
   config: {
-    format: 'text',
     contentType: 'application/jsonl',
   },
-  handler: (request) => {
+  handler: (schema) => {
     if (
-      request.output?.schema &&
-      (request.output?.schema.type !== 'array' ||
-        request.output?.schema.items?.type !== 'object')
+      schema &&
+      (schema.type !== 'array' || schema.items?.type !== 'object')
     ) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
@@ -45,11 +43,11 @@ export const jsonlFormatter: Formatter<unknown[], unknown[]> = {
     }
 
     let instructions: string | undefined;
-    if (request.output?.schema?.items) {
+    if (schema?.items) {
       instructions = `Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline \`\\n\` character. Each line should be a JSON object conforming to the following schema:
 
 \`\`\`
-${JSON.stringify(request.output.schema.items)}
+${JSON.stringify(schema.items)}
 \`\`\`
     `;
     }
@@ -87,8 +85,8 @@ ${JSON.stringify(request.output.schema.items)}
         return results;
       },
 
-      parseResponse: (response) => {
-        const items = objectLines(response.text)
+      parseMessage: (message) => {
+        const items = objectLines(message.text)
           .map((l) => extractJson(l))
           .filter((l) => !!l);
 

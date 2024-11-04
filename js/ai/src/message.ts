@@ -17,6 +17,10 @@
 import { extractJson } from './extract';
 import { MessageData, Part, ToolRequestPart, ToolResponsePart } from './model';
 
+export interface MessageParser<T = unknown> {
+  (message: Message): T;
+}
+
 /**
  * Message represents a single role's contribution to a generation. Each message
  * can contain multiple parts (for example text and an image), and each generation
@@ -26,6 +30,7 @@ export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];
   content: Part[];
   metadata?: Record<string, any>;
+  parser?: MessageParser<T>;
 
   static parseData(
     lenientMessage:
@@ -59,21 +64,22 @@ export class Message<T = unknown> implements MessageData {
     }
   }
 
-  constructor(message: MessageData) {
+  constructor(message: MessageData, options?: { parser?: MessageParser<T> }) {
     this.role = message.role;
     this.content = message.content;
     this.metadata = message.metadata;
+    this.parser = options?.parser;
   }
 
   /**
-   * If a message contains a `data` part, it is returned. Otherwise, the `output()`
-   * method extracts the first valid JSON object or array from the text contained in
-   * the message and returns it.
+   * Attempts to parse the content of the message according to the supplied
+   * output parser. Without a parser, returns `data` contained in the message or
+   * tries to parse JSON from the text of the message.
    *
    * @returns The structured output contained in the message.
    */
   get output(): T {
-    return this.data || extractJson<T>(this.text);
+    return this.parser?.(this) || this.data || extractJson<T>(this.text);
   }
 
   toolResponseParts(): ToolResponsePart[] {
