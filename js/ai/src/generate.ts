@@ -215,7 +215,7 @@ async function toolsToActionRefs(
       tools.push(await resolveFullToolName(registry, t.name));
     } else {
       throw new Error(
-        `Unable to determine type of of tool: ${JSON.stringify(t)}`
+        `Unable to determine type of tool: ${JSON.stringify(t)}`
       );
     }
   }
