@@ -135,20 +135,23 @@ async function resolveModel(
 ): Promise<ResolvedModel> {
   let model = options.model;
   let out: ResolvedModel;
+  let modelId: string;
 
   if (!model) {
-    throw new Error('Model is required.');
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Must supply a `model` to `generate()` calls.',
+    });
   }
   if (typeof model === 'string') {
-    out = {
-      modelAction: (await registry.lookupAction(
-        `/model/${model}`
-      )) as ModelAction,
-    };
+    modelId = model;
+    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
   } else if (model.hasOwnProperty('__action')) {
+    modelId = (model as ModelAction).__action.name;
     out = { modelAction: model as ModelAction };
   } else {
     const ref = model as ModelReference<any>;
+    modelId = ref.name;
     out = {
       modelAction: (await registry.lookupAction(
         `/model/${ref.name}`
@@ -161,14 +164,6 @@ async function resolveModel(
   }
 
   if (!out.modelAction) {
-    let modelId: string;
-    if (typeof model === 'string') {
-      modelId = model;
-    } else if ((model as ModelAction)?.__action?.name) {
-      modelId = (model as ModelAction).__action.name;
-    } else {
-      modelId = (model as ModelReference<any>).name;
-    }
     throw new GenkitError({
       status: 'NOT_FOUND',
       message: `Model ${modelId} not found`,
