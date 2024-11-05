@@ -31,6 +31,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -44,14 +45,110 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type runtimeFileData struct {
+	ID                  string `json:"id"`
+	PID                 int    `json:"pid"`
+	ReflectionServerURL string `json:"reflectionServerUrl"`
+	Timestamp           string `json:"timestamp"`
+}
+
+type devServer struct {
+	reg             *registry.Registry
+	runtimeFilePath string
+}
+
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
 // or ":3100" if it is empty.
-func startReflectionServer(errCh chan<- error) *http.Server {
-	slog.Info("starting reflection server")
+func startReflectionServer(ctx context.Context, errCh chan<- error) *http.Server {
+	slog.Debug("starting reflection server")
 	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
-	mux := newDevServeMux(registry.Global)
-	return startServer(addr, mux, errCh)
+	s := &devServer{reg: registry.Global}
+	if err := s.writeRuntimeFile(addr); err != nil {
+		slog.Error("failed to write runtime file", "error", err)
+	}
+	mux := newDevServeMux(s)
+	server := startServer(addr, mux, errCh)
+	go func() {
+		<-ctx.Done()
+		if err := s.cleanupRuntimeFile(); err != nil {
+			slog.Error("failed to cleanup runtime file", "error", err)
+		}
+	}()
+	return server
+}
+
+// writeRuntimeFile writes a file describing the runtime to the project root.
+func (s *devServer) writeRuntimeFile(url string) error {
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find project root: %w", err)
+	}
+	runtimesDir := filepath.Join(projectRoot, ".genkit", "runtimes")
+	if err := os.MkdirAll(runtimesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create runtimes directory: %w", err)
+	}
+	runtimeID := os.Getenv("GENKIT_RUNTIME_ID")
+	if runtimeID == "" {
+		runtimeID = strconv.Itoa(os.Getpid())
+	}
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	s.runtimeFilePath = filepath.Join(runtimesDir, fmt.Sprintf("%d-%s.json", os.Getpid(), timestamp))
+	data := runtimeFileData{
+		ID:                  runtimeID,
+		PID:                 os.Getpid(),
+		ReflectionServerURL: fmt.Sprintf("http://%s", url),
+		Timestamp:           timestamp,
+	}
+	fileContent, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal runtime data: %w", err)
+	}
+	if err := os.WriteFile(s.runtimeFilePath, fileContent, 0644); err != nil {
+		return fmt.Errorf("failed to write runtime file: %w", err)
+	}
+	slog.Debug("runtime file written", "path", s.runtimeFilePath)
+	return nil
+}
+
+// cleanupRuntimeFile removes the runtime file associated with the dev server.
+func (s *devServer) cleanupRuntimeFile() error {
+	if s.runtimeFilePath == "" {
+		return nil
+	}
+	content, err := os.ReadFile(s.runtimeFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read runtime file: %w", err)
+	}
+	var data runtimeFileData
+	if err := json.Unmarshal(content, &data); err != nil {
+		return fmt.Errorf("failed to unmarshal runtime data: %w", err)
+	}
+	if data.PID == os.Getpid() {
+		if err := os.Remove(s.runtimeFilePath); err != nil {
+			return fmt.Errorf("failed to remove runtime file: %w", err)
+		}
+		slog.Debug("runtime file cleaned up", "path", s.runtimeFilePath)
+	}
+	return nil
+}
+
+// findProjectRoot finds the project root by looking for a go.mod file.
+func findProjectRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("could not find project root (go.mod not found)")
+		}
+		dir = parent
+	}
 }
 
 // startFlowServer starts a production server listening at the given address.
@@ -129,13 +226,8 @@ func shutdownServers(servers []*http.Server) error {
 	return nil
 }
 
-type devServer struct {
-	reg *registry.Registry
-}
-
-func newDevServeMux(r *registry.Registry) *http.ServeMux {
+func newDevServeMux(s *devServer) *http.ServeMux {
 	mux := http.NewServeMux()
-	s := &devServer{r}
 	handle(mux, "GET /api/__health", func(w http.ResponseWriter, _ *http.Request) error {
 		return nil
 	})
