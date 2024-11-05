@@ -20,7 +20,7 @@ import type { Formatter } from './types';
 export const enumFormatter: Formatter<string, string> = {
   name: 'enum',
   config: {
-    contentType: 'text/x.enum',
+    contentType: 'text/enum',
     constrained: true,
   },
   handler: (schema) => {
@@ -38,7 +38,7 @@ export const enumFormatter: Formatter<string, string> = {
 
     return {
       parseMessage: (message) => {
-        return message.text.trim();
+        return message.text.replace(/['"]/g, '').trim();
       },
       instructions,
     };

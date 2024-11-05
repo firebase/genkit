@@ -132,10 +132,10 @@ async function main() {
   const fails: { model: string; flow: string; error: string }[] = [];
 
   for (const model of [
-    'googleai/gemini-1.5-pro',
-    'googleai/gemini-1.5-flash',
     'vertexai/gemini-1.5-pro',
     'vertexai/gemini-1.5-flash',
+    'googleai/gemini-1.5-pro',
+    'googleai/gemini-1.5-flash',
   ]) {
     for (const flow of flows) {
       try {
