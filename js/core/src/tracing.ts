@@ -37,7 +37,7 @@ const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 
 export async function ensureBasicTelemetryInstrumentation() {
   if (global[instrumentationKey]) {
-    return;
+    return await global[instrumentationKey];
   }
   await enableTelemetry({});
 }
@@ -48,7 +48,8 @@ export async function ensureBasicTelemetryInstrumentation() {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
-  global[instrumentationKey] = true;
+  global[instrumentationKey] =
+    telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
 
   telemetryConfig =
     telemetryConfig instanceof Promise
