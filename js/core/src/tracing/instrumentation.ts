@@ -45,7 +45,7 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
-  ensureBasicTelemetryInstrumentation();
+  await ensureBasicTelemetryInstrumentation();
   const traceMetadata: TraceMetadata = traceMetadataAls.getStore() || {
     paths: new Set<PathMetadata>(),
     timestamp: performance.now(),
@@ -78,7 +78,7 @@ export async function runInNewSpan<T>(
   },
   fn: (metadata: SpanMetadata, otSpan: ApiSpan, isRoot: boolean) => Promise<T>
 ): Promise<T> {
-  ensureBasicTelemetryInstrumentation();
+  await ensureBasicTelemetryInstrumentation();
 
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
   const parentStep = spanMetadataAls.getStore();

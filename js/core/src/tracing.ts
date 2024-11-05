@@ -35,18 +35,27 @@ let nodeOtelConfig: TelemetryConfig | null = null;
 
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 
-export function ensureBasicTelemetryInstrumentation() {
+export async function ensureBasicTelemetryInstrumentation() {
   if (global[instrumentationKey]) {
-    return;
+    return await global[instrumentationKey];
   }
-  enableTelemetry({});
-  global[instrumentationKey] = true;
+  await enableTelemetry({});
 }
 
 /**
  * Enables tracing and metrics open telemetry configuration.
  */
-export function enableTelemetry(telemetryConfig: TelemetryConfig) {
+export async function enableTelemetry(
+  telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
+) {
+  global[instrumentationKey] =
+    telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
+
+  telemetryConfig =
+    telemetryConfig instanceof Promise
+      ? await telemetryConfig
+      : telemetryConfig;
+
   nodeOtelConfig = telemetryConfig || {};
 
   const processors: SpanProcessor[] = [createTelemetryServerProcessor()];
