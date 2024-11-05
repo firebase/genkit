@@ -78,7 +78,7 @@ export class GcpLogger {
     let instructionsLogged = false;
     let helpInstructions = await loggingDeniedHelpText();
 
-    return (err: Error | null) => {
+    return async (err: Error | null) => {
       // Use the defaultLogger so that logs don't get swallowed by
       // the open telemetry exporter
       const defaultLogger = logger.defaultLogger;
@@ -96,7 +96,9 @@ export class GcpLogger {
       if (err) {
         // Assume the logger is compromised, and we need a new one
         // Reinitialize the genkit logger with a new instance with the same config
-        logger.init(new GcpLogger(this.config).getLogger(getCurrentEnv()));
+        logger.init(
+          await new GcpLogger(this.config).getLogger(getCurrentEnv())
+        );
         defaultLogger.info('Initialized a new GcpLogger.');
       }
     };
