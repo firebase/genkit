@@ -144,6 +144,7 @@ func newDevServeMux(r *registry.Registry) *http.ServeMux {
 	handle(mux, "GET /api/envs/{env}/traces/{traceID}", s.handleGetTrace)
 	handle(mux, "GET /api/envs/{env}/traces", s.handleListTraces)
 	handle(mux, "GET /api/envs/{env}/flowStates", s.handleListFlowStates)
+	handle(mux, "GET /api/envs/{env}/flowStates/{flowID}", s.handleGetFlowState)
 
 	return mux
 }
@@ -278,6 +279,16 @@ func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) err
 
 type listTracesResult struct {
 	Traces            []*tracing.Data `json:"traces"`
+	ContinuationToken string          `json:"continuationToken"`
+}
+
+func (s *devServer) handleGetFlowState(w http.ResponseWriter, r *http.Request) error {
+	// fid := r.PathValue("flowID")
+	return writeJSON(r.Context(), w, flowStateResult{nil, ""})
+}
+
+type flowStateResult struct {
+	FlowState         base.FlowStater `json:"flowState"`
 	ContinuationToken string          `json:"continuationToken"`
 }
 
