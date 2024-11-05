@@ -25,14 +25,27 @@ export async function findProjectRoot(): Promise<string> {
   let currentDir = process.cwd();
   while (currentDir !== path.parse(currentDir).root) {
     const packageJsonPath = path.join(currentDir, 'package.json');
+    const goModPath = path.join(currentDir, 'go.mod');
     try {
-      await fs.access(packageJsonPath);
-      return currentDir;
+      const [packageJsonExists, goModExists] = await Promise.all([
+        fs
+          .access(packageJsonPath)
+          .then(() => true)
+          .catch(() => false),
+        fs
+          .access(goModPath)
+          .then(() => true)
+          .catch(() => false),
+      ]);
+      if (packageJsonExists || goModExists) {
+        return currentDir;
+      }
     } catch {
-      currentDir = path.dirname(currentDir);
+      // Continue searching if any errors occur
     }
+    currentDir = path.dirname(currentDir);
   }
-  throw new Error('Could not find project root (package.json not found)');
+  throw new Error('Could not find project root');
 }
 
 /**

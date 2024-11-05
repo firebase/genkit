@@ -88,29 +88,16 @@ you've already done this. Otherwise, see the [Getting Started](get-started)
 guide or the individual plugin's documentation and follow the steps there before
 continuing.
 
-### The generate() function {:#generate}
+### The generate() method {:#generate}
 
 In Genkit, the primary interface through which you interact with generative AI
-models is the `generate()` function.
+models is the `generate()` method.
 
 The simplest `generate()` call specifies the model you want to use and a text
 prompt:
 
 ```ts
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { gemini15Flash } from '@genkit-ai/googleai';
-
-configureGenkit(/* ... */);
-
-(async () => {
-  const llmResponse = await generate({
-    model: gemini15Flash,
-    prompt: 'Invent a menu item for a pirate themed restaurant.',
-  });
-
-  console.log(await llmResponse.text);
-})();
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/minimal.ts" region_tag="minimal" adjust_indentation="auto" %}
 ```
 
 When you run this brief example, it will print out some debugging information
@@ -134,14 +121,20 @@ adventure.
 
 Run the script again and you'll get a different output.
 
-The preceding code sample specified the model using a model reference exported
-by the model plugin. You can also specify the model using a string identifier:
+The preceding code sample sent the generation request to the default model,
+which you specified when you configured the Genkit instance.
+
+You can also specify a model for a single `generate()` call:
 
 ```ts
-const llmResponse = await generate({
-  model: 'googleai/gemini-1.5-flash-latest',
-  prompt: 'Invent a menu item for a pirate themed restaurant.',
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex01" adjust_indentation="auto" %}
+```
+
+This example uses a model reference exported by the model plugin. Another option
+is to specify the model using a string identifier:
+
+```ts
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex02" adjust_indentation="auto" %}
 ```
 
 A model string identifier looks like `providerid/modelid`, where the provider ID
@@ -151,16 +144,9 @@ plugin-specific string identifier for a specific version of a model.
 Some model plugins, such as the Ollama plugin, provide access to potentially
 dozens of different models and therefore do not export individual model
 references. In these cases, you can only specify a model to `generate()` using
-its string identifier:
+its string identifier.
 
-```ts
-const llmResponse = await generate({
-  model: 'ollama/gemma2',
-  prompt: 'Invent a menu item for a pirate themed restaurant.',
-});
-```
-
-All of the preceding examples also illustrate an important point: when you use
+These examples also illustrate an important point: when you use
 `generate()` to make generative AI model calls, changing the model you want to
 use is simply a matter of passing a different value to the model parameter. By
 using `generate()` instead of the native model SDKs, you give yourself the
@@ -171,23 +157,27 @@ So far you have only seen examples of the simplest `generate()` calls. However,
 `generate()` also provides an interface for more advanced interactions with
 generative models, which you will see in the sections that follow.
 
+### System prompts {:#system}
+
+Some models support providing a _system prompt_, which gives the model
+instructions as to how you want it to respond to messages from the user. You can
+use the system prompt to specify a persona you want the model to adopt, the tone
+of its responses, the format of its responses, and so on.
+
+If the model you're using supports system prompts, you can provide one with the
+`system` parameter:
+
+```ts
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex03" adjust_indentation="auto" %}
+```
+
 ### Model parameters {:#model-parameters}
 
 The `generate()` function takes a `config` parameter, through which you can
 specify optional settings that control how the model generates content:
 
 ```ts
-const llmResponse = await generate({
-  prompt: "Suggest an item for the menu of a pirate themed restaurant",
-  model: gemini15Flash,
-  config: {
-    maxOutputTokens: 400,
-    stopSequences: ["<end>", "<fin>"],
-    temperature: 1.2,
-    topP: 0.4,
-    topK: 50,
-  },
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex04" adjust_indentation="auto" %}
 ```
 
 The exact parameters that are supported depend on the individual model and model
@@ -296,24 +286,11 @@ In Genkit, you can request structured output from a model by specifying a schema
 when you call `generate()`:
 
 ```ts
-import { z } from "zod";
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="importZod" adjust_indentation="auto" %}
 ```
 
 ```ts
-const MenuItemSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  calories: z.number(),
-  allergens: z.array(z.string()),
-});
-
-const llmResponse = await generate({
-  prompt: "Suggest an item for the menu of a pirate themed restaurant",
-  model: gemini15Flash,
-  output: {
-    schema: MenuItemSchema,
-  },
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex05" adjust_indentation="auto" %}
 ```
 
 Model output schemas are specified using the [Zod](https://zod.dev/){:.external}
@@ -334,35 +311,16 @@ scenes:
 - Verifies that the output conforms with the schema.
 
 To get structured output from a successful generate call, use the response
-object's `output()` method:
+object's `output` property:
 
 ```ts
-type MenuItem = z.infer<typeof MenuItemSchema>;
-
-const output: MenuItem | null = llmResponse.output;
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex06" adjust_indentation="auto" %}
 ```
 
 #### Handling errors
 
-Note in the prior example that the output method can return `null`. This can
-happen when the model fails to generate output that conforms to the schema. You
-can also detect this condition by catching the `ValidationError`
-exception thrown by generate:
-
-```ts
-import { ValidationError } from "genkit/schema";
-```
-
-```ts
-try {
-  llmResponse = await generate(/* ... */);
-} catch (e) {
-  if (e instanceof ValidationError) {
-    // Output doesn't conform to schema.
-  }
-}
-```
-
+Note in the prior example that the `output` property can be `null`. This can
+happen when the model fails to generate output that conforms to the schema.
 The best strategy for dealing with such errors will depend on your exact use
 case, but here are some general hints:
 
@@ -377,17 +335,12 @@ case, but here are some general hints:
   Zod should try to coerce non-conforming types into the type specified by the
   schema. If your schema includes primitive types other than strings, using Zod
   coercion can reduce the number of `generate()` failures you experience. The
-  following version of MenuItemSchema uses type conversion to automatically
+  following version of `MenuItemSchema` uses type coercion to automatically
   correct situations where the model generates calorie information as a string
   instead of a number:
 
   ```ts
-  const MenuItemSchema = z.object({
-    name: z.string(),
-    description: z.string(),
-    calories: z.coerce.number(),
-    allergens: z.array(z.string()),
-  });
+  {% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex07" adjust_indentation="auto" %}
   ```
 
 - **Retry the generate() call**. If the model you've chosen only rarely fails to
@@ -400,80 +353,55 @@ case, but here are some general hints:
 When generating large amounts of text, you can improve the experience for your
 users by presenting the output as it's generated&mdash;streaming the output. A
 familiar example of streaming in action can be seen in most LLM chat apps: users
-can read the model's response to their messages as it's being generated, which
+can read the model's response to their message as it's being generated, which
 improves the perceived responsiveness of the application and enhances the
 illusion of chatting with an intelligent counterpart.
 
-In Genkit, you can stream output using the `generateStream()` function. Its
-syntax is similar to the `generate()` function:
+In Genkit, you can stream output using the `generateStream()` method. Its
+syntax is similar to the `generate()` method:
 
 ```ts
-import { generateStream } from "@genkit-ai/ai";
-import { GenerateResponseChunk } from "@genkit-ai/ai/lib/generate";
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex08" adjust_indentation="auto" %}
 ```
 
+The response object has a `stream` property, which you can use to iterate over
+the streaming output of the request as it's generated:
+
 ```ts
-const llmResponseStream = await generateStream({
-  prompt: 'Suggest a complete menu for a pirate themed restaurant',
-  model: gemini15Flash,
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex09" adjust_indentation="auto" %}
 ```
 
-However, this function returns an asynchronous iterable of response chunks.
-Handle each of these chunks as they become available:
+You can also get the complete output of the request, as you can with a
+non-streaming request:
 
 ```ts
-for await (const responseChunkData of llmResponseStream.stream()) {
-  const responseChunk = responseChunkData as GenerateResponseChunk;
-  console.log(responseChunk.text);
-}
-```
-
-You can still get the entire response at once:
-
-```ts
-const llmResponse = await llmResponseStream.response();
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex10" adjust_indentation="auto" %}
 ```
 
 Streaming also works with structured output:
 
 ```ts
-const MenuSchema = z.object({
-  starters: z.array(MenuItemSchema),
-  mains: z.array(MenuItemSchema),
-  desserts: z.array(MenuItemSchema),
-});
-type Menu = z.infer<typeof MenuSchema>;
-
-const llmResponseStream = await generateStream({
-  prompt: "Suggest a complete menu for a pirate themed restaurant",
-  model: gemini15Flash,
-  output: { schema: MenuSchema },
-});
-
-for await (const responseChunkData of llmResponseStream.stream()) {
-  const responseChunk = responseChunkData as GenerateResponseChunk<Menu>;
-  // output() returns an object representing the entire output so far
-  const output: Menu | null = responseChunk.output;
-  console.log(output);
-}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex11" adjust_indentation="auto" %}
 ```
 
-Streaming structured output works a little differently from streaming text. When
-you call the `output()` method of a response chunk, you get an object
-constructed from the accumulation of the chunks that have been produced so far,
-rather than an object representing a single chunk (which might not be valid on
-its own). **Every chunk of structured output in a sense supersedes the chunk
-that came before it**.
+Streaming structured output works a little differently from streaming text: the
+`output` property of a response chunk is an object constructed from the
+accumulation of the chunks that have been produced so far, rather than an object
+representing a single chunk (which might not be valid on its own). **Every chunk
+of structured output in a sense supersedes the chunk that came before it**.
 
-For example, here are the first five outputs from the prior example:
+For example, here's what the first five outputs from the prior example might
+look like:
 
 ```none
 null
+
 { starters: [ {} ] }
+
 {
   starters: [ { name: "Captain's Treasure Chest", description: 'A' } ]
 }
+
 {
   starters: [
     {
@@ -483,6 +411,7 @@ null
     }
   ]
 }
+
 {
   starters: [
     {
@@ -509,17 +438,11 @@ completely dependent on the model and its API. For example, the Gemini 1.5
 series of models can accept images, video, and audio as prompts.
 
 To provide a media prompt to a model that supports it, instead of passing a
-simple text prompt to generate, pass an array consisting of a media part and a
+simple text prompt to `generate`, pass an array consisting of a media part and a
 text part:
 
 ```ts
-const llmResponse = await generate({
-  prompt: [
-    { media: { url: 'https://example.com/photo.jpg' } },
-    { text: 'Compose a poem about this image.' },
-  ],
-  model: gemini15Flash,
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex12" adjust_indentation="auto" %}
 ```
 
 In the above example, you specified an image using a publicly-accessible HTTPS
@@ -527,20 +450,11 @@ URL. You can also pass media data directly by encoding it as a data URL. For
 example:
 
 ```ts
-import { readFile } from 'node:fs/promises';
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="importReadFileAsync" adjust_indentation="auto" %}
 ```
 
 ```ts
-const b64Data = await readFile('output.png', { encoding: 'base64url' });
-const dataUrl = `data:image/png;base64,${b64Data}`;
-
-const llmResponse = await generate({
-  prompt: [
-    { media: { url: dataUrl } },
-    { text: 'Compose a poem about this image.' },
-  ],
-  model: gemini15Flash,
-});
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/models/index.ts" region_tag="ex13" adjust_indentation="auto" %}
 ```
 
 All models that support media input support both data URLs and HTTPS URLs. Some
@@ -559,7 +473,7 @@ example, to generate an image using the Imagen2 model through Vertex AI:
     example uses the `data-urls` package from `jsdom`:
 
     ```posix-terminal
-    npm i data-urls
+    npm i --save data-urls
 
     npm i --save-dev @types/data-urls
     ```
@@ -568,83 +482,8 @@ example, to generate an image using the Imagen2 model through Vertex AI:
     image generation model and the media type of output format:
 
     ```ts
-    import { generate } from '@genkit-ai/ai';
-    import { configureGenkit } from '@genkit-ai/core';
-    import { vertexAI, imagen2 } from '@genkit-ai/vertexai';
-    import parseDataURL from 'data-urls';
-
-    import { writeFile } from 'node:fs/promises';
-
-    configureGenkit({
-      plugins: [vertexAI({ location: 'us-central1' })],
-    });
-
-    (async () => {
-      const mediaResponse = await generate({
-        model: imagen2,
-        prompt: 'photo of a meal fit for a pirate',
-        output: { format: 'media' },
-      });
-
-      const media = mediaResponse.media();
-      if (media === null) throw new Error('No media generated.');
-
-      const data = parseDataURL(media.url);
-      if (data === null) throw new Error('Invalid ‘data:’ URL.');
-
-      await writeFile(`output.${data.mimeType.subtype}`, data.body);
-    })();
+    {% includecode github_path="firebase/genkit/js/doc-snippets/src/models/imagen.ts" region_tag="imagen" adjust_indentation="auto" %}
     ```
-
-### Recording message history
-
-Many of your users will have interacted with large language models for the first
-time through chatbots. Although LLMs are capable of much more than simulating
-conversations, it remains a familiar and useful style of interaction. Even when
-your users will not be interacting directly with the model in this way, the
-conversational style of prompting is a powerful way to influence the output
-generated by an AI model.
-
-To generate message history from a model response, call the `.messages`
-method:
-
-```ts
-let response = await generate({
-  model: gemini15Flash,
-  prompt: "How do you say 'dog' in French?",
-});
-let history = response.messages;
-```
-
-You can serialize this history and persist it in a database or session storage.
-Then, pass the history along with the prompt on future calls to `generate()`:
-
-```ts
-response = await generate({
-  model: gemini15Flash,
-  prompt: 'How about in Spanish?',
-  history,
-});
-history = response.messages;
-```
-
-If the model you're using supports the `system` role, you can use the initial
-history to set the system message:
-
-```ts
-import { MessageData } from "@genkit-ai/ai/model";
-```
-
-```ts
-let messages: MessageData[] = [
-  { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
-];
-let response = await generate({
-  model: gemini15Flash,
-  prompt: "How do you say 'dog' in French?",
-  messages,
-});
-```
 
 ### Next steps {:#next-steps}
 
