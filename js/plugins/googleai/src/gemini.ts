@@ -31,7 +31,13 @@ import {
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
+import {
+  GENKIT_CLIENT_HEADER,
+  Genkit,
+  GenkitError,
+  JSONSchema,
+  z,
+} from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
@@ -591,7 +597,7 @@ export function defineGoogleAIModel(
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
-      if (request.output?.constrained) {
+      if (request.output?.constrained && jsonMode) {
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
@@ -625,12 +631,18 @@ export function defineGoogleAIModel(
           });
         }
         const response = await result.response;
-        if (!response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
+        const candidates = response.candidates || [];
+        if (response.candidates?.['undefined']) {
+          candidates.push(response.candidates['undefined']);
+        }
+        if (!candidates.length) {
+          throw new GenkitError({
+            status: 'FAILED_PRECONDITION',
+            message: 'No valid candidates returned.',
+          });
         }
         return {
-          candidates:
-            response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
+          candidates: candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
           custom: response,
         };
       } else {
