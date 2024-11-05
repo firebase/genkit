@@ -18,7 +18,6 @@ import {
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
-  SchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
   Content as GeminiMessage,
@@ -28,6 +27,7 @@ import {
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
+  SchemaType,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
