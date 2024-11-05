@@ -70,7 +70,7 @@ func Init(ctx context.Context, opts *Options) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s := startReflectionServer(errCh)
+			s := startReflectionServer(ctx, errCh)
 			mu.Lock()
 			servers = append(servers, s)
 			mu.Unlock()
