@@ -23,7 +23,6 @@ import { ChecksEvaluationMetricType } from './evaluation.js';
 export class EvaluatorFactory {
   constructor(
     private readonly auth: GoogleAuth,
-    private readonly location: string,
     private readonly projectId: string
   ) { }
 

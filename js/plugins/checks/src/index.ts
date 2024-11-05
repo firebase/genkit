@@ -27,10 +27,8 @@ export {
 };
 
 export interface PluginOptions {
-  /** The Google Cloud project id to call. */
+  /** The Google Cloud project id to call. This is the project with quota for the Checks API*/
   projectId?: string;
-  /** The Google Cloud region to call. */
-  location: string;
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
   /** Configure Vertex AI evaluators */
@@ -55,7 +53,6 @@ export function checks(options?: PluginOptions): GenkitPlugin {
     // Allow customers to pass in cloud credentials from environment variables
     // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
     if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      console.log("HSH initilizing google auth via path 1")
       const serviceAccountCreds = JSON.parse(
         process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
       );
@@ -65,25 +62,18 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       };
       authClient = new GoogleAuth(authOptions);
     } else {
-      console.log("HSH initilizing google auth via path 2")
       authClient = new GoogleAuth(
         authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE] }
       );
     }
 
-    console.log("HSH Google auth client initialized: ", authClient)
-
     const projectId = options?.projectId || (await authClient.getProjectId());
 
-    const location = options?.location || 'us-central1';
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
         `Checks Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
       );
     };
-    if (!location) {
-      throw confError('location', 'GCLOUD_LOCATION');
-    }
     if (!projectId) {
       throw confError('project', 'GCLOUD_PROJECT');
     }
@@ -92,7 +82,7 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
-      checksEvaluators(ai, authClient, metrics, projectId, location);
+    checksEvaluators(ai, authClient, metrics, projectId);
   });
 }
 

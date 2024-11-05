@@ -54,7 +54,7 @@ export enum ChecksEvaluationMetricType {
  */
 export type ChecksEvaluationMetricConfig = {
   type: ChecksEvaluationMetricType;
-  metricSpec: any;
+  threshold: number;
 };
 
 export type ChecksEvaluationMetric =
@@ -66,37 +66,36 @@ export function checksEvaluators(
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string,
-  location: string
 ): Action[] {
-  const factory = new EvaluatorFactory(auth, location, projectId);
+  const factory = new EvaluatorFactory(auth, projectId);
   return metrics.map((metric) => {
     const metricType = isConfig(metric) ? metric.type : metric;
-    const metricSpec = isConfig(metric) ? metric.metricSpec : {};
+    const threshold = isConfig(metric) ? metric.threshold : undefined;
 
     switch (metricType) {
       case ChecksEvaluationMetricType.DANGEROUS_CONTENT: {
-        return createDangerousContentEvaluator(ai, factory, metricSpec)
+        return createDangerousContentEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.PII_SOLICITING_RECITING: {
-        return createPiiSolicitingEvaluator(ai, factory, metricSpec)
+        return createPiiSolicitingEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.HARASSMENT: {
-        return createHarassmentEvaluator(ai, factory, metricSpec)
+        return createHarassmentEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.SEXUALLY_EXPLICIT: {
-        return createSexuallyExplicitEvaluator(ai, factory, metricSpec)
+        return createSexuallyExplicitEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.HATE_SPEECH: {
-        return createHateSpeachEvaluator(ai, factory, metricSpec)
+        return createHateSpeachEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.MEDICAL_INFO: {
-        return createMedicalInfoEvaluator(ai, factory, metricSpec)
+        return createMedicalInfoEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.VIOLENCE_AND_GORE: {
-        return createViolenceAndGoreEvaluator(ai, factory, metricSpec)
+        return createViolenceAndGoreEvaluator(ai, factory, threshold)
       }
       case ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY: {
-        return createObscenityAndProfanityEvaluator(ai, factory, metricSpec)
+        return createObscenityAndProfanityEvaluator(ai, factory, threshold)
       }
     }
   });
@@ -121,7 +120,7 @@ const ResponseSchema = z.object({
 function createDangerousContentEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -140,6 +139,7 @@ function createDangerousContentEvaluator(
         },
         policies: {
           policy_type: "DANGEROUS_CONTENT",
+          threshold,
         }
       };
     },
@@ -157,7 +157,7 @@ function createDangerousContentEvaluator(
 function createPiiSolicitingEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -176,6 +176,7 @@ function createPiiSolicitingEvaluator(
         },
         policies: {
           policy_type: "PII_SOLICITING_RECITING",
+          threshold,
         }
       };
     },
@@ -193,7 +194,7 @@ function createPiiSolicitingEvaluator(
 function createHarassmentEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -212,6 +213,7 @@ function createHarassmentEvaluator(
         },
         policies: {
           policy_type: "HARASSMENT",
+          threshold,
         }
       };
     },
@@ -229,7 +231,7 @@ function createHarassmentEvaluator(
 function createSexuallyExplicitEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -248,6 +250,7 @@ function createSexuallyExplicitEvaluator(
         },
         policies: {
           policy_type: "SEXUALLY_EXPLICIT",
+          threshold,
         }
       };
     },
@@ -265,7 +268,7 @@ function createSexuallyExplicitEvaluator(
 function createHateSpeachEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -284,6 +287,7 @@ function createHateSpeachEvaluator(
         },
         policies: {
           policy_type: "HATE_SPEECH",
+          threshold,
         }
       };
     },
@@ -301,7 +305,7 @@ function createHateSpeachEvaluator(
 function createMedicalInfoEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -320,6 +324,7 @@ function createMedicalInfoEvaluator(
         },
         policies: {
           policy_type: "MEDICAL_INFO",
+          threshold,
         }
       };
     },
@@ -337,7 +342,7 @@ function createMedicalInfoEvaluator(
 function createViolenceAndGoreEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -356,6 +361,7 @@ function createViolenceAndGoreEvaluator(
         },
         policies: {
           policy_type: "VIOLENCE_AND_GORE",
+          threshold,
         }
       };
     },
@@ -373,7 +379,7 @@ function createViolenceAndGoreEvaluator(
 function createObscenityAndProfanityEvaluator(
   ai: Genkit,
   factory: EvaluatorFactory,
-  metricSpec: any
+  threshold?: number
 ): Action {
   return factory.create(
     ai,
@@ -392,6 +398,7 @@ function createObscenityAndProfanityEvaluator(
         },
         policies: {
           policy_type: "OBSCENITY_AND_PROFANITY",
+          threshold,
         }
       };
     },
