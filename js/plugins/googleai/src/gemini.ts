@@ -18,7 +18,6 @@ import {
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
-  FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
   Content as GeminiMessage,
@@ -28,6 +27,7 @@ import {
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
+  SchemaType,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
@@ -200,18 +200,18 @@ function convertSchemaProperty(property) {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
-      type: FunctionDeclarationSchemaType.OBJECT,
+      type: SchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
   } else if (property.type === 'array') {
     return {
-      type: FunctionDeclarationSchemaType.ARRAY,
+      type: SchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
     return {
-      type: FunctionDeclarationSchemaType[property.type.toUpperCase()],
+      type: SchemaType[property.type.toUpperCase()],
     };
   }
 }
