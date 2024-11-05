@@ -288,6 +288,7 @@ export class RuntimeManager {
   private async setupRuntimesWatcher() {
     try {
       const runtimesDir = await findRuntimesDir();
+      await fs.mkdir(runtimesDir, { recursive: true });
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
         ignoreInitial: false,
@@ -383,13 +384,11 @@ export class RuntimeManager {
   }
 
   /**
-   * Removes a runtime from the maps and tries to delete the file (best effort).
+   * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
     const runtime = this.filenameToRuntimeMap[fileName];
     if (runtime) {
-      delete this.filenameToRuntimeMap[fileName];
-      delete this.idToFileMap[runtime.id];
       try {
         const runtimesDir = await findRuntimesDir();
         const runtimeFilePath = path.join(runtimesDir, fileName);
