@@ -32,7 +32,6 @@ export const start = new Command('start')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port', 'port for the dev ui')
   .action(async (options: RunOptions) => {
-    console.log(start.opts(), start.args);
 
     let processPromise = Promise.resolve();
     if (start.args.length > 0) {
