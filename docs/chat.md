@@ -142,7 +142,7 @@ const chat = session.chat({
   model: gemini15Pro,
   tools: [changeUserName],
 });
-```
+await chat.send('change user name to Kevin');
 
 ## Multi-thread sessions
 
