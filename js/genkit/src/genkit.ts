@@ -288,7 +288,7 @@ export class Genkit {
       )) as PromptAction<I>;
       // nothing in registry - check for dotprompt file.
       if (!action) {
-        action = (await prompt(this.registry, name, options))
+        action = (await prompt(this.registry, name, {...options, dir: this.options.promptDir ?? './prompts'}))
           .promptAction as PromptAction<I>;
       }
       const { template, ...opts } = action.__action.metadata!.prompt;
