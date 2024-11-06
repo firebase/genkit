@@ -338,9 +338,7 @@ export const dotpromptContext = ai.defineFlow(
       },
     ];
 
-    const result = await (
-      ai.prompt('dotpromptContext')
-    ).generate({
+    const result = await ai.prompt('dotpromptContext').generate({
       input: { question: question },
       docs,
     });
