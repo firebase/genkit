@@ -18,7 +18,6 @@ import {
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
-  FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
   Content as GeminiMessage,
@@ -28,10 +27,17 @@ import {
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
+  SchemaType,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
+import {
+  GENKIT_CLIENT_HEADER,
+  Genkit,
+  GenkitError,
+  JSONSchema,
+  z,
+} from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
@@ -99,7 +105,6 @@ export const gemini15Pro = modelRef({
       media: true,
       tools: true,
       systemRole: true,
-      output: ['text', 'json'],
     },
     versions: [
       'gemini-1.5-pro-latest',
@@ -119,7 +124,6 @@ export const gemini15Flash = modelRef({
       media: true,
       tools: true,
       systemRole: true,
-      output: ['text', 'json'],
     },
     versions: [
       'gemini-1.5-flash-latest',
@@ -139,7 +143,6 @@ export const gemini15Flash8b = modelRef({
       media: true,
       tools: true,
       systemRole: true,
-      output: ['text', 'json'],
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
   },
@@ -200,18 +203,18 @@ function convertSchemaProperty(property) {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
-      type: FunctionDeclarationSchemaType.OBJECT,
+      type: SchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
   } else if (property.type === 'array') {
     return {
-      type: FunctionDeclarationSchemaType.ARRAY,
+      type: SchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
     return {
-      type: FunctionDeclarationSchemaType[property.type.toUpperCase()],
+      type: SchemaType[property.type.toUpperCase()],
     };
   }
 }
@@ -371,9 +374,9 @@ function toGeminiPart(part: Part): GeminiPart {
 }
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
-  }
+  // if (jsonMode && part.text !== undefined) {
+  //   return { data: JSON.parse(part.text) };
+  // }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part);
@@ -436,6 +439,20 @@ export function fromGeminiCandidate(
       citationMetadata: candidate.citationMetadata,
     },
   };
+}
+
+function cleanSchema(schema: JSONSchema): JSONSchema {
+  const out = structuredClone(schema);
+  for (const key in out) {
+    if (key === '$schema' || key === 'additionalProperties') {
+      delete out[key];
+      continue;
+    }
+    if (typeof out[key] === 'object') {
+      out[key] = cleanSchema(out[key]);
+    }
+  }
+  return out;
 }
 
 /**
@@ -566,7 +583,8 @@ export function defineGoogleAIModel(
 
       //  cannot use tools with json mode
       const jsonMode =
-        (request.output?.format === 'json' || !!request.output?.schema) &&
+        (request.output?.format === 'json' ||
+          request.output?.contentType === 'application/json') &&
         tools.length === 0;
 
       const generationConfig: GenerationConfig = {
@@ -579,6 +597,10 @@ export function defineGoogleAIModel(
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
+      if (request.output?.constrained && jsonMode) {
+        generationConfig.responseSchema = cleanSchema(request.output.schema);
+      }
+
       const chatRequest = {
         systemInstruction,
         generationConfig,
@@ -589,6 +611,7 @@ export function defineGoogleAIModel(
         safetySettings: requestConfig.safetySettings,
       } as StartChatParams;
       const msg = toGeminiMessage(messages[messages.length - 1], model);
+
       const fromJSONModeScopedGeminiCandidate = (
         candidate: GeminiCandidate
       ) => {
@@ -608,12 +631,18 @@ export function defineGoogleAIModel(
           });
         }
         const response = await result.response;
-        if (!response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
+        const candidates = response.candidates || [];
+        if (response.candidates?.['undefined']) {
+          candidates.push(response.candidates['undefined']);
+        }
+        if (!candidates.length) {
+          throw new GenkitError({
+            status: 'FAILED_PRECONDITION',
+            message: 'No valid candidates returned.',
+          });
         }
         return {
-          candidates:
-            response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
+          candidates: candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
           custom: response,
         };
       } else {

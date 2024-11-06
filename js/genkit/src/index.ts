@@ -152,3 +152,4 @@ export {
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
 export * from './genkit.js';
+export { type SessionData, type SessionStore } from './session.js';

@@ -66,6 +66,7 @@ import {
   EvaluatorAction,
   EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
+import { configureFormats } from '@genkit-ai/ai/formats';
 import {
   defineModel,
   DefineModelOptions,
@@ -279,18 +280,21 @@ export class Genkit {
     name: string,
     options?: { variant?: string }
   ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
-    // check if functional prompt exists.
+    // check the registry first as not all prompt types can be
+    // loaded by dotprompt (e.g. functional)
     let action = (await this.registry.lookupAction(
       `/prompt/${name}`
     )) as PromptAction<I>;
-    // if not, lookup with dotprompt.
+    // nothing in registry - check for dotprompt file.
     if (!action) {
       action = (await prompt(this.registry, name, options))
         .promptAction as PromptAction<I>;
     }
+    // make sure we get configuration such as model name if applicable
+    const { template, ...opts } = action.__action.metadata!.prompt;
     return this.wrapPromptActionInExecutablePrompt(
       action as PromptAction<I>,
-      {}
+      opts
     ) as ExecutablePrompt<I, O, CustomOptions>;
   }
 
@@ -475,8 +479,8 @@ export class Genkit {
         // ignore, no model on a render is OK?
       }
       const promptResult = await p({
-        // this feels a litte hacky, but we need to pass session state as action input
-        // to make it replayable from trace view in the dev ui.
+        // this feels a litte hacky, but we need to pass session state as action
+        // input to make it replayable from trace view in the dev ui.
         __genkit__sessionState: { state: getCurrentSession()?.state },
         ...opt.input,
       });
@@ -942,6 +946,8 @@ export class Genkit {
    */
   private configure() {
     const activeRegistry = this.registry;
+    // install the default formats in the registry
+    configureFormats(activeRegistry);
     const plugins = [...(this.options.plugins ?? [])];
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {

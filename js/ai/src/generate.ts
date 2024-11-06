@@ -22,397 +22,30 @@ import {
   z,
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
-import { extractJson } from './extract.js';
-import { generateHelper, GenerateUtilParamSchema } from './generateAction.js';
+import {
+  injectInstructions,
+  resolveFormat,
+  resolveInstructions,
+} from './formats/index.js';
+import { generateHelper, GenerateUtilParamSchema } from './generate/action.js';
+import { GenerateResponseChunk } from './generate/chunk.js';
+import { GenerateResponse } from './generate/response.js';
+import { Message } from './message.js';
 import {
   GenerateRequest,
-  GenerateResponseChunkData,
-  GenerateResponseData,
   GenerationCommonConfigSchema,
-  GenerationUsage,
   MessageData,
   ModelAction,
   ModelArgument,
   ModelMiddleware,
   ModelReference,
-  ModelResponseData,
   Part,
-  ToolDefinition,
-  ToolRequestPart,
-  ToolResponsePart,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
-
-/**
- * Message represents a single role's contribution to a generation. Each message
- * can contain multiple parts (for example text and an image), and each generation
- * can contain multiple messages.
- */
-export class Message<T = unknown> implements MessageData {
-  role: MessageData['role'];
-  content: Part[];
-
-  constructor(message: MessageData) {
-    this.role = message.role;
-    this.content = message.content;
-  }
-
-  /**
-   * If a message contains a `data` part, it is returned. Otherwise, the `output()`
-   * method extracts the first valid JSON object or array from the text contained in
-   * the message and returns it.
-   *
-   * @returns The structured output contained in the message.
-   */
-  get output(): T {
-    return this.data || extractJson<T>(this.text);
-  }
-
-  toolResponseParts(): ToolResponsePart[] {
-    const res = this.content.filter((part) => !!part.toolResponse);
-    return res as ToolResponsePart[];
-  }
-
-  /**
-   * Concatenates all `text` parts present in the message with no delimiter.
-   * @returns A string of all concatenated text parts.
-   */
-  get text(): string {
-    return this.content.map((part) => part.text || '').join('');
-  }
-
-  /**
-   * Returns the first media part detected in the message. Useful for extracting
-   * (for example) an image from a generation expected to create one.
-   * @returns The first detected `media` part in the message.
-   */
-  get media(): { url: string; contentType?: string } | null {
-    return this.content.find((part) => part.media)?.media || null;
-  }
-
-  /**
-   * Returns the first detected `data` part of a message.
-   * @returns The first `data` part detected in the message (if any).
-   */
-  get data(): T | null {
-    return this.content.find((part) => part.data)?.data as T | null;
-  }
-
-  /**
-   * Returns all tool request found in this message.
-   * @returns Array of all tool request found in this message.
-   */
-  get toolRequests(): ToolRequestPart[] {
-    return this.content.filter(
-      (part) => !!part.toolRequest
-    ) as ToolRequestPart[];
-  }
-
-  /**
-   * Converts the Message to a plain JS object.
-   * @returns Plain JS object representing the data contained in the message.
-   */
-  toJSON(): MessageData {
-    return {
-      role: this.role,
-      content: [...this.content],
-    };
-  }
-}
-
-/**
- * GenerateResponse is the result from a `generate()` call and contains one or
- * more generated candidate messages.
- */
-export class GenerateResponse<O = unknown> implements ModelResponseData {
-  /** The generated message. */
-  message?: Message<O>;
-  /** The reason generation stopped for this request. */
-  finishReason: ModelResponseData['finishReason'];
-  /** Additional information about why the model stopped generating, if any. */
-  finishMessage?: string;
-  /** Usage information. */
-  usage: GenerationUsage;
-  /** Provider-specific response data. */
-  custom: unknown;
-  /** The request that generated this response. */
-  request?: GenerateRequest;
-
-  constructor(response: GenerateResponseData, request?: GenerateRequest) {
-    // Check for candidates in addition to message for backwards compatibility.
-    const generatedMessage =
-      response.message || response.candidates?.[0]?.message;
-    if (generatedMessage) {
-      this.message = new Message(generatedMessage);
-    }
-    this.finishReason =
-      response.finishReason || response.candidates?.[0]?.finishReason!;
-    this.finishMessage =
-      response.finishMessage || response.candidates?.[0]?.finishMessage;
-    this.usage = response.usage || {};
-    this.custom = response.custom || {};
-    this.request = request;
-  }
-
-  private get assertMessage(): Message<O> {
-    if (!this.message)
-      throw new Error(
-        'Operation could not be completed because the response does not contain a generated message.'
-      );
-    return this.message;
-  }
-
-  /**
-   * Throws an error if the response does not contain valid output.
-   */
-  assertValid(request?: GenerateRequest): void {
-    if (this.finishReason === 'blocked') {
-      throw new GenerationBlockedError(
-        this,
-        `Generation blocked${this.finishMessage ? `: ${this.finishMessage}` : '.'}`
-      );
-    }
-
-    if (!this.message) {
-      throw new GenerationResponseError(
-        this,
-        `Model did not generate a message. Finish reason: '${this.finishReason}': ${this.finishMessage}`
-      );
-    }
-
-    if (request?.output?.schema || this.request?.output?.schema) {
-      const o = this.output;
-      parseSchema(o, {
-        jsonSchema: request?.output?.schema || this.request?.output?.schema,
-      });
-    }
-  }
-
-  isValid(request?: GenerateRequest): boolean {
-    try {
-      this.assertValid(request);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /**
-   * If the selected candidate's message contains a `data` part, it is returned. Otherwise,
-   * the `output()` method extracts the first valid JSON object or array from the text
-   * contained in the selected candidate's message and returns it.
-   *
-   * @param index The candidate index from which to extract output. If not provided, finds first candidate that conforms to output schema.
-   * @returns The structured output contained in the selected candidate.
-   */
-  get output(): O | null {
-    return this.message?.output || null;
-  }
-
-  /**
-   * Concatenates all `text` parts present in the candidate's message with no delimiter.
-   * @param index The candidate index from which to extract text, defaults to first candidate.
-   * @returns A string of all concatenated text parts.
-   */
-  get text(): string {
-    return this.message?.text || '';
-  }
-
-  /**
-   * Returns the first detected media part in the selected candidate's message. Useful for
-   * extracting (for example) an image from a generation expected to create one.
-   * @param index The candidate index from which to extract media, defaults to first candidate.
-   * @returns The first detected `media` part in the candidate.
-   */
-  get media(): { url: string; contentType?: string } | null {
-    return this.message?.media || null;
-  }
-
-  /**
-   * Returns the first detected `data` part of the selected candidate's message.
-   * @param index The candidate index from which to extract data, defaults to first candidate.
-   * @returns The first `data` part detected in the candidate (if any).
-   */
-  get data(): O | null {
-    return this.message?.data || null;
-  }
-
-  /**
-   * Returns all tool request found in the candidate.
-   * @param index The candidate index from which to extract tool requests, defaults to first candidate.
-   * @returns Array of all tool request found in the candidate.
-   */
-  get toolRequests(): ToolRequestPart[] {
-    return this.message?.toolRequests || [];
-  }
-
-  /**
-   * Appends the message generated by the selected candidate to the messages already
-   * present in the generation request. The result of this method can be safely
-   * serialized to JSON for persistence in a database.
-   * @param index The candidate index to utilize during conversion, defaults to first candidate.
-   * @returns A serializable list of messages compatible with `generate({history})`.
-   */
-  get messages(): MessageData[] {
-    if (!this.request)
-      throw new Error(
-        "Can't construct history for response without request reference."
-      );
-    if (!this.message)
-      throw new Error(
-        "Can't construct history for response without generated message."
-      );
-    return [...this.request?.messages, this.message.toJSON()];
-  }
-
-  get raw(): unknown {
-    return this.raw ?? this.custom;
-  }
-
-  toJSON(): ModelResponseData {
-    const out = {
-      message: this.message?.toJSON(),
-      finishReason: this.finishReason,
-      finishMessage: this.finishMessage,
-      usage: this.usage,
-      custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
-      request: this.request,
-    };
-    if (!out.finishMessage) delete out.finishMessage;
-    if (!out.request) delete out.request;
-    return out;
-  }
-}
-
-export class GenerateResponseChunk<T = unknown>
-  implements GenerateResponseChunkData
-{
-  /** The index of the candidate this chunk corresponds to. */
-  index?: number;
-  /** The content generated in this chunk. */
-  content: Part[];
-  /** Custom model-specific data for this chunk. */
-  custom?: unknown;
-  /** Accumulated chunks for partial output extraction. */
-  accumulatedChunks?: GenerateResponseChunkData[];
-
-  constructor(
-    data: GenerateResponseChunkData,
-    accumulatedChunks?: GenerateResponseChunkData[]
-  ) {
-    this.index = data.index;
-    this.content = data.content || [];
-    this.custom = data.custom;
-    this.accumulatedChunks = accumulatedChunks;
-  }
-
-  /**
-   * Concatenates all `text` parts present in the chunk with no delimiter.
-   * @returns A string of all concatenated text parts.
-   */
-  get text(): string {
-    return this.content.map((part) => part.text || '').join('');
-  }
-
-  /**
-   * Returns the first media part detected in the chunk. Useful for extracting
-   * (for example) an image from a generation expected to create one.
-   * @returns The first detected `media` part in the chunk.
-   */
-  get media(): { url: string; contentType?: string } | null {
-    return this.content.find((part) => part.media)?.media || null;
-  }
-
-  /**
-   * Returns the first detected `data` part of a chunk.
-   * @returns The first `data` part detected in the chunk (if any).
-   */
-  get data(): T | null {
-    return this.content.find((part) => part.data)?.data as T | null;
-  }
-
-  /**
-   * Returns all tool request found in this chunk.
-   * @returns Array of all tool request found in this chunk.
-   */
-  get toolRequests(): ToolRequestPart[] {
-    return this.content.filter(
-      (part) => !!part.toolRequest
-    ) as ToolRequestPart[];
-  }
-
-  /**
-   * Attempts to extract the longest valid JSON substring from the accumulated chunks.
-   * @returns The longest valid JSON substring found in the accumulated chunks.
-   */
-  get output(): T | null {
-    if (!this.accumulatedChunks) return null;
-    const accumulatedText = this.accumulatedChunks
-      .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
-      .join('');
-    return extractJson<T>(accumulatedText, false);
-  }
-
-  toJSON(): GenerateResponseChunkData {
-    return { index: this.index, content: this.content, custom: this.custom };
-  }
-}
-
-export function normalizePart(input: string | Part | Part[]): Part[] {
-  if (typeof input === 'string') {
-    return [{ text: input }];
-  } else if (Array.isArray(input)) {
-    return input;
-  } else {
-    return [input];
-  }
-}
-
-export async function toGenerateRequest(
-  registry: Registry,
-  options: GenerateOptions
-): Promise<GenerateRequest> {
-  const messages: MessageData[] = [];
-  if (options.system) {
-    messages.push({ role: 'system', content: normalizePart(options.system) });
-  }
-  if (options.messages) {
-    messages.push(...options.messages);
-  }
-  if (options.prompt) {
-    messages.push({ role: 'user', content: normalizePart(options.prompt) });
-  }
-  if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
-  }
-  let tools: Action<any, any>[] | undefined;
-  if (options.tools) {
-    tools = await resolveTools(registry, options.tools);
-  }
-
-  const out = {
-    messages,
-    config: options.config,
-    docs: options.docs,
-    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
-    output: {
-      format:
-        options.output?.format ||
-        (options.output?.schema || options.output?.jsonSchema
-          ? 'json'
-          : 'text'),
-      schema: toJsonSchema({
-        schema: options.output?.schema,
-        jsonSchema: options.output?.jsonSchema,
-      }),
-    },
-  };
-  if (!out.output.schema) delete out.output.schema;
-  return out;
-}
+export { GenerateResponse, GenerateResponseChunk };
 
 export interface GenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -427,14 +60,16 @@ export interface GenerateOptions<
   /** Retrieved documents to be used as context for this generation. */
   docs?: DocumentData[];
   /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
-  messages?: MessageData[];
+  messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** Configuration for the generation request. */
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'text' | 'json' | 'media';
+    format?: string;
+    contentType?: string;
+    instructions?: boolean | string;
     schema?: O;
     jsonSchema?: any;
   };
@@ -444,6 +79,63 @@ export interface GenerateOptions<
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
+}
+
+export async function toGenerateRequest(
+  registry: Registry,
+  options: GenerateOptions
+): Promise<GenerateRequest> {
+  const messages: MessageData[] = [];
+  if (options.system) {
+    messages.push({
+      role: 'system',
+      content: Message.parseContent(options.system),
+    });
+  }
+  if (options.messages) {
+    messages.push(...options.messages.map((m) => Message.parseData(m)));
+  }
+  if (options.prompt) {
+    messages.push({
+      role: 'user',
+      content: Message.parseContent(options.prompt),
+    });
+  }
+  if (messages.length === 0) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'at least one message is required in generate request',
+    });
+  }
+  let tools: Action<any, any>[] | undefined;
+  if (options.tools) {
+    tools = await resolveTools(registry, options.tools);
+  }
+
+  const resolvedSchema = toJsonSchema({
+    schema: options.output?.schema,
+    jsonSchema: options.output?.jsonSchema,
+  });
+
+  const resolvedFormat = await resolveFormat(registry, options.output?.format);
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    options?.output?.instructions
+  );
+
+  const out = {
+    messages: injectInstructions(messages, instructions),
+    config: options.config,
+    docs: options.docs,
+    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
+    output: {
+      ...(resolvedFormat?.config || {}),
+      schema: resolvedSchema,
+    },
+  };
+  if (!out.output.schema) delete out.output.schema;
+  return out;
 }
 
 interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -457,20 +149,25 @@ async function resolveModel(
   options: GenerateOptions
 ): Promise<ResolvedModel> {
   let model = options.model;
+  let out: ResolvedModel;
+  let modelId: string;
+
   if (!model) {
-    throw new Error('Model is required.');
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Must supply a `model` to `generate()` calls.',
+    });
   }
   if (typeof model === 'string') {
-    return {
-      modelAction: (await registry.lookupAction(
-        `/model/${model}`
-      )) as ModelAction,
-    };
+    modelId = model;
+    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
   } else if (model.hasOwnProperty('__action')) {
-    return { modelAction: model as ModelAction };
+    modelId = (model as ModelAction).__action.name;
+    out = { modelAction: model as ModelAction };
   } else {
     const ref = model as ModelReference<any>;
-    return {
+    modelId = ref.name;
+    out = {
       modelAction: (await registry.lookupAction(
         `/model/${ref.name}`
       )) as ModelAction,
@@ -480,6 +177,15 @@ async function resolveModel(
       version: ref.version,
     };
   }
+
+  if (!out.modelAction) {
+    throw new GenkitError({
+      status: 'NOT_FOUND',
+      message: `Model ${modelId} not found`,
+    });
+  }
+
+  return out;
 }
 
 export class GenerationResponseError extends GenkitError {
@@ -489,7 +195,7 @@ export class GenerationResponseError extends GenkitError {
   };
 
   constructor(
-    response: GenerateResponse,
+    response: GenerateResponse<any>,
     message: string,
     status?: GenkitError['status'],
     detail?: Record<string, any>
@@ -500,6 +206,59 @@ export class GenerationResponseError extends GenkitError {
     });
     this.detail = { response, ...detail };
   }
+}
+
+async function toolsToActionRefs(
+  registry: Registry,
+  toolOpt?: ToolArgument[]
+): Promise<string[] | undefined> {
+  if (!toolOpt) return;
+
+  let tools: string[] = [];
+
+  for (const t of toolOpt) {
+    if (typeof t === 'string') {
+      tools.push(await resolveFullToolName(registry, t));
+    } else if ((t as Action).__action) {
+      tools.push(
+        `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
+      );
+    } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
+      const promptToolAction = (t as ExecutablePrompt).asTool();
+      tools.push(`/prompt/${promptToolAction.__action.name}`);
+    } else if (t.name) {
+      tools.push(await resolveFullToolName(registry, t.name));
+    } else {
+      throw new Error(`Unable to determine type of tool: ${JSON.stringify(t)}`);
+    }
+  }
+  return tools;
+}
+
+function messagesFromOptions(options: GenerateOptions): MessageData[] {
+  const messages: MessageData[] = [];
+  if (options.system) {
+    messages.push({
+      role: 'system',
+      content: Message.parseContent(options.system),
+    });
+  }
+  if (options.messages) {
+    messages.push(...options.messages);
+  }
+  if (options.prompt) {
+    messages.push({
+      role: 'user',
+      content: Message.parseContent(options.prompt),
+    });
+  }
+  if (messages.length === 0) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'at least one message is required in generate request',
+    });
+  }
+  return messages;
 }
 
 /** A GenerationBlockedError is thrown when a generation is blocked. */
@@ -528,68 +287,30 @@ export async function generate<
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
   const resolvedModel = await resolveModel(registry, resolvedOptions);
-  const model = resolvedModel.modelAction;
-  if (!model) {
-    let modelId: string;
-    if (typeof resolvedOptions.model === 'string') {
-      modelId = resolvedOptions.model;
-    } else if ((resolvedOptions.model as ModelAction)?.__action?.name) {
-      modelId = (resolvedOptions.model as ModelAction).__action.name;
-    } else {
-      modelId = (resolvedOptions.model as ModelReference<any>).name;
-    }
-    throw new Error(`Model ${modelId} not found`);
-  }
 
-  // convert tools to action refs (strings).
-  let tools: (string | ToolDefinition)[] | undefined;
-  if (resolvedOptions.tools) {
-    tools = [];
-    for (const t of resolvedOptions.tools) {
-      if (typeof t === 'string') {
-        tools.push(await resolveFullToolName(registry, t));
-      } else if ((t as Action).__action) {
-        tools.push(
-          `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
-        );
-      } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
-        const promptToolAction = (t as ExecutablePrompt).asTool();
-        tools.push(`/prompt/${promptToolAction.__action.name}`);
-      } else if (t.name) {
-        tools.push(await resolveFullToolName(registry, t.name));
-      } else {
-        throw new Error(
-          `Unable to determine type of of tool: ${JSON.stringify(t)}`
-        );
-      }
-    }
-  }
+  const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
 
-  const messages: MessageData[] = [];
-  if (resolvedOptions.system) {
-    messages.push({
-      role: 'system',
-      content: normalizePart(resolvedOptions.system),
-    });
-  }
-  if (resolvedOptions.messages) {
-    messages.push(...resolvedOptions.messages);
-  }
-  if (resolvedOptions.prompt) {
-    messages.push({
-      role: 'user',
-      content: normalizePart(resolvedOptions.prompt),
-    });
-  }
+  const messages: MessageData[] = messagesFromOptions(resolvedOptions);
 
-  if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
-  }
+  const resolvedSchema = toJsonSchema({
+    schema: resolvedOptions.output?.schema,
+    jsonSchema: resolvedOptions.output?.jsonSchema,
+  });
+
+  const resolvedFormat = await resolveFormat(
+    registry,
+    resolvedOptions.output?.format
+  );
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    resolvedOptions?.output?.instructions
+  );
 
   const params: z.infer<typeof GenerateUtilParamSchema> = {
-    model: model.__action.name,
+    model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages,
+    messages: injectInstructions(messages, instructions),
     tools,
     config: {
       version: resolvedModel.version,
@@ -598,12 +319,7 @@ export async function generate<
     },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
-      jsonSchema: resolvedOptions.output.schema
-        ? toJsonSchema({
-            schema: resolvedOptions.output.schema,
-            jsonSchema: resolvedOptions.output.jsonSchema,
-          })
-        : resolvedOptions.output.jsonSchema,
+      jsonSchema: resolvedSchema,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
   };
@@ -616,11 +332,14 @@ export async function generate<
         params,
         resolvedOptions.use
       );
-      return new GenerateResponse<O>(
-        response,
-        response.request ??
-          (await toGenerateRequest(registry, { ...resolvedOptions, tools }))
-      );
+      const request = await toGenerateRequest(registry, {
+        ...resolvedOptions,
+        tools,
+      });
+      return new GenerateResponse<O>(response, {
+        request: response.request ?? request,
+        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+      });
     }
   );
 }
@@ -707,10 +426,19 @@ export async function generateStream<
             ({ resolve: provideNextChunk, promise: nextChunk } =
               createPromise<GenerateResponseChunk | null>());
           },
-        }).then((result) => {
-          provideNextChunk(null);
-          finalResolve(result);
-        });
+        })
+          .then((result) => {
+            provideNextChunk(null);
+            finalResolve(result);
+          })
+          .catch((e) => {
+            if (!firstChunkSent) {
+              initialReject(e);
+              return;
+            }
+            provideNextChunk(null);
+            finalReject(e);
+          });
       } catch (e) {
         if (!firstChunkSent) {
           initialReject(e);

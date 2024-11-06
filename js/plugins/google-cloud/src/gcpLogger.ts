@@ -15,6 +15,7 @@
  */
 
 import { LoggingWinston } from '@google-cloud/logging-winston';
+import { getCurrentEnv } from 'genkit';
 import { logger } from 'genkit/logging';
 import { Writable } from 'stream';
 import { GcpTelemetryConfig } from './types';
@@ -56,6 +57,7 @@ export class GcpLogger {
             prefix: 'genkit',
             logName: 'genkit_log',
             credentials: this.config.credentials,
+            autoRetry: true,
             defaultCallback: await this.getErrorHandler(),
           })
         : new winston.transports.Console()
@@ -68,6 +70,7 @@ export class GcpLogger {
     return winston.createLogger({
       transports: transports,
       ...format,
+      exceptionHandlers: [new winston.transports.Console()],
     });
   }
 
@@ -76,7 +79,7 @@ export class GcpLogger {
     let instructionsLogged = false;
     let helpInstructions = await loggingDeniedHelpText();
 
-    return (err: Error | null) => {
+    return async (err: Error | null) => {
       // Use the defaultLogger so that logs don't get swallowed by
       // the open telemetry exporter
       const defaultLogger = logger.defaultLogger;
@@ -89,6 +92,15 @@ export class GcpLogger {
         }
       } else if (err) {
         defaultLogger.error(`Unable to send logs to Google Cloud: ${err}`);
+      }
+
+      if (err) {
+        // Assume the logger is compromised, and we need a new one
+        // Reinitialize the genkit logger with a new instance with the same config
+        logger.init(
+          await new GcpLogger(this.config).getLogger(getCurrentEnv())
+        );
+        defaultLogger.info('Initialized a new GcpLogger.');
       }
     };
   }

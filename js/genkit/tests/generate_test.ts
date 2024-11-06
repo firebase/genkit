@@ -18,7 +18,7 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
 import { Genkit, genkit } from '../src/genkit';
-import { defineEchoModel } from './helpers';
+import { defineEchoModel, runAsync } from './helpers';
 
 describe('generate', () => {
   describe('default model', () => {
@@ -91,7 +91,7 @@ describe('generate', () => {
     });
   });
 
-  describe('default model', () => {
+  describe('explicit model', () => {
     let ai: Genkit;
 
     beforeEach(() => {
@@ -105,6 +105,71 @@ describe('generate', () => {
         prompt: 'hi',
       });
       assert.strictEqual(response.text, 'Echo: hi; config: {}');
+    });
+  });
+
+  describe('streaming', () => {
+    let ai: Genkit;
+
+    beforeEach(() => {
+      ai = genkit({});
+    });
+
+    it('rethrows errors', async () => {
+      ai.defineModel(
+        {
+          name: 'blockingModel',
+        },
+        async (request, streamingCallback) => {
+          if (streamingCallback) {
+            await runAsync(() => {
+              streamingCallback({
+                content: [
+                  {
+                    text: '3',
+                  },
+                ],
+              });
+            });
+            await runAsync(() => {
+              streamingCallback({
+                content: [
+                  {
+                    text: '2',
+                  },
+                ],
+              });
+            });
+            await runAsync(() => {
+              streamingCallback({
+                content: [
+                  {
+                    text: '1',
+                  },
+                ],
+              });
+            });
+          }
+          return await runAsync(() => ({
+            message: {
+              role: 'model',
+              content: [],
+            },
+            finishReason: 'blocked',
+          }));
+        }
+      );
+
+      assert.rejects(async () => {
+        const { response, stream } = await ai.generateStream({
+          prompt: 'hi',
+          model: 'blockingModel',
+        });
+        for await (const chunk of stream) {
+          // nothing
+        }
+        await response;
+      });
     });
   });
 

@@ -26,11 +26,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
-import {
-  augmentWithContext,
-  conformOutput,
-  validateSupport,
-} from './model/middleware.js';
+import { augmentWithContext, validateSupport } from './model/middleware.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -121,8 +117,6 @@ export const MessageSchema = z.object({
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
-const OutputFormatSchema = z.enum(['json', 'text', 'media']);
-
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
   versions: z.array(z.string()).optional(),
@@ -140,7 +134,9 @@ export const ModelInfoSchema = z.object({
       /** Model can accept messages with role "system". */
       systemRole: z.boolean().optional(),
       /** Model can output this type of data. */
-      output: z.array(OutputFormatSchema).optional(),
+      output: z.array(z.string()).optional(),
+      /** Model supports output in these content types. */
+      contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
     })
@@ -184,8 +180,11 @@ export const GenerationCommonConfigSchema = z.object({
 export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 
 const OutputConfigSchema = z.object({
-  format: OutputFormatSchema.optional(),
+  format: z.string().optional(),
   schema: z.record(z.any()).optional(),
+  constrained: z.boolean().optional(),
+  instructions: z.string().optional(),
+  contentType: z.string().optional(),
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
@@ -344,7 +343,7 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  middleware.push(conformOutput());
+  // middleware.push(conformOutput(registry));
   const act = defineAction(
     registry,
     {

@@ -24,12 +24,14 @@ import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
-import { DocumentDataSchema } from './document.js';
+import { DocumentDataSchema } from '../document.js';
+import { resolveFormat } from '../formats/index.js';
+import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
   tagAsPreamble,
-} from './generate.js';
+} from '../generate.js';
 import {
   GenerateRequest,
   GenerateRequestSchema,
@@ -42,8 +44,8 @@ import {
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
-} from './model.js';
-import { lookupToolByName, ToolAction, toToolDefinition } from './tool.js';
+} from '../model.js';
+import { lookupToolByName, ToolAction, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -59,9 +61,9 @@ export const GenerateUtilParamSchema = z.object({
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output: z
     .object({
-      format: z
-        .union([z.literal('text'), z.literal('json'), z.literal('media')])
-        .optional(),
+      format: z.string().optional(),
+      contentType: z.string().optional(),
+      instructions: z.union([z.boolean(), z.string()]).optional(),
       jsonSchema: z.any().optional(),
     })
     .optional(),
@@ -133,7 +135,16 @@ async function generate(
       })
     );
   }
-  const request = await actionToGenerateRequest(rawRequest, tools);
+
+  const resolvedFormat = rawRequest.output?.format
+    ? await resolveFormat(registry, rawRequest.output?.format)
+    : undefined;
+
+  const request = await actionToGenerateRequest(
+    rawRequest,
+    tools,
+    resolvedFormat
+  );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
@@ -142,12 +153,18 @@ async function generate(
     streamingCallback
       ? (chunk: GenerateResponseChunkData) => {
           // Store accumulated chunk data
-          accumulatedChunks.push(chunk);
           if (streamingCallback) {
             streamingCallback!(
-              new GenerateResponseChunk(chunk, accumulatedChunks)
+              new GenerateResponseChunk(chunk, {
+                index: 0,
+                role: 'model',
+                previousChunks: accumulatedChunks,
+                parser: resolvedFormat?.handler(request.output?.schema)
+                  .parseChunk,
+              })
             );
           }
+          accumulatedChunks.push(chunk);
         }
       : undefined,
     async () => {
@@ -166,7 +183,10 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), request);
+      return new GenerateResponse(await dispatch(0, request), {
+        request,
+        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+      });
     }
   );
 
@@ -234,7 +254,8 @@ async function generate(
 
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[]
+  resolvedTools?: ToolAction[],
+  resolvedFormat?: Formatter
 ): Promise<GenerateRequest> {
   const out = {
     messages: options.messages,
@@ -242,9 +263,7 @@ async function actionToGenerateRequest(
     docs: options.docs,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.jsonSchema ? 'json' : 'text'),
+      ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({
         jsonSchema: options.output?.jsonSchema,
       }),

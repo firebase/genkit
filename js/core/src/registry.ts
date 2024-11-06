@@ -63,6 +63,7 @@ export class Registry {
   private actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
   private pluginsByName: Record<string, PluginProvider> = {};
   private schemasByName: Record<string, Schema> = {};
+  private valueByTypeAndName: Record<string, Record<string, any>> = {};
   private allPluginsInitialized = false;
 
   constructor(public parent?: Registry) {}
@@ -193,6 +194,35 @@ export class Registry {
       throw new Error(`Schema ${name} already registered`);
     }
     this.schemasByName[name] = data;
+  }
+
+  registerValue(type: string, name: string, value: any) {
+    if (!this.valueByTypeAndName[type]) {
+      this.valueByTypeAndName[type] = {};
+    }
+    this.valueByTypeAndName[type][name] = value;
+  }
+
+  async lookupValue<T = unknown>(
+    type: string,
+    key: string
+  ): Promise<T | undefined> {
+    const pluginName = parsePluginName(key);
+    if (!this.valueByTypeAndName[type]?.[key] && pluginName) {
+      await this.initializePlugin(pluginName);
+    }
+    return (
+      (this.valueByTypeAndName[type]?.[key] as T) ||
+      this.parent?.lookupValue(type, key)
+    );
+  }
+
+  async listValues<T>(type: string): Promise<Record<string, T>> {
+    await this.initializeAllPlugins();
+    return {
+      ...((await this.parent?.listValues(type)) || {}),
+      ...(this.valueByTypeAndName[type] || {}),
+    } as Record<string, T>;
   }
 
   /**

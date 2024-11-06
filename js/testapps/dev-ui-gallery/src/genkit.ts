@@ -26,9 +26,12 @@ import {
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
+import { logger } from 'genkit/logging';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
+
+logger.setLogLevel('info');
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -57,9 +60,7 @@ export const ai = genkit({
   // load at least one plugin representing each action type
   plugins: [
     // model providers
-    googleAI({
-      apiVersion: ['v1', 'v1beta'],
-    }),
+    googleAI(),
     ollama({
       models: [
         { name: 'llama2' },

@@ -42,7 +42,7 @@ const API_BASE_PATH = '/api';
 /**
  * Starts up the Genkit Tools server which includes static files for the UI and the Tools API.
  */
-export async function startServer(manager: RuntimeManager, port: number) {
+export function startServer(manager: RuntimeManager, port: number) {
   let server: Server;
   const app = express();
 
@@ -77,6 +77,36 @@ export async function startServer(manager: RuntimeManager, port: number) {
     });
     res.write(JSON.stringify(result));
     res.end();
+  });
+
+  // General purpose endpoint for Server Side Events to the Developer UI.
+  // Currently only event type "current-time" is supported, which notifies the
+  // subsriber of the currently selected Genkit Runtime (typically most recent).
+  app.get('/api/sse', async (_, res) => {
+    res.writeHead(200, {
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+      'Content-Type': 'text/event-stream',
+      Connection: 'keep-alive',
+    });
+
+    // On connection, immediately send the "current" runtime (i.e. most recent)
+    const runtimeInfo = JSON.stringify(manager.getMostRecentRuntime() ?? {});
+    res.write('event: current-runtime\n');
+    res.write(`data: ${runtimeInfo}\n\n`);
+
+    // When runtimes are added or removed, notify the Dev UI which runtime
+    // is considered "current" (i.e. most recent). In the future, we could send
+    // updates and let the developer decide which to use.
+    manager.onRuntimeEvent(() => {
+      const runtimeInfo = JSON.stringify(manager.getMostRecentRuntime() ?? {});
+      res.write('event: current-runtime\n');
+      res.write(`data: ${runtimeInfo}\n\n`);
+    });
+
+    res.on('close', () => {
+      res.end();
+    });
   });
 
   app.get('/api/__health', (_, res) => {
@@ -127,5 +157,9 @@ export async function startServer(manager: RuntimeManager, port: number) {
   server = app.listen(port, () => {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
+  });
+
+  return new Promise<void>((resolve) => {
+    server.once('close', resolve);
   });
 }
