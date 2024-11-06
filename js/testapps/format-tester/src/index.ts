@@ -15,14 +15,24 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+import {
+  claude35Sonnet,
+  claude35SonnetV2,
+  vertexAI,
+} from '@genkit-ai/vertexai';
 import { CallableFlow, GenerateOptions, genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 
 logger.setLogLevel('debug');
 
 const ai = genkit({
-  plugins: [googleAI(), vertexAI()],
+  plugins: [
+    googleAI(),
+    vertexAI({
+      location: 'us-east5',
+      modelGarden: { models: [claude35Sonnet, claude35SonnetV2] },
+    }),
+  ],
 });
 
 function formatFlow(name: string, options: GenerateOptions) {
@@ -34,26 +44,28 @@ function formatFlow(name: string, options: GenerateOptions) {
     async (model) => {
       console.log('\n===', name, 'with model', model);
       options.model = model;
-      options.config = {
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_NONE',
-          },
-        ],
-      };
+      if (model.includes('gemini')) {
+        options.config = {
+          safetySettings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              threshold: 'BLOCK_NONE',
+            },
+          ],
+        };
+      }
       const { stream, response } = await ai.generateStream(options);
       for await (const chunk of stream) {
         console.log('text:', chunk.text);
@@ -128,15 +140,19 @@ for (const format in prompts) {
   flows.push(formatFlow(format, prompts[format]));
 }
 
-async function main() {
-  const fails: { model: string; flow: string; error: string }[] = [];
-
-  for (const model of [
+let models = process.argv.slice(2);
+if (!models.length) {
+  models = [
     'vertexai/gemini-1.5-pro',
     'vertexai/gemini-1.5-flash',
     'googleai/gemini-1.5-pro',
     'googleai/gemini-1.5-flash',
-  ]) {
+  ];
+}
+
+async function main() {
+  const fails: { model: string; flow: string; error: string }[] = [];
+  for (const model of models) {
     for (const flow of flows) {
       try {
         await flow(model);
