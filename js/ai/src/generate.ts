@@ -224,7 +224,7 @@ async function toolsToActionRefs(
         `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
       );
     } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
-      const promptToolAction = (t as ExecutablePrompt).asTool();
+      const promptToolAction = await (t as ExecutablePrompt).asTool();
       tools.push(`/prompt/${promptToolAction.__action.name}`);
     } else if (t.name) {
       tools.push(await resolveFullToolName(registry, t.name));

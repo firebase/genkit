@@ -272,29 +272,33 @@ export class Genkit {
    *
    * @todo TODO: Show an example of a name and variant.
    */
-  async prompt<
+  prompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     name: string,
     options?: { variant?: string }
-  ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
-    // check the registry first as not all prompt types can be
-    // loaded by dotprompt (e.g. functional)
-    let action = (await this.registry.lookupAction(
-      `/prompt/${name}`
-    )) as PromptAction<I>;
-    // nothing in registry - check for dotprompt file.
-    if (!action) {
-      action = (await prompt(this.registry, name, options))
-        .promptAction as PromptAction<I>;
-    }
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+    const actionPromise = (async () => {
+      // check the registry first as not all prompt types can be
+      // loaded by dotprompt (e.g. functional)
+      let action = (await this.registry.lookupAction(
+        `/prompt/${name}`
+      )) as PromptAction<I>;
+      // nothing in registry - check for dotprompt file.
+      if (!action) {
+        action = (await prompt(this.registry, name, options))
+          .promptAction as PromptAction<I>;
+      }
+      const { template, ...opts } = action.__action.metadata!.prompt;
+      return { action, opts };
+    })();
+
     // make sure we get configuration such as model name if applicable
-    const { template, ...opts } = action.__action.metadata!.prompt;
     return this.wrapPromptActionInExecutablePrompt(
-      action as PromptAction<I>,
-      opts
+      actionPromise.then(({ action }) => action),
+      actionPromise.then(({ opts }) => opts)
     ) as ExecutablePrompt<I, O, CustomOptions>;
   }
 
@@ -422,8 +426,10 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    p: PromptAction<I>,
-    options: Partial<PromptMetadata<I, CustomOptions>>
+    promptAction: PromptAction<I> | Promise<PromptAction<I>>,
+    options:
+      | Partial<PromptMetadata<I, CustomOptions>>
+      | Promise<Partial<PromptMetadata<I, CustomOptions>>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
@@ -473,11 +479,13 @@ export class Genkit {
       opt: PromptGenerateOptions<I, CustomOptions>
     ): Promise<GenerateOptions<CustomOptions, Out>> => {
       let model: ModelAction | undefined;
+      options = await options;
       try {
         model = await this.resolveModel(opt?.model ?? options.model);
       } catch (e) {
         // ignore, no model on a render is OK?
       }
+      const p = await promptAction;
       const promptResult = await p({
         // this feels a litte hacky, but we need to pass session state as action
         // input to make it replayable from trace view in the dev ui.
@@ -506,8 +514,8 @@ export class Genkit {
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
-      (): ToolAction<I, O> => {
-        return p as unknown as ToolAction<I, O>;
+      async (): Promise<ToolAction<I, O>> => {
+        return (await promptAction) as unknown as ToolAction<I, O>;
       };
     return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
   }

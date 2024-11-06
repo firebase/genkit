@@ -39,11 +39,11 @@ const MenuItemSchema = ai.defineSchema(
 
 async function fn02() {
   // [START loadPrompt]
-  const helloPrompt = await ai.prompt('hello');
+  const helloPrompt = ai.prompt('hello');
   // [END loadPrompt]
 
   // [START loadPromptVariant]
-  const myPrompt = await ai.prompt('my_prompt', { variant: 'gemini15pro' });
+  const myPrompt = ai.prompt('my_prompt', { variant: 'gemini15pro' });
   // [END loadPromptVariant]
 
   // [START callPrompt]
@@ -70,7 +70,7 @@ async function fn02() {
 }
 
 async function fn03() {
-  const helloPrompt = await ai.prompt('hello');
+  const helloPrompt = ai.prompt('hello');
 
   // [START callPromptCfg]
   const response3 = await helloPrompt(
@@ -91,7 +91,7 @@ async function fn03() {
 async function fn04() {
   // [START outSchema]
   // [START inSchema]
-  const menuPrompt = await ai.prompt('menu');
+  const menuPrompt = ai.prompt('menu');
   const { data } = await menuPrompt({ theme: 'medieval' });
   // [END inSchema]
 
@@ -102,7 +102,7 @@ async function fn04() {
 
 async function fn05() {
   // [START outSchema2]
-  const menuPrompt = await ai.prompt<
+  const menuPrompt = ai.prompt<
     z.ZodTypeAny, // Input schema
     typeof MenuItemSchema, // Output schema
     z.ZodTypeAny // Custom options schema
@@ -117,7 +117,7 @@ async function fn05() {
 
 async function fn06() {
   // [START multiTurnPrompt]
-  const multiTurnPrompt = await ai.prompt('multiTurnPrompt');
+  const multiTurnPrompt = ai.prompt('multiTurnPrompt');
   const result = await multiTurnPrompt({
     messages: [
       { role: 'user', content: [{ text: 'Hello.' }] },
@@ -129,7 +129,7 @@ async function fn06() {
 
 async function fn07() {
   // [START multiModalPrompt]
-  const multimodalPrompt = await ai.prompt('multimodal');
+  const multimodalPrompt = ai.prompt('multimodal');
   const { text } = await multimodalPrompt({
     photoUrl: 'https://example.com/photo.jpg',
   });

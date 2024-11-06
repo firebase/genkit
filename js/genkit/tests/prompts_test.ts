@@ -111,7 +111,7 @@ describe('definePrompt - dotprompt', () => {
         'hi {{ name }}'
       );
 
-      const hi = await ai.prompt('hi');
+      const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -256,7 +256,7 @@ describe('definePrompt - dotprompt', () => {
         'hi {{ name }}'
       );
 
-      const hi = await ai.prompt('hi');
+      const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -442,7 +442,7 @@ describe('definePrompt', () => {
         }
       );
 
-      const hi = await ai.prompt('hi');
+      const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -747,7 +747,7 @@ describe('prompt', () => {
   });
 
   it('loads from from the folder', async () => {
-    const testPrompt = await ai.prompt('test'); // see tests/prompts folder
+    const testPrompt = ai.prompt('test'); // see tests/prompts folder
 
     const { text } = await testPrompt();
 
@@ -777,7 +777,7 @@ describe('prompt', () => {
         };
       }
     );
-    const testPrompt = await ai.prompt('hi');
+    const testPrompt = ai.prompt('hi');
     const { text } = await testPrompt({ name: 'banana' });
 
     assert.strictEqual(text, 'Echo: hi banana; config: {"temperature":11}');
