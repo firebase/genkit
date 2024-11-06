@@ -30,7 +30,7 @@ interface RunOptions {
 export const start = new Command('start')
   .description('runs a command in Genkit dev mode')
   .option('-n, --noui', 'do not start the Dev UI', false)
-  .option('-p, --port', 'port for the dev ui')
+  .option('-p, --port', 'port for the Dev UI')
   .action(async (options: RunOptions) => {
 
     let processPromise = Promise.resolve();
