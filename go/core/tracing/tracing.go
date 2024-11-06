@@ -119,6 +119,7 @@ func RunInNewSpan[I, O any](
 	if err != nil {
 		sm.State = spanStateError
 		span.SetStatus(codes.Error, err.Error())
+		sm.Output = err.Error()
 		return base.Zero[O](), err
 	}
 	// TODO: the typescript code checks if sm.State == error here. Can that happen?
