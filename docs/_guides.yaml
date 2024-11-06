@@ -31,6 +31,8 @@ toc:
     path: /docs/genkit/flows
   - title: Managing prompts with Dotprompt
     path: /docs/genkit/dotprompt
+  - title: Persistent chat sessions
+    path: /docs/genkit/chat
   - title: Tool calling
     path: /docs/genkit/tool-calling
   - title: Retrieval-augmented generation (RAG)
