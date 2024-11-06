@@ -1,9 +1,8 @@
-## Genkit 0.9 - Migration Guide
+# Migrating from 0.6
 
-### Introduction
 Genkit 0.9 introduces a number of breaking changes alongside feature enhancements that improve overall functionality. If you have been developing applications with Genkit 0.5, you will need to update your application code when you upgrade to the latest version. This guide outlines the most significant changes and offers steps to migrate your existing applications smoothly.
 
-### 1. CLI Changes
+## 1. CLI Changes
 The command-line interface (CLI) has undergone significant updates in Genkit 0.9. The command to start Genkit has changed, and the CLI has been separated into its own standalone package, which you now need to install separately.
 
 To install the CLI:
@@ -34,7 +33,7 @@ Starting the flow server this way makes it easier for you to attach a debugger t
 
 The Dev UI will interact directly with the flow server to figure out which flows are registered and allow you to invoke them directly with sample inputs.
 
-### 2. Simplified packages and imports 
+## 2. Simplified packages and imports 
 Previously, the Genkit libraries were separated into several modules, which you needed to install and import individually. These modules have now been consolidated into a single import. In addition, the Zod module is now re-exported by Genkit.
 
 **Old:**
@@ -61,7 +60,7 @@ import { genkit, z } from 'genkit';
 ```
 Genkit plugins still must be installed and imported individually.
 
-### 3. Configuring Genkit
+## 3. Configuring Genkit
 Previously, initializing Genkit was done once globally by calling the `configureGenkit` function. Genkit resources (flows, tools, prompts, etc.) would all automatically be wired with this global configuration.
 
 Genkit 0.9 introduces Genkit instances, each of which encapsulates a configuration. See the following examples:
@@ -94,7 +93,7 @@ Let’s break it down:
 - Genkit initialization function now lives in the `genkit` package.
 - Logging and telemetry are still configured globally using their own explicit methods. These configurations apply uniformly across all genkit instances.
 
-### 4. Defining flows and starting the flow server explicitly
+## 4. Defining flows and starting the flow server explicitly
 Now that you have a configured genkit instance, you will need to define your flows. All core developer-facing API methods like `defineFlow`, `defineTool`, and `onFlow` are now invoked through this instance.
 
 This is distinct from the previous way, where flows and tools were registered globally.
@@ -126,7 +125,7 @@ ai.startFlowServer({flows});
 
 As of now, all flows that you want to make available need to be explicitly registered in the `flows` array above.
 
-### 5. Tools and Prompts must be statically defined 
+## 5. Tools and Prompts must be statically defined 
 In earlier versions of Genkit, you could dynamically define tools and prompts at runtime, directly from within a flow.
 
 In Genkit 0.9, this behavior is no longer allowed. Instead, you need to define all actions and flows outside of the flow’s execution (i.e. statically).
@@ -152,7 +151,7 @@ const flow = ai.defineFlow({...}, async (input) => {
 });
 ```
 
-### 6. New API for Streaming Flows
+## 6. New API for Streaming Flows
 In Genkit 0.9, we have simplified the syntax for defining a streaming flow and invoking it. 
 
 First, `defineFlow` and `defineStreamingFlow` have been separated. If you have a flow that is meant to be streamed, you will have to update your code to define it via `defineStreamingFlow`.
@@ -185,7 +184,7 @@ for await (const chunk of stream) {
 console.log(await response);
 ```
 
-### 7. GenerateResponse class methods replaced with getter properties
+## 7. GenerateResponse class methods replaced with getter properties
 Previously, you used to access the structured output or text of the response using class methods, like `output()` or `text()`.
 
 In Genkit 0.9, those methods have been replaced by getter properties. This simplifies working with responses.
@@ -213,7 +212,7 @@ console.log(response.output());
 console.log(response.output);
 ```
 
-### 8. Candidate Generation Eliminated
+## 8. Candidate Generation Eliminated
 Genkit 0.9 simplifies response handling by removing the `candidates` attribute. Previously, responses could contain multiple candidates, which you needed to handle explicitly. Now, only the first candidate is returned directly in a flat response. 
 
 Any code that accesses the candidates directly will not work anymore.
@@ -234,7 +233,7 @@ const response = await ai.generate({
 console.log(response.message); // single candidate is returned directly in a flat response
 ```
 
-### 9. Generate API - Multi-Turn enhancements
+## 9. Generate API - Multi-Turn enhancements
 For multi-turn conversations, the old `toHistory()` method has been replaced by `messages`, further simplifying how conversation history is handled.
 
 **Old:**
@@ -250,7 +249,7 @@ const response = await ai.generate({
 const history = response.messages;
 ```
 
-### 10. Streamlined Chat API
+## 10. Streamlined Chat API
 In Genkit 0.9, the Chat API has been redesigned for easier session management and interaction. Here’s how you can leverage it for both synchronous and streaming chat experiences:
 
 ```js
