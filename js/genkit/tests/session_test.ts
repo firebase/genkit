@@ -347,7 +347,7 @@ describe('session', () => {
         foo: 'bar',
       },
     });
-    const chat = session.chat({ prompt: agent });
+    const chat = session.chat({ preamble: agent });
     const respose = await chat.send('hi');
     assert.deepStrictEqual(respose.messages, [
       {

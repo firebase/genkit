@@ -168,9 +168,9 @@ export class Session<S = any> {
         }
       }
       let requestBase: Promise<BaseGenerateOptions>;
-      if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
+      if (!!(options as PromptRenderOptions<I>)?.preamble?.render) {
         const renderOptions = options as PromptRenderOptions<I>;
-        requestBase = renderOptions.prompt
+        requestBase = renderOptions.preamble
           .render({
             input: renderOptions.input,
           })
