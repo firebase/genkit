@@ -32,9 +32,9 @@ export const start = new Command('start')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port', 'port for the Dev UI')
   .action(async (options: RunOptions) => {
-    let processPromise = Promise.resolve();
+    let runtimePromise = Promise.resolve();
     if (start.args.length > 0) {
-      processPromise = new Promise((urlResolver, reject) => {
+      runtimePromise = new Promise((urlResolver, reject) => {
         const appProcess = spawn(start.args[0], start.args.slice(1), {
           env: { ...process.env, GENKIT_ENV: 'dev' },
         });
@@ -73,5 +73,5 @@ export const start = new Command('start')
       );
     }
 
-    await Promise.all([processPromise, uiPromise]);
+    await Promise.all([runtimePromise, uiPromise]);
   });
