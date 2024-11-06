@@ -17,58 +17,48 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { enumFormatter } from '../../src/formats/enum.js';
-import { GenerateResponse } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { MessageData } from '../../src/model.js';
 
 describe('enumFormat', () => {
-  const responseTests = [
+  const messageTests = [
     {
       desc: 'parses simple enum value',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: 'VALUE1' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: 'VALUE1' }],
+      },
       want: 'VALUE1',
     },
     {
       desc: 'trims whitespace',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '  VALUE2\n' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '  VALUE2\n' }],
+      },
       want: 'VALUE2',
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = enumFormatter.handler({ messages: [] });
-      assert.strictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = enumFormatter.handler();
+      assert.strictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
 
   const errorTests = [
     {
       desc: 'throws error for number schema type',
-      request: {
-        messages: [],
-        output: {
-          schema: { type: 'number' },
-        },
-      },
+      schema: { type: 'number' },
       wantError: /Must supply a 'string' or 'enum' schema type/,
     },
     {
       desc: 'throws error for array schema type',
-      request: {
-        messages: [],
-        output: {
-          schema: { type: 'array' },
-        },
-      },
+      schema: { type: 'array' },
       wantError: /Must supply a 'string' or 'enum' schema type/,
     },
   ];
@@ -76,7 +66,7 @@ describe('enumFormat', () => {
   for (const et of errorTests) {
     it(et.desc, () => {
       assert.throws(() => {
-        enumFormatter.handler(et.request);
+        enumFormatter.handler(et.schema);
       }, et.wantError);
     });
   }

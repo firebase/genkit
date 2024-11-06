@@ -66,6 +66,7 @@ import {
   EvaluatorAction,
   EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
+import { configureFormats } from '@genkit-ai/ai/formats';
 import {
   defineModel,
   DefineModelOptions,
@@ -945,6 +946,8 @@ export class Genkit {
    */
   private configure() {
     const activeRegistry = this.registry;
+    // install the default formats in the registry
+    configureFormats(activeRegistry);
     const plugins = [...(this.options.plugins ?? [])];
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {

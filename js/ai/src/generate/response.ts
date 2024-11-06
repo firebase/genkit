@@ -19,7 +19,7 @@ import {
   GenerationBlockedError,
   GenerationResponseError,
 } from '../generate.js';
-import { Message } from '../message.js';
+import { Message, MessageParser } from '../message.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -46,13 +46,23 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   custom: unknown;
   /** The request that generated this response. */
   request?: GenerateRequest;
+  /** The parser for output parsing of this response. */
+  parser?: MessageParser<O>;
 
-  constructor(response: GenerateResponseData, request?: GenerateRequest) {
+  constructor(
+    response: GenerateResponseData,
+    options?: {
+      request?: GenerateRequest;
+      parser?: MessageParser<O>;
+    }
+  ) {
     // Check for candidates in addition to message for backwards compatibility.
     const generatedMessage =
       response.message || response.candidates?.[0]?.message;
     if (generatedMessage) {
-      this.message = new Message(generatedMessage);
+      this.message = new Message<O>(generatedMessage, {
+        parser: options?.parser,
+      });
     }
     this.finishReason =
       response.finishReason || response.candidates?.[0]?.finishReason!;
@@ -60,7 +70,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       response.finishMessage || response.candidates?.[0]?.finishMessage;
     this.usage = response.usage || {};
     this.custom = response.custom || {};
-    this.request = request;
+    this.request = options?.request;
   }
 
   private get assertMessage(): Message<O> {

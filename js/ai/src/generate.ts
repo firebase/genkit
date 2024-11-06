@@ -24,6 +24,11 @@ import {
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
+import {
+  injectInstructions,
+  resolveFormat,
+  resolveInstructions,
+} from './formats/index.js';
 import { generateHelper, GenerateUtilParamSchema } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
@@ -62,7 +67,9 @@ export interface GenerateOptions<
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'json' | 'text' | 'media';
+    format?: string;
+    contentType?: string;
+    instructions?: boolean | string;
     schema?: O;
     jsonSchema?: any;
   };
@@ -95,28 +102,36 @@ export async function toGenerateRequest(
     });
   }
   if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'at least one message is required in generate request',
+    });
   }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
     tools = await resolveTools(registry, options.tools);
   }
 
+  const resolvedSchema = toJsonSchema({
+    schema: options.output?.schema,
+    jsonSchema: options.output?.jsonSchema,
+  });
+
+  const resolvedFormat = await resolveFormat(registry, options.output?.format);
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    options?.output?.instructions
+  );
+
   const out = {
-    messages,
+    messages: injectInstructions(messages, instructions),
     config: options.config,
     docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.schema || options.output?.jsonSchema
-          ? 'json'
-          : 'text'),
-      schema: toJsonSchema({
-        schema: options.output?.schema,
-        jsonSchema: options.output?.jsonSchema,
-      }),
+      ...(resolvedFormat?.config || {}),
+      schema: resolvedSchema,
     },
   };
   if (!out.output.schema) delete out.output.schema;
@@ -180,7 +195,7 @@ export class GenerationResponseError extends GenkitError {
   };
 
   constructor(
-    response: GenerateResponse,
+    response: GenerateResponse<any>,
     message: string,
     status?: GenkitError['status'],
     detail?: Record<string, any>
@@ -277,10 +292,25 @@ export async function generate<
 
   const messages: MessageData[] = messagesFromOptions(resolvedOptions);
 
+  const resolvedSchema = toJsonSchema({
+    schema: resolvedOptions.output?.schema,
+    jsonSchema: resolvedOptions.output?.jsonSchema,
+  });
+
+  const resolvedFormat = await resolveFormat(
+    registry,
+    resolvedOptions.output?.format
+  );
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    resolvedOptions?.output?.instructions
+  );
+
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages,
+    messages: injectInstructions(messages, instructions),
     tools,
     config: {
       version: resolvedModel.version,
@@ -289,12 +319,7 @@ export async function generate<
     },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
-      jsonSchema: resolvedOptions.output.schema
-        ? toJsonSchema({
-            schema: resolvedOptions.output.schema,
-            jsonSchema: resolvedOptions.output.jsonSchema,
-          })
-        : resolvedOptions.output.jsonSchema,
+      jsonSchema: resolvedSchema,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
   };
@@ -307,11 +332,14 @@ export async function generate<
         params,
         resolvedOptions.use
       );
-      return new GenerateResponse<O>(
-        response,
-        response.request ??
-          (await toGenerateRequest(registry, { ...resolvedOptions, tools }))
-      );
+      const request = await toGenerateRequest(registry, {
+        ...resolvedOptions,
+        tools,
+      });
+      return new GenerateResponse<O>(response, {
+        request: response.request ?? request,
+        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+      });
     }
   );
 }

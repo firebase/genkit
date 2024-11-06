@@ -27,7 +27,7 @@ import {
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -344,9 +344,9 @@ function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
 
 // Converts vertex part to genkit part
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
-  }
+  // if (jsonMode && part.text !== undefined) {
+  //   return { data: JSON.parse(part.text) };
+  // }
   if (part.text !== undefined) return { text: part.text };
   if (part.functionCall) return fromGeminiFunctionCallPart(part);
   if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
@@ -406,6 +406,20 @@ const convertSchemaProperty = (property) => {
     };
   }
 };
+
+function cleanSchema(schema: JSONSchema): JSONSchema {
+  const out = structuredClone(schema);
+  for (const key in out) {
+    if (key === '$schema' || key === 'additionalProperties') {
+      delete out[key];
+      continue;
+    }
+    if (typeof out[key] === 'object') {
+      out[key] = cleanSchema(out[key]);
+    }
+  }
+  return out;
+}
 
 /**
  * Define a Vertex AI Gemini model.
@@ -493,6 +507,13 @@ export function defineGeminiModel(
         },
         safetySettings: request.config?.safetySettings,
       };
+
+      if (jsonMode && request.output?.constrained) {
+        chatRequest.generationConfig!.responseSchema = cleanSchema(
+          request.output.schema
+        );
+      }
+
       if (request.config?.googleSearchRetrieval) {
         chatRequest.tools?.push({
           googleSearchRetrieval: request.config.googleSearchRetrieval,
