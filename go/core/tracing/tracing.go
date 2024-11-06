@@ -118,7 +118,7 @@ func RunInNewSpan[I, O any](
 
 	if err != nil {
 		sm.State = spanStateError
-		span.SetStatus(codes.Ok, err.Error())
+		span.SetStatus(codes.Error, err.Error())
 		span.RecordError(err)
 		return base.Zero[O](), err
 	}
