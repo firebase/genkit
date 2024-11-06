@@ -103,7 +103,7 @@ export async function resolveTools<
       } else if ((ref as Action).__action) {
         return asTool(ref as Action);
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
-        return (ref as ExecutablePrompt).asTool();
+        return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
         return await lookupToolByName(registry, ref.name);
       }

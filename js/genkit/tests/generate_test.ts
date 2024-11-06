@@ -65,7 +65,7 @@ describe('generate', () => {
         messages: [
           {
             role: 'system',
-            content: 'talk like a pirate',
+            content: [{ text: 'talk like a pirate' }],
           },
           {
             role: 'user',
