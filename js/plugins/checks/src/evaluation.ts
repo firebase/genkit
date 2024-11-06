@@ -16,7 +16,8 @@
 
 import { Action, Genkit, z } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
-import { EvaluatorFactory } from './evaluator_factory.js';
+import { BaseEvalDataPoint } from 'genkit/evaluator';
+import { runInNewSpan } from 'genkit/tracing';
 
 /**
  * Checks AI Safety policies. See API documentation for more information.
@@ -54,7 +55,7 @@ export enum ChecksEvaluationMetricType {
  */
 export type ChecksEvaluationMetricConfig = {
   type: ChecksEvaluationMetricType;
-  threshold: number;
+  threshold?: number;
 };
 
 export type ChecksEvaluationMetric =
@@ -67,38 +68,22 @@ export function checksEvaluators(
   metrics: ChecksEvaluationMetric[],
   projectId: string,
 ): Action[] {
-  const factory = new EvaluatorFactory(auth, projectId);
-  return metrics.map((metric) => {
+
+  const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map((metric) => {
     const metricType = isConfig(metric) ? metric.type : metric;
     const threshold = isConfig(metric) ? metric.threshold : undefined;
 
-    switch (metricType) {
-      case ChecksEvaluationMetricType.DANGEROUS_CONTENT: {
-        return createDangerousContentEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.PII_SOLICITING_RECITING: {
-        return createPiiSolicitingEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.HARASSMENT: {
-        return createHarassmentEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.SEXUALLY_EXPLICIT: {
-        return createSexuallyExplicitEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.HATE_SPEECH: {
-        return createHateSpeachEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.MEDICAL_INFO: {
-        return createMedicalInfoEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.VIOLENCE_AND_GORE: {
-        return createViolenceAndGoreEvaluator(ai, factory, threshold)
-      }
-      case ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY: {
-        return createObscenityAndProfanityEvaluator(ai, factory, threshold)
-      }
+    return {
+      type: metricType,
+      threshold,
     }
   });
+
+  const evaluators = policy_configs.map((policy_config) => {
+    return createPolicyEvaluator(projectId, auth, ai, policy_config)
+  })
+
+  return evaluators
 }
 
 function isConfig(
@@ -117,300 +102,92 @@ const ResponseSchema = z.object({
   )
 });
 
-function createDangerousContentEvaluator(
+function createPolicyEvaluator(
+  projectId: string,
+  auth: GoogleAuth,
   ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
+  policy_config: ChecksEvaluationMetricConfig
 ): Action {
-  return factory.create(
-    ai,
+  const policyType = policy_config.type as string;
+
+  return ai.defineEvaluator(
     {
-      metric: ChecksEvaluationMetricType.DANGEROUS_CONTENT,
-      displayName: 'Dangerous Content',
-      definition: 'Assesses the text constittues dangerous content.',
-      responseSchema: ResponseSchema,
+      name: `checks/${policyType.toLowerCase()}`,
+      displayName: policyType,
+      definition: `Evaluates text against the Checks ${policyType} policy.`
     },
-    (datapoint) => {
-      return {
+    async (datapoint: BaseEvalDataPoint) => {
+      const partialRequest = {
         input: {
           text_input: {
             content: datapoint.output as string
           },
         },
         policies: {
-          policy_type: "DANGEROUS_CONTENT",
-          threshold,
+          policy_type: policy_config.type,
+          threshold: policy_config.threshold,
         }
       };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
-      };
-    }
-  );
-}
 
-function createPiiSolicitingEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
-    {
-      metric: ChecksEvaluationMetricType.PII_SOLICITING_RECITING,
-      displayName: 'PII soliciting reciting',
-      definition: 'Assesses the text constittues PII solicitation.',
-      responseSchema: ResponseSchema,
-    },
-    (datapoint) => {
+      const response = await checksEvalInstance(
+        projectId,
+        auth,
+        partialRequest,
+        ResponseSchema
+      );
+
       return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
+        evaluation: {
+          score: response.policyResults[0].score,
+          details: {
+            reasoning: response.policyResults[0].violationResult
+          }
         },
-        policies: {
-          policy_type: "PII_SOLICITING_RECITING",
-          threshold,
-        }
-      };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
+        testCaseId: datapoint.testCaseId,
       };
     }
-  );
+  )
 }
 
-function createHarassmentEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
+async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
+  projectId: string,
+  auth: GoogleAuth,
+  partialRequest: any,
+  responseSchema: ResponseType
+): Promise<z.infer<ResponseType>> {
+
+  return await runInNewSpan(
     {
-      metric: ChecksEvaluationMetricType.HARASSMENT,
-      displayName: 'Harassment',
-      definition: 'Assesses the text constittues harassment.',
-      responseSchema: ResponseSchema,
+      metadata: {
+        name: 'EvaluationService#evaluateInstances',
+      },
     },
-    (datapoint) => {
-      return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
-        },
-        policies: {
-          policy_type: "HARASSMENT",
-          threshold,
-        }
+    async (metadata, _otSpan) => {
+      const request = {
+        ...partialRequest,
       };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
+
+
+      metadata.input = request;
+      const client = await auth.getClient();
+      const url = "https://checks.googleapis.com/v1alpha/aisafety:classifyContent"
+
+      const response = await client.request({
+        url,
+        method: "POST",
+        body: JSON.stringify(request),
+        headers: {
+          "X-Goog-User-Project": projectId,
+          "Content-Type": "application/json",
         }
-      };
+      })
+      metadata.output = response.data;
+
+      try {
+        return responseSchema.parse(response.data);
+      } catch (e) {
+        throw new Error(`Error parsing ${url} API response: ${e}`);
+      }
     }
   );
 }
-
-function createSexuallyExplicitEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
-    {
-      metric: ChecksEvaluationMetricType.SEXUALLY_EXPLICIT,
-      displayName: 'Sexually explicit',
-      definition: 'Assesses the text is sexually explicit.',
-      responseSchema: ResponseSchema,
-    },
-    (datapoint) => {
-      return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
-        },
-        policies: {
-          policy_type: "SEXUALLY_EXPLICIT",
-          threshold,
-        }
-      };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
-      };
-    }
-  );
-}
-
-function createHateSpeachEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
-    {
-      metric: ChecksEvaluationMetricType.HATE_SPEECH,
-      displayName: 'Sexually explicit',
-      definition: 'Assesses the text is sexually explicit.',
-      responseSchema: ResponseSchema,
-    },
-    (datapoint) => {
-      return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
-        },
-        policies: {
-          policy_type: "HATE_SPEECH",
-          threshold,
-        }
-      };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
-      };
-    }
-  );
-}
-
-function createMedicalInfoEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
-    {
-      metric: ChecksEvaluationMetricType.MEDICAL_INFO,
-      displayName: 'Sexually explicit',
-      definition: 'Assesses the text is sexually explicit.',
-      responseSchema: ResponseSchema,
-    },
-    (datapoint) => {
-      return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
-        },
-        policies: {
-          policy_type: "MEDICAL_INFO",
-          threshold,
-        }
-      };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
-      };
-    }
-  );
-}
-
-function createViolenceAndGoreEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
-    {
-      metric: ChecksEvaluationMetricType.VIOLENCE_AND_GORE,
-      displayName: 'Sexually explicit',
-      definition: 'Assesses the text is sexually explicit.',
-      responseSchema: ResponseSchema,
-    },
-    (datapoint) => {
-      return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
-        },
-        policies: {
-          policy_type: "VIOLENCE_AND_GORE",
-          threshold,
-        }
-      };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
-      };
-    }
-  );
-}
-
-function createObscenityAndProfanityEvaluator(
-  ai: Genkit,
-  factory: EvaluatorFactory,
-  threshold?: number
-): Action {
-  return factory.create(
-    ai,
-    {
-      metric: ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY,
-      displayName: 'Sexually explicit',
-      definition: 'Assesses the text is sexually explicit.',
-      responseSchema: ResponseSchema,
-    },
-    (datapoint) => {
-      return {
-        input: {
-          text_input: {
-            content: datapoint.output as string
-          },
-        },
-        policies: {
-          policy_type: "OBSCENITY_AND_PROFANITY",
-          threshold,
-        }
-      };
-    },
-    (response) => {
-      return {
-        score: response.policyResults[0].score,
-        details: {
-          reasoning: response.policyResults[0].violationResult
-        }
-      };
-    }
-  );
-}
-
-

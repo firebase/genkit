@@ -56,40 +56,40 @@ export const ai = genkit({
       ],
     }),
     checks({
-      projectId: "checks-prod",
+      projectId: "checks-api-370419",
       evaluation: {
         metrics: [
           {
             type: ChecksEvaluationMetricType.DANGEROUS_CONTENT,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.PII_SOLICITING_RECITING,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.HARASSMENT,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.SEXUALLY_EXPLICIT,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.HATE_SPEECH,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.MEDICAL_INFO,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.VIOLENCE_AND_GORE,
-            threshold: .01,
+            threshold: .5,
           },
           {
             type: ChecksEvaluationMetricType.OBSCENITY_AND_PROFANITY,
-            threshold: .01,
+            threshold: .5,
           }
         ],
       },
