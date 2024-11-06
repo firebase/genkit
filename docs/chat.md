@@ -158,7 +158,7 @@ const pirateChat = session.chat('pirateThread', {
 });
 ```
 
-## Session persistence
+## Session persistence (EXPERIMENTAL)
 
 When you initialize a new chat or session, it's configured by default to store
 the session in memory only. This is adequate when the session needs to persist
