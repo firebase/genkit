@@ -37,6 +37,8 @@ toc:
     path: /docs/genkit/tool-calling
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
+  - title: Multi-agent systems
+    path: /docs/genkit/multi-agent
   - title: Evaluation
     path: /docs/genkit/evaluation
   - title: Observability & monitoring
