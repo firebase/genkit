@@ -32,7 +32,6 @@ export const start = new Command('start')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port', 'port for the Dev UI')
   .action(async (options: RunOptions) => {
-
     let processPromise = Promise.resolve();
     if (start.args.length > 0) {
       processPromise = new Promise((urlResolver, reject) => {
