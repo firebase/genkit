@@ -40,7 +40,7 @@ export function streamFlow({
   headers,
 }: {
   url: string;
-  input: any;
+  input?: any;
   headers?: Record<string, string>;
 }) {
   let chunkStreamController: ReadableStreamDefaultController | undefined =
@@ -165,17 +165,17 @@ async function __flowRunEnvelope({
  */
 export async function runFlow({
   url,
-  payload,
+  input,
   headers,
 }: {
   url: string;
-  payload?: any;
+  input?: any;
   headers?: Record<string, string>;
 }) {
   const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
-      data: payload,
+      data: input,
     }),
     headers: {
       'Content-Type': 'application/json',
