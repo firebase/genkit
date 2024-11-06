@@ -349,84 +349,76 @@ export class Flow<
       return;
     }
 
-    if (stream === 'true') {
+    try {
+      await this.authPolicy?.(auth, input);
+    } catch (e: any) {
+      const respBody = {
+        error: {
+          status: 'PERMISSION_DENIED',
+          message: e.message || 'Permission denied to resource',
+        },
+      };
+      response.status(403).send(respBody).end();
+      return;
+    }
+
+    if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
       response.writeHead(200, {
         'Content-Type': 'text/plain',
         'Transfer-Encoding': 'chunked',
       });
       try {
-        await this.authPolicy?.(auth, input);
-      } catch (e: any) {
-        const respBody = {
-          error: {
-            status: 'PERMISSION_DENIED',
-            message: e.message || 'Permission denied to resource',
+        const result = await this.invoke(input, {
+          streamingCallback: (chunk: z.infer<S>) => {
+            response.write(
+              'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
+            );
           },
-        };
-        response.status(403).send(respBody).end();
-        return;
-      }
-
-      if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
-        response.writeHead(200, {
-          'Content-Type': 'text/plain',
-          'Transfer-Encoding': 'chunked',
+          auth,
         });
-        try {
-          const result = await this.invoke(input, {
-            streamingCallback: (chunk: z.infer<S>) => {
-              response.write(
-                'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
-              );
-            },
-            auth,
-          });
-          response.write(
-            'data: ' +
-              JSON.stringify({ result: result.result }) +
-              streamDelimiter
-          );
-          response.end();
-        } catch (e) {
-          console.log(e);
-          response.write(
-            'data: ' +
-              JSON.stringify({
-                error: {
-                  status: 'INTERNAL',
-                  message: getErrorMessage(e),
-                  details: getErrorStack(e),
-                },
-              }) +
-              streamDelimiter
-          );
-          response.end();
-        }
-      } else {
-        try {
-          const result = await this.invoke(input, { auth });
-          response.setHeader('x-genkit-trace-id', result.traceId);
-          response.setHeader('x-genkit-span-id', result.spanId);
-          // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
-          response
-            .status(200)
-            .send({
-              result: result.result,
-            })
-            .end();
-        } catch (e) {
-          // Errors for non-streaming flows are passed back as standard API errors.
-          response
-            .status(500)
-            .send({
+        response.write(
+          'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
+        );
+        response.end();
+      } catch (e) {
+        console.log(e);
+        response.write(
+          'data: ' +
+            JSON.stringify({
               error: {
                 status: 'INTERNAL',
                 message: getErrorMessage(e),
                 details: getErrorStack(e),
               },
-            })
-            .end();
-        }
+            }) +
+            streamDelimiter
+        );
+        response.end();
+      }
+    } else {
+      try {
+        const result = await this.invoke(input, { auth });
+        response.setHeader('x-genkit-trace-id', result.traceId);
+        response.setHeader('x-genkit-span-id', result.spanId);
+        // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
+        response
+          .status(200)
+          .send({
+            result: result.result,
+          })
+          .end();
+      } catch (e) {
+        // Errors for non-streaming flows are passed back as standard API errors.
+        response
+          .status(500)
+          .send({
+            error: {
+              status: 'INTERNAL',
+              message: getErrorMessage(e),
+              details: getErrorStack(e),
+            },
+          })
+          .end();
       }
     }
   }
