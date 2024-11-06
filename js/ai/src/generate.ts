@@ -426,10 +426,19 @@ export async function generateStream<
             ({ resolve: provideNextChunk, promise: nextChunk } =
               createPromise<GenerateResponseChunk | null>());
           },
-        }).then((result) => {
-          provideNextChunk(null);
-          finalResolve(result);
-        });
+        })
+          .then((result) => {
+            provideNextChunk(null);
+            finalResolve(result);
+          })
+          .catch((e) => {
+            if (!firstChunkSent) {
+              initialReject(e);
+              return;
+            }
+            provideNextChunk(null);
+            finalReject(e);
+          });
       } catch (e) {
         if (!firstChunkSent) {
           initialReject(e);
