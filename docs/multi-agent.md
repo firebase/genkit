@@ -10,48 +10,11 @@ Here are some excerpts from a very simple customer service agent built using a
 single prompt and several tools:
 
 ```ts
-const menuLookupTool = ai.defineTool(
-  {
-    name: 'menuLookupTool',
-    description: 'use this tool to look up the menu for a given date',
-    inputSchema: z.object({
-      date: z.string().describe('the date to look up the menu for'),
-    }),
-    outputSchema: z.string().describe('the menu for a given date'),
-  },
-  async (input) => {
-    // Retrieve the menu from a database, website, etc.
-  }
-);
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/multi-agent/simple.ts" region_tag="tools" adjust_indentation="auto" %}
+```
 
-const reservationTool = ai.defineTool(
-  {
-    name: 'reservationTool',
-    description: 'use this tool to try to book a reservation',
-    inputSchema: z.object({
-      partySize: z.coerce.number().describe('the number of guests'),
-      date: z.string().describe('the date to book for'),
-    }),
-    outputSchema: z
-      .string()
-      .describe(
-        "true if the reservation was successfully booked and false if there's" +
-        " no table available for the requested time"
-      ),
-  },
-  async (input) => {
-    // Access your database to try to make the reservation.
-  }
-);
-
-const chat = ai.chat({
-  model: gemini15Pro,
-  system:
-    "You are an AI customer service agent for Pavel's Cafe. Use the tools " +
-    'available to you to help the customer. If you cannot help the ' +
-    'customer with the available tools, politely explain so.',
-  tools: [menuLookupTool, reservationTool],
-});
+```ts
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/multi-agent/simple.ts" region_tag="chat" adjust_indentation="auto" %}
 ```
 
 A simple architecture like the one shown above can be sufficient when your agent
@@ -82,33 +45,9 @@ Here's what an expanded version of the previous example might look like as a
 multi-agent system:
 
 ```ts
-// Define a prompt that represents a specialist agent
-const reservationAgent = ai.definePrompt(
-  {
-    name: 'reservationAgent',
-    description: 'Reservation Agent can help manage guest reservations',
-    tools: [reservationTool, reservationCancelationTool, reservationListTool],
-  },
-  '{{role "system"}} Help guests make and manage reservations'
-);
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/multi-agent/multi.ts" region_tag="agents" adjust_indentation="auto" %}
+```
 
-// Or load agents from .prompt files
-const menuInfoAgent = ai.prompt("menuInfoAgent");
-const complaintAgent = ai.prompt("complaintAgent");
-
-// The triage agent is the agent that users interact with initially 
-const triageAgent = ai.definePrompt(
-  {
-    name: 'triageAgent',
-    description: 'Triage Agent',
-    tools: [reservationAgent, menuInfoAgent, complaintAgent],
-  },
-  `{{role "system"}} You are an AI customer service agent for Pavel's Cafe.
-  Greet the user and ask them how you can help. If appropriate, transfer to an
-  agent that can better handle the request. If you cannot help the customer with
-  the available tools, politely explain so.`
-);
-
-// Start a chat session, initially with the triage agent
-const chat = ai.chat({ preamble: triageAgent });
+```ts
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/multi-agent/multi.ts" region_tag="chat" adjust_indentation="auto" %}
 ```
