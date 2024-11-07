@@ -39,7 +39,7 @@ const reservationTool = ai.defineTool(
         " no table available for the requested time"
       ),
   },
-  async (input): Promise<string> => {
+  async (input) => {
     // Access your database to try to make the reservation.
   }
 );
