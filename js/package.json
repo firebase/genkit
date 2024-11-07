@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "0.5.10",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:libs && pnpm build:testapps",
