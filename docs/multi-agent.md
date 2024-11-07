@@ -19,7 +19,7 @@ const menuLookupTool = ai.defineTool(
     }),
     outputSchema: z.string().describe('the menu for a given date'),
   },
-  async (input): Promise<string> => {
+  async (input) => {
     // Retrieve the menu from a database, website, etc.
   }
 );
