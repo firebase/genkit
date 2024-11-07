@@ -151,7 +151,7 @@ a `Genkit` instance as its first parameter. Otherwise, the syntax is similar to
 All deployed flows, whether deployed to Firebase or not, should have an
 authorization policy; without one, your potentially-expensive generative AI
 flows would be invocable by anyone. To define an authorization policy, use the
-authPolicy parameter in the flow definition:
+`authPolicy` parameter in the flow definition:
 
 ```ts
 import { firebaseAuth } from "@genkit-ai/firebase/auth";
@@ -309,8 +309,8 @@ export const generatePoem = onFlow(
 
 ## 4. Deploy flows to Firebase
 
-After you've defined flows using onFlow, you can deploy them as you would deploy
-other Cloud Functions:
+After you've defined flows using `onFlow`, you can deploy them as you would
+deploy other Cloud Functions:
 
 ```posix-terminal
 cd $PROJECT_ROOT
@@ -319,7 +319,7 @@ firebase deploy --only functions
 ```
 
 You've now deployed the flow as a Cloud Function! But, you won't be able to
-access your deployed endpoint with curl or similar, because of the flow's
+access your deployed endpoint with `curl` or similar, because of the flow's
 authorization policy. Continue to the next section to learn how to securely
 access the flow.
 
