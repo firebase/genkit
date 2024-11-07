@@ -143,6 +143,7 @@ const chat = session.chat({
   tools: [changeUserName],
 });
 await chat.send('change user name to Kevin');
+```
 
 ## Multi-thread sessions
 
