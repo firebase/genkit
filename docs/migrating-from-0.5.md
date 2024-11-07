@@ -7,6 +7,7 @@ Genkit 0.9 introduces a number of breaking changes alongside feature enhancement
 The command-line interface (CLI) has undergone significant updates in Genkit 0.9. The command to start Genkit has changed, and the CLI has been separated into its own standalone package, which you now need to install separately.
 
 To install the CLI:
+
 ```posix-terminal
 npm i -g genkit-cli
 ```
@@ -31,7 +32,7 @@ genkit ui:start
 
 Once the UI is running, start the flow server:
 
-```
+```posix-terminal
 GENKIT_ENV=dev tsx --watch path/to/index.ts
 ```
 
