@@ -933,7 +933,7 @@ export class Genkit {
     maybeOptions?: ChatOptions<I>
   ): Chat {
     let options: ChatOptions<I> | undefined;
-    let preamble: ExecutablePrompt<I>| undefined;
+    let preamble: ExecutablePrompt<I> | undefined;
     if (maybeOptions) {
       preamble = preambleOrOptions as ExecutablePrompt<I>;
       options = maybeOptions;

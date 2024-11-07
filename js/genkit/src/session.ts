@@ -212,9 +212,11 @@ export class Session<S = any> {
           } else {
             options = maybeOptionsOrOpreamble as ChatOptions<I, S>;
           }
-        } else if ((optionsOrPreabmleOrThreadName as ExecutablePrompt<I>)?.render) {
+        } else if (
+          (optionsOrPreabmleOrThreadName as ExecutablePrompt<I>)?.render
+        ) {
           preamble = optionsOrPreabmleOrThreadName as ExecutablePrompt<I>;
-          options = maybeOptionsOrOpreamble  as ChatOptions<I, S>;
+          options = maybeOptionsOrOpreamble as ChatOptions<I, S>;
         } else {
           options = optionsOrPreabmleOrThreadName as ChatOptions<I, S>;
         }

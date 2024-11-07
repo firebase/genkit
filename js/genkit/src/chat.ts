@@ -15,7 +15,6 @@
  */
 
 import {
-  ExecutablePrompt,
   GenerateOptions,
   GenerateResponse,
   GenerateStreamOptions,
