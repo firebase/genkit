@@ -77,7 +77,7 @@ Genkit plugins still must be installed and imported individually.
 
 Previously, initializing Genkit was done once globally by calling the `configureGenkit` function. Genkit resources (flows, tools, prompts, etc.) would all automatically be wired with this global configuration.
 
-Genkit 0.9 introduces Genkit instances, each of which encapsulates a configuration. See the following examples:
+Genkit 0.9 introduces `Genkit` instances, each of which encapsulates a configuration. See the following examples:
 
 **Old:**
 
@@ -112,7 +112,7 @@ Let’s break it down:
 
 ## 4. Defining flows and starting the flow server explicitly
 
-Now that you have a configured `genkit` instance, you will need to define your flows. All core developer-facing API methods like `defineFlow`, `defineTool`, and `onFlow` are now invoked through this instance.
+Now that you have a configured `Genkit` instance, you will need to define your flows. All core developer-facing API methods like `defineFlow`, `defineTool`, and `onFlow` are now invoked through this instance.
 
 This is distinct from the previous way, where flows and tools were registered globally.
 
@@ -134,7 +134,7 @@ onFlow(...);
 const sampleFlow = ai.defineFlow(...);
 const sampleTool = ai.defineTool(...);
 
-// onFlow now takes the genkit instance as first argument
+// onFlow now takes the Genkit instance as first argument
 // This registers the flow as a callable firebase function
 onFlow(ai, ...);  
 
