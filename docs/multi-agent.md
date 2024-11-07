@@ -110,5 +110,5 @@ const triageAgent = ai.definePrompt(
 );
 
 // Start a chat session, initially with the triage agent
-const chat = ai.chat({ prompt: triageAgent });
+const chat = ai.chat({ preamble: triageAgent });
 ```
