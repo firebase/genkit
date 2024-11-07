@@ -72,9 +72,7 @@ describe('generate', () => {
             content: [{ text: 'hi' }],
           },
         ],
-        output: {
-          format: 'text',
-        },
+        output: {},
         tools: [],
       });
     });
