@@ -37,11 +37,10 @@ import {
   GenerateRequest,
   GenerationCommonConfigSchema,
   MessageData,
-  ModelAction,
   ModelArgument,
   ModelMiddleware,
-  ModelReference,
   Part,
+  resolveModel,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
@@ -135,56 +134,6 @@ export async function toGenerateRequest(
     },
   };
   if (!out.output.schema) delete out.output.schema;
-  return out;
-}
-
-interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
-  modelAction: ModelAction;
-  config?: z.infer<CustomOptions>;
-  version?: string;
-}
-
-async function resolveModel(
-  registry: Registry,
-  options: GenerateOptions
-): Promise<ResolvedModel> {
-  let model = options.model;
-  let out: ResolvedModel;
-  let modelId: string;
-
-  if (!model) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: 'Must supply a `model` to `generate()` calls.',
-    });
-  }
-  if (typeof model === 'string') {
-    modelId = model;
-    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
-  } else if (model.hasOwnProperty('__action')) {
-    modelId = (model as ModelAction).__action.name;
-    out = { modelAction: model as ModelAction };
-  } else {
-    const ref = model as ModelReference<any>;
-    modelId = ref.name;
-    out = {
-      modelAction: (await registry.lookupAction(
-        `/model/${ref.name}`
-      )) as ModelAction,
-      config: {
-        ...ref.config,
-      },
-      version: ref.version,
-    };
-  }
-
-  if (!out.modelAction) {
-    throw new GenkitError({
-      status: 'NOT_FOUND',
-      message: `Model ${modelId} not found`,
-    });
-  }
-
   return out;
 }
 
@@ -286,7 +235,7 @@ export async function generate<
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const resolvedModel = await resolveModel(registry, resolvedOptions);
+  const resolvedModel = await resolveModel(registry, resolvedOptions.model);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
 

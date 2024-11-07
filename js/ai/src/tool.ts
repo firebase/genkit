@@ -95,7 +95,11 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(registry: Registry, tools: ToolArgument[] = []): Promise<ToolAction[]> {
+>(registry: Registry, tools?: ToolArgument[]): Promise<ToolAction[]> {
+  if (!tools || tools.length === 0) {
+    return [];
+  }
+
   return await Promise.all(
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
