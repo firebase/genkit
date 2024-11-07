@@ -122,10 +122,23 @@ describe('chat', () => {
   it('can start chat from a prompt', async () => {
     const preamble = ai.definePrompt(
       { name: 'hi', config: { version: 'abc' } },
+      'hi from template'
+    );
+    const session = await ai.chat(preamble);
+    const response = await session.send('send it');
+
+    assert.strictEqual(
+      response.text,
+      'Echo: hi from template,send it; config: {"version":"abc"}'
+    );
+  });
+
+  it('can start chat from a prompt with input', async () => {
+    const preamble = ai.definePrompt(
+      { name: 'hi', config: { version: 'abc' } },
       'hi {{ name }} from template'
     );
-    const session = await ai.chat({
-      preamble,
+    const session = await ai.chat(preamble, {
       input: { name: 'Genkit' },
     });
     const response = await session.send('send it');
@@ -207,9 +220,7 @@ describe('preabmle', () => {
       };
     };
 
-    const session = ai.chat({
-      preamble: agentA,
-    });
+    const session = ai.chat(agentA);
     let { text } = await session.send('hi');
     assert.strictEqual(text, 'hi from agent a');
     assert.deepStrictEqual(pm.lastRequest, {
