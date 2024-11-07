@@ -17,29 +17,34 @@
 import { extractJson } from '../extract';
 import type { Formatter } from './types';
 
-export const jsonParser: Formatter = (request) => {
-  let accumulatedText: string = '';
-  let instructions: boolean | string = false;
+export const jsonFormatter: Formatter<unknown, unknown> = {
+  name: 'json',
+  config: {
+    contentType: 'application/json',
+    constrained: true,
+  },
+  handler: (schema) => {
+    let instructions: string | undefined;
 
-  if (request.output?.schema) {
-    instructions = `Output should be in JSON format and conform to the following schema:
+    if (schema) {
+      instructions = `Output should be in JSON format and conform to the following schema:
 
 \`\`\`
-${JSON.stringify(request.output!.schema!)}
+${JSON.stringify(schema)}
 \`\`\`
 `;
-  }
+    }
 
-  return {
-    parseChunk: (chunk, emit) => {
-      accumulatedText = chunk.accumulatedText;
-      emit(extractJson(accumulatedText));
-    },
+    return {
+      parseChunk: (chunk) => {
+        return extractJson(chunk.accumulatedText);
+      },
 
-    parseResponse: (response) => {
-      return extractJson(response.text);
-    },
+      parseMessage: (message) => {
+        return extractJson(message.text);
+      },
 
-    instructions,
-  };
+      instructions,
+    };
+  },
 };

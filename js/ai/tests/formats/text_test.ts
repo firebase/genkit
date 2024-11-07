@@ -16,60 +16,83 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { textParser } from '../../src/formats/text.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
+import { textFormatter } from '../../src/formats/text.js';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
 
 describe('textFormat', () => {
   const streamingTests = [
     {
-      desc: 'emits each chunk as it comes',
+      desc: 'emits text chunks as they arrive',
       chunks: [
-        { text: 'this is', want: ['this is'] },
-        { text: ' a two-chunk response', want: [' a two-chunk response'] },
+        {
+          text: 'Hello',
+          want: 'Hello',
+        },
+        {
+          text: ' world',
+          want: ' world',
+        },
+      ],
+    },
+    {
+      desc: 'handles empty chunks',
+      chunks: [
+        {
+          text: '',
+          want: '',
+        },
       ],
     },
   ];
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = textParser({ messages: [] });
+      const parser = textFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastEmitted: string[] = [];
+
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
+
+        const result = parser.parseChunk!(
+          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
+        );
         chunks.push(newChunk);
 
-        lastEmitted = [];
-        const emit = (chunk: string) => {
-          lastEmitted.push(chunk);
-        };
-        parser.parseChunk!(new GenerateResponseChunk(newChunk, chunks), emit);
-
-        assert.deepStrictEqual(lastEmitted, chunk.want);
+        assert.strictEqual(result, chunk.want);
       }
     });
   }
 
-  const responseTests = [
+  const messageTests = [
     {
-      desc: 'it returns the concatenated text',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: 'chunk one.' }, { text: 'chunk two.' }],
-        },
-      }),
-      want: 'chunk one.chunk two.',
+      desc: 'parses complete text response',
+      message: {
+        role: 'model',
+        content: [{ text: 'Hello world' }],
+      },
+      want: 'Hello world',
+    },
+    {
+      desc: 'handles empty response',
+      message: {
+        role: 'model',
+        content: [{ text: '' }],
+      },
+      want: '',
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = textParser({ messages: [] });
-      assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = textFormatter.handler();
+      assert.strictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
 });

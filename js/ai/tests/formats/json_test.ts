@@ -16,35 +16,32 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { jsonParser } from '../../src/formats/json.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
+import { jsonFormatter } from '../../src/formats/json.js';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
 
 describe('jsonFormat', () => {
   const streamingTests = [
     {
-      desc: 'emits partial object as it streams',
+      desc: 'parses complete JSON object',
       chunks: [
         {
-          text: '{"name": "test',
-          want: { name: 'test' },
-        },
-        {
-          text: '", "value": 42}',
-          want: { name: 'test', value: 42 },
+          text: '{"id": 1, "name": "test"}',
+          want: { id: 1, name: 'test' },
         },
       ],
     },
     {
-      desc: 'handles nested objects',
+      desc: 'handles partial JSON',
       chunks: [
         {
-          text: '{"outer": {"inner": ',
-          want: { outer: {} },
+          text: '{"id": 1',
+          want: { id: 1 },
         },
         {
-          text: '"value"}}',
-          want: { outer: { inner: 'value' } },
+          text: ', "name": "test"}',
+          want: { id: 1, name: 'test' },
         },
       ],
     },
@@ -52,25 +49,12 @@ describe('jsonFormat', () => {
       desc: 'handles preamble with code fence',
       chunks: [
         {
-          text: 'Here is the JSON:\n\n```json\n{"key": ',
-          want: {},
+          text: 'Here is the JSON:\n\n```json\n',
+          want: null,
         },
         {
-          text: '"value"}\n```',
-          want: { key: 'value' },
-        },
-      ],
-    },
-    {
-      desc: 'handles arrays',
-      chunks: [
-        {
-          text: '[{"id": 1}, {"id"',
-          want: [{ id: 1 }, {}],
-        },
-        {
-          text: ': 2}]',
-          want: [{ id: 1 }, { id: 2 }],
+          text: '{"id": 1}\n```',
+          want: { id: 1 },
         },
       ],
     },
@@ -78,102 +62,60 @@ describe('jsonFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = jsonParser({ messages: [] });
+      const parser = jsonFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastEmitted: any;
+      let lastCursor = '';
+
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
+
+        const result = parser.parseChunk!(
+          new GenerateResponseChunk(newChunk, { previousChunks: [...chunks] }),
+          lastCursor
+        );
         chunks.push(newChunk);
 
-        lastEmitted = undefined;
-        const emit = (value: any) => {
-          lastEmitted = value;
-        };
-        parser.parseChunk!(new GenerateResponseChunk(newChunk, chunks), emit);
-
-        assert.deepStrictEqual(lastEmitted, chunk.want);
+        assert.deepStrictEqual(result, chunk.want);
       }
     });
   }
 
-  const responseTests = [
+  const messageTests = [
     {
-      desc: 'parses complete object response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '{"name": "test", "value": 42}' }],
-        },
-      }),
-      want: { name: 'test', value: 42 },
+      desc: 'parses complete JSON response',
+      message: {
+        role: 'model',
+        content: [{ text: '{"id": 1, "name": "test"}' }],
+      },
+      want: { id: 1, name: 'test' },
     },
     {
-      desc: 'parses array response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '[1, 2, 3]' }],
-        },
-      }),
-      want: [1, 2, 3],
+      desc: 'handles empty response',
+      message: {
+        role: 'model',
+        content: [{ text: '' }],
+      },
+      want: null,
     },
     {
-      desc: 'parses nested structures',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '{"outer": {"inner": [1, 2]}}' }],
-        },
-      }),
-      want: { outer: { inner: [1, 2] } },
-    },
-    {
-      desc: 'parses with preamble and code fence',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [
-            { text: 'Here is the JSON:\n\n```json\n{"key": "value"}\n```' },
-          ],
-        },
-      }),
-      want: { key: 'value' },
+      desc: 'parses JSON with preamble and code fence',
+      message: {
+        role: 'model',
+        content: [{ text: 'Here is the JSON:\n\n```json\n{"id": 1}\n```' }],
+      },
+      want: { id: 1 },
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = jsonParser({ messages: [] });
-      assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = jsonFormatter.handler();
+      assert.deepStrictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
-
-  it('includes schema in instructions when provided', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-      },
-    };
-    const parser = jsonParser({
-      messages: [],
-      output: { schema },
-    });
-
-    assert.match(
-      parser.instructions as string,
-      /Output should be in JSON format/
-    );
-    assert.match(
-      parser.instructions as string,
-      new RegExp(JSON.stringify(schema))
-    );
-  });
-
-  it('has no instructions when no schema provided', () => {
-    const parser = jsonParser({ messages: [] });
-    assert.strictEqual(parser.instructions, false);
-  });
 });

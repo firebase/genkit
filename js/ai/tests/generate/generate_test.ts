@@ -16,248 +16,15 @@
 
 import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
   GenerateOptions,
-  GenerateResponse,
-  GenerateResponseChunk,
-  GenerationBlockedError,
-  GenerationResponseError,
   generate,
   toGenerateRequest,
 } from '../../src/generate.js';
-import { Message } from '../../src/message.js';
-import {
-  GenerateRequest,
-  GenerateResponseChunkData,
-  GenerateResponseData,
-  ModelAction,
-  ModelMiddleware,
-  defineModel,
-} from '../../src/model.js';
+import { ModelAction, ModelMiddleware, defineModel } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
-
-describe('GenerateResponse', () => {
-  describe('#toJSON()', () => {
-    const testCases = [
-      {
-        should: 'serialize correctly when custom is undefined',
-        responseData: {
-          message: {
-            role: 'model',
-            content: [{ text: '{"name": "Bob"}' }],
-          },
-          finishReason: 'stop',
-          finishMessage: '',
-          usage: {},
-          // No 'custom' property
-        },
-        expectedOutput: {
-          message: { content: [{ text: '{"name": "Bob"}' }], role: 'model' },
-          finishReason: 'stop',
-          usage: {},
-          custom: {},
-        },
-      },
-    ];
-
-    for (const test of testCases) {
-      it(test.should, () => {
-        const response = new GenerateResponse(
-          test.responseData as GenerateResponseData
-        );
-        assert.deepStrictEqual(response.toJSON(), test.expectedOutput);
-      });
-    }
-  });
-
-  describe('#output()', () => {
-    const testCases = [
-      {
-        should: 'return structured data from the data part',
-        responseData: {
-          message: new Message({
-            role: 'model',
-            content: [{ data: { name: 'Alice', age: 30 } }],
-          }),
-          finishReason: 'stop',
-          finishMessage: '',
-          usage: {},
-        },
-        expectedOutput: { name: 'Alice', age: 30 },
-      },
-      {
-        should: 'parse JSON from text when the data part is absent',
-        responseData: {
-          message: new Message({
-            role: 'model',
-            content: [{ text: '{"name": "Bob"}' }],
-          }),
-          finishReason: 'stop',
-          finishMessage: '',
-          usage: {},
-        },
-        expectedOutput: { name: 'Bob' },
-      },
-    ];
-
-    for (const test of testCases) {
-      it(test.should, () => {
-        const response = new GenerateResponse(
-          test.responseData as GenerateResponseData
-        );
-        assert.deepStrictEqual(response.output, test.expectedOutput);
-      });
-    }
-  });
-
-  describe('#assertValid()', () => {
-    it('throws GenerationBlockedError if finishReason is blocked', () => {
-      const response = new GenerateResponse({
-        finishReason: 'blocked',
-        finishMessage: 'Content was blocked',
-      });
-
-      assert.throws(
-        () => {
-          response.assertValid();
-        },
-        (err: unknown) => {
-          return err instanceof GenerationBlockedError;
-        }
-      );
-    });
-
-    it('throws GenerationResponseError if no message is generated', () => {
-      const response = new GenerateResponse({
-        finishReason: 'length',
-        finishMessage: 'Reached max tokens',
-      });
-
-      assert.throws(
-        () => {
-          response.assertValid();
-        },
-        (err: unknown) => {
-          return err instanceof GenerationResponseError;
-        }
-      );
-    });
-
-    it('throws error if output does not conform to schema', () => {
-      const schema = z.object({
-        name: z.string(),
-        age: z.number(),
-      });
-
-      const response = new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '{"name": "John", "age": "30"}' }],
-        },
-        finishReason: 'stop',
-      });
-
-      const request: GenerateRequest = {
-        messages: [],
-        output: {
-          schema: toJsonSchema({ schema }),
-        },
-      };
-
-      assert.throws(
-        () => {
-          response.assertValid(request);
-        },
-        (err: unknown) => {
-          return err instanceof Error && err.message.includes('must be number');
-        }
-      );
-    });
-
-    it('does not throw if output conforms to schema', () => {
-      const schema = z.object({
-        name: z.string(),
-        age: z.number(),
-      });
-
-      const response = new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '{"name": "John", "age": 30}' }],
-        },
-        finishReason: 'stop',
-      });
-
-      const request: GenerateRequest = {
-        messages: [],
-        output: {
-          schema: toJsonSchema({ schema }),
-        },
-      };
-
-      assert.doesNotThrow(() => {
-        response.assertValid(request);
-      });
-    });
-  });
-
-  describe('#toolRequests()', () => {
-    it('returns empty array if no tools requests found', () => {
-      const response = new GenerateResponse({
-        message: new Message({
-          role: 'model',
-          content: [{ text: '{"abc":"123"}' }],
-        }),
-        finishReason: 'stop',
-      });
-      assert.deepStrictEqual(response.toolRequests, []);
-    });
-    it('returns tool call if present', () => {
-      const toolCall = {
-        toolRequest: {
-          name: 'foo',
-          ref: 'abc',
-          input: 'banana',
-        },
-      };
-      const response = new GenerateResponse({
-        message: new Message({
-          role: 'model',
-          content: [toolCall],
-        }),
-        finishReason: 'stop',
-      });
-      assert.deepStrictEqual(response.toolRequests, [toolCall]);
-    });
-    it('returns all tool calls', () => {
-      const toolCall1 = {
-        toolRequest: {
-          name: 'foo',
-          ref: 'abc',
-          input: 'banana',
-        },
-      };
-      const toolCall2 = {
-        toolRequest: {
-          name: 'bar',
-          ref: 'bcd',
-          input: 'apple',
-        },
-      };
-      const response = new GenerateResponse({
-        message: new Message({
-          role: 'model',
-          content: [toolCall1, toolCall2],
-        }),
-        finishReason: 'stop',
-      });
-      assert.deepStrictEqual(response.toolRequests, [toolCall1, toolCall2]);
-    });
-  });
-});
 
 describe('toGenerateRequest', () => {
   const registry = new Registry();
@@ -290,7 +57,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: undefined,
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -325,7 +92,7 @@ describe('toGenerateRequest', () => {
             },
           },
         ],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -360,7 +127,7 @@ describe('toGenerateRequest', () => {
             },
           },
         ],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -395,7 +162,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: undefined,
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -417,7 +184,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: undefined,
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -434,7 +201,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: [{ content: [{ text: 'context here' }] }],
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
   ];
@@ -446,79 +213,6 @@ describe('toGenerateRequest', () => {
       );
     });
   }
-});
-
-describe('GenerateResponseChunk', () => {
-  describe('#output()', () => {
-    const testCases = [
-      {
-        should: 'parse ``` correctly',
-        accumulatedChunksTexts: ['```'],
-        correctJson: null,
-      },
-      {
-        should: 'parse valid json correctly',
-        accumulatedChunksTexts: [`{"foo":"bar"}`],
-        correctJson: { foo: 'bar' },
-      },
-      {
-        should: 'if json invalid, return null',
-        accumulatedChunksTexts: [`invalid json`],
-        correctJson: null,
-      },
-      {
-        should: 'handle missing closing brace',
-        accumulatedChunksTexts: [`{"foo":"bar"`],
-        correctJson: { foo: 'bar' },
-      },
-      {
-        should: 'handle missing closing bracket in nested object',
-        accumulatedChunksTexts: [`{"foo": {"bar": "baz"`],
-        correctJson: { foo: { bar: 'baz' } },
-      },
-      {
-        should: 'handle multiple chunks',
-        accumulatedChunksTexts: [`{"foo": {"bar"`, `: "baz`],
-        correctJson: { foo: { bar: 'baz' } },
-      },
-      {
-        should: 'handle multiple chunks with nested objects',
-        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: {"baz": "qux`],
-        correctJson: { foo: { bar: { baz: 'qux' } } },
-      },
-      {
-        should: 'handle array nested in object',
-        accumulatedChunksTexts: [`{"foo": ["bar`],
-        correctJson: { foo: ['bar'] },
-      },
-      {
-        should: 'handle array nested in object with multiple chunks',
-        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: ["baz`],
-        correctJson: { foo: { bar: ['baz'] } },
-      },
-    ];
-
-    for (const test of testCases) {
-      if (test.should) {
-        it(test.should, () => {
-          const accumulatedChunks: GenerateResponseChunkData[] =
-            test.accumulatedChunksTexts.map((text, index) => ({
-              index,
-              content: [{ text }],
-            }));
-
-          const chunkData = accumulatedChunks[accumulatedChunks.length - 1];
-
-          const responseChunk: GenerateResponseChunk =
-            new GenerateResponseChunk(chunkData, accumulatedChunks);
-
-          const output = responseChunk.output;
-
-          assert.deepStrictEqual(output, test.correctJson);
-        });
-      }
-    }
-  });
 });
 
 describe('generate', () => {

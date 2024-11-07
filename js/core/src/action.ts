@@ -122,7 +122,9 @@ export function action<
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
   const actionFn = async (input: I) => {
+    let sessionStateData: Record<string, any> | undefined = undefined;
     if (input?.hasOwnProperty(GENKIT_SESSION_STATE_INPUT_KEY)) {
+      sessionStateData = input[GENKIT_SESSION_STATE_INPUT_KEY];
       input = { ...input };
       delete input[GENKIT_SESSION_STATE_INPUT_KEY];
     }
@@ -141,6 +143,9 @@ export function action<
         metadata.name = actionName;
         metadata.input = input;
 
+        if (sessionStateData) {
+          input[GENKIT_SESSION_STATE_INPUT_KEY] = sessionStateData;
+        }
         const output = await fn(input);
 
         metadata.output = JSON.stringify(output);

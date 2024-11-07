@@ -14,16 +14,19 @@
  * limitations under the License.
  */
 
-import { GenerateResponse, GenerateResponseChunk } from '../generate';
-import { GenerateRequest } from '../model';
+import { JSONSchema } from '@genkit-ai/core';
+import { GenerateResponseChunk } from '../generate.js';
+import { Message } from '../message.js';
+import { ModelRequest } from '../model.js';
 
-export interface Formatter {
-  (req: GenerateRequest): {
-    parseChunk?: (
-      chunk: GenerateResponseChunk,
-      emit: (chunk: any) => void
-    ) => void;
-    parseResponse(response: GenerateResponse): any;
-    instructions?: boolean | string;
+type OutputContentTypes = 'application/json' | 'text/plain';
+
+export interface Formatter<O = unknown, CO = unknown> {
+  name: string;
+  config: ModelRequest['output'];
+  handler: (schema?: JSONSchema) => {
+    parseMessage(message: Message): O;
+    parseChunk?: (chunk: GenerateResponseChunk, cursor?: CC) => CO;
+    instructions?: string;
   };
 }

@@ -37,6 +37,7 @@ export {
 } from './evaluator.js';
 export {
   GenerateResponse,
+  GenerateResponseChunk,
   GenerationBlockedError,
   GenerationResponseError,
   generate,

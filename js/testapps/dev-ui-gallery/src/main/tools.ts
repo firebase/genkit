@@ -92,8 +92,5 @@ ai.defineFlow(
     inputSchema: WeatherSchema,
     outputSchema: z.string(),
   },
-  async (input) => {
-    const { text } = await weatherPrompt(input);
-    return text;
-  }
+  async (input) => (await weatherPrompt(input)).text
 );

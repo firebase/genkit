@@ -16,9 +16,9 @@
 
 import axios, { AxiosError } from 'axios';
 import chokidar from 'chokidar';
+import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
-
 import {
   Action,
   RunActionResponse,
@@ -28,18 +28,12 @@ import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import { checkServerHealth, findRuntimesDir } from '../utils/utils';
-import { GenkitToolsError, StreamingCallback } from './types';
-
-interface RuntimeInfo {
-  /** Runtime ID (either user-set or `pid`). */
-  id: string;
-  /** Process ID of the runtime. */
-  pid: number;
-  /** URL of the reflection server. */
-  reflectionServerUrl: string;
-  /** Timestamp when the runtime was started. */
-  timestamp: string;
-}
+import {
+  GenkitToolsError,
+  RuntimeEvent,
+  RuntimeInfo,
+  StreamingCallback,
+} from './types';
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
@@ -54,6 +48,7 @@ interface RuntimeManagerOptions {
 export class RuntimeManager {
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private idToFileMap: Record<string, string> = {};
+  private eventEmitter = new EventEmitter();
 
   private constructor(
     readonly telemetryServerUrl?: string,
@@ -108,6 +103,23 @@ export class RuntimeManager {
       : runtimes.reduce((a, b) =>
           new Date(a.timestamp) > new Date(b.timestamp) ? a : b
         );
+  }
+
+  /**
+   * Subscribe to changes to the available runtimes. e.g.) whenever a new
+   * runtime is added or removed.
+   *
+   * The `listener` will be called with the `eventType` that occured and the
+   * `runtime` to which it applies.
+   *
+   * @param listener the callback function.
+   */
+  onRuntimeEvent(
+    listener: (eventType: RuntimeEvent, runtime: RuntimeInfo) => void
+  ) {
+    Object.values(RuntimeEvent).forEach((event) =>
+      this.eventEmitter.on(event, (rt) => listener(event, rt))
+    );
   }
 
   /**
@@ -276,6 +288,7 @@ export class RuntimeManager {
   private async setupRuntimesWatcher() {
     try {
       const runtimesDir = await findRuntimesDir();
+      await fs.mkdir(runtimesDir, { recursive: true });
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
         ignoreInitial: false,
@@ -305,6 +318,7 @@ export class RuntimeManager {
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
           this.filenameToRuntimeMap[fileName] = runtimeInfo;
           this.idToFileMap[runtimeInfo.id] = fileName;
+          this.eventEmitter.emit(RuntimeEvent.ADD, runtimeInfo);
           await this.notifyRuntime(runtimeInfo);
           logger.debug(
             `Added runtime with ID ${runtimeInfo.id} at URL: ${runtimeInfo.reflectionServerUrl}`
@@ -326,10 +340,11 @@ export class RuntimeManager {
   private handleRemovedRuntime(filePath: string) {
     const fileName = path.basename(filePath);
     if (fileName in this.filenameToRuntimeMap) {
-      const id = this.filenameToRuntimeMap[fileName].id;
+      const runtime = this.filenameToRuntimeMap[fileName];
       delete this.filenameToRuntimeMap[fileName];
-      delete this.idToFileMap[id];
-      logger.debug(`Removed runtime with id ${id}.`);
+      delete this.idToFileMap[runtime.id];
+      this.eventEmitter.emit(RuntimeEvent.REMOVE, runtime);
+      logger.debug(`Removed runtime with id ${runtime.id}.`);
     }
   }
 
@@ -369,13 +384,11 @@ export class RuntimeManager {
   }
 
   /**
-   * Removes a runtime from the maps and tries to delete the file (best effort).
+   * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
     const runtime = this.filenameToRuntimeMap[fileName];
     if (runtime) {
-      delete this.filenameToRuntimeMap[fileName];
-      delete this.idToFileMap[runtime.id];
       try {
         const runtimesDir = await findRuntimesDir();
         const runtimeFilePath = path.join(runtimesDir, fileName);

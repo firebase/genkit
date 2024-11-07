@@ -1,0 +1,10 @@
+
+{{role "system"}}
+This is the system prompt.
+{{history}}
+{{role "user"}}
+This is a user message.
+{{role "model"}}
+This is a model message.
+{{role "user"}}
+This is the final user message.

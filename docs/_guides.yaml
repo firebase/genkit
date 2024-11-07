@@ -29,14 +29,16 @@ toc:
     path: /docs/genkit/models
   - title: Creating flows
     path: /docs/genkit/flows
-  - title: Prompting models
-    path: /docs/genkit/prompts
-  - title: Managing prompts
+  - title: Managing prompts with Dotprompt
     path: /docs/genkit/dotprompt
+  - title: Persistent chat sessions
+    path: /docs/genkit/chat
   - title: Tool calling
     path: /docs/genkit/tool-calling
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
+  - title: Multi-agent systems
+    path: /docs/genkit/multi-agent
   - title: Evaluation
     path: /docs/genkit/evaluation
   - title: Observability & monitoring

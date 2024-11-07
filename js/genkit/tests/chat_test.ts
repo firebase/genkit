@@ -120,12 +120,12 @@ describe('chat', () => {
   });
 
   it('can start chat from a prompt', async () => {
-    const prompt = ai.definePrompt(
+    const preamble = ai.definePrompt(
       { name: 'hi', config: { version: 'abc' } },
       'hi {{ name }} from template'
     );
     const session = await ai.chat({
-      prompt,
+      preamble,
       input: { name: 'Genkit' },
     });
     const response = await session.send('send it');
@@ -208,7 +208,7 @@ describe('preabmle', () => {
     };
 
     const session = ai.chat({
-      prompt: agentA,
+      preamble: agentA,
     });
     let { text } = await session.send('hi');
     assert.strictEqual(text, 'hi from agent a');
@@ -227,7 +227,7 @@ describe('preabmle', () => {
           role: 'user',
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           name: 'agentB',
@@ -316,7 +316,7 @@ describe('preabmle', () => {
           ],
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           description: 'Agent A description',
@@ -436,7 +436,7 @@ describe('preabmle', () => {
           ],
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           description: 'Agent B description',

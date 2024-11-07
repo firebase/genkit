@@ -1,0 +1,9 @@
+---
+model: vertexai/gemini-1.5-flash
+input:
+  schema:
+    photoUrl: string
+---
+Describe this image in a detailed paragraph:
+
+{{media url=photoUrl}}

@@ -53,7 +53,7 @@ func TestDevServer(t *testing.T) {
 	core.DefineActionInRegistry(r, "devServer", "dec", atype.Custom, map[string]any{
 		"bar": "baz",
 	}, nil, dec)
-	srv := httptest.NewServer(newDevServeMux(r))
+	srv := httptest.NewServer(newDevServeMux(&devServer{reg: r}))
 	defer srv.Close()
 
 	t.Run("runAction", func(t *testing.T) {

@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.9.0-dev.2",
+  "version": "0.9.0-dev.4",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -102,6 +102,12 @@
       "require": "./lib/reranker.js",
       "import": "./lib/reranker.mjs",
       "default": "./lib/reranker.js"
+    },
+    "./formats": {
+      "types": "./lib/formats/index.d.ts",
+      "require": "./lib/formats/index.js",
+      "import": "./lib/formats/index.mjs",
+      "default": "./lib/formats/index.js"
     }
   },
   "typesVersions": {

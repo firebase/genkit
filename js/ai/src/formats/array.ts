@@ -18,47 +18,48 @@ import { GenkitError } from '@genkit-ai/core';
 import { extractItems } from '../extract';
 import type { Formatter } from './types';
 
-export const arrayParser: Formatter = (request) => {
-  if (request.output?.schema && request.output?.schema.type !== 'array') {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: `Must supply an 'array' schema type when using the 'items' parser format.`,
-    });
-  }
+export const arrayFormatter: Formatter<unknown[], unknown[]> = {
+  name: 'array',
+  config: {
+    contentType: 'application/json',
+    constrained: true,
+  },
+  handler: (schema) => {
+    if (schema && schema.type !== 'array') {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Must supply an 'array' schema type when using the 'items' parser format.`,
+      });
+    }
 
-  let instructions: boolean | string = false;
-  if (request.output?.schema) {
-    instructions = `Output should be a JSON array conforming to the following schema:
+    let instructions: string | undefined;
+    if (schema) {
+      instructions = `Output should be a JSON array conforming to the following schema:
     
-    \`\`\`
-    ${JSON.stringify(request.output!.schema!)}
-    \`\`\`
+\`\`\`
+${JSON.stringify(schema)}
+\`\`\`
     `;
-  }
+    }
 
-  let cursor: number = 0;
+    return {
+      parseChunk: (chunk) => {
+        // first, determine the cursor position from the previous chunks
+        const cursor = chunk.previousChunks?.length
+          ? extractItems(chunk.previousText).cursor
+          : 0;
+        // then, extract the items starting at that cursor
+        const { items } = extractItems(chunk.accumulatedText, cursor);
 
-  return {
-    parseChunk: (chunk, emit) => {
-      const { items, cursor: newCursor } = extractItems(
-        chunk.accumulatedText,
-        cursor
-      );
+        return items;
+      },
 
-      // Emit any complete items
-      for (const item of items) {
-        emit(item);
-      }
+      parseMessage: (message) => {
+        const { items } = extractItems(message.text, 0);
+        return items;
+      },
 
-      // Update cursor position
-      cursor = newCursor;
-    },
-
-    parseResponse: (response) => {
-      const { items } = extractItems(response.text, 0);
-      return items;
-    },
-
-    instructions,
-  };
+      instructions,
+    };
+  },
 };

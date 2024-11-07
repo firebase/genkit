@@ -16,9 +16,10 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { arrayParser } from '../../src/formats/array.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
+import { arrayFormatter } from '../../src/formats/array.js';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
 
 describe('arrayFormat', () => {
   const streamingTests = [
@@ -65,65 +66,59 @@ describe('arrayFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = arrayParser({ messages: [] });
+      const parser = arrayFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastEmitted: any[] = [];
+      let lastCursor = 0;
+
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
           content: [{ text: chunk.text }],
         };
+
+        const result = parser.parseChunk!(
+          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
+        );
         chunks.push(newChunk);
 
-        lastEmitted = [];
-        const emit = (item: any) => {
-          lastEmitted.push(item);
-        };
-        parser.parseChunk!(new GenerateResponseChunk(newChunk, chunks), emit);
-
-        assert.deepStrictEqual(lastEmitted, chunk.want);
+        assert.deepStrictEqual(result, chunk.want);
       }
     });
   }
 
-  const responseTests = [
+  const messageTests = [
     {
       desc: 'parses complete array response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '[{"id": 1, "name": "test"}]' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '[{"id": 1, "name": "test"}]' }],
+      },
       want: [{ id: 1, name: 'test' }],
     },
     {
       desc: 'parses empty array',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '[]' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '[]' }],
+      },
       want: [],
     },
     {
       desc: 'parses array with preamble and code fence',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [
-            { text: 'Here is the array:\n\n```json\n[{"id": 1}]\n```' },
-          ],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: 'Here is the array:\n\n```json\n[{"id": 1}]\n```' }],
+      },
       want: [{ id: 1 }],
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = arrayParser({ messages: [] });
-      assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = arrayFormatter.handler();
+      assert.deepStrictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
 
@@ -153,7 +148,7 @@ describe('arrayFormat', () => {
   for (const et of errorTests) {
     it(et.desc, () => {
       assert.throws(() => {
-        arrayParser(et.request);
+        arrayFormatter.handler(et.request);
       }, et.wantError);
     });
   }

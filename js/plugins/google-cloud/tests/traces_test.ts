@@ -188,7 +188,7 @@ describe('GoogleCloudTracing', () => {
     );
     const testFlow = createFlow(ai, 'modelFlow', async () => {
       return run('runFlow', async () => {
-        ai.generate({
+        await ai.generate({
           model: echoModel,
           prompt: 'Testing model telemetry',
         });
@@ -199,10 +199,11 @@ describe('GoogleCloudTracing', () => {
 
     const spans = await getExportedSpans();
 
-    assert.equal(spans[0].name, 'runFlow');
-    assert.equal(spans[1].name, 'modelFlow');
-    assert.equal(spans[2].name, 'echoModel');
-    assert.equal(spans[2].attributes['genkit/model'], 'echoModel');
+    assert.equal(spans[0].name, 'echoModel');
+    assert.equal(spans[0].attributes['genkit/model'], 'echoModel');
+    assert.equal(spans[1].name, 'generate');
+    assert.equal(spans[2].name, 'runFlow');
+    assert.equal(spans[3].name, 'modelFlow');
   });
 
   it('attaches additional span', async () => {
