@@ -350,10 +350,7 @@ describe('definePrompt - dotprompt', () => {
             role: 'user',
           },
         ],
-        output: {
-          format: 'text',
-          jsonSchema: undefined,
-        },
+        output: undefined,
         tools: [],
       });
     });
