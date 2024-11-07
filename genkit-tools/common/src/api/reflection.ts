@@ -78,8 +78,8 @@ registry.registerPath({
 });
 registry.registerPath({
   method: 'get',
-  path: '/api/envs/{env}/traces',
-  summary: 'Retrieves all traces for a given environment (e.g. dev or prod).',
+  path: '/api/traces',
+  summary: 'Retrieves all traces',
   request: {
     params: apis.ListTracesRequestSchema,
   },
@@ -96,8 +96,8 @@ registry.registerPath({
 });
 registry.registerPath({
   method: 'get',
-  path: '/api/envs/{env}/traces/{traceId}',
-  summary: 'Retrieves traces for the given environment.',
+  path: '/api/traces/{traceId}',
+  summary: 'Retrieves a trace by traceId',
   request: {
     params: apis.GetTraceRequestSchema,
   },
@@ -107,43 +107,6 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: TraceDataSchema,
-        },
-      },
-    },
-  },
-});
-registry.registerPath({
-  method: 'get',
-  path: '/api/envs/{env}/flowStates',
-  summary:
-    'Retrieves all flow states for a given environment (e.g. dev or prod).',
-  request: {
-    params: apis.ListFlowStatesRequestSchema,
-  },
-  responses: {
-    '200': {
-      description: 'Success',
-      content: {
-        'application/json': {
-          schema: z.array(FlowStateSchema),
-        },
-      },
-    },
-  },
-});
-registry.registerPath({
-  method: 'get',
-  path: '/api/envs/{env}/flowStates/{flowId}',
-  summary: 'Retrieves a flow state for the given ID.',
-  request: {
-    params: apis.GetFlowStateRequestSchema,
-  },
-  responses: {
-    '200': {
-      description: 'Success',
-      content: {
-        'application/json': {
-          schema: FlowStateSchema,
         },
       },
     },

@@ -28,9 +28,7 @@ configureGenkit({
     dotprompt(),
   ],
   enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
   logLevel: 'debug',
-  traceStore: 'firebase',
 });
 
 // This example generates greetings for a customer at our new AI-powered coffee shop,
