@@ -211,3 +211,11 @@ export async function renderPrompt<
     tools: rendered.tools || [],
   } as GenerateOptions<O, CustomOptions>;
 }
+
+export function isExecutablePrompt(obj: any): boolean {
+  return (
+    !!(obj as ExecutablePrompt)?.render &&
+    !!(obj as ExecutablePrompt)?.asTool &&
+    !!(obj as ExecutablePrompt)?.stream
+  );
+}
