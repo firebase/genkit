@@ -227,7 +227,7 @@ describe('preabmle', () => {
           role: 'user',
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           name: 'agentB',
@@ -316,7 +316,7 @@ describe('preabmle', () => {
           ],
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           description: 'Agent A description',
@@ -436,7 +436,7 @@ describe('preabmle', () => {
           ],
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           description: 'Agent B description',
