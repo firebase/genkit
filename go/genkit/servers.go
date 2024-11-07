@@ -322,7 +322,8 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 
 // handleGetTrace returns a single trace from a TraceStore.
 func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error {
-	env := r.PathValue("env")
+	// Deprecated, using as default
+	env := registry.EnvironmentDev
 	ts := s.reg.LookupTraceStore(registry.Environment(env))
 	if ts == nil {
 		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
@@ -340,7 +341,8 @@ func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error
 
 // handleListTraces returns a list of traces from a TraceStore.
 func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) error {
-	env := r.PathValue("env")
+	// Deprecated, using as default
+	env := registry.EnvironmentDev
 	ts := s.reg.LookupTraceStore(registry.Environment(env))
 	if ts == nil {
 		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
