@@ -48,6 +48,7 @@ export const evalExtractData = new Command('eval:extractData')
       let dataset: EvalInput[] = [];
       let continuationToken = undefined;
       while (dataset.length < parseInt(options.maxRows)) {
+        // Env not needed
         const response = await manager.listTraces({
           limit: parseInt(options.maxRows),
           continuationToken,
