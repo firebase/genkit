@@ -27,14 +27,8 @@ import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
   plugins: [firebase(), vertexAI()],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
-  telemetry: {
-    instrumentation: 'firebase',
-    logger: 'firebase',
-  },
 });
 
 export const simpleFlow = onFlow(
