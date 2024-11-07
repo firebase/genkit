@@ -112,7 +112,7 @@ Let’s break it down:
 
 ## 4. Defining flows and starting the flow server explicitly
 
-Now that you have a configured genkit instance, you will need to define your flows. All core developer-facing API methods like `defineFlow`, `defineTool`, and `onFlow` are now invoked through this instance.
+Now that you have a configured `genkit` instance, you will need to define your flows. All core developer-facing API methods like `defineFlow`, `defineTool`, and `onFlow` are now invoked through this instance.
 
 This is distinct from the previous way, where flows and tools were registered globally.
 
