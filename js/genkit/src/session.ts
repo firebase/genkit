@@ -201,23 +201,52 @@ export class Session<S = any> {
       let threadName = MAIN_THREAD;
       let preamble: ExecutablePrompt<I> | undefined;
       if (maybeOptions) {
+        // if all three are set, this is the only case:
+        //   chat<I>(threadName: string, preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>)
         threadName = optionsOrPreambleOrThreadName as string;
         options = maybeOptions as ChatOptions<S>;
         preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
-      } else {
+      } else if (maybeOptionsOrPreamble) {
+        // if two are set, this could be
+        //   chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>)
+        //   chat<I>(threadName: string, options?: ChatOptions<I, S>)
+        //   chat<I>(threadName: string, preamble: ExecutablePrompt<I>): Chat;
         if (typeof optionsOrPreambleOrThreadName === 'string') {
+          // can be:
+          //   chat<I>(threadName: string, options?: ChatOptions<I, S>)
+          //   chat<I>(threadName: string, preamble: ExecutablePrompt<I>): Chat;
           threadName = optionsOrPreambleOrThreadName as string;
           if ((maybeOptionsOrPreamble as ExecutablePrompt<I>)?.render) {
+            // it's
+            //   chat<I>(threadName: string, preamble: ExecutablePrompt<I>): Chat;
             preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
           } else {
+            // it's:
+            //   chat<I>(threadName: string, options?: ChatOptions<I, S>)
             options = maybeOptionsOrPreamble as ChatOptions<I, S>;
           }
+        } else {
+          // it's:
+          //   chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>)
+          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
+          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
+        }
+      } else {
+        // if one, this can be:
+        //   chat<I>(threadName: String): Chat;
+        //   chat<I>(preamble: ExecutablePrompt<I>): Chat;
+        //   chat<I>(options?: ChatOptions<I, S>): Chat;
+        if (typeof optionsOrPreambleOrThreadName === 'string') {
+          threadName = optionsOrPreambleOrThreadName as string;
         } else if (
           (optionsOrPreambleOrThreadName as ExecutablePrompt<I>)?.render
         ) {
+          // it's
+          //   chat<I>(preamble: ExecutablePrompt<I>): Chat;
           preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
-          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
         } else {
+          // it's:
+          //   chat<I>(options?: ChatOptions<I, S>): Chat;
           options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
         }
       }
