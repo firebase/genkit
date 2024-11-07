@@ -1,24 +1,22 @@
-<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
-use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+# Deploy flows using Cloud Functions for Firebase
 
-# Genkit with Cloud Functions for Firebase
+Genkit includes a plugin that helps you deploy your flows to Cloud Functions for
+Firebase. Flows, once deployed, are available as HTTPS endpoints and accessible
+as callable functions using the Cloud Functions client libraries.
 
-Firebase Genkit includes a plugin that helps you deploy your flows to Firebase
-Cloud Functions. This page, as an example, walks you through the process of
-deploying the default sample flow to Firebase.
+## Before you begin
 
-## Deploy a flow as a Cloud Function
+*   Install the [Firebase CLI](/docs/cli).
+*   You should be familiar with Genkit's concept of [flows](flows), and how to write them.
+*   It would be helpful, but not required, if you've already used Cloud Functions for Firebase before.
 
-1.  Install the required tools:
+## 1. Set up a Firebase project
 
-    1.  Make sure you are using Node.js version 20 or higher (run `node --version` to
-        check).
-
-    1.  Install the [Firebase CLI](https://firebase.google.com/docs/cli).
+If you don't already have a Firebase project with TypeScript Cloud Functions set up, follow these steps:
 
 1.  Create a new Firebase project using the [Firebase console](https://console.firebase.google.com/) or choose an existing one.
 
-    Upgrade the project to the Blaze plan, which is required to deploy Cloud
+1.  Upgrade the project to the Blaze plan, which is required to deploy Cloud
     Functions.
 
 1.  Log in with the Firebase CLI:
@@ -39,204 +37,257 @@ deploying the default sample flow to Firebase.
     mkdir -p $PROJECT_ROOT
     ```
 
-1.  Initialize a Firebase project with Genkit in the folder:
+1.  Initialize a Firebase project in the directory:
 
     ```posix-terminal
     cd $PROJECT_ROOT
 
-    firebase init genkit
+    firebase init functions
     ```
 
-    - Select the project you created earlier.
-    - Select the model provider you want to use.
+    The rest of this page assumes that you've selected to write your functions in TypeScript, but you can also deploy your Genkit flows if you're using JavaScript. Python is not supported.
 
-    Accept the defaults for the remaining prompts. The `genkit` tool will create
-    some sample source files to get you started developing your own AI flows.
-    For the rest of this tutorial, however, you'll just deploy the sample flow.
+1.  Edit `functions/tsconfig.json` and add the following to `compilerOptions`:
 
-1.  Make API credentials available to your Cloud Function. Do one of the
-    following, depending on the model provider you chose:
-
-    - {Gemini (Google AI)}
-
-      1.  Make sure Google AI is [available in your region](https://ai.google.dev/available_regions).
-
-      1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
-          Gemini API using Google AI Studio.
-
-      1.  Store your API key in Cloud Secret Manager:
-
-          ```posix-terminal
-          firebase functions:secrets:set GOOGLE_GENAI_API_KEY
-          ```
-
-          This step is important to prevent accidentally leaking your API key,
-          which grants access to a potentially metered service.
-
-          See [Store and access sensitive configuration information](https://firebase.google.com/docs/functions/config-env?gen=2nd#secret-manager)
-          for more information on managing secrets.
-
-      1.  Edit `src/index.ts` and add the following after the existing imports:
-
-          <!--See note above on prettier-ignore -->
-          <!-- prettier-ignore -->
-          ```js
-          import {defineSecret} from "firebase-functions/params";
-          const googleAIapiKey = defineSecret("GOOGLE_GENAI_API_KEY");
-          ```
-
-          Then, in the flow definition, declare that the cloud function needs
-          access to this secret value:
-
-          <!--See note above on prettier-ignore -->
-          <!-- prettier-ignore -->
-          ```js
-          export const menuSuggestionFlow = onFlow(
-            {
-              name: "menuSuggestionFlow",
-              // ...
-              httpsOptions: {
-                secrets: [googleAIapiKey],  // Add this line.
-              },
-            },
-            async (subject) => {
-              // ...
-            }
-          );
-          ```
-
-      Now, when you deploy this function, your API key will be stored in
-      Cloud Secret Manager, and available from the Cloud Functions
-      environment.
-
-    - {Gemini (Vertex AI)}
-
-      1.  In the Cloud console,
-          [Enable the Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=_)
-          for your Firebase project.
-
-      1.  On the [IAM](https://console.cloud.google.com/iam-admin/iam?project=_)
-          page, ensure that the **Default compute service account** is granted
-          the **Vertex AI User** role.
-
-    The only secret you need to set up for this tutorial is for the model
-    provider, but in general, you must do something similar for each service
-    your flow uses.
-
-1.  If you'll access your flow from a web app (which you will be doing in the
-    next section), in the `httpsOptions` parameter, set a CORS policy:
-
-    <!--See note above on prettier-ignore -->
-    <!-- prettier-ignore -->
-    ```js
-    export const menuSuggestionFlow = onFlow(
-      {
-        name: "menuSuggestionFlow",
-        // ...
-        httpsOptions: {
-          cors: true,  // Add this line.
-        },
-      },
-      async (subject) => {
-        // ...
-      }
-    );
+    ```
+    "skipLibCheck": true,
     ```
 
-    You will likely want a more restrictive policy for production apps, but this
-    will do for this tutorial.
+## 2. Install Genkit dependencies
 
-1.  **Optional**: Try your flow in the developer UI:
+Once you have a Firebase project set up with Cloud Functions, you need to install Genkit into it.
 
-    1.  Make API credentials available locally. Do one of the following,
-        depending on the model provider you chose:
-
-        - {Gemini (Google AI)}
-
-          Set the `GOOGLE_GENAI_API_KEY` environment variable to your key:
-
-          ```posix-terminal
-          export GOOGLE_GENAI_API_KEY=<your API key>
-          ```
-
-        - {Gemini (Vertex AI)}
-
-          Set some additional environment variables and use the
-          [`gcloud`](https://cloud.google.com/sdk/gcloud) tool to set up
-          application default credentials locally:
-
-          ```posix-terminal
-          export GCLOUD_PROJECT=<your project ID>
-
-          export GCLOUD_LOCATION=us-central1
-
-          gcloud auth application-default login
-          ```
-
-    1.  Start the UI:
-
-        ```posix-terminal
-        cd $PROJECT_ROOT/functions
-
-        genkit start
-        ```
-
-    1.  In the developer UI (http://localhost:4000/), run the flow:
-
-        1.  Click **menuSuggestionFlow**.
-
-        2.  On the **Input JSON** tab, provide a subject for the model:
-
-            ```json
-            "AI app developers"
-            ```
-
-        3.  On the **Auth JSON** tab, provide a simulated auth object:
-
-            ```json
-            {
-              "uid": 0,
-              "email_verified": true
-            }
-            ```
-
-        4.  Click **Run**.
-
-1.  If everything's working as expected so far, you can deploy the flow:
+1.  Change to your project's functions directory:
 
     ```posix-terminal
-    cd $PROJECT_ROOT
-
-    firebase deploy --only functions
+    cd $PROJECT_ROOT/functions
     ```
 
-You've now deployed the flow as a Cloud Function! But, you won't be able to
-access your deployed endpoint with `curl` or similar, because of the flow's
-authorization policy. Continue to the next section to learn how to securely
-access the flow.
+1.  If you didn't install the Genkit CLI globally, you can install it as a development dependency. The `tsx` tool is also recommended, as it makes testing your code more convenient. Both of these dependencies are optional, however.
 
-## Try the deployed flow
+    ```posix-terminal
+    npm i --save-dev genkit-cli tsx
+    ```
 
-It is critical that every flow you deploy sets an authorization policy. Without
-one, your potentially-expensive generative AI flows would be invocable by
-anyone.
+1.  Install the core Genkit library and the Firebase plugin:
 
-The default sample flow has an authorization policy like the following:
+    ```posix-terminal
+    npm i --save genkit @genkit-ai/firebase
+    ```
 
-```js
-firebaseAuth((user) => {
-  if (!user.email_verified) {
-    throw new Error('Verified email required to run flow');
+1.  Install at least one model plugin. For example, to use Google AI:
+
+    ```posix-terminal
+    npm i --save @genkit-ai/googleai
+    ```
+
+    Or to use Vertex AI:
+
+    ```posix-terminal
+    npm i --save @genkit-ai/vertexai
+    ```
+
+## 3. Update flow definitions
+
+To deploy flows to Firebase, you need to modify your flow definitions. The core logic will remain the same, but you will add some additional information to make them smoothly deployable and more secure once deployed.
+
+Suppose you have the following flow: 
+
+```ts
+const generatePoemFlow = ai.defineFlow(
+  {
+    name: "generatePoem",
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (subject: string) => {
+    const { text } = await ai.generate(`Compose a poem about ${subject}.`);
+    return text;
   }
-});
+);
 ```
 
-This policy uses the `firebaseAuth()` helper to allow access only to registered
-users of your app with verfied email addresses. On the client side, you need to
-set the `Authorization: Bearer` header to a Firebase ID token that satisfies
-your policy. The Cloud Functions client SDKs provide
-[callable function](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function)
-methods that automate this.
+There are four changes you need to make before you can deploy it.
+
+### Define flows with onFlow
+
+Instead of defining your flow with `Genkit.defineFlow()`, use the Firebase plugin's `onFlow()` function. Using this function wraps your flow logic in a Cloud Functions request handler, similar to [`onCall`](https://firebase.google.com/docs/functions/callable?gen=2nd#write_and_deploy_the_callable_function).
+
+```ts
+import { onFlow } from "@genkit-ai/firebase/functions";
+
+export const generatePoem = onFlow(
+  ai,
+  {
+    // ...
+  },
+  async (subject: string) => {
+    // ...
+  }
+);
+```
+
+Note that `onFlow` isn't a method of `Genkit`, but rather a function that takes a `Genkit` instance as its first parameter. Otherwise, the syntax is similar to `defineFlow`.
+
+### Define an authorization policy
+
+All deployed flows, whether deployed to Firebase or not, should have an authorization policy; without one, your potentially-expensive generative AI flows would be invocable by anyone. To define an authorization policy, use the authPolicy parameter in the flow definition:
+
+```ts
+import { firebaseAuth } from "@genkit-ai/firebase/auth";
+
+export const generatePoem = onFlow(
+  ai,
+  {
+    name: "generatePoem",
+    // ...
+    authPolicy: firebaseAuth((user, input) => {
+      if (!user.email_verified) {
+        throw new Error("Verified email required to run flow");
+      }
+    }),
+  },
+  async (subject: string) => {
+    // ...
+  }
+);
+```
+
+This policy uses the `firebaseAuth()` helper to allow access only to registered users of your app with verfied email addresses. On the client side, you need to set the `Authorization: Bearer` header to a Firebase ID token that satisfies your policy. The Cloud Functions client SDKs provide callable function methods that automate this; see the section [Try the deployed flow](#example-client) for an example.
+
+### Make API credentials available to deployed flows 
+
+Once deployed, your flows need some way to authenticate with any remote services they rely on. Most flows will at a minimum need credentials for accessing the model API service they use.
+
+For this example, do one of the following, depending on the model provider you chose:
+
+- {Gemini (Google AI)}
+
+  1.  Make sure Google AI is [available in your region](https://ai.google.dev/available_regions).
+
+  1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
+      Gemini API using Google AI Studio.
+
+  1.  Store your API key in Cloud Secret Manager:
+
+      ```posix-terminal
+      firebase functions:secrets:set GOOGLE_GENAI_API_KEY
+      ```
+
+      This step is important to prevent accidentally leaking your API key,
+      which grants access to a potentially metered service.
+
+      See [Store and access sensitive configuration information](https://firebase.google.com/docs/functions/config-env?gen=2nd#secret-manager)
+      for more information on managing secrets.
+
+  1.  Edit `src/index.ts` and add the following after the existing imports:
+
+      ```ts
+      import {defineSecret} from "firebase-functions/params";
+      const googleAIapiKey = defineSecret("GOOGLE_GENAI_API_KEY");
+      ```
+
+      Then, in the flow definition, declare that the cloud function needs
+      access to this secret value:
+
+      ```ts
+      export const generatePoem = onFlow(
+        {
+          name: "generatePoem",
+          // ...
+          httpsOptions: {
+            secrets: [googleAIapiKey],  // Add this line.
+          },
+        },
+        async (subject) => {
+          // ...
+        }
+      );
+      ```
+
+  Now, when you deploy this function, your API key will be stored in
+  Cloud Secret Manager, and available from the Cloud Functions
+  environment.
+
+- {Gemini (Vertex AI)}
+
+  1.  In the Cloud console,
+      [Enable the Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=_)
+      for your Firebase project.
+
+  1.  On the [IAM](https://console.cloud.google.com/iam-admin/iam?project=_)
+      page, ensure that the **Default compute service account** is granted
+      the **Vertex AI User** role.
+
+The only secret you need to set up for this tutorial is for the model
+provider, but in general, you must do something similar for each service
+your flow uses.
+
+### Set a CORS policy 
+
+If you'll access your flow from a web app (which you will do in the [Try the deployed flow](#example-client) section), in the `httpsOptions` parameter, set a CORS policy:
+
+```ts
+export const generatePoem = onFlow(
+  ai,
+  {
+    name: "generatePoem",
+    // ...
+    httpsOptions: {
+      cors: '*',
+    },
+  },
+  async (subject: string) => {
+    // ...
+  }
+);
+```
+
+You will likely want a more restrictive policy for production apps, but this will do for this tutorial.
+
+### Complete example
+
+After you've made all of the changes described above, your deployable flow will look something like the following example:
+
+```ts
+const googleAIapiKey = defineSecret("GOOGLE_GENAI_API_KEY");
+
+export const generatePoem = onFlow(
+  ai,
+  {
+    name: "generatePoem",
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    authPolicy: firebaseAuth((user, input) => {
+      if (!user.email_verified) {
+        throw new Error("Verified email required to run flow");
+      }
+    }),
+    httpsOptions: {
+      secrets: [googleAIapiKey],
+      cors: '*',
+    },
+  },
+  async (subject: string) => {
+    const { text } = await ai.generate(`Compose a poem about ${subject}.`);
+    return text;
+  }
+);
+```
+
+## 4. Deploy flows to Firebase
+
+After you've defined flows using onFlow, you can deploy them as you would deploy other Cloud Functions:
+
+```posix-terminal
+cd $PROJECT_ROOT
+
+firebase deploy --only functions
+```
+
+You've now deployed the flow as a Cloud Function! But, you won't be able to access your deployed endpoint with curl or similar, because of the flow's authorization policy. Continue to the next section to learn how to securely access the flow.
+
+## Optional: Try the deployed flow {:#example-client}
 
 To try out your flow endpoint, you can deploy the following minimal example web
 app:
@@ -265,7 +316,7 @@ app:
 1.  Replace `public/index.html` with the following:
 
     ```html
-    <!doctype html>
+    <!DOCTYPE html>
     <html>
       <head>
         <title>Genkit demo</title>
@@ -276,48 +327,43 @@ app:
         </div>
         <div id="callGenkit" hidden>
           Subject: <input type="text" id="subject" />
-          <button id="suggestMenuItem">Suggest a menu theme</button>
-          <p id="menuItem"></p>
+          <button id="generatePoem">Compose a poem on this subject</button>
+          <p id="generatedPoem"></p>
         </div>
         <script type="module">
-          import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js';
+          import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
           import {
             getAuth,
             onAuthStateChanged,
             GoogleAuthProvider,
             signInWithPopup,
-          } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js';
+          } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
           import {
             getFunctions,
             httpsCallable,
-          } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-functions.js';
+          } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
 
-          const firebaseConfig = await fetch('/__/firebase/init.json');
+          const firebaseConfig = await fetch("/__/firebase/init.json");
           initializeApp(await firebaseConfig.json());
 
-          async function generateMenuItem() {
-            const menuSuggestionFlow = httpsCallable(
-              getFunctions(),
-              'menuSuggestionFlow'
-            );
-            const subject = document.querySelector('#subject').value;
-            const response = await menuSuggestionFlow(subject);
-            document.querySelector('#menuItem').innerText = response.data;
+          async function generatePoem() {
+            const poemFlow = httpsCallable(getFunctions(), "generatePoem");
+            const subject = document.querySelector("#subject").value;
+            const response = await poemFlow(subject);
+            document.querySelector("#generatedPoem").innerText = response.data;
           }
 
           function signIn() {
             signInWithPopup(getAuth(), new GoogleAuthProvider());
           }
 
+          document.querySelector("#signinBtn").addEventListener("click", signIn);
           document
-            .querySelector('#signinBtn')
-            .addEventListener('click', signIn);
-          document
-            .querySelector('#suggestMenuItem')
-            .addEventListener('click', generateMenuItem);
+            .querySelector("#generatePoem")
+            .addEventListener("click", generatePoem);
 
-          const signinEl = document.querySelector('#signin');
-          const genkitEl = document.querySelector('#callGenkit');
+          const signinEl = document.querySelector("#signin");
+          const genkitEl = document.querySelector("#callGenkit");
 
           onAuthStateChanged(getAuth(), (user) => {
             if (!user) {
@@ -345,13 +391,25 @@ Open the web app by visiting the URL printed by the `deploy` command. The app
 requires you to sign in with a Google account, after which you can initiate
 endpoint requests.
 
-## Developing using Firebase Local Emulator Suite
+## Optional: Run flows in the developer UI 
+
+You can run flows defined using `onFlow` in the developer UI, exactly the same
+way as you run flows defined using `defineFlow`, so there's no need to switch
+between the two between deployment and development.
+
+```posix-terminal
+cd $PROJECT_ROOT/functions
+
+npx genkit start -- npx tsx --watch src/index.ts
+```
+
+## Optional: Developing using Firebase Local Emulator Suite
 
 Firebase offers a [suite of emulators for local development](https://firebase.google.com/docs/emulator-suite), which you can use with Genkit.
 
 To use Genkit with the Firebase Emulator Suite, start the the Firebase emulators like this:
 
-```bash
+```posix-terminal
 GENKIT_ENV=dev firebase emulators:start --inspect-functions
 ```
 
@@ -359,8 +417,8 @@ This will run your code in the emulator and run the Genkit framework in developm
 
 Then, launch the Genkit Dev UI with the `--attach` option to connect it to your code running inside the Firebase Emulator:
 
-```bash
-genkit start --attach http://localhost:3100 --port 4001
+```posix-terminal
+npx genkit start --attach http://localhost:3100 --port 4001
 ```
 
 To see traces from Firestore in the Dev UI you can navigate to the Inspect tab and toggle the "Dev/Prod" switch. When toggled to "prod" it will be loading traces from firestore.
