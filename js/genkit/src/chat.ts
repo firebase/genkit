@@ -42,7 +42,7 @@ export type ChatGenerateOptions<
 > = GenerateOptions<O, CustomOptions>;
 
 export interface PromptRenderOptions<I> {
-  prompt: ExecutablePrompt<I>;
+  preamble: ExecutablePrompt<I>;
   input?: I;
 }
 
