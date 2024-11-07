@@ -169,7 +169,7 @@ describe('chat', () => {
   });
 });
 
-describe('preabmle', () => {
+describe('preamble', () => {
   let ai: Genkit;
   let pm: ProgrammableModel;
 

@@ -137,7 +137,7 @@ export class Session<S = any> {
   chat<I>(options?: ChatOptions<I, S>): Chat;
 
   /**
-   * Create a chat session with the provided preabmle.
+   * Create a chat session with the provided preamble.
    *
    * ```ts
    * const triageAgent = ai.definePrompt({
@@ -151,7 +151,7 @@ export class Session<S = any> {
   chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>): Chat;
 
   /**
-   * Craete a separate chat conversation ("thread") within the given preabmle.
+   * Craete a separate chat conversation ("thread") within the given preamble.
    *
    * ```ts
    * const session = ai.createSession({});
@@ -189,11 +189,11 @@ export class Session<S = any> {
   chat<I>(threadName: string, options?: ChatOptions<I, S>): Chat;
 
   chat<I>(
-    optionsOrPreabmleOrThreadName?:
+    optionsOrPreambleOrThreadName?:
       | ChatOptions<I, S>
       | string
       | ExecutablePrompt<I>,
-    maybeOptionsOrOpreamble?: ChatOptions<I, S> | ExecutablePrompt<I>,
+    maybeOptionsOrPreamble?: ChatOptions<I, S> | ExecutablePrompt<I>,
     maybeOptions?: ChatOptions<I, S>
   ): Chat {
     return runWithSession(this, () => {
@@ -201,24 +201,24 @@ export class Session<S = any> {
       let threadName = MAIN_THREAD;
       let preamble: ExecutablePrompt<I> | undefined;
       if (maybeOptions) {
-        threadName = optionsOrPreabmleOrThreadName as string;
+        threadName = optionsOrPreambleOrThreadName as string;
         options = maybeOptions as ChatOptions<S>;
-        preamble = maybeOptionsOrOpreamble as ExecutablePrompt<I>;
+        preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
       } else {
-        if (typeof optionsOrPreabmleOrThreadName === 'string') {
-          threadName = optionsOrPreabmleOrThreadName as string;
-          if ((maybeOptionsOrOpreamble as ExecutablePrompt<I>)?.render) {
-            preamble = maybeOptionsOrOpreamble as ExecutablePrompt<I>;
+        if (typeof optionsOrPreambleOrThreadName === 'string') {
+          threadName = optionsOrPreambleOrThreadName as string;
+          if ((maybeOptionsOrPreamble as ExecutablePrompt<I>)?.render) {
+            preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
           } else {
-            options = maybeOptionsOrOpreamble as ChatOptions<I, S>;
+            options = maybeOptionsOrPreamble as ChatOptions<I, S>;
           }
         } else if (
-          (optionsOrPreabmleOrThreadName as ExecutablePrompt<I>)?.render
+          (optionsOrPreambleOrThreadName as ExecutablePrompt<I>)?.render
         ) {
-          preamble = optionsOrPreabmleOrThreadName as ExecutablePrompt<I>;
-          options = maybeOptionsOrOpreamble as ChatOptions<I, S>;
+          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
+          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
         } else {
-          options = optionsOrPreabmleOrThreadName as ChatOptions<I, S>;
+          options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
         }
       }
       let requestBase: Promise<BaseGenerateOptions>;
