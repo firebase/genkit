@@ -7,14 +7,16 @@ Genkit 0.9 introduces a number of breaking changes alongside feature enhancement
 The command-line interface (CLI) has undergone significant updates in Genkit 0.9. The command to start Genkit has changed, and the CLI has been separated into its own standalone package, which you now need to install separately.
 
 To install the CLI:
-```
+```posix-terminal
 npm i -g genkit-cli
 ```
 
 **Old Command:**
-```
+
+```posix-terminal
 genkit start
 ```
+
 This command starts both the flow server and the Dev UI in a single command.
 
 **New Commands:**
@@ -22,11 +24,13 @@ This command starts both the flow server and the Dev UI in a single command.
 Now, you must start the dev UI and the flow servers as separate steps.
 
 To start the dev UI:
-```
+
+```posix-terminal
 genkit ui:start
 ```
 
 Once the UI is running, start the flow server:
+
 ```
 GENKIT_ENV=dev tsx --watch path/to/index.ts
 ```
@@ -40,16 +44,19 @@ The Dev UI will interact directly with the flow server to figure out which flows
 Previously, the Genkit libraries were separated into several modules, which you needed to install and import individually. These modules have now been consolidated into a single import. In addition, the Zod module is now re-exported by Genkit.
 
 **Old:**
-```
+
+```posix-terminal
 npm i @genkit-ai/core @genkit-ai/ai @genkit-ai/flow @genkit-ai/dotprompt
 ```
 
 **New:**
-```
+
+```posix-terminal
 npm i genkit
 ```
 
 **Old:**
+
 ```js
 import { … } from '@genkit-ai/ai';
 import { … } from '@genkit-ai/core';
@@ -58,6 +65,7 @@ import * as z from 'zod';
 ```
 
 **New:**
+
 ```js
 import { genkit, z } from 'genkit';
 ```
@@ -97,9 +105,9 @@ const ai = genkit({ ... });
 ```
 
 Let’s break it down:
-- `configureGenkit()` has been replaced with `genkit()`, and it returns a configured genkit instance rather than setting up configurations globally.
-- Genkit initialization function now lives in the `genkit` package.
-- Logging and telemetry are still configured globally using their own explicit methods. These configurations apply uniformly across all genkit instances.
+- `configureGenkit()` has been replaced with `genkit()`, and it returns a configured `Genkit` instance rather than setting up configurations globally.
+- The Genkit initialization function  is now in the `genkit` package.
+- Logging and telemetry are still configured globally using their own explicit methods. These configurations apply uniformly across all `Genkit` instances.
 
 ## 4. Defining flows and starting the flow server explicitly
 
@@ -311,3 +319,4 @@ console.log((await response).text());
 const prevSession = await ai.loadSession(session.id, { store });
 const prevChat = await prevSession.chat();
 await prevChat.send('bye');
+```
