@@ -202,22 +202,24 @@ export class Session<S = any> {
       let threadName = MAIN_THREAD;
       let preamble: ExecutablePrompt<I> | undefined;
 
+      if (optionsOrPreambleOrThreadName) {
+        if (typeof optionsOrPreambleOrThreadName === 'string') {
+          threadName = optionsOrPreambleOrThreadName as string;
+        } else if (isExecutablePrompt(optionsOrPreambleOrThreadName)) {
+          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
+        } else {
+          options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
+        }
+      }
+      if (maybeOptionsOrPreamble) {
+        if (isExecutablePrompt(maybeOptionsOrPreamble)) {
+          preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
+        } else {
+          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
+        }
+      }
       if (maybeOptions) {
         options = maybeOptions as ChatOptions<I, S>;
-      }
-
-      if (isExecutablePrompt(maybeOptionsOrPreamble)) {
-        preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
-      } else {
-        options = maybeOptionsOrPreamble as ChatOptions<I, S>;
-      }
-
-      if (typeof optionsOrPreambleOrThreadName === 'string') {
-        threadName = optionsOrPreambleOrThreadName as string;
-      } else if (isExecutablePrompt(optionsOrPreambleOrThreadName)) {
-        preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
-      } else {
-        options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
       }
 
       let requestBase: Promise<BaseGenerateOptions>;
