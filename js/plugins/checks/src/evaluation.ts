@@ -15,9 +15,9 @@
  */
 
 import { Action, Genkit, z } from 'genkit';
-import { GoogleAuth } from 'google-auth-library';
 import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
+import { GoogleAuth } from 'google-auth-library';
 
 /**
  * Currently supported Checks AI Safety policies.
@@ -63,24 +63,25 @@ export function checksEvaluators(
   ai: Genkit,
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
-  projectId: string,
+  projectId: string
 ): Action[] {
+  const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map(
+    (metric) => {
+      const metricType = isConfig(metric) ? metric.type : metric;
+      const threshold = isConfig(metric) ? metric.threshold : undefined;
 
-  const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map((metric) => {
-    const metricType = isConfig(metric) ? metric.type : metric;
-    const threshold = isConfig(metric) ? metric.threshold : undefined;
-
-    return {
-      type: metricType,
-      threshold,
+      return {
+        type: metricType,
+        threshold,
+      };
     }
-  });
+  );
 
   const evaluators = policy_configs.map((policy_config) => {
-    return createPolicyEvaluator(projectId, auth, ai, policy_config)
-  })
+    return createPolicyEvaluator(projectId, auth, ai, policy_config);
+  });
 
-  return evaluators
+  return evaluators;
 }
 
 function isConfig(
@@ -94,9 +95,9 @@ const ResponseSchema = z.object({
     z.object({
       policyType: z.string(),
       score: z.number(),
-      violationResult: z.string()
+      violationResult: z.string(),
     })
-  )
+  ),
 });
 
 function createPolicyEvaluator(
@@ -111,19 +112,19 @@ function createPolicyEvaluator(
     {
       name: `checks/${policyType.toLowerCase()}`,
       displayName: policyType,
-      definition: `Evaluates text against the Checks ${policyType} policy.`
+      definition: `Evaluates text against the Checks ${policyType} policy.`,
     },
     async (datapoint: BaseEvalDataPoint) => {
       const partialRequest = {
         input: {
           text_input: {
-            content: datapoint.output as string
+            content: datapoint.output as string,
           },
         },
         policies: {
           policy_type: policy_config.type,
           threshold: policy_config.threshold,
-        }
+        },
       };
 
       const response = await checksEvalInstance(
@@ -137,13 +138,13 @@ function createPolicyEvaluator(
         evaluation: {
           score: response.policyResults[0].score,
           details: {
-            reasoning: response.policyResults[0].violationResult
-          }
+            reasoning: response.policyResults[0].violationResult,
+          },
         },
         testCaseId: datapoint.testCaseId,
       };
     }
-  )
+  );
 }
 
 async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
@@ -152,7 +153,6 @@ async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
   partialRequest: any,
   responseSchema: ResponseType
 ): Promise<z.infer<ResponseType>> {
-
   return await runInNewSpan(
     {
       metadata: {
@@ -164,24 +164,26 @@ async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
         ...partialRequest,
       };
 
-
       metadata.input = request;
       const client = await auth.getClient();
-      const url = "https://checks.googleapis.com/v1alpha/aisafety:classifyContent"
+      const url =
+        'https://checks.googleapis.com/v1alpha/aisafety:classifyContent';
 
       if (client.quotaProjectId) {
-        console.warn(`Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${projectId}).`)
+        console.warn(
+          `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${projectId}).`
+        );
       }
 
       const response = await client.request({
         url,
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify(request),
         headers: {
-          "x-goog-user-project": projectId,
-          "Content-Type": "application/json",
-        }
-      })
+          'x-goog-user-project': projectId,
+          'Content-Type': 'application/json',
+        },
+      });
       metadata.output = response.data;
 
       try {

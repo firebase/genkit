@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit, z } from 'genkit';
+import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
@@ -22,9 +22,7 @@ import {
   ChecksEvaluationMetricType,
   checksEvaluators,
 } from './evaluation.js';
-export {
-  ChecksEvaluationMetricType as ChecksEvaluationMetricType,
-};
+export { ChecksEvaluationMetricType as ChecksEvaluationMetricType };
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. Must have quota for the Checks API. */
@@ -43,7 +41,7 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
 
 /**
- * Add Google Checks evaluators. 
+ * Add Google Checks evaluators.
  */
 export function checks(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('checks', async (ai: Genkit) => {
@@ -63,7 +61,9 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       authClient = new GoogleAuth(authOptions);
     } else {
       authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE] }
+        authOptions ?? {
+          scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
+        }
       );
     }
 
