@@ -132,7 +132,7 @@ deploy it.
 Instead of defining your flow with `Genkit.defineFlow()`, use the Firebase
 plugin's `onFlow()` function. Using this function wraps your flow logic in a
 Cloud Functions request handler, similar to
-[`onCall`](https://firebase.google.com/docs/functions/callable?gen=2nd#write_and_deploy_the_callable_function).
+[`onCall`](/docs/functions/callable?gen=2nd#write_and_deploy_the_callable_function).
 
 ```ts
 import { onFlow } from "@genkit-ai/firebase/functions";
@@ -212,8 +212,7 @@ chose:
       This step is important to prevent accidentally leaking your API key, which
       grants access to a potentially metered service.
 
-      See [Store and access sensitive configuration
-      information](https://firebase.google.com/docs/functions/config-env?gen=2nd#secret-manager)
+      See [Store and access sensitive configuration information](/docs/functions/config-env?gen=2nd#secret-manager)
       for more information on managing secrets.
 
   1.  Edit `src/index.ts` and add the following after the existing imports:
@@ -334,8 +333,7 @@ access the flow.
 To try out your flow endpoint, you can deploy the following minimal example web
 app:
 
-1.  In the [Project
-    settings](https://console.firebase.google.com/project/_/settings/general)
+1.  In the [Project settings](https://console.firebase.google.com/project/_/settings/general)
     section of the Firebase console, add a new web app, selecting the option to
     also set up Hosting.
 
@@ -447,9 +445,9 @@ npx genkit start -- npx tsx --watch src/index.ts
 
 ## Optional: Developing using Firebase Local Emulator Suite
 
-Firebase offers a [suite of emulators for local
-development](https://firebase.google.com/docs/emulator-suite), which you can use
-with Genkit.
+Firebase offers a
+[suite of emulators for local development](/docs/emulator-suite), which you can
+use with Genkit.
 
 To use Genkit with the Firebase Emulator Suite, start the the Firebase emulators
 like this:
