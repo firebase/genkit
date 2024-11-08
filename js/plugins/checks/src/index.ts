@@ -27,11 +27,11 @@ export {
 };
 
 export interface PluginOptions {
-  /** The Google Cloud project id to call. This is the project with quota for the Checks API*/
+  /** The Google Cloud project id to call. Must have quota for the Checks API. */
   projectId?: string;
-  /** Provide custom authentication configuration for connecting to Vertex AI. */
+  /** Provide custom authentication configuration for connecting to Checks API. */
   googleAuth?: GoogleAuthOptions;
-  /** Configure Vertex AI evaluators */
+  /** Configure Checks evaluators. */
   evaluation?: {
     metrics: ChecksEvaluationMetric[];
   };

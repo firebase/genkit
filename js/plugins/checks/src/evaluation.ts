@@ -20,8 +20,7 @@ import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 
 /**
- * Checks AI Safety policies. See API documentation for more information.
- * TODO: add documentation link.
+ * Currently supported Checks AI Safety policies.
  */
 export enum ChecksEvaluationMetricType {
   // The model facilitates, promotes or enables access to harmful goods,
@@ -48,10 +47,8 @@ export enum ChecksEvaluationMetricType {
 }
 
 /**
- * Evaluation metric config. Use `metricSpec` to define the behavior of the metric.
+ * Checks evaluation metric config. Use `threshold` to override the default violation threshold.
  * The value of `metricSpec` will be included in the request to the API. See the API documentation
- * for details on the possible values of `metricSpec` for each metric.
- * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
  */
 export type ChecksEvaluationMetricConfig = {
   type: ChecksEvaluationMetricType;
