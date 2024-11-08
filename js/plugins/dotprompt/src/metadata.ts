@@ -86,6 +86,7 @@ export interface PromptMetadata<
  */
 export const PromptFrontmatterSchema = z.object({
   name: z.string().optional(),
+  description: z.string().optional(),
   variant: z.string().optional(),
   model: z.string().optional(),
   tools: z.array(z.string()).optional(),
@@ -135,6 +136,7 @@ export function toMetadata(
   const fm = parseSchema<z.infer<typeof PromptFrontmatterSchema>>(attributes, {
     schema: PromptFrontmatterSchema,
   });
+  console.log('PARSED FM:', fm);
 
   let input: PromptMetadata['input'] | undefined;
   if (fm.input) {
@@ -154,6 +156,7 @@ export function toMetadata(
 
   return stripUndefinedOrNull({
     name: fm.name,
+    description: fm.description,
     variant: fm.variant,
     model: fm.model,
     config: fm.config,
@@ -167,6 +170,7 @@ export function toMetadata(
 export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
   return stripUndefinedOrNull({
     name: md.name,
+    description: md.description,
     variant: md.variant,
     model: typeof md.model === 'string' ? md.model : md.model?.name,
     config: md.config,

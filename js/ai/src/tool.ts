@@ -120,13 +120,16 @@ export async function lookupToolByName(
   registry: Registry,
   name: string
 ): Promise<ToolAction> {
-  let tool =
-    (await registry.lookupAction(name)) ||
+  await registry.initializeAllPlugins();
+  const tool =
     (await registry.lookupAction(`/tool/${name}`)) ||
+    (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/prompt/${name}`));
+
   if (!tool) {
     throw new Error(`Tool ${name} not found`);
   }
+  console.log(tool.__action.name, ':', tool.__action.description);
   return tool as ToolAction;
 }
 

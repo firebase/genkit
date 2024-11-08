@@ -956,7 +956,7 @@ export class Genkit {
    * Create a session for this environment.
    */
   createSession<S = any>(options?: SessionOptions<S>): Session<S> {
-    const sessionId = uuidv4();
+    const sessionId = options?.sessionId || uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
       state: options?.initialState,
@@ -973,12 +973,19 @@ export class Genkit {
    */
   async loadSession(
     sessionId: string,
-    options: SessionOptions
+    options: SessionOptions & { createIfMissing?: boolean }
   ): Promise<Session> {
     if (!options.store) {
       throw new Error('options.store is required');
     }
     const sessionData = await options.store.get(sessionId);
+    if (!sessionData && options.createIfMissing) {
+      return this.createSession({
+        sessionId,
+        initialState: options.initialState,
+        store: options.store,
+      });
+    }
 
     return new Session(this, {
       id: sessionId,

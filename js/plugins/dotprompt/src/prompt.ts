@@ -193,7 +193,26 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     return this._render(
       { ...this.input?.default, ...input },
       options,
-      sessionStateData
+      sessionStateData || {
+        state: {
+          parentId: 4112,
+          parentName: 'Francis Example',
+          students: [
+            {
+              id: 3734,
+              name: 'Evelyn Example',
+              grade: 9,
+              activities: ['Choir', 'Drama Club'],
+            },
+            {
+              id: 9433,
+              name: 'Evan Example',
+              grade: 11,
+              activities: ['Chess Club'],
+            },
+          ],
+        },
+      }
     );
   }
 
@@ -206,7 +225,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       this.registry,
       {
         name: registryDefinitionKey(this.name, this.variant, options?.ns),
-        description: options?.description ?? 'Defined by Dotprompt',
+        description: options?.description,
         inputSchema: this.input?.schema,
         inputJsonSchema: this.input?.jsonSchema,
         metadata: {

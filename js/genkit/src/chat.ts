@@ -79,6 +79,7 @@ export class Chat {
       messages?: MessageData[];
     }
   ) {
+    console.log('Chat CONSTRUCTOR');
     this.sessionId = options.id;
     this.threadName = options.thread;
     this.requestBase = requestBase?.then((rb) => {
@@ -105,9 +106,10 @@ export class Chat {
         }
         requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
       }
+
       requestBase.messages = [
-        ...(options.messages ?? []),
         ...(requestBase.messages ?? []),
+        ...(options.messages?.filter((m) => !m.metadata?.preamble) ?? []),
       ];
       this._messages = requestBase.messages;
       return requestBase;
@@ -121,6 +123,7 @@ export class Chat {
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
+    console.log('TOP OF SEND');
     return runWithSession(this.session, () =>
       runInNewSpan({ metadata: { name: 'send' } }, async () => {
         let resolvedOptions;
@@ -140,11 +143,13 @@ export class Chat {
           resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
           streamingCallback = resolvedOptions.streamingCallback;
         }
+        console.log('ABOUT TO AWAIT REQUESTBASE');
         let request: GenerateOptions = {
           ...(await this.requestBase),
           messages: this.messages,
           ...resolvedOptions,
         };
+        console.log('REQUEST:', request);
         let response = await this.genkit.generate({
           ...request,
           streamingCallback,
@@ -185,11 +190,15 @@ export class Chat {
           resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
         }
 
+        console.log('ABOUT TO CALL GENERATESTREAM');
+        const resolvedRequest = await this.requestBase;
+        console.log('MESSAGES:', this.messages);
         const { response, stream } = await this.genkit.generateStream({
-          ...(await this.requestBase),
+          ...resolvedRequest,
           messages: this.messages,
           ...resolvedOptions,
         });
+        console.log('IT GOT CALLED');
 
         return {
           response: response.finally(async () => {
