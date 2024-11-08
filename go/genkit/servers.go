@@ -233,6 +233,7 @@ func newDevServeMux(s *devServer) *http.ServeMux {
 	})
 	handle(mux, "POST /api/runAction", s.handleRunAction)
 	handle(mux, "GET /api/actions", s.handleListActions)
+	// TODO(apascal07): Remove env from GO
 	handle(mux, "GET /api/envs/{env}/traces/{traceID}", s.handleGetTrace)
 	handle(mux, "GET /api/envs/{env}/traces", s.handleListTraces)
 	handle(mux, "GET /api/envs/{env}/flowStates", s.handleListFlowStates)
