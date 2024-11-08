@@ -114,7 +114,7 @@ func TestDevServer(t *testing.T) {
 		}
 	})
 	t.Run("list traces", func(t *testing.T) {
-		res, err := http.Get(srv.URL + "/api/traces")
+		res, err := http.Get(srv.URL + "/api/envs/dev/traces")
 		if err != nil {
 			t.Fatal(err)
 		}

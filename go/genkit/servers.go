@@ -233,8 +233,10 @@ func newDevServeMux(s *devServer) *http.ServeMux {
 	})
 	handle(mux, "POST /api/runAction", s.handleRunAction)
 	handle(mux, "GET /api/actions", s.handleListActions)
-	handle(mux, "GET /api/traces/{traceID}", s.handleGetTrace)
-	handle(mux, "GET /api/traces", s.handleListTraces)
+	// TODO(apascal07): Remove env from GO
+	handle(mux, "GET /api/envs/{env}/traces/{traceID}", s.handleGetTrace)
+	handle(mux, "GET /api/envs/{env}/traces", s.handleListTraces)
+	handle(mux, "GET /api/envs/{env}/flowStates", s.handleListFlowStates)
 
 	return mux
 }
@@ -322,8 +324,7 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 
 // handleGetTrace returns a single trace from a TraceStore.
 func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error {
-	// Deprecated, using as default
-	env := registry.EnvironmentDev
+	env := r.PathValue("env")
 	ts := s.reg.LookupTraceStore(registry.Environment(env))
 	if ts == nil {
 		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
@@ -341,8 +342,7 @@ func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error
 
 // handleListTraces returns a list of traces from a TraceStore.
 func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) error {
-	// Deprecated, using as default
-	env := registry.EnvironmentDev
+	env := r.PathValue("env")
 	ts := s.reg.LookupTraceStore(registry.Environment(env))
 	if ts == nil {
 		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
@@ -372,6 +372,15 @@ func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) err
 type listTracesResult struct {
 	Traces            []*tracing.Data `json:"traces"`
 	ContinuationToken string          `json:"continuationToken"`
+}
+
+func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request) error {
+	return writeJSON(r.Context(), w, listFlowStatesResult{[]base.FlowStater{}, ""})
+}
+
+type listFlowStatesResult struct {
+	FlowStates        []base.FlowStater `json:"flowStates"`
+	ContinuationToken string            `json:"continuationToken"`
 }
 
 // NewFlowServeMux constructs a [net/http.ServeMux].
