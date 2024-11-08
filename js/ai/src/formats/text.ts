@@ -27,8 +27,8 @@ export const textFormatter: Formatter<string, string> = {
         return chunk.text;
       },
 
-      parseResponse: (response) => {
-        return response.text;
+      parseMessage: (message) => {
+        return message.text;
       },
     };
   },

@@ -20,7 +20,6 @@ import {
   EvalInferenceInputSchema,
   EvalRunKeySchema,
 } from './eval';
-import { FlowStateSchema } from './flow';
 import {
   GenerationCommonConfigSchema,
   MessageSchema,
@@ -33,14 +32,7 @@ import { TraceDataSchema } from './trace';
  * It's used directly in the generation of the Reflection API OpenAPI spec.
  */
 
-export const EnvTypesSchema = z
-  .enum(['dev', 'prod'])
-  .describe('Supported environments in the runtime.');
-
-export type EnvTypes = z.infer<typeof EnvTypesSchema>;
-
 export const ListTracesRequestSchema = z.object({
-  env: EnvTypesSchema.optional(),
   limit: z.number().optional(),
   continuationToken: z.string().optional(),
 });
@@ -55,35 +47,10 @@ export const ListTracesResponseSchema = z.object({
 export type ListTracesResponse = z.infer<typeof ListTracesResponseSchema>;
 
 export const GetTraceRequestSchema = z.object({
-  env: EnvTypesSchema,
   traceId: z.string().describe('ID of the trace.'),
 });
 
 export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
-
-export const ListFlowStatesRequestSchema = z.object({
-  env: EnvTypesSchema.optional(),
-  limit: z.number().optional(),
-  continuationToken: z.string().optional(),
-});
-
-export type ListFlowStatesRequest = z.infer<typeof ListFlowStatesRequestSchema>;
-
-export const ListFlowStatesResponseSchema = z.object({
-  flowStates: z.array(FlowStateSchema),
-  continuationToken: z.string().optional(),
-});
-
-export type ListFlowStatesResponse = z.infer<
-  typeof ListFlowStatesResponseSchema
->;
-
-export const GetFlowStateRequestSchema = z.object({
-  env: EnvTypesSchema,
-  flowId: z.string().describe('ID of the flow state.'),
-});
-
-export type GetFlowStateRequest = z.infer<typeof GetFlowStateRequestSchema>;
 
 export const RunActionRequestSchema = z.object({
   key: z

@@ -23,6 +23,7 @@ import {
   SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
   claude35Sonnet,
+  claude35SonnetV2,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
@@ -85,6 +86,7 @@ export {
 export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
+  claude35SonnetV2,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,

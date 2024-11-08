@@ -17,6 +17,7 @@
 import {
   Action,
   defineAction,
+  GenkitError,
   getStreamingCallback,
   Middleware,
   StreamingCallback,
@@ -26,11 +27,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
-import {
-  augmentWithContext,
-  conformOutput,
-  validateSupport,
-} from './model/middleware.js';
+import { augmentWithContext, validateSupport } from './model/middleware.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -121,8 +118,6 @@ export const MessageSchema = z.object({
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
-const OutputFormatSchema = z.enum(['json', 'text', 'media']);
-
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
   versions: z.array(z.string()).optional(),
@@ -140,7 +135,9 @@ export const ModelInfoSchema = z.object({
       /** Model can accept messages with role "system". */
       systemRole: z.boolean().optional(),
       /** Model can output this type of data. */
-      output: z.array(OutputFormatSchema).optional(),
+      output: z.array(z.string()).optional(),
+      /** Model supports output in these content types. */
+      contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
     })
@@ -184,9 +181,10 @@ export const GenerationCommonConfigSchema = z.object({
 export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 
 const OutputConfigSchema = z.object({
-  format: OutputFormatSchema.optional(),
+  format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
+  instructions: z.string().optional(),
   contentType: z.string().optional(),
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
@@ -346,7 +344,7 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  middleware.push(conformOutput());
+  // middleware.push(conformOutput(registry));
   const act = defineAction(
     registry,
     {
@@ -482,3 +480,54 @@ function getPartCounts(parts: Part[]): PartCounts {
 export type ModelArgument<
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 > = ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+
+export interface ResolvedModel<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  modelAction: ModelAction;
+  config?: z.infer<CustomOptions>;
+  version?: string;
+}
+
+export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
+  registry: Registry,
+  model: ModelArgument<C> | undefined
+): Promise<ResolvedModel<C>> {
+  let out: ResolvedModel<C>;
+  let modelId: string;
+
+  if (!model) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Must supply a `model` to `generate()` calls.',
+    });
+  }
+  if (typeof model === 'string') {
+    modelId = model;
+    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
+  } else if (model.hasOwnProperty('__action')) {
+    modelId = (model as ModelAction).__action.name;
+    out = { modelAction: model as ModelAction };
+  } else {
+    const ref = model as ModelReference<any>;
+    modelId = ref.name;
+    out = {
+      modelAction: (await registry.lookupAction(
+        `/model/${ref.name}`
+      )) as ModelAction,
+      config: {
+        ...ref.config,
+      },
+      version: ref.version,
+    };
+  }
+
+  if (!out.modelAction) {
+    throw new GenkitError({
+      status: 'NOT_FOUND',
+      message: `Model ${modelId} not found`,
+    });
+  }
+
+  return out;
+}

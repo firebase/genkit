@@ -366,10 +366,6 @@ async function gatherEvalInput(params: {
   }
 
   const trace = await manager.getTrace({
-    // TODO: We should consider making this a argument and using it to
-    // to control which tracestore environment is being used when
-    // running a flow.
-    env: 'dev',
     traceId,
   });
 

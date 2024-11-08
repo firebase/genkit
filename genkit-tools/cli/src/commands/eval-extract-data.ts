@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EnvTypes, EvalInput, TraceData } from '@genkit-ai/tools-common';
+import { EvalInput, TraceData } from '@genkit-ai/tools-common';
 import {
   generateTestCaseId,
   getEvalExtractors,
@@ -25,7 +25,6 @@ import { writeFile } from 'fs/promises';
 import { runWithManager } from '../utils/manager-utils';
 
 interface EvalDatasetOptions {
-  env: EnvTypes;
   output?: string;
   maxRows: string;
   label?: string;
@@ -35,7 +34,6 @@ interface EvalDatasetOptions {
 export const evalExtractData = new Command('eval:extractData')
   .description('extract evaludation data for a given flow from the trace store')
   .argument('<flowName>', 'name of the flow to run')
-  .option('--env <env>', 'environment (dev/prod)', 'dev')
   .option(
     '--output <filename>',
     'name of the output file to store the extracted data'
@@ -51,7 +49,6 @@ export const evalExtractData = new Command('eval:extractData')
       let continuationToken = undefined;
       while (dataset.length < parseInt(options.maxRows)) {
         const response = await manager.listTraces({
-          env: options.env,
           limit: parseInt(options.maxRows),
           continuationToken,
         });

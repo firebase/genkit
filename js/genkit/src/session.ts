@@ -15,9 +15,11 @@
  */
 
 import {
+  ExecutablePrompt,
   GenerateOptions,
   Message,
   MessageData,
+  isExecutablePrompt,
   tagAsPreamble,
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
@@ -125,54 +127,107 @@ export class Session<S = any> {
    * Create a chat session with the provided options.
    *
    * ```ts
-   * const chat = ai.chat({
+   * const session = ai.createSession({});
+   * const chat = session.chat({
    *   system: 'talk like a pirate',
    * })
-   * let response = await chat.send('tell me a joke')
-   * response = await chat.send('another one')
+   * let response = await chat.send('tell me a joke');
+   * response = await chat.send('another one');
    * ```
    */
   chat<I>(options?: ChatOptions<I, S>): Chat;
 
   /**
-   * Craete a separaete chat conversation ("thread") within the same session state.
+   * Create a chat session with the provided preamble.
    *
    * ```ts
-   * const lawyerChat = ai.chat('lawyerThread', {
+   * const triageAgent = ai.definePrompt({
+   *   system: 'help the user triage a problem',
+   * })
+   * const session = ai.createSession({});
+   * const chat = session.chat(triageAgent);
+   * const { text } = await chat.send('my phone feels hot');
+   * ```
+   */
+  chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>): Chat;
+
+  /**
+   * Craete a separate chat conversation ("thread") within the given preamble.
+   *
+   * ```ts
+   * const session = ai.createSession({});
+   * const lawyerChat = session.chat('lawyerThread', {
    *   system: 'talk like a lawyer',
-   * })
-   * const pirateChat = ai.chat('pirateThread', {
+   * });
+   * const pirateChat = session.chat('pirateThread', {
    *   system: 'talk like a pirate',
-   * })
-   * await lawyerChat.send('tell me a joke')
-   * await pirateChat.send('tell me a joke')
+   * });
+   * await lawyerChat.send('tell me a joke');
+   * await pirateChat.send('tell me a joke');
+   * ```
+   */
+  chat<I>(
+    threadName: string,
+    preamble: ExecutablePrompt<I>,
+    options?: ChatOptions<I, S>
+  ): Chat;
+
+  /**
+   * Craete a separate chat conversation ("thread").
+   *
+   * ```ts
+   * const session = ai.createSession({});
+   * const lawyerChat = session.chat('lawyerThread', {
+   *   system: 'talk like a lawyer',
+   * });
+   * const pirateChat = session.chat('pirateThread', {
+   *   system: 'talk like a pirate',
+   * });
+   * await lawyerChat.send('tell me a joke');
+   * await pirateChat.send('tell me a joke');
    * ```
    */
   chat<I>(threadName: string, options?: ChatOptions<I, S>): Chat;
 
   chat<I>(
-    optionsOrThreadName?: ChatOptions<I, S> | string,
+    optionsOrPreambleOrThreadName?:
+      | ChatOptions<I, S>
+      | string
+      | ExecutablePrompt<I>,
+    maybeOptionsOrPreamble?: ChatOptions<I, S> | ExecutablePrompt<I>,
     maybeOptions?: ChatOptions<I, S>
   ): Chat {
     return runWithSession(this, () => {
       let options: ChatOptions<S> | undefined;
       let threadName = MAIN_THREAD;
-      if (maybeOptions) {
-        threadName = optionsOrThreadName as string;
-        options = maybeOptions as ChatOptions<S>;
-      } else if (optionsOrThreadName) {
-        if (typeof optionsOrThreadName === 'string') {
-          threadName = optionsOrThreadName as string;
+      let preamble: ExecutablePrompt<I> | undefined;
+
+      if (optionsOrPreambleOrThreadName) {
+        if (typeof optionsOrPreambleOrThreadName === 'string') {
+          threadName = optionsOrPreambleOrThreadName as string;
+        } else if (isExecutablePrompt(optionsOrPreambleOrThreadName)) {
+          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
         } else {
-          options = optionsOrThreadName as ChatOptions<S>;
+          options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
         }
       }
+      if (maybeOptionsOrPreamble) {
+        if (isExecutablePrompt(maybeOptionsOrPreamble)) {
+          preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
+        } else {
+          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
+        }
+      }
+      if (maybeOptions) {
+        options = maybeOptions as ChatOptions<I, S>;
+      }
+
       let requestBase: Promise<BaseGenerateOptions>;
-      if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
+      if (preamble) {
         const renderOptions = options as PromptRenderOptions<I>;
-        requestBase = renderOptions.prompt
+        requestBase = preamble
           .render({
-            input: renderOptions.input,
+            input: renderOptions?.input,
           })
           .then((rb) => {
             return {

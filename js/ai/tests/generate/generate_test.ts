@@ -57,7 +57,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: undefined,
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -92,7 +92,7 @@ describe('toGenerateRequest', () => {
             },
           },
         ],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -127,7 +127,7 @@ describe('toGenerateRequest', () => {
             },
           },
         ],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -162,7 +162,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: undefined,
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -184,7 +184,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: undefined,
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
     {
@@ -201,7 +201,7 @@ describe('toGenerateRequest', () => {
         config: undefined,
         docs: [{ content: [{ text: 'context here' }] }],
         tools: [],
-        output: { format: 'text' },
+        output: {},
       },
     },
   ];

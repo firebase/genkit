@@ -137,7 +137,7 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const hello = await ai.prompt('functionalPrompt');
+    const hello = ai.prompt('functionalPrompt');
     return (await hello(input)).text;
   }
 );
@@ -153,7 +153,7 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const hello = await ai.prompt('hello');
+    const hello = ai.prompt('hello');
     return (await hello(input)).text;
   }
 );
@@ -169,7 +169,7 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const hello = await ai.prompt('hello', {
+    const hello = ai.prompt('hello', {
       variant: 'first-last-name',
     });
     return (await hello(input)).text;
@@ -187,7 +187,7 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const hello = await ai.prompt('hello', {
+    const hello = ai.prompt('hello', {
       variant: 'json-output',
     });
     return (await hello(input)).output;
@@ -205,7 +205,7 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const hello = await ai.prompt('hello', {
+    const hello = ai.prompt('hello', {
       variant: 'system',
     });
     return (await hello(input)).text;
@@ -223,7 +223,7 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const hello = await ai.prompt('hello', {
+    const hello = ai.prompt('hello', {
       variant: 'history',
     });
     return (await hello(input)).text;

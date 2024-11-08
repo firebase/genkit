@@ -73,6 +73,7 @@ export {
 } from './model.js';
 export {
   definePrompt,
+  isExecutablePrompt,
   renderPrompt,
   type ExecutablePrompt,
   type PromptAction,

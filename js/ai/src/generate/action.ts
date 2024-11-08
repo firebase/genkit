@@ -20,11 +20,14 @@ import {
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
+import { resolveFormat } from '../formats/index.js';
+import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
@@ -37,13 +40,13 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
-  ModelAction,
   Part,
+  resolveModel,
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
 } from '../model.js';
-import { lookupToolByName, ToolAction, toToolDefinition } from '../tool.js';
+import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -59,9 +62,9 @@ export const GenerateUtilParamSchema = z.object({
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output: z
     .object({
-      format: z
-        .union([z.literal('text'), z.literal('json'), z.literal('media')])
-        .optional(),
+      format: z.string().optional(),
+      contentType: z.string().optional(),
+      instructions: z.union([z.boolean(), z.string()]).optional(),
       jsonSchema: z.any().optional(),
     })
     .optional(),
@@ -102,38 +105,25 @@ async function generate(
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
-  const model = (await registry.lookupAction(
-    `/model/${rawRequest.model}`
-  )) as ModelAction;
-  if (!model) {
-    throw new Error(`Model ${rawRequest.model} not found`);
-  }
+  const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
-    console.warn(
+    logger.warn(
       `${clc.bold(clc.yellow('Warning:'))} ` +
         `Model '${model.__action.name}' is deprecated and may be removed in a future release.`
     );
   }
 
-  let tools: ToolAction[] | undefined;
-  if (rawRequest.tools?.length) {
-    if (!model.__action.metadata?.model.supports?.tools) {
-      throw new Error(
-        `Model ${rawRequest.model} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
-      );
-    }
-    tools = await Promise.all(
-      rawRequest.tools.map(async (toolRef) => {
-        if (typeof toolRef === 'string') {
-          return lookupToolByName(registry, toolRef as string);
-        } else if (toolRef.name) {
-          return lookupToolByName(registry, toolRef.name);
-        }
-        throw `Unable to resolve tool ${JSON.stringify(toolRef)}`;
-      })
-    );
-  }
-  const request = await actionToGenerateRequest(rawRequest, tools);
+  const tools = await resolveTools(registry, rawRequest.tools);
+
+  const resolvedFormat = rawRequest.output?.format
+    ? await resolveFormat(registry, rawRequest.output?.format)
+    : undefined;
+
+  const request = await actionToGenerateRequest(
+    rawRequest,
+    tools,
+    resolvedFormat
+  );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
@@ -145,7 +135,11 @@ async function generate(
           if (streamingCallback) {
             streamingCallback!(
               new GenerateResponseChunk(chunk, {
+                index: 0,
+                role: 'model',
                 previousChunks: accumulatedChunks,
+                parser: resolvedFormat?.handler(request.output?.schema)
+                  .parseChunk,
               })
             );
           }
@@ -168,7 +162,10 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), request);
+      return new GenerateResponse(await dispatch(0, request), {
+        request,
+        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+      });
     }
   );
 
@@ -236,7 +233,8 @@ async function generate(
 
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[]
+  resolvedTools?: ToolAction[],
+  resolvedFormat?: Formatter
 ): Promise<GenerateRequest> {
   const out = {
     messages: options.messages,
@@ -244,9 +242,7 @@ async function actionToGenerateRequest(
     docs: options.docs,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.jsonSchema ? 'json' : 'text'),
+      ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({
         jsonSchema: options.output?.jsonSchema,
       }),

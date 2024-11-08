@@ -22,7 +22,7 @@ import {
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
-import { runWithManager, waitForFlowToComplete } from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface FlowBatchRunOptions {
   wait?: boolean;
@@ -76,14 +76,6 @@ export const flowBatchRun = new Command('flow:batchRun')
             })
           ).result as FlowState;
 
-          if (!state.operation.done && options.wait) {
-            logger.info('Started flow run, waiting for it to complete...');
-            state = await waitForFlowToComplete(
-              manager,
-              flowName,
-              state.flowId
-            );
-          }
           logger.info(
             'Flow operation:\n' +
               JSON.stringify(state.operation, undefined, '  ')

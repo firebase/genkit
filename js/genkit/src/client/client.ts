@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-const __flowStreamDelimiter = '\n';
+const __flowStreamDelimiter = '\n\n';
 
 /**
  * Invoke and stream response from a deployed flow.
@@ -40,7 +40,7 @@ export function streamFlow({
   headers,
 }: {
   url: string;
-  input: any;
+  input?: any;
   headers?: Record<string, string>;
 }) {
   let chunkStreamController: ReadableStreamDefaultController | undefined =
@@ -68,23 +68,13 @@ export function streamFlow({
 
   return {
     output() {
-      return operationPromise.then((op) => {
-        if (!op.done) {
-          throw new Error(`flow ${op.name} did not finish execution`);
-        }
-        if (op.result?.error) {
-          throw new Error(
-            `${op.name}: ${op.result?.error}\n${op.result?.stacktrace}`
-          );
-        }
-        return op.result?.response;
-      });
+      return operationPromise;
     },
     async *stream() {
       const reader = chunkStream.getReader();
       while (true) {
         const chunk = await reader.read();
-        if (chunk.value) {
+        if (chunk?.value !== undefined) {
           yield chunk.value;
         }
         if (chunk.done) {
@@ -108,12 +98,13 @@ async function __flowRunEnvelope({
   headers?: Record<string, string>;
 }) {
   let response;
-  response = await fetch(url + '?stream=true', {
+  response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
       data: input,
     }),
     headers: {
+      Accept: 'text/event-stream',
       'Content-Type': 'application/json',
       ...headers,
     },
@@ -133,17 +124,28 @@ async function __flowRunEnvelope({
     }
     // If buffer includes the delimiter that means we are still recieving chunks.
     while (buffer.includes(__flowStreamDelimiter)) {
-      streamingCallback(
-        JSON.parse(buffer.substring(0, buffer.indexOf(__flowStreamDelimiter)))
+      const chunk = JSON.parse(
+        buffer
+          .substring(0, buffer.indexOf(__flowStreamDelimiter))
+          .substring('data: '.length)
       );
+      if (chunk.hasOwnProperty('message')) {
+        streamingCallback(chunk.message);
+      } else if (chunk.hasOwnProperty('result')) {
+        return chunk.result;
+      } else if (chunk.hasOwnProperty('error')) {
+        throw new Error(
+          `${chunk.error.status}: ${chunk.error.message}\n${chunk.error.details}`
+        );
+      } else {
+        throw new Error('unkown chunk format: ' + JSON.stringify(chunk));
+      }
       buffer = buffer.substring(
         buffer.indexOf(__flowStreamDelimiter) + __flowStreamDelimiter.length
       );
     }
-    if (result.done) {
-      return JSON.parse(buffer);
-    }
   }
+  throw new Error('stream did not terminate correctly');
 }
 
 /**
@@ -163,17 +165,17 @@ async function __flowRunEnvelope({
  */
 export async function runFlow({
   url,
-  payload,
+  input,
   headers,
 }: {
   url: string;
-  payload?: any;
+  input?: any;
   headers?: Record<string, string>;
 }) {
   const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
-      data: payload,
+      data: input,
     }),
     headers: {
       'Content-Type': 'application/json',

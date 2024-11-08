@@ -120,12 +120,25 @@ describe('chat', () => {
   });
 
   it('can start chat from a prompt', async () => {
-    const prompt = ai.definePrompt(
+    const preamble = ai.definePrompt(
+      { name: 'hi', config: { version: 'abc' } },
+      'hi from template'
+    );
+    const session = await ai.chat(preamble);
+    const response = await session.send('send it');
+
+    assert.strictEqual(
+      response.text,
+      'Echo: hi from template,send it; config: {"version":"abc"}'
+    );
+  });
+
+  it('can start chat from a prompt with input', async () => {
+    const preamble = ai.definePrompt(
       { name: 'hi', config: { version: 'abc' } },
       'hi {{ name }} from template'
     );
-    const session = await ai.chat({
-      prompt,
+    const session = await ai.chat(preamble, {
       input: { name: 'Genkit' },
     });
     const response = await session.send('send it');
@@ -156,7 +169,7 @@ describe('chat', () => {
   });
 });
 
-describe('preabmle', () => {
+describe('preamble', () => {
   let ai: Genkit;
   let pm: ProgrammableModel;
 
@@ -207,9 +220,7 @@ describe('preabmle', () => {
       };
     };
 
-    const session = ai.chat({
-      prompt: agentA,
-    });
+    const session = ai.chat(agentA);
     let { text } = await session.send('hi');
     assert.strictEqual(text, 'hi from agent a');
     assert.deepStrictEqual(pm.lastRequest, {
@@ -227,7 +238,7 @@ describe('preabmle', () => {
           role: 'user',
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           name: 'agentB',
@@ -316,7 +327,7 @@ describe('preabmle', () => {
           ],
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           description: 'Agent A description',
@@ -436,7 +447,7 @@ describe('preabmle', () => {
           ],
         },
       ],
-      output: { format: 'text' },
+      output: {},
       tools: [
         {
           description: 'Agent B description',

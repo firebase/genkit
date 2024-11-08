@@ -27,7 +27,10 @@ import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { MessageSchema, genkit, run, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import { Allow, parse } from 'partial-json';
+
+logger.setLogLevel('debug');
 
 enableGoogleCloudTelemetry({
   // These are configured for demonstration purposes. Sensible defaults are
@@ -335,9 +338,7 @@ export const dotpromptContext = ai.defineFlow(
       },
     ];
 
-    const result = await (
-      await ai.prompt('dotpromptContext')
-    ).generate({
+    const result = await ai.prompt('dotpromptContext').generate({
       input: { question: question },
       docs,
     });
@@ -476,3 +477,70 @@ export const toolTester = ai.defineFlow(
     return result.messages;
   }
 );
+
+export const arrayStreamTester = ai.defineStreamingFlow(
+  {
+    name: 'arrayStreamTester',
+    inputSchema: z.string().nullish(),
+    outputSchema: z.any(),
+    streamSchema: z.any(),
+  },
+  async (input, streamingCallback) => {
+    try {
+      const { stream, response } = await ai.generateStream({
+        model: gemini15Flash,
+        config: {
+          safetySettings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              threshold: 'BLOCK_NONE',
+            },
+          ],
+        },
+        prompt: `Generate a list of 20 characters from ${input || 'Futurama'}`,
+        output: {
+          format: 'array',
+          schema: z.array(
+            z.object({
+              name: z.string(),
+              description: z.string(),
+              friends: z.array(z.string()),
+              enemies: z.array(z.string()),
+            })
+          ),
+        },
+      });
+
+      for await (const { output, text } of stream) {
+        streamingCallback?.({ text, output });
+      }
+
+      const result = await response;
+      console.log(result.parser);
+      return result.output;
+    } catch (e: any) {
+      return 'Error: ' + e.message;
+    }
+  }
+);
+
+// async function main() {
+//   const { stream, output } = arrayStreamTester();
+//   for await (const chunk of stream) {
+//     console.log(chunk);
+//   }
+//   console.log(await output);
+// }
+// main();
