@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-import { VertexAI } from '@google-cloud/vertexai';
-import { Genkit, z } from 'genkit';
-import { GenerateRequest, ModelReference } from 'genkit/model';
+import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
   SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
@@ -28,6 +25,8 @@ import {
   claude3Opus,
   claude3Sonnet,
 } from './anthropic.js';
+import { getDerivedParams } from './common/index.js';
+import { PluginOptions } from './common/types.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   defineVertexAIEmbedder,
@@ -37,12 +36,10 @@ import {
   textMultilingualEmbedding002,
 } from './embedder.js';
 import {
-  VertexAIEvaluationMetric,
   VertexAIEvaluationMetricType,
   vertexEvaluators,
 } from './evaluation.js';
 import {
-  GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
   defineGeminiModel,
   gemini10Pro,
@@ -63,12 +60,8 @@ import {
   llama32,
   modelGardenOpenaiCompatibleModel,
 } from './model_garden.js';
-import { VertexRerankerConfig, vertexAiRerankers } from './reranker.js';
-import {
-  VectorSearchOptions,
-  vertexAiIndexers,
-  vertexAiRetrievers,
-} from './vector-search/index.js';
+import { vertexAiRerankers } from './reranker.js';
+import { vertexAiIndexers, vertexAiRetrievers } from './vector-search/index.js';
 export {
   DocumentIndexer,
   DocumentRetriever,
@@ -105,88 +98,14 @@ export {
   textMultilingualEmbedding002,
 };
 
-export interface PluginOptions {
-  /** The Google Cloud project id to call. */
-  projectId?: string;
-  /** The Google Cloud region to call. */
-  location: string;
-  /** Provide custom authentication configuration for connecting to Vertex AI. */
-  googleAuth?: GoogleAuthOptions;
-  /** Configure Vertex AI evaluators */
-  evaluation?: {
-    metrics: VertexAIEvaluationMetric[];
-  };
-  /**
-   * @deprecated use `modelGarden.models`
-   */
-  modelGardenModels?: ModelReference<any>[];
-  modelGarden?: {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
-  };
-  /** Configure Vertex AI vector search index options */
-  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
-  /** Configure reranker options */
-  rerankOptions?: VertexRerankerConfig[];
-}
-
-const CLOUD_PLATFROM_OAUTH_SCOPE =
-  'https://www.googleapis.com/auth/cloud-platform';
-
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export function vertexAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('vertexai', async (ai: Genkit) => {
-    let authClient;
-    let authOptions = options?.googleAuth;
+    const { projectId, location, vertexClientFactory, authClient } =
+      await getDerivedParams(options);
 
-    // Allow customers to pass in cloud credentials from environment variables
-    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
-      );
-      authOptions = {
-        credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
-      };
-      authClient = new GoogleAuth(authOptions);
-    } else {
-      authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-      );
-    }
-
-    const projectId = options?.projectId || (await authClient.getProjectId());
-
-    const location = options?.location || 'us-central1';
-    const confError = (parameter: string, envVariableName: string) => {
-      return new Error(
-        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-      );
-    };
-    if (!location) {
-      throw confError('location', 'GCLOUD_LOCATION');
-    }
-    if (!projectId) {
-      throw confError('project', 'GCLOUD_PROJECT');
-    }
-
-    const vertexClientFactoryCache: Record<string, VertexAI> = {};
-    const vertexClientFactory = (
-      request: GenerateRequest<typeof GeminiConfigSchema>
-    ): VertexAI => {
-      const requestLocation = request.config?.location || location;
-      if (!vertexClientFactoryCache[requestLocation]) {
-        vertexClientFactoryCache[requestLocation] = new VertexAI({
-          project: projectId,
-          location: requestLocation,
-          googleAuthOptions: authOptions,
-        });
-      }
-      return vertexClientFactoryCache[requestLocation];
-    };
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics

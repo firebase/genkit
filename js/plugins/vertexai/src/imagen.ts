@@ -24,7 +24,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from './index.js';
+import { PluginOptions } from './common/types';
 import { PredictClient, predictModel } from './predict.js';
 
 const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
