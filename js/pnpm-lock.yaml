@@ -41,6 +41,9 @@ importers:
       partial-json:
         specifier: ^0.1.7
         version: 0.1.7
+      uuid:
+        specifier: ^10.0.0
+        version: 10.0.0
     devDependencies:
       npm-run-all:
         specifier: ^4.1.5
@@ -170,6 +173,9 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../plugins/dotprompt
+      uuid:
+        specifier: ^10.0.0
+        version: 10.0.0
     devDependencies:
       '@types/body-parser':
         specifier: ^1.19.5
@@ -195,9 +201,6 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
-      uuid:
-        specifier: ^10.0.0
-        version: 10.0.0
 
   plugins/chroma:
     dependencies:
@@ -1185,7 +1188,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.3)(@genkit-ai/core@0.9.0-dev.3)
+        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.4)(@genkit-ai/core@0.9.0-dev.4)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1952,11 +1955,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.0-dev.3':
-    resolution: {integrity: sha512-fXi7onEpViZX86dPq0xWsqxivvXQMf9wH3boaNJFDJg22YvJMpb5MDV+jgzmXbKwGFCVaFAsePMBzv7Ikt703A==}
+  '@genkit-ai/ai@0.9.0-dev.4':
+    resolution: {integrity: sha512-j7mCfJnPupK9tqkESV+SVtwGAfGFB6CnIr/NXeTZleU6cupocP0uFkZKi72HbdMYk2VI38spplp5aIt4jW/wNA==}
 
-  '@genkit-ai/core@0.9.0-dev.3':
-    resolution: {integrity: sha512-fA8XUVYY9K77zWG0AVVHjcYe3XCYfnUuTOf11VMbvxVG3t/cHfkrKzLG/lxyO41O1vfL7xwIcaHLlpzXVQmZPQ==}
+  '@genkit-ai/core@0.9.0-dev.4':
+    resolution: {integrity: sha512-v6QpSedACJU/jKJGukJKHM5sPJdyYKPoyzAMyztWvVD12t2bkvXYL7+QyCeB/cUE7cijyO4w/2lRNyZciyAgMw==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -6764,9 +6767,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.0-dev.3':
+  '@genkit-ai/ai@0.9.0-dev.4':
     dependencies:
-      '@genkit-ai/core': 0.9.0-dev.3
+      '@genkit-ai/core': 0.9.0-dev.4
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -6776,7 +6779,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.0-dev.3':
+  '@genkit-ai/core@0.9.0-dev.4':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.26.0(@opentelemetry/api@1.9.0)
@@ -9358,10 +9361,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.3)(@genkit-ai/core@0.9.0-dev.3):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.4)(@genkit-ai/core@0.9.0-dev.4):
     dependencies:
-      '@genkit-ai/ai': 0.9.0-dev.3
-      '@genkit-ai/core': 0.9.0-dev.3
+      '@genkit-ai/ai': 0.9.0-dev.4
+      '@genkit-ai/core': 0.9.0-dev.4
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:

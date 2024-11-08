@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
+import { runInNewSpan } from '@genkit-ai/core/tracing';
 import {
+  generate,
   GenerateOptions,
   GenerateResponse,
+  generateStream,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   MessageData,
   Part,
-} from '@genkit-ai/ai';
-import { z } from '@genkit-ai/core';
-import { Genkit } from './genkit';
+} from './index.js';
 import {
   BaseGenerateOptions,
+  runWithSession,
   Session,
   SessionStore,
-  runWithSession,
 } from './session';
-import { runInNewSpan } from './tracing';
 
 export const MAIN_THREAD = 'main';
 
@@ -145,7 +146,7 @@ export class Chat {
           messages: this.messages,
           ...resolvedOptions,
         };
-        let response = await this.genkit.generate({
+        let response = await generate(this.session.registry, {
           ...request,
           streamingCallback,
         });
@@ -185,11 +186,14 @@ export class Chat {
           resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
         }
 
-        const { response, stream } = await this.genkit.generateStream({
-          ...(await this.requestBase),
-          messages: this.messages,
-          ...resolvedOptions,
-        });
+        const { response, stream } = await generateStream(
+          this.session.registry,
+          {
+            ...(await this.requestBase),
+            messages: this.messages,
+            ...resolvedOptions,
+          }
+        );
 
         return {
           response: response.finally(async () => {
@@ -206,10 +210,6 @@ export class Chat {
         };
       })
     );
-  }
-
-  private get genkit(): Genkit {
-    return this.session.genkit;
   }
 
   get messages(): MessageData[] {

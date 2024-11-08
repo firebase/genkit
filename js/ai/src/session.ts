@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
+import { Registry } from '@genkit-ai/core/registry';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { v4 as uuidv4 } from 'uuid';
+import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
 import {
   ExecutablePrompt,
   GenerateOptions,
@@ -21,12 +26,7 @@ import {
   MessageData,
   isExecutablePrompt,
   tagAsPreamble,
-} from '@genkit-ai/ai';
-import { z } from '@genkit-ai/core';
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
-import { Genkit } from './genkit';
+} from './index.js';
 
 export type BaseGenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -60,7 +60,7 @@ export class Session<S = any> {
   private store: SessionStore<S>;
 
   constructor(
-    readonly genkit: Genkit,
+    readonly registry: Registry,
     options?: {
       id?: string;
       stateSchema?: S;
@@ -82,10 +82,6 @@ export class Session<S = any> {
   }
 
   get state(): S | undefined {
-    // We always get state from the parent. Parent session is the source of truth.
-    if (this.genkit instanceof Session) {
-      return this.genkit.state;
-    }
     return this.sessionData!.state;
   }
 

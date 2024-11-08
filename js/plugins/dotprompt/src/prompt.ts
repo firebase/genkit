@@ -26,6 +26,7 @@ import {
 } from '@genkit-ai/ai';
 import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
+import { getCurrentSession } from '@genkit-ai/ai/session';
 import { GenkitError, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema } from '@genkit-ai/core/schema';
@@ -46,8 +47,6 @@ import { lookupPrompt, registryDefinitionKey } from './registry.js';
 import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
-
-export const GENKIT_SESSION_STATE_INPUT_KEY = '__genkit__sessionState';
 
 export type PromptGenerateOptions<
   V = unknown,
@@ -183,10 +182,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    */
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
     let sessionStateData: Record<string, any> | undefined = undefined;
-    if (input?.hasOwnProperty(GENKIT_SESSION_STATE_INPUT_KEY)) {
-      sessionStateData = input[GENKIT_SESSION_STATE_INPUT_KEY];
-      input = { ...input };
-      delete input[GENKIT_SESSION_STATE_INPUT_KEY];
+    if (getCurrentSession()) {
+      sessionStateData = { state: getCurrentSession()?.state };
     }
     input = parseSchema(input, {
       schema: this.input?.schema,

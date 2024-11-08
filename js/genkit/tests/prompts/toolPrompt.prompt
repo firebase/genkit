@@ -3,4 +3,4 @@ description: prompt in a file
 tools: 
   - agentA
 ---
-{{ role "system" }} toolPrompt prompt
+{{ role "system" }} {{ @state.name }} toolPrompt prompt

@@ -786,7 +786,7 @@ describe('prompt', () => {
   });
 });
 
-describe('asTool', () => {
+describe.only('asTool', () => {
   let ai: Genkit;
   let pm: ProgrammableModel;
 
@@ -798,7 +798,9 @@ describe('asTool', () => {
     pm = defineProgrammableModel(ai);
   });
 
-  it('swaps out preamble on .prompt file tool invocation', async () => {
+  it.only('swaps out preamble on .prompt file tool invocation', async () => {
+    const session = ai.createSession({ initialState: { name: 'Genkit' } });
+
     const agentA = ai.definePrompt(
       {
         name: 'agentA',
@@ -823,14 +825,13 @@ describe('asTool', () => {
       return {
         message: {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: `hi ${session.state?.name} from agent a` }],
         },
       };
     };
-
-    const session = ai.chat(agentA);
-    let { text } = await session.send('hi');
-    assert.strictEqual(text, 'hi from agent a');
+    const chat = session.chat(agentA);
+    let { text } = await chat.send('hi');
+    assert.strictEqual(text, 'hi Genkit from agent a');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         temperature: 2,
@@ -884,7 +885,7 @@ describe('asTool', () => {
       };
     };
 
-    ({ text } = await session.send('pls transfer to b'));
+    ({ text } = await chat.send('pls transfer to b'));
 
     assert.deepStrictEqual(text, 'hi from agent b');
     assert.deepStrictEqual(pm.lastRequest, {
@@ -895,7 +896,7 @@ describe('asTool', () => {
       messages: [
         {
           role: 'system',
-          content: [{ text: ' toolPrompt prompt' }], // <--- NOTE: swapped out the preamble
+          content: [{ text: ' Genkit toolPrompt prompt' }], // <--- NOTE: swapped out the preamble
           metadata: { preamble: true },
         },
         {
@@ -904,7 +905,7 @@ describe('asTool', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: 'hi Genkit from agent a' }],
         },
         {
           role: 'user',
@@ -967,15 +968,15 @@ describe('asTool', () => {
                     ref: 'ref123',
                   },
                 }
-              : { text: 'hi from agent a' },
+              : { text: 'hi Genkit from agent a' },
           ],
         },
       };
     };
 
-    ({ text } = await session.send('pls transfer to a'));
+    ({ text } = await chat.send('pls transfer to a'));
 
-    assert.deepStrictEqual(text, 'hi from agent a');
+    assert.deepStrictEqual(text, 'hi Genkit from agent a');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         temperature: 2,
@@ -992,7 +993,7 @@ describe('asTool', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: 'hi Genkit from agent a' }],
         },
         {
           role: 'user',

@@ -497,6 +497,9 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   let modelId: string;
 
   if (!model) {
+    model = await registry.lookupValue('defaultModel', 'defaultModel');
+  }
+  if (!model) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: 'Must supply a `model` to `generate()` calls.',

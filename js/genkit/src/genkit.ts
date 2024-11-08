@@ -54,6 +54,7 @@ import {
   ToolAction,
   ToolConfig,
 } from '@genkit-ai/ai';
+import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import {
   defineEmbedder,
   EmbedderAction,
@@ -90,6 +91,13 @@ import {
   RetrieverFn,
   SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
+import {
+  getCurrentSession,
+  Session,
+  SessionData,
+  SessionError,
+  SessionOptions,
+} from '@genkit-ai/ai/session';
 import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   CallableFlow,
@@ -119,18 +127,10 @@ import {
   prompt,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions } from './chat.js';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
-import {
-  getCurrentSession,
-  Session,
-  SessionData,
-  SessionError,
-  SessionOptions,
-} from './session.js';
 import { toToolDefinition } from './tool.js';
 
 /**
@@ -491,12 +491,7 @@ export class Genkit {
         // ignore, no model on a render is OK?
       }
       const p = await promptAction;
-      const promptResult = await p({
-        // this feels a litte hacky, but we need to pass session state as action
-        // input to make it replayable from trace view in the dev ui.
-        __genkit__sessionState: { state: getCurrentSession()?.state },
-        ...opt.input,
-      });
+      const promptResult = await p(opt.input);
       const resultOptions = {
         messages: promptResult.messages,
         docs: promptResult.docs,
@@ -779,9 +774,6 @@ export class Genkit {
     } else {
       resolvedOptions = options as GenerateOptions<O, CustomOptions>;
     }
-    if (!resolvedOptions.model) {
-      resolvedOptions.model = this.options.model;
-    }
     return generate(this.registry, resolvedOptions);
   }
 
@@ -886,9 +878,6 @@ export class Genkit {
     } else {
       resolvedOptions = options as GenerateOptions<O, CustomOptions>;
     }
-    if (!resolvedOptions.model) {
-      resolvedOptions.model = this.options.model;
-    }
     return generateStream(this.registry, resolvedOptions);
   }
 
@@ -962,7 +951,7 @@ export class Genkit {
       id: sessionId,
       state: options?.initialState,
     };
-    return new Session(this, {
+    return new Session(this.registry, {
       id: sessionId,
       sessionData,
       store: options?.store,
@@ -981,7 +970,7 @@ export class Genkit {
     }
     const sessionData = await options.store.get(sessionId);
 
-    return new Session(this, {
+    return new Session(this.registry, {
       id: sessionId,
       sessionData,
       store: options.store,
@@ -1007,6 +996,13 @@ export class Genkit {
     // install the default formats in the registry
     configureFormats(activeRegistry);
     const plugins = [...(this.options.plugins ?? [])];
+    if (this.options.model) {
+      this.registry.registerValue(
+        'defaultModel',
+        'defaultModel',
+        this.options.model
+      );
+    }
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {
         loadPromptFolder(

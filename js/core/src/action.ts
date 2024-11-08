@@ -28,8 +28,6 @@ import {
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };
 
-export const GENKIT_SESSION_STATE_INPUT_KEY = '__genkit__sessionState';
-
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
@@ -122,12 +120,6 @@ export function action<
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
   const actionFn = async (input: I) => {
-    let sessionStateData: Record<string, any> | undefined = undefined;
-    if (input?.hasOwnProperty(GENKIT_SESSION_STATE_INPUT_KEY)) {
-      sessionStateData = input[GENKIT_SESSION_STATE_INPUT_KEY];
-      input = { ...input };
-      delete input[GENKIT_SESSION_STATE_INPUT_KEY];
-    }
     input = parseSchema(input, {
       schema: config.inputSchema,
       jsonSchema: config.inputJsonSchema,
@@ -143,9 +135,6 @@ export function action<
         metadata.name = actionName;
         metadata.input = input;
 
-        if (sessionStateData) {
-          input[GENKIT_SESSION_STATE_INPUT_KEY] = sessionStateData;
-        }
         const output = await fn(input);
 
         metadata.output = JSON.stringify(output);
