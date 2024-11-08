@@ -15,7 +15,6 @@
  */
 
 import { z } from 'genkit';
-import { ModelReference } from 'genkit/model';
 import { GoogleAuthOptions } from 'google-auth-library';
 import { VectorSearchOptions } from '../vector-search';
 
@@ -28,19 +27,6 @@ export interface CommonPluginOptions {
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
 }
-
-/** Options specific to Model Garden configuration */
-export interface ModelGardenOptions {
-  /**
-   * @deprecated use `modelGarden.models`
-   */
-  modelGardenModels?: ModelReference<any>[];
-  modelGarden?: {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
-  };
-}
-
 /** Options specific to vector search configuration */
 export interface VectorSearchOptionsConfig {
   /** Configure Vertex AI vector search index options */
@@ -50,5 +36,4 @@ export interface VectorSearchOptionsConfig {
 /** Combined plugin options, extending common options with subplugin-specific options */
 export interface PluginOptions
   extends CommonPluginOptions,
-    ModelGardenOptions,
     VectorSearchOptionsConfig {}

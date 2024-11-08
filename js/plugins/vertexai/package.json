@@ -78,6 +78,12 @@
       "import": "./lib/evaluation/index.mjs",
       "types": "./lib/evaluation/index.d.ts",
       "default": "./lib/evaluation/index.js"
+    },
+    "./modelgarden": {
+      "require": "./lib/modelgarden/index.js",
+      "import": "./lib/modelgarden/index.mjs",
+      "types": "./lib/modelgarden/index.d.ts",
+      "default": "./lib/modelgarden/index.js"
     }
   },
   "typesVersions": {
@@ -87,6 +93,9 @@
       ],
       "evaluation": [
         "./lib/evaluation/index"
+      ],
+      "modelgarden": [
+        "./lib/modelgarden/index"
       ]
     }
   }

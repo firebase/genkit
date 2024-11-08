@@ -16,15 +16,6 @@
 
 import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import {
-  SUPPORTED_ANTHROPIC_MODELS,
-  anthropicModel,
-  claude35Sonnet,
-  claude35SonnetV2,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-} from './anthropic.js';
 import { getDerivedParams } from './common/index.js';
 import { PluginOptions } from './common/types.js';
 import {
@@ -49,13 +40,6 @@ import {
   imagen3Fast,
   imagenModel,
 } from './imagen.js';
-import {
-  SUPPORTED_OPENAI_FORMAT_MODELS,
-  llama3,
-  llama31,
-  llama32,
-  modelGardenOpenaiCompatibleModel,
-} from './model_garden.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector-search/index.js';
 export { PluginOptions } from './common/types.js';
 export {
@@ -73,20 +57,12 @@ export {
   vertexAiRetrievers,
 } from './vector-search/index.js';
 export {
-  claude35Sonnet,
-  claude35SonnetV2,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
   imagen2,
   imagen3,
   imagen3Fast,
-  llama3,
-  llama31,
-  llama32,
   textEmbedding004,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
@@ -106,35 +82,6 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
     Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
       defineGeminiModel(ai, name, vertexClientFactory, { projectId, location })
     );
-
-    if (options?.modelGardenModels || options?.modelGarden?.models) {
-      const mgModels =
-        options?.modelGardenModels || options?.modelGarden?.models;
-      mgModels!.forEach((m) => {
-        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (anthropicEntry) {
-          anthropicModel(ai, anthropicEntry[0], projectId, location);
-          return;
-        }
-        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (openaiModel) {
-          modelGardenOpenaiCompatibleModel(
-            ai,
-            openaiModel[0],
-            projectId,
-            location,
-            authClient,
-            options.modelGarden?.openAiBaseUrlTemplate
-          );
-          return;
-        }
-        throw new Error(`Unsupported model garden model: ${m.name}`);
-      });
-    }
 
     const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
       defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
