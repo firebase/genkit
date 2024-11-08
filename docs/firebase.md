@@ -99,9 +99,14 @@ install Genkit into it.
 
 ## 3. Update flow definitions
 
-To deploy flows to Firebase, you need to modify your flow definitions. The core
-logic will remain the same, but you will add some additional information to make
-them smoothly deployable and more secure once deployed.
+After you've set up a Firebase project with Cloud Functions, your flow
+definitions will go in the project’s `functions/src` directory, exported in
+`index.ts`.
+
+For your flows to be deployable, you will need to make some small changes to how
+you define them. The core logic will remain the same, but you will add some
+additional information to make them smoothly deployable and more secure once
+deployed.
 
 Suppose you have the following flow: 
 
@@ -119,7 +124,8 @@ const generatePoemFlow = ai.defineFlow(
 );
 ```
 
-There are four changes you need to make before you can deploy it.
+The following sections describe the changes you need to make before you can
+deploy it.
 
 ### Define flows with onFlow
 
