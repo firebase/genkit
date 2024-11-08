@@ -76,42 +76,6 @@ registry.registerPath({
     },
   },
 });
-registry.registerPath({
-  method: 'get',
-  path: '/api/traces',
-  summary: 'Retrieves all traces',
-  request: {
-    params: apis.ListTracesRequestSchema,
-  },
-  responses: {
-    '200': {
-      description: 'Success',
-      content: {
-        'application/json': {
-          schema: z.array(TraceDataSchema),
-        },
-      },
-    },
-  },
-});
-registry.registerPath({
-  method: 'get',
-  path: '/api/traces/{traceId}',
-  summary: 'Retrieves a trace by traceId',
-  request: {
-    params: apis.GetTraceRequestSchema,
-  },
-  responses: {
-    '200': {
-      description: 'Success',
-      content: {
-        'application/json': {
-          schema: TraceDataSchema,
-        },
-      },
-    },
-  },
-});
 
 const generator = new OpenApiGeneratorV3(registry.definitions);
 const document = generator.generateDocument({

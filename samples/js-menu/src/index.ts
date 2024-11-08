@@ -33,7 +33,9 @@ configureGenkit({
     ]),
   ],
   enableTracingAndMetrics: true,
+  flowStateStore: 'firebase',
   logLevel: 'debug',
+  traceStore: 'firebase',
 });
 
 // Export all of the example prompts and flows
