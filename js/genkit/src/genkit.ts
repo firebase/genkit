@@ -37,6 +37,7 @@ import {
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
+  isExecutablePrompt,
   ModelArgument,
   ModelReference,
   Part,
@@ -935,10 +936,10 @@ export class Genkit {
     let options: ChatOptions<I> | undefined;
     let preamble: ExecutablePrompt<I> | undefined;
     if (maybeOptions) {
-      preamble = preambleOrOptions as ExecutablePrompt<I>;
       options = maybeOptions;
-    } else if (preambleOrOptions) {
-      if ((preambleOrOptions as ExecutablePrompt<I>)?.render) {
+    }
+    if (preambleOrOptions) {
+      if (isExecutablePrompt(preambleOrOptions)) {
         preamble = preambleOrOptions as ExecutablePrompt<I>;
       } else {
         options = preambleOrOptions as ChatOptions<I>;
@@ -1008,7 +1009,7 @@ export class Genkit {
     const plugins = [...(this.options.plugins ?? [])];
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {
-        loadPromptFolder(this.registry, this.options.promptDir ?? './prompts');
+        loadPromptFolder(this.registry, this.options.promptDir ?? './prompts', '');
       });
       plugins.push(dotprompt);
     }

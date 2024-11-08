@@ -67,6 +67,7 @@ interface RenderMetadata {
 
 export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   name: string;
+  description?: string;
   variant?: string;
   hash: string;
 
@@ -136,6 +137,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     action?: PromptAction
   ) {
     this.name = options.name || 'untitledPrompt';
+    this.description = options.description;
     this.variant = options.variant;
     this.model = options.model;
     this.input = options.input || { schema: z.any() };
@@ -206,7 +208,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       this.registry,
       {
         name: registryDefinitionKey(this.name, this.variant, options?.ns),
-        description: options?.description ?? 'Defined by Dotprompt',
+        description: options?.description ?? this.description,
         inputSchema: this.input?.schema,
         inputJsonSchema: this.input?.jsonSchema,
         metadata: {
