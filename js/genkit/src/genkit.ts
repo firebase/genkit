@@ -1009,7 +1009,11 @@ export class Genkit {
     const plugins = [...(this.options.plugins ?? [])];
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {
-        loadPromptFolder(this.registry, this.options.promptDir ?? './prompts', '');
+        loadPromptFolder(
+          this.registry,
+          this.options.promptDir ?? './prompts',
+          ''
+        );
       });
       plugins.push(dotprompt);
     }

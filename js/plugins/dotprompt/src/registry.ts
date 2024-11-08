@@ -79,7 +79,7 @@ async function maybeLoadPrompt(
 export async function loadPromptFolder(
   registry: Registry,
   dir: string = './prompts',
-  ns: string,
+  ns: string
 ): Promise<void> {
   const promptsPath = resolve(dir);
   return new Promise<void>((resolve, reject) => {

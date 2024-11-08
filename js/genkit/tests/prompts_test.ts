@@ -950,7 +950,6 @@ describe('asTool', () => {
       ],
     });
 
-
     // transfer back to to agent A...
 
     // first response be tools call, the subsequent just text response from agent a.
