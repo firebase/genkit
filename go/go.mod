@@ -95,3 +95,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240708141625-4ad9e859172b // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 )
+
+replace github.com/invopop/jsonschema => github.com/alonsopf/jsonschema v0.0.0-20241108051958-0268d4afa3b4

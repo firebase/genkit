@@ -72,7 +72,7 @@ func TestSchemaAsMap(t *testing.T) {
 	}
 	type Foo struct {
 		BarField Bar
-		Str      string
+		Str      interface{} `json:"str" jsonschema:"type=number;string"`
 	}
 
 	want := map[string]any{
@@ -84,12 +84,11 @@ func TestSchemaAsMap(t *testing.T) {
 				"properties": map[string]any{
 					"Bar": map[string]any{"type": string("string")},
 				},
-				"required": []any{string("Bar")},
-				"type":     string("object"),
+				"type": string("object"),
 			},
-			"Str": map[string]any{"type": string("string")},
+			"str": map[string]any{"type": []any{string("number"), string("string")}},
 		},
-		"required": []any{string("BarField"), string("Str")},
+		"required": []any{string("BarField"), string("str")},
 		"type":     string("object"),
 	}
 

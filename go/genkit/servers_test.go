@@ -96,14 +96,14 @@ func TestDevServer(t *testing.T) {
 			"/custom/devServer/inc": {
 				Key:          "/custom/devServer/inc",
 				Name:         "devServer/inc",
-				InputSchema:  &jsonschema.Schema{Type: "integer"},
-				OutputSchema: &jsonschema.Schema{Type: "integer"},
+				InputSchema:  &jsonschema.Schema{Type: []string{"integer"}},
+				OutputSchema: &jsonschema.Schema{Type: []string{"integer"}},
 				Metadata:     map[string]any{"foo": "bar"},
 			},
 			"/custom/devServer/dec": {
 				Key:          "/custom/devServer/dec",
-				InputSchema:  &jsonschema.Schema{Type: "integer"},
-				OutputSchema: &jsonschema.Schema{Type: "integer"},
+				InputSchema:  &jsonschema.Schema{Type: []string{"integer"}},
+				OutputSchema: &jsonschema.Schema{Type: []string{"integer"}},
 				Name:         "devServer/dec",
 				Metadata:     map[string]any{"bar": "baz"},
 			},

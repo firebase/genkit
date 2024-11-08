@@ -46,6 +46,8 @@ github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tN
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV/sSk/8dngufqelfh6jnri85riMAaF/M=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
+github.com/alonsopf/jsonschema v0.0.0-20241108051958-0268d4afa3b4 h1:ItOJ6pfo0DqT+KKkClpX9m9n18/2Q7NzidMobFwkTTU=
+github.com/alonsopf/jsonschema v0.0.0-20241108051958-0268d4afa3b4/go.mod h1:xAW0fRKWYyjgf/vtEjMlCWc1qprM9DnMtlM8kaZO08E=
 github.com/ankane/disco-go v0.1.0 h1:nkz+y4O+UFKnEGH8FkJ8wcVwX5boZvaRzJN6EMK7NVw=
 github.com/ankane/disco-go v0.1.0/go.mod h1:nkR7DLW+KkXeRRAsWk6poMTpTOWp9/4iKYGDwg8dSS0=
 github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=

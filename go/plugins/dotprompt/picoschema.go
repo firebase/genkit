@@ -46,7 +46,7 @@ func picoschemaToJSONSchema(val any) (*jsonschema.Schema, error) {
 				if err != nil {
 					return nil, err
 				}
-				s.Type = "object"
+				s.Type = []string{"object"}
 				return s, nil
 			}
 		}
@@ -72,7 +72,7 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 			typ = ""
 		}
 		ret := &jsonschema.Schema{
-			Type: typ,
+			Type: []string{typ},
 		}
 		if found {
 			ret.Description = strings.TrimSpace(desc)
@@ -84,7 +84,7 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 
 	case map[string]any:
 		ret := &jsonschema.Schema{
-			Type:                 "object",
+			Type:                 []string{"object"},
 			Properties:           orderedmap.New[string, *jsonschema.Schema](),
 			AdditionalProperties: jsonschema.FalseSchema,
 		}
@@ -110,7 +110,7 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 			switch typ {
 			case "array":
 				property = &jsonschema.Schema{
-					Type:  "array",
+					Type:  []string{"array"},
 					Items: property,
 				}
 			case "object":
