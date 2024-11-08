@@ -169,12 +169,16 @@ async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
       const client = await auth.getClient();
       const url = "https://checks.googleapis.com/v1alpha/aisafety:classifyContent"
 
+      if (client.quotaProjectId) {
+        console.warn(`Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${projectId}).`)
+      }
+
       const response = await client.request({
         url,
         method: "POST",
         body: JSON.stringify(request),
         headers: {
-          "X-Goog-User-Project": projectId,
+          "x-goog-user-project": projectId,
           "Content-Type": "application/json",
         }
       })
