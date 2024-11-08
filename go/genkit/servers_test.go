@@ -55,6 +55,8 @@ func TestDevServer(t *testing.T) {
 	}, nil, dec)
 	srv := httptest.NewServer(newDevServeMux(&devServer{reg: r}))
 	defer srv.Close()
+	tc := tracing.NewTestOnlyTelemetryClient()
+	registry.Global.TracingState().WriteTelemetryImmediate(tc)
 
 	t.Run("runAction", func(t *testing.T) {
 		body := `{"key": "/custom/devServer/inc", "input": 3}`
@@ -77,7 +79,7 @@ func TestDevServer(t *testing.T) {
 		if len(tid) != 32 {
 			t.Errorf("trace ID is %q, wanted 32-byte string", tid)
 		}
-		checkActionTrace(t, r, tid, "inc")
+		checkActionTrace(t, tc, tid, "inc")
 	})
 	t.Run("list actions", func(t *testing.T) {
 		res, err := http.Get(srv.URL + "/api/actions")
@@ -112,20 +114,6 @@ func TestDevServer(t *testing.T) {
 		if diff != "" {
 			t.Errorf("mismatch (-want, +got):\n%s", diff)
 		}
-	})
-	t.Run("list traces", func(t *testing.T) {
-		res, err := http.Get(srv.URL + "/api/envs/dev/traces")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res.StatusCode != 200 {
-			t.Fatalf("got status %d, wanted 200", res.StatusCode)
-		}
-		_, err = readJSON[listTracesResult](res.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// We may have any result, including internal.Zero traces, so don't check anything else.
 	})
 }
 
@@ -178,11 +166,10 @@ func TestProdServer(t *testing.T) {
 	t.Run("bad", func(t *testing.T) { check(t, "true", 400, 0) })
 }
 
-func checkActionTrace(t *testing.T, reg *registry.Registry, tid, name string) {
-	ts := reg.LookupTraceStore(registry.EnvironmentDev)
-	td, err := ts.Load(context.Background(), tid)
-	if err != nil {
-		t.Fatal(err)
+func checkActionTrace(t *testing.T, tc *tracing.TestOnlyTelemetryClient, tid, name string) {
+	td := tc.Traces[tid]
+	if td == nil {
+		t.Fatalf("trace %q not found", tid)
 	}
 	rootSpan := findRootSpan(t, td.Spans)
 	want := &tracing.SpanData{

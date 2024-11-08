@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"golang.org/x/exp/maps"
@@ -80,6 +81,8 @@ func (c *command) run(ctx context.Context, input string) (string, error) {
 }
 
 func TestFlowConformance(t *testing.T) {
+	tc := tracing.NewTestOnlyTelemetryClient()
+	registry.Global.TracingState().WriteTelemetryImmediate(tc)
 	testFiles, err := filepath.Glob(filepath.FromSlash("testdata/conformance/*.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -115,11 +118,7 @@ func TestFlowConformance(t *testing.T) {
 			if test.Trace == nil {
 				return
 			}
-			ts := r.LookupTraceStore(registry.EnvironmentDev)
-			var gotTrace any
-			if err := ts.LoadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
-				t.Fatal(err)
-			}
+			gotTrace := tc.Traces[resp.Telemetry.TraceID]
 			renameSpans(t, gotTrace)
 			renameSpans(t, test.Trace)
 			if diff := compareJSON(gotTrace, test.Trace); diff != "" {

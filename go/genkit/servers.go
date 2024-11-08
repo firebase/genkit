@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -233,10 +232,7 @@ func newDevServeMux(s *devServer) *http.ServeMux {
 	})
 	handle(mux, "POST /api/runAction", s.handleRunAction)
 	handle(mux, "GET /api/actions", s.handleListActions)
-	handle(mux, "GET /api/envs/{env}/traces/{traceID}", s.handleGetTrace)
-	handle(mux, "GET /api/envs/{env}/traces", s.handleListTraces)
-	handle(mux, "GET /api/envs/{env}/flowStates", s.handleListFlowStates)
-
+	handle(mux, "POST /api/notify", s.handleNotify)
 	return mux
 }
 
@@ -282,6 +278,24 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	return writeJSON(ctx, w, resp)
 }
 
+// handleNotify configures the telemetry server URL from the request.
+func (s *devServer) handleNotify(w http.ResponseWriter, r *http.Request) error {
+	var body struct {
+		TelemetryServerURL string `json:"telemetryServerUrl"`
+	}
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+	}
+	if body.TelemetryServerURL != "" {
+		s.reg.TracingState().WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
+		slog.Debug("connected to telemetry server", "url", body.TelemetryServerURL)
+	}
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte("OK"))
+	return err
+}
+
 type runActionResponse struct {
 	Result    json.RawMessage `json:"result"`
 	Telemetry telemetry       `json:"telemetry"`
@@ -319,67 +333,6 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 		descMap[d.Key] = d
 	}
 	return writeJSON(r.Context(), w, descMap)
-}
-
-// handleGetTrace returns a single trace from a TraceStore.
-func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error {
-	env := r.PathValue("env")
-	ts := s.reg.LookupTraceStore(registry.Environment(env))
-	if ts == nil {
-		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
-	}
-	tid := r.PathValue("traceID")
-	td, err := ts.Load(r.Context(), tid)
-	if errors.Is(err, fs.ErrNotExist) {
-		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no %s trace with ID %q", env, tid)}
-	}
-	if err != nil {
-		return err
-	}
-	return writeJSON(r.Context(), w, td)
-}
-
-// handleListTraces returns a list of traces from a TraceStore.
-func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) error {
-	env := r.PathValue("env")
-	ts := s.reg.LookupTraceStore(registry.Environment(env))
-	if ts == nil {
-		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
-	}
-	limit := 0
-	if lim := r.FormValue("limit"); lim != "" {
-		var err error
-		limit, err = strconv.Atoi(lim)
-		if err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
-		}
-	}
-	ctoken := r.FormValue("continuationToken")
-	tds, ctoken, err := ts.List(r.Context(), &tracing.Query{Limit: limit, ContinuationToken: ctoken})
-	if errors.Is(err, tracing.ErrBadQuery) {
-		return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
-	}
-	if err != nil {
-		return err
-	}
-	if tds == nil {
-		tds = []*tracing.Data{}
-	}
-	return writeJSON(r.Context(), w, listTracesResult{tds, ctoken})
-}
-
-type listTracesResult struct {
-	Traces            []*tracing.Data `json:"traces"`
-	ContinuationToken string          `json:"continuationToken"`
-}
-
-func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request) error {
-	return writeJSON(r.Context(), w, listFlowStatesResult{[]base.FlowStater{}, ""})
-}
-
-type listFlowStatesResult struct {
-	FlowStates        []base.FlowStater `json:"flowStates"`
-	ContinuationToken string            `json:"continuationToken"`
 }
 
 // NewFlowServeMux constructs a [net/http.ServeMux].
