@@ -84,6 +84,12 @@
       "import": "./lib/modelgarden/index.mjs",
       "types": "./lib/modelgarden/index.d.ts",
       "default": "./lib/modelgarden/index.js"
+    },
+    "./vectorsearch": {
+      "require": "./lib/vectorsearch/index.js",
+      "import": "./lib/vectorsearch/index.mjs",
+      "types": "./lib/vectorsearch/index.d.ts",
+      "default": "./lib/vectorsearch/index.js"
     }
   },
   "typesVersions": {
@@ -96,6 +102,9 @@
       ],
       "modelgarden": [
         "./lib/modelgarden/index"
+      ],
+      "vectorsearch": [
+        "./lib/vectorsearch/index"
       ]
     }
   }

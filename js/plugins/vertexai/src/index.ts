@@ -40,22 +40,7 @@ import {
   imagen3Fast,
   imagenModel,
 } from './imagen.js';
-import { vertexAiIndexers, vertexAiRetrievers } from './vector-search/index.js';
 export { PluginOptions } from './common/types.js';
-export {
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-  getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetriever,
-  getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetriever,
-  vertexAiIndexerRef,
-  vertexAiIndexers,
-  vertexAiRetrieverRef,
-  vertexAiRetrievers,
-} from './vector-search/index.js';
 export {
   gemini10Pro,
   gemini15Flash,
@@ -83,28 +68,9 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       defineGeminiModel(ai, name, vertexClientFactory, { projectId, location })
     );
 
-    const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+    Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
       defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
     );
-
-    if (
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      const defaultEmbedder = embedders[0];
-
-      vertexAiIndexers(ai, {
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-
-      vertexAiRetrievers(ai, {
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-    }
   });
 }
 

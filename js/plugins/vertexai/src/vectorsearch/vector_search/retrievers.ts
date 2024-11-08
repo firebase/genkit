@@ -57,8 +57,17 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
       },
       async (content, options) => {
+        const embedderReference =
+          vectorSearchOption.embedder ?? defaultEmbedder;
+
+        if (!embedderReference) {
+          throw new Error(
+            'Embedder reference is required to define Vertex AI retriever'
+          );
+        }
+
         const queryEmbeddings = await ai.embed({
-          embedder,
+          embedder: embedderReference,
           options: embedderOptions,
           content,
         });

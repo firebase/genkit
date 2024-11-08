@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { GoogleAuthOptions } from 'google-auth-library';
+import { EmbedderReference, z } from 'genkit';
+import { CommonPluginOptions } from '../common/types';
+import { VectorSearchOptions } from './vector_search';
 
-/** Common options for Vertex AI plugin configuration */
-export interface CommonPluginOptions {
-  /** The Google Cloud project id to call. */
-  projectId?: string;
-  /** The Google Cloud region to call. */
-  location: string;
-  /** Provide custom authentication configuration for connecting to Vertex AI. */
-  googleAuth?: GoogleAuthOptions;
+/** Options specific to vector search configuration */
+export interface VectorSearchOptionsConfig {
+  /** Configure Vertex AI vector search index options */
+  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
+  embedder?: EmbedderReference;
 }
 
-/** Combined plugin options, extending common options with subplugin-specific options */
-export interface PluginOptions extends CommonPluginOptions {}
+export interface PluginOptions
+  extends CommonPluginOptions,
+    VectorSearchOptionsConfig {}
