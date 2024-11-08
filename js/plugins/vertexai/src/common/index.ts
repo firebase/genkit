@@ -21,6 +21,8 @@ import { GeminiConfigSchema } from '../gemini';
 import { CLOUD_PLATFORM_OAUTH_SCOPE } from './constants';
 import { PluginOptions } from './types';
 
+export { PluginOptions };
+
 interface DerivedParams {
   location: string;
   projectId: string;

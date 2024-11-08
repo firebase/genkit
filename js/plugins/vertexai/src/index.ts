@@ -36,10 +36,6 @@ import {
   textMultilingualEmbedding002,
 } from './embedder.js';
 import {
-  VertexAIEvaluationMetricType,
-  vertexEvaluators,
-} from './evaluation.js';
-import {
   SUPPORTED_GEMINI_MODELS,
   defineGeminiModel,
   gemini10Pro,
@@ -61,6 +57,7 @@ import {
   modelGardenOpenaiCompatibleModel,
 } from './model_garden.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector-search/index.js';
+export { PluginOptions } from './common/types.js';
 export {
   DocumentIndexer,
   DocumentRetriever,
@@ -76,7 +73,6 @@ export {
   vertexAiRetrievers,
 } from './vector-search/index.js';
 export {
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
   claude35SonnetV2,
   claude3Haiku,
@@ -96,7 +92,6 @@ export {
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 };
-
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
@@ -104,11 +99,6 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('vertexai', async (ai: Genkit) => {
     const { projectId, location, vertexClientFactory, authClient } =
       await getDerivedParams(options);
-
-    const metrics =
-      options?.evaluation && options.evaluation.metrics.length > 0
-        ? options.evaluation.metrics
-        : [];
 
     Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
       imagenModel(ai, name, authClient, { projectId, location })
@@ -168,7 +158,6 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
         defaultEmbedder,
       });
     }
-    vertexEvaluators(ai, authClient, metrics, projectId, location);
   });
 }
 

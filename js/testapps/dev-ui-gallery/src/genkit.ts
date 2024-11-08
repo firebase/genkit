@@ -23,8 +23,11 @@ import {
   claude3Sonnet,
   textEmbedding004,
   vertexAI,
-  VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
+import {
+  vertexAIEvaluation,
+  VertexAIEvaluationMetricType,
+} from '@genkit-ai/vertexai/evaluation';
 import { genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { chroma } from 'genkitx-chromadb';
@@ -75,6 +78,9 @@ export const ai = genkit({
     vertexAI({
       location: 'us-central1',
       modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
+    }),
+    vertexAIEvaluation({
+      location: 'us-central1',
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.BLEU,

@@ -17,7 +17,6 @@
 import { z } from 'genkit';
 import { ModelReference } from 'genkit/model';
 import { GoogleAuthOptions } from 'google-auth-library';
-import { VertexAIEvaluationMetric } from '../evaluation';
 import { VectorSearchOptions } from '../vector-search';
 
 /** Common options for Vertex AI plugin configuration */
@@ -28,14 +27,6 @@ export interface CommonPluginOptions {
   location: string;
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
-}
-
-/** Options specific to evaluation configuration */
-export interface EvaluationOptions {
-  /** Configure Vertex AI evaluators */
-  evaluation?: {
-    metrics: VertexAIEvaluationMetric[];
-  };
 }
 
 /** Options specific to Model Garden configuration */
@@ -59,6 +50,5 @@ export interface VectorSearchOptionsConfig {
 /** Combined plugin options, extending common options with subplugin-specific options */
 export interface PluginOptions
   extends CommonPluginOptions,
-    EvaluationOptions,
     ModelGardenOptions,
     VectorSearchOptionsConfig {}

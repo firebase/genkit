@@ -72,12 +72,21 @@
       "import": "./lib/rerankers/index.mjs",
       "types": "./lib/rerankers/index.d.ts",
       "default": "./lib/rerankers/index.js"
+    },
+    "./evaluation": {
+      "require": "./lib/evaluation/index.js",
+      "import": "./lib/evaluation/index.mjs",
+      "types": "./lib/evaluation/index.d.ts",
+      "default": "./lib/evaluation/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "rerankers": [
         "./lib/rerankers/index"
+      ],
+      "evaluation": [
+        "./lib/evaluation/index"
       ]
     }
   }

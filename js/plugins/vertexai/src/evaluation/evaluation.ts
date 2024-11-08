@@ -16,7 +16,7 @@
 
 import { Action, Genkit, z } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
-import { EvaluatorFactory } from './evaluator_factory.js';
+import { EvaluatorFactory } from './evaluator_factory';
 
 /**
  * Vertex AI Evaluation metrics. See API documentation for more information.
