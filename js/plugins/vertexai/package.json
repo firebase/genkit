@@ -66,6 +66,19 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./rerankers": {
+      "require": "./lib/rerankers/index.js",
+      "import": "./lib/rerankers/index.mjs",
+      "types": "./lib/rerankers/index.d.ts",
+      "default": "./lib/rerankers/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "rerankers": [
+        "./lib/rerankers/index"
+      ]
     }
   }
 }

@@ -18,7 +18,6 @@ import { z } from 'genkit';
 import { ModelReference } from 'genkit/model';
 import { GoogleAuthOptions } from 'google-auth-library';
 import { VertexAIEvaluationMetric } from '../evaluation';
-import { VertexRerankerConfig } from '../reranker';
 import { VectorSearchOptions } from '../vector-search';
 
 /** Common options for Vertex AI plugin configuration */
@@ -57,16 +56,9 @@ export interface VectorSearchOptionsConfig {
   vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
 }
 
-/** Options specific to reranker configuration */
-export interface RerankerOptions {
-  /** Configure reranker options */
-  rerankOptions?: VertexRerankerConfig[];
-}
-
 /** Combined plugin options, extending common options with subplugin-specific options */
 export interface PluginOptions
   extends CommonPluginOptions,
     EvaluationOptions,
     ModelGardenOptions,
-    VectorSearchOptionsConfig,
-    RerankerOptions {}
+    VectorSearchOptionsConfig {}

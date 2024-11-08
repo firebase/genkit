@@ -60,7 +60,6 @@ import {
   llama32,
   modelGardenOpenaiCompatibleModel,
 } from './model_garden.js';
-import { vertexAiRerankers } from './reranker.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector-search/index.js';
 export {
   DocumentIndexer,
@@ -169,13 +168,6 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
         defaultEmbedder,
       });
     }
-
-    const rerankOptions = {
-      pluginOptions: options,
-      authClient,
-      projectId,
-    };
-    await vertexAiRerankers(ai, rerankOptions);
     vertexEvaluators(ai, authClient, metrics, projectId, location);
   });
 }
