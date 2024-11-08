@@ -332,6 +332,119 @@ describe('session', () => {
     });
   });
 
+  it('can start chat from a prompt', async () => {
+    const agent = ai.definePrompt(
+      {
+        name: 'agent',
+        config: { temperature: 1 },
+        description: 'Agent description',
+      },
+      '{{role "system"}} hello from template'
+    );
+
+    const session = ai.createSession();
+    const chat = session.chat(agent);
+    const respose = await chat.send('hi');
+    assert.deepStrictEqual(respose.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' hello from template' }],
+        metadata: { preamble: true },
+      },
+      {
+        content: [{ text: 'hi' }],
+        role: 'user',
+      },
+      {
+        content: [
+          { text: 'Echo: system:  hello from template,hi' },
+          { text: '; config: {"temperature":1}' },
+        ],
+        role: 'model',
+      },
+    ]);
+  });
+
+  it('can start chat from a prompt with input', async () => {
+    const agent = ai.definePrompt(
+      {
+        name: 'agent',
+        config: { temperature: 1 },
+        description: 'Agent description',
+      },
+      '{{role "system"}} hello {{ name }} from template'
+    );
+
+    const session = ai.createSession();
+    const chat = session.chat(agent, {
+      input: {
+        name: 'Genkit',
+      },
+    });
+    const respose = await chat.send('hi');
+    assert.deepStrictEqual(respose.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' hello Genkit from template' }],
+        metadata: { preamble: true },
+      },
+      {
+        content: [{ text: 'hi' }],
+        role: 'user',
+      },
+      {
+        content: [
+          { text: 'Echo: system:  hello Genkit from template,hi' },
+          { text: '; config: {"temperature":1}' },
+        ],
+        role: 'model',
+      },
+    ]);
+  });
+
+  it('can start chat thread from a prompt with input', async () => {
+    const agent = ai.definePrompt(
+      {
+        name: 'agent',
+        config: { temperature: 1 },
+        description: 'Agent description',
+      },
+      '{{role "system"}} hello {{ name }} from template'
+    );
+    const store = new TestMemorySessionStore();
+    const session = ai.createSession({ store });
+    const chat = session.chat('mythread', agent, {
+      input: {
+        name: 'Genkit',
+      },
+    });
+
+    await chat.send('hi');
+
+    const gotState = await store.get(session.id);
+    delete (gotState as any).id; // ignore
+    assert.deepStrictEqual(gotState?.threads, {
+      mythread: [
+        {
+          role: 'system',
+          content: [{ text: ' hello Genkit from template' }],
+          metadata: { preamble: true },
+        },
+        {
+          content: [{ text: 'hi' }],
+          role: 'user',
+        },
+        {
+          content: [
+            { text: 'Echo: system:  hello Genkit from template,hi' },
+            { text: '; config: {"temperature":1}' },
+          ],
+          role: 'model',
+        },
+      ],
+    });
+  });
+
   it('can read current session state from a prompt', async () => {
     const agent = ai.definePrompt(
       {
@@ -347,7 +460,7 @@ describe('session', () => {
         foo: 'bar',
       },
     });
-    const chat = session.chat({ preamble: agent });
+    const chat = session.chat(agent);
     const respose = await chat.send('hi');
     assert.deepStrictEqual(respose.messages, [
       {

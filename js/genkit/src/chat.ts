@@ -15,7 +15,6 @@
  */
 
 import {
-  ExecutablePrompt,
   GenerateOptions,
   GenerateResponse,
   GenerateStreamOptions,
@@ -42,7 +41,6 @@ export type ChatGenerateOptions<
 > = GenerateOptions<O, CustomOptions>;
 
 export interface PromptRenderOptions<I> {
-  preamble: ExecutablePrompt<I>;
   input?: I;
 }
 
