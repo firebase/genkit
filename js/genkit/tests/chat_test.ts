@@ -481,34 +481,20 @@ describe('preamble', () => {
 
     assert.deepStrictEqual(response.messages, [
       {
-        content: [
-          {
-            text: ' greet Pavel',
-          },
-        ],
-        metadata: {
-          preamble: true,
-        },
         role: 'system',
+        content: [{ text: ' greet Pavel' }],
+        metadata: { preamble: true },
       },
       {
-        content: [
-          {
-            text: 'hi',
-          },
-        ],
         role: 'user',
+        content: [{ text: 'hi' }],
       },
       {
-        content: [
-          {
-            text: 'Echo: system:  greet Pavel,hi',
-          },
-          {
-            text: '; config: {"temperature":2}',
-          },
-        ],
         role: 'model',
+        content: [
+          { text: 'Echo: system:  greet Pavel,hi' },
+          { text: '; config: {"temperature":2}' },
+        ],
       },
     ]);
 
