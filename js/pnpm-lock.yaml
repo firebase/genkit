@@ -847,6 +847,37 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
+  testapps/checks-evaluation:
+    dependencies:
+      '@genkit-ai/checks':
+        specifier: workspace:*
+        version: link:../../plugins/checks
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      path:
+        specifier: ^0.12.7
+        version: 0.12.7
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.3.3
+        version: 5.6.2
+
   testapps/dev-ui-gallery:
     dependencies:
       '@genkit-ai/dev-local-vectorstore':
