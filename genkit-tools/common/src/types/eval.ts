@@ -108,6 +108,10 @@ export const EvalRunKeySchema = z.object({
   actionRef: z.string().optional(),
   datasetId: z.string().optional(),
   datasetVersion: z.number().optional(),
+  actionConfig: z
+    .any()
+    .describe('addition parameters required for inference')
+    .optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
 });
@@ -116,6 +120,7 @@ export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
   datasetId: true,
   datasetVersion: true,
   actionRef: true,
+  actionConfig: true,
 });
 export type EvalKeyAugments = z.infer<typeof EvalKeyAugmentsSchema>;
 

@@ -77,6 +77,7 @@ export async function runNewEvaluation(
     (d) => d.datasetId === datasetId
   );
   const datasetVersion = targetDatasetMetadata?.version;
+  const actionConfig = request.options?.actionConfig;
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
@@ -84,7 +85,7 @@ export async function runNewEvaluation(
     actionRef,
     evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
     auth: request.options?.auth,
-    actionConfig: request.options?.actionConfig,
+    actionConfig,
   });
   const evaluatorActions = await getMatchingEvaluatorActions(
     manager,
@@ -95,7 +96,7 @@ export async function runNewEvaluation(
     manager,
     evaluatorActions,
     evalDataset,
-    augments: { actionRef, datasetId, datasetVersion },
+    augments: { actionRef, datasetId, datasetVersion, actionConfig },
   });
   return evalRun.key;
 }
@@ -108,6 +109,7 @@ export async function interimRunNewEvaluation(
   request: InterimRunNewEvaluationRequest
 ): Promise<EvalRunKey> {
   const { input, actionRef, evaluators } = request;
+  const actionConfig = request.options?.actionConfig;
   const evaluatorActions = await getMatchingEvaluatorActions(
     manager,
     evaluators
@@ -118,7 +120,7 @@ export async function interimRunNewEvaluation(
     actionRef,
     evalFlowInput: input,
     auth: request.options?.auth,
-    actionConfig: request.options?.actionConfig,
+    actionConfig,
   });
 
   const evalRun = await runEvaluation({
@@ -127,6 +129,7 @@ export async function interimRunNewEvaluation(
     evalDataset,
     augments: {
       actionRef,
+      actionConfig,
     },
   });
   return evalRun.key;
