@@ -852,18 +852,6 @@ importers:
       '@genkit-ai/checks':
         specifier: workspace:*
         version: link:../../plugins/checks
-      '@genkit-ai/dev-local-vectorstore':
-        specifier: workspace:*
-        version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/evaluator':
-        specifier: workspace:*
-        version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/googleai':
-        specifier: workspace:*
-        version: link:../../plugins/googleai
       genkit:
         specifier: workspace:*
         version: link:../../genkit
