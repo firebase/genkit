@@ -786,7 +786,7 @@ describe('prompt', () => {
   });
 });
 
-describe.only('asTool', () => {
+describe('asTool', () => {
   let ai: Genkit;
   let pm: ProgrammableModel;
 
@@ -798,9 +798,8 @@ describe.only('asTool', () => {
     pm = defineProgrammableModel(ai);
   });
 
-  it.only('swaps out preamble on .prompt file tool invocation', async () => {
+  it('swaps out preamble on .prompt file tool invocation', async () => {
     const session = ai.createSession({ initialState: { name: 'Genkit' } });
-
     const agentA = ai.definePrompt(
       {
         name: 'agentA',

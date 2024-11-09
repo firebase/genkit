@@ -106,10 +106,21 @@ export class Chat {
         }
         requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
       }
-      requestBase.messages = [
-        ...(options.messages ?? []),
-        ...(requestBase.messages ?? []),
-      ];
+      if (hasPreamble(requestBase.messages)) {
+        requestBase.messages = [
+          // if request base contains a preamble, always put it first
+          ...(getPreamble(requestBase.messages) ?? []),
+          // strip out the preamble from history
+          ...(stripPreamble(options.messages) ?? []),
+          // add whatever non-preamble remains from request
+          ...(stripPreamble(requestBase.messages) ?? []),
+        ];
+      } else {
+        requestBase.messages = [
+          ...(options.messages ?? []),
+          ...(requestBase.messages ?? []),
+        ];
+      }
       this._messages = requestBase.messages;
       return requestBase;
     });
@@ -220,4 +231,16 @@ export class Chat {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }
+}
+
+function hasPreamble(msgs?: MessageData[]) {
+  return !!msgs?.find((m) => m.metadata?.preamble);
+}
+
+function getPreamble(msgs?: MessageData[]) {
+  return msgs?.filter((m) => m.metadata?.preamble);
+}
+
+function stripPreamble(msgs?: MessageData[]) {
+  return msgs?.filter((m) => !m.metadata?.preamble);
 }

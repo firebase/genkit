@@ -224,6 +224,8 @@ export class Session<S = any> {
         requestBase = preamble
           .render({
             input: renderOptions?.input,
+            model: (renderOptions as BaseGenerateOptions)?.model,
+            config: (renderOptions as BaseGenerateOptions)?.config,
           })
           .then((rb) => {
             return {
