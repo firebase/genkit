@@ -147,10 +147,12 @@ export function loadPrompt(
     variant = parts[1];
   }
   const source = readFileSync(join(path, filename), 'utf8');
+
+  console.log('LOAD PROMPT:', name);
   const prompt = Dotprompt.parse(registry, name, source);
   if (variant) {
     prompt.variant = variant;
   }
-  prompt.define({ ns: `dotprompt` });
+  prompt.define();
   return prompt;
 }
