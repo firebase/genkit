@@ -26,10 +26,11 @@ import (
 func init() {
 	// TODO: Remove this. The main program should be responsible for configuring logging.
 	// This is just a convenience during development.
-	h := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}))
-	slog.SetDefault(h)
+	baseHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})
+	debugHandler := &DebugOnlyHandler{
+		h: baseHandler,
+	}
+	slog.SetDefault(slog.New(debugHandler))
 }
 
 var loggerKey = base.NewContextKey[*slog.Logger]()
@@ -41,4 +42,25 @@ func FromContext(ctx context.Context) *slog.Logger {
 		return l
 	}
 	return slog.Default()
+}
+
+// DebugOnlyHandler is a custom handler that only logs DEBUG messages.
+type DebugOnlyHandler struct {
+	h slog.Handler
+}
+
+func (dDebugOnlyHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return level == slog.LevelDebug
+}
+
+func (d DebugOnlyHandler) Handle(ctx context.Context, r slog.Record) error {
+	return d.h.Handle(ctx, r)
+}
+
+func (dDebugOnlyHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &DebugOnlyHandler{h: d.h.WithAttrs(attrs)}
+}
+
+func (d *DebugOnlyHandler) WithGroup(name string) slog.Handler {
+	return &DebugOnlyHandler{h: d.h.WithGroup(name)}
 }
