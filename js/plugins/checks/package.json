@@ -30,10 +30,7 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@google-cloud/aiplatform": "^3.23.0",
-    "google-auth-library": "^9.6.3",
-    "googleapis": "^140.0.1",
-    "node-fetch": "^3.3.2"
+    "google-auth-library": "^9.6.3"
   },
   "peerDependencies": {
     "genkit": "workspace:*"
