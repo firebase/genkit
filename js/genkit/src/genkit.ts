@@ -460,28 +460,12 @@ export class Genkit {
       });
       return this.generateStream(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generate(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateStreamResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generateStream(renderedOpts);
-      };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
       Out extends O,
     >(
-      opt: PromptGenerateOptions<I, CustomOptions>
+      opt: PromptGenerateOptions<I, CustomOptions> & {
+        input?: I;
+      }
     ): Promise<GenerateOptions<CustomOptions, Out>> => {
       let model: ModelAction | undefined;
       options = await options;
@@ -510,7 +494,7 @@ export class Genkit {
         },
         model,
       } as GenerateOptions<CustomOptions, Out>;
-      delete (resultOptions as PromptGenerateOptions<I, CustomOptions>).input;
+      delete (resultOptions as any).input;
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =

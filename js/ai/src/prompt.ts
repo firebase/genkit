@@ -66,12 +66,8 @@ export function isPrompt(arg: any): boolean {
 export type PromptGenerateOptions<
   I = undefined,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Omit<
-  GenerateOptions<z.ZodTypeAny, CustomOptions>,
-  'prompt' | 'input' | 'model'
-> & {
+> = Omit<GenerateOptions<z.ZodTypeAny, CustomOptions>, 'prompt' | 'model'> & {
   model?: ModelArgument<CustomOptions>;
-  input?: I;
 };
 
 /**
@@ -91,7 +87,7 @@ export interface ExecutablePrompt<
    */
   <Out extends O>(
     input?: I,
-    opts?: Omit<PromptGenerateOptions<I, CustomOptions>, 'input'>
+    opts?: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateResponse<z.infer<Out>>>;
 
   /**
@@ -102,27 +98,7 @@ export interface ExecutablePrompt<
    */
   stream<Out extends O>(
     input?: I,
-    opts?: Omit<PromptGenerateOptions<I, CustomOptions>, 'input'>
-  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateResponse`.
-   */
-  generate<Out extends O>(
-    opt: PromptGenerateOptions<I, CustomOptions>
-  ): Promise<GenerateResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateStreamResponse`.
-   */
-  generateStream<Out extends O>(
-    opt: PromptGenerateOptions<I, CustomOptions>
+    opts?: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateStreamResponse<z.infer<Out>>>;
 
   /**
@@ -132,7 +108,9 @@ export interface ExecutablePrompt<
    * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
    */
   render<Out extends O>(
-    opt: PromptGenerateOptions<I, CustomOptions>
+    opt: PromptGenerateOptions<I, CustomOptions> & {
+      input?: I;
+    }
   ): Promise<GenerateOptions<CustomOptions, Out>>;
 
   /**
