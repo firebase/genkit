@@ -39,12 +39,10 @@ export const start = new Command('start')
           env: { ...process.env, GENKIT_ENV: 'dev' },
         });
 
-        appProcess.stdout?.on('data', (data) => {
-          process.stdout.write(data);
-        });
-        appProcess.stderr?.on('data', (data) => {
-          process.stderr.write(data);
-        });
+        appProcess.stderr?.pipe(process.stderr);
+        appProcess.stdout?.pipe(process.stdout);
+        process.stdin?.pipe(appProcess.stdin);
+
         appProcess.on('error', (error): void => {
           console.log(`Error in app process: ${error}`);
           reject(error);

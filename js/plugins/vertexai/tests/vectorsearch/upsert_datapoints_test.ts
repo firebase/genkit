@@ -17,8 +17,8 @@
 import assert from 'assert';
 import { GoogleAuth } from 'google-auth-library';
 import { describe, it, Mock } from 'node:test';
-import { IIndexDatapoint } from '../../src/vector-search/types';
-import { upsertDatapoints } from '../../src/vector-search/upsert_datapoints';
+import { IIndexDatapoint } from '../../src/vectorsearch/vector_search/types';
+import { upsertDatapoints } from '../../src/vectorsearch/vector_search/upsert_datapoints';
 
 describe('upsertDatapoints', () => {
   // FIXME -- t.mock.method is not supported node above 20

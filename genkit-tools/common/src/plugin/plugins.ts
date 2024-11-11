@@ -16,7 +16,6 @@
 
 import { execSync } from 'child_process';
 import * as clc from 'colorette';
-import { createInterface } from 'readline/promises';
 import { z } from 'zod';
 
 const SupportedFlagValuesSchema = z.union([
@@ -67,11 +66,6 @@ export type SpecialAction = keyof z.infer<typeof ToolPluginSubCommandsSchema>;
 
 const SEPARATOR = '===========================';
 
-const readline = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 /**
  * Executes the command given, returning the contents of STDOUT.
  *
@@ -90,21 +84,4 @@ export function cliCommand(command: string, options?: string): void {
   }
 
   console.log(`${SEPARATOR}\n`);
-}
-
-/**
- * Utility function to prompt user for sensitive operations.
- */
-export async function promptContinue(
-  message: string,
-  dfault: boolean
-): Promise<boolean> {
-  console.log(message);
-  const opts = dfault ? 'Y/n' : 'y/N';
-  const r = await readline.question(`${clc.bold('Continue')}? (${opts}) `);
-  if (r === '') {
-    return dfault;
-  }
-
-  return r.toLowerCase() === 'y';
 }

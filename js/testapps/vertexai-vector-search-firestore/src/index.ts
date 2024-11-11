@@ -19,15 +19,18 @@
 import { initializeApp } from 'firebase-admin/app';
 import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
+
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+
 import {
   DocumentIndexer,
   DocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
-  vertexAI,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
-} from '@genkit-ai/vertexai';
+  vertexAIVectorSearch,
+} from '@genkit-ai/vertexai/vectorsearch';
 
 // // Environment variables set with dotenv for simplicity of sample
 import { getFirestore } from 'firebase-admin/firestore';
@@ -80,6 +83,10 @@ const ai = genkit({
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
+    }),
+    vertexAIVectorSearch({
+      projectId: PROJECT_ID,
+      location: LOCATION,
       vectorSearchOptions: [
         {
           publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
@@ -88,6 +95,7 @@ const ai = genkit({
           deployedIndexId: VECTOR_SEARCH_DEPLOYED_INDEX_ID,
           documentRetriever: firestoreDocumentRetriever,
           documentIndexer: firestoreDocumentIndexer,
+          embedder: textEmbedding004,
         },
       ],
     }),

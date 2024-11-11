@@ -44,6 +44,15 @@ const COPYRIGHT = ` Copyright ${new Date().getFullYear()} Google LLC
  See the License for the specific language governing permissions and
  limitations under the License.`;
 
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await readFile(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function getSourceFilesToUpdate() {
   const paths = (
     execSync('git ls-files', FILE_OPTS) +
@@ -52,14 +61,22 @@ async function getSourceFilesToUpdate() {
   )
     .split('\n')
     .filter((p) => !!p);
+
+  const existingPaths = (
+    await Promise.all(
+      paths.map(async (path) => ((await fileExists(path)) ? path : null))
+    )
+  ).filter((path) => path !== null) as string[];
+
   const fileContents = await Promise.all(
-    paths.map((path) => readFile(path, { encoding: 'utf-8' }))
+    existingPaths.map((path) => readFile(path, { encoding: 'utf-8' }))
   );
+
   return fileContents
     .map((contents, idx) => ({
       contents,
-      path: paths[idx],
-      format: FORMAT_TYPES.find(({ regex }) => regex.test(paths[idx])),
+      path: existingPaths[idx],
+      format: FORMAT_TYPES.find(({ regex }) => regex.test(existingPaths[idx])),
     }))
     .filter(
       ({ contents, format }) => format && !/Copyright \d\d\d\d/.test(contents)

@@ -25,7 +25,7 @@ import {
   AnthropicConfigSchema,
   fromAnthropicResponse,
   toAnthropicRequest,
-} from '../src/anthropic.js';
+} from '../src/modelgarden/anthropic';
 
 const MODEL_ID = 'modelid';
 

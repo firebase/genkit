@@ -58,7 +58,6 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): IndexerAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
-  const defaultEmbedder = params.defaultEmbedder;
   const indexers: IndexerAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
@@ -67,7 +66,14 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentIndexer, indexId } = vectorSearchOption;
-    const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
+    const embedderReference =
+      vectorSearchOption.embedder ?? params.defaultEmbedder;
+
+    if (!embedderReference) {
+      throw new Error(
+        'Embedder reference is required to define Vertex AI retriever'
+      );
+    }
     const embedderOptions = vectorSearchOption.embedderOptions;
 
     const indexer = ai.defineIndexer(
@@ -87,7 +93,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
         }
 
         const embeddings = await ai.embedMany({
-          embedder,
+          embedder: embedderReference,
           content: docs,
           options: embedderOptions,
         });
