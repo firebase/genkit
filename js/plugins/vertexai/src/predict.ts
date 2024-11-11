@@ -16,7 +16,7 @@
 
 import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '.';
+import { PluginOptions } from './common/types.js';
 
 function endpoint(options: {
   projectId: string;

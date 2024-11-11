@@ -17,12 +17,12 @@
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
   claude3Sonnet,
   llama31,
-  textEmbedding004,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
@@ -75,6 +75,9 @@ export const ai = genkit({
       },
     }),
     vertexAI({
+      location: 'us-central1',
+    }),
+    vertexAIModelGarden({
       location: 'us-central1',
       modelGarden: {
         models: [claude3Sonnet, llama31],

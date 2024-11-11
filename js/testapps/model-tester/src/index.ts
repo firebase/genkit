@@ -15,7 +15,12 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
-import { claude3Sonnet, llama31, vertexAI } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit-ai/vertexai';
+import {
+  claude3Sonnet,
+  llama31,
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 import * as clc from 'colorette';
 import { genkit } from 'genkit';
 import { testModels } from 'genkit/testing';
@@ -26,6 +31,9 @@ export const ai = genkit({
   plugins: [
     googleAI(),
     vertexAI({
+      location: 'us-central1',
+    }),
+    vertexAIModelGarden({
       location: 'us-central1',
       modelGarden: {
         models: [claude3Sonnet, llama31],
