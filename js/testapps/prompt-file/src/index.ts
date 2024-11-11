@@ -60,8 +60,7 @@ ai.defineFlow(
     outputSchema: RecipeSchema,
   },
   async (input) =>
-    (await ai.prompt('recipe').generate<typeof RecipeSchema>({ input: input }))
-      .output!
+    (await ai.prompt('recipe')<typeof RecipeSchema>(input)).output!
 );
 
 ai.defineFlow(
@@ -73,8 +72,7 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) =>
-    (await ai.prompt('recipe', { variant: 'robot' }).generate({ input: input }))
-      .output
+    (await ai.prompt('recipe', { variant: 'robot' })(input)).output
 );
 
 // A variation that supports streaming, optionally
@@ -92,15 +90,16 @@ ai.defineStreamingFlow(
   async ({ subject, personality }, streamingCallback) => {
     const storyPrompt = ai.prompt('story');
     if (streamingCallback) {
-      const { response, stream } = await storyPrompt.generateStream({
-        input: { subject, personality },
+      const { response, stream } = await storyPrompt.stream({
+        subject,
+        personality,
       });
       for await (const chunk of stream) {
         streamingCallback(chunk.content[0]?.text!);
       }
       return (await response).text;
     } else {
-      const response = await storyPrompt.generate({ input: { subject } });
+      const response = await storyPrompt({ subject });
       return response.text;
     }
   }
