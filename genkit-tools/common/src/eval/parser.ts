@@ -44,6 +44,7 @@ export function enrichResultsWithScoring(
         score.map((s) => ({
           evaluator,
           score: s.score,
+          scoreId: s.id,
           rationale: s.details?.reasoning,
           error: s.error,
           traceId: scoredSample.traceId,
