@@ -27,8 +27,9 @@ func init() {
 	// TODO: Remove this. The main program should be responsible for configuring logging.
 	// This is just a convenience during development.
 	baseHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})
-	debugHandler := &DebugOnlyHandler{
-		h: baseHandler,
+	debugHandler := &LevelFilterHandler{
+		h:     baseHandler,
+		level: slog.LevelDebug,
 	}
 	slog.SetDefault(slog.New(debugHandler))
 }
@@ -44,23 +45,31 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return slog.Default()
 }
 
-// DebugOnlyHandler is a custom handler that only logs DEBUG messages.
-type DebugOnlyHandler struct {
-	h slog.Handler
+// LevelFilterHandler is a custom handler that only logs DEBUG messages.
+type LevelFilterHandler struct {
+	level slog.Level
+	h     slog.Handler
 }
 
-func (dDebugOnlyHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return level == slog.LevelDebug
+func (h *LevelFilterHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	// Display the message if its level is greater than or equal to the configured level
+	return level <= h.level
 }
 
-func (d DebugOnlyHandler) Handle(ctx context.Context, r slog.Record) error {
-	return d.h.Handle(ctx, r)
+func (h *LevelFilterHandler) Handle(ctx context.Context, r slog.Record) error {
+	return h.h.Handle(ctx, r)
 }
 
-func (dDebugOnlyHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &DebugOnlyHandler{h: d.h.WithAttrs(attrs)}
+func (h *LevelFilterHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &LevelFilterHandler{
+		level: h.level,
+		h:     h.h.WithAttrs(attrs),
+	}
 }
 
-func (d *DebugOnlyHandler) WithGroup(name string) slog.Handler {
-	return &DebugOnlyHandler{h: d.h.WithGroup(name)}
+func (h *LevelFilterHandler) WithGroup(name string) slog.Handler {
+	return &LevelFilterHandler{
+		level: h.level,
+		h:     h.h.WithGroup(name),
+	}
 }
