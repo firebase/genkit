@@ -60,7 +60,7 @@ ai.defineFlow(
     outputSchema: RecipeSchema,
   },
   async (input) =>
-    (await ai.prompt('recipe')<typeof RecipeSchema>(input)).output!
+    (await ai.prompt<any, typeof RecipeSchema>('recipe')(input)).output!
 );
 
 ai.defineFlow(

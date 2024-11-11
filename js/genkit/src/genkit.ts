@@ -460,15 +460,11 @@ export class Genkit {
       });
       return this.generateStream(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
-      In extends I,
-      Out extends O,
-      Opts extends CustomOptions,
-    >(
-      opt: PromptGenerateOptions<Out, Opts> & {
-        input?: In;
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async (
+      opt: PromptGenerateOptions<O, CustomOptions> & {
+        input?: I;
       }
-    ): Promise<GenerateOptions<Out, Opts>> => {
+    ): Promise<GenerateOptions<O, CustomOptions>> => {
       let model: ModelAction | undefined;
       options = await options;
       try {
@@ -495,7 +491,7 @@ export class Genkit {
           ...opt.config,
         },
         model,
-      } as GenerateOptions<Out, Opts>;
+      } as GenerateOptions<O, CustomOptions>;
       delete (resultOptions as any).input;
       return resultOptions;
     };
