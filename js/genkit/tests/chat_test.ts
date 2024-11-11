@@ -178,6 +178,7 @@ describe('preamble', () => {
       model: 'programmableModel',
     });
     pm = defineProgrammableModel(ai);
+    defineEchoModel(ai);
   });
 
   it('swaps out preamble on prompt tool invocation', async () => {
@@ -461,5 +462,77 @@ describe('preamble', () => {
         },
       ],
     });
+  });
+
+  it('updates the preabmle on fresh chat instance', async () => {
+    const agent = ai.definePrompt(
+      {
+        name: 'agent',
+        config: { temperature: 2 },
+        description: 'Agent A description',
+      },
+      '{{ role "system"}} greet {{ @state.name }}'
+    );
+
+    const session = ai.createSession({ initialState: { name: 'Pavel' } });
+
+    const chat = session.chat(agent, { model: 'echoModel' });
+    let response = await chat.send('hi');
+
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' greet Pavel' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [
+          { text: 'Echo: system:  greet Pavel,hi' },
+          { text: '; config: {"temperature":2}' },
+        ],
+      },
+    ]);
+
+    await session.updateState({ name: 'Michael' });
+
+    const freshChat = session.chat(agent, { model: 'echoModel' });
+    response = await freshChat.send('hi');
+
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' greet Michael' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [
+          { text: 'Echo: system:  greet Pavel,hi' },
+          { text: '; config: {"temperature":2}' },
+        ],
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            text: 'Echo: system:  greet Michael,hi,Echo: system:  greet Pavel,hi,; config: {"temperature":2},hi',
+          },
+          { text: '; config: {"temperature":2}' },
+        ],
+      },
+    ]);
   });
 });
