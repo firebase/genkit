@@ -139,6 +139,9 @@ importers:
 
   doc-snippets:
     dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../plugins/firebase
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../plugins/googleai
@@ -155,9 +158,15 @@ importers:
       '@types/data-urls':
         specifier: ^3.0.4
         version: 3.0.4
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      tsup:
+        specifier: ^8.0.2
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.2)
       typescript:
         specifier: ^5.3.3
         version: 5.6.2
@@ -1188,7 +1197,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.4)(@genkit-ai/core@0.9.0-dev.4)
+        version: 0.10.1(@genkit-ai/ai@0.9.0-rc.0)(@genkit-ai/core@0.9.0-rc.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2099,11 +2108,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.0-dev.4':
-    resolution: {integrity: sha512-j7mCfJnPupK9tqkESV+SVtwGAfGFB6CnIr/NXeTZleU6cupocP0uFkZKi72HbdMYk2VI38spplp5aIt4jW/wNA==}
+  '@genkit-ai/ai@0.9.0-rc.0':
+    resolution: {integrity: sha512-eik3mk3zXvQZ9jexr/DHd545LKE11Dp0KQqmamHhncZd5IJPZU9v9G0/Cmqv34IY46yMNFLtq90XGTIZ7OF4Zw==}
 
-  '@genkit-ai/core@0.9.0-dev.4':
-    resolution: {integrity: sha512-v6QpSedACJU/jKJGukJKHM5sPJdyYKPoyzAMyztWvVD12t2bkvXYL7+QyCeB/cUE7cijyO4w/2lRNyZciyAgMw==}
+  '@genkit-ai/core@0.9.0-rc.0':
+    resolution: {integrity: sha512-QijKLY+aSrBMFVog2TIWmftq38XQz/yjonuhT3pa06R0P8q7r9WyUIl0s2ioUZfSlWPZ1yBTs7mpacKh5QFmbQ==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -7131,19 +7140,20 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.0-dev.4':
+  '@genkit-ai/ai@0.9.0-rc.0':
     dependencies:
-      '@genkit-ai/core': 0.9.0-dev.4
+      '@genkit-ai/core': 0.9.0-rc.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
       json5: 2.2.3
       node-fetch: 3.3.2
       partial-json: 0.1.7
+      uuid: 10.0.0
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.0-dev.4':
+  '@genkit-ai/core@0.9.0-rc.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.26.0(@opentelemetry/api@1.9.0)
@@ -9821,10 +9831,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.4)(@genkit-ai/core@0.9.0-dev.4):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-rc.0)(@genkit-ai/core@0.9.0-rc.0):
     dependencies:
-      '@genkit-ai/ai': 0.9.0-dev.4
-      '@genkit-ai/core': 0.9.0-dev.4
+      '@genkit-ai/ai': 0.9.0-rc.0
+      '@genkit-ai/core': 0.9.0-rc.0
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
@@ -11367,6 +11377,13 @@ snapshots:
       postcss: 8.4.47
       tsx: 4.19.1
 
+  postcss-load-config@6.0.1(postcss@8.4.47)(tsx@4.19.2):
+    dependencies:
+      lilconfig: 3.1.2
+    optionalDependencies:
+      postcss: 8.4.47
+      tsx: 4.19.2
+
   postcss-load-config@6.0.1(postcss@8.4.47)(tsx@4.7.1):
     dependencies:
       lilconfig: 3.1.2
@@ -12067,6 +12084,33 @@ snapshots:
     optionalDependencies:
       postcss: 8.4.47
       typescript: 4.9.5
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
+
+  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.2):
+    dependencies:
+      bundle-require: 5.0.0(esbuild@0.24.0)
+      cac: 6.7.14
+      chokidar: 4.0.1
+      consola: 3.2.3
+      debug: 4.3.7
+      esbuild: 0.24.0
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.19.2)
+      resolve-from: 5.0.0
+      rollup: 4.25.0
+      source-map: 0.8.0-beta.0
+      sucrase: 3.35.0
+      tinyexec: 0.3.1
+      tinyglobby: 0.2.10
+      tree-kill: 1.2.2
+    optionalDependencies:
+      postcss: 8.4.47
+      typescript: 5.6.2
     transitivePeerDependencies:
       - jiti
       - supports-color
