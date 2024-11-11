@@ -28,7 +28,9 @@ export const menuSuggestionFlow = ai.defineFlow(
   }
 );
 
-ai.startFlowServer();
+ai.startFlowServer({
+  flows: [menuSuggestionFlow],
+});
 // [END ex01]
 
 // [START ex02]
