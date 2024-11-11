@@ -29,7 +29,7 @@ export interface PluginOptions extends CommonPluginOptions, RerankerOptions {}
  * Add Google Cloud Vertex AI Rerankers API to Genkit.
  */
 export function vertexAIRerankers(options: PluginOptions): GenkitPlugin {
-  return genkitPlugin('vertexai', async (ai: Genkit) => {
+  return genkitPlugin('vertexAIRerankers', async (ai: Genkit) => {
     const { projectId, location, authClient } = await getDerivedParams(options);
 
     await vertexAiRerankers(ai, {
