@@ -53,7 +53,7 @@ type LevelFilterHandler struct {
 
 func (h *LevelFilterHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	// Display the message if its level is greater than or equal to the configured level
-	return level <= h.level
+	return level >= h.level
 }
 
 func (h *LevelFilterHandler) Handle(ctx context.Context, r slog.Record) error {
