@@ -438,7 +438,7 @@ export class Genkit {
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
-      opts?: PromptGenerateOptions<I, CustomOptions>
+      opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateResponse> => {
       const renderedOpts = await (
         executablePrompt as ExecutablePrompt<I, O, CustomOptions>
@@ -461,12 +461,14 @@ export class Genkit {
       return this.generateStream(renderedOpts);
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
+      In extends I,
       Out extends O,
+      Opts extends CustomOptions,
     >(
-      opt: PromptGenerateOptions<I, CustomOptions> & {
-        input?: I;
+      opt: PromptGenerateOptions<Out, Opts> & {
+        input?: In;
       }
-    ): Promise<GenerateOptions<Out, CustomOptions>> => {
+    ): Promise<GenerateOptions<Out, Opts>> => {
       let model: ModelAction | undefined;
       options = await options;
       try {
@@ -493,7 +495,7 @@ export class Genkit {
           ...opt.config,
         },
         model,
-      } as GenerateOptions<Out, CustomOptions>;
+      } as GenerateOptions<Out, Opts>;
       delete (resultOptions as any).input;
       return resultOptions;
     };
