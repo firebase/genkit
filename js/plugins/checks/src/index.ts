@@ -17,6 +17,7 @@
 import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import { logger } from 'genkit/logging';
 import {
   ChecksEvaluationMetric,
   ChecksEvaluationMetricType,
@@ -66,6 +67,13 @@ export function checks(options?: PluginOptions): GenkitPlugin {
         }
       );
     }
+
+    if (authClient.getClient().quotaProjectId) {
+      logger.warn(
+        `Checks Evaluator: Your Google cloud authentication has a default quota project(${authClient.getClient().client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
+      );
+    }
+
 
     const projectId = options?.projectId || (await authClient.getProjectId());
 
