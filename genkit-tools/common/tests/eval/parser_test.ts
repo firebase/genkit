@@ -97,9 +97,7 @@ describe('parser', () => {
   describe('enrichResultsWithScoring', () => {
     it('Adds scoring data to eval results', () => {
       const results = enrichResultsWithScoring(evaluatorOutput, evalRunResults);
-
       expect(results).toHaveLength(2);
-      
       results.forEach((result) => {
         expect(result.metrics).toMatchObject([
           EvalMetricSchema.parse({
