@@ -428,8 +428,8 @@ export class Flow<
  * Options to configure the flow server.
  */
 export interface FlowServerOptions {
-  /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
-  flows?: (CallableFlow<any, any> | StreamableFlow<any, any>)[];
+  /** List of flows to expose via the flow server. */
+  flows: (CallableFlow<any, any> | StreamableFlow<any, any>)[];
   /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
   port?: number;
   /** CORS options for the server. */
@@ -458,7 +458,7 @@ export class FlowServer {
   /** Express server instance. Null if server is not running. */
   private server: Server | null = null;
 
-  constructor(registry: Registry, options?: FlowServerOptions) {
+  constructor(registry: Registry, options: FlowServerOptions) {
     this.registry = registry;
     this.options = {
       port: 3400,

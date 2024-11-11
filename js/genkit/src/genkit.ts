@@ -1040,7 +1040,7 @@ export class Genkit {
     }
   }
 
-  startFlowServer(options?: FlowServerOptions): FlowServer {
+  startFlowServer(options: FlowServerOptions): FlowServer {
     const flowServer = new FlowServer(this.registry, options);
     flowServer.start();
     return flowServer;
