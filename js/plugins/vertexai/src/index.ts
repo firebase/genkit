@@ -40,7 +40,7 @@ import {
   imagen3Fast,
   imagenModel,
 } from './imagen.js';
-export { PluginOptions } from './common/types.js';
+export type { PluginOptions } from './common/types.js';
 export {
   gemini10Pro,
   gemini15Flash,
