@@ -308,35 +308,6 @@ export class Genkit {
   }
 
   /**
-   * Defines and registers a dotprompt.
-   *
-   * This is an alternative to defining and importing a .prompt file.
-   *
-   * ```ts
-   * const hi = ai.definePrompt(
-   *   {
-   *     name: 'hi',
-   *     input: {
-   *       schema: z.object({
-   *         name: z.string(),
-   *       }),
-   *     },
-   *   },
-   *   'hi {{ name }}'
-   * );
-   * const { text } = await hi({ name: 'Genkit' });
-   * ```
-   */
-  definePrompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    options: PromptMetadata<I, CustomOptions>,
-    template: string
-  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
-
-  /**
    * Defines and registers a function-based prompt.
    *
    * ```ts
@@ -368,6 +339,35 @@ export class Genkit {
   >(
     options: PromptMetadata<I, CustomOptions>,
     fn: PromptFn<I>
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+
+  /**
+   * Defines and registers a dotprompt.
+   *
+   * This is an alternative to defining and importing a .prompt file.
+   *
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *   },
+   *   'hi {{ name }}'
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
+   */
+  definePrompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: PromptMetadata<I, CustomOptions>,
+    template: string
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   definePrompt<
