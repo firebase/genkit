@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, Genkit, z } from 'genkit';
+import { EvaluatorAction, Genkit, z } from 'genkit';
 import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
@@ -64,7 +64,7 @@ export function checksEvaluators(
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string
-): Action[] {
+): EvaluatorAction[] {
   const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map(
     (metric) => {
       const metricType = isConfig(metric) ? metric.type : metric;
@@ -105,7 +105,7 @@ function createPolicyEvaluator(
   auth: GoogleAuth,
   ai: Genkit,
   policy_config: ChecksEvaluationMetricConfig
-): Action {
+): EvaluatorAction {
   const policyType = policy_config.type as string;
 
   return ai.defineEvaluator(
@@ -168,12 +168,6 @@ async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
       const client = await auth.getClient();
       const url =
         'https://checks.googleapis.com/v1alpha/aisafety:classifyContent';
-
-      if (client.quotaProjectId) {
-        console.warn(
-          `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${projectId}).`
-        );
-      }
 
       const response = await client.request({
         url,

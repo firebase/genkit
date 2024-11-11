@@ -1,21 +1,17 @@
 {
   "name": "@genkit-ai/checks",
-  "description": "Genkit AI framework plugin for Google Cloud Vertex AI APIs including Gemini APIs, Imagen, and more.",
+  "description": "Google Checks AI Safety plugins for classifying the safety of text against Checks AI safety policies.",
   "keywords": [
     "genkit",
     "genkit-plugin",
-    "genkit-embedder",
-    "genkit-model",
     "google cloud",
-    "vertex ai",
-    "imagen",
-    "image-generation",
-    "gemini",
-    "google gemini",
     "google ai",
     "ai",
     "genai",
-    "generative-ai"
+    "generative-ai",
+    "checks",
+    "google checks",
+    "guardrails"
   ],
   "version": "0.9.0-dev.2",
   "type": "commonjs",
@@ -41,10 +37,6 @@
   },
   "peerDependencies": {
     "genkit": "workspace:*"
-  },
-  "optionalDependencies": {
-    "firebase-admin": ">=12.2",
-    "@google-cloud/bigquery": "^7.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",
