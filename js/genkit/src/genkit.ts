@@ -466,7 +466,7 @@ export class Genkit {
       opt: PromptGenerateOptions<I, CustomOptions> & {
         input?: I;
       }
-    ): Promise<GenerateOptions<CustomOptions, Out>> => {
+    ): Promise<GenerateOptions<Out, CustomOptions>> => {
       let model: ModelAction | undefined;
       options = await options;
       try {
