@@ -46,7 +46,16 @@ func (c *TestOnlyTelemetryClient) Save(ctx context.Context, trace *Data) error {
 	if trace.TraceID == "" {
 		return fmt.Errorf("trace ID cannot be empty")
 	}
-	c.Traces[trace.TraceID] = trace
+	if existing, ok := c.Traces[trace.TraceID]; ok {
+		for _, span := range trace.Spans {
+			existing.Spans[span.SpanID] = span
+		}
+		if existing.DisplayName == "" {
+			existing.DisplayName = trace.DisplayName
+		}
+	} else {
+		c.Traces[trace.TraceID] = trace
+	}
 	return nil
 }
 

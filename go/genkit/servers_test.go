@@ -47,6 +47,9 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tc := tracing.NewTestOnlyTelemetryClient()
+	r.TracingState().WriteTelemetryImmediate(tc)
+
 	core.DefineActionInRegistry(r, "devServer", "inc", atype.Custom, map[string]any{
 		"foo": "bar",
 	}, nil, inc)
@@ -55,8 +58,6 @@ func TestDevServer(t *testing.T) {
 	}, nil, dec)
 	srv := httptest.NewServer(newDevServeMux(&devServer{reg: r}))
 	defer srv.Close()
-	tc := tracing.NewTestOnlyTelemetryClient()
-	registry.Global.TracingState().WriteTelemetryImmediate(tc)
 
 	t.Run("runAction", func(t *testing.T) {
 		body := `{"key": "/custom/devServer/inc", "input": 3}`
@@ -122,6 +123,9 @@ func TestProdServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tc := tracing.NewTestOnlyTelemetryClient()
+	r.TracingState().WriteTelemetryImmediate(tc)
+
 	defineFlow(r, "inc", func(_ context.Context, i int, _ noStream) (int, error) {
 		return i + 1, nil
 	})

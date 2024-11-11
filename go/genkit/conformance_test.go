@@ -81,8 +81,6 @@ func (c *command) run(ctx context.Context, input string) (string, error) {
 }
 
 func TestFlowConformance(t *testing.T) {
-	tc := tracing.NewTestOnlyTelemetryClient()
-	registry.Global.TracingState().WriteTelemetryImmediate(tc)
 	testFiles, err := filepath.Glob(filepath.FromSlash("testdata/conformance/*.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -101,6 +99,8 @@ func TestFlowConformance(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			tc := tracing.NewTestOnlyTelemetryClient()
+			r.TracingState().WriteTelemetryImmediate(tc)
 			_ = defineFlow(r, test.Name, flowFunction(test.Commands))
 			key := fmt.Sprintf("/flow/%s", test.Name)
 			resp, err := runAction(context.Background(), r, key, test.Input, nil)
@@ -119,9 +119,17 @@ func TestFlowConformance(t *testing.T) {
 				return
 			}
 			gotTrace := tc.Traces[resp.Telemetry.TraceID]
-			renameSpans(t, gotTrace)
+			var gotTraceAny map[string]any
+			gotTraceBytes, err := json.Marshal(gotTrace)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(gotTraceBytes, &gotTraceAny); err != nil {
+				t.Fatal(err)
+			}
+			renameSpans(t, gotTraceAny)
 			renameSpans(t, test.Trace)
-			if diff := compareJSON(gotTrace, test.Trace); diff != "" {
+			if diff := compareJSON(gotTraceAny, test.Trace); diff != "" {
 				t.Errorf("trace:\n%s", diff)
 			}
 		})
