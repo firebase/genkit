@@ -39,10 +39,8 @@ export function enrichResultsWithScoring(
       const score = Array.isArray(scoredSample.evaluation)
         ? scoredSample.evaluation
         : [scoredSample.evaluation];
-      if (!scoreMap[scoredSample.testCaseId]) {
-        scoreMap[scoredSample.testCaseId] = [];
-      }
-      scoreMap[scoredSample.testCaseId].concat(
+      const existingScores = scoreMap[scoredSample.testCaseId] ?? [];
+      const newScores = existingScores.concat(
         score.map((s) => ({
           evaluator,
           score: s.score,
@@ -52,6 +50,7 @@ export function enrichResultsWithScoring(
           spanId: scoredSample.spanId,
         }))
       );
+      scoreMap[scoredSample.testCaseId] = newScores;
     });
   });
 
