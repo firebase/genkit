@@ -91,7 +91,7 @@ export interface ExecutablePrompt<
    */
   <Out extends O>(
     input?: I,
-    opts?: PromptGenerateOptions<I, CustomOptions>
+    opts?: Omit<PromptGenerateOptions<I, CustomOptions>, 'input'>
   ): Promise<GenerateResponse<z.infer<Out>>>;
 
   /**
@@ -102,7 +102,7 @@ export interface ExecutablePrompt<
    */
   stream<Out extends O>(
     input?: I,
-    opts?: PromptGenerateOptions<I, CustomOptions>
+    opts?: Omit<PromptGenerateOptions<I, CustomOptions>, 'input'>
   ): Promise<GenerateStreamResponse<z.infer<Out>>>;
 
   /**
