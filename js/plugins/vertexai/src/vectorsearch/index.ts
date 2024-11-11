@@ -38,7 +38,7 @@ export {
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export function vertexAIVectorSearch(options?: PluginOptions): GenkitPlugin {
-  return genkitPlugin('vertexai', async (ai: Genkit) => {
+  return genkitPlugin('vertexAIVectorSearch', async (ai: Genkit) => {
     const { projectId, location, vertexClientFactory, authClient } =
       await getDerivedParams(options);
 

@@ -27,7 +27,7 @@ import { PluginOptions } from './types.js';
  * Add Google Cloud Vertex AI Rerankers API to Genkit.
  */
 export function vertexAIModelGarden(options: PluginOptions): GenkitPlugin {
-  return genkitPlugin('vertexai', async (ai: Genkit) => {
+  return genkitPlugin('vertexAIModelGarden', async (ai: Genkit) => {
     const { projectId, location, authClient } = await getDerivedParams(options);
 
     const mgModels = options?.modelGardenModels || options?.modelGarden?.models;

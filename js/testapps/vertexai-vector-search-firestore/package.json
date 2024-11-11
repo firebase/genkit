@@ -8,7 +8,9 @@
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
-    "build:watch": "tsc --watch"
+    "build:watch": "tsc --watch",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "rimraf": "^6.0.1",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.2",
+    "cross-env": "^7.0.3"
   }
 }
