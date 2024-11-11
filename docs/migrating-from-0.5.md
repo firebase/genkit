@@ -17,7 +17,7 @@ Some changes have been made to the `genkit start` command:
 ```posix-terminal
 
 // Starts your genkit application code + Dev UI together
-genkit start -- <language> <command>
+genkit start -- <start command>
 genkit start -- tsx src/index.ts
 genkit start -- go run main.go
 
@@ -25,7 +25,7 @@ genkit start -- go run main.go
 genkit start -- tsx --watch src/index.ts
 
 // Starts your genkit application code ONLY
-genkit start --noui -- <command>
+genkit start --noui -- <start command>
 genkit start --noui -- tsx src/index.ts
 
 // Starts the Dev UI ONLY
