@@ -370,7 +370,7 @@ function toCustomPart(part: Part): GeminiPart {
 }
 
 function toGeminiPart(part: Part): GeminiPart {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) return { text: part.text || ' ' };
   if (part.media) {
     if (part.media.url.startsWith('data:')) return toInlineData(part);
     return toFileData(part);
