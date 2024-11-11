@@ -493,7 +493,7 @@ export class Genkit {
           ...opt.config,
         },
         model,
-      } as GenerateOptions<CustomOptions, Out>;
+      } as GenerateOptions<Out, CustomOptions>;
       delete (resultOptions as any).input;
       return resultOptions;
     };
