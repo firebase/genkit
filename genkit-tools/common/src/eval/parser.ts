@@ -36,18 +36,22 @@ export function enrichResultsWithScoring(
       if (!scoredSample.testCaseId) {
         throw new Error('testCaseId expected to be present');
       }
-      const score = scoredSample.evaluation;
+      const score = Array.isArray(scoredSample.evaluation)
+        ? scoredSample.evaluation
+        : [scoredSample.evaluation];
       if (!scoreMap[scoredSample.testCaseId]) {
         scoreMap[scoredSample.testCaseId] = [];
       }
-      scoreMap[scoredSample.testCaseId].push({
-        evaluator,
-        score: score.score,
-        rationale: score.details?.reasoning,
-        error: score.error,
-        traceId: scoredSample.traceId,
-        spanId: scoredSample.spanId,
-      });
+      scoreMap[scoredSample.testCaseId].concat(
+        score.map((s) => ({
+          evaluator,
+          score: s.score,
+          rationale: s.details?.reasoning,
+          error: s.error,
+          traceId: scoredSample.traceId,
+          spanId: scoredSample.spanId,
+        }))
+      );
     });
   });
 
