@@ -17,14 +17,15 @@
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-  textEmbedding004,
-  vertexAI,
+  vertexAIEvaluation,
   VertexAIEvaluationMetricType,
-} from '@genkit-ai/vertexai';
+} from '@genkit-ai/vertexai/evaluation';
+import {
+  claude35Sonnet,
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 import { genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { chroma } from 'genkitx-chromadb';
@@ -74,7 +75,15 @@ export const ai = genkit({
     }),
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
+    }),
+    vertexAIModelGarden({
+      location: 'us-central1',
+      modelGarden: {
+        models: [claude35Sonnet],
+      },
+    }),
+    vertexAIEvaluation({
+      location: 'us-central1',
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.BLEU,

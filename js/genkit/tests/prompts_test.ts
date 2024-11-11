@@ -19,7 +19,12 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 import { z } from '../src/index';
-import { defineEchoModel, defineStaticResponseModel } from './helpers';
+import {
+  ProgrammableModel,
+  defineEchoModel,
+  defineProgrammableModel,
+  defineStaticResponseModel,
+} from './helpers';
 
 describe('definePrompt - dotprompt', () => {
   describe('default model', () => {
@@ -111,7 +116,7 @@ describe('definePrompt - dotprompt', () => {
         'hi {{ name }}'
       );
 
-      const hi = await ai.prompt('hi');
+      const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -256,7 +261,7 @@ describe('definePrompt - dotprompt', () => {
         'hi {{ name }}'
       );
 
-      const hi = await ai.prompt('hi');
+      const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -350,10 +355,7 @@ describe('definePrompt - dotprompt', () => {
             role: 'user',
           },
         ],
-        output: {
-          format: 'text',
-          jsonSchema: undefined,
-        },
+        output: undefined,
         tools: [],
       });
     });
@@ -442,7 +444,7 @@ describe('definePrompt', () => {
         }
       );
 
-      const hi = await ai.prompt('hi');
+      const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -747,7 +749,7 @@ describe('prompt', () => {
   });
 
   it('loads from from the folder', async () => {
-    const testPrompt = await ai.prompt('test'); // see tests/prompts folder
+    const testPrompt = ai.prompt('test'); // see tests/prompts folder
 
     const { text } = await testPrompt();
 
@@ -777,9 +779,295 @@ describe('prompt', () => {
         };
       }
     );
-    const testPrompt = await ai.prompt('hi');
+    const testPrompt = ai.prompt('hi');
     const { text } = await testPrompt({ name: 'banana' });
 
     assert.strictEqual(text, 'Echo: hi banana; config: {"temperature":11}');
+  });
+});
+
+describe('asTool', () => {
+  let ai: Genkit;
+  let pm: ProgrammableModel;
+
+  beforeEach(() => {
+    ai = genkit({
+      model: 'programmableModel',
+      promptDir: './tests/prompts',
+    });
+    pm = defineProgrammableModel(ai);
+  });
+
+  it('swaps out preamble on .prompt file tool invocation', async () => {
+    const session = ai.createSession({ initialState: { name: 'Genkit' } });
+    const agentA = ai.definePrompt(
+      {
+        name: 'agentA',
+        config: { temperature: 2 },
+        description: 'Agent A description',
+        tools: ['toolPrompt'], // <--- defined in a .prompt file
+      },
+      async () => {
+        return {
+          messages: [
+            {
+              role: 'system',
+              content: [{ text: ' agent a' }],
+            },
+          ],
+        };
+      }
+    );
+
+    // simple hi, nothing interesting...
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: `hi ${session.state?.name} from agent a` }],
+        },
+      };
+    };
+    const chat = session.chat(agentA);
+    let { text } = await chat.send('hi');
+    assert.strictEqual(text, 'hi Genkit from agent a');
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {
+        temperature: 2,
+      },
+      messages: [
+        {
+          content: [{ text: ' agent a' }],
+          metadata: { preamble: true },
+          role: 'system',
+        },
+        {
+          content: [{ text: 'hi' }],
+          role: 'user',
+        },
+      ],
+      output: {},
+      tools: [
+        {
+          name: 'toolPrompt',
+          description: 'prompt in a file',
+          inputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          outputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      ],
+    });
+
+    // transfer to toolPrompt...
+
+    // first response be tools call, the subsequent just text response from agent b.
+    let reqCounter = 0;
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            reqCounter++ === 0
+              ? {
+                  toolRequest: {
+                    name: 'toolPrompt',
+                    input: {},
+                    ref: 'ref123',
+                  },
+                }
+              : { text: 'hi from agent b' },
+          ],
+        },
+      };
+    };
+
+    ({ text } = await chat.send('pls transfer to b'));
+
+    assert.deepStrictEqual(text, 'hi from agent b');
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {
+        // TODO: figure out if config should be swapped out as well...
+        temperature: 2,
+      },
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: ' Genkit toolPrompt prompt' }], // <--- NOTE: swapped out the preamble
+          metadata: { preamble: true },
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'hi Genkit from agent a' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'pls transfer to b' }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'toolPrompt',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'toolPrompt',
+                output: 'transferred to toolPrompt',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+      ],
+      output: {},
+      tools: [
+        {
+          name: 'agentA',
+          description: 'Agent A description',
+          inputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          outputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      ],
+    });
+
+    // transfer back to to agent A...
+
+    // first response be tools call, the subsequent just text response from agent a.
+    reqCounter = 0;
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            reqCounter++ === 0
+              ? {
+                  toolRequest: {
+                    name: 'agentA',
+                    input: {},
+                    ref: 'ref123',
+                  },
+                }
+              : { text: 'hi Genkit from agent a' },
+          ],
+        },
+      };
+    };
+
+    ({ text } = await chat.send('pls transfer to a'));
+
+    assert.deepStrictEqual(text, 'hi Genkit from agent a');
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {
+        temperature: 2,
+      },
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: ' agent a' }], // <--- NOTE: swapped out the preamble
+          metadata: { preamble: true },
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'hi Genkit from agent a' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'pls transfer to b' }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'toolPrompt',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'toolPrompt',
+                output: 'transferred to toolPrompt',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'hi from agent b' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'pls transfer to a' }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'agentA',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'agentA',
+                output: 'transferred to agentA',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+      ],
+      output: {},
+      tools: [
+        {
+          description: 'prompt in a file',
+          inputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          name: 'toolPrompt',
+          outputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      ],
+    });
   });
 });

@@ -86,6 +86,7 @@ export interface PromptMetadata<
  */
 export const PromptFrontmatterSchema = z.object({
   name: z.string().optional(),
+  description: z.string().optional(),
   variant: z.string().optional(),
   model: z.string().optional(),
   tools: z.array(z.string()).optional(),
@@ -154,6 +155,7 @@ export function toMetadata(
 
   return stripUndefinedOrNull({
     name: fm.name,
+    description: fm.description,
     variant: fm.variant,
     model: fm.model,
     config: fm.config,

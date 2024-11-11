@@ -24,6 +24,11 @@ import {
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
+import {
+  injectInstructions,
+  resolveFormat,
+  resolveInstructions,
+} from './formats/index.js';
 import { generateHelper, GenerateUtilParamSchema } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
@@ -32,12 +37,10 @@ import {
   GenerateRequest,
   GenerationCommonConfigSchema,
   MessageData,
-  ModelAction,
   ModelArgument,
   ModelMiddleware,
-  ModelReference,
   Part,
-  ToolDefinition,
+  resolveModel,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
@@ -63,7 +66,9 @@ export interface GenerateOptions<
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'json' | 'text' | 'media';
+    format?: string;
+    contentType?: string;
+    instructions?: boolean | string;
     schema?: O;
     jsonSchema?: any;
   };
@@ -96,68 +101,40 @@ export async function toGenerateRequest(
     });
   }
   if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'at least one message is required in generate request',
+    });
   }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
     tools = await resolveTools(registry, options.tools);
   }
 
+  const resolvedSchema = toJsonSchema({
+    schema: options.output?.schema,
+    jsonSchema: options.output?.jsonSchema,
+  });
+
+  const resolvedFormat = await resolveFormat(registry, options.output?.format);
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    options?.output?.instructions
+  );
+
   const out = {
-    messages,
+    messages: injectInstructions(messages, instructions),
     config: options.config,
     docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
-      format:
-        options.output?.format ||
-        (options.output?.schema || options.output?.jsonSchema
-          ? 'json'
-          : 'text'),
-      schema: toJsonSchema({
-        schema: options.output?.schema,
-        jsonSchema: options.output?.jsonSchema,
-      }),
+      ...(resolvedFormat?.config || {}),
+      schema: resolvedSchema,
     },
   };
   if (!out.output.schema) delete out.output.schema;
   return out;
-}
-
-interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
-  modelAction: ModelAction;
-  config?: z.infer<CustomOptions>;
-  version?: string;
-}
-
-async function resolveModel(
-  registry: Registry,
-  options: GenerateOptions
-): Promise<ResolvedModel> {
-  let model = options.model;
-  if (!model) {
-    throw new Error('Model is required.');
-  }
-  if (typeof model === 'string') {
-    return {
-      modelAction: (await registry.lookupAction(
-        `/model/${model}`
-      )) as ModelAction,
-    };
-  } else if (model.hasOwnProperty('__action')) {
-    return { modelAction: model as ModelAction };
-  } else {
-    const ref = model as ModelReference<any>;
-    return {
-      modelAction: (await registry.lookupAction(
-        `/model/${ref.name}`
-      )) as ModelAction,
-      config: {
-        ...ref.config,
-      },
-      version: ref.version,
-    };
-  }
 }
 
 export class GenerationResponseError extends GenkitError {
@@ -167,7 +144,7 @@ export class GenerationResponseError extends GenkitError {
   };
 
   constructor(
-    response: GenerateResponse,
+    response: GenerateResponse<any>,
     message: string,
     status?: GenkitError['status'],
     detail?: Record<string, any>
@@ -178,6 +155,59 @@ export class GenerationResponseError extends GenkitError {
     });
     this.detail = { response, ...detail };
   }
+}
+
+async function toolsToActionRefs(
+  registry: Registry,
+  toolOpt?: ToolArgument[]
+): Promise<string[] | undefined> {
+  if (!toolOpt) return;
+
+  let tools: string[] = [];
+
+  for (const t of toolOpt) {
+    if (typeof t === 'string') {
+      tools.push(await resolveFullToolName(registry, t));
+    } else if ((t as Action).__action) {
+      tools.push(
+        `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
+      );
+    } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
+      const promptToolAction = await (t as ExecutablePrompt).asTool();
+      tools.push(`/prompt/${promptToolAction.__action.name}`);
+    } else if (t.name) {
+      tools.push(await resolveFullToolName(registry, t.name));
+    } else {
+      throw new Error(`Unable to determine type of tool: ${JSON.stringify(t)}`);
+    }
+  }
+  return tools;
+}
+
+function messagesFromOptions(options: GenerateOptions): MessageData[] {
+  const messages: MessageData[] = [];
+  if (options.system) {
+    messages.push({
+      role: 'system',
+      content: Message.parseContent(options.system),
+    });
+  }
+  if (options.messages) {
+    messages.push(...options.messages);
+  }
+  if (options.prompt) {
+    messages.push({
+      role: 'user',
+      content: Message.parseContent(options.prompt),
+    });
+  }
+  if (messages.length === 0) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'at least one message is required in generate request',
+    });
+  }
+  return messages;
 }
 
 /** A GenerationBlockedError is thrown when a generation is blocked. */
@@ -205,69 +235,31 @@ export async function generate<
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const resolvedModel = await resolveModel(registry, resolvedOptions);
-  const model = resolvedModel.modelAction;
-  if (!model) {
-    let modelId: string;
-    if (typeof resolvedOptions.model === 'string') {
-      modelId = resolvedOptions.model;
-    } else if ((resolvedOptions.model as ModelAction)?.__action?.name) {
-      modelId = (resolvedOptions.model as ModelAction).__action.name;
-    } else {
-      modelId = (resolvedOptions.model as ModelReference<any>).name;
-    }
-    throw new Error(`Model ${modelId} not found`);
-  }
+  const resolvedModel = await resolveModel(registry, resolvedOptions.model);
 
-  // convert tools to action refs (strings).
-  let tools: (string | ToolDefinition)[] | undefined;
-  if (resolvedOptions.tools) {
-    tools = [];
-    for (const t of resolvedOptions.tools) {
-      if (typeof t === 'string') {
-        tools.push(await resolveFullToolName(registry, t));
-      } else if ((t as Action).__action) {
-        tools.push(
-          `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
-        );
-      } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
-        const promptToolAction = (t as ExecutablePrompt).asTool();
-        tools.push(`/prompt/${promptToolAction.__action.name}`);
-      } else if (t.name) {
-        tools.push(await resolveFullToolName(registry, t.name));
-      } else {
-        throw new Error(
-          `Unable to determine type of of tool: ${JSON.stringify(t)}`
-        );
-      }
-    }
-  }
+  const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
 
-  const messages: MessageData[] = [];
-  if (resolvedOptions.system) {
-    messages.push({
-      role: 'system',
-      content: Message.parseContent(resolvedOptions.system),
-    });
-  }
-  if (resolvedOptions.messages) {
-    messages.push(...resolvedOptions.messages);
-  }
-  if (resolvedOptions.prompt) {
-    messages.push({
-      role: 'user',
-      content: Message.parseContent(resolvedOptions.prompt),
-    });
-  }
+  const messages: MessageData[] = messagesFromOptions(resolvedOptions);
 
-  if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
-  }
+  const resolvedSchema = toJsonSchema({
+    schema: resolvedOptions.output?.schema,
+    jsonSchema: resolvedOptions.output?.jsonSchema,
+  });
+
+  const resolvedFormat = await resolveFormat(
+    registry,
+    resolvedOptions.output?.format
+  );
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    resolvedOptions?.output?.instructions
+  );
 
   const params: z.infer<typeof GenerateUtilParamSchema> = {
-    model: model.__action.name,
+    model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages,
+    messages: injectInstructions(messages, instructions),
     tools,
     config: {
       version: resolvedModel.version,
@@ -276,12 +268,7 @@ export async function generate<
     },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
-      jsonSchema: resolvedOptions.output.schema
-        ? toJsonSchema({
-            schema: resolvedOptions.output.schema,
-            jsonSchema: resolvedOptions.output.jsonSchema,
-          })
-        : resolvedOptions.output.jsonSchema,
+      jsonSchema: resolvedSchema,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
   };
@@ -294,11 +281,14 @@ export async function generate<
         params,
         resolvedOptions.use
       );
-      return new GenerateResponse<O>(
-        response,
-        response.request ??
-          (await toGenerateRequest(registry, { ...resolvedOptions, tools }))
-      );
+      const request = await toGenerateRequest(registry, {
+        ...resolvedOptions,
+        tools,
+      });
+      return new GenerateResponse<O>(response, {
+        request: response.request ?? request,
+        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+      });
     }
   );
 }
@@ -385,10 +375,19 @@ export async function generateStream<
             ({ resolve: provideNextChunk, promise: nextChunk } =
               createPromise<GenerateResponseChunk | null>());
           },
-        }).then((result) => {
-          provideNextChunk(null);
-          finalResolve(result);
-        });
+        })
+          .then((result) => {
+            provideNextChunk(null);
+            finalResolve(result);
+          })
+          .catch((e) => {
+            if (!firstChunkSent) {
+              initialReject(e);
+              return;
+            }
+            provideNextChunk(null);
+            finalReject(e);
+          });
       } catch (e) {
         if (!firstChunkSent) {
           initialReject(e);

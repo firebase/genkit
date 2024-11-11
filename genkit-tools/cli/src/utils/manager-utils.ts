@@ -18,11 +18,7 @@ import {
   LocalFileTraceStore,
   startTelemetryServer,
 } from '@genkit-ai/telemetry-server';
-import {
-  FlowInvokeEnvelopeMessage,
-  FlowState,
-  Status,
-} from '@genkit-ai/tools-common';
+import { Status } from '@genkit-ai/tools-common';
 import {
   GenkitToolsError,
   RuntimeManager,
@@ -88,44 +84,4 @@ export async function runWithManager(
     logger.error('Stack trace:');
     logger.error(`${error.stack}`);
   }
-}
-
-/**
- * Poll and wait for the flow to fully complete.
- */
-export async function waitForFlowToComplete(
-  manager: RuntimeManager,
-  flowName: string,
-  flowId: string
-): Promise<FlowState> {
-  let state;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    state = await getFlowState(manager, flowName, flowId);
-    if (state.operation.done) {
-      break;
-    }
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  return state;
-}
-
-/**
- * Retrieve the flow state.
- */
-export async function getFlowState(
-  manager: RuntimeManager,
-  flowName: string,
-  flowId: string
-): Promise<FlowState> {
-  return (
-    await manager.runAction({
-      key: `/flow/${flowName}`,
-      input: {
-        state: {
-          flowId,
-        },
-      } as FlowInvokeEnvelopeMessage,
-    })
-  ).result as FlowState;
 }

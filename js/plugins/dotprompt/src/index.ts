@@ -46,12 +46,13 @@ export interface DotpromptPluginOptions {
 export async function prompt<Variables = unknown>(
   registry: Registry,
   name: string,
-  options?: { variant?: string }
+  options?: { variant?: string; dir?: string }
 ): Promise<Dotprompt<Variables>> {
   return (await lookupPrompt(
     registry,
     name,
-    options?.variant
+    options?.variant,
+    options?.dir ?? './prompts'
   )) as Dotprompt<Variables>;
 }
 

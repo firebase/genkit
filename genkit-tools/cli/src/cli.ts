@@ -29,6 +29,7 @@ import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowRun } from './commands/flow-run';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
+import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
 import { version } from './utils/version';
@@ -48,6 +49,7 @@ const commands: Command[] = [
   evalRun,
   evalFlow,
   config,
+  start,
 ];
 
 /** Main entry point for CLI. */

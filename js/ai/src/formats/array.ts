@@ -24,8 +24,8 @@ export const arrayFormatter: Formatter<unknown[], unknown[]> = {
     contentType: 'application/json',
     constrained: true,
   },
-  handler: (request) => {
-    if (request.output?.schema && request.output?.schema.type !== 'array') {
+  handler: (schema) => {
+    if (schema && schema.type !== 'array') {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
         message: `Must supply an 'array' schema type when using the 'items' parser format.`,
@@ -33,12 +33,12 @@ export const arrayFormatter: Formatter<unknown[], unknown[]> = {
     }
 
     let instructions: string | undefined;
-    if (request.output?.schema) {
+    if (schema) {
       instructions = `Output should be a JSON array conforming to the following schema:
     
-    \`\`\`
-    ${JSON.stringify(request.output!.schema!)}
-    \`\`\`
+\`\`\`
+${JSON.stringify(schema)}
+\`\`\`
     `;
     }
 
@@ -54,8 +54,8 @@ export const arrayFormatter: Formatter<unknown[], unknown[]> = {
         return items;
       },
 
-      parseResponse: (response) => {
-        const { items } = extractItems(response.text, 0);
+      parseMessage: (message) => {
+        const { items } = extractItems(message.text, 0);
         return items;
       },
 
