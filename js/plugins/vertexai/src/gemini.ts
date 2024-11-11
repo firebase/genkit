@@ -46,7 +46,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
-import { PluginOptions } from './common/types';
+import { PluginOptions } from './common/types.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),

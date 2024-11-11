@@ -21,7 +21,7 @@ import { RerankerOptions } from './types.js';
 
 import { getDerivedParams } from '../common/index.js';
 
-import { vertexAiRerankers } from './reranker';
+import { vertexAiRerankers } from './reranker.js';
 
 export interface PluginOptions extends CommonPluginOptions, RerankerOptions {}
 

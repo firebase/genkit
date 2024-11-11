@@ -15,7 +15,7 @@
  */
 
 import { ModelReference } from 'genkit';
-import { CommonPluginOptions } from '../common/types';
+import { CommonPluginOptions } from '../common/types.js';
 
 export enum VertexAIEvaluationMetricType {
   // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums

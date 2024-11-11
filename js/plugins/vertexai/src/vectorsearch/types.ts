@@ -15,8 +15,8 @@
  */
 
 import { EmbedderReference, z } from 'genkit';
-import { CommonPluginOptions } from '../common/types';
-import { VectorSearchOptions } from './vector_search';
+import { CommonPluginOptions } from '../common/types.js';
+import { VectorSearchOptions } from './vector_search.js';
 
 /** Options specific to vector search configuration */
 export interface VectorSearchOptionsConfig {

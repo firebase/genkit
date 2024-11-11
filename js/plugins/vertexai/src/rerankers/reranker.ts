@@ -16,8 +16,8 @@
 
 import { Genkit } from 'genkit';
 import { RankedDocument, rerankerRef } from 'genkit/reranker';
-import { DEFAULT_MODEL, getRerankEndpoint } from './constants';
-import { VertexAIRerankerOptionsSchema, VertexRerankOptions } from './types';
+import { DEFAULT_MODEL, getRerankEndpoint } from './constants.js';
+import { VertexAIRerankerOptionsSchema, VertexRerankOptions } from './types.js';
 
 /**
  * Creates Vertex AI rerankers.
