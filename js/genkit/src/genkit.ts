@@ -438,7 +438,7 @@ export class Genkit {
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
-      opts?: PromptGenerateOptions<I, CustomOptions>
+      opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateResponse> => {
       const renderedOpts = await (
         executablePrompt as ExecutablePrompt<I, O, CustomOptions>
@@ -460,29 +460,11 @@ export class Genkit {
       });
       return this.generateStream(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generate(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateStreamResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generateStream(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
-      Out extends O,
-    >(
-      opt: PromptGenerateOptions<I, CustomOptions>
-    ): Promise<GenerateOptions<CustomOptions, Out>> => {
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async (
+      opt: PromptGenerateOptions<O, CustomOptions> & {
+        input?: I;
+      }
+    ): Promise<GenerateOptions<O, CustomOptions>> => {
       let model: ModelAction | undefined;
       options = await options;
       try {
@@ -509,8 +491,8 @@ export class Genkit {
           ...opt.config,
         },
         model,
-      } as GenerateOptions<CustomOptions, Out>;
-      delete (resultOptions as PromptGenerateOptions<I, CustomOptions>).input;
+      } as GenerateOptions<O, CustomOptions>;
+      delete (resultOptions as any).input;
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
