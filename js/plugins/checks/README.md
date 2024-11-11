@@ -4,7 +4,7 @@ Checks is an AI safety platform built by Google: [checks.google.com/ai-safety](h
 
 This plugin provides evaluators for each Checks AI safety policy. Text is cassified by calling the [Checks Guardrails API](https://console.cloud.google.com/marketplace/product/google/checks.googleapis.com).
 
-> Note: The Guardrails is currently in private priview and you will need to request quota. See Guardrails documentation: [developers.devsite.corp.google.com/checks/guide/api/ai-safety](https://developers.devsite.corp.google.com/checks/guide/api/ai-safety?db=sherzat)
+> Note: The Guardrails is currently in private priview and you will need to request quota. To request quota fill out this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSdcLZkOJMiqodS8KSG1bg0-jAgtE9W-AludMbArCKqgz99OCA/viewform?usp=sf_link)
 
 Curently that list includes:
 
