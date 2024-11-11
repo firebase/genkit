@@ -99,7 +99,7 @@ describe('parser', () => {
       const results = enrichResultsWithScoring(evaluatorOutput, evalRunResults);
 
       expect(results).toHaveLength(2);
-      console.log(results);
+      
       results.forEach((result) => {
         expect(result.metrics).toMatchObject([
           EvalMetricSchema.parse({
