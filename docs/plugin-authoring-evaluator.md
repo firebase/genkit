@@ -260,15 +260,6 @@ Plugins are registered with the framework via the `genkit.config.ts` file in a p
 
 In this case we have two evaluators `DELICIOUSNESS` and `US_PHONE_REGEX_MATCH`. This is where those evaluators are registered with the plugin and with Firebase Genkit.
 
-
-export function myPlugin(options?: MyPluginOptions) {
-  return genkitPlugin('myPlugin', async (ai: Genkit) => {
-    ai.defineModel(...);
-    ai.defineEmbedder(...)
-    // ....
-  });
-};
-
 ```ts
 export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
   options: PluginOptions<ModelCustomOptions>
