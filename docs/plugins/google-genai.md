@@ -11,14 +11,14 @@ npm i --save @genkit-ai/googleai
 
 ## Configuration
 
-To use this plugin, specify it when you call `configureGenkit()`:
+To use this plugin, specify it when you initialize Genkit:
 
-```js
+```ts
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [googleAI()],
-  // ...
 });
 ```
 
@@ -27,61 +27,48 @@ The plugin requires an API key for the Gemini API, which you can get from
 
 Configure the plugin to use your API key by doing one of the following:
 
-- Set the `GOOGLE_GENAI_API_KEY` environment variable to your API key.
+*   Set the `GOOGLE_GENAI_API_KEY` environment variable to your API key.
+*   Specify the API key when you initialize the plugin:
 
-- Specify the API key when you initialize the plugin:
-
-  ```js
-  googleAI({ apiKey: yourKey });
-  ```
-
-  However, don't embed your API key directly in code! Use this feature only
-  in conjunction with a service like Cloud Secret Manager or similar.
-
-Some models (like Gemini 1.5 Pro) are in preview and only aviable via the
-`v1beta` API. You can specify the `apiVersion` to get access to those models:
-
-```js
-configureGenkit({
-  plugins: [googleAI({ apiVersion: 'v1beta' })],
-});
+```ts
+googleAI({ apiKey: yourKey });
 ```
 
-or you can specify multiple versions if you'd like to use different versions of
-models at the same time.
-
-```js
-configureGenkit({
-  plugins: [googleAI({ apiVersion: ['v1', 'v1beta'] })],
-});
-```
+However, don't embed your API key directly in code! Use this feature only in
+conjunction with a service like Cloud Secret Manager or similar.
 
 ## Usage
 
 This plugin statically exports references to its supported models:
 
-```js
+```ts
 import {
   gemini15Flash,
   gemini15Pro,
-  textEmbeddingGecko001,
+  textEmbedding004,
 } from '@genkit-ai/googleai';
 ```
 
 You can use these references to specify which model `generate()` uses:
 
-```js
-const llmResponse = await generate({
+```ts
+const ai = genkit({
+  plugins: [googleAI()],
   model: gemini15Flash,
-  prompt: 'Tell me a joke.',
 });
+
+const llmResponse = await ai.generate('Tell me a joke.');
 ```
 
-or use embedders (ex. `textEmbeddingGecko001`) with `embed` or retrievers:
+or use embedders (ex. `textEmbedding004`) with `embed` or retrievers:
 
-```js
-const embedding = await embed({
-  embedder: textEmbeddingGecko001,
+```ts
+const ai = genkit({
+  plugins: [googleAI()],
+});
+
+const embedding = await ai.embed({
+  embedder: textEmbedding004,
   content: input,
 });
 ```
@@ -90,8 +77,14 @@ const embedding = await embed({
 
 You can use files uploaded to the Gemini Files API with Genkit:
 
-```js
+```ts
 import { GoogleAIFileManager } from '@google/generative-ai/server';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+
+const ai = genkit({
+  plugins: [googleAI()],
+});
 
 const fileManager = new GoogleAIFileManager(process.env.GOOGLE_GENAI_API_KEY);
 const uploadResult = await fileManager.uploadFile(
@@ -102,7 +95,7 @@ const uploadResult = await fileManager.uploadFile(
   }
 );
 
-const response = await generate({
+const response = await ai.generate({
   model: gemini15Flash,
   prompt: [
     {text: 'Describe this image:'},
@@ -113,18 +106,30 @@ const response = await generate({
 
 ## Fine-tuned models
 
-You can use models fine-tuned with the Google Gemini API.  Follow the instructions from the [Gemini API](https://ai.google.dev/gemini-api/docs/model-tuning/tutorial?lang=python) or fine-tune a model using [AI Studio](https://aistudio.corp.google.com/app/tune).
+You can use models fine-tuned with the Google Gemini API.  Follow the
+instructions from the
+[Gemini API](https://ai.google.dev/gemini-api/docs/model-tuning/tutorial?lang=python)
+or fine-tune a model using
+[AI Studio](https://aistudio.corp.google.com/app/tune).
 
-The tuning process uses a base model&mdash;for example, Gemini 1.5 Flash&mdash;and your provided examples to create a new tuned model.  Remember the base model you used, and copy the new model's ID.
+The tuning process uses a base model—for example, Gemini 1.5 Flash—and your
+provided examples to create a new tuned model.  Remember the base model you
+used, and copy the new model's ID.
 
-When calling the tuned model in Genkit, use the base model as the `model` parameter, and pass the tuned model's ID as part of the `config` block. For example, if you used Gemini 1.5 Flash as the base model, and got the model ID `tunedModels/my-example-model-apbm8oqbvuv2` you can call it with a block like the following:
+When calling the tuned model in Genkit, use the base model as the `model`
+parameter, and pass the tuned model's ID as part of the `config` block. For
+example, if you used Gemini 1.5 Flash as the base model, and got the model ID
+`tunedModels/my-example-model-apbm8oqbvuv2` you can call it with:
 
-```js
-const llmResponse = await generate({
+```ts
+const ai = genkit({
+  plugins: [googleAI()],
+});
+
+const llmResponse = await ai.generate({
   prompt: `Suggest an item for the menu of fish themed restruant`,
-  model: gemini15Flash,
-  config: {
+  model: gemini15Flash.withConfig({
     version: "tunedModels/my-example-model-apbm8oqbvuv2",
-  },
+  }),
 });
 ```
