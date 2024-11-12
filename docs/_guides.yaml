@@ -17,10 +17,6 @@ toc:
     path: /docs/genkit/
   - title: Get started
     path: /docs/genkit/get-started
-  - title: Get started with Next.js
-    path: /docs/genkit/nextjs
-  - title: Configuration and plugins
-    path: /docs/genkit/config
   - title: Developer tools
     path: /docs/genkit/devtools
   
