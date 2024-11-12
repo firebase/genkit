@@ -21,21 +21,22 @@ example:
 ollama pull gemma
 ```
 
-To use this plugin, specify it when you call `configureGenkit()`.
+To use the plugin, specify it when you call genkit:
 
-```js
+```typescript
+import { genkit } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     ollama({
       models: [
         {
           name: 'gemma',
-          type: 'generate', // type: 'chat' | 'generate' | undefined
+          type: 'generate', // Options: 'chat' | 'generate' |
         },
       ],
-      serverAddress: 'http://127.0.0.1:11434', // default local address
+      serverAddress: 'http://127.0.0.1:11434', // default serverAddress to use
     }),
   ],
 });
@@ -64,7 +65,7 @@ the Google Auth library:
 ```js
 import { GoogleAuth } from 'google-auth-library';
 import { ollama, OllamaPluginParams } from 'genkitx-ollama';
-import { configureGenkit, isDevEnv } from '@genkit-ai/core';
+import { genkit, isDevEnv } from '@genkit-ai/core';
 
 const ollamaCommon = { models: [{ name: 'gemma:2b' }] };
 
@@ -82,7 +83,7 @@ const ollamaProd = {
   },
 } as OllamaPluginParams;
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     ollama(isDevEnv() ? ollamaDev : ollamaProd),
   ],
@@ -117,8 +118,32 @@ This plugin doesn't statically export model references. Specify one of the
 models you configured using a string identifier:
 
 ```js
-const llmResponse = await generate({
-  model: 'ollama/gemma',
+const llmResponse = await ai.generate({
+  model: 'ollama/gemma:2b',
   prompt: 'Tell me a joke.',
 });
+```
+
+## Embedders
+The Ollama plugin supports embeddings, which can be used for similarity searches and other NLP tasks.
+```typescript
+const ai = genkit({
+  plugins: [
+    ollama({
+      serverAddress: 'http://localhost:11434',
+      embedders: [{ name: 'nomic-embed-text', dimensions: 768 }],
+    }),
+  ],
+});
+
+async function getEmbedding() {
+  const embedding = await ai.embed({
+      embedder: 'ollama/nomic-embed-text',
+      content: "Some text to embed!",
+  })
+
+  return embedding;
+}
+
+getEmbedding().then((e) => console.log(e))
 ```

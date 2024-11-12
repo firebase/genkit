@@ -23,7 +23,8 @@ const ai = genkit({
       serverAddress: 'http://localhost:11434',
       embedders: [{ name: 'nomic-embed-text', dimensions: 768 }],
       models: [{ name: 'phi3.5:latest' }],
-      requestHeaders: async (_params) => {
+      requestHeaders: async (params) => {
+        console.log('Using server address', params.serverAddress);
         // Simulate a token-based authentication
         await new Promise((resolve) => setTimeout(resolve, 200));
         return { Authorization: 'Bearer my-token' };
