@@ -33,8 +33,9 @@ import (
 func main() {
 	// [START vec]
 	ctx := context.Background()
+	genkitSrv := genkit.New()
 
-	err := vertexai.Init(ctx, &vertexai.Config{})
+	err := vertexai.Init(ctx, genkitSrv.Registry, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,9 +45,10 @@ func main() {
 	}
 
 	menuPDFIndexer, _, err := localvec.DefineIndexerAndRetriever(
+		genkitSrv.Registry,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder("text-embedding-004"),
+			Embedder: vertexai.Embedder(genkitSrv.Registry, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -61,6 +63,7 @@ func main() {
 	// [END splitcfg]
 	// [START indexflow]
 	genkit.DefineFlow(
+		genkitSrv.Registry,
 		"indexMenu",
 		func(ctx context.Context, path string) (any, error) {
 			// Extract plain text from the PDF. Wrap the logic in Run so it
@@ -97,7 +100,7 @@ func main() {
 	)
 	// [END indexflow]
 
-	err = genkit.Init(ctx, nil)
+	err = genkitSrv.Init(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -132,8 +135,9 @@ func readPDF(path string) (string, error) {
 func menuQA() {
 	// [START retrieve]
 	ctx := context.Background()
+	genkitSrv := genkit.New()
 
-	err := vertexai.Init(ctx, &vertexai.Config{})
+	err := vertexai.Init(ctx, genkitSrv.Registry, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -142,12 +146,13 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model("gemini-1.5-flash")
+	model := vertexai.Model(genkitSrv.Registry, "gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
+		genkitSrv.Registry,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder("text-embedding-004"),
+			Embedder: vertexai.Embedder(genkitSrv.Registry, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -155,6 +160,7 @@ func menuQA() {
 	}
 
 	genkit.DefineFlow(
+		genkitSrv.Registry,
 		"menuQA",
 		func(ctx context.Context, question string) (string, error) {
 			// Retrieve text relevant to the user's question.
@@ -173,7 +179,7 @@ func menuQA() {
 			}
 
 			// Call Generate, including the menu information in your prompt.
-			return ai.GenerateText(ctx, model,
+			return ai.GenerateText(ctx, genkitSrv.Registry, model,
 				ai.WithMessages(
 					ai.NewSystemTextMessage(`
 You are acting as a helpful AI assistant that can answer questions about the
@@ -187,10 +193,13 @@ make up an answer. Do not add or change items on the menu.`),
 }
 
 func customret() {
+	genkitSrv := genkit.New()
+
 	_, menuPDFRetriever, _ := localvec.DefineIndexerAndRetriever(
+		genkitSrv.Registry,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder("text-embedding-004"),
+			Embedder: vertexai.Embedder(genkitSrv.Registry, "text-embedding-004"),
 		},
 	)
 
@@ -200,6 +209,7 @@ func customret() {
 		PreRerankK int
 	}
 	advancedMenuRetriever := ai.DefineRetriever(
+		genkitSrv.Registry,
 		"custom",
 		"advancedMenuRetriever",
 		func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {

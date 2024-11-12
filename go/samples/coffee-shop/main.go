@@ -95,7 +95,8 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	if err := googleai.Init(context.Background(), nil); err != nil {
+	genkitSrv := genkit.New()
+	if err := googleai.Init(context.Background(), genkitSrv.Registry, nil); err != nil {
 		log.Fatal(err)
 	}
 
@@ -103,8 +104,9 @@ func main() {
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g := googleai.Model("gemini-1.5-pro")
-	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
+	g := googleai.Model(genkitSrv.Registry, "gemini-1.5-pro")
+	simpleGreetingPrompt, err := dotprompt.Define(genkitSrv.Registry,
+		"simpleGreeting2", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
 			InputSchema:  r.Reflect(simpleGreetingInput{}),
@@ -115,7 +117,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleGreetingFlow := genkit.DefineStreamingFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+	simpleGreetingFlow := genkit.DefineStreamingFlow(genkitSrv.Registry, "simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
 		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
 			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
@@ -123,6 +125,7 @@ func main() {
 			}
 		}
 		resp, err := simpleGreetingPrompt.Generate(ctx,
+			genkitSrv.Registry,
 			&dotprompt.PromptRequest{
 				Variables: input,
 			},
@@ -134,7 +137,7 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
+	greetingWithHistoryPrompt, err := dotprompt.Define(genkitSrv.Registry, "greetingWithHistory", greetingWithHistoryPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
@@ -145,8 +148,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
+	greetingWithHistoryFlow := genkit.DefineFlow(genkitSrv.Registry, "greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
 		resp, err := greetingWithHistoryPrompt.Generate(ctx,
+			genkitSrv.Registry,
 			&dotprompt.PromptRequest{
 				Variables: input,
 			},
@@ -158,7 +162,7 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
+	simpleStructuredGreetingPrompt, err := dotprompt.Define(genkitSrv.Registry, "simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
 			InputSchema:  r.Reflect(simpleGreetingInput{}),
@@ -170,7 +174,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	genkit.DefineStreamingFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+	genkit.DefineStreamingFlow(genkitSrv.Registry, "simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
 		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
 			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
@@ -178,6 +182,7 @@ func main() {
 			}
 		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
+			genkitSrv.Registry,
 			&dotprompt.PromptRequest{
 				Variables: input,
 			},
@@ -189,7 +194,7 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
+	genkit.DefineFlow(genkitSrv.Registry, "testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
 		test1, err := simpleGreetingFlow.Run(ctx, &simpleGreetingInput{
 			CustomerName: "Sam",
 		})
@@ -221,7 +226,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := genkitSrv.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

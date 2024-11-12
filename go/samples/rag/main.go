@@ -67,21 +67,25 @@ type simpleQaPromptInput struct {
 }
 
 func main() {
-	err := googleai.Init(context.Background(), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	model := googleai.Model("gemini-1.0-pro")
-	embedder := googleai.Embedder("embedding-001")
-	if err := localvec.Init(); err != nil {
-		log.Fatal(err)
-	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever("simpleQa", localvec.Config{Embedder: embedder})
+	genkitSrv := genkit.New()
+	err := googleai.Init(context.Background(), genkitSrv.Registry, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
+	model := googleai.Model(genkitSrv.Registry, "gemini-1.0-pro")
+	embedder := googleai.Embedder(genkitSrv.Registry, "embedding-001")
+	if err := localvec.Init(); err != nil {
+		log.Fatal(err)
+	}
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever(genkitSrv.Registry, "simpleQa",
+		localvec.Config{Embedder: embedder})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	simpleQaPrompt, err := dotprompt.Define(genkitSrv.Registry,
+		"simpleQaPrompt",
 		simpleQaPromptTemplate,
 		dotprompt.Config{
 			Model:        model,
@@ -93,7 +97,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	genkit.DefineFlow("simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
+	genkit.DefineFlow(genkitSrv.Registry, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
@@ -121,6 +125,7 @@ func main() {
 		}
 
 		resp, err := simpleQaPrompt.Generate(ctx,
+			genkitSrv.Registry,
 			&dotprompt.PromptRequest{
 				Variables: promptInput,
 			},
@@ -132,7 +137,7 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := genkitSrv.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

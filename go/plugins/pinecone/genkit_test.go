@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
@@ -75,15 +76,17 @@ func TestGenkit(t *testing.T) {
 	if err := Init(ctx, *testAPIKey); err != nil {
 		t.Fatal(err)
 	}
+
+	genkitSrv := genkit.New()
 	cfg := Config{
 		IndexID:  *testIndex,
-		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+		Embedder: ai.DefineEmbedder(genkitSrv.Registry, "fake", "embedder3", embedder.Embed),
 	}
-	indexer, err := DefineIndexer(ctx, cfg)
+	indexer, err := DefineIndexer(ctx, genkitSrv.Registry, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	retriever, err := DefineRetriever(ctx, cfg)
+	retriever, err := DefineRetriever(ctx, genkitSrv.Registry, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

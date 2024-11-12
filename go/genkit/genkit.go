@@ -28,6 +28,22 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
+/**
+ * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
+ *
+ * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
+ *
+ * There may be multiple Genkit instances in a single codebase.
+ */
+type Genkit struct {
+	Options          *Options
+	ConfiguredEnv    []string
+	Registry         *registry.Registry
+	ReflectionServer *http.Server
+	FlowServer       *http.Server
+	RegisteredFlows  []*Flow[any, any, struct{}]
+}
+
 // Options are options to [Init].
 type Options struct {
 	// If "-", do not start a FlowServer.
@@ -37,6 +53,19 @@ type Options struct {
 	// The names of flows to serve.
 	// If empty, all registered flows are served.
 	Flows []string
+}
+
+// New returns a new Genkit instance with registry set
+func New() *Genkit {
+	var err error
+	reg, err := registry.New()
+	if err != nil {
+		panic(err)
+	}
+	g := Genkit{
+		Registry: reg,
+	}
+	return &g
 }
 
 // Init initializes Genkit.
@@ -55,11 +84,12 @@ type Options struct {
 //
 // Thus Init(nil) will start a dev server in the "dev" environment, will always start
 // a flow server, and will pause execution until the flow server terminates.
-func Init(ctx context.Context, opts *Options) error {
+func (g *Genkit) Init(ctx context.Context, opts *Options) error {
 	if opts == nil {
-		opts = &Options{}
+		g.Options = &Options{}
 	}
-	registry.Global.Freeze()
+
+	g.Registry.Freeze()
 
 	var mu sync.Mutex
 	var servers []*http.Server
@@ -70,20 +100,23 @@ func Init(ctx context.Context, opts *Options) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s := startReflectionServer(ctx, errCh)
+			s := startReflectionServer(ctx, g.Registry, errCh)
 			mu.Lock()
 			servers = append(servers, s)
+			g.ReflectionServer = s
 			mu.Unlock()
 		}()
 	}
 
+	// TODO Based on option flowserver = true
 	if opts.FlowAddr != "-" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s := startFlowServer(opts.FlowAddr, opts.Flows, errCh)
+			s := startFlowServer(g.Registry, opts.FlowAddr, opts.Flows, errCh)
 			mu.Lock()
 			servers = append(servers, s)
+			g.FlowServer = s
 			mu.Unlock()
 		}()
 	}

@@ -20,14 +20,16 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/invopop/jsonschema"
 )
 
 func pr01() {
-	model := ai.LookupModel("googleai", "gemini-1.5-flash")
+	genkitSrv := genkit.New()
+	model := ai.LookupModel(genkitSrv.Registry, "googleai", "gemini-1.5-flash")
 
 	// [START pr01]
-	ai.Generate(context.Background(), model, ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
+	ai.Generate(context.Background(), genkitSrv.Registry, model, ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 
@@ -40,10 +42,11 @@ func helloPrompt(name string) *ai.Part {
 // [END hello]
 
 func pr02() {
-	model := ai.LookupModel("googleai", "gemini-1.5-flash")
+	genkitSrv := genkit.New()
+	model := ai.LookupModel(genkitSrv.Registry, "googleai", "gemini-1.5-flash")
 
 	// [START pr02]
-	response, err := ai.GenerateText(context.Background(), model,
+	response, err := ai.GenerateText(context.Background(), genkitSrv.Registry, model,
 		ai.WithMessages(ai.NewUserMessage(helloPrompt("Fred"))))
 	// [END pr02]
 
@@ -53,13 +56,15 @@ func pr02() {
 }
 
 func pr03() error {
-	model := ai.LookupModel("googleai", "gemini-1.5-flash")
+	genkitSrv := genkit.New()
+	model := ai.LookupModel(genkitSrv.Registry, "googleai", "gemini-1.5-flash")
 
 	// [START pr03_1]
 	type HelloPromptInput struct {
 		UserName string
 	}
 	helloPrompt := ai.DefinePrompt(
+		genkitSrv.Registry,
 		"prompts",
 		"helloPrompt",
 		nil, // Additional model config
@@ -84,7 +89,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := model.Generate(context.Background(), request, nil)
+	response, err := model.Generate(context.Background(), genkitSrv.Registry, request, nil)
 	// [END pr03_2]
 
 	_ = response

@@ -62,11 +62,12 @@ func run() error {
 		return errors.New("need -apikey")
 	}
 	ctx := context.Background()
-	if err := googleai.Init(ctx, &googleai.Config{APIKey: *apiKey}); err != nil {
+	genkitSrv := genkit.New()
+	if err := googleai.Init(ctx, genkitSrv.Registry, &googleai.Config{APIKey: *apiKey}); err != nil {
 		return err
 	}
 	const embedderName = "embedding-001"
-	embedder := googleai.Embedder(embedderName)
+	embedder := googleai.Embedder(genkitSrv.Registry, embedderName)
 	if embedder == nil {
 		return fmt.Errorf("embedder %s is not known to the googleai plugin", embedderName)
 	}
@@ -92,7 +93,7 @@ func run() error {
 		Show     string
 	}
 
-	genkit.DefineFlow("askQuestion", func(ctx context.Context, in input) (string, error) {
+	genkit.DefineFlow(genkitSrv.Registry, "askQuestion", func(ctx context.Context, in input) (string, error) {
 		res, err := ai.Retrieve(ctx, retriever,
 			ai.WithRetrieverOpts(in.Show),
 			ai.WithRetrieverText(in.Question))
@@ -107,13 +108,14 @@ func run() error {
 	})
 	// [END use-retr]
 
-	return genkit.Init(ctx, nil)
+	return genkitSrv.Init(ctx, nil)
 }
 
 const provider = "pgvector"
 
 // [START retr]
 func defineRetriever(db *sql.DB, embedder ai.Embedder) ai.Retriever {
+	genkitSrv := genkit.New()
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Document))
 		if err != nil {
@@ -153,7 +155,7 @@ func defineRetriever(db *sql.DB, embedder ai.Embedder) ai.Retriever {
 		}
 		return res, nil
 	}
-	return ai.DefineRetriever(provider, "shows", f)
+	return ai.DefineRetriever(genkitSrv.Registry, provider, "shows", f)
 }
 
 // [END retr]
@@ -166,7 +168,8 @@ func defineIndexer(db *sql.DB, embedder ai.Embedder) ai.Indexer {
 			SET embedding = $4
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
-	return ai.DefineIndexer(provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
+	genkitSrv := genkit.New()
+	return ai.DefineIndexer(genkitSrv.Registry, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
 		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Documents...))
 		if err != nil {
 			return err

@@ -23,6 +23,7 @@ import (
 
 	// [START import]
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 	// [END import]
 )
@@ -37,17 +38,18 @@ func m1() error {
 	// Default to the value of GCLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
 	// To specify these values directly, pass a vertexai.Config value to Init.
-	if err := vertexai.Init(ctx, nil); err != nil {
+	genkitSrv := genkit.New()
+	if err := vertexai.Init(ctx, genkitSrv.Registry, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	// [START model]
-	model := vertexai.Model("gemini-1.5-flash")
+	model := vertexai.Model(genkitSrv.Registry, "gemini-1.5-flash")
 	// [END model]
 
 	// [START call]
-	responseText, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
+	responseText, err := ai.GenerateText(ctx, genkitSrv.Registry, model, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -57,10 +59,11 @@ func m1() error {
 }
 
 func opts() error {
-	model := vertexai.Model("gemini-1.5-flash")
+	genkitSrv := genkit.New()
+	model := vertexai.Model(genkitSrv.Registry, "gemini-1.5-flash")
 
 	// [START options]
-	response, err := ai.Generate(ctx, model,
+	response, err := ai.Generate(ctx, genkitSrv.Registry, model,
 		ai.WithTextPrompt("Tell me a joke about dogs."),
 		ai.WithConfig(ai.GenerationCommonConfig{
 			Temperature:     1.67,
@@ -78,7 +81,8 @@ func opts() error {
 
 func streaming() error {
 	// [START streaming]
-	response, err := ai.Generate(ctx, gemini15pro,
+	genkitSrv := genkit.New()
+	response, err := ai.Generate(ctx, genkitSrv.Registry, gemini15pro,
 		ai.WithTextPrompt("Tell a long story about robots and ninjas."),
 		// stream callback
 		ai.WithStreaming(
@@ -105,7 +109,8 @@ func multi() error {
 	}
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
-	resp, err := ai.Generate(ctx, gemini15pro, ai.WithMessages(
+	genkitSrv := genkit.New()
+	resp, err := ai.Generate(ctx, genkitSrv.Registry, gemini15pro, ai.WithMessages(
 		ai.NewUserMessage(
 			ai.NewTextPart("Describe the following image."),
 			ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage))))
@@ -119,7 +124,9 @@ func multi() error {
 
 func tools() error {
 	// [START tools]
+	genkitSrv := genkit.New()
 	myJokeTool := ai.DefineTool(
+		genkitSrv.Registry,
 		"myJoke",
 		"useful when you need a joke to tell",
 		func(ctx context.Context, input *any) (string, error) {
@@ -127,7 +134,7 @@ func tools() error {
 		},
 	)
 
-	response, err := ai.Generate(ctx, gemini15pro,
+	response, err := ai.Generate(ctx, genkitSrv.Registry, gemini15pro,
 		ai.WithTextPrompt("Tell me a joke."),
 		ai.WithTools(myJokeTool))
 	// [END tools]
@@ -143,7 +150,8 @@ func history() error {
 		Role:    ai.RoleUser,
 	}}
 
-	response, err := ai.Generate(context.Background(), gemini15pro, ai.WithMessages(history...))
+	genkitSrv := genkit.New()
+	response, err := ai.Generate(context.Background(), genkitSrv.Registry, gemini15pro, ai.WithMessages(history...))
 	// [END hist1]
 	_ = err
 	// [START hist2]
@@ -156,7 +164,7 @@ func history() error {
 		Role:    ai.RoleUser,
 	})
 
-	response, err = ai.Generate(ctx, gemini15pro, ai.WithMessages(history...))
+	response, err = ai.Generate(ctx, genkitSrv.Registry, gemini15pro, ai.WithMessages(history...))
 	// [END hist3]
 	// [START hist4]
 	history = []*ai.Message{{

@@ -18,13 +18,16 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlecloud"
 )
 
 func gcpEx(ctx context.Context) error {
 	// [START init]
+	genkitSrv := genkit.New()
 	if err := googlecloud.Init(
 		ctx,
+		genkitSrv.Registry,
 		googlecloud.Config{ProjectID: "your-google-cloud-project"},
 	); err != nil {
 		return err

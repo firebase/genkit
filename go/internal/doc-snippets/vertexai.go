@@ -18,37 +18,40 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
 func vertexaiEx(ctx context.Context) error {
 	var err error
+	genkitSrv := genkit.New()
 
 	// [START init]
-	if err := vertexai.Init(ctx, nil); err != nil {
+	if err := vertexai.Init(ctx, genkitSrv.Registry, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourProjectID := ""
 	// [START initproj]
-	if err := vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
+	if err := vertexai.Init(ctx, genkitSrv.Registry, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
 		return err
 	}
 	// [END initproj]
 
 	// [START initloc]
-	if err := vertexai.Init(ctx, &vertexai.Config{Location: "asia-south1"}); err != nil {
+	if err := vertexai.Init(ctx, genkitSrv.Registry, &vertexai.Config{Location: "asia-south1"}); err != nil {
 		return err
 	}
 	// [END initloc]
 
 	// [START model]
-	langModel := vertexai.Model("gemini-1.5-flash")
+	langModel := vertexai.Model(genkitSrv.Registry, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
-	genRes, err := ai.GenerateText(ctx, langModel, ai.WithTextPrompt("Tell me a joke."))
+
+	genRes, err := ai.GenerateText(ctx, genkitSrv.Registry, langModel, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -59,7 +62,7 @@ func vertexaiEx(ctx context.Context) error {
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := vertexai.Embedder("text-embedding-004")
+	embeddingModel := vertexai.Embedder(genkitSrv.Registry, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]

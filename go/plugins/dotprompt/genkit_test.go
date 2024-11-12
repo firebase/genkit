@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
@@ -42,13 +43,14 @@ func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.
 }
 
 func TestExecute(t *testing.T) {
-	testModel := ai.DefineModel("test", "test", nil, testGenerate)
+	genkitSrv := genkit.New()
+	testModel := ai.DefineModel(genkitSrv.Registry, "test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		resp, err := p.Generate(context.Background(), genkitSrv.Registry, &PromptRequest{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -59,7 +61,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		resp, err := p.Generate(context.Background(), genkitSrv.Registry, &PromptRequest{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -18,11 +18,13 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/ollama"
 )
 
 func ollamaEx(ctx context.Context) error {
 	var err error
+	genkitSrv := genkit.New()
 
 	// [START init]
 	// Init with Ollama's default local address.
@@ -35,6 +37,7 @@ func ollamaEx(ctx context.Context) error {
 
 	// [START definemodel]
 	model := ollama.DefineModel(
+		genkitSrv.Registry,
 		ollama.ModelDefinition{
 			Name: "gemma2",
 			Type: "chat", // "chat" or "generate"
@@ -49,7 +52,7 @@ func ollamaEx(ctx context.Context) error {
 	// [END definemodel]
 
 	// [START gen]
-	text, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
+	text, err := ai.GenerateText(ctx, genkitSrv.Registry, model, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}

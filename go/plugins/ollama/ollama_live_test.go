@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
@@ -32,12 +33,12 @@ To run this test, you need to have the Ollama server running. You can set the se
 If the environment variable is not set, the test will default to http://localhost:11434 (the default address for the Ollama server).
 */
 func TestLive(t *testing.T) {
-
 	if !*testLive {
 		t.Skip("skipping go/plugins/ollama live test")
 	}
 
 	ctx := context.Background()
+	genkitSrv := genkit.New()
 
 	// Initialize the Ollama plugin
 	err := ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
@@ -48,16 +49,17 @@ func TestLive(t *testing.T) {
 	}
 
 	// Define the model
-	ollamaPlugin.DefineModel(ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	ollamaPlugin.DefineModel(genkitSrv.Registry, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
 
 	// Use the Ollama model
-	m := ollamaPlugin.Model(*modelName)
+	m := ollamaPlugin.Model(genkitSrv.Registry, *modelName)
 	if m == nil {
 		t.Fatalf(`failed to find model: %s`, *modelName)
 	}
 
 	// Generate a response from the model
 	resp, err := m.Generate(ctx,
+		genkitSrv.Registry,
 		ai.NewGenerateRequest(
 			&ai.GenerationCommonConfig{Temperature: 1},
 			ai.NewUserTextMessage("I'm hungry, what should I eat?")),

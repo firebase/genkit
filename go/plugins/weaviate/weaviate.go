@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/auth"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
@@ -143,7 +144,7 @@ type ClassConfig struct {
 // that use the same class.
 // The name uniquely identifies the Indexer and Retriever
 // in the registry.
-func DefineIndexerAndRetriever(ctx context.Context, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
+func DefineIndexerAndRetriever(ctx context.Context, reg *registry.Registry, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
 	if cfg.Embedder == nil {
 		return nil, nil, errors.New("weaviate: Embedder required")
 	}
@@ -155,8 +156,8 @@ func DefineIndexerAndRetriever(ctx context.Context, cfg ClassConfig) (ai.Indexer
 	if err != nil {
 		return nil, nil, err
 	}
-	indexer := ai.DefineIndexer(provider, cfg.Class, ds.Index)
-	retriever := ai.DefineRetriever(provider, cfg.Class, ds.Retrieve)
+	indexer := ai.DefineIndexer(reg, provider, cfg.Class, ds.Index)
+	retriever := ai.DefineRetriever(reg, provider, cfg.Class, ds.Retrieve)
 	return indexer, retriever, nil
 }
 
@@ -200,13 +201,13 @@ func newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore, error) {
 }
 
 // Indexer returns the indexer for the given class.
-func Indexer(class string) ai.Indexer {
-	return ai.LookupIndexer(provider, class)
+func Indexer(reg *registry.Registry, class string) ai.Indexer {
+	return ai.LookupIndexer(reg, provider, class)
 }
 
 // Retriever returns the retriever for the given class.
-func Retriever(class string) ai.Retriever {
-	return ai.LookupRetriever(provider, class)
+func Retriever(reg *registry.Registry, class string) ai.Retriever {
+	return ai.LookupRetriever(reg, provider, class)
 }
 
 // Index implements the genkit Retriever.Index method.

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
@@ -36,15 +37,17 @@ func TestLive(t *testing.T) {
 		t.Skipf("no -projectid provided")
 	}
 	ctx := context.Background()
+	genkitSrv := genkit.New()
 	const modelName = "gemini-1.0-pro"
-	err := vertexai.Init(ctx, &vertexai.Config{ProjectID: *projectID, Location: *location})
+	err := vertexai.Init(ctx, genkitSrv.Registry, &vertexai.Config{ProjectID: *projectID, Location: *location})
 	if err != nil {
 		t.Fatal(err)
 	}
-	model := vertexai.Model(modelName)
-	embedder := vertexai.Embedder("textembedding-gecko@003")
 
-	gablorkenTool := ai.DefineTool("gablorken", "use when need to calculate a gablorken",
+	model := vertexai.Model(genkitSrv.Registry, modelName)
+	embedder := vertexai.Embedder(genkitSrv.Registry, "textembedding-gecko@003")
+
+	gablorkenTool := ai.DefineTool(genkitSrv.Registry, "gablorken", "use when need to calculate a gablorken",
 		func(ctx context.Context, input struct {
 			Value float64
 			Over  float64
@@ -53,7 +56,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := ai.Generate(ctx, genkitSrv.Registry, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,8 +74,8 @@ func TestLive(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
 		out := ""
 		parts := 0
-		model := vertexai.Model(modelName)
-		final, err := ai.Generate(ctx, model,
+		model := vertexai.Model(genkitSrv.Registry, modelName)
+		final, err := ai.Generate(ctx, genkitSrv.Registry, model,
 			ai.WithCandidates(1),
 			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
@@ -106,7 +109,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model,
+		resp, err := ai.Generate(ctx, genkitSrv.Registry, model,
 			ai.WithCandidates(1),
 			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))

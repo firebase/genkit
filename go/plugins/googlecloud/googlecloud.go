@@ -30,6 +30,7 @@ import (
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -55,7 +56,7 @@ type Config struct {
 
 // Init initializes all telemetry in this package.
 // In the dev environment, this does nothing unless [Options.ForceExport] is true.
-func Init(ctx context.Context, cfg Config) (err error) {
+func Init(ctx context.Context, reg *registry.Registry, cfg Config) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("googlecloud.Init: %w", err)
@@ -75,7 +76,7 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		return err
 	}
 	aexp := &adjustingTraceExporter{texp}
-	core.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
+	core.RegisterSpanProcessor(reg, sdktrace.NewBatchSpanProcessor(aexp))
 	if err := setMeterProvider(cfg.ProjectID, cfg.MetricInterval); err != nil {
 		return err
 	}

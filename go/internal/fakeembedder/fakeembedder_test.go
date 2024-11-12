@@ -20,11 +20,13 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 func TestFakeEmbedder(t *testing.T) {
+	genkitSrv := genkit.New()
 	embed := New()
-	emb := ai.DefineEmbedder("fake", "embed", embed.Embed)
+	emb := ai.DefineEmbedder(genkitSrv.Registry, "fake", "embed", embed.Embed)
 	d := ai.DocumentFromText("fakeembedder test", nil)
 
 	vals := []float32{1, 2}

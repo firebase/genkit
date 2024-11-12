@@ -21,6 +21,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
 )
 
@@ -33,24 +34,24 @@ type Prompt core.Action[any, *GenerateRequest, struct{}]
 // The prompt expects some input described by inputSchema.
 // DefinePrompt registers the function as an action,
 // and returns a [Prompt] that runs it.
-func DefinePrompt(provider, name string, metadata map[string]any, inputSchema *jsonschema.Schema, render func(context.Context, any) (*GenerateRequest, error)) *Prompt {
+func DefinePrompt(reg *registry.Registry, provider, name string, metadata map[string]any, inputSchema *jsonschema.Schema, render func(context.Context, any) (*GenerateRequest, error)) *Prompt {
 	mm := maps.Clone(metadata)
 	if mm == nil {
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	return (*Prompt)(core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, inputSchema, render))
+	return (*Prompt)(core.DefineActionWithInputSchema(reg, provider, name, atype.Prompt, mm, inputSchema, render))
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
-func IsDefinedPrompt(provider, name string) bool {
-	return LookupPrompt(provider, name) != nil
+func IsDefinedPrompt(reg *registry.Registry, provider, name string) bool {
+	return LookupPrompt(reg, provider, name) != nil
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(provider, name string) *Prompt {
-	return (*Prompt)(core.LookupActionFor[any, *GenerateRequest, struct{}](atype.Prompt, provider, name))
+func LookupPrompt(reg *registry.Registry, provider, name string) *Prompt {
+	return (*Prompt)(core.LookupActionFor[any, *GenerateRequest, struct{}](reg, atype.Prompt, provider, name))
 }
 
 // Render renders the [Prompt] with some input data.

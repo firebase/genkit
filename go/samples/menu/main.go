@@ -67,13 +67,15 @@ var textMenuQuestionInputSchema = jsonschema.Reflect(textMenuQuestionInput{})
 
 func main() {
 	ctx := context.Background()
-	err := vertexai.Init(ctx, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
+	genkitSrv := genkit.New()
+	err := vertexai.Init(ctx, genkitSrv.Registry, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model("gemini-1.5-flash")
-	visionModel := vertexai.Model("gemini-1.5-flash")
-	embedder := vertexai.Embedder("text-embedding-004")
+
+	model := vertexai.Model(genkitSrv.Registry, "gemini-1.5-flash")
+	visionModel := vertexai.Model(genkitSrv.Registry, "gemini-1.5-flash")
+	embedder := vertexai.Embedder(genkitSrv.Registry, "text-embedding-004")
 	if err := setup01(ctx, model); err != nil {
 		log.Fatal(err)
 	}
@@ -89,7 +91,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever("go-menu_items", localvec.Config{
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever(genkitSrv.Registry, "go-menu_items", localvec.Config{
 		Embedder: embedder,
 	})
 	if err != nil {
@@ -103,7 +105,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := genkit.Init(ctx, nil); err != nil {
+	if err := genkitSrv.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

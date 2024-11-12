@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -60,9 +61,10 @@ This is the rest of the prompt`,
 		},
 	}
 
+	genkitSrv := genkit.New()
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			prompt, err := Parse(t.Name(), "", []byte(test.prompt))
+			prompt, err := Parse(genkitSrv.Registry, t.Name(), "", []byte(test.prompt))
 			if err != nil {
 				if test.bad {
 					t.Logf("got expected error %v", err)
@@ -86,6 +88,7 @@ This is the rest of the prompt`,
 
 // TestRenderMessages is some of the tests from template_test.ts.
 func TestRenderMessages(t *testing.T) {
+	genkitSrv := genkit.New()
 	var tests = []struct {
 		name     string
 		template string
@@ -212,7 +215,7 @@ func TestRenderMessages(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			prompt, err := Parse(t.Name(), "", []byte(test.template))
+			prompt, err := Parse(genkitSrv.Registry, t.Name(), "", []byte(test.template))
 			if err != nil {
 				t.Fatal(err)
 			}

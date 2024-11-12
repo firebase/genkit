@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/genkit"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
 )
@@ -30,7 +31,8 @@ type GameCharacter struct {
 	Backstory string
 }
 
-var echoModel = DefineModel("test", "echo", nil, func(ctx context.Context, gr *GenerateRequest, msc ModelStreamingCallback) (*GenerateResponse, error) {
+var genkitSrv = genkit.New()
+var echoModel = DefineModel(genkitSrv.Registry, "test", "echo", nil, func(ctx context.Context, gr *GenerateRequest, msc ModelStreamingCallback) (*GenerateResponse, error) {
 	if msc != nil {
 		msc(ctx, &GenerateResponseChunk{
 			Index:   0,
@@ -54,7 +56,7 @@ var echoModel = DefineModel("test", "echo", nil, func(ctx context.Context, gr *G
 })
 
 // with tools
-var gablorkenTool = DefineTool("gablorken", "use when need to calculate a gablorken",
+var gablorkenTool = DefineTool(genkitSrv.Registry, "gablorken", "use when need to calculate a gablorken",
 	func(ctx context.Context, input struct {
 		Value float64
 		Over  float64
@@ -231,6 +233,7 @@ func TestValidCandidate(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
+	genkitSrv := genkit.New()
 	t.Run("constructs request", func(t *testing.T) {
 		charJSON := "{\"Name\": \"foo\", \"Backstory\": \"bar\"}"
 		charJSONmd := "```json" + charJSON + "```"
@@ -313,7 +316,7 @@ func TestGenerate(t *testing.T) {
 
 		wantStreamText := "stream!"
 		streamText := ""
-		res, err := Generate(context.Background(), echoModel,
+		res, err := Generate(context.Background(), genkitSrv.Registry, echoModel,
 			WithTextPrompt(charJSONmd),
 			WithMessages(NewModelTextMessage("banana again")),
 			WithSystemPrompt("you are"),
@@ -349,26 +352,28 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestIsDefinedModel(t *testing.T) {
+	genkitSrv := genkit.New()
 	t.Run("should return true", func(t *testing.T) {
-		if IsDefinedModel("test", "echo") != true {
+		if IsDefinedModel(genkitSrv.Registry, "test", "echo") != true {
 			t.Errorf("IsDefinedModel did not return true")
 		}
 	})
 	t.Run("should return false", func(t *testing.T) {
-		if IsDefinedModel("foo", "bar") != false {
+		if IsDefinedModel(genkitSrv.Registry, "foo", "bar") != false {
 			t.Errorf("IsDefinedModel did not return false")
 		}
 	})
 }
 
 func TestLookupModel(t *testing.T) {
+	genkitSrv := genkit.New()
 	t.Run("should return model", func(t *testing.T) {
-		if LookupModel("test", "echo") == nil {
+		if LookupModel(genkitSrv.Registry, "test", "echo") == nil {
 			t.Errorf("LookupModel did not return model")
 		}
 	})
 	t.Run("should return nil", func(t *testing.T) {
-		if LookupModel("foo", "bar") != nil {
+		if LookupModel(genkitSrv.Registry, "foo", "bar") != nil {
 			t.Errorf("LookupModel did not return nil")
 		}
 	})

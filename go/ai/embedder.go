@@ -20,6 +20,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Embedder represents an embedder that can perform content embedding.
@@ -56,19 +57,19 @@ type DocumentEmbedding struct {
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
-func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) Embedder {
-	return (*embedderActionDef)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
+func DefineEmbedder(reg *registry.Registry, provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) Embedder {
+	return (*embedderActionDef)(core.DefineAction(reg, provider, name, atype.Embedder, nil, embed))
 }
 
 // IsDefinedEmbedder reports whether an embedder is defined.
-func IsDefinedEmbedder(provider, name string) bool {
-	return LookupEmbedder(provider, name) != nil
+func IsDefinedEmbedder(reg *registry.Registry, provider, name string) bool {
+	return LookupEmbedder(reg, provider, name) != nil
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
-func LookupEmbedder(provider, name string) Embedder {
-	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](atype.Embedder, provider, name)
+func LookupEmbedder(reg *registry.Registry, provider, name string) Embedder {
+	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](reg, atype.Embedder, provider, name)
 	if action == nil {
 		return nil
 	}

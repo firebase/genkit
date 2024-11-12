@@ -26,16 +26,17 @@ import (
 )
 
 func main() {
-	model := ai.DefineModel("", "customReflector", nil, echo)
-	genkit.DefineFlow("testFlow", func(ctx context.Context, in string) (string, error) {
-		res, err := ai.Generate(ctx, model, ai.WithTextPrompt(in))
+	genkitSrv := genkit.New()
+	model := ai.DefineModel(genkitSrv.Registry, "", "customReflector", nil, echo)
+	genkit.DefineFlow(genkitSrv.Registry, "testFlow", func(ctx context.Context, in string) (string, error) {
+		res, err := ai.Generate(ctx, genkitSrv.Registry, model, ai.WithTextPrompt(in))
 		if err != nil {
 			return "", err
 		}
 		_ = res
 		return "TBD", nil
 	})
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := genkitSrv.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

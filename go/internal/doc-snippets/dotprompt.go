@@ -21,21 +21,23 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
 func dot01() error {
 	// [START dot01_1]
+	genkitSrv := genkit.New()
 	dotprompt.SetDirectory("prompts")
-	prompt, err := dotprompt.Open("greeting")
+	prompt, err := dotprompt.Open(genkitSrv.Registry, "greeting")
 	// [END dot01_1]
 
 	// [START dot01_2]
 	ctx := context.Background()
 
 	// Default to the project in GCLOUD_PROJECT and the location "us-central1".
-	vertexai.Init(ctx, nil)
+	vertexai.Init(ctx, genkitSrv.Registry, nil)
 
 	// The .prompt file specifies vertexai/gemini-1.5-flash, which is
 	// automatically defined by Init(). However, if it specified a model that
@@ -53,8 +55,10 @@ func dot01() error {
 		Style    string `json:"style"`
 		Name     string `json:"name"`
 	}
+
 	response, err := prompt.Generate(
 		ctx,
+		genkitSrv.Registry,
 		&dotprompt.PromptRequest{
 			Variables: GreetingPromptInput{
 				Location: "the beach",
@@ -83,7 +87,8 @@ func dot01() error {
 }
 
 func dot02() {
-	prompt, _ := dotprompt.Open("")
+	genkitSrv := genkit.New()
+	prompt, _ := dotprompt.Open(genkitSrv.Registry, "")
 	type GreetingPromptInput struct {
 		Location string `json:"location"`
 		Style    string `json:"style"`
@@ -92,10 +97,11 @@ func dot02() {
 
 	// [START dot02]
 	// Make sure you set up the model you're using.
-	vertexai.DefineModel("gemini-1.5-flash", nil)
+	vertexai.DefineModel(genkitSrv.Registry, "gemini-1.5-flash", nil)
 
 	response, err := prompt.Generate(
 		context.Background(),
+		genkitSrv.Registry,
 		&dotprompt.PromptRequest{
 			Variables: GreetingPromptInput{
 				Location: "the beach",
@@ -117,8 +123,9 @@ func dot02() {
 
 func dot03() error {
 	// [START dot03]
+	genkitSrv := genkit.New()
 	dotprompt.SetDirectory("prompts")
-	describeImagePrompt, err := dotprompt.Open("describe_image")
+	describeImagePrompt, err := dotprompt.Open(genkitSrv.Registry, "describe_image")
 	if err != nil {
 		return err
 	}
@@ -133,8 +140,10 @@ func dot03() error {
 	type DescribeImagePromptInput struct {
 		PhotoUrl string `json:"photo_url"`
 	}
+
 	response, err := describeImagePrompt.Generate(
 		context.Background(),
+		genkitSrv.Registry,
 		&dotprompt.PromptRequest{Variables: DescribeImagePromptInput{
 			PhotoUrl: dataURI,
 		}},
@@ -147,8 +156,10 @@ func dot03() error {
 }
 
 func dot04() {
+	genkitSrv := genkit.New()
+
 	// [START dot04]
-	describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "geminipro")
+	describeImagePrompt, err := dotprompt.OpenVariant(genkitSrv.Registry, "describe_image", "geminipro")
 	// [END dot04]
 	_ = err
 	_ = describeImagePrompt
@@ -160,13 +171,15 @@ func dot05() {
 	}
 	user := "ken"
 
+	genkitSrv := genkit.New()
+
 	// [START dot05]
 	var myPrompt *dotprompt.Prompt
 	var err error
 	if isBetaTester(user) {
-		myPrompt, err = dotprompt.OpenVariant("describe_image", "geminipro")
+		myPrompt, err = dotprompt.OpenVariant(genkitSrv.Registry, "describe_image", "geminipro")
 	} else {
-		myPrompt, err = dotprompt.Open("describe_image")
+		myPrompt, err = dotprompt.Open(genkitSrv.Registry, "describe_image")
 	}
 	// [END dot05]
 

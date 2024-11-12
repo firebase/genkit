@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
 
@@ -47,12 +48,13 @@ var state struct {
 	serverAddress string
 }
 
-func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
+func DefineModel(reg *registry.Registry, model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
+
 	var mc ai.ModelCapabilities
 	if caps != nil {
 		mc = *caps
@@ -68,19 +70,19 @@ func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
 		Supports: mc,
 	}
 	g := &generator{model: model, serverAddress: state.serverAddress}
-	return ai.DefineModel(provider, model.Name, meta, g.generate)
+	return ai.DefineModel(reg, provider, model.Name, meta, g.generate)
 
 }
 
 // IsDefinedModel reports whether a model is defined.
-func IsDefinedModel(name string) bool {
-	return ai.IsDefinedModel(provider, name)
+func IsDefinedModel(reg *registry.Registry, name string) bool {
+	return ai.IsDefinedModel(reg, provider, name)
 }
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) ai.Model {
-	return ai.LookupModel(provider, name)
+func Model(reg *registry.Registry, name string) ai.Model {
+	return ai.LookupModel(reg, provider, name)
 }
 
 // ModelDefinition represents a model with its name and type.

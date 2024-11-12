@@ -51,13 +51,13 @@ type Tool interface {
 }
 
 // DefineTool defines a tool function.
-func DefineTool[In, Out any](name, description string, fn func(ctx context.Context, input In) (Out, error)) *ToolDef[In, Out] {
+func DefineTool[In, Out any](reg *registry.Registry, name, description string, fn func(ctx context.Context, input In) (Out, error)) *ToolDef[In, Out] {
 	metadata := make(map[string]any)
 	metadata["type"] = "tool"
 	metadata["name"] = name
 	metadata["description"] = description
 
-	toolAction := core.DefineAction(provider, name, atype.Tool, metadata, fn)
+	toolAction := core.DefineAction(reg, provider, name, atype.Tool, metadata, fn)
 
 	return &ToolDef[In, Out]{
 		action: toolAction,
@@ -125,6 +125,6 @@ func runAction(ctx context.Context, action Tool, input map[string]any) (any, err
 }
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
-func LookupTool(name string) Tool {
-	return &toolAction{action: registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
+func LookupTool(reg *registry.Registry, name string) Tool {
+	return &toolAction{action: reg.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
 }

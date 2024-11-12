@@ -18,11 +18,13 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
 func setup01(ctx context.Context, g ai.Model) error {
-	_, err := dotprompt.Define("s01_vanillaPrompt",
+	genkitSrv := genkit.New()
+	_, err := dotprompt.Define(genkitSrv.Registry, "s01_vanillaPrompt",
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Customer says: ${input.question}`,
@@ -35,7 +37,7 @@ func setup01(ctx context.Context, g ai.Model) error {
 		return err
 	}
 
-	_, err = dotprompt.Define("s01_staticMenuDotPrompt",
+	_, err = dotprompt.Define(genkitSrv.Registry, "s01_staticMenuDotPrompt",
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Here is today's menu:

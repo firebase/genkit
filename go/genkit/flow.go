@@ -170,11 +170,12 @@ func WithLocalAuth(authContext AuthContext) FlowRunOption {
 //
 // fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](
+	reg *registry.Registry,
 	name string,
 	fn func(ctx context.Context, input In) (Out, error),
 	opts ...FlowOption,
 ) *Flow[In, Out, struct{}] {
-	return defineFlow(registry.Global, name, core.Func[In, Out, struct{}](
+	return defineFlow(reg, name, core.Func[In, Out, struct{}](
 		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
 			return fn(ctx, input)
 		}), opts...)
@@ -190,11 +191,12 @@ func DefineFlow[In, Out any](
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](
+	reg *registry.Registry,
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
 	opts ...FlowOption,
 ) *Flow[In, Out, Stream] {
-	return defineFlow(registry.Global, name, core.Func[In, Out, Stream](fn), opts...)
+	return defineFlow(reg, name, core.Func[In, Out, Stream](fn), opts...)
 }
 
 func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream], opts ...FlowOption) *Flow[In, Out, Stream] {

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 const provider = "pinecone"
@@ -83,31 +84,31 @@ type Config struct {
 }
 
 // DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, cfg Config) (ai.Indexer, error) {
+func DefineIndexer(ctx context.Context, reg *registry.Registry, cfg Config) (ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return ai.DefineIndexer(provider, cfg.IndexID, ds.Index), nil
+	return ai.DefineIndexer(reg, provider, cfg.IndexID, ds.Index), nil
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, cfg Config) (ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, reg *registry.Registry, cfg Config) (ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return ai.DefineRetriever(provider, cfg.IndexID, ds.Retrieve), nil
+	return ai.DefineRetriever(reg, provider, cfg.IndexID, ds.Retrieve), nil
 }
 
 // IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
-func IsDefinedIndexer(name string) bool {
-	return ai.IsDefinedIndexer(provider, name)
+func IsDefinedIndexer(reg *registry.Registry, name string) bool {
+	return ai.IsDefinedIndexer(reg, provider, name)
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
-func IsDefinedRetriever(name string) bool {
-	return ai.IsDefinedRetriever(provider, name)
+func IsDefinedRetriever(reg *registry.Registry, name string) bool {
+	return ai.IsDefinedRetriever(reg, provider, name)
 }
 
 func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
@@ -143,13 +144,13 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 }
 
 // Indexer returns the indexer with the given index name.
-func Indexer(name string) ai.Indexer {
-	return ai.LookupIndexer(provider, name)
+func Indexer(reg *registry.Registry, name string) ai.Indexer {
+	return ai.LookupIndexer(reg, provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
-func Retriever(name string) ai.Retriever {
-	return ai.LookupRetriever(provider, name)
+func Retriever(reg *registry.Registry, name string) ai.Retriever {
+	return ai.LookupRetriever(reg, provider, name)
 }
 
 // IndexerOptions may be passed in the Options field

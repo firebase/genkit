@@ -28,7 +28,9 @@ import (
 
 func f1() {
 	// [START flow1]
+	genkitSrv := genkit.New()
 	menuSuggestionFlow := genkit.DefineFlow(
+		genkitSrv.Registry,
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (string, error) {
 			suggestion := makeMenuItemSuggestion(restaurantTheme)
@@ -52,7 +54,9 @@ func makeMenuItemSuggestion(string) string { return "" }
 
 func f2() {
 	// [START flow2]
+	genkitSrv := genkit.New()
 	menuSuggestionFlow := genkit.DefineFlow(
+		genkitSrv.Registry,
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (MenuSuggestion, error) {
 			suggestion := makeStructuredMenuItemSuggestion(restaurantTheme)
@@ -77,7 +81,9 @@ type StreamType string
 
 func f3() {
 	// [START streaming]
+	genkitSrv := genkit.New()
 	menuSuggestionFlow := genkit.DefineStreamingFlow(
+		genkitSrv.Registry,
 		"menuSuggestionFlow",
 		func(
 			ctx context.Context,
@@ -130,14 +136,16 @@ func makeFullMenuSuggestion(restaurantTheme InputType, menuChunks chan StreamTyp
 
 // [START main]
 func main() {
+	genkitSrv := genkit.New()
 	genkit.DefineFlow(
+		genkitSrv.Registry,
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (string, error) {
 			// ...
 			return "", nil
 		},
 	)
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := genkitSrv.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -146,11 +154,13 @@ func main() {
 
 func f4() {
 	// [START mux]
+	genkitSrv := genkit.New()
 	mainMux := http.NewServeMux()
-	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", genkit.NewFlowServeMux(nil)))
+	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", genkit.NewFlowServeMux(genkitSrv.Registry, nil)))
 	// [END mux]
 	// [START run]
 	genkit.DefineFlow(
+		genkitSrv.Registry,
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (string, error) {
 			themes, err := genkit.Run(ctx, "find-similar-themes", func() (string, error) {
@@ -167,7 +177,8 @@ func f4() {
 
 func deploy(ctx context.Context) {
 	// [START init]
-	if err := genkit.Init(ctx,
+	genkitSrv := genkit.New()
+	if err := genkitSrv.Init(ctx,
 		&genkit.Options{FlowAddr: ":3400"}, // Add this parameter.
 	); err != nil {
 		log.Fatal(err)
@@ -191,7 +202,9 @@ func f5() {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
 	// Define a flow with authentication
+	genkitSrv := genkit.New()
 	authenticatedFlow := genkit.DefineFlow(
+		genkitSrv.Registry,
 		"authenticated-flow",
 		func(ctx context.Context, userID string) (string, error) {
 			return fmt.Sprintf("Secure data for user %s", userID), nil
@@ -215,9 +228,10 @@ func f6() {
 		return fmt.Sprintf("Secure data for user %s", userID), nil
 	}
 	// [START auth-define]
-	genkit.DefineFlow("secureUserFlow", userDataFunc, genkit.WithFlowAuth(firebaseAuth))
+	genkitSrv := genkit.New()
+	genkit.DefineFlow(genkitSrv.Registry, "secureUserFlow", userDataFunc, genkit.WithFlowAuth(firebaseAuth))
 	// [END auth-define]
-	authenticatedFlow := genkit.DefineFlow("your-flow", userDataFunc, genkit.WithFlowAuth(firebaseAuth))
+	authenticatedFlow := genkit.DefineFlow(genkitSrv.Registry, "your-flow", userDataFunc, genkit.WithFlowAuth(firebaseAuth))
 	// [START auth-run]
 	response, err := authenticatedFlow.Run(ctx, "user123",
 		genkit.WithLocalAuth(map[string]any{"UID": "user123"}))

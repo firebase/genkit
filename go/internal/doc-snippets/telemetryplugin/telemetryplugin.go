@@ -22,6 +22,7 @@ import (
 	// [START import]
 	// Import the Genkit core library.
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/genkit"
 
 	// Import the OpenTelemetry libraries.
 	"go.opentelemetry.io/otel"
@@ -43,6 +44,7 @@ type Config struct {
 	// Defaults to [slog.LevelInfo].
 	LogLevel slog.Leveler
 }
+
 // [END config]
 
 func Init(cfg Config) error {
@@ -53,9 +55,11 @@ func Init(cfg Config) error {
 	}
 	// [END shouldexport]
 
+	genkitSrv := genkit.New()
+
 	// [START registerspanexporter]
 	spanProcessor := trace.NewBatchSpanProcessor(YourCustomSpanExporter{})
-	core.RegisterSpanProcessor(spanProcessor)
+	core.RegisterSpanProcessor(genkitSrv.Registry, spanProcessor)
 	// [END registerspanexporter]
 
 	// [START registermetricexporter]

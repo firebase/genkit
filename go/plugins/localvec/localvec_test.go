@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
@@ -50,7 +51,8 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := ai.DefineEmbedder("fake", "embedder1", embedder.Embed)
+	genkitSrv := genkit.New()
+	embedAction := ai.DefineEmbedder(genkitSrv.Registry, "fake", "embedder1", embedder.Embed)
 	ds, err := newDocStore(t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +112,8 @@ func TestPersistentIndexing(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := ai.DefineEmbedder("fake", "embedder2", embedder.Embed)
+	genkitSrv := genkit.New()
+	embedAction := ai.DefineEmbedder(genkitSrv.Registry, "fake", "embedder2", embedder.Embed)
 
 	tDir := t.TempDir()
 
@@ -188,12 +191,13 @@ func TestSimilarity(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	embedder := ai.DefineEmbedder("fake", "e", fakeembedder.New().Embed)
+	genkitSrv := genkit.New()
+	embedder := ai.DefineEmbedder(genkitSrv.Registry, "fake", "e", fakeembedder.New().Embed)
 	if err := Init(); err != nil {
 		t.Fatal(err)
 	}
 	const name = "mystore"
-	ind, ret, err := DefineIndexerAndRetriever(name, Config{Embedder: embedder})
+	ind, ret, err := DefineIndexerAndRetriever(genkitSrv.Registry, name, Config{Embedder: embedder})
 	if err != nil {
 		t.Fatal(err)
 	}

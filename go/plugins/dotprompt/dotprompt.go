@@ -29,6 +29,7 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -116,13 +117,13 @@ type Config struct {
 
 // Open opens and parses a dotprompt file.
 // The name is a base file name, without the ".prompt" extension.
-func Open(name string) (*Prompt, error) {
-	return OpenVariant(name, "")
+func Open(reg *registry.Registry, name string) (*Prompt, error) {
+	return OpenVariant(reg, name, "")
 }
 
 // OpenVariant opens a parses a dotprompt file with a variant.
 // If the variant does not exist, the non-variant version is tried.
-func OpenVariant(name, variant string) (*Prompt, error) {
+func OpenVariant(reg *registry.Registry, name, variant string) (*Prompt, error) {
 	if promptDirectory == "" {
 		// The TypeScript code defaults to ./prompts,
 		// but that makes the program change behavior
@@ -141,13 +142,13 @@ func OpenVariant(name, variant string) (*Prompt, error) {
 	if err != nil {
 		if variant != "" && errors.Is(err, fs.ErrNotExist) {
 			slog.Warn("prompt not found, trying without variant", "name", name, "variant", variant)
-			return OpenVariant(name, "")
+			return OpenVariant(reg, name, "")
 		}
 
 		return nil, fmt.Errorf("failed to read dotprompt file %q: %w", name, err)
 	}
 
-	return Parse(name, variant, data)
+	return Parse(reg, name, variant, data)
 }
 
 // frontmatterYAML is the type we use to unpack the frontmatter.
@@ -174,13 +175,13 @@ type frontmatterYAML struct {
 }
 
 // Parse parses the contents of a dotprompt file.
-func Parse(name, variant string, data []byte) (*Prompt, error) {
+func Parse(reg *registry.Registry, name, variant string, data []byte) (*Prompt, error) {
 	const header = "---\n"
 	var fmName string
 	var cfg Config
 	if bytes.HasPrefix(data, []byte(header)) {
 		var err error
-		fmName, cfg, data, err = parseFrontmatter(data[len(header):])
+		fmName, cfg, data, err = parseFrontmatter(reg, data[len(header):])
 		if err != nil {
 			return nil, err
 		}
@@ -213,7 +214,7 @@ func newPrompt(name, templateText, hash string, config Config) (*Prompt, error) 
 
 // parseFrontmatter parses the initial YAML frontmatter of a dotprompt file.
 // It returns the frontmatter as a Config along with the remaining data.
-func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err error) {
+func parseFrontmatter(reg *registry.Registry, data []byte) (name string, c Config, rest []byte, err error) {
 	const footer = "\n---\n"
 	end := bytes.Index(data, []byte(footer))
 	if end == -1 {
@@ -227,7 +228,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	var tools []ai.Tool
 	for _, tn := range fy.Tools {
-		tools = append(tools, ai.LookupTool(tn))
+		tools = append(tools, ai.LookupTool(reg, tn))
 	}
 
 	ret := Config{
@@ -284,12 +285,12 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
-func Define(name, templateText string, cfg Config) (*Prompt, error) {
+func Define(reg *registry.Registry, name, templateText string, cfg Config) (*Prompt, error) {
 	p, err := New(name, templateText, cfg)
 	if err != nil {
 		return nil, err
 	}
-	p.Register()
+	p.Register(reg)
 	return p, nil
 }
 

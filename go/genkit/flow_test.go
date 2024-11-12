@@ -32,7 +32,8 @@ func incFlow(_ context.Context, i int, _ noStream) (int, error) {
 }
 
 func TestFlowStart(t *testing.T) {
-	f := DefineStreamingFlow("inc", incFlow)
+	genkit := New()
+	f := DefineStreamingFlow(genkit.Registry, "inc", incFlow)
 	ss, err := core.NewFileFlowStateStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +65,8 @@ func TestFlowRun(t *testing.T) {
 		return n, nil
 	}
 
-	flow := DefineFlow("run", func(ctx context.Context, s string) ([]int, error) {
+	genkit := New()
+	flow := DefineFlow(genkit.Registry, "run", func(ctx context.Context, s string) ([]int, error) {
 		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err

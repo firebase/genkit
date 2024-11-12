@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/invopop/jsonschema"
 )
@@ -106,9 +107,10 @@ func TestPrompts(t *testing.T) {
 		},
 	}
 
+	genkitSrv := genkit.New()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			prompt, err := Open(test.name)
+			prompt, err := Open(genkitSrv.Registry, test.name)
 			if err != nil {
 				t.Fatal(err)
 			}

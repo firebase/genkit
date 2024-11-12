@@ -27,6 +27,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Model represents a model that can perform content generation tasks.
@@ -34,7 +35,7 @@ type Model interface {
 	// Name returns the registry name of the model.
 	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
-	Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error)
+	Generate(ctx context.Context, reg *registry.Registry, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error)
 }
 
 type modelActionDef core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
@@ -60,7 +61,7 @@ type ModelMetadata struct {
 
 // DefineModel registers the given generate function as an action, and returns a
 // [Model] that runs it.
-func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) Model {
+func DefineModel(reg *registry.Registry, provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
 		// Always make sure there's at least minimal metadata.
@@ -79,24 +80,20 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 	}
 	metadataMap["supports"] = supports
 
-	return (*modelActionDef)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+	return (*modelActionDef)(core.DefineStreamingAction(reg, provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
 	}, generate))
 }
 
 // IsDefinedModel reports whether a model is defined.
-func IsDefinedModel(provider, name string) bool {
-	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name) != nil
+func IsDefinedModel(reg *registry.Registry, provider, name string) bool {
+	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](reg, atype.Model, provider, name) != nil
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
-func LookupModel(provider, name string) Model {
-	action := core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name)
-	if action == nil {
-		return nil
-	}
-	return (*modelActionDef)(action)
+func LookupModel(reg *registry.Registry, provider, name string) Model {
+	return (*modelActionDef)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](reg, atype.Model, provider, name))
 }
 
 // generateParams represents various params of the Generate call.
@@ -229,7 +226,7 @@ func WithStreaming(cb ModelStreamingCallback) GenerateOption {
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-func Generate(ctx context.Context, m Model, opts ...GenerateOption) (*GenerateResponse, error) {
+func Generate(ctx context.Context, reg *registry.Registry, m Model, opts ...GenerateOption) (*GenerateResponse, error) {
 	req := &generateParams{
 		Request: &GenerateRequest{},
 	}
@@ -250,12 +247,12 @@ func Generate(ctx context.Context, m Model, opts ...GenerateOption) (*GenerateRe
 		req.Request.Messages = append(req.Request.Messages, prev...)
 	}
 
-	return m.Generate(ctx, req.Request, req.Stream)
+	return m.Generate(ctx, reg, req.Request, req.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func GenerateText(ctx context.Context, m Model, opts ...GenerateOption) (string, error) {
-	res, err := Generate(ctx, m, opts...)
+func GenerateText(ctx context.Context, reg *registry.Registry, m Model, opts ...GenerateOption) (string, error) {
+	res, err := Generate(ctx, reg, m, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -265,9 +262,9 @@ func GenerateText(ctx context.Context, m Model, opts ...GenerateOption) (string,
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, m Model, value any, opts ...GenerateOption) (*GenerateResponse, error) {
+func GenerateData(ctx context.Context, reg *registry.Registry, m Model, value any, opts ...GenerateOption) (*GenerateResponse, error) {
 	opts = append(opts, WithOutputSchema(value))
-	resp, err := Generate(ctx, m, opts...)
+	resp, err := Generate(ctx, reg, m, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +276,7 @@ func GenerateData(ctx context.Context, m Model, value any, opts ...GenerateOptio
 }
 
 // Generate applies the [Action] to provided request, handling tool requests and handles streaming.
-func (m *modelActionDef) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+func (m *modelActionDef) Generate(ctx context.Context, reg *registry.Registry, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -300,7 +297,7 @@ func (m *modelActionDef) Generate(ctx context.Context, req *GenerateRequest, cb 
 		}
 		resp.Candidates = candidates
 
-		newReq, err := handleToolRequest(ctx, req, resp)
+		newReq, err := handleToolRequest(ctx, reg, req, resp)
 		if err != nil {
 			return nil, err
 		}
@@ -376,7 +373,7 @@ func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, er
 // handleToolRequest checks if a tool was requested by a model.
 // If a tool was requested, this runs the tool and returns an
 // updated GenerateRequest. If no tool was requested this returns nil.
-func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *GenerateResponse) (*GenerateRequest, error) {
+func handleToolRequest(ctx context.Context, reg *registry.Registry, req *GenerateRequest, resp *GenerateResponse) (*GenerateRequest, error) {
 	if len(resp.Candidates) == 0 {
 		return nil, nil
 	}
@@ -390,7 +387,7 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 	}
 
 	toolReq := part.ToolRequest
-	tool := LookupTool(toolReq.Name)
+	tool := LookupTool(reg, toolReq.Name)
 	if tool == nil {
 		return nil, fmt.Errorf("tool %v not found", toolReq.Name)
 	}

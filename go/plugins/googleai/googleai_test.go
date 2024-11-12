@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"google.golang.org/api/option"
@@ -48,16 +49,19 @@ func TestLive(t *testing.T) {
 		t.Skip("-all provided")
 	}
 	ctx := context.Background()
-	err := googleai.Init(ctx, &googleai.Config{APIKey: *apiKey})
+	genkitSrv := genkit.New()
+	err := googleai.Init(ctx, genkitSrv.Registry, &googleai.Config{APIKey: *apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := googleai.Embedder("embedding-001")
-	model := googleai.Model("gemini-1.0-pro")
+
+	embedder := googleai.Embedder(genkitSrv.Registry, "embedding-001")
+	model := googleai.Model(genkitSrv.Registry, "gemini-1.0-pro")
 	if err != nil {
 		t.Fatal(err)
 	}
-	gablorkenTool := ai.DefineTool("gablorken", "use when need to calculate a gablorken",
+
+	gablorkenTool := ai.DefineTool(genkitSrv.Registry, "gablorken", "use when need to calculate a gablorken",
 		func(ctx context.Context, input struct {
 			Value float64
 			Over  float64
@@ -85,7 +89,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := ai.Generate(ctx, genkitSrv.Registry, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,7 +108,7 @@ func TestLive(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
 		out := ""
 		parts := 0
-		final, err := ai.Generate(ctx, model,
+		final, err := ai.Generate(ctx, genkitSrv.Registry, model,
 			ai.WithCandidates(1),
 			ai.WithTextPrompt("Write one paragraph about the North Pole."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
@@ -135,7 +139,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model,
+		resp, err := ai.Generate(ctx, genkitSrv.Registry, model,
 			ai.WithCandidates(1),
 			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
@@ -157,6 +161,8 @@ func TestHeader(t *testing.T) {
 		t.Skip("skipped; to run, pass -header and don't run the live test")
 	}
 	ctx := context.Background()
+	genkitSrv := genkit.New()
+
 	var header http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header = r.Header
@@ -165,11 +171,12 @@ func TestHeader(t *testing.T) {
 	defer server.Close()
 
 	opts := []option.ClientOption{option.WithHTTPClient(server.Client()), option.WithEndpoint(server.URL)}
-	if err := googleai.Init(ctx, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
+	if err := googleai.Init(ctx, genkitSrv.Registry, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
 		t.Fatal(err)
 	}
-	model := googleai.Model("gemini-1.0-pro")
-	_, _ = ai.Generate(ctx, model, ai.WithTextPrompt("hi"))
+
+	model := googleai.Model(genkitSrv.Registry, "gemini-1.0-pro")
+	_, _ = ai.Generate(ctx, genkitSrv.Registry, model, ai.WithTextPrompt("hi"))
 	got := header.Get("x-goog-api-client")
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {

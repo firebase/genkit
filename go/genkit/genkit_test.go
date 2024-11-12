@@ -20,7 +20,9 @@ import (
 )
 
 func TestStreamFlow(t *testing.T) {
-	f := DefineStreamingFlow("count", count)
+	genkit := New()
+
+	f := DefineStreamingFlow(genkit.Registry, "count", count)
 	iter := f.Stream(context.Background(), 2)
 	want := 0
 	iter(func(val *StreamFlowValue[int, int], err error) bool {
