@@ -16,6 +16,7 @@
 
 import {
   Content,
+  FunctionCallingMode,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   Part as GeminiPart,
@@ -25,6 +26,7 @@ import {
   HarmBlockThreshold,
   HarmCategory,
   StartChatParams,
+  ToolConfig,
   VertexAI,
 } from '@google-cloud/vertexai';
 import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
@@ -46,7 +48,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
-import { PluginOptions } from './index.js';
+import { PluginOptions } from './common/types.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
@@ -71,6 +73,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
   vertexRetrieval: VertexRetrievalSchema.optional(),
   googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
+  functionCallingConfig: z
+    .object({
+      mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
+      allowedFunctionNames: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 export const gemini10Pro = modelRef({
@@ -485,6 +493,18 @@ export function defineGeminiModel(
         ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
         : [];
 
+      let toolConfig: ToolConfig | undefined;
+      if (request?.config?.functionCallingConfig) {
+        toolConfig = {
+          functionCallingConfig: {
+            allowedFunctionNames:
+              request.config.functionCallingConfig.allowedFunctionNames,
+            mode: toGeminiFunctionMode(
+              request.config.functionCallingConfig.mode
+            ),
+          },
+        };
+      }
       // Cannot use tools and function calling at the same time
       const jsonMode =
         (request.output?.format === 'json' || !!request.output?.schema) &&
@@ -493,6 +513,7 @@ export function defineGeminiModel(
       const chatRequest: StartChatParams = {
         systemInstruction,
         tools,
+        toolConfig,
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
@@ -588,4 +609,28 @@ export function defineGeminiModel(
       }
     }
   );
+}
+
+function toGeminiFunctionMode(
+  genkitMode: string | undefined
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'MODE_UNSPECIFIED': {
+      return FunctionCallingMode.MODE_UNSPECIFIED;
+    }
+    case 'ANY': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'AUTO': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${genkitMode}`);
+  }
 }

@@ -15,11 +15,12 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
+import { vertexAI } from '@genkit-ai/vertexai';
 import {
   claude35Sonnet,
   claude35SonnetV2,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 import { CallableFlow, GenerateOptions, genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 
@@ -29,6 +30,9 @@ const ai = genkit({
   plugins: [
     googleAI(),
     vertexAI({
+      location: 'us-east5',
+    }),
+    vertexAIModelGarden({
       location: 'us-east5',
       modelGarden: { models: [claude35Sonnet, claude35SonnetV2] },
     }),
@@ -99,6 +103,7 @@ const prompts: Record<string, GenerateOptions> = {
   array: {
     prompt: 'generate a list of characters from Futurama',
     output: {
+      // @ts-ignore
       format: 'array',
       schema: z.array(
         z.object({
@@ -113,6 +118,7 @@ const prompts: Record<string, GenerateOptions> = {
   jsonl: {
     prompt: 'generate fake products for an online pet store',
     output: {
+      // @ts-ignore
       format: 'array',
       schema: z.array(
         z.object({
@@ -129,6 +135,7 @@ const prompts: Record<string, GenerateOptions> = {
   enum: {
     prompt: 'how risky is skydiving?',
     output: {
+      // @ts-ignore
       format: 'enum',
       schema: z.enum(['VERY_LOW', 'LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH']),
     },

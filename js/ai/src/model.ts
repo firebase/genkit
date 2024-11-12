@@ -17,6 +17,7 @@
 import {
   Action,
   defineAction,
+  GenkitError,
   getStreamingCallback,
   Middleware,
   StreamingCallback,
@@ -479,3 +480,57 @@ function getPartCounts(parts: Part[]): PartCounts {
 export type ModelArgument<
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 > = ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+
+export interface ResolvedModel<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  modelAction: ModelAction;
+  config?: z.infer<CustomOptions>;
+  version?: string;
+}
+
+export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
+  registry: Registry,
+  model: ModelArgument<C> | undefined
+): Promise<ResolvedModel<C>> {
+  let out: ResolvedModel<C>;
+  let modelId: string;
+
+  if (!model) {
+    model = await registry.lookupValue('defaultModel', 'defaultModel');
+  }
+  if (!model) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Must supply a `model` to `generate()` calls.',
+    });
+  }
+  if (typeof model === 'string') {
+    modelId = model;
+    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
+  } else if (model.hasOwnProperty('__action')) {
+    modelId = (model as ModelAction).__action.name;
+    out = { modelAction: model as ModelAction };
+  } else {
+    const ref = model as ModelReference<any>;
+    modelId = ref.name;
+    out = {
+      modelAction: (await registry.lookupAction(
+        `/model/${ref.name}`
+      )) as ModelAction,
+      config: {
+        ...ref.config,
+      },
+      version: ref.version,
+    };
+  }
+
+  if (!out.modelAction) {
+    throw new GenkitError({
+      status: 'NOT_FOUND',
+      message: `Model ${modelId} not found`,
+    });
+  }
+
+  return out;
+}

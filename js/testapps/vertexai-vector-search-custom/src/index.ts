@@ -18,14 +18,15 @@
 
 import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
-  vertexAI,
+  vertexAIVectorSearch,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
   type DocumentIndexer,
   type DocumentRetriever,
   type Neighbor,
-} from '@genkit-ai/vertexai';
+} from '@genkit-ai/vertexai/vectorsearch';
 
 // // Environment variables set with dotenv for simplicity of sample
 import {
@@ -148,6 +149,10 @@ const ai = genkit({
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
+    }),
+    vertexAIVectorSearch({
+      location: LOCATION,
+      projectId: PROJECT_ID,
       vectorSearchOptions: [
         {
           publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
@@ -156,6 +161,7 @@ const ai = genkit({
           deployedIndexId: VECTOR_SEARCH_DEPLOYED_INDEX_ID,
           documentRetriever: localDocumentRetriever,
           documentIndexer: localDocumentIndexer,
+          embedder: textEmbedding004,
         },
       ],
     }),

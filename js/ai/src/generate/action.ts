@@ -20,6 +20,7 @@ import {
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
@@ -39,13 +40,13 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
-  ModelAction,
   Part,
+  resolveModel,
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
 } from '../model.js';
-import { lookupToolByName, ToolAction, toToolDefinition } from '../tool.js';
+import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -104,37 +105,15 @@ async function generate(
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
-  const model = (await registry.lookupAction(
-    `/model/${rawRequest.model}`
-  )) as ModelAction;
-  if (!model) {
-    throw new Error(`Model ${rawRequest.model} not found`);
-  }
+  const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
-    console.warn(
+    logger.warn(
       `${clc.bold(clc.yellow('Warning:'))} ` +
         `Model '${model.__action.name}' is deprecated and may be removed in a future release.`
     );
   }
 
-  let tools: ToolAction[] | undefined;
-  if (rawRequest.tools?.length) {
-    if (!model.__action.metadata?.model.supports?.tools) {
-      throw new Error(
-        `Model ${rawRequest.model} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
-      );
-    }
-    tools = await Promise.all(
-      rawRequest.tools.map(async (toolRef) => {
-        if (typeof toolRef === 'string') {
-          return lookupToolByName(registry, toolRef as string);
-        } else if (toolRef.name) {
-          return lookupToolByName(registry, toolRef.name);
-        }
-        throw `Unable to resolve tool ${JSON.stringify(toolRef)}`;
-      })
-    );
-  }
+  const tools = await resolveTools(registry, rawRequest.tools);
 
   const resolvedFormat = rawRequest.output?.format
     ? await resolveFormat(registry, rawRequest.output?.format)

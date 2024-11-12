@@ -16,6 +16,7 @@
 
 import {
   FileDataPart,
+  FunctionCallingMode,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionResponsePart,
@@ -30,10 +31,11 @@ import {
   SchemaType,
   StartChatParams,
   Tool,
+  ToolConfig,
 } from '@google/generative-ai';
 import {
-  GENKIT_CLIENT_HEADER,
   Genkit,
+  GENKIT_CLIENT_HEADER,
   GenkitError,
   JSONSchema,
   z,
@@ -41,18 +43,18 @@ import {
 import {
   CandidateData,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -79,6 +81,12 @@ const SafetySettingsSchema = z.object({
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
+  functionCallingConfig: z
+    .object({
+      mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
+      allowedFunctionNames: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 export const gemini10Pro = modelRef({
@@ -362,7 +370,7 @@ function toCustomPart(part: Part): GeminiPart {
 }
 
 function toGeminiPart(part: Part): GeminiPart {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) return { text: part.text || ' ' };
   if (part.media) {
     if (part.media.url.startsWith('data:')) return toInlineData(part);
     return toFileData(part);
@@ -531,7 +539,7 @@ export function defineGoogleAIModel(
       if (apiVersion) {
         options.baseUrl = baseUrl;
       }
-      const requestConfig = {
+      const requestConfig: z.infer<typeof GeminiConfigSchema> = {
         ...defaultConfig,
         ...request.config,
       };
@@ -565,7 +573,6 @@ export function defineGoogleAIModel(
       }
 
       const tools: Tool[] = [];
-
       if (request.tools?.length) {
         tools.push({
           functionDeclarations: request.tools.map(toGeminiTool),
@@ -579,6 +586,19 @@ export function defineGoogleAIModel(
               ? {}
               : request.config.codeExecution,
         });
+      }
+
+      let toolConfig: ToolConfig | undefined;
+      if (requestConfig.functionCallingConfig) {
+        toolConfig = {
+          functionCallingConfig: {
+            allowedFunctionNames:
+              requestConfig.functionCallingConfig.allowedFunctionNames,
+            mode: toGeminiFunctionMode(
+              requestConfig.functionCallingConfig.mode
+            ),
+          },
+        };
       }
 
       //  cannot use tools with json mode
@@ -605,6 +625,7 @@ export function defineGoogleAIModel(
         systemInstruction,
         generationConfig,
         tools,
+        toolConfig,
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
@@ -667,4 +688,28 @@ export function defineGoogleAIModel(
       }
     }
   );
+}
+
+function toGeminiFunctionMode(
+  genkitMode: string | undefined
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'MODE_UNSPECIFIED': {
+      return FunctionCallingMode.MODE_UNSPECIFIED;
+    }
+    case 'ANY': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'AUTO': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${genkitMode}`);
+  }
 }

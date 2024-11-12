@@ -14,25 +14,25 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
+import { runInNewSpan } from '@genkit-ai/core/tracing';
 import {
-  ExecutablePrompt,
+  generate,
   GenerateOptions,
   GenerateResponse,
+  generateStream,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   MessageData,
   Part,
-} from '@genkit-ai/ai';
-import { z } from '@genkit-ai/core';
-import { Genkit } from './genkit';
+} from './index.js';
 import {
   BaseGenerateOptions,
+  runWithSession,
   Session,
   SessionStore,
-  runWithSession,
 } from './session';
-import { runInNewSpan } from './tracing';
 
 export const MAIN_THREAD = 'main';
 
@@ -42,7 +42,6 @@ export type ChatGenerateOptions<
 > = GenerateOptions<O, CustomOptions>;
 
 export interface PromptRenderOptions<I> {
-  preamble: ExecutablePrompt<I>;
   input?: I;
 }
 
@@ -107,10 +106,21 @@ export class Chat {
         }
         requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
       }
-      requestBase.messages = [
-        ...(options.messages ?? []),
-        ...(requestBase.messages ?? []),
-      ];
+      if (hasPreamble(requestBase.messages)) {
+        requestBase.messages = [
+          // if request base contains a preamble, always put it first
+          ...(getPreamble(requestBase.messages) ?? []),
+          // strip out the preamble from history
+          ...(stripPreamble(options.messages) ?? []),
+          // add whatever non-preamble remains from request
+          ...(stripPreamble(requestBase.messages) ?? []),
+        ];
+      } else {
+        requestBase.messages = [
+          ...(options.messages ?? []),
+          ...(requestBase.messages ?? []),
+        ];
+      }
       this._messages = requestBase.messages;
       return requestBase;
     });
@@ -147,7 +157,7 @@ export class Chat {
           messages: this.messages,
           ...resolvedOptions,
         };
-        let response = await this.genkit.generate({
+        let response = await generate(this.session.registry, {
           ...request,
           streamingCallback,
         });
@@ -187,11 +197,14 @@ export class Chat {
           resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
         }
 
-        const { response, stream } = await this.genkit.generateStream({
-          ...(await this.requestBase),
-          messages: this.messages,
-          ...resolvedOptions,
-        });
+        const { response, stream } = await generateStream(
+          this.session.registry,
+          {
+            ...(await this.requestBase),
+            messages: this.messages,
+            ...resolvedOptions,
+          }
+        );
 
         return {
           response: response.finally(async () => {
@@ -210,10 +223,6 @@ export class Chat {
     );
   }
 
-  private get genkit(): Genkit {
-    return this.session.genkit;
-  }
-
   get messages(): MessageData[] {
     return this._messages ?? [];
   }
@@ -222,4 +231,16 @@ export class Chat {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }
+}
+
+function hasPreamble(msgs?: MessageData[]) {
+  return !!msgs?.find((m) => m.metadata?.preamble);
+}
+
+function getPreamble(msgs?: MessageData[]) {
+  return msgs?.filter((m) => m.metadata?.preamble);
+}
+
+function stripPreamble(msgs?: MessageData[]) {
+  return msgs?.filter((m) => !m.metadata?.preamble);
 }

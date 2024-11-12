@@ -16,7 +16,11 @@
 
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
 // several generative models. Here, we import Gemini 1.5 Flash.
-import { claude35Sonnet, vertexAI } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit-ai/vertexai';
+import {
+  claude35Sonnet,
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 // Import the Genkit core libraries and plugins.
 import { genkit, z } from 'genkit';
 
@@ -30,7 +34,12 @@ const ai = genkit({
     // the value from the GCLOUD_PROJECT environment variable.
     vertexAI({
       location: 'europe-west1',
-      modelGardenModels: [claude35Sonnet],
+    }),
+    vertexAIModelGarden({
+      location: 'europe-west1',
+      modelGarden: {
+        models: [claude35Sonnet],
+      },
     }),
   ],
 });
