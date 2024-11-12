@@ -46,6 +46,7 @@ func picoschemaToJSONSchema(val any) (*jsonschema.Schema, error) {
 				if err != nil {
 					return nil, err
 				}
+
 				s.Type = []string{"object"}
 				return s, nil
 			}
@@ -64,15 +65,15 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 	case string:
 		typ, desc, found := strings.Cut(val, ",")
 		switch typ {
-		case "string", "boolean", "null", "number", "integer", "any":
+		case "string", "boolean", "null", "number", "integer": // Valid types
+		case "any":
+			typ = ""
 		default:
 			return nil, fmt.Errorf("picoschema: unsupported scalar type %q", typ)
 		}
-		if typ == "any" {
-			typ = ""
-		}
-		ret := &jsonschema.Schema{
-			Type: []string{typ},
+		ret := &jsonschema.Schema{}
+		if typ != "" {
+			ret.Type = []string{typ}
 		}
 		if found {
 			ret.Description = strings.TrimSpace(desc)
@@ -99,7 +100,15 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 			if err != nil {
 				return nil, err
 			}
-
+			// Only add "null" to the "type" array if Type is already set and not empty
+			if isOptional {
+				if len(property.Type) > 0 {
+					if !contains(property.Type, "null") {
+						property.Type = append(property.Type, "null")
+					}
+				}
+				// Do not set property.Type to ["null"] if Type is empty or nil
+			}
 			if !found {
 				ret.Properties.Set(propertyName, property)
 				continue
@@ -142,6 +151,15 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 	}
 }
 
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
 // mapToJSONSchema converts a YAML value to a JSONSchema.
 func mapToJSONSchema(m map[string]any) (*jsonschema.Schema, error) {
 	var ret jsonschema.Schema
@@ -166,6 +184,52 @@ func mapToJSONSchema(m map[string]any) (*jsonschema.Schema, error) {
 		}
 
 		switch rf.Type() {
+		case reflect.TypeOf([]string(nil)):
+			switch v := v.(type) {
+			case string:
+				if v != "" {
+					rf.Set(reflect.ValueOf([]string{v}))
+				}
+			case []any:
+				sstrs := make([]string, 0, len(v))
+				for i, astr := range v {
+					s, ok := astr.(string)
+					if !ok {
+						return nil, fmt.Errorf("picoschema: found type %T for field element %d of %q, want string", astr, i, k)
+					}
+					if s != "" {
+						sstrs = append(sstrs, s)
+					}
+				}
+				if len(sstrs) > 0 {
+					rf.Set(reflect.ValueOf(sstrs))
+				}
+			default:
+				return nil, fmt.Errorf("picoschema: found type %T for field %q, want string or array of strings", v, k)
+			}
+
+		case reflect.TypeOf(""):
+			str, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("picoschema: found type %T for field %q, want string", v, k)
+			}
+			rf.SetString(str)
+
+		case reflect.TypeOf((*uint64)(nil)):
+			rf.Set(reflect.New(reflect.TypeOf(uint64(0))))
+			switch v := v.(type) {
+			case uint64, uint32, uint16, uint8, int, int8, int16, int32, int64:
+				rf.Elem().SetUint(reflect.ValueOf(v).Uint())
+			default:
+				return nil, fmt.Errorf("picoschema: found type %T for field %q, want an integer type", v, k)
+			}
+
+		case reflect.TypeOf(true):
+			b, ok := v.(bool)
+			if !ok {
+				return nil, fmt.Errorf("picoschema: found type %T for field %q, want bool", v, k)
+			}
+			rf.SetBool(b)
 		case reflect.TypeFor[any]():
 			rf.Set(reflect.ValueOf(v))
 

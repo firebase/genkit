@@ -41,16 +41,8 @@ func TestPicoschema(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skip := map[string]bool{
-		"required field":                 true,
-		"nested object in array and out": true,
-	}
-
 	for _, test := range tests {
 		t.Run(test.Description, func(t *testing.T) {
-			if skip[test.Description] {
-				t.Skip("no support for type as an array")
-			}
 			var val any
 			if err := yaml.Unmarshal([]byte(test.YAML), &val); err != nil {
 				t.Fatalf("YAML unmarshal failure: %v", err)
