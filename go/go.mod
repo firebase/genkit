@@ -50,6 +50,7 @@ require (
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/alonsopf/jsonschema v0.0.0-20241112032241-b0be673d3d4c // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
@@ -96,4 +97,4 @@ require (
 	google.golang.org/grpc v1.65.0 // indirect
 )
 
-replace github.com/invopop/jsonschema => github.com/alonsopf/jsonschema v0.0.0-20241108051958-0268d4afa3b4
+replace github.com/invopop/jsonschema => github.com/alonsopf/jsonschema v0.0.0-20241112034953-8a224be9076f
