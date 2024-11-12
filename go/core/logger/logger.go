@@ -44,32 +44,3 @@ func FromContext(ctx context.Context) *slog.Logger {
 	}
 	return slog.Default()
 }
-
-// LevelFilterHandler is a custom handler that only logs DEBUG messages.
-type LevelFilterHandler struct {
-	level slog.Level
-	h     slog.Handler
-}
-
-func (h *LevelFilterHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	// Display the message if its level is greater than or equal to the configured level
-	return level >= h.level
-}
-
-func (h *LevelFilterHandler) Handle(ctx context.Context, r slog.Record) error {
-	return h.h.Handle(ctx, r)
-}
-
-func (h *LevelFilterHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &LevelFilterHandler{
-		level: h.level,
-		h:     h.h.WithAttrs(attrs),
-	}
-}
-
-func (h *LevelFilterHandler) WithGroup(name string) slog.Handler {
-	return &LevelFilterHandler{
-		level: h.level,
-		h:     h.h.WithGroup(name),
-	}
-}
