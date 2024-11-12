@@ -35,7 +35,9 @@ Logging is provided separately so that a plugin can control where the data is
 written explicitly.
 
 ```ts
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { Genkit } from 'genkit';
+import { genkitPlugin, GenkitPlugin } from'genkit/plugin';
+
 
 ...
 
@@ -43,9 +45,9 @@ export interface MyPluginOptions {
   // [Optional] Your plugin options
 }
 
-export const myPlugin: Plugin<[MyPluginOptions] | []> = genkitPlugin(
+export const myPlugin: GenkitPlugin<[MyPluginOptions] | []> = genkitPlugin(
   'myPlugin',
-  async (options?: MyPluginOptions) => {
+  async (ai: Genkit) => {
     return {
       telemetry: {
         instrumentation: {
@@ -226,6 +228,7 @@ The following is a full example of the telemetry plugin created above. For
 a real world example, take a look at the `@genkit-ai/google-cloud` plugin.
 
 ```ts
+import { genkitPlugin, GenkitPlugin } from 'genkit/plugin';
 import {
   genkitPlugin,
   LoggerConfig,
@@ -293,9 +296,11 @@ const myLogger: LoggerConfig = {
   },
 };
 
-export const myPlugin: Plugin<[MyPluginOptions] | []> = genkitPlugin(
-  'myPlugin',
-  async (options?: MyPluginOptions) => {
+export function myPlugin(options?: MyPluginOptions) {
+  return genkitPlugin('myPlugin', async (ai: Genkit) => {
+    ai.defineModel(...);
+    ai.defineEmbedder(...)
+    // ....
     return {
       telemetry: {
         instrumentation: {
@@ -308,8 +313,8 @@ export const myPlugin: Plugin<[MyPluginOptions] | []> = genkitPlugin(
         },
       },
     };
-  }
-);
+  });
+};
 
 export default myPlugin;
 ```
