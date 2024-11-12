@@ -184,7 +184,7 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
 
 /**
  * Helper method to compute effective Include enum. It always
- * includesdocuments.
+ * includes documents
  */
 function getIncludes(includes: IncludeOption): IncludeEnum[] | undefined {
   if (!includes) {
