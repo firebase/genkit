@@ -169,7 +169,6 @@ async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
       const url =
         'https://checks.googleapis.com/v1alpha/aisafety:classifyContent';
 
-
       const response = await client.request({
         url,
         method: 'POST',

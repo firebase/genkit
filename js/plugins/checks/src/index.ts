@@ -15,6 +15,7 @@
  */
 
 import { Genkit } from 'genkit';
+import { logger } from 'genkit/logging';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import { logger } from 'genkit/logging';
@@ -46,7 +47,7 @@ const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
  */
 export function checks(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('checks', async (ai: Genkit) => {
-    let authClient;
+    let authClient: GoogleAuth;
     let authOptions = options?.googleAuth;
 
     // Allow customers to pass in cloud credentials from environment variables
@@ -68,12 +69,12 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       );
     }
 
-    if (authClient.getClient().quotaProjectId) {
+    const client = await authClient.getClient();
+    if (client.quotaProjectId) {
       logger.warn(
-        `Checks Evaluator: Your Google cloud authentication has a default quota project(${authClient.getClient().client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
+        `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
       );
     }
-
 
     const projectId = options?.projectId || (await authClient.getProjectId());
 

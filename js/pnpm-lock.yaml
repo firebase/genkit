@@ -201,21 +201,12 @@ importers:
 
   plugins/checks:
     dependencies:
-      '@google-cloud/aiplatform':
-        specifier: ^3.23.0
-        version: 3.25.0(encoding@0.1.13)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
-      googleapis:
-        specifier: ^140.0.1
-        version: 140.0.1(encoding@0.1.13)
-      node-fetch:
-        specifier: ^3.3.2
-        version: 3.3.2
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
