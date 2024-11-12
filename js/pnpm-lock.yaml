@@ -716,6 +716,9 @@ importers:
         specifier: workspace:*
         version: link:../../genkit
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       typescript:
         specifier: ^5.6.2
         version: 5.6.2
