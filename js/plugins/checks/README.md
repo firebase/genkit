@@ -93,7 +93,7 @@ genkit eval:run test-dataset.json --evaluators=checks/dangerous_content,checks/p
 
 ### View the results
 
-Run `genkit start` and open the genkit ui. Usually at `localhost:4000` and select the Evaluate tab.
+Run `genkit start -- tsx --watch src/index.ts` and open the genkit ui. Usually at `localhost:4000` and select the Evaluate tab.
 
 # Genkit
 
