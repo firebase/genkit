@@ -13,11 +13,11 @@
     "build:watch": "tsup-node --watch"
   },
   "dependencies": {
+    "genkit": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "data-urls": "^5.0.0",
-    "genkit": "workspace:*"
+    "data-urls": "^5.0.0"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
