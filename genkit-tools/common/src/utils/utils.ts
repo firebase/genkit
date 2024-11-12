@@ -161,7 +161,6 @@ export async function retriable<T>(
     try {
       return await fn();
     } catch (e) {
-      console.log('retriable', attempt, maxRetries);
       if (attempt >= maxRetries - 1) {
         throw e;
       }
