@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node lib/index.js",
     "compile": "tsc",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
@@ -20,6 +22,8 @@
   },
   "devDependencies": {
     "rimraf": "^6.0.1",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
 }

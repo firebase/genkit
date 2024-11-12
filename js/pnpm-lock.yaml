@@ -855,9 +855,15 @@ importers:
         specifier: ^0.12.7
         version: 0.12.7
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      tsx:
+        specifier: ^4.7.0
+        version: 4.19.2
       typescript:
         specifier: ^5.3.3
         version: 5.6.2
