@@ -8,7 +8,8 @@ as callable functions using the Cloud Functions client libraries.
 
 *   Install the [Firebase CLI](/docs/cli).
 *   You should be familiar with Genkit's concept of [flows](flows), and how to
-    write them.
+    write them. The instructions on this page assume that you already have some
+    flows defined, which you want to deploy.
 *   It would be helpful, but not required, if you've already used Cloud
     Functions for Firebase before.
 
@@ -46,62 +47,18 @@ up, follow these steps:
     ```posix-terminal
     cd $PROJECT_ROOT
 
-    firebase init functions
+    firebase init genkit
     ```
 
     The rest of this page assumes that you've selected to write your functions
     in TypeScript, but you can also deploy your Genkit flows if you're using
-    JavaScript. Python is not supported.
+    JavaScript.
 
-1.  Edit `functions/tsconfig.json` and add the following to `compilerOptions`:
+## 2. Update flow definitions
 
-    ```
-    "skipLibCheck": true,
-    ```
-
-## 2. Install Genkit dependencies
-
-Once you have a Firebase project set up with Cloud Functions, you need to
-install Genkit into it.
-
-1.  Change to your project's functions directory:
-
-    ```posix-terminal
-    cd $PROJECT_ROOT/functions
-    ```
-
-1.  If you didn't install the Genkit CLI globally, you can install it as a
-    development dependency. The `tsx` tool is also recommended, as it makes
-    testing your code more convenient. Both of these dependencies are optional,
-    however.
-
-    ```posix-terminal
-    npm i --save-dev genkit-cli tsx
-    ```
-
-1.  Install the core Genkit library and the Firebase plugin:
-
-    ```posix-terminal
-    npm i --save genkit @genkit-ai/firebase
-    ```
-
-1.  Install at least one model plugin. For example, to use Google AI:
-
-    ```posix-terminal
-    npm i --save @genkit-ai/googleai
-    ```
-
-    Or to use Vertex AI:
-
-    ```posix-terminal
-    npm i --save @genkit-ai/vertexai
-    ```
-
-## 3. Update flow definitions
-
-After you've set up a Firebase project with Cloud Functions, your flow
-definitions will go in the project’s `functions/src` directory, exported in
-`index.ts`.
+After you've set up a Firebase project with Cloud Functions, you can copy or
+write flow definitions in the project’s `functions/src` directory, and export
+them in `index.ts`.
 
 For your flows to be deployable, you will need to make some small changes to how
 you define them. The core logic will remain the same, but you will add some
@@ -312,7 +269,7 @@ export const generatePoem = onFlow(
 );
 ```
 
-## 4. Deploy flows to Firebase
+## 3. Deploy flows to Firebase
 
 After you've defined flows using `onFlow`, you can deploy them as you would
 deploy other Cloud Functions:
