@@ -148,3 +148,27 @@ export async function waitUntilUnresponsive(
   }
   return false;
 }
+
+export async function retriable<T>(
+  fn: () => Promise<T>,
+  opts: { maxRetries?: number; delayMs?: number }
+): Promise<T> {
+  const maxRetries = opts.maxRetries ?? 3;
+  const delayMs = opts.delayMs ?? 0;
+
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (e) {
+      console.log('retriable', attempt, maxRetries);
+      if (attempt >= maxRetries - 1) {
+        throw e;
+      }
+      if (delayMs > 0) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+    attempt++;
+  }
+}
