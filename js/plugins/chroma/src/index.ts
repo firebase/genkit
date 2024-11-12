@@ -182,6 +182,10 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
   );
 }
 
+/**
+ * Helper method to compute effective Include enum. It always
+ * includesdocuments.
+ */
 function getIncludes(includes: IncludeOption): IncludeEnum[] | undefined {
   if (!includes) {
     // Default behaviour
@@ -195,6 +199,9 @@ function getIncludes(includes: IncludeOption): IncludeEnum[] | undefined {
   return Array.from(includesSet);
 }
 
+/**
+ * Helper method to construct metadata, including the optional {@link IncludeEnum} passed in config.
+ */
 function constructMetadata(
   i: number,
   metadatas: (Metadata | null)[][],
