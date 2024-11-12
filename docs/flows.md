@@ -177,11 +177,7 @@ To start the developer UI, run the following commands from your project
 directory:
 
 ```posix-terminal
-export GENKIT_ENV=dev
-
-npx genkit ui:start
-
-npx tsx --watch your-code.ts
+genkit start -- tsx --watch src/your-code.ts
 ```
 
 From the **Run** tab of developer UI, you can run any of the flows defined in

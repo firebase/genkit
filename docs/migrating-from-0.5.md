@@ -12,6 +12,30 @@ To install the CLI:
 npm i -g genkit-cli
 ```
 
+Some changes have been made to the `genkit start` command:
+
+```posix-terminal
+
+// Starts your genkit application code + Dev UI together
+genkit start -- <start command>
+genkit start -- tsx src/index.ts
+genkit start -- go run main.go
+
+// Watch mode is supported as well
+genkit start -- tsx --watch src/index.ts
+
+// Starts your genkit application code ONLY
+genkit start --noui -- <start command>
+genkit start --noui -- tsx src/index.ts
+
+// Starts the Dev UI ONLY
+genkit start
+
+```
+
+Previously, the `genkit start` command would start the Dev UI and Flow Server together. If you have any CI/CD pipelines relying on this command, you may need to update the pipeline.
+
+
 **Old Command:**
 
 ```posix-terminal

@@ -20,7 +20,7 @@ import { describe, it } from 'node:test';
 import {
   getAccessToken,
   getProjectNumber,
-} from '../../src/vector-search/utils';
+} from '../../src/vectorsearch/vector_search/utils';
 
 // Mocking the google.auth.getClient method
 google.auth.getClient = async () => {

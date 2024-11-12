@@ -19,11 +19,13 @@ import { logger } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';
 import { Command } from 'commander';
 import getPort, { makeRange } from 'get-port';
+import open from 'open';
 import { startManager } from '../utils/manager-utils';
 
 interface RunOptions {
   noui?: boolean;
   port?: string;
+  open?: boolean;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -31,6 +33,7 @@ export const start = new Command('start')
   .description('runs a command in Genkit dev mode')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port', 'port for the Dev UI')
+  .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
     let runtimePromise = Promise.resolve();
     if (start.args.length > 0) {
@@ -39,12 +42,10 @@ export const start = new Command('start')
           env: { ...process.env, GENKIT_ENV: 'dev' },
         });
 
-        appProcess.stdout?.on('data', (data) => {
-          process.stdout.write(data);
-        });
-        appProcess.stderr?.on('data', (data) => {
-          process.stderr.write(data);
-        });
+        appProcess.stderr?.pipe(process.stderr);
+        appProcess.stdout?.pipe(process.stdout);
+        process.stdin?.pipe(appProcess.stdin);
+
         appProcess.on('error', (error): void => {
           console.log(`Error in app process: ${error}`);
           reject(error);
@@ -71,7 +72,9 @@ export const start = new Command('start')
       uiPromise = startManager(true).then((manager) =>
         startServer(manager, port)
       );
+      if (options.open) {
+        open(`http://localhost:${port}`);
+      }
     }
-
     await Promise.all([runtimePromise, uiPromise]);
   });

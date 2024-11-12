@@ -122,10 +122,23 @@ describe('chat', () => {
   it('can start chat from a prompt', async () => {
     const preamble = ai.definePrompt(
       { name: 'hi', config: { version: 'abc' } },
+      'hi from template'
+    );
+    const session = await ai.chat(preamble);
+    const response = await session.send('send it');
+
+    assert.strictEqual(
+      response.text,
+      'Echo: hi from template,send it; config: {"version":"abc"}'
+    );
+  });
+
+  it('can start chat from a prompt with input', async () => {
+    const preamble = ai.definePrompt(
+      { name: 'hi', config: { version: 'abc' } },
       'hi {{ name }} from template'
     );
-    const session = await ai.chat({
-      preamble,
+    const session = await ai.chat(preamble, {
       input: { name: 'Genkit' },
     });
     const response = await session.send('send it');
@@ -156,7 +169,7 @@ describe('chat', () => {
   });
 });
 
-describe('preabmle', () => {
+describe('preamble', () => {
   let ai: Genkit;
   let pm: ProgrammableModel;
 
@@ -165,6 +178,7 @@ describe('preabmle', () => {
       model: 'programmableModel',
     });
     pm = defineProgrammableModel(ai);
+    defineEchoModel(ai);
   });
 
   it('swaps out preamble on prompt tool invocation', async () => {
@@ -207,9 +221,7 @@ describe('preabmle', () => {
       };
     };
 
-    const session = ai.chat({
-      preamble: agentA,
-    });
+    const session = ai.chat(agentA);
     let { text } = await session.send('hi');
     assert.strictEqual(text, 'hi from agent a');
     assert.deepStrictEqual(pm.lastRequest, {
@@ -450,5 +462,77 @@ describe('preabmle', () => {
         },
       ],
     });
+  });
+
+  it('updates the preabmle on fresh chat instance', async () => {
+    const agent = ai.definePrompt(
+      {
+        name: 'agent',
+        config: { temperature: 2 },
+        description: 'Agent A description',
+      },
+      '{{ role "system"}} greet {{ @state.name }}'
+    );
+
+    const session = ai.createSession({ initialState: { name: 'Pavel' } });
+
+    const chat = session.chat(agent, { model: 'echoModel' });
+    let response = await chat.send('hi');
+
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' greet Pavel' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [
+          { text: 'Echo: system:  greet Pavel,hi' },
+          { text: '; config: {"temperature":2}' },
+        ],
+      },
+    ]);
+
+    await session.updateState({ name: 'Michael' });
+
+    const freshChat = session.chat(agent, { model: 'echoModel' });
+    response = await freshChat.send('hi');
+
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'system',
+        content: [{ text: ' greet Michael' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [
+          { text: 'Echo: system:  greet Pavel,hi' },
+          { text: '; config: {"temperature":2}' },
+        ],
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            text: 'Echo: system:  greet Michael,hi,Echo: system:  greet Pavel,hi,; config: {"temperature":2},hi',
+          },
+          { text: '; config: {"temperature":2}' },
+        ],
+      },
+    ]);
   });
 });

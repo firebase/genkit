@@ -25,40 +25,24 @@ import {
 } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { defineOllamaEmbedder } from './embeddings';
+import {
+  ApiType,
+  ModelDefinition,
+  OllamaPluginParams,
+  RequestHeaders,
+} from './types';
 
-type ApiType = 'chat' | 'generate';
-
-type RequestHeaders =
-  | Record<string, string>
-  | ((
-      params: { serverAddress: string; model: ModelDefinition },
-      request: GenerateRequest
-    ) => Promise<Record<string, string> | void>);
-
-type ModelDefinition = { name: string; type?: ApiType };
-type EmbeddingModelDefinition = { name: string; dimensions: number };
-
-export interface OllamaPluginParams {
-  models: ModelDefinition[];
-  embeddingModels?: EmbeddingModelDefinition[];
-
-  /**
-   *  ollama server address.
-   */
-  serverAddress: string;
-
-  requestHeaders?: RequestHeaders;
-}
+export { defineOllamaEmbedder };
 
 export function ollama(params: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin('ollama', async (ai: Genkit) => {
-    const serverAddress = params?.serverAddress;
-    params.models.map((model) =>
+    const serverAddress = params.serverAddress;
+    params.models?.map((model) =>
       ollamaModel(ai, model, serverAddress, params.requestHeaders)
     );
-    params.embeddingModels?.map((model) =>
+    params.embedders?.map((model) =>
       defineOllamaEmbedder(ai, {
-        name: `${ollama}/model.name`,
+        name: model.name,
         modelName: model.name,
         dimensions: model.dimensions,
         options: params,
@@ -85,20 +69,20 @@ function ollamaModel(
     },
     async (input, streamingCallback) => {
       const options: Record<string, any> = {};
-      if (input.config?.hasOwnProperty('temperature')) {
-        options.temperature = input.config?.temperature;
+      if (input.config?.temperature !== undefined) {
+        options.temperature = input.config.temperature;
       }
-      if (input.config?.hasOwnProperty('topP')) {
-        options.top_p = input.config?.topP;
+      if (input.config?.topP !== undefined) {
+        options.top_p = input.config.topP;
       }
-      if (input.config?.hasOwnProperty('topK')) {
-        options.top_k = input.config?.topK;
+      if (input.config?.topK !== undefined) {
+        options.top_k = input.config.topK;
       }
-      if (input.config?.hasOwnProperty('stopSequences')) {
-        options.stop = input.config?.stopSequences?.join('');
+      if (input.config?.stopSequences !== undefined) {
+        options.stop = input.config.stopSequences.join('');
       }
-      if (input.config?.hasOwnProperty('maxOutputTokens')) {
-        options.num_predict = input.config?.maxOutputTokens;
+      if (input.config?.maxOutputTokens !== undefined) {
+        options.num_predict = input.config.maxOutputTokens;
       }
       const type = model.type ?? 'chat';
       const request = toOllamaRequest(
@@ -137,13 +121,12 @@ function ollamaModel(
         );
       } catch (e) {
         const cause = (e as any).cause;
-        if (cause) {
-          if (
-            cause instanceof Error &&
-            cause.message?.includes('ECONNREFUSED')
-          ) {
-            cause.message += '. Make sure ollama server is running.';
-          }
+        if (
+          cause &&
+          cause instanceof Error &&
+          cause.message?.includes('ECONNREFUSED')
+        ) {
+          cause.message += '. Make sure the Ollama server is running.';
           throw cause;
         }
         throw e;
@@ -225,11 +208,11 @@ function toOllamaRequest(
   type: ApiType,
   stream: boolean
 ) {
-  const request = {
+  const request: any = {
     model: name,
     options,
     stream,
-  } as any;
+  };
   if (type === 'chat') {
     const messages: Message[] = [];
     input.messages.forEach((m) => {

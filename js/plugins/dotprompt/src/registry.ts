@@ -78,8 +78,8 @@ async function maybeLoadPrompt(
 
 export async function loadPromptFolder(
   registry: Registry,
-
-  dir: string = './prompts'
+  dir: string = './prompts',
+  ns: string
 ): Promise<void> {
   const promptsPath = resolve(dir);
   return new Promise<void>((resolve, reject) => {
@@ -119,7 +119,7 @@ export async function loadPromptFolder(
                       .replace(`${promptsPath}/`, '')
                       .replace(/\//g, '-');
                   }
-                  loadPrompt(registry, dirEnt.path, dirEnt.name, prefix);
+                  loadPrompt(registry, dirEnt.path, dirEnt.name, prefix, ns);
                 }
               }
             });
@@ -137,7 +137,8 @@ export function loadPrompt(
   registry: Registry,
   path: string,
   filename: string,
-  prefix = ''
+  prefix = '',
+  ns = 'dotprompt'
 ): Dotprompt {
   let name = `${prefix ? `${prefix}-` : ''}${basename(filename, '.prompt')}`;
   let variant: string | null = null;
@@ -151,6 +152,6 @@ export function loadPrompt(
   if (variant) {
     prompt.variant = variant;
   }
-  prompt.define({ ns: `dotprompt` });
+  prompt.define({ ns });
   return prompt;
 }

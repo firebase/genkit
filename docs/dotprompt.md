@@ -119,11 +119,7 @@ It's okay if the file contains other code, but the above is all that's required.
 Load the developer UI in the same project:
 
 ```posix-terminal
-export GENKIT_ENV=dev
-
-npx genkit ui:start
-
-npx tsx your-code.ts
+genkit start -- tsx --watch src/your-code.ts
 ```
 
 In the Models section, choose the model you want to use from the list of models
@@ -187,11 +183,7 @@ your application code.
 Load the developer UI from your project directory:
 
 ```posix-terminal
-export GENKIT_ENV=dev
-
-npx genkit ui:start
-
-npx tsx your-code.ts
+genkit start -- tsx --watch src/your-code.ts
 ```
 
 ![Genkit developer UI prompt runner](resources/prompts-in-developer-ui.png)

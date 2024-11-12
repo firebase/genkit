@@ -339,7 +339,10 @@ describe('fromGeminiCandidate', () => {
   for (const test of testCases) {
     it(test.should, () => {
       assert.deepEqual(
-        fromGeminiCandidate(test.geminiCandidate as GenerateContentCandidate),
+        fromGeminiCandidate(
+          test.geminiCandidate as GenerateContentCandidate,
+          false
+        ),
         test.expectedOutput
       );
     });

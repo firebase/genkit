@@ -223,12 +223,12 @@ export class RuntimeManager {
   }
 
   /**
-   * Retrieves all traces for a given environment (e.g. dev or prod).
+   * Retrieves all traces
    */
   async listTraces(
     input: apis.ListTracesRequest
   ): Promise<apis.ListTracesResponse> {
-    const { env, limit, continuationToken } = input;
+    const { limit, continuationToken } = input;
     let query = '';
     if (limit) {
       query += `limit=${limit}`;
@@ -243,10 +243,7 @@ export class RuntimeManager {
     const response = await axios
       .get(`${this.telemetryServerUrl}/api/traces?${query}`)
       .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error listing traces for env='${env}', query='${query}'.`
-        )
+        this.httpErrorHandler(err, `Error listing traces for query='${query}'.`)
       );
 
     return apis.ListTracesResponseSchema.parse(response.data);
@@ -256,13 +253,13 @@ export class RuntimeManager {
    * Retrieves a trace for a given ID.
    */
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
-    const { env, traceId } = input;
+    const { traceId } = input;
     const response = await axios
       .get(`${this.telemetryServerUrl}/api/traces/${traceId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
-          `Error getting trace for traceId='${traceId}', env='${env}'.`
+          `Error getting trace for traceId='${traceId}'`
         )
       );
 

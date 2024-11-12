@@ -17,7 +17,8 @@ import { genkit } from 'genkit';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js'; // Adjust the import path as necessary
-import { OllamaPluginParams } from '../src/index.js'; // Adjust the import path as necessary
+import { ollama } from '../src/index.js';
+import { OllamaPluginParams } from '../src/types.js'; // Adjust the import path as necessary
 // Utility function to parse command-line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -36,7 +37,9 @@ describe('defineOllamaEmbedder - Live Tests', () => {
     serverAddress,
   };
   it('should successfully return embeddings', async () => {
-    const ai = genkit({});
+    const ai = genkit({
+      plugins: [ollama(options)],
+    });
     const embedder = defineOllamaEmbedder(ai, {
       name: 'live-test-embedder',
       modelName: 'nomic-embed-text',

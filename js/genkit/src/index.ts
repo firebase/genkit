@@ -99,6 +99,7 @@ export {
   type ToolRequestPart,
   type ToolResponsePart,
 } from '@genkit-ai/ai';
+export { type SessionData, type SessionStore } from '@genkit-ai/ai/session';
 export {
   FlowActionInputSchema,
   FlowErrorSchema,
@@ -152,4 +153,3 @@ export {
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
 export * from './genkit.js';
-export { type SessionData, type SessionStore } from './session.js';

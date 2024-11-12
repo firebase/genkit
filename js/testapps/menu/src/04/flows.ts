@@ -74,11 +74,9 @@ export const s04_ragMenuQuestionFlow = ai.defineFlow(
     );
 
     // Generate the response
-    const response = await s04_ragDataMenuPrompt.generate({
-      input: {
-        menuData: menuData,
-        question: input.question,
-      },
+    const response = await s04_ragDataMenuPrompt({
+      menuData: menuData,
+      question: input.question,
     });
     return { answer: response.text };
   }

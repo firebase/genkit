@@ -16,10 +16,10 @@
 
 import * as aiplatform from '@google-cloud/aiplatform';
 import { z } from 'genkit';
-import { EmbedderArgument } from 'genkit/embedder';
+import { EmbedderReference } from 'genkit/embedder';
 import { CommonRetrieverOptionsSchema, Document } from 'genkit/retriever';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '..';
+import { PluginOptions } from '../types.js';
 
 // This internal interface will be passed to the vertexIndexers and vertexRetrievers functions
 export interface VertexVectorSearchOptions<
@@ -27,7 +27,7 @@ export interface VertexVectorSearchOptions<
 > {
   pluginOptions: PluginOptions;
   authClient: GoogleAuth;
-  defaultEmbedder: EmbedderArgument<EmbedderCustomOptions>;
+  defaultEmbedder?: EmbedderReference<EmbedderCustomOptions>;
 }
 
 export type IIndexDatapoint =
@@ -184,6 +184,6 @@ export interface VectorSearchOptions<
   documentRetriever: DocumentRetriever<RetrieverOptions>;
   documentIndexer: DocumentIndexer<IndexerOptions>;
   // Embedder and default options to use for indexing and retrieval
-  embedder?: EmbedderArgument<EmbedderCustomOptions>;
+  embedder?: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }

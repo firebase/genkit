@@ -19,6 +19,7 @@
 import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
 import { vertexAI } from '@genkit-ai/vertexai';
+import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { LOCATION, PROJECT_ID } from './config';
 
 // Configure Genkit with Vertex AI plugin
@@ -30,9 +31,13 @@ const ai = genkit({
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
+    }),
+    vertexAIRerankers({
+      projectId: PROJECT_ID,
+      location: LOCATION,
       rerankOptions: [
         {
-          model: 'vertexai/semantic-ranker-512',
+          model: 'vertexai/reranker',
         },
       ],
     }),

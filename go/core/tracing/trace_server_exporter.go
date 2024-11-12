@@ -17,6 +17,7 @@ package tracing
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -24,20 +25,25 @@ import (
 	otrace "go.opentelemetry.io/otel/trace"
 )
 
-// A traceStoreExporter is an OpenTelemetry SpanExporter that
-// writes spans to a TraceStore.
-type traceStoreExporter struct {
-	store Store
+// A traceServerExporter is an OpenTelemetry SpanExporter that
+// writes spans to the telemetry server.
+type traceServerExporter struct {
+	client TelemetryClient
 }
 
-func newTraceStoreExporter(store Store) *traceStoreExporter {
-	return &traceStoreExporter{store}
+func newTraceServerExporter(client TelemetryClient) *traceServerExporter {
+	return &traceServerExporter{client}
 }
 
 // ExportSpans implements [go.opentelemetry.io/otel/sdk/trace.SpanExporter.ExportSpans].
 // It saves the spans to e's TraceStore.
 // Saving is not atomic: it is possible that some but not all spans will be saved.
-func (e *traceStoreExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+func (e *traceServerExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+	if e.client == nil {
+		slog.Debug("telemetry server is not configured, trace not saved")
+		return nil
+	}
+
 	// Group spans by trace ID.
 	spansByTrace := map[otrace.TraceID][]sdktrace.ReadOnlySpan{}
 	for _, span := range spans {
@@ -54,7 +60,8 @@ func (e *traceStoreExporter) ExportSpans(ctx context.Context, spans []sdktrace.R
 		if err != nil {
 			return err
 		}
-		if err := e.store.Save(ctx, tid.String(), td); err != nil {
+		td.TraceID = tid.String()
+		if err := e.client.Save(ctx, td); err != nil {
 			return err
 		}
 	}
@@ -157,7 +164,7 @@ func convertStatus(s sdktrace.Status) Status {
 }
 
 // ExportSpans implements [go.opentelemetry.io/otel/sdk/trace.SpanExporter.Shutdown].
-func (e *traceStoreExporter) Shutdown(ctx context.Context) error {
+func (e *traceServerExporter) Shutdown(ctx context.Context) error {
 	// NOTE: In the current implementation, this function is never called on the store in the
 	// dev environment. To get that to happen, the Shutdown method on the TracerProvider must
 	// be called. See tracing.go.
