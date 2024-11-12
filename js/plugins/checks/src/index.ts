@@ -18,7 +18,6 @@ import { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
-import { logger } from 'genkit/logging';
 import {
   ChecksEvaluationMetric,
   ChecksEvaluationMetricType,
