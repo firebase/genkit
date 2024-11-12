@@ -165,11 +165,11 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
       tsup:
-        specifier: ^8.0.2
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.2)
+        specifier: ^8.3.5
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)
       typescript:
-        specifier: ^5.3.3
-        version: 5.6.2
+        specifier: ^5.6.3
+        version: 5.6.3
 
   genkit:
     dependencies:
@@ -6417,6 +6417,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@5.6.3:
+    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   uglify-js@3.17.4:
     resolution: {integrity: sha512-T9q82TJI9e/C1TAxYvfb16xO120tMVFZrGA3f9/P4424DNu6ypK103y0GPFVa17yotwSyZW5iYXgjYHkGrJW/g==}
     engines: {node: '>=0.8.0'}
@@ -12090,7 +12095,7 @@ snapshots:
       - tsx
       - yaml
 
-  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.2):
+  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3):
     dependencies:
       bundle-require: 5.0.0(esbuild@0.24.0)
       cac: 6.7.14
@@ -12110,7 +12115,7 @@ snapshots:
       tree-kill: 1.2.2
     optionalDependencies:
       postcss: 8.4.47
-      typescript: 5.6.2
+      typescript: 5.6.3
     transitivePeerDependencies:
       - jiti
       - supports-color
@@ -12213,6 +12218,8 @@ snapshots:
   typescript@5.5.3: {}
 
   typescript@5.6.2: {}
+
+  typescript@5.6.3: {}
 
   uglify-js@3.17.4:
     optional: true
