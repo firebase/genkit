@@ -67,7 +67,7 @@ cd $CURRENT
 
 cd js/plugins/pinecone
 pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
-cd $CURRENTscripts/release_main.sh
+cd $CURRENT
 
 cd js/plugins/vertexai
 pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
