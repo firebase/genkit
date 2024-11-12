@@ -139,7 +139,7 @@ const ai = genkit({
 async function getEmbedding() {
   const embedding = await ai.embed({
       embedder: 'ollama/nomic-embed-text',
-      content: "Some text to embed!",
+      content: 'Some text to embed!',
   })
 
   return embedding;
