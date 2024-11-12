@@ -126,6 +126,7 @@ const llmResponse = await ai.generate({
 
 ## Embedders
 The Ollama plugin supports embeddings, which can be used for similarity searches and other NLP tasks.
+
 ```typescript
 const ai = genkit({
   plugins: [
