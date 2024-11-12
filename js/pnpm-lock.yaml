@@ -573,6 +573,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      ollama:
+        specifier: ^0.5.9
+        version: 0.5.9
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -1202,6 +1205,22 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.5.3
+
+  testapps/ollama:
+    dependencies:
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.3
 
   testapps/prompt-file:
     dependencies:
@@ -5545,6 +5564,9 @@ packages:
   object.assign@4.1.5:
     resolution: {integrity: sha512-byy+U7gp+FVwmyzKPYhW2h5l3crpmGsxl7X2s8y43IgxvG4g3QZ6CffDtsNQy1WsmZpQbO+ybo0AlW7TY6DcBQ==}
     engines: {node: '>= 0.4'}
+
+  ollama@0.5.9:
+    resolution: {integrity: sha512-F/KZuDRC+ZsVCuMvcOYuQ6zj42/idzCkkuknGyyGVmNStMZ/sU3jQpvhnl4SyC0+zBzLiKNZJnJeuPFuieWZvQ==}
 
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
@@ -11185,6 +11207,10 @@ snapshots:
       define-properties: 1.2.1
       has-symbols: 1.0.3
       object-keys: 1.1.1
+
+  ollama@0.5.9:
+    dependencies:
+      whatwg-fetch: 3.6.20
 
   on-finished@2.4.1:
     dependencies:
