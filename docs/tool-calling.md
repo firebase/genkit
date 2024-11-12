@@ -105,8 +105,8 @@ const ai = genkit({
 
 const getWeather = ai.defineTool(
   {
-    name: "getWeather",
-    description: "Gets the current weather in a given location",
+    name: 'getWeather',
+    description: 'Gets the current weather in a given location',
     inputSchema: z.object({ 
       location: z.string().describe('The location to get the current weather for')
     }),
@@ -115,7 +115,7 @@ const getWeather = ai.defineTool(
   async (input) => {
     // Here, we would typically make an API call or database query. For this
     // example, we just return a fixed value.
-    return "The current weather in ${input.location} is 63°F and sunny.";
+    return 'The current weather in ${input.location} is 63°F and sunny.';
   }
 );
 ```
@@ -134,7 +134,7 @@ Include defined tools in your prompts to generate content.
 
     ```ts
     const response = await ai.generate({
-      prompt: "What is the weather in Baltimore?",
+      prompt: 'What is the weather in Baltimore?',
       tools: [getWeather],
     });
     ```
@@ -144,13 +144,13 @@ Include defined tools in your prompts to generate content.
     ```ts
     const weatherPrompt = ai.definePrompt(
       {
-        name: "weatherPrompt",
+        name: 'weatherPrompt',
         tools: [getWeather],
       },
-      "What is the weather in {{location}}?"
+      'What is the weather in {{location}}?'
     );
 
-    const response = await weatherPrompt({ location: "Baltimore" });
+    const response = await weatherPrompt({ location: 'Baltimore' });
     ```
 
 *   {Prompt file}
@@ -164,31 +164,31 @@ Include defined tools in your prompts to generate content.
         location: string
     ---
 
-    "What is the weather in {{location}}?"
+    What is the weather in {{location}}?
     ```
 
     Then you can execute the prompt in your code as follows:
 
     ```ts
     // assuming prompt file is named weatherPrompt.prompt
-    const weatherPrompt = ai.prompt("weatherPrompt");
+    const weatherPrompt = ai.prompt('weatherPrompt');
 
-    const response = await weatherPrompt({ location: "Baltimore" });
+    const response = await weatherPrompt({ location: 'Baltimore' });
     ```
 
 *   {Chat}
 
     ```ts
     const chat = ai.chat({
-      system: "Answer questions using the tools you have.",
+      system: 'Answer questions using the tools you have.',
       tools: [getWeather],
     });
 
-    const response = await chat.send("What is the weather in Baltimore?");
+    const response = await chat.send('What is the weather in Baltimore?');
 
     // Or, specify tools that are message-specific 
     const response = await chat.send({
-      prompt: "What is the weather in Baltimore?",
+      prompt: 'What is the weather in Baltimore?',
       tools: [getWeather],
     });
     ```
@@ -214,7 +214,7 @@ const getWeather = ai.defineTool(
 );
 
 const generateOptions: GenerateOptions = {
-  prompt: "What's the weather like in Baltimore?",
+  prompt: 'What's the weather like in Baltimore?',
   tools: [getWeather],
   returnToolRequests: true,
 };
@@ -229,7 +229,7 @@ while (true) {
   const toolResponses: ToolResponsePart[] = await Promise.all(
     toolRequests.map(async (part) => {
       switch (part.toolRequest.name) {
-        case "specialTool":
+        case 'specialTool':
           return {
             toolResponse: {
               name: part.toolRequest.name,
@@ -238,7 +238,7 @@ while (true) {
             },
           };
         default:
-          throw Error("Tool not found");
+          throw Error('Tool not found');
       }
     })
   );
