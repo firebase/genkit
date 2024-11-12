@@ -9,7 +9,7 @@
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./plugins/**\" -F \"!./plugins/dotprompt\" build",
     "build:testapps": "pnpm -r --workspace-concurrency 0 -F \"./testapps/**\" build",
     "build:dotprompt": "cd plugins/dotprompt && pnpm build",
-    "build:docsnippets": "cd doc-snippets && pnpm build",
+    "build:docsnippets": "cd doc-snippets && pnpm install && pnpm build",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:ai pack:genkit pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
