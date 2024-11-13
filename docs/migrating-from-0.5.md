@@ -30,7 +30,7 @@ Watch mode is supported as well:
 genkit start -- tsx --watch src/index.ts
 ```
 
-Starts your Genkit application code ONLY:
+Starts ONLY your application code in Genkit dev mode:
 
 ```posix-terminal
 genkit start --noui -- <start command>
