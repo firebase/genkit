@@ -16,7 +16,7 @@
 
 import { z } from 'genkit';
 import menuData from '../../data/menu.json' assert { type: 'json' };
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import { MenuItemSchema } from '../types.js';
 
 export const menuTool = ai.defineTool(
