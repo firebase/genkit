@@ -60,11 +60,8 @@ sample flow.
      async (input) => `Suggested item: ${input.data}`
    );
 
-   const port = process.env.PORT ? parseInt(process.env.PORT) : 3400;
-
    ai.startFlowServer({
      flows: [menuSuggestionFlow],
-     port,
    });
    ```
 
