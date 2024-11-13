@@ -94,19 +94,20 @@ See the following code samples for a concrete idea of how to use these capabilit
     model: gemini15Flash,
   });
 
-  const { data } = await ai.generate({
-      prompt: 'Create a brief profile for a character in a fantasy video game.',
-      // Specify output structure using Zod schema
-      output: {
-          schema: z.object({
-              name: z.string(),
-              role: z.enum(['knight', 'mage', 'archer']),
-              backstory: z.string(),
-          })
-      }
+  const { output } = await ai.generate({
+    prompt: 'Create a brief profile for a character in a fantasy video game.',
+    // Specify output structure using Zod schema
+    output: {
+      format: 'json',  
+      schema: z.object({
+        name: z.string(),
+        role: z.enum(['knight', 'mage', 'archer']),
+        backstory: z.string(),
+      }),
+    },
   });
 
-  console.log(data);
+  console.log(output);
   ```
 
 - {Function calling}
@@ -231,8 +232,6 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   // Reference to a local vector database storing Genkit documentation
   const retriever = devLocalRetrieverRef('BobFacts');
-
-  const query = 'How old is Bob?'
 
   // Consistent API to retrieve most relevant documents based on semantic similarity to query
   const docs = await ai.retrieve(
