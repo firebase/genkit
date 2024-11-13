@@ -1,25 +1,24 @@
 # Firebase Genkit Developer Tools
 
-Firebase Genkit comes with two sets of developer tools:
+Firebase Genkit provides two key developer tools:
 
-- A Node.js CLI
-- An optonal local web app that can connect to your Genkit configuration
+- A Node.js CLI for command-line operations
+- An optional local web app, called the Developer UI, that interfaces with your Genkit configuration for interactive testing and development
 
-### Command Line Interface
+### Command Line Interface (CLI)
 
-Install the CLI with the following command:
+Install the CLI in your project using:
 
 ```posix-terminal
-npm install genkit
+npm install -D genkit-cli
 ```
 
-The CLI offers many useful commands to work with Genkit projects including:
+The CLI supports various commands to facilitate working with Genkit projects:
 
-- `genkit init`: initialize a Genkit project
-- `genkit flow:run flowName`: run a flow
-- `genkit eval:flow flowName`: evaluate a flow
+- `genkit flow:run <flowName>`: Run a specified flow.
+- `genkit eval:flow <flowName>`: Evaluate a specific flow.
 
-See all the available commands with:
+For a full list of commands, use:
 
 ```posix-terminal
 npx genkit --help
@@ -27,19 +26,43 @@ npx genkit --help
 
 ### Genkit Developer UI
 
-The Genkit developer UI is a local web app that you can use to interact with the models, retrievers, flows and other actions in your Genkit project.
+The Genkit Developer UI is a local web app that allows you to interactively work with models, flows, prompts, and other elements in your Genkit project.
 
-Download and start the developer UI with:
+The Developer UI is able to identify what Genkit components you have defined in your code by attaching to a running code process.
+
+To start the UI, run the following command:
 
 ```posix-terminal
-npx genkit start
+npx genkit start -- <command to run your code>
 ```
 
-The UI will load in your default browser:
+The `<command to run your code>` will vary based on your project's setup and the file you want to execute. Here are some examples:
+
+```posix-terminal
+# Running a typical development server
+npx genkit start -- npm run dev
+
+# Running a TypeScript file directly
+npx genkit start -- npx tsx --watch src/index.ts
+
+# Running a JavaScript file directly
+npx genkit start -- node --watch src/index.js
+```
+
+Including the `--watch` option will enable the Developer UI to notice and reflect saved changes to your code without needing to restart.
+
+After running the command, you will get an output like the following:
+
+```posix-terminal
+Telemetry API running on http://localhost:4033
+Genkit Developer UI: http://localhost:4000
+```
+
+Open the local host address for the Genkit Developer UI in your browser to view it. You can also open it in the VS Code simple browser to view it alongside your code.
 
 ![Welcome to Genkit Developer UI](resources/welcome_to_genkit_developer_ui.png)
 
-The Developer UI has action runners for `flow`, `prompt`, `model`, `tool`, `retreiver`, `indexer`, `embedder` and `evaluator` configured in your `genkit.conf` file.
+The Developer UI has action runners for `flow`, `prompt`, `model`, `tool`, `retreiver`, `indexer`, `embedder` and `evaluator` based on the components you have defined in your code.
 
 Here's a quick gif tour with cats.
 
@@ -54,11 +77,11 @@ to deliver and enhance the quality of its services and to analyze usage.
 To opt-out of analytics, you can run the following command:
 
 ```posix-terminal
-genkit config set analyticsOptOut true
+npx genkit config set analyticsOptOut true
 ```
 
 You can view the current setting by running:
 
 ```posix-terminal
-genkit config get analyticsOptOut
+npx genkit config get analyticsOptOut
 ```
