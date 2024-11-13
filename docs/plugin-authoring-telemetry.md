@@ -159,10 +159,9 @@ The following is a full example of the telemetry plugin created above. For
 a real world example, take a look at the `@genkit-ai/google-cloud` plugin.
 
 ```ts
+import { genkitPlugin, GenkitPlugin } from 'genkit/plugin';
 import {
-  genkitPlugin,
   LoggerConfig,
-  Plugin,
   TelemetryConfig,
 } from '@genkit-ai/core';
 import { Span } from '@opentelemetry/api';
@@ -219,16 +218,15 @@ async function getLogger(env?: string) {
   // before importing winston.
   const winston = await import('winston');
 
-    return winston.createLogger({
-      transports: [new winston.transports.Console()],
-      format: winston.format.printf((info): string => {
-        return `[${info.level}] ${info.message}`;
-      }),
-    });
-  },
-};
+  return winston.createLogger({
+    transports: [new winston.transports.Console()],
+    format: winston.format.printf((info): string => {
+      return `[${info.level}] ${info.message}`;
+    }),
+  });
+}
 
-export const myPlugin: Plugin<[MyPluginOptions] | []> = genkitPlugin(
+export const myPlugin: GenkitPlugin<[MyPluginOptions] | []> = genkitPlugin(
   'myPlugin',
   async (options?: MyPluginOptions) => {
     return {
