@@ -63,7 +63,8 @@ ai.startFlowServer({
 There are also some optional parameters you can specify:
 
 - `port`: the network port to listen on. If unspecified, the server listens on
-  the port defined in the PORT environment variable.
+  the port defined in the PORT environment variable, and if PORT is not set,
+  defaults to 3400.
 - `cors`: the flow server's
   [CORS policy](https://www.npmjs.com/package/cors#configuration-options).
   If you will be accessing these endpoints from a web application, you likely
