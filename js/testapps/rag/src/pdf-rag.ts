@@ -18,32 +18,18 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { gemini15Flash } from '@genkit-ai/googleai';
-import { run, z } from 'genkit';
-import { Document } from 'genkit/retriever';
+import { gemini15Flash } from '@genkit-ai/vertexai';
+import fs from 'fs';
+import { Document, run, z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
-import { getDocument } from 'pdfjs-dist-legacy';
+import pdf from 'pdf-parse';
 import { ai } from './genkit.js';
+import { augmentedPrompt } from './prompt.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
-
-function ragTemplate({
-  context,
-  question,
-}: {
-  context: string;
-  question: string;
-}) {
-  return `Use the following pieces of context to answer the question at the end.
- If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-${context}
-Question: ${question}
-Helpful Answer:`;
-}
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQA = ai.defineFlow(
@@ -52,22 +38,22 @@ export const pdfQA = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query) => {
+  async (query, streamingCallback) => {
     const docs = await ai.retrieve({
       retriever: pdfChatRetriever,
       query,
       options: { k: 3 },
     });
 
-    const augmentedPrompt = ragTemplate({
-      question: query,
-      context: docs.map((d) => d.text).join('\n\n'),
-    });
-    const llmResponse = await ai.generate({
-      model: gemini15Flash,
-      prompt: augmentedPrompt,
-    });
-    return llmResponse.text;
+    return augmentedPrompt(
+      {
+        question: query,
+        context: docs.map((d) => d.text),
+      },
+      {
+        streamingCallback,
+      }
+    ).then((r) => r.text);
   }
 );
 
@@ -80,7 +66,7 @@ const chunkingConfig = {
 } as any;
 
 // Define a flow to index documents into the "vector store"
-// genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
+// genkit flow:run indexPdf '"./docs/flume-java.pdf"'
 export const indexPdf = ai.defineFlow(
   {
     name: 'indexPdf',
@@ -105,25 +91,15 @@ export const indexPdf = ai.defineFlow(
   }
 );
 
-async function extractText(filePath: string): Promise<string> {
-  let doc = await getDocument(filePath).promise;
-
-  let pdfTxt = '';
-  const numPages = doc.numPages;
-  for (let i = 1; i <= numPages; i++) {
-    let page = await doc.getPage(i);
-    let content = await page.getTextContent();
-    let strings = content.items.map((item) => {
-      const str: string = (item as any).str;
-      return str === '' ? '\n' : str;
-    });
-
-    pdfTxt += '\n\npage ' + i + '\n\n' + strings.join('');
-  }
-  return pdfTxt;
+async function extractText(filePath: string) {
+  const pdfFile = path.resolve(filePath);
+  const dataBuffer = fs.readFileSync(pdfFile);
+  const data = await pdf(dataBuffer);
+  return data.text;
 }
 
-// genkit flow:run synthesizeQuestions '"./docs/sfspca-cat-adoption-handbook-2023.pdf"' --output synthesizedQuestions.json
+// genkit flow:run synthesizeQuestions '"./docs/flume-java.pdf"' --output synthesizedQuestions.json
+// genkit flow:batchRun pdfQA synthesizedQuestions.json --output batchinput_small_out.json
 export const synthesizeQuestions = ai.defineFlow(
   {
     name: 'synthesizeQuestions',
@@ -151,3 +127,7 @@ export const synthesizeQuestions = ai.defineFlow(
     return questions;
   }
 );
+
+ai.startFlowServer({
+  flows: [pdfQA],
+});

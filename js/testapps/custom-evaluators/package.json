@@ -1,5 +1,5 @@
 {
-  "name": "eval",
+  "name": "custom-evaluators",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -9,7 +9,6 @@
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
-    "build-and-run": "pnpm build && node lib/index.js",
     "dev": "tsx --watch src/index.ts",
     "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev"
   },
@@ -17,10 +16,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "workspace:*",
-    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/vertexai": "workspace:*"
+    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "genkit": "workspace:*",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",

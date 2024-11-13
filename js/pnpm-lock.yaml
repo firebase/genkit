@@ -723,7 +723,7 @@ importers:
         specifier: ^5.6.2
         version: 5.6.2
 
-  testapps/byo-evaluator:
+  testapps/custom-evaluators:
     dependencies:
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
@@ -758,68 +758,7 @@ importers:
         version: 4.19.2
       typescript:
         specifier: ^5.3.3
-        version: 5.4.5
-
-  testapps/cat-eval:
-    dependencies:
-      '@genkit-ai/dev-local-vectorstore':
-        specifier: workspace:*
-        version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/evaluator':
-        specifier: workspace:*
-        version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/googleai':
-        specifier: workspace:*
-        version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      '@google-cloud/firestore':
-        specifier: ^7.9.0
-        version: 7.9.0(encoding@0.1.13)
-      '@opentelemetry/sdk-trace-base':
-        specifier: ^1.22.0
-        version: 1.25.1(@opentelemetry/api@1.9.0)
-      firebase-admin:
-        specifier: '>=12.2'
-        version: 12.3.1(encoding@0.1.13)
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-      genkitx-pinecone:
-        specifier: workspace:*
-        version: link:../../plugins/pinecone
-      llm-chunk:
-        specifier: ^0.0.1
-        version: 0.0.1
-      pdf-parse:
-        specifier: ^1.1.1
-        version: 1.1.1
-      pdfjs-dist:
-        specifier: ^4.0.379
-        version: 4.2.67(encoding@0.1.13)
-      pdfjs-dist-legacy:
-        specifier: ^1.0.1
-        version: 1.0.1
-    devDependencies:
-      '@types/pdf-parse':
-        specifier: ^1.1.4
-        version: 1.1.4
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      tsx:
-        specifier: ^4.7.0
-        version: 4.19.1
-      typescript:
-        specifier: ^5.3.3
-        version: 5.4.5
+        version: 5.6.3
 
   testapps/dev-ui-gallery:
     dependencies:
@@ -923,35 +862,7 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
-  testapps/eval:
-    dependencies:
-      '@genkit-ai/evaluator':
-        specifier: workspace:*
-        version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-    devDependencies:
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      tsx:
-        specifier: ^4.7.0
-        version: 4.19.2
-      typescript:
-        specifier: ^5.3.3
-        version: 5.4.5
-
-  testapps/evaluator-gut-check:
+  testapps/evals:
     dependencies:
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
@@ -968,16 +879,49 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      '@google-cloud/firestore':
+        specifier: ^7.9.0
+        version: 7.9.0(encoding@0.1.13)
+      '@opentelemetry/sdk-trace-base':
+        specifier: ^1.22.0
+        version: 1.26.0(@opentelemetry/api@1.9.0)
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 12.3.1(encoding@0.1.13)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
+      genkitx-langchain:
+        specifier: workspace:*
+        version: link:../../plugins/langchain
+      genkitx-pinecone:
+        specifier: workspace:*
+        version: link:../../plugins/pinecone
+      llm-chunk:
+        specifier: ^0.0.1
+        version: 0.0.1
+      pdf-parse:
+        specifier: ^1.1.1
+        version: 1.1.1
+      pdfjs-dist:
+        specifier: ^4.0.379
+        version: 4.2.67(encoding@0.1.13)
+      pdfjs-dist-legacy:
+        specifier: ^1.0.1
+        version: 1.0.1
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      tsx:
+        specifier: ^4.7.0
+        version: 4.19.2
       typescript:
         specifier: ^5.3.3
-        version: 5.4.5
+        version: 5.6.3
 
   testapps/express:
     dependencies:
@@ -1264,6 +1208,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 12.3.1(encoding@0.1.13)
       genkit:
         specifier: workspace:*
         version: link:../../genkit

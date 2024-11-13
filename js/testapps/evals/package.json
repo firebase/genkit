@@ -1,5 +1,5 @@
 {
-  "name": "byo-evaluators",
+  "name": "evals",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -9,6 +9,7 @@
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
+    "build-and-run": "pnpm build && node lib/index.js",
     "dev": "tsx --watch src/index.ts",
     "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev"
   },
@@ -21,13 +22,21 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "@google-cloud/firestore": "^7.9.0",
+    "@opentelemetry/sdk-trace-base": "^1.22.0",
+    "firebase-admin": ">=12.2",
     "genkit": "workspace:*",
-    "path": "^0.12.7"
+    "genkitx-langchain": "workspace:*",
+    "genkitx-pinecone": "workspace:*",
+    "llm-chunk": "^0.0.1",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.0.379",
+    "pdfjs-dist-legacy": "^1.0.1"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
-    "tsx": "^4.7.0",
     "rimraf": "^6.0.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
 }

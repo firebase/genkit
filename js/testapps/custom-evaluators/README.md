@@ -1,10 +1,10 @@
-# Writing your own evaluator
+# Writing your own evaluators
 
 This sample demonstrates how to write your own suite of custom evaluators. The evaluators in this package demonstrate how to write evaluators that leverage LLMs as well as a simple regex matcher. There are also simple test datasets to demonstrate how to use them.
 
-## The Bring Your Own (BYO) Evaluator Plugin
+## The Bring Your Own (BYO) custom evaluator plugin
 
-To use a new evaluator, you need to define an evaluator plugin that is registered with genkit. We define this as a function `byoEval` in `src/index.ts`.
+To use a new evaluator, you need to define a custom evaluator plugin that is registered with genkit. We define this as a function `byoEval` in `src/index.ts`.
 
 ## Non LLM Evaluators
 
@@ -81,7 +81,6 @@ genkit eval:run datasets/deliciousness_dataset.json --evaluators=byo/deliciousne
 ```
 
 Note: The evaluators implemented in this plugin do not consider the `input` provided to the model as part of the evaluation. Therefore, many of the test datasets provided in this testapp have `input` set to `"input"`. If you are implementing an evaluator that utilized the input provied to the model, you will have to provide the actual input in this field.
-
 
 ## See your results
 
