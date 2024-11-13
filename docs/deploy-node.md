@@ -19,7 +19,7 @@ sample flow.
 
 1. **Create a directory for the project:**
 
-   ```bash
+   ```posix-terminal
    export GENKIT_PROJECT_HOME=~/tmp/genkit-express-project
    mkdir -p $GENKIT_PROJECT_HOME
    cd $GENKIT_PROJECT_HOME
@@ -27,13 +27,13 @@ sample flow.
 
 1. **Initialize a Node.js project:**
 
-   ```bash
+   ```posix-terminal
    npm init -y
    ```
 
 1. **Install Genkit and necessary dependencies:**
 
-   ```bash
+   ```posix-terminal
    npm install --save genkit @genkit-ai/googleai
    npm install -D genkit-cli typescript tsx
    ```
@@ -100,14 +100,14 @@ To deploy a Node.js project, define `start` and `build` scripts in `package.json
 
 Run the build command, then start the server and test it locally to confirm it works as expected.
 
-```bash
+```posix-terminal
 npm run build
 npm start
 ```
 
 In another terminal window, test the endpoint:
 
-```bash
+```posix-terminal
 curl -X POST "http://127.0.0.1:3400/menuSuggestionFlow" \
   -H "Content-Type: application/json" \
   -d '{"data": "banana"}'
@@ -117,7 +117,7 @@ curl -X POST "http://127.0.0.1:3400/menuSuggestionFlow" \
 
 You can use the Developer UI to test flows interactively during development:
 
-```bash
+```posix-terminal
 npx genkit start -- npm run start
 ```
 
