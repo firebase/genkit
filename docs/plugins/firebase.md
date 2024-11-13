@@ -75,22 +75,14 @@ Application Default Credentials. To specify your credentials:
 
 ### Telemetry
 
-The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export, set the `enableTracingAndMetrics` to `true` and add a telemetry section to the Genkit configuration:
+The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export call `enableFirebaseTelemetry()`:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {configureGenkit} from "@genkit-ai/core";
-import {firebase} from "@genkit-ai/firebase";
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
-configureGenkit({
-  plugins: [firebase()],
-  enableTracingAndMetrics: true,
-  telemetry: {
-    instrumentation: 'firebase',
-    logger: 'firebase',
-  },
-});
+enableFirebaseTelemetry();
 ```
 
 Refer the the [Google Cloud plugin](google-cloud.md) documentation for all configuration options and the necessary APIs that need to be enabled on the project.
