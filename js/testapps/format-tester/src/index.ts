@@ -34,7 +34,7 @@ const ai = genkit({
     }),
     vertexAIModelGarden({
       location: 'us-east5',
-      modelGarden: { models: [claude35Sonnet, claude35SonnetV2] },
+      models: [claude35Sonnet, claude35SonnetV2],
     }),
   ],
 });

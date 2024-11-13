@@ -33,13 +33,12 @@ export type VertexAIRerankerOptions = z.infer<
   typeof VertexAIRerankerOptionsSchema
 >;
 
-// Define the structure for each individual reranker configuration
-export const VertexRerankerConfigSchema = z.object({
-  name: z.string().optional().describe('Name of the reranker'), // Optional: Name of the reranker
-  model: z.string().optional().describe('Model name for reranking'), // Optional: Model name, defaults to a pre-defined model
-});
-
-export type VertexRerankerConfig = z.infer<typeof VertexRerankerConfigSchema>;
+export interface VertexRerankerConfig {
+  // Optional: Name of the reranker
+  name?: string;
+  // Optional: Model name, defaults to a pre-defined model
+  model?: string;
+}
 
 export interface VertexRerankOptions {
   authClient: GoogleAuth;
@@ -50,7 +49,7 @@ export interface VertexRerankOptions {
 
 export interface RerankerOptions {
   /** Configure reranker options */
-  rerankOptions: VertexRerankerConfig[];
+  rerankers: (string | VertexRerankerConfig)[];
 }
 
 export interface PluginOptions extends CommonPluginOptions, RerankerOptions {}
