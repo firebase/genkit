@@ -19,7 +19,9 @@ sample flow.
 
   ```posix-terminal
   export GENKIT_PROJECT_HOME=~/tmp/genkit-express-project
+
   mkdir -p $GENKIT_PROJECT_HOME
+
   cd $GENKIT_PROJECT_HOME
   ```
 
@@ -33,6 +35,7 @@ sample flow.
 
   ```posix-terminal
   npm install --save genkit @genkit-ai/googleai
+
   npm install -D genkit-cli typescript tsx
   ```
 
@@ -115,6 +118,7 @@ Run the build command, then start the server and test it locally to confirm it w
 
 ```posix-terminal
 npm run build
+
 npm start
 ```
 
