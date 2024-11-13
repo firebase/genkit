@@ -146,7 +146,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   console.log(text);
   ```
 
-  - {Chat}
+- {Chat}
 
   ```javascript
   import { genkit, z } from 'genkit';
@@ -166,7 +166,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   // Ahoy there! Your name is Pavel, you scurvy dog
   ```
 
-   - {Agents}
+- {Agents}
 
   ```javascript
   import { genkit, z } from 'genkit';
@@ -185,7 +185,7 @@ See the following code samples for a concrete idea of how to use these capabilit
       tools: [reservationTool, reservationCancelationTool, reservationListTool],
       
     },
-    `{{role "system"}} Help guests make and manage reservations`
+    `{% verbatim %}{{role "system"}}{% endverbatim %} Help guests make and manage reservations`
   );
 
   const menuInfoAgent = ...
@@ -198,7 +198,7 @@ See the following code samples for a concrete idea of how to use these capabilit
       description: 'Triage Agent',
       tools: [reservationAgent, menuInfoAgent, complaintAgent],
     },
-    `{{role "system"}} You are an AI customer service agent for Pavel's Cafe.
+    `{% verbatim %}{{role "system"}}{% endverbatim %} You are an AI customer service agent for Pavel's Cafe.
     Greet the user and ask them how you can help. If appropriate, transfer to an
     agent that can better handle the request. If you cannot help the customer with
     the available tools, politely explain so.`
