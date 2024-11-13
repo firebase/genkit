@@ -287,7 +287,9 @@ alongside the native flows. You have two options:
       }
     );
 
-    ai.startFlowServer();  // Registers the middleware
+    ai.startFlowServer({
+      flows: [selfSummaryFlow],
+    });  // Registers the middleware
     ```
 
     For more information about using Express, see the [Cloud Run](/genkit/express)
