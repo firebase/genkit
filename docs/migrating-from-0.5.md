@@ -105,9 +105,9 @@ See the [Monitoring and Logging](./monitoring.md) documentation for more details
 
 See the [Get Started](./get-started.md) documentation for more details on how to configure a Genkit instance.
 
-#### Migrate Genkit primitives to be called from the `genkit` instance
+#### Migrate Genkit actions to be called from the `genkit` instance
 
-Primitive definitions (flows, tools, retrievers, indexers, etc.) are defined per instance. Read the [Changelog](#changelog) for all of the features you will need to change, but here is an example of some common ones.
+Actions (flows, tools, retrievers, indexers, etc.) are defined per instance. Read the [Changelog](#changelog) for all of the features you will need to change, but here is an example of some common ones.
 
 ```js
 import { genkit } from 'genkit';
@@ -121,6 +121,8 @@ const sampleFlow = ai.defineFlow(...);
 const sampleTool = ai.defineTool(...);
 
 async function callMyFlow() {
+  // Previously, text output could accessed via .text()
+  // Now it is either .output() or .text
   return await sampleFlow().output();
 }
 
