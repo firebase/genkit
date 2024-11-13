@@ -242,7 +242,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   const result = await ai.generate({
       prompt: 'Use the provided context from the Genkit documentation to answer this query: ${query}',
-      context: docs // Pass retrieved documents to the model
+      docs // Pass retrieved documents to the model
   });
   ```
 
