@@ -106,6 +106,7 @@ function withMetadata<
 
 const EvalRequestSchema = z.object({
   dataset: z.array(BaseDataPointSchema),
+  evalRunId: z.string(),
   options: z.unknown(),
 });
 
@@ -115,6 +116,7 @@ export interface EvaluatorParams<
 > {
   evaluator: EvaluatorArgument<DataPoint, CustomOptions>;
   dataset: Dataset<DataPoint>;
+  evalRunId?: string;
   options?: z.infer<CustomOptions>;
 }
 
@@ -261,6 +263,7 @@ export async function evaluate<
   return (await evaluator({
     dataset: params.dataset,
     options: params.options,
+    evalRunId: params.evalRunId ?? randomUUID(),
   })) as EvalResponses;
 }
 

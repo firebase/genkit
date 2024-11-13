@@ -15,6 +15,7 @@
  */
 
 import { MessageData } from '@genkit-ai/ai';
+import { BaseEvalDataPoint } from '@genkit-ai/ai/evaluator';
 import { ModelAction } from '@genkit-ai/ai/model';
 import { StreamingCallback } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
@@ -83,6 +84,27 @@ export function defineEchoModel(ai: Genkit): ModelAction {
         },
         finishReason: 'stop',
       }));
+    }
+  );
+}
+
+export function bonknessEvaluator(ai: Genkit) {
+  return ai.defineEvaluator(
+    {
+      name: 'bonkness',
+      displayName: 'Bonkness',
+      definition: 'Judges whether a statement is bonk',
+    },
+    async (datapoint: BaseEvalDataPoint) => {
+      return {
+        testCaseId: datapoint.testCaseId,
+        evaluation: {
+          score: 'Much bonk',
+          details: {
+            reasoning: 'Because I said so!',
+          },
+        },
+      };
     }
   );
 }
