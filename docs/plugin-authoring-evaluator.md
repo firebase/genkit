@@ -1,4 +1,4 @@
-# Writing a Genkit Evaluator Plugin
+# Writing a Genkit Evaluator
 
 Firebase Genkit can be extended to support custom evaluation of test case output, either by using an LLM as a judge, or purely programmatically.
 
@@ -63,6 +63,8 @@ const DELICIOUSNESS_PROMPT = ai.definePrompt(
 Now, define the function that will take an example which includes `output` as is required by the prompt and score the result. Genkit test cases include `input` as required a required field, with optional fields for `output` and `context`. It is the responsibility of the evaluator to validate that all fields required for evaluation are present.
 
 ```ts
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+
 /**
  * Score an individual test case for delciousness.
  */
@@ -70,7 +72,7 @@ export async function deliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   const d = dataPoint;
@@ -110,6 +112,8 @@ export async function deliciousnessScore<
 The final step is to write a function that defines the evaluator action itself.
 
 ```ts
+import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
+
 /**
  * Create the Deliciousness evaluator action.
  */
@@ -125,7 +129,7 @@ export function createDeliciousnessEvaluator<
       displayName: 'Deliciousness',
       definition: 'Determines if output is considered delicous.',
     },
-    async (datapoint: BaseDataPoint) => {
+    async (datapoint: BaseEvalDataPoint) => {
       const score = await deliciousnessScore(judge, datapoint, judgeConfig);
       return {
         testCaseId: datapoint.testCaseId,
@@ -150,6 +154,8 @@ Heuristic evaluators in Genkit are made up of 2 components:
 Just like the LLM-based evaluator, define the scoring function. In this case, the scoring function does not need to know about the judge LLM or its config.
 
 ```ts
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+
 const US_PHONE_REGEX =
   /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4}$/i;
 
@@ -157,7 +163,7 @@ const US_PHONE_REGEX =
  * Scores whether an individual datapoint matches a US Phone Regex.
  */
 export async function usPhoneRegexScore(
-  dataPoint: BaseDataPoint
+  dataPoint: BaseEvalDataPoint
 ): Promise<Score> {
   const d = dataPoint;
   if (!d.output || typeof d.output !== 'string') {
@@ -177,6 +183,8 @@ export async function usPhoneRegexScore(
 #### Define the evaluator action
 
 ```ts
+import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
+
 /**
  * Configures a regex evaluator to match a US phone number.
  */
@@ -193,7 +201,7 @@ export function createUSPhoneRegexEvaluator(
           'Runs the output against a regex and responds with 1 if a match is found and 0 otherwise.',
         isBilled: false,
       },
-      async (datapoint: BaseDataPoint) => {
+      async (datapoint: BaseEvalDataPoint) => {
         const score = await regexMatchScore(datapoint, regexMetric.regex);
         return fillScores(datapoint, score);
       }
@@ -253,7 +261,6 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
     async (ai: Genkit) => {
       const { judge, judgeConfig, metrics } = options;
       const evaluators: EvaluatorAction[] = metrics.map((metric) => {
-        // We'll create these functions in the next step
         switch (metric) {
           case DELICIOUSNESS:
             // This evaluator requires an LLM as judge
