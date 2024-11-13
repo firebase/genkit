@@ -50,7 +50,7 @@ npx genkit start -- npx tsx --watch src/index.ts
 npx genkit start -- node --watch src/index.js
 ```
 
-Including the `--watch` option will enable the Developer UI to notice and reflect saved changes to your code without needing to restart.
+Including the `--watch` option will enable the Developer UI to notice and reflect saved changes to your code without needing to restart it.
 
 After running the command, you will get an output like the following:
 
@@ -60,6 +60,12 @@ Genkit Developer UI: http://localhost:4000
 ```
 
 Open the local host address for the Genkit Developer UI in your browser to view it. You can also open it in the VS Code simple browser to view it alongside your code.
+
+Alternatively, you can use add the `-o` option to the start command to automatically open the Developer UI in your default browser tab.
+
+```
+npx genkit start -o -- <command to run your code>
+```
 
 ![Welcome to Genkit Developer UI](resources/welcome_to_genkit_developer_ui.png)
 
