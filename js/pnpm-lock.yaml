@@ -1197,7 +1197,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.0-rc.0)(@genkit-ai/core@0.9.0-rc.0)
+        version: 0.10.1(@genkit-ai/ai@0.9.0-rc.2)(@genkit-ai/core@0.9.0-rc.2)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1323,6 +1323,9 @@ importers:
         specifier: ^9.11.0
         version: 9.11.0(encoding@0.1.13)
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -2124,11 +2127,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.0-rc.0':
-    resolution: {integrity: sha512-eik3mk3zXvQZ9jexr/DHd545LKE11Dp0KQqmamHhncZd5IJPZU9v9G0/Cmqv34IY46yMNFLtq90XGTIZ7OF4Zw==}
+  '@genkit-ai/ai@0.9.0-rc.2':
+    resolution: {integrity: sha512-FdOMhwnyjXoy8dapmA+nvMcRf2OT6ErGB5AroEdD/Auk6zc4XlTtvflqVrJAgQWF0y5J09r0LY1BAJnXFGWlKQ==}
 
-  '@genkit-ai/core@0.9.0-rc.0':
-    resolution: {integrity: sha512-QijKLY+aSrBMFVog2TIWmftq38XQz/yjonuhT3pa06R0P8q7r9WyUIl0s2ioUZfSlWPZ1yBTs7mpacKh5QFmbQ==}
+  '@genkit-ai/core@0.9.0-rc.2':
+    resolution: {integrity: sha512-+wm/OJmynq0o7cLreOtifT0ByGfbkRr4x7p3xI+tjcuf3+RMP+Q7RhX2H3eX+JyFHUIYRlWElYwBKzJcZZfZ7Q==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -7179,9 +7182,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.0-rc.0':
+  '@genkit-ai/ai@0.9.0-rc.2':
     dependencies:
-      '@genkit-ai/core': 0.9.0-rc.0
+      '@genkit-ai/core': 0.9.0-rc.2
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -7192,7 +7195,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.0-rc.0':
+  '@genkit-ai/core@0.9.0-rc.2':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.26.0(@opentelemetry/api@1.9.0)
@@ -9880,10 +9883,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-rc.0)(@genkit-ai/core@0.9.0-rc.0):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-rc.2)(@genkit-ai/core@0.9.0-rc.2):
     dependencies:
-      '@genkit-ai/ai': 0.9.0-rc.0
-      '@genkit-ai/core': 0.9.0-rc.0
+      '@genkit-ai/ai': 0.9.0-rc.2
+      '@genkit-ai/core': 0.9.0-rc.2
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
