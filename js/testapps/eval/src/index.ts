@@ -48,6 +48,7 @@ export const dogFactsEvalFlow = ai.defineFlow(
     return await ai.evaluate({
       evaluator: genkitEvalRef(GenkitMetric.FAITHFULNESS),
       dataset: samples,
+      evalRunId: 'my-dog-eval',
     });
   }
 );

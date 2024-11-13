@@ -9,7 +9,9 @@
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
-    "build-and-run": "pnpm build && node lib/index.js"
+    "build-and-run": "pnpm build && node lib/index.js",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,8 @@
     "@genkit-ai/vertexai": "workspace:*"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
+    "tsx": "^4.7.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }
