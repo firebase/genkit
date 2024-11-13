@@ -9,6 +9,7 @@ The Firebase plugin provides several integrations with Firebase services:
 - Trace storage using Cloud Firestore
 - Flow deployment using Cloud Functions
 - Authorization policies for Firebase Authentication users
+- Telemetry export to [Google Cloud’s operation suite](https://cloud.google.com/products/operations)
 
 <!-- - State storage using Cloud Firestore -->
 
@@ -26,6 +27,7 @@ npm i --save @genkit-ai/firebase
 - In addition, if you want to deploy flows to Cloud Functions, you must
   [upgrade your project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered)
   to the Blaze pay-as-you-go plan.
+- If you want to run code locally that exports telemetry, you need the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) tool installed.
 
 ## Configuration
 
@@ -36,11 +38,11 @@ To use this plugin, specify it when you call `configureGenkit()`:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {configureGenkit} from "@genkit-ai/core";
-import {firebase} from "@genkit-ai/firebase";
+import { genkit } from 'genkit';
+import { firebase } from '@genkit-ai/firebase';
 
-configureGenkit({
-  plugins: [firebase({projectId: "your-firebase-project"})],
+const ai = genkit({
+  plugins: [firebase({ projectId: "your-firebase-project" })],
 });
 ```
 
@@ -147,15 +149,15 @@ const yourRetrieverRef = defineFirestoreRetriever({
 });
 ```
 
-To use it, pass it to the `retrieve()` function:
+To use it, pass it to the `ai.retrieve()` function:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-const docs = await retrieve({
+const docs = await ai.retrieve({
   retriever: yourRetrieverRef,
   query: "look for something",
-  options: {limit: 5},
+  options: { limit: 5 },
 });
 ```
 
@@ -175,17 +177,14 @@ in the following way:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```ts
-import { configureGenkit } from "@genkit-ai/core";
-import { embed } from "@genkit-ai/ai/embedder";
-import { defineFlow, run } from "@genkit-ai/flow";
-import { textEmbeddingGecko, vertexAI } from "@genkit-ai/vertexai";
+import { genkit } from 'genkit';
+import { vertexAI, textEmbedding004 } from "@genkit-ai/vertexai";
 
 import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 import { chunk } from "llm-chunk";
 import pdf from "pdf-parse";
-import * as z from "zod";
 
 import { readFile } from "fs/promises";
 import path from "path";
@@ -195,42 +194,32 @@ const indexConfig = {
   collection: "menuInfo",
   contentField: "text",
   vectorField: "embedding",
-  embedder: textEmbeddingGecko,
+  embedder: textEmbedding004,
 };
 
-configureGenkit({
+const ai = genkit({
   plugins: [vertexAI({ location: "us-central1" })],
-  enableTracingAndMetrics: false,
 });
 
 const app = initializeApp({ credential: applicationDefault() });
 const firestore = getFirestore(app);
 
-export const indexMenu = defineFlow(
-  {
-    name: "indexMenu",
-    inputSchema: z.string().describe("PDF file path"),
-    outputSchema: z.void(),
-  },
-  async (filePath: string) => {
-    filePath = path.resolve(filePath);
+export async function indexMenu(filePath: string) {
+  filePath = path.resolve(filePath);
 
-    // Read the PDF.
-    const pdfTxt = await run("extract-text", () =>
-      extractTextFromPdf(filePath)
-    );
+  // Read the PDF.
+  const pdfTxt = await extractTextFromPdf(filePath);
 
-    // Divide the PDF text into segments.
-    const chunks = await run("chunk-it", async () => chunk(pdfTxt));
+  // Divide the PDF text into segments.
+  const chunks = await chunk(pdfTxt);
 
-    // Add chunks to the index.
-    await run("index-chunks", async () => indexToFirestore(chunks));
-  }
-);
+  // Add chunks to the index.
+  await indexToFirestore(chunks);
+}
 
 async function indexToFirestore(data: string[]) {
   for (const text of data) {
-    const embedding = await embed({
+    const embedding = await ai.embed({
       embedder: indexConfig.embedder,
       content: text,
     });
@@ -271,47 +260,8 @@ work. To create the index:
   However, the correct indexing configuration depends on the queries you will
   make and the embedding model you're using.
 
-- Alternatively, call `retrieve()` and Firestore will throw an error with the
+- Alternatively, call `ai.retrieve()` and Firestore will throw an error with the
   correct command to create the index.
-
-#### Learn more
-
-- See the [Retrieval-augmented generation](../rag.md) page for a general
-  discussion on indexers and retrievers in Genkit.
-- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
-  in the Cloud Firestore docs for more on the vector search feature.
-
-### Cloud Firestore trace storage
-
-You can use Cloud Firestore to store traces:
-
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-import {firebase} from "@genkit-ai/firebase";
-
-configureGenkit({
-  plugins: [firebase()],
-  traceStore: "firebase",
-  enableTracingAndMetrics: true,
-});
-```
-
-By default, the plugin stores traces in a collection called `genkit-traces` in
-the project's default database. To change either setting:
-
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-firebase({
-  traceStore: {
-    collection: "your-collection";
-    databaseId: "your-db";
-  }
-})
-```
-
-When using Firestore-based trace storage you will want to enable TTL for the trace documents: https://firebase.google.com/docs/firestore/ttl
 
 ### Cloud Functions
 
@@ -325,12 +275,7 @@ to call them.
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {firebase} from "@genkit-ai/firebase";
-import {onFlow, noAuth} from "@genkit-ai/firebase/functions";
-
-configureGenkit({
-  plugins: [firebase()],
-});
+import { onFlow, noAuth } from "@genkit-ai/firebase/functions";
 
 export const exampleFlow = onFlow(
   {
@@ -408,6 +353,3 @@ takes a
 [`DecodedIdToken`](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken)
 as its only parameter. In this function, examine the user token and throw an
 error if the user fails to meet any of the criteria you want to require.
-
-See [Authorization and integrity](../auth.md) for a more thorough discussion of
-this topic.
