@@ -4,95 +4,114 @@ Genkit 0.9 introduces a number of breaking changes alongside feature enhancement
 
 ## Quickstart guide
 
-The following steps will get you up and running on Genkit 0.9 quickly. Read more information about these changes in the detailed [Changelog](#changelog) below.
+The following steps will help you migrate from Genkit 0.5 to Genkit 0.9 quickly. Read more information about these changes in the detailed [Changelog](#changelog) below.
 
 ### 1. Install the new CLI
 
 * Uninstall the old CLI
 
-```posix-terminal
-npm uninstall -g genkit
-```
+  ```posix-terminal
+  npm uninstall -g genkit && npm uninstall genkit
+  ```
 
 * Install the new CLI
 
-```posix-terminal
-# Install globally
-npm i -g genkit-cli
-
-# Or install as a dev dependency
-npm i -D genkit-cli
-```
+  ```posix-terminal
+  # Install globally
+  npm i -g genkit-cli
+  
+  # Or install as a dev dependency
+  npm i -D genkit-cli
+  ```
 
 ### 2. Update your dependencies
 
 * Remove individual Genkit core packages
 
-```posix-terminal
-npm uninstall @genkit-ai/ai @genkit-ai/core @genkit-ai/dotprompt @genkit-ai/flow
-```
+  ```posix-terminal
+  npm uninstall @genkit-ai/ai @genkit-ai/core @genkit-ai/dotprompt @genkit-ai/flow
+  ```
 
 * Install the new consolidated `genkit` package
 
-```posix-terminal
-npm i --save genkit
-```
+  ```posix-terminal
+  npm i --save genkit
+  ```
 
 * Upgrade all plugin versions (example below)
 
-```
-npm upgrade @genkit-ai/firebase
-```
+  ```
+  npm upgrade @genkit-ai/firebase
+  ```
 
 ### 3. Change your imports
 
-* Remove imports from individual Genkit core packages
+* Remove imports for individual Genkit core packages
 
-```js
-import { … } from '@genkit-ai/ai';
-import { … } from '@genkit-ai/core';
-import { … } from '@genkit-ai/flow';
-```
+  ```js
+  import { … } from '@genkit-ai/ai';
+  import { … } from '@genkit-ai/core';
+  import { … } from '@genkit-ai/flow';
+  ```
 
 * Remove zod imports
 
-```js
-import * as z from 'zod';
-```
+  ```js
+  import * as z from 'zod';
+  ```
   
 * Import `genkit` and `zod` from `genkit`
 
-```js
-import { z, genkit } from 'genkit';
-```
+  ```js
+  import { z, genkit } from 'genkit';
+  ```
 
 ### 4. Update your code
 
-#### Configuration is now much simpler 
+#### Remove the configureGenkit blocks 
 
 Configuration for Genkit is now done per instance. Telemetry and logging is configured globally and separately from the Genkit instance. 
+
+* Replace `configureGenkit` with `ai = genkit({...})` blocks. Keep only the plugin configuration.
+
+  ```js
+  import { genkit } from 'genkit';
+  
+  const ai = genkit({ plugins: [...]});
+  ```
+
+* Configure telemetry using enableFirebaseTelemetry or enableGoogleCloudTelemetry
+
+  For Firebase:
+  ```js
+  import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+  enableFirebaseTelemetry({...});
+  ```
+
+  For Google Cloud:
+  ```js
+  import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
+  enableGoogleCloudTelemetry({...});
+  ```
+
+* Set your logging level independently
+  ```js
+  import { logger } from 'genkit/logging';
+  
+  logger.setLogLevel('debug');
+  ```
 
 See the [Monitoring and Logging](./monitoring.md) documentation for more details on how to configure telemetry and logging.
 
 See the [Get Started](./get-started.md) documentation for more details on how to configure a Genkit instance.
 
-```js
-import { genkit } from 'genkit';
-import { logger } from 'genkit/logging';
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-
-logger.setLogLevel('debug');
-enableFirebaseTelemetry({...});
-
-const ai = genkit({ plugins: [...]});
-```
-
-#### Genkit primitives are now registered to a specific `genkit` instance
+#### Migrate Genkit primitives to be called from the `genkit` instance
 
 Primitive definitions (flows, tools, retrievers, indexers, etc.) are defined per instance. Read the [Changelog](#changelog) for all of the features you will need to change, but here is an example of some common ones.
 
 ```js
 import { genkit } from 'genkit';
+import { onFlow } from '@genkit-ai/firebase/functions';
 
 const ai = genkit({ plugins: [...]});
 
