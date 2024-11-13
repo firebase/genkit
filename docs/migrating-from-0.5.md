@@ -52,6 +52,11 @@ npm upgrade @genkit-ai/firebase
 import { … } from '@genkit-ai/ai';
 import { … } from '@genkit-ai/core';
 import { … } from '@genkit-ai/flow';
+```
+
+* Remove zod imports
+
+```js
 import * as z from 'zod';
 ```
   
