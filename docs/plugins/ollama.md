@@ -11,8 +11,8 @@ npm i --save genkitx-ollama
 
 ## Configuration
 
-This plugin requires that you first install and run ollama server. You can follow
-the instructions on: [https://ollama.com/download](https://ollama.com/download)
+This plugin requires that you first install and run the Ollama server. You can
+follow the instructions on: https://ollama.com/download
 
 You can use the Ollama CLI to download the model you are interested in. For
 example:
@@ -21,9 +21,9 @@ example:
 ollama pull gemma
 ```
 
-To use the plugin, specify it when you call genkit:
+To use this plugin, specify it when you initialize Genkit:
 
-```typescript
+```ts
 import { genkit } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 
@@ -33,10 +33,10 @@ const ai = genkit({
       models: [
         {
           name: 'gemma',
-          type: 'generate', // Options: 'chat' | 'generate' |
+          type: 'generate', // type: 'chat' | 'generate' | undefined
         },
       ],
-      serverAddress: 'http://127.0.0.1:11434', // default serverAddress to use
+      serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
   ],
 });
@@ -44,12 +44,13 @@ const ai = genkit({
 
 ### Authentication
 
-If you would like to access remote deployments of ollama that require custom headers (static,
-such as API keys, or dynamic, such as auth headers), you can specify those in the ollama config plugin:
+If you would like to access remote deployments of Ollama that require custom
+headers (static, such as API keys, or dynamic, such as auth headers), you can
+specify those in the Ollama config plugin:
 
 Static headers:
 
-```js
+```ts
 ollama({
   models: [{ name: 'gemma'}],
   requestHeaders: {
@@ -59,20 +60,20 @@ ollama({
 }),
 ```
 
-You can also dynamically set headers per request. Here's an example of how to set an ID token using
-the Google Auth library:
+You can also dynamically set headers per request. Here's an example of how to
+set an ID token using the Google Auth library:
 
-```js
+```ts
 import { GoogleAuth } from 'google-auth-library';
-import { ollama, OllamaPluginParams } from 'genkitx-ollama';
-import { genkit, isDevEnv } from '@genkit-ai/core';
+import { ollama } from 'genkitx-ollama';
+import { genkit } from 'genkit';
 
 const ollamaCommon = { models: [{ name: 'gemma:2b' }] };
 
 const ollamaDev = {
   ...ollamaCommon,
   serverAddress: 'http://127.0.0.1:11434',
-} as OllamaPluginParams;
+};
 
 const ollamaProd = {
   ...ollamaCommon,
@@ -81,7 +82,7 @@ const ollamaProd = {
     const headers = await fetchWithAuthHeader(params.serverAddress);
     return { Authorization: headers['Authorization'] };
   },
-} as OllamaPluginParams;
+};
 
 const ai = genkit({
   plugins: [
@@ -117,17 +118,19 @@ async function getIdTokenClient(url: string) {
 This plugin doesn't statically export model references. Specify one of the
 models you configured using a string identifier:
 
-```js
+```ts
 const llmResponse = await ai.generate({
-  model: 'ollama/gemma:2b',
+  model: 'ollama/gemma',
   prompt: 'Tell me a joke.',
 });
 ```
 
 ## Embedders
-The Ollama plugin supports embeddings, which can be used for similarity searches and other NLP tasks.
 
-```typescript
+The Ollama plugin supports embeddings, which can be used for similarity searches
+and other NLP tasks.
+
+```ts
 const ai = genkit({
   plugins: [
     ollama({

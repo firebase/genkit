@@ -19,7 +19,7 @@ import {
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
 import { Document, z } from 'genkit';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import {
   AnswerOutputSchema,
   MenuItem,

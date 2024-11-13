@@ -2,20 +2,20 @@
 
 The Vertex AI plugin provides interfaces to several AI services:
 
-- [Google generative AI models](https://cloud.google.com/vertex-ai/generative-ai/docs/):
-  - Gemini text generation
-  - Imagen2 image generation
-  - Text embedding generation
-- A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
-  - [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
-  - [ROUGE](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#rougeinput)
-  - [Fluency](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#fluencyinput)
-  - [Safety](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#safetyinput)
-  - [Groundeness](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#groundednessinput)
-  - [Summarization Quality](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationqualityinput)
-  - [Summarization Helpfulness](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationhelpfulnessinput)
-  - [Summarization Verbosity](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationverbosityinput)
-- [Vector Search](https://cloud.google.com/vertex-ai/docs/vector-search/overview)
+*   [Google generative AI models](https://cloud.google.com/vertex-ai/generative-ai/docs/):
+    *   Gemini text generation
+    *   Imagen2 image generation
+    *   Text embedding generation
+*   A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
+    *   [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
+    *   [ROUGE](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#rougeinput)
+    *   [Fluency](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#fluencyinput)
+    *   [Safety](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#safetyinput)
+    *   [Groundeness](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#groundednessinput)
+    *   [Summarization Quality](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationqualityinput)
+    *   [Summarization Helpfulness](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationhelpfulnessinput)
+    *   [Summarization Verbosity](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationverbosityinput)
+*   [Vector Search](https://cloud.google.com/vertex-ai/docs/vector-search/overview)
 
 ## Installation
 
@@ -23,59 +23,38 @@ The Vertex AI plugin provides interfaces to several AI services:
 npm i --save @genkit-ai/vertexai
 ```
 
-If you want to locally run flows that use this plugin, you also need the
-[Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install) installed.
+If you want to locally run flows that use this plugin, you also need the [Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install) installed.
 
 ## Configuration
 
-To use this plugin, specify it when you call `configureGenkit()`:
+To use this plugin, specify it when you initialize Genkit:
 
-```js
+```ts
+import { genkit } from 'genkit';
 import { vertexAI } from '@genkit-ai/vertexai';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' }),
   ],
-  // ...
 });
 ```
 
-The plugin requires you to specify your Google Cloud project ID, the
-[region](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations)
-to which you want to make Vertex API requests, and your Google Cloud project
-credentials.
+The plugin requires you to specify your Google Cloud project ID, the [region](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations) to which you want to make Vertex API requests, and your Google Cloud project credentials.
 
-- You can specify your Google Cloud project ID either by setting `projectId` in
-  the `vertexAI()` configuration or by setting the `GCLOUD_PROJECT` environment
-  variable. If you're running your flow from a Google Cloud environment (Cloud
-  Functions, Cloud Run, and so on), `GCLOUD_PROJECT` is automatically set to the
-  project ID of the environment.
+*   You can specify your Google Cloud project ID either by setting `projectId` in the `vertexAI()` configuration or by setting the `GCLOUD_PROJECT` environment variable. If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), `GCLOUD_PROJECT` is automatically set to the project ID of the environment.
+*   You can specify the API location either by setting `location` in the `vertexAI()` configuration or by setting the `GCLOUD_LOCATION` environment variable.
+*   To provide API credentials, you need to set up Google Cloud Application Default Credentials.
+    1. To specify your credentials:
+        *   If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), this is set automatically.
+        *   On your local dev environment, do this by running:
 
-- You can specify the API location either by setting `location` in the
-  `vertexAI()` configuration or by setting the `GCLOUD_LOCATION` environment
-  variable.
+            ```posix-terminal
+            gcloud auth application-default login
+            ```
 
-- To provide API credentials, you need to set up Google Cloud Application
-  Default Credentials.
-
-  1.  To specify your credentials:
-
-      - If you're running your flow from a Google Cloud environment (Cloud
-        Functions, Cloud Run, and so on), this is set automatically.
-
-      - On your local dev environment, do this by running:
-
-        ```posix-terminal
-        gcloud auth application-default login
-        ```
-
-      - For other environments, see the [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)
-        docs.
-
-  1.  In addition, make sure the account is granted the Vertex AI User IAM role
-      (`roles/aiplatform.user`). See the Vertex AI [access control](https://cloud.google.com/vertex-ai/generative-ai/docs/access-control)
-      docs.
+        *   For other environments, see the [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) docs.
+    2. In addition, make sure the account is granted the Vertex AI User IAM role (`roles/aiplatform.user`). See the Vertex AI [access control](https://cloud.google.com/vertex-ai/generative-ai/docs/access-control) docs.
 
 ## Usage
 
@@ -83,31 +62,37 @@ credentials.
 
 This plugin statically exports references to its supported generative AI models:
 
-```js
-import { gemini15Flash, gemini15Pro, imagen2 } from '@genkit-ai/vertexai';
+```ts
+import { gemini15Flash, gemini15Pro, imagen3 } from '@genkit-ai/vertexai';
 ```
 
-You can use these references to specify which model `generate()` uses:
+You can use these references to specify which model `ai.generate()` uses:
 
-```js
-const llmResponse = await generate({
+```ts
+const ai = genkit({
+  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+});
+
+const llmResponse = await ai.generate({
   model: gemini15Flash,
   prompt: 'What should I do when I visit Melbourne?',
 });
 ```
 
-This plugin also supports grounding Gemini text responses using
-[Google Search](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#web-ground-gemini)
-or [your own data](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#private-ground-gemini).
+This plugin also supports grounding Gemini text responses using [Google Search](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#web-ground-gemini) or [your own data](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#private-ground-gemini).
 
 Important: Vertex AI charges a fee for grounding requests in addition to the cost of making LLM requests.  See the [Vertex AI pricing](https://cloud.google.com/vertex-ai/generative-ai/pricing) page and be sure you understand grounding request pricing before you use this feature.
 
 Example:
 
-```js
-await generate({
+```ts
+const ai = genkit({
+  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+});
+
+await ai.generate({
   model: gemini15Flash,
-  prompt: ...,
+  prompt: '...',
   config: {
     googleSearchRetrieval: {
       disableAttribution: true,
@@ -124,22 +109,20 @@ await generate({
 })
 ```
 
-This plugin also statically exports a reference to the Gecko text embedding
-model:
+This plugin also statically exports a reference to the Gecko text embedding model:
 
-```js
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+```ts
+import { textEmbedding004 } from '@genkit-ai/vertexai';
 ```
 
-You can use this reference to specify which embedder an indexer or retriever
-uses. For example, if you use Chroma DB:
+You can use this reference to specify which embedder an indexer or retriever uses. For example, if you use Chroma DB:
 
-```js
-configureGenkit({
+```ts
+const ai = genkit({
   plugins: [
     chroma([
       {
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         collectionName: 'my-collection',
       },
     ]),
@@ -149,18 +132,25 @@ configureGenkit({
 
 Or you can generate an embedding directly:
 
-```js
-// import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-const embedding = await embed({
-  embedder: textEmbeddingGecko,
+```ts
+const ai = genkit({
+  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+});
+
+const embedding = await ai.embed({
+  embedder: textEmbedding004,
   content: 'How many widgets do you have in stock?',
 });
 ```
 
 Imagen3 model allows generating images from user prompt:
 
-```js
+```ts
 import { imagen3 } from '@genkit-ai/vertexai';
+
+const ai = genkit({
+  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+});
 
 const response = await ai.generate({
   model: imagen3,
@@ -173,7 +163,11 @@ return response.media();
 
 and even advanced editing of existing images:
 
-```js
+```ts
+const ai = genkit({
+  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+});
+
 const baseImg = fs.readFileSync('base.png', { encoding: 'base64' });
 const maskImg = fs.readFileSync('mask.png', { encoding: 'base64' });
 
@@ -198,7 +192,7 @@ const response = await ai.generate({
 return response.media();
 ```
 
-Refer to (Imagen model documentation)[https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2] for more detailed options.
+Refer to [Imagen model documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2) for more detailed options.
 
 #### Anthropic Claude 3 on Vertex AI Model Garden
 
@@ -206,7 +200,8 @@ If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/
 
 Here's sample configuration for enabling Vertex AI Model Garden models:
 
-```js
+```ts
+import { genkit } from 'genkit';
 import {
   vertexAI,
   claude3Haiku,
@@ -214,7 +209,7 @@ import {
   claude3Opus,
 } from '@genkit-ai/vertexai';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
@@ -228,8 +223,8 @@ export default configureGenkit({
 
 Then use them as regular models:
 
-```js
-const llmResponse = await generate({
+```ts
+const llmResponse = await ai.generate({
   model: claude3Sonnet,
   prompt: 'What should I do when I visit Melbourne?',
 });
@@ -241,10 +236,11 @@ First you'll need to enable [Llama 3.1 API Service](https://console.cloud.google
 
 Here's sample configuration for Llama 3.1 405b in Vertex AI plugin:
 
-```js
+```ts
+import { genkit } from 'genkit';
 import { vertexAI, llama31 } from '@genkit-ai/vertexai';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
@@ -258,8 +254,8 @@ export default configureGenkit({
 
 Then use it as regular models:
 
-```js
-const llmResponse = await generate({
+```ts
+const llmResponse = await ai.generate({
   model: llama31,
   prompt: 'Write a function that adds two numbers together',
 });
@@ -269,10 +265,11 @@ const llmResponse = await generate({
 
 To use the evaluators from Vertex AI Rapid Evaluation, add an `evaluation` block to your `vertexAI` plugin configuration.
 
-```js
+```ts
+import { genkit } from 'genkit';
 import { vertexAI, VertexAIEvaluationMetricType } from '@genkit-ai/vertexai';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       projectId: 'your-cloud-project',
@@ -290,7 +287,6 @@ export default configureGenkit({
       },
     }),
   ],
-  // ...
 });
 ```
 
@@ -300,60 +296,31 @@ Both evaluators can be run using the `genkit eval:run` command with a compatible
 
 ### Indexers and retrievers
 
-The Genkit Vertex AI plugin includes indexer and retriever implementations
-backed by the Vertex AI Vector Search service.
+The Genkit Vertex AI plugin includes indexer and retriever implementations backed by the Vertex AI Vector Search service.
 
-(See the [Retrieval-augmented generation](../rag.md) page to learn how indexers
-and retrievers are used in a RAG implementation.)
+(See the [Retrieval-augmented generation](http://../rag.md) page to learn how indexers and retrievers are used in a RAG implementation.)
 
-The Vertex AI Vector Search service is a document index that works alongside the
-document store of your choice: the document store contains the content of
-documents, and the Vertex AI Vector Search index contains, for each document,
-its vector embedding and a reference to the document in the document store.
-After your documents are indexed by the Vertex AI Vector Search service, it can
-respond to search queries, producing lists of indexes into your document store.
+The Vertex AI Vector Search service is a document index that works alongside the document store of your choice: the document store contains the content of documents, and the Vertex AI Vector Search index contains, for each document, its vector embedding and a reference to the document in the document store. After your documents are indexed by the Vertex AI Vector Search service, it can respond to search queries, producing lists of indexes into your document store.
 
-The indexer and retriever implementations provided by the Vertex AI plugin use
-either Cloud Firestore or BigQuery as the document store. The plugin also
-includes interfaces you can implement to support other document stores.
+The indexer and retriever implementations provided by the Vertex AI plugin use either Cloud Firestore or BigQuery as the document store. The plugin also includes interfaces you can implement to support other document stores.
 
-Important: Pricing for Vector Search consists of both a charge for every
-gigabyte of data you ingest and an hourly charge for the VMs that host your
-deployed indexes. See [Vertex AI pricing](https://cloud.google.com/vertex-ai/pricing#vectorsearch).
-This is likely to be most cost-effective when you are serving high volumes of
-traffic. Be sure to understand the billing implications the service will have
-on your project before using it.
+Important: Pricing for Vector Search consists of both a charge for every gigabyte of data you ingest and an hourly charge for the VMs that host your deployed indexes. See [Vertex AI pricing](https://cloud.google.com/vertex-ai/pricing#vectorsearch). This is likely to be most cost-effective when you are serving high volumes of traffic. Be sure to understand the billing implications the service will have on your project before using it.
 
 To use Vertex AI Vector Search:
 
-1.  Choose an embedding model. This model is responsible for creating vector
-    embeddings from text. Advanced users might use an embedding model optimized
-    for their particular data sets, but for most users, Vertex AI's
-    `text-embedding-004` model is a good choice for English text and the
-    `text-multilingual-embedding-002` model is good for multilingual text.
-
-1.  In the [Vector Search](https://console.cloud.google.com/vertex-ai/matching-engine/indexes)
-    section of the Google Cloud console, create a new index. The most important
-    settings are:
-
-    - **Dimensions:** Specify the dimensionality of the vectors produced by your
-      chosen embedding model. The `text-embedding-004` and
-      `text-multilingual-embedding-002` models produce vectors of 768
-      dimensions.
-
-    - **Update method:** Select streaming updates.
+1. Choose an embedding model. This model is responsible for creating vector embeddings from text. Advanced users might use an embedding model optimized for their particular data sets, but for most users, Vertex AI's `text-embedding-004` model is a good choice for English text and the `text-multilingual-embedding-002` model is good for multilingual text.
+2. In the [Vector Search](https://console.cloud.google.com/vertex-ai/matching-engine/indexes) section of the Google Cloud console, create a new index. The most important settings are:
+    *   **Dimensions:** Specify the dimensionality of the vectors produced by your chosen embedding model. The `text-embedding-004` and `text-multilingual-embedding-002` models produce vectors of 768 dimensions.
+    *   **Update method:** Select streaming updates.
 
     After you create the index, deploy it to a standard (public) endpoint.
 
-1.  Get a document indexer and retriever for the document store you want to use:
+3. Get a document indexer and retriever for the document store you want to use:
 
     **Cloud Firestore**
 
-    ```js
-    import {
-      getFirestoreDocumentIndexer,
-      getFirestoreDocumentRetriever
-    } from '@genkit-ai/vertexai';
+    ```ts
+    import { getFirestoreDocumentIndexer, getFirestoreDocumentRetriever } from '@genkit-ai/vertexai';
 
     import { initializeApp } from 'firebase-admin/app';
     import { getFirestore } from 'firebase-admin/firestore';
@@ -361,40 +328,32 @@ To use Vertex AI Vector Search:
     initializeApp({ projectId: PROJECT_ID });
     const db = getFirestore();
 
-    const firestoreDocumentRetriever: DocumentRetriever =
-      getFirestoreDocumentRetriever(db, FIRESTORE_COLLECTION);
-    const firestoreDocumentIndexer: DocumentIndexer =
-      getFirestoreDocumentIndexer(db, FIRESTORE_COLLECTION);
+    const firestoreDocumentRetriever = getFirestoreDocumentRetriever(db, FIRESTORE_COLLECTION);
+    const firestoreDocumentIndexer = getFirestoreDocumentIndexer(db, FIRESTORE_COLLECTION);
     ```
 
     **BigQuery**
 
-    ```js
-    import {
-      getBigQueryDocumentIndexer,
-      getBigQueryDocumentRetriever,
-    } from '@genkit-ai/vertexai';
+    ```ts
+    import { getBigQueryDocumentIndexer, getBigQueryDocumentRetriever } from '@genkit-ai/vertexai';
     import { BigQuery } from '@google-cloud/bigquery';
 
     const bq = new BigQuery({ projectId: PROJECT_ID });
 
-    const bigQueryDocumentRetriever: DocumentRetriever =
-      getBigQueryDocumentRetriever(bq, BIGQUERY_TABLE, BIGQUERY_DATASET);
-    const bigQueryDocumentIndexer: DocumentIndexer =
-      getBigQueryDocumentIndexer(bq, BIGQUERY_TABLE, BIGQUERY_DATASET);
+    const bigQueryDocumentRetriever = getBigQueryDocumentRetriever(bq, BIGQUERY_TABLE, BIGQUERY_DATASET);
+    const bigQueryDocumentIndexer = getBigQueryDocumentIndexer(bq, BIGQUERY_TABLE, BIGQUERY_DATASET);
     ```
 
     **Other**
 
-    To support other documents stores you can provide your own implementations
-    of `DocumentRetriever` and `DocumentIndexer`:
+    To support other documents stores you can provide your own implementations of `DocumentRetriever` and `DocumentIndexer`:
 
-    ```js
-    const myDocumentRetriever: DocumentRetriever = async (neighbors: Neighbor[]) => {
+    ```ts
+    const myDocumentRetriever = async (neighbors) => {
       // Return the documents referenced by `neighbors`.
       // ...
     }
-    const myDocumentIndexer: DocumentIndexer = async (documents: Document[]) => {
+    const myDocumentIndexer = async (documents) => {
       // Add `documents` to storage.
       // ...
     }
@@ -402,13 +361,13 @@ To use Vertex AI Vector Search:
 
     For an example, see [Sample Vertex AI Plugin Retriever and Indexer with Local File](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-custom).
 
-1.  Add a `vectorSearchOptions` block to your `vertexAI` plugin configuration:
+4. Add a `vectorSearchOptions` block to your `vertexAI` plugin configuration:
 
-    ```js
-    import { configureGenkit } from '@genkit-ai/core';
+    ```ts
+    import { genkit } from 'genkit';
     import { vertexAI, textEmbedding004 } from '@genkit-ai/vertexai';
 
-    configureGenkit({
+    const ai = genkit({
       plugins: [
         vertexAI({
           projectId: PROJECT_ID,
@@ -429,42 +388,31 @@ To use Vertex AI Vector Search:
     });
     ```
 
-    Provide the embedder you chose in the first step and the document indexer
-    and retriever you created in the previous step.
+    Provide the embedder you chose in the first step and the document indexer and retriever you created in the previous step.
 
-    To configure the plugin to use the Vector Search index you created earlier,
-    you need to provide several values, which you can find in the Vector Search
-    section of the Google Cloud console:
+    To configure the plugin to use the Vector Search index you created earlier, you need to provide several values, which you can find in the Vector Search section of the Google Cloud console:
 
-    - `indexId`: listed on the [Indexes](https://console.cloud.google.com/vertex-ai/matching-engine/indexes) tab
-    - `indexEndpointId`: listed on the [Index Endpoints](https://console.cloud.google.com/vertex-ai/matching-engine/index-endpoints) tab
-    - `deployedIndexId` and `publicDomainName`: listed on the "Deployed index
-      info" page, which you can open by clicking the name of the deployed index
-      on either of the tabs mentioned earlier
+    *   `indexId`: listed on the [Indexes](https://console.cloud.google.com/vertex-ai/matching-engine/indexes) tab
+    *   `indexEndpointId`: listed on the [Index Endpoints](https://console.cloud.google.com/vertex-ai/matching-engine/index-endpoints) tab
+    *   `deployedIndexId` and `publicDomainName`: listed on the "Deployed index info" page, which you can open by clicking the name of the deployed index on either of the tabs mentioned earlier
+5. Now that everything is configured, you can use the indexer and retriever in your Genkit application:
 
-1.  Now that everything is configured, import retriever and indexer references
-    from the plugin:
-
-    ```js
+    ```ts
     import {
       vertexAiIndexerRef,
       vertexAiRetrieverRef,
     } from '@genkit-ai/vertexai';
-    ```
 
-    Pass the references to `index()` and `retrieve()`:
+    // ... inside your flow function:
 
-    ```js
-    await index({
+    await ai.index({
       indexer: vertexAiIndexerRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
       }),
       documents,
     });
-    ```
 
-    ```js
-    const res = await retrieve({
+    const res = await ai.retrieve({
       retriever: vertexAiRetrieverRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
       }),
@@ -474,6 +422,6 @@ To use Vertex AI Vector Search:
 
 See the code samples for:
 
-- [Vertex Vector Search + BigQuery](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-bigquery)
-- [Vertex Vector Search + Firestore](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-firestore)
-- [Vertex Vector Search + a custom DB](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-custom)
+*   [Vertex Vector Search + BigQuery](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-bigquery)
+*   [Vertex Vector Search + Firestore](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-firestore)
+*   [Vertex Vector Search + a custom DB](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-custom)

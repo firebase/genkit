@@ -467,10 +467,13 @@ export class Genkit {
     ): Promise<GenerateOptions<O, CustomOptions>> => {
       let model: ModelAction | undefined;
       options = await options;
-      try {
-        model = await this.resolveModel(opt?.model ?? options.model);
-      } catch (e) {
-        // ignore, no model on a render is OK?
+      const modelArg = opt?.model ?? options.model;
+      if (modelArg) {
+        model = await this.resolveModel(modelArg);
+        // If model was explicitly specified and we failed to resolve it (bad ref maybe?), throw an error!
+        if (!model) {
+          throw new Error(`Model ${modelArg} not found`);
+        }
       }
       const p = await promptAction;
       const promptResult = await p(opt.input);

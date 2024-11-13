@@ -22,6 +22,7 @@ js/testapps/firebase-functions-sample1/public/bundle.js
 js/testapps/firebase-functions-sample1/public/config.js
 js/**/.genkit
 samples/**/.genkit
+go/**/.genkit
 ui-debug.log
 firebase-debug.log
 **/*.env

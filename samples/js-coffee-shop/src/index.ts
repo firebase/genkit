@@ -14,23 +14,11 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineDotprompt, dotprompt } from '@genkit-ai/dotprompt';
-import { firebase } from '@genkit-ai/firebase';
-import { defineFlow } from '@genkit-ai/flow';
-import googleAI, { geminiPro } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { genkit, z } from 'genkit';
 
-configureGenkit({
-  plugins: [
-    googleAI({ apiVersion: ['v1', 'v1beta'] }),
-    firebase(),
-    dotprompt(),
-  ],
-  enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
-  logLevel: 'debug',
-  traceStore: 'firebase',
+const ai = genkit({
+  plugins: [googleAI()],
 });
 
 // This example generates greetings for a customer at our new AI-powered coffee shop,
@@ -42,10 +30,10 @@ const CustomerNameSchema = z.object({
   customerName: z.string(),
 });
 
-const simpleGreetingPrompt = defineDotprompt(
+const simpleGreetingPrompt = ai.definePrompt(
   {
     name: 'simpleGreeting',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: CustomerNameSchema },
     output: {
       format: 'text',
@@ -58,13 +46,13 @@ Greet the customer in one sentence, and recommend a coffee drink.
 `
 );
 
-export const simpleGreetingFlow = defineFlow(
+export const simpleGreetingFlow = ai.defineFlow(
   {
     name: 'simpleGreeting',
     inputSchema: CustomerNameSchema,
     outputSchema: z.string(),
   },
-  async (input) => (await simpleGreetingPrompt.generate({ input: input })).text
+  async (input) => (await simpleGreetingPrompt(input)).text
 );
 
 // Another flow to recommend a drink based on the time of day and a previous order.
@@ -77,10 +65,10 @@ const CustomerTimeAndHistorySchema = z.object({
   previousOrder: z.string(),
 });
 
-const greetingWithHistoryPrompt = defineDotprompt(
+const greetingWithHistoryPrompt = ai.definePrompt(
   {
     name: 'greetingWithHistory',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: CustomerTimeAndHistorySchema },
     output: {
       format: 'text',
@@ -101,21 +89,20 @@ I want you to greet me in one sentence, and recommend a drink.
 `
 );
 
-export const greetingWithHistoryFlow = defineFlow(
+export const greetingWithHistoryFlow = ai.defineFlow(
   {
     name: 'greetingWithHistory',
     inputSchema: CustomerTimeAndHistorySchema,
     outputSchema: z.string(),
   },
-  async (input) =>
-    (await greetingWithHistoryPrompt.generate({ input: input })).text
+  async (input) => (await greetingWithHistoryPrompt(input)).text
 );
 
 // A flow to quickly test all the above flows
 // Run on the CLI with `$ genkit flow:run testAllCoffeeFlows`
 // View the trace in the Developer UI to see the llm responses.
 
-export const testAllCoffeeFlows = defineFlow(
+export const testAllCoffeeFlows = ai.defineFlow(
   {
     name: 'testAllCoffeeFlows',
     outputSchema: z.object({

@@ -258,6 +258,26 @@ describe('definePrompt - dotprompt', () => {
         'Echo: hi Genkit; config: {"temperature":11}'
       );
     });
+
+    it('rejects on invalid model', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model: 'modelThatDoesNotExist',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = hi({ name: 'Genkit' });
+      await assert.rejects(response, {
+        message: 'Model modelThatDoesNotExist not found',
+      });
+    });
   });
 
   describe('render', () => {
