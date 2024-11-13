@@ -69,7 +69,7 @@ npx genkit start -o -- <command to run your code>
 
 ![Welcome to Genkit Developer UI](resources/welcome_to_genkit_developer_ui.png)
 
-The Developer UI has action runners for `flow`, `prompt`, `model`, `tool`, `retreiver`, `indexer`, `embedder` and `evaluator` based on the components you have defined in your code.
+The Developer UI has action runners for `flow`, `prompt`, `model`, `tool`, `retriever`, `indexer`, `embedder` and `evaluator` based on the components you have defined in your code.
 
 Here's a quick gif tour with cats.
 
