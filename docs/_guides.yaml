@@ -17,8 +17,6 @@ toc:
     path: /docs/genkit/
   - title: Get started
     path: /docs/genkit/get-started
-  - title: Migrate from Genkit 0.5
-    path: /docs/genkit/migrating-from-0.5
   - title: Developer tools
     path: /docs/genkit/devtools
   
@@ -77,7 +75,11 @@ toc:
     path: /docs/genkit/plugins/firebase
   - title: Google Cloud
     path: /docs/genkit/plugins/google-cloud
-  
+
+  - break: true
+  - title: Migrate from Genkit 0.5
+    path: /docs/genkit/migrating-from-0.5
+
   - break: true
   - title: Connect with us
     path: /docs/genkit/feedback
