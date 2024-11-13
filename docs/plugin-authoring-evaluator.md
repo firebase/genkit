@@ -20,59 +20,41 @@ LLM-based evaluators in Genkit are made up of 3 components:
 
 For this example, the prompt is going to ask the LLM to judge how delicious the output is. First, provide context to the LLM, then describe what you want it to do, and finally, give it a few examples to base its response on.
 
-Genkit comes with `dotprompt`, which provides an easy way to define and manage prompts with feautres such as input/output schema validation. Here is how you can use `dotprompt` to define an evaluation prompt.
+Genkit’s `definePrompt` utility provides an easy way to define prompts with input and output validation. Here’s how you can set up an evaluation prompt with `definePrompt`.
 
 ```ts
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-
-// Define the expected output values
 const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
 
-// Define the response schema expected from the LLM
 const DeliciousnessDetectionResponseSchema = z.object({
   reason: z.string(),
   verdict: z.enum(DELICIOUSNESS_VALUES),
 });
-type DeliciousnessDetectionResponse = z.infer<
-  typeof DeliciousnessDetectionResponseSchema
->;
+type DeliciousnessDetectionResponse = z.infer<typeof DeliciousnessDetectionResponseSchema>;
 
-const DELICIOUSNESS_PROMPT = defineDotprompt(
+const DELICIOUSNESS_PROMPT = ai.definePrompt(
   {
-    input: {
-      schema: z.object({
-        output: z.string(),
-      }),
-    },
-    output: {
-      schema: DeliciousnessDetectionResponseSchema,
-    },
+    name: 'deliciousnessPrompt',
+    inputSchema: z.object({
+      output: z.string(),
+    }),
+    outputSchema: DeliciousnessDetectionResponseSchema,
   },
-  `You are a food critic with a wide range in taste. Given the output, decide if it sounds delicious and provide your reasoning. Use only "yes" (if delicous), "no" (if not delicious), "maybe" (if you can't decide) as the verdict.
+  `You are a food critic. Assess whether the provided output sounds delicious, giving only "yes" (delicious), "no" (not delicious), or "maybe" (undecided) as the verdict.
 
-Here are a few examples:
+  Examples:
+  Output: Chicken parm sandwich
+  Response: { "reason": "A classic and beloved dish.", "verdict": "yes" }
 
-Output:
-Chicken parm sandwich
-Response:
-{ "reason": "This is a classic sandwich enjoyed by many - totally delicious", "verdict":"yes"}
+  Output: Boston Logan Airport tarmac
+  Response: { "reason": "Not edible.", "verdict": "no" }
 
-Output:
-Boston logan international airport tarmac
-Response:
-{ "reason": "This is not edible and definitely not delicious.", "verdict":"no"}
+  Output: A juicy piece of gossip
+  Response: { "reason": "Metaphorically 'tasty' but not food.", "verdict": "maybe" }
 
-Output:
-A juicy piece of gossip
-Response:
-{ "reason": "Gossip is sometimes metaphorically referred to as tasty.", "verdict":"maybe"}
-
-Here is a new submission to assess:
-
-Output:
-{{output}}
-Response:
-`
+  New Output:
+  {{output}}
+  Response:
+  `
 );
 ```
 
@@ -275,7 +257,7 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
         switch (metric) {
           case DELICIOUSNESS:
             // This evaluator requires an LLM as judge
-            return createDeliciousnessEvaluator(judge, judgeConfig);
+            return createDeliciousnessEvaluator(ai, judge, judgeConfig);
           case US_PHONE_REGEX_MATCH:
             // This evaluator does not require an LLM
             return createUSPhoneRegexEvaluator();
