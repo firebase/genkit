@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { ai } from '../genkit.js';
-import { MenuItem, MenuItemSchema } from '../types';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+import { genkit } from 'genkit';
 
-const menuData: Array<MenuItem> = require('../../data/menu.json');
+// Initialize Genkit
 
-export const menuTool = ai.defineTool(
-  {
-    name: 'todaysMenu',
-    description: "Use this tool to retrieve all the items on today's menu",
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      menuData: z
-        .array(MenuItemSchema)
-        .describe('A list of all the items on the menu'),
-    }),
-  },
-  async () => Promise.resolve({ menuData: menuData })
-);
+export const ai = genkit({
+  plugins: [
+    vertexAI({ location: 'us-central1' }),
+    devLocalVectorstore([
+      {
+        indexName: 'menu-items',
+        embedder: textEmbedding004,
+        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
+      },
+    ]),
+  ],
+});

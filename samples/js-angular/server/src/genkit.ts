@@ -14,22 +14,9 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { ai } from '../genkit.js';
-import { MenuItem, MenuItemSchema } from '../types';
+import vertexAI from '@genkit-ai/vertexai';
+import { genkit } from 'genkit';
 
-const menuData: Array<MenuItem> = require('../../data/menu.json');
-
-export const menuTool = ai.defineTool(
-  {
-    name: 'todaysMenu',
-    description: "Use this tool to retrieve all the items on today's menu",
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      menuData: z
-        .array(MenuItemSchema)
-        .describe('A list of all the items on the menu'),
-    }),
-  },
-  async () => Promise.resolve({ menuData: menuData })
-);
+export const ai = genkit({
+  plugins: [vertexAI()],
+});

@@ -14,27 +14,47 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
 import { MessageData } from '@genkit-ai/ai/model';
-import { defineFlow, run } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/vertexai';
-
+import { gemini15Flash } from '@genkit-ai/vertexai';
+import { run } from 'genkit';
+import { ai } from '../genkit.js';
 import { MenuItem } from '../types';
 import {
   ChatHistoryStore,
   ChatSessionInputSchema,
   ChatSessionOutputSchema,
 } from './chats';
-import { s03_chatPreamblePrompt } from './prompts';
 
 // Load the menu data from a JSON file.
 const menuData = require('../../data/menu.json') as Array<MenuItem>;
 
 // Render the preamble prompt that seeds our chat history.
-const preamble: Array<MessageData> = s03_chatPreamblePrompt.renderMessages({
-  menuData: menuData,
-  question: '',
-});
+const preamble: Array<MessageData> = [
+  {
+    role: 'user',
+    content: [
+      {
+        text: "Hi. What's on the menu today?",
+      },
+    ],
+  },
+  {
+    role: 'user',
+    content: [
+      {
+        text:
+          'I am Walt, a helpful AI assistant here at the restaurant.\n' +
+          'I can answer questions about the food on the menu or any other questions\n' +
+          "you have about food in general. I probably can't help you with anything else.\n" +
+          "Here is today's menu: \n" +
+          menuData
+            .map((r) => `- ${r.title} ${r.price}\n${r.description}`)
+            .join('\n') +
+          'Do you have any questions about the menu?\n',
+      },
+    ],
+  },
+];
 
 // A simple local storage for chat session history.
 // You should probably actually use Firestore for this.
@@ -42,7 +62,7 @@ const chatHistoryStore = new ChatHistoryStore(preamble);
 
 // Define a flow which generates a response to each question.
 
-export const s03_multiTurnChatFlow = defineFlow(
+export const s03_multiTurnChatFlow = ai.defineFlow(
   {
     name: 's03_multiTurnChat',
     inputSchema: ChatSessionInputSchema,
@@ -57,9 +77,9 @@ export const s03_multiTurnChatFlow = defineFlow(
     );
 
     // Generate the response
-    const llmResponse = await generate({
-      model: geminiPro,
-      history: history,
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      messages: history,
       prompt: {
         text: input.question,
       },
