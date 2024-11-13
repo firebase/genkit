@@ -8,7 +8,7 @@ action just by using Genkit:
 import { genkit } from 'genkit';
 import { vertexAI } from '@genkit-ai/vertexai';
 
-genkit({
+const ai = genkit({
   plugins: [vertexAI({ projectId: 'my-project' })],
 });
 ```
