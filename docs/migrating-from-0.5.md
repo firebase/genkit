@@ -26,7 +26,7 @@ npm i -D genkit-cli
 
 ### 2. Update your dependencies
 
-* Remove separated Genkit core packages
+* Remove individual Genkit core packages
 
 ```posix-terminal
 npm uninstall @genkit-ai/ai @genkit-ai/core @genkit-ai/dotprompt @genkit-ai/flow
@@ -46,7 +46,7 @@ npm upgrade @genkit-ai/firebase
 
 ### 3. Change your imports
 
-* Remove imports from separated Genkit core packages
+* Remove imports from individual Genkit core packages
 
 ```js
 import { … } from '@genkit-ai/ai';
@@ -82,7 +82,7 @@ enableFirebaseTelemetry({...});
 const ai = genkit({ plugins: [...]});
 ```
 
-#### Genkit primitives now fall under the `genkit` instance or require a `genkit` instance be passed to them
+#### Genkit primitives are now registered to a specific `genkit` instance
 
 Primitive definitions (flows, tools, retrievers, indexers, etc.) are defined per instance. Read the [Changelog](#changelog) for all of the features you will need to change, but here is an example of some common ones.
 
