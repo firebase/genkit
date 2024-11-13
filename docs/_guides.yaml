@@ -53,8 +53,6 @@ toc:
   - heading: Writing plugins
   - title: Overview
     path: /docs/genkit/plugin-authoring
-  - title: Writing a Telemetry Plugin
-    path: /docs/genkit/plugin-authoring-telemetry
   - title: Writing an Evaluator Plugin
     path: /docs/genkit/plugin-authoring-evaluator
   
