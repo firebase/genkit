@@ -21,11 +21,11 @@ import { diffJSON, runTestsForApp, setupNodeTestApp } from './utils.js';
 (async () => {
   // Run for nodejs test app
   const testAppRoot = await setupNodeTestApp('test_js_app');
-  await runTestsForApp(testAppRoot, async () => {
+  await runTestsForApp(testAppRoot, 'node lib/index.js', async () => {
     await testReflectionApi();
   });
   // Run same tests for go test app
-  await runTestsForApp('../go/tests/test_app', async () => {
+  await runTestsForApp('../go/tests/test_app', 'go run main.go', async () => {
     await testReflectionApi();
   });
 })();

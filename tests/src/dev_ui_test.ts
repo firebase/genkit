@@ -16,7 +16,7 @@
 
 import { runDevUiTest } from './utils.js';
 
-runDevUiTest('test_js_app', async (page, url) => {
+runDevUiTest('test_js_app', 'node js/index.js', async (page, url) => {
   await page.goto(url);
   await page.setViewport({ width: 1080, height: 1024 });
 

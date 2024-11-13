@@ -25,9 +25,10 @@ import terminate from 'terminate';
 
 export async function runDevUiTest(
   testAppName: string,
+  appCmd: string,
   testFn: (page: Page, devUiUrl: string) => Promise<void>
 ) {
-  await runTestsForApp(testAppName, async (devUiUrl: string) => {
+  await runTestsForApp(testAppName, appCmd, async (devUiUrl: string) => {
     const browser = await puppeteer.launch({
       slowMo: 50,
     });
@@ -47,12 +48,13 @@ export async function runDevUiTest(
 
 export async function runTestsForApp(
   testAppPath: string,
+  appCmd: string,
   testFn: (devUiUrl: string) => Promise<void>
 ) {
   return new Promise(async (resolver, reject) => {
     var gsProcess;
     try {
-      const { url, process } = await genkitStart(testAppPath);
+      const { url, process } = await genkitStart(testAppPath, appCmd);
       gsProcess = process;
       await testFn(url);
       console.log('Test passed');
@@ -75,7 +77,7 @@ export async function setupNodeTestApp(testAppPath: string): Promise<string> {
   fs.mkdirSync(testRoot, { recursive: true });
   fs.cpSync(testAppPath, testRoot, { recursive: true });
   const distDir = path.resolve(process.cwd(), '../dist');
-  execSync(`pnpm i --save ${distDir}/*.tgz`, {
+  execSync(`npm i --save ${distDir}/*.tgz`, {
     stdio: 'inherit',
     cwd: testRoot,
   });
@@ -84,7 +86,8 @@ export async function setupNodeTestApp(testAppPath: string): Promise<string> {
 }
 
 export async function genkitStart(
-  testRoot: string
+  testRoot: string,
+  appCmd: string
 ): Promise<{ url: string; process: ChildProcess }> {
   const cliInstallRoot = path.resolve(os.tmpdir(), `./test-cli-${Date.now()}`);
   console.log(`cliInstallRoot=${cliInstallRoot} pwd=${process.cwd()}`);
@@ -96,7 +99,7 @@ export async function genkitStart(
   });
   const distDir = path.resolve(process.cwd(), '../dist');
   execSync(
-    `pnpm i --save ${distDir}/genkit-?.?*.?*.tgz ${distDir}/genkit-ai-tools-common-*.tgz`,
+    `npm i --save ${distDir}/genkit-cli-?.?*.?*.tgz ${distDir}/genkit-ai-tools-common-*.tgz`,
     {
       stdio: 'inherit',
       cwd: cliInstallRoot,
@@ -106,7 +109,15 @@ export async function genkitStart(
   return new Promise((urlResolver, reject) => {
     const appProcess = spawn(
       'npm',
-      ['exec', '--prefix', cliInstallRoot, 'genkit', 'start'],
+      [
+        'exec',
+        '--prefix',
+        cliInstallRoot,
+        'genkit',
+        'start',
+        '--',
+        ...appCmd.split(' '),
+      ],
       {
         cwd: testRoot,
       }
@@ -125,7 +136,7 @@ export async function genkitStart(
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
-      const match = data.toString().match(/Genkit Tools UI:[^ ]*([^ ]*)/);
+      const match = data.toString().match(/Genkit Developer UI:[^ ]*([^ ]*)/);
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
         if (done) {
