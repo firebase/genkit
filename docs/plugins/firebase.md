@@ -33,7 +33,7 @@ npm i --save @genkit-ai/firebase
 
 ### Project ID
 
-To use this plugin, specify it when you call `configureGenkit()`:
+To use this plugin, specify it when you initialize Genkit:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
