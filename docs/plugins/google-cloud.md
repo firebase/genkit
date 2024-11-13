@@ -1,7 +1,7 @@
 # Google Cloud plugin
 
 The Google Cloud plugin exports Firebase Genkit's telemetry and logging data to
-[Google Cloud's operation suite](https://cloud.google.com/products/operations) which powers the Firebase AI Monitoring dashboard.
+[Google Cloud's operation suite](https://cloud.google.com/products/operations) which powers the [Firebase AI Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring).
 
 > Note: Logging is facilitated by [Winston](https://github.com/winstonjs/winston) in favor of the [OpenTelemetry](https://opentelemetry.io/) logging APIs. Export of logs is done via a dedicated Winston Google Cloud exporter.
 
@@ -152,4 +152,4 @@ This option will force Genkit to export telemetry and log data when running in t
 
 ## Test your integration
 
-When configuring the plugin, use `forceDevExport: true` to enable telemetry export for local runs. Navigate to the Google Cloud Logs, Metrics, or Trace Explorer to view telemetry. Alternatively, navigate to the Firebase AI Monitoring dashboard for an AI-idiomatic view of telemetry.
+When configuring the plugin, use `forceDevExport: true` to enable telemetry export for local runs. Navigate to the Google Cloud Logs, Metrics, or Trace Explorer to view telemetry. Alternatively, navigate to the [Firebase AI Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring) for an AI-idiomatic view of telemetry.
