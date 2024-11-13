@@ -43,7 +43,7 @@ Starts the Dev UI ONLY:
 genkit start
 ```
 
-Previously, the `genkit start` command would start the Dev UI and Flow Server together. If you have any CI/CD pipelines relying on this command, you may need to update the pipeline.
+Previously, the `genkit start` command would start the Dev UI and your application code together. If you have any CI/CD pipelines relying on this command, you may need to update the pipeline.
 
 The Dev UI will interact directly with the flow server to figure out which flows are registered and allow you to invoke them directly with sample inputs.
 
