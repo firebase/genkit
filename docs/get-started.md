@@ -60,7 +60,7 @@ console.log(response.text);
 
 Now that you’re set up to make model requests with Genkit, learn how to use more Genkit capabilities to build your AI-powered apps and workflows. To get started with additional Genkit capabilities, see the following guides:
 
-* [Developer tools](http://docs/genkit/devtools): Learn how to set up and use Genkit’s CLI and developer UI to help you locally test and debug your app.  
-* [Generating content](http:///docs/genkit/models): Learn how to use Genkit’s unified generation API to generate text and structured data from any supported model.  
-* [Creating flows](http://docs/genkit/flows): Learn how to use special Genkit functions, called flows, that provide end-to-end observability for workflows and rich debugging from Genkit tooling.  
-* [Prompting models](http:///docs/genkit/prompts): Learn how Genkit lets you treat prompt templates as functions, encapsulating model configurations and input/output schema.
+* [Developer tools](/docs/genkit/devtools): Learn how to set up and use Genkit’s CLI and developer UI to help you locally test and debug your app.  
+* [Generating content](/docs/genkit/models): Learn how to use Genkit’s unified generation API to generate text and structured data from any supported model.  
+* [Creating flows](/docs/genkit/flows): Learn how to use special Genkit functions, called flows, that provide end-to-end observability for workflows and rich debugging from Genkit tooling.  
+* [Prompting models](/docs/genkit/prompts): Learn how Genkit lets you treat prompt templates as functions, encapsulating model configurations and input/output schema.
