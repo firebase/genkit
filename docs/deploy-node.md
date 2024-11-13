@@ -8,109 +8,132 @@ service or self-hosted.
 This page, as an example, walks you through the process of deploying the default
 sample flow.
 
-1.  Install the required tools:
+## Before you begin
 
-    - Make sure you are using node version 20 or higher (run `node --version` to
-      check).
+*   Node.js 20+: Confirm that your environment is using Node.js version 20 or higher (node --version).
+*   You should be familiar with Genkit's concept of [flows](flows), and how to
+    write them. This page assumes that you already have flows that you want to
+    deploy.
 
-1.  Create a directory for the Genkit sample project:
+## 1. Set up your project
 
-    ```posix-terminal
-    export GENKIT_PROJECT_HOME=~/tmp/genkit-express-project
+1. **Create a directory for the project:**
 
-    mkdir -p $GENKIT_PROJECT_HOME
+   ```bash
+   export GENKIT_PROJECT_HOME=~/tmp/genkit-express-project
+   mkdir -p $GENKIT_PROJECT_HOME
+   cd $GENKIT_PROJECT_HOME
+   ```
 
-    cd $GENKIT_PROJECT_HOME
-    ```
+1. **Initialize a Node.js project:**
 
-    If you're going to use an IDE, open it to this directory.
+   ```bash
+   npm init -y
+   ```
 
-1.  Initialize a nodejs project:
+1. **Install Genkit and necessary dependencies:**
 
-    ```posix-terminal
-    npm init -y
-    ```
+   ```bash
+   npm install --save genkit @genkit-ai/googleai
+   npm install -D typescript tsx
+   ```
 
-1.  Initialize a Genkit project:
+## 2. Configure your Genkit app
 
-    ```posix-terminal
-    genkit init
-    ```
+1. **Set up a sample flow and server:**
 
-    1. Select your model:
+   In `src/index.ts`, define a sample flow and configure the flow server:
 
-       - {Gemini (Google AI)}
+   ```typescript
+   import { genkit } from 'genkit';
+   import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 
-         The simplest way to get started is with Google AI Gemini API. Make sure
-         it's
-         [available in your region](https://ai.google.dev/available_regions).
+   const ai = genkit({
+     plugins: [googleAI()],
+     model: gemini15Flash,
+   });
 
-         [Generate an API key](https://aistudio.google.com/app/apikey) for the
-         Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
-         environment variable to your key:
+   const menuSuggestionFlow = ai.defineFlow(
+     {
+       name: 'menuSuggestionFlow',
+     },
+     async (input) => `Suggested item: ${input.data}`
+   );
 
-         ```posix-terminal
-         export GOOGLE_API_KEY=<your API key>
-         ```
+   const port = process.env.PORT ? parseInt(process.env.PORT) : 3400;
 
-       - {Gemini (Vertex AI)}
+   ai.startFlowServer({
+     flows: [menuSuggestionFlow],
+     port,
+   });
+   ```
 
-         If the Google AI Gemini API is not available in your region, consider
-         using the Vertex AI API which also offers Gemini and other models. You
-         will need to have a billing-enabled Google Cloud project, enable AI
-         Platform API, and set some additional environment variables:
+1. **Set up model provider credentials:**
 
-         ```posix-terminal
-         gcloud services enable aiplatform.googleapis.com
+   Configure the required environment variables for your model provider. In this guide, we'll use the Gemini API from Google AI Studio as an example.
 
-         export GCLOUD_PROJECT=<your project ID>
+    [Get an API key from Google AI Studio](https://makersuite.google.com/app/apikey)
 
-         export GCLOUD_LOCATION=us-central1
-         ```
-
-         See https://cloud.google.com/vertex-ai/generative-ai/pricing for Vertex AI pricing.
-
-    1. Choose default answers to the rest of the questions, which will
-       initialize your project folder with some sample code.
-
-1.  Build and run the sample code:
-
-    ```posix-terminal
-    npm run build
-
-    genkit flow:run menuSuggestionFlow "\"banana\"" -s
-    ```
-
-1.  **Optional**: Start the developer UI:
+    After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment
+    variable to your key with the following command:
 
     ```posix-terminal
-    genkit start
+    export GOOGLE_GENAI_API_KEY=<your API key>
     ```
 
-    Then, navigate to [http://localhost:4000/flows](http://localhost:4000/flows) and run
-    the flow using the developer UI.
+    Different providers for deployment will have different ways of securing your API key in their environment. For security, ensure that your API key is not publicly exposed.
 
-    When you're done, press Ctrl+C in the console to quit the UI.
+## 3. Prepare your Node.js project for deployment
 
-1.  Try out the Express endpoint:
+### Add start and build scripts to `package.json`
 
-    ```posix-terminal
-    npm run start
-    ```
+To deploy a Node.js project, define `start` and `build` scripts in `package.json`. For a TypeScript project, these scripts will look like this:
 
-    Then, in another window:
+```json
+"scripts": {
+  "start": "node --watch lib/index.js",
+  "build": "tsc"
+},
+```
 
-    ```posix-terminal
-    curl -X POST "http://127.0.0.1:3400/menuSuggestionFlow?stream=true" -H "Content-Type: application/json"  -d '{"data": "banana"}'
-    ```
+### Build and test locally
 
-1.  If everything's working as expected, you can deploy the flow to the provider
-    of your choice. Details will depend on the provider, but generally, you need
-    to configure the following settings:
+Run the build command, then start the server and test it locally to confirm it works as expected.
 
-    | Setting               | Value                                                               |
-    | --------------------- | ------------------------------------------------------------------- |
-    | Runtime               | Node.js 20 or newer                                                 |
-    | Build command         | `npm run build`                                                     |
-    | Start command         | `npm run start`                                                     |
-    | Environment variables | `GOOGLE_API_KEY=<your-api-key>` (or whichever secrets are required) |
+```bash
+npm run build
+npm start
+```
+
+In another terminal window, test the endpoint:
+
+```bash
+curl -X POST "http://127.0.0.1:3400/menuSuggestionFlow" \
+  -H "Content-Type: application/json" \
+  -d '{"data": "banana"}'
+```
+
+## Optional: Start the Developer UI
+
+You can use the Developer UI to test flows interactively during development:
+
+```bash
+npx genkit start -- npm run start
+```
+
+Navigate to [http://localhost:4000/flows](http://localhost:4000/flows) to test your flows in the UI.
+
+## 4. Deploy the project
+
+Once your project is configured and tested locally, you’re ready to deploy to any Node.js-compatible platform. Deployment steps vary by provider, but generally, you’ll configure the following settings:
+
+| Setting               | Value                                                              |
+| --------------------- | ------------------------------------------------------------------ |
+| **Runtime**           | Node.js 20 or newer                                               |
+| **Build command**     | `npm run build`                                                   |
+| **Start command**     | `npm start`                                                       |
+| **Environment variables** | Set `GOOGLE_GENAI_API_KEY=<your-api-key>` and other necessary secrets |
+
+The `start` command (`npm start`) should point to your compiled entry point, typically `lib/index.js`. Be sure to add all necessary environment variables for your deployment platform.
+
+After deploying, you can use the provided service URL to invoke your flow as an HTTPS endpoint.
