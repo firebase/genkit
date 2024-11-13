@@ -52,20 +52,18 @@ In the file that's run by your `start` script, add a call to `startFlowServer`.
 This method will start an Express server set up to serve your flows as web
 endpoints.
 
-When you make the call, specify the flows you want to serve and configure it to
-listen on the port defined in the PORT environment variable:
+When you make the call, specify the flows you want to serve:
 
 ```ts
-const port = process.env.PORT ? parseInt(process.env.PORT) : 8080;
-
 ai.startFlowServer({
   flows: [menuSuggestionFlow],
-  port,
 });
 ```
 
 There are also some optional parameters you can specify:
 
+- `port`: the network port to listen on. If unspecified, the server listens on
+  the port defined in the PORT environment variable.
 - `cors`: the flow server's
   [CORS policy](https://www.npmjs.com/package/cors#configuration-options).
   If you will be accessing these endpoints from a web application, you likely
