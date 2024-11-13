@@ -5,10 +5,10 @@ that can provide models, retrievers, indexers, trace stores, and more. You've al
 action just by using Genkit:
 
 ```ts
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from 'genkit';
 import { vertexAI } from '@genkit-ai/vertexai';
 
-configureGenkit({
+const ai = genkit({
   plugins: [vertexAI({ projectId: 'my-project' })],
 });
 ```
@@ -40,14 +40,12 @@ npx tsc --init
 Then, define and export your plugin from your main entry point:
 
 ```ts
-import { genkitPlugin } from '@genkit-ai/core';
+import { Genkit, z } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 
 interface MyPluginOptions {
   // add any plugin configuration here
 }
-
-import { Genkit, z } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 
 export function myPlugin(options?: MyPluginOptions) {
   return genkitPlugin('myPlugin', async (ai: Genkit) => {
@@ -56,7 +54,6 @@ export function myPlugin(options?: MyPluginOptions) {
     // ....
   });
 };
-
 ```
 
 ### Plugin options guidance
@@ -123,7 +120,8 @@ import { genkitPlugin, GenkitPlugin } from 'genkit/plugin';
 import { GenkitError } from '@genkit-ai/core';
 import { GenerationCommonConfigSchema } from '@genkit-ai/ai/model';
 import { simulateSystemPrompt } from '@genkit-ai/ai/model/middleware';
-import { z } from 'zod';
+import { z } from 'genkit';
+
 
 export function myPlugin(options?: MyPluginOptions) {
   return genkitPlugin('my-plugin', async (ai: Genkit) => {
