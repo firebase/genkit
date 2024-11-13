@@ -126,7 +126,10 @@ async function callMyFlow() {
 
 // onFlow now takes the Genkit instance as first argument
 // This registers the flow as a callable firebase function
-onFlow(ai, ...); 
+onFlow(ai, ...);
+const flows = [ sampleFlow, ... ];
+// Start the flow server to make the registered flows callable over HTTP
+ai.startFlowServer({flows});
 ```
 
 ### 5. Run it
