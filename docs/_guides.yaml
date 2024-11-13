@@ -75,6 +75,10 @@ toc:
     path: /docs/genkit/plugins/google-cloud
 
   - break: true
+  - title: Using Genkit with Next.js
+    path: /docs/genkit/nextjs
+
+  - break: true
   - title: Migrate from Genkit 0.5
     path: /docs/genkit/migrating-from-0.5
 
