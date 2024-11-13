@@ -16,7 +16,12 @@
 
 import { readFileSync } from 'fs';
 import * as yaml from 'yaml';
-import { diffJSON, runTestsForApp, setupNodeTestApp } from './utils.js';
+import {
+  diffJSON,
+  retriable,
+  runTestsForApp,
+  setupNodeTestApp,
+} from './utils.js';
 
 (async () => {
   // Run for nodejs test app
@@ -32,6 +37,19 @@ import { diffJSON, runTestsForApp, setupNodeTestApp } from './utils.js';
 
 async function testReflectionApi() {
   const url = 'http://localhost:3100';
+  await retriable(
+    async () => {
+      const res = await fetch(`${url}/api/__health`);
+      if (res.status != 200) {
+        throw new Error(`timed out waiting for code to become helthy`);
+      }
+    },
+    {
+      maxRetries: 30,
+      delayMs: 1000,
+    }
+  );
+
   const t = yaml.parse(readFileSync('reflection_api_tests.yaml', 'utf8'));
   for (const test of t.tests) {
     console.log('path', test.path);
