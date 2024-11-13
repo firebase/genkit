@@ -17,7 +17,7 @@
 import fs from 'fs';
 import { z } from 'genkit';
 import path from 'path';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import {
   AnswerOutputSchema,
   MenuQuestionInputSchema,
