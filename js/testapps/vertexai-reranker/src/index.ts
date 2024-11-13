@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-//  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
+// Sample app for demonstrating the Vertex AI plugin retriever and reranker capabilities using a local file for demo purposes.
 
 import { Document, genkit, z } from 'genkit';
-// important imports for this sample:
+// Import necessary Vertex AI plugins and configuration:
 import { vertexAI } from '@genkit-ai/vertexai';
 import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { LOCATION, PROJECT_ID } from './config';
 
-// Configure Genkit with Vertex AI plugin
+// Initialize Genkit with Vertex AI and Reranker plugins
 const ai = genkit({
   plugins: [
     vertexAI({
@@ -37,13 +37,17 @@ const ai = genkit({
       location: LOCATION,
       rerankOptions: [
         {
-          model: 'vertexai/reranker',
+          model: 'semantic-ranker-512@latest', // Semantic ranker model to be used
         },
       ],
     }),
   ],
 });
 
+/**
+ * Mock data to simulate document retrieval.
+ * Each item represents a document with simplified content.
+ */
 const FAKE_DOCUMENT_CONTENT = [
   'pythagorean theorem',
   'e=mc^2',
@@ -62,29 +66,66 @@ const FAKE_DOCUMENT_CONTENT = [
   'movies',
 ];
 
+/**
+ * @flow rerankFlow
+ * Defines a flow to rerank a set of documents based on a given query.
+ *
+ * @flowDescription
+ * This flow takes a query string, retrieves predefined documents, and ranks them
+ * based on their relevance to the query using Vertex AI's reranker model.
+ *
+ * @inputSchema
+ * The flow expects an object containing:
+ * - query: A string representing the user's search query.
+ *
+ * @outputSchema
+ * Returns an array of objects containing:
+ * - text: The content of the ranked document.
+ * - score: The relevance score assigned by the reranker model.
+ *
+ * @example
+ * Input:
+ * {
+ *   "query": "quantum mechanics"
+ * }
+ *
+ * Output:
+ * [
+ *   { "text": "quantum mechanics", "score": 0.95 },
+ *   { "text": "schrodinger's cat", "score": 0.85 },
+ *   { "text": "e=mc^2", "score": 0.80 }
+ * ]
+ */
 export const rerankFlow = ai.defineFlow(
   {
     name: 'rerankFlow',
-    inputSchema: z.object({ query: z.string() }),
+    inputSchema: z.object({ query: z.string() }), // Input must be an object with a 'query' string
     outputSchema: z.array(
       z.object({
-        text: z.string(),
-        score: z.number(),
+        text: z.string(), // Each result includes a document's text
+        score: z.number(), // And its relevance score
       })
     ),
   },
   async ({ query }) => {
+    console.log('Received query:', query);
+
+    // Convert fake document content into Document objects
     const documents = FAKE_DOCUMENT_CONTENT.map((text) =>
       Document.fromText(text)
     );
-    const reranker = 'vertexai/reranker';
 
+    // Specify the reranker to be used
+    const reranker = 'vertexai/semantic-ranker-512@latest';
+
+    // Call the reranker with the query and documents
     const rerankedDocuments = await ai.rerank({
       reranker,
       query: Document.fromText(query),
       documents,
     });
 
+    // Return the reranked documents with text and score
     return rerankedDocuments.map((doc) => ({
       text: doc.text,
       score: doc.metadata.score,
@@ -92,6 +133,10 @@ export const rerankFlow = ai.defineFlow(
   }
 );
 
+/**
+ * Starts the Flow Server for testing and UI interaction.
+ * This allows the `rerankFlow` to be invoked from the Genkit UI or programmatically.
+ */
 ai.startFlowServer({
-  flows: [rerankFlow],
+  flows: [rerankFlow], // Registers the defined flow for the server
 });
