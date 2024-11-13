@@ -86,7 +86,7 @@ const ollamaProd = {
 
 const ai = genkit({
   plugins: [
-    ollama(process.env.NODE_ENV === 'development' ? ollamaDev : ollamaProd),
+    ollama(isDevEnv() ? ollamaDev : ollamaProd),
   ],
 });
 
@@ -123,4 +123,31 @@ const llmResponse = await ai.generate({
   model: 'ollama/gemma',
   prompt: 'Tell me a joke.',
 });
+```
+
+## Embedders
+
+The Ollama plugin supports embeddings, which can be used for similarity searches
+and other NLP tasks.
+
+```ts
+const ai = genkit({
+  plugins: [
+    ollama({
+      serverAddress: 'http://localhost:11434',
+      embedders: [{ name: 'nomic-embed-text', dimensions: 768 }],
+    }),
+  ],
+});
+
+async function getEmbedding() {
+  const embedding = await ai.embed({
+      embedder: 'ollama/nomic-embed-text',
+      content: 'Some text to embed!',
+  })
+
+  return embedding;
+}
+
+getEmbedding().then((e) => console.log(e))
 ```
