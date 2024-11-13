@@ -263,6 +263,12 @@ work. To create the index:
 - Alternatively, call `ai.retrieve()` and Firestore will throw an error with the
   correct command to create the index.
 
+#### Learn more
+- See the [Retrieval-augmented generation](../rag.md) page for a general
+  discussion on indexers and retrievers in Genkit.
+- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
+  in the Cloud Firestore docs for more on the vector search feature.
+
 ### Cloud Functions
 
 The plugin provides the `onFlow()` constructor, which creates a flow backed by a
@@ -356,3 +362,5 @@ takes a
 [`DecodedIdToken`](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken)
 as its only parameter. In this function, examine the user token and throw an
 error if the user fails to meet any of the criteria you want to require.
+
+See [Authorization and integrity](../auth.md) for a more thorough discussion of this topic.
