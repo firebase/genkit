@@ -27,7 +27,7 @@ import {
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { checkServerHealth, findRuntimesDir } from '../utils/utils';
+import { checkServerHealth, findRuntimesDir, retriable } from '../utils/utils';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -308,8 +308,15 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const runtimeInfo = JSON.parse(content) as RuntimeInfo;
+      const { content, runtimeInfo } = await retriable(
+        async () => {
+          const content = await fs.readFile(filePath, 'utf-8');
+          const runtimeInfo = JSON.parse(content) as RuntimeInfo;
+          return { content, runtimeInfo };
+        },
+        { maxRetries: 10, delayMs: 500 }
+      );
+
       if (isValidRuntimeInfo(runtimeInfo)) {
         const fileName = path.basename(filePath);
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
