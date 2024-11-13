@@ -80,10 +80,13 @@ Deliciousness:
 genkit eval:run datasets/deliciousness_dataset.json --evaluators=byo/deliciousness
 ```
 
+Note: The evaluators implemented in this plugin do not consider the `input` provided to the model as part of the evaluation. Therefore, many of the test datasets provided in this testapp have `input` set to `"input"`. If you are implementing an evaluator that utilized the input provied to the model, you will have to provide the actual input in this field.
+
+
 ## See your results
 
 ```
 genkit start
 ```
 
-Navigate to the `Evaluate` page
+Navigate to the `Evaluations` section in the side-nav.
