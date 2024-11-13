@@ -35,7 +35,7 @@ sample flow.
 
    ```bash
    npm install --save genkit @genkit-ai/googleai
-   npm install -D typescript tsx
+   npm install -D genkit-cli typescript tsx
    ```
 
 ## 2. Configure your Genkit app
