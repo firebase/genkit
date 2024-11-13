@@ -17,7 +17,11 @@ npm uninstall -g genkit
 * Install the new CLI
 
 ```posix-terminal
+# Install globally
 npm i -g genkit-cli
+
+# Or install as a dev dependency
+npm i -D genkit-cli
 ```
 
 ### 2. Update your dependencies
@@ -54,14 +58,14 @@ import * as z from 'zod';
 * Import `genkit` and `zod` from `genkit`
 
 ```js
-import { z, genkit, defineFlow,  } from 'genkit';
+import { z, genkit } from 'genkit';
 ```
 
 ### 4. Update your code
 
 #### Configuration is now much simpler 
 
-Configuration for genkit is now done per instance. Telemetry and logging is configured globally and separately from the genkit instance. 
+Configuration for Genkit is now done per instance. Telemetry and logging is configured globally and separately from the Genkit instance. 
 
 See the [Monitoring and Logging](./monitoring.md) documentation for more details on how to configure telemetry and logging.
 
