@@ -14,53 +14,36 @@ npm i -g genkit-cli
 
 Some changes have been made to the `genkit start` command:
 
+Starts your Genkit application code + Dev UI together:
+
 ```posix-terminal
+genkit start -- [start command]
 
-// Starts your genkit application code + Dev UI together
-genkit start -- <start command>
 genkit start -- tsx src/index.ts
+
 genkit start -- go run main.go
+```
 
-// Watch mode is supported as well
+Watch mode is supported as well:
+
+```posix-terminal
 genkit start -- tsx --watch src/index.ts
+```
 
-// Starts your genkit application code ONLY
+Starts your Genkit application code ONLY:
+
+```posix-terminal
 genkit start --noui -- <start command>
+
 genkit start --noui -- tsx src/index.ts
+```
+Starts the Dev UI ONLY:
 
-// Starts the Dev UI ONLY
+```posix-terminal
 genkit start
-
 ```
 
 Previously, the `genkit start` command would start the Dev UI and Flow Server together. If you have any CI/CD pipelines relying on this command, you may need to update the pipeline.
-
-
-**Old Command:**
-
-```posix-terminal
-genkit start
-```
-
-This command starts both the flow server and the Dev UI in a single command.
-
-**New Commands:**
-
-Now, you must start the dev UI and the flow servers as separate steps.
-
-To start the dev UI:
-
-```posix-terminal
-genkit ui:start
-```
-
-Once the UI is running, start the flow server:
-
-```posix-terminal
-GENKIT_ENV=dev tsx --watch path/to/index.ts
-```
-
-Starting the flow server this way makes it easier for you to attach a debugger to your code. Be sure to set `GENKIT_ENV=dev` in your debugger’s startup configuration.
 
 The Dev UI will interact directly with the flow server to figure out which flows are registered and allow you to invoke them directly with sample inputs.
 
@@ -130,6 +113,7 @@ const ai = genkit({ ... });
 ```
 
 Let’s break it down:
+
 - `configureGenkit()` has been replaced with `genkit()`, and it returns a configured `Genkit` instance rather than setting up configurations globally.
 - The Genkit initialization function  is now in the `genkit` package.
 - Logging and telemetry are still configured globally using their own explicit methods. These configurations apply uniformly across all `Genkit` instances.

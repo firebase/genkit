@@ -214,7 +214,7 @@ const getWeather = ai.defineTool(
 );
 
 const generateOptions: GenerateOptions = {
-  prompt: 'What's the weather like in Baltimore?',
+  prompt: "What's the weather like in Baltimore?",
   tools: [getWeather],
   returnToolRequests: true,
 };
