@@ -5,10 +5,10 @@ that can provide models, retrievers, indexers, trace stores, and more. You've al
 action just by using Genkit:
 
 ```ts
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from 'genkit';
 import { vertexAI } from '@genkit-ai/vertexai';
 
-configureGenkit({
+genkit({
   plugins: [vertexAI({ projectId: 'my-project' })],
 });
 ```
