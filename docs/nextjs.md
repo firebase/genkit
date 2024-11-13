@@ -26,7 +26,7 @@ for any Genkit project:
 1.  Install the core Genkit library:
 
     ```posix-terminal
-    npm i --save genkit @genkit-ai/firebase
+    npm i --save genkit
     ```
 
 1.  Install at least one model plugin.
