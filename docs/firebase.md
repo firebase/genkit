@@ -406,7 +406,7 @@ Firebase offers a
 [suite of emulators for local development](/docs/emulator-suite), which you can
 use with Genkit.
 
-To use Genkit with the Firebase Emulator Suite, start the the Firebase emulators
+To use Genkit with the Firebase Emulator Suite, start the Firebase emulators
 like this:
 
 ```posix-terminal
