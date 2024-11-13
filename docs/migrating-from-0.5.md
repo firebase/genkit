@@ -279,7 +279,7 @@ If any of your code is defined dynamically, they need to be refactored. Otherwis
 ```js
 const flow = defineFlow({...}, async (input) => {
   const tool = defineTool({...});
-  await tool.call(...);
+  await tool(...);
 });
 ```
 
@@ -289,7 +289,7 @@ const flow = defineFlow({...}, async (input) => {
 const tool = ai.defineTool({...});
 
 const flow = ai.defineFlow({...}, async (input) => {
-  await tool.call(...);
+  await tool(...);
 });
 ```
 
