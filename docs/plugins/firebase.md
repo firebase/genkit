@@ -278,6 +278,7 @@ to call them.
 import { onFlow, noAuth } from "@genkit-ai/firebase/functions";
 
 export const exampleFlow = onFlow(
+  ai, // Provide the Genkit instance
   {
     name: "exampleFlow",
     authPolicy: noAuth(), // WARNING: noAuth() creates an open endpoint!
@@ -305,6 +306,7 @@ The `onFlow()` function has some options not present in `defineFlow()`:
   <!-- prettier-ignore -->
   ```js
   export const exampleFlow = onFlow(
+    ai,
     {
       name: "exampleFlow",
       httpsOptions: {
@@ -336,6 +338,7 @@ Firebase Auth:
 import {firebaseAuth} from "@genkit-ai/firebase/auth";
 
 export const exampleFlow = onFlow(
+  ai,
   {
     name: "exampleFlow",
     authPolicy: firebaseAuth((user) => {
