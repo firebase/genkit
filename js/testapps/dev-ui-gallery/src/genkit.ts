@@ -78,27 +78,23 @@ export const ai = genkit({
     }),
     vertexAIModelGarden({
       location: 'us-central1',
-      modelGarden: {
-        models: [claude35Sonnet],
-      },
+      models: [claude35Sonnet],
     }),
     vertexAIEvaluation({
       location: 'us-central1',
-      evaluation: {
-        metrics: [
-          VertexAIEvaluationMetricType.BLEU,
-          VertexAIEvaluationMetricType.GROUNDEDNESS,
-          VertexAIEvaluationMetricType.SAFETY,
-          {
-            type: VertexAIEvaluationMetricType.ROUGE,
-            metricSpec: {
-              rougeType: 'rougeLsum',
-              useStemmer: true,
-              splitSummaries: 'true',
-            },
+      metrics: [
+        VertexAIEvaluationMetricType.BLEU,
+        VertexAIEvaluationMetricType.GROUNDEDNESS,
+        VertexAIEvaluationMetricType.SAFETY,
+        {
+          type: VertexAIEvaluationMetricType.ROUGE,
+          metricSpec: {
+            rougeType: 'rougeLsum',
+            useStemmer: true,
+            splitSummaries: 'true',
           },
-        ],
-      },
+        },
+      ],
     }),
 
     // vector stores
