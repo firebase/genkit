@@ -17,10 +17,6 @@ The following steps will help you migrate from Genkit 0.5 to Genkit 0.9 quickly.
 * Install the new CLI
 
   ```posix-terminal
-  # Install globally
-  npm i -g genkit-cli
-  
-  # Or install as a dev dependency
   npm i -D genkit-cli
   ```
 
