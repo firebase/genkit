@@ -134,7 +134,7 @@ See the following code samples for a concrete idea of how to use these capabilit
     async (input) => {
       // Here, we would typically make an API call or database query. For this
       // example, we just return a fixed value.
-      return "The current weather in ${input.location} is 63°F and sunny.";
+      return `The current weather in ${input.location} is 63°F and sunny.`;
     }
   );
 
