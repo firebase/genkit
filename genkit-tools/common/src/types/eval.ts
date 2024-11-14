@@ -83,6 +83,7 @@ export type EvalInput = z.infer<typeof EvalInputSchema>;
 
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
+  scoreId: z.string().optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
   rationale: z.string().optional(),
   error: z.string().optional(),
