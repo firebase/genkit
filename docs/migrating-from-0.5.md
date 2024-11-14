@@ -55,7 +55,7 @@ The following steps will help you migrate from Genkit 0.5 to Genkit 0.9 quickly.
   ```js
   import * as z from 'zod';
   ```
-  
+
 * Import `genkit` and `zod` from `genkit`
 
   ```js
@@ -72,28 +72,32 @@ Configuration for Genkit is now done per instance. Telemetry and logging is conf
 
   ```js
   import { genkit } from 'genkit';
-  
+
   const ai = genkit({ plugins: [...]});
   ```
 
 * Configure telemetry using enableFirebaseTelemetry or enableGoogleCloudTelemetry
 
   For Firebase:
+
   ```js
   import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+
   enableFirebaseTelemetry({...});
   ```
 
   For Google Cloud:
+
   ```js
   import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
+
   enableGoogleCloudTelemetry({...});
   ```
 
 * Set your logging level independently
   ```js
   import { logger } from 'genkit/logging';
-  
+
   logger.setLogLevel('debug');
   ```
 
