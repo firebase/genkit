@@ -81,3 +81,6 @@ cd  js/plugins/langchain
 pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
+cd  js/plugins/checks
+pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT
