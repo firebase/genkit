@@ -18,21 +18,9 @@ package logger
 import (
 	"context"
 	"log/slog"
-	"os"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
-
-func init() {
-	// TODO: Remove this. The main program should be responsible for configuring logging.
-	// This is just a convenience during development.
-	baseHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})
-	debugHandler := &LevelFilterHandler{
-		h:     baseHandler,
-		level: slog.LevelDebug,
-	}
-	slog.SetDefault(slog.New(debugHandler))
-}
 
 var loggerKey = base.NewContextKey[*slog.Logger]()
 
