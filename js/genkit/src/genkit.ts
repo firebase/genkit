@@ -479,6 +479,8 @@ export class Genkit {
         }
       }
       const p = await promptAction;
+      // If it's a dotprompt template, we invoke dotprompt template directly
+      // because it can take in more PromptGenerateOptions (not just inputs).
       const promptResult = await (dotprompt
         ? dotprompt.render(opt)
         : p(opt.input));
