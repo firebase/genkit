@@ -42,50 +42,54 @@ Output: string (yes, no, maybe)
 
 An evaluator that attempts to judge if a passed statement is delicious literally or metaphorically.
 
-## Build It
+## Build and start the app
 
-```
+```posix-terminal
 pnpm build
 ```
 
 or if you need to, build everything:
 
-```
+```posix-terminal
 cd ../../../; pnpm build; pnpm pack:all; cd -
+```
+
+Start the testapp
+
+```posix-terminal
+genkit start -- pnpm dev
 ```
 
 ## Test your evaluator
 
+Note: Run these commands in a separate terminal.
+
 Regex:
 
-```
+```posix-terminal
 genkit eval:run datasets/regex_dataset.json --evaluators=byo/regex_match_url,byo/regex_match_us_phone
 ```
 
 PII Detection:
 
-```
+```posix-terminal
 genkit eval:run ./datasets/pii_detection_dataset.json --evaluators=byo/pii_detection
 ```
 
 Funniness:
 
-```
+```posix-terminal
 genkit eval:run datasets/funniness_dataset.json --evaluators=byo/funniness
 ```
 
 Deliciousness:
 
-```
+```posix-terminal
 genkit eval:run datasets/deliciousness_dataset.json --evaluators=byo/deliciousness
 ```
 
-Note: The evaluators implemented in this plugin do not consider the `input` provided to the model as part of the evaluation. Therefore, many of the test datasets provided in this testapp have `input` set to `"input"`. If you are implementing an evaluator that utilized the input provied to the model, you will have to provide the actual input in this field.
+Note: The evaluators implemented in this plugin do not consider the `input` provided to the model as part of the evaluation. Therefore, many of the test datasets provided in this testapp have `input` set to `"input"`. If you are implementing an evaluator that utilizes the input provied to the model, you have to provide the actual input in this field.
 
 ## See your results
 
-```
-genkit start
-```
-
-Navigate to the `Evaluations` section in the side-nav.
+Navigate to the `Evaluations` section in the Dev UI.

@@ -15,6 +15,7 @@
  */
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
@@ -89,6 +90,30 @@ export const ai = genkit({
         embedder: textEmbedding004,
       },
     ]),
+    genkitEval({
+      judge: gemini15Flash,
+      judgeConfig: {
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_NONE',
+          },
+        ],
+      } as any,
+      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
+    }),
   ],
   model: gemini15Flash,
 });

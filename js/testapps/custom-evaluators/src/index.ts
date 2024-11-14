@@ -39,7 +39,7 @@ import {
 
 export const ai = genkit({
   plugins: [
-    googleAI({ apiVersion: ['v1', 'v1beta'] }),
+    googleAI({ apiVersion: ['v1'] }),
     byoEval({
       judge: gemini15Flash,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,

@@ -16,11 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/dev-local-vectorstore": "workspace:*",
-    "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
-    "@genkit-ai/vertexai": "workspace:*",
     "genkit": "workspace:*",
     "path": "^0.12.7"
   },

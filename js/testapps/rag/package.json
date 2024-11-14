@@ -24,7 +24,6 @@
     "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
     "firebase-admin": ">=12.2",
-    "genkitx-langchain": "workspace:*",
     "genkitx-pinecone": "workspace:*",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",
