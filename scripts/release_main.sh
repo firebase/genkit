@@ -83,7 +83,3 @@ cd $CURRENT
 cd  js/plugins/checks
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
-
-cd  js/plugins/checks
-pnpm publish --registry https://wombat-dressing-room.appspot.com
-cd $CURRENT
