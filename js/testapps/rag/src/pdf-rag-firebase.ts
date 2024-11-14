@@ -142,7 +142,6 @@ async function indexToFirestore(data: string[]) {
       [indexConfig.vectorField]: FieldValue.vector(embedding),
       [indexConfig.contentField]: text,
     });
-    // await firestore.collection(indexConfig.collection).add({ 'a': 'b' });
   }
 }
 
