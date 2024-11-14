@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { generateStream } from '@genkit-ai/ai';
-import { gemini15ProPreview } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
+import { z } from 'genkit';
 import { Allow, parse } from 'partial-json';
-import { z } from 'zod';
+import { ai } from './genkit.js';
 
 const GameCharactersSchema = z.object({
   characters: z
@@ -34,7 +34,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamCharacters = ai.defineFlow(
+export const streamCharacters = ai.defineStreamingFlow(
   {
     name: 'streamCharacters',
     inputSchema: z.number(),
@@ -46,9 +46,10 @@ export const streamCharacters = ai.defineFlow(
       throw new Error('this flow only works in streaming mode');
     }
 
-    const { response, stream } = await generateStream({
-      model: gemini15ProPreview,
+    const { response, stream } = await ai.generateStream({
+      model: gemini15Flash,
       output: {
+        format: 'json',
         schema: GameCharactersSchema,
       },
       config: {
@@ -58,14 +59,14 @@ export const streamCharacters = ai.defineFlow(
     });
 
     let buffer = '';
-    for await (const chunk of stream()) {
+    for await (const chunk of stream) {
       buffer += chunk.content[0].text!;
       if (buffer.length > 10) {
         streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
       }
     }
 
-    return (await response()).text;
+    return (await response).text;
   }
 );
 

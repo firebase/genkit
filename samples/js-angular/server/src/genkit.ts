@@ -14,21 +14,9 @@
  * limitations under the License.
  */
 
-import { ai } from '../genkit.js';
-import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types.js';
-import { s02_dataMenuPrompt } from './prompts.js';
+import vertexAI from '@genkit-ai/vertexai';
+import { genkit } from 'genkit';
 
-// Define a flow which generates a response from the prompt.
-
-export const s02_menuQuestionFlow = ai.defineFlow(
-  {
-    name: 's02_menuQuestion',
-    inputSchema: MenuQuestionInputSchema,
-    outputSchema: AnswerOutputSchema,
-  },
-  async (input) => {
-    return s02_dataMenuPrompt({ question: input.question }).then((response) => {
-      return { answer: response.text };
-    });
-  }
-);
+export const ai = genkit({
+  plugins: [vertexAI()],
+});

@@ -16,7 +16,7 @@
 
 import { gemini15Flash } from '@genkit-ai/vertexai';
 import { GenerateRequest } from 'genkit';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
 // Define a prompt to handle a customer question about the menu.

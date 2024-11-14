@@ -14,54 +14,35 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
-
 // Import the Genkit core libraries and plugins.
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
+import { genkit, z } from 'genkit';
 
-// Import models from the Google AI plugin. The Google AI API provides access to
-// several generative models. Here, we import Gemini 1.5 Flash.
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-
-configureGenkit({
+const ai = genkit({
   plugins: [
-    googleAI(), //Provide the key via the GOOGLE_GENAI_API_KEY environment variable or arg { apiKey: 'yourkey'}
+    googleAI(), // Provide the key via the GOOGLE_GENAI_API_KEY environment variable or arg { apiKey: 'yourkey'}
   ],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
-defineFlow(
-  {
-    name: 'simplePrompt',
-  },
-  () =>
-    generate({
-      model: 'googleai/gemini-1.5-flash-latest',
-      prompt: 'You are a helpful AI assistant named Walt, say hello',
-    })
+const simplePrompt = ai.defineFlow('simplePrompt', () =>
+  ai.generate({
+    model: 'googleai/gemini-1.5-flash',
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+  })
 );
 
-defineFlow(
-  {
-    name: 'simpleTemplate',
-  },
-  () => {
-    const name = 'Fred';
-    return generate({
-      model: 'googleai/gemini-1.5-flash-latest',
-      prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
-    });
-  }
-);
+const simpleTemplate = ai.defineFlow('simpleTemplate', () => {
+  const name = 'Fred';
+  return ai.generate({
+    model: 'googleai/gemini-1.5-flash',
+    prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
+  });
+});
 
-const helloDotprompt = defineDotprompt(
+const helloDotprompt = ai.definePrompt(
   {
     name: 'helloPrompt',
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-1.5-flash',
     input: {
       schema: z.object({ name: z.string() }),
     },
@@ -69,14 +50,9 @@ const helloDotprompt = defineDotprompt(
   `You are a helpful AI assistant named Walt. Say hello to {{name}}`
 );
 
-defineFlow(
-  {
-    name: 'simpleDotprompt',
-  },
-  () => {
-    return helloDotprompt.generate({ input: { name: 'Fred' } });
-  }
-);
+const simpleDotprompt = ai.defineFlow('simpleDotprompt', () => {
+  return helloDotprompt({ name: 'Fred' });
+});
 
 const outputSchema = z.object({
   short: z.string(),
@@ -84,10 +60,10 @@ const outputSchema = z.object({
   likeAPirate: z.string(),
 });
 
-const threeGreetingsPrompt = defineDotprompt(
+const threeGreetingsPrompt = ai.definePrompt(
   {
     name: 'threeGreetingsPrompt',
-    model: 'googleai/gemini-1.5-flash-latest',
+    model: 'googleai/gemini-1.5-flash',
     input: {
       schema: z.object({ name: z.string() }),
     },
@@ -99,20 +75,15 @@ const threeGreetingsPrompt = defineDotprompt(
   `You are a helpful AI assistant named Walt. Say hello to {{name}}, write a response for each of the styles requested`
 );
 
-defineFlow(
-  {
-    name: 'threeGreetingsPrompt',
-  },
-  async () => {
-    const response = await threeGreetingsPrompt.generate<typeof outputSchema>({
-      input: { name: 'Fred' },
-    });
-    return response.output?.likeAPirate;
-  }
-);
+const threeGreetings = ai.defineFlow('threeGreetingsPrompt', async () => {
+  const response = await threeGreetingsPrompt({ name: 'Fred' });
+  return response.output?.likeAPirate;
+});
 
 // Start a flow server, which exposes your flows as HTTP endpoints. This call
 // must come last, after all of your plug-in configuration and flow definitions.
 // You can optionally specify a subset of flows to serve, and configure some
 // HTTP server options, but by default, the flow server serves all defined flows.
-startFlowsServer();
+ai.startFlowServer({
+  flows: [threeGreetings, simpleTemplate, simpleDotprompt, simplePrompt],
+});

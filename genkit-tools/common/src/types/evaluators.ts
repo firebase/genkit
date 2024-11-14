@@ -24,6 +24,12 @@
 import { z } from 'zod';
 
 export const ScoreSchema = z.object({
+  id: z
+    .string()
+    .describe(
+      'Optional ID to differentiate different scores if applying in a single evaluation'
+    )
+    .optional(),
   score: z.number().optional(),
   // TODO: use StatusSchema
   error: z.string().optional(),
@@ -40,7 +46,7 @@ export const TestCaseSchema = z.object({
   testCaseId: z.string().optional(),
   traceId: z.string().optional(),
   spanId: z.string().optional(),
-  evaluation: ScoreSchema,
+  evaluation: z.union([ScoreSchema, z.array(ScoreSchema)]),
 });
 export type TestCase = z.infer<typeof TestCaseSchema>;
 

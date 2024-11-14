@@ -79,9 +79,7 @@ export const ai = genkit({
     }),
     vertexAIModelGarden({
       location: 'us-central1',
-      modelGarden: {
-        models: [claude3Sonnet, llama31],
-      },
+      models: [claude3Sonnet, llama31],
     }),
     pinecone([
       {

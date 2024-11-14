@@ -5,6 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
     "compile": "tsc",
     "build": "npm run build:clean && npm run compile",
     "build:clean": "rimraf ./lib",
@@ -15,17 +16,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "^0.5.0",
-    "@genkit-ai/core": "^0.5.0",
-    "@genkit-ai/dotprompt": "^0.5.0",
-    "@genkit-ai/dev-local-vectorstore": "^0.5.0",
-    "@genkit-ai/firebase": "^0.5.0",
-    "@genkit-ai/evaluator": "^0.5.0",
-    "@genkit-ai/vertexai": "^0.5.0",
-    "zod": "^3.22.4"
+    "genkit": "^0.9.0-rc || ^0.9",
+    "@genkit-ai/dev-local-vectorstore": "^0.9.0-rc || ^0.9",
+    "@genkit-ai/firebase": "^0.9.0-rc || ^0.9",
+    "@genkit-ai/evaluator": "^0.9.0-rc || ^0.9",
+    "@genkit-ai/vertexai": "^0.9.0-rc || ^0.9"
   },
   "devDependencies": {
-    "genkit": "^0.5.0",
+    "genkit-cli": "^0.9.0-rc || ^0.9",
     "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }

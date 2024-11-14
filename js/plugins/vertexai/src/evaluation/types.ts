@@ -45,10 +45,7 @@ export type VertexAIEvaluationMetric =
 
 /** Options specific to evaluation configuration */
 export interface EvaluationOptions {
-  /** Configure Vertex AI evaluators */
-  evaluation?: {
-    metrics: VertexAIEvaluationMetric[];
-  };
+  metrics: VertexAIEvaluationMetric[];
 }
 
 export interface PluginOptions extends CommonPluginOptions, EvaluationOptions {}
