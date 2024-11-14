@@ -68,7 +68,6 @@ export const ai = genkit({
 Create a JSON file with the data you want to test. Add as many test cases as you want. `output` is the text that will be classified.
 
 ```JSON
-// test-dataset.json
 [
   {
     "testCaseId": "test_case_id_1",
