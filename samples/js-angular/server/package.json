@@ -1,7 +1,8 @@
 {
   "main": "lib/index.js",
   "scripts": {
-    "start": "genkit start",
+    "start": "node lib/index.js",
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,15 +14,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "^0.6.0",
-    "@genkit-ai/core": "^0.6.0",
-    "@genkit-ai/dotprompt": "^0.6.0",
-    "@genkit-ai/vertexai": "^0.6.0",
+    "genkit": "^0.9.0-rc || ^0.9",
+    "@genkit-ai/vertexai": "^0.9.0-rc || ^0.9",
     "express": "^4.21.0",
-    "partial-json": "^0.1.7",
-    "zod": "^3.23.8"
+    "partial-json": "^0.1.7"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "genkit-cli": "^0.9.0-rc || ^0.9",
+    "typescript": "^5.4.5",
+    "tsx": "^4.19.2"
   }
 }

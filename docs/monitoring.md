@@ -1,40 +1,57 @@
 # Monitoring
 
 Firebase Genkit is fully instrumented with
-[OpenTelemetry](https://opentelemetry.io/) and provides hooks to export
-telemetry data.
+[OpenTelemetry](https://opentelemetry.io/) and provides built-in telemetry support for tracing and metrics.
 
 ## Telemetry Configuration
 
-Genkit's configuration supports a `telemetry` block that exposes instrumentation (trace and metrics) and logging hooks, allowing plugins to provide OpenTelemetry and logging exporters.
+Genkit automatically manages tracing and metrics without requiring explicit configuration. You can enable telemetry exports for Firebase or Google Cloud using their respective plugins and helper functions. Using either plugin poweres the [Firebase AI Monitoring dashboard (private preview)](https://forms.gle/Lp5S1NxbZUXsWc457) that has an AI-idiomatic view of telemetry data.
+
+### For Firebase:
 
 ```ts
-configureGenkit({
-  telemetry: {
-    instrumentation: ...,
-    logger: ...
-  }
+import { genkit } from 'genkit';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+
+enableFirebaseTelemetry({
+  // Firebase-specific configuration options
+});
+
+const ai = genkit({
+  plugins: [ ... ]
 });
 ```
+More details are outlined in the [Firebase plugin docs](./plugins/firebase.md).
 
-Genkit ships with a [Google Cloud plugin](./plugins/google-cloud.md) which exports telemetry to Cloud's operations suite.
-
-## Trace Store
-
-The `traceStore` option is complementary to the telemetry instrumentation. It
-lets you inspect your traces for your flow runs in the Genkit Developer UI. It
-requires a separate configuration which provides a trace storage implementation.
-The `firebase` plugin offers a Firestore-based implementation. This
-configuration is optional, but is recommended because it lets you inspect and
-debug issues in production. When using Firestore-based trace storage you will
-want to enable TTL for the trace documents:
-https://firebase.google.com/docs/firestore/ttl
+### For Google Cloud:
 
 ```ts
-import { firebase } from '@genkit-ai/plugin-firebase';
+import { genkit } from 'genkit';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 
-configureGenkit({
-  plugins: [firebase()],
-  traceStore: 'firebase',
+enableGoogleCloudTelemetry({
+  // Google Cloud-specific configuration options
+});
+
+const ai = genkit({
+  plugins: [ ... ]
 });
 ```
+More details are outlined in the [Google Cloud plugin docs](./plugins/google-cloud.md).
+
+## Logging
+Genkit provides a centralized logging system that can be configured using the logging module. Logs will be exported Google Cloud operations suite if telemetry export is enabled.
+
+```ts
+import { logger } from 'genkit/logging';
+
+// Set the desired log level
+logger.setLogLevel('debug');
+```
+
+## Trace Storage and Developer UI
+Traces are automatically captured and can be viewed in the Genkit Developer UI. To start the UI:
+```posix-terminal
+npx genkit start -- <command to run your code>
+```
+When using Firebase, trace data is automatically stored in Firestore. It's recommended to enable [TTL (Time To Live)](https://firebase.google.com/docs/firestore/ttl) for trace documents to manage storage costs and data retention.

@@ -438,7 +438,7 @@ export class Genkit {
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
-      opts?: PromptGenerateOptions<I, CustomOptions>
+      opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateResponse> => {
       const renderedOpts = await (
         executablePrompt as ExecutablePrompt<I, O, CustomOptions>
@@ -460,35 +460,20 @@ export class Genkit {
       });
       return this.generateStream(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generate(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateStreamResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generateStream(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
-      Out extends O,
-    >(
-      opt: PromptGenerateOptions<I, CustomOptions>
-    ): Promise<GenerateOptions<CustomOptions, Out>> => {
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async (
+      opt: PromptGenerateOptions<O, CustomOptions> & {
+        input?: I;
+      }
+    ): Promise<GenerateOptions<O, CustomOptions>> => {
       let model: ModelAction | undefined;
       options = await options;
-      try {
-        model = await this.resolveModel(opt?.model ?? options.model);
-      } catch (e) {
-        // ignore, no model on a render is OK?
+      const modelArg = opt?.model ?? options.model;
+      if (modelArg) {
+        model = await this.resolveModel(modelArg);
+        // If model was explicitly specified and we failed to resolve it (bad ref maybe?), throw an error!
+        if (!model) {
+          throw new Error(`Model ${modelArg} not found`);
+        }
       }
       const p = await promptAction;
       const promptResult = await p(opt.input);
@@ -509,8 +494,8 @@ export class Genkit {
           ...opt.config,
         },
         model,
-      } as GenerateOptions<CustomOptions, Out>;
-      delete (resultOptions as PromptGenerateOptions<I, CustomOptions>).input;
+      } as GenerateOptions<O, CustomOptions>;
+      delete (resultOptions as any).input;
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
@@ -1058,7 +1043,7 @@ export class Genkit {
     }
   }
 
-  startFlowServer(options?: FlowServerOptions): FlowServer {
+  startFlowServer(options: FlowServerOptions): FlowServer {
     const flowServer = new FlowServer(this.registry, options);
     flowServer.start();
     return flowServer;

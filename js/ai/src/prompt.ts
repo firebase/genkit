@@ -64,15 +64,9 @@ export function isPrompt(arg: any): boolean {
 }
 
 export type PromptGenerateOptions<
-  I = undefined,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Omit<
-  GenerateOptions<z.ZodTypeAny, CustomOptions>,
-  'prompt' | 'input' | 'model'
-> & {
-  model?: ModelArgument<CustomOptions>;
-  input?: I;
-};
+> = Omit<GenerateOptions<O, CustomOptions>, 'prompt'>;
 
 /**
  * A prompt that can be executed as a function.
@@ -89,10 +83,10 @@ export interface ExecutablePrompt<
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
-  <Out extends O>(
+  (
     input?: I,
-    opts?: PromptGenerateOptions<I, CustomOptions>
-  ): Promise<GenerateResponse<z.infer<Out>>>;
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<O>>>;
 
   /**
    * Generates a response by rendering the prompt template with given user input and then calling the model.
@@ -100,30 +94,10 @@ export interface ExecutablePrompt<
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
-  stream<Out extends O>(
+  stream(
     input?: I,
-    opts?: PromptGenerateOptions<I, CustomOptions>
-  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateResponse`.
-   */
-  generate<Out extends O>(
-    opt: PromptGenerateOptions<I, CustomOptions>
-  ): Promise<GenerateResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateStreamResponse`.
-   */
-  generateStream<Out extends O>(
-    opt: PromptGenerateOptions<I, CustomOptions>
-  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
 
   /**
    * Renders the prompt template based on user input.
@@ -131,9 +105,11 @@ export interface ExecutablePrompt<
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
    */
-  render<Out extends O>(
-    opt: PromptGenerateOptions<I, CustomOptions>
-  ): Promise<GenerateOptions<CustomOptions, Out>>;
+  render(
+    opt: PromptGenerateOptions<O, CustomOptions> & {
+      input?: I;
+    }
+  ): Promise<GenerateOptions<O, CustomOptions>>;
 
   /**
    * Returns the prompt usable as a tool.

@@ -139,6 +139,9 @@ importers:
 
   doc-snippets:
     dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../plugins/firebase
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../plugins/googleai
@@ -155,12 +158,15 @@ importers:
       '@types/data-urls':
         specifier: ^3.0.4
         version: 3.0.4
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
       typescript:
-        specifier: ^5.3.3
-        version: 5.6.2
+        specifier: ^5.6.3
+        version: 5.6.3
 
   genkit:
     dependencies:
@@ -205,7 +211,7 @@ importers:
   plugins/chroma:
     dependencies:
       chromadb:
-        specifier: ^1.7.3
+        specifier: 1.8.1
         version: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       genkit:
         specifier: workspace:*
@@ -522,7 +528,7 @@ importers:
     dependencies:
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -534,7 +540,7 @@ importers:
         version: link:../../genkit
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -567,6 +573,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      ollama:
+        specifier: ^0.5.9
+        version: 0.5.9
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -923,9 +932,15 @@ importers:
         specifier: workspace:*
         version: link:../../genkit
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      tsx:
+        specifier: ^4.7.0
+        version: 4.19.2
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1102,7 +1117,7 @@ importers:
         version: link:../../plugins/vertexai
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -1123,7 +1138,7 @@ importers:
         version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1188,7 +1203,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.0-dev.4)(@genkit-ai/core@0.9.0-dev.4)
+        version: 0.10.1(@genkit-ai/ai@0.9.0-rc.3)(@genkit-ai/core@0.9.0-rc.3)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1196,6 +1211,22 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.5.3
+
+  testapps/ollama:
+    dependencies:
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.3
 
   testapps/prompt-file:
     dependencies:
@@ -2099,11 +2130,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.0-dev.4':
-    resolution: {integrity: sha512-j7mCfJnPupK9tqkESV+SVtwGAfGFB6CnIr/NXeTZleU6cupocP0uFkZKi72HbdMYk2VI38spplp5aIt4jW/wNA==}
+  '@genkit-ai/ai@0.9.0-rc.3':
+    resolution: {integrity: sha512-vNj3XKISumX7i77vJLQ3OegnVhlpk250nMU4uEE60W01j6JH58thPKWfwgXjo6uR590vInvGvrKImWELGDRu1A==}
 
-  '@genkit-ai/core@0.9.0-dev.4':
-    resolution: {integrity: sha512-v6QpSedACJU/jKJGukJKHM5sPJdyYKPoyzAMyztWvVD12t2bkvXYL7+QyCeB/cUE7cijyO4w/2lRNyZciyAgMw==}
+  '@genkit-ai/core@0.9.0-rc.3':
+    resolution: {integrity: sha512-eTh9kbjENOrNXt/KYeGkc1y4hKLVhGI+ctdILrdG7JZ6M3rYt2gX+pGmS1o/A19xAOrYYgiL4zPtKwCSAP60Hg==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -3832,6 +3863,21 @@ packages:
       openai:
         optional: true
 
+  chromadb@1.9.2:
+    resolution: {integrity: sha512-JNeLKlrsPxld7oPJCNeF73yHyyYeyP950enWRkTa6WsJ6UohH2NQ1vXZu6lWO9WuA9EMypITyZFZ8KtcTV3y2Q==}
+    engines: {node: '>=14.17.0'}
+    peerDependencies:
+      '@google/generative-ai': ^0.1.1
+      cohere-ai: ^5.0.0 || ^6.0.0 || ^7.0.0
+      openai: ^3.0.0 || ^4.0.0
+    peerDependenciesMeta:
+      '@google/generative-ai':
+        optional: true
+      cohere-ai:
+        optional: true
+      openai:
+        optional: true
+
   ci-info@3.9.0:
     resolution: {integrity: sha512-NIxF55hv4nSqQswkAeiOi1r83xy8JldOFDTWiug55KBu9Jnblncd2U6ViHmYgHf01TPZS77NJBhBMKdWj9HQMQ==}
     engines: {node: '>=8'}
@@ -5540,6 +5586,9 @@ packages:
     resolution: {integrity: sha512-byy+U7gp+FVwmyzKPYhW2h5l3crpmGsxl7X2s8y43IgxvG4g3QZ6CffDtsNQy1WsmZpQbO+ybo0AlW7TY6DcBQ==}
     engines: {node: '>= 0.4'}
 
+  ollama@0.5.9:
+    resolution: {integrity: sha512-F/KZuDRC+ZsVCuMvcOYuQ6zj42/idzCkkuknGyyGVmNStMZ/sU3jQpvhnl4SyC0+zBzLiKNZJnJeuPFuieWZvQ==}
+
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
@@ -6408,6 +6457,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@5.6.3:
+    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   uglify-js@3.17.4:
     resolution: {integrity: sha512-T9q82TJI9e/C1TAxYvfb16xO120tMVFZrGA3f9/P4424DNu6ypK103y0GPFVa17yotwSyZW5iYXgjYHkGrJW/g==}
     engines: {node: '>=0.8.0'}
@@ -7131,19 +7185,20 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.0-dev.4':
+  '@genkit-ai/ai@0.9.0-rc.3':
     dependencies:
-      '@genkit-ai/core': 0.9.0-dev.4
+      '@genkit-ai/core': 0.9.0-rc.3
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
       json5: 2.2.3
       node-fetch: 3.3.2
       partial-json: 0.1.7
+      uuid: 10.0.0
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.0-dev.4':
+  '@genkit-ai/core@0.9.0-rc.3':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.26.0(@opentelemetry/api@1.9.0)
@@ -7566,7 +7621,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
     dependencies:
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
@@ -7578,7 +7633,7 @@ snapshots:
       zod-to-json-schema: 3.22.5(zod@3.23.8)
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+      chromadb: 1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       firebase-admin: 12.3.1(encoding@0.1.13)
       google-auth-library: 8.9.0(encoding@0.1.13)
       jsonwebtoken: 9.0.2
@@ -9027,6 +9082,16 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
+  chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)):
+    dependencies:
+      cliui: 8.0.1
+      isomorphic-fetch: 3.0.0(encoding@0.1.13)
+    optionalDependencies:
+      openai: 4.53.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+    optional: true
+
   ci-info@3.9.0: {}
 
   cjs-module-lexer@1.2.3: {}
@@ -9821,10 +9886,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-dev.4)(@genkit-ai/core@0.9.0-dev.4):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.0-rc.3)(@genkit-ai/core@0.9.0-rc.3):
     dependencies:
-      '@genkit-ai/ai': 0.9.0-dev.4
-      '@genkit-ai/core': 0.9.0-dev.4
+      '@genkit-ai/ai': 0.9.0-rc.3
+      '@genkit-ai/core': 0.9.0-rc.3
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
@@ -10758,10 +10823,10 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
+  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
     dependencies:
       '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
-      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
       '@langchain/textsplitters': 0.0.0
@@ -10781,7 +10846,7 @@ snapshots:
     optionalDependencies:
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+      chromadb: 1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       fast-xml-parser: 4.3.6
       google-auth-library: 8.9.0(encoding@0.1.13)
       handlebars: 4.7.8
@@ -11173,6 +11238,10 @@ snapshots:
       define-properties: 1.2.1
       has-symbols: 1.0.3
       object-keys: 1.1.1
+
+  ollama@0.5.9:
+    dependencies:
+      whatwg-fetch: 3.6.20
 
   on-finished@2.4.1:
     dependencies:
@@ -12169,6 +12238,8 @@ snapshots:
   typescript@5.5.3: {}
 
   typescript@5.6.2: {}
+
+  typescript@5.6.3: {}
 
   uglify-js@3.17.4:
     optional: true

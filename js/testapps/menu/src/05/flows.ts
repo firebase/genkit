@@ -17,7 +17,7 @@
 import fs from 'fs';
 import { z } from 'genkit';
 import path from 'path';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import {
   AnswerOutputSchema,
   MenuQuestionInputSchema,
@@ -38,10 +38,8 @@ export const s05_readMenuFlow = ai.defineFlow(
   },
   async (unused) => {
     const imageDataUrl = await inlineDataUrl('menu.jpeg', 'image/jpeg');
-    const response = await s05_readMenuPrompt.generate({
-      input: {
-        imageUrl: imageDataUrl,
-      },
+    const response = await s05_readMenuPrompt({
+      imageUrl: imageDataUrl,
     });
     return { menuText: response.text };
   }
@@ -57,11 +55,9 @@ export const s05_textMenuQuestionFlow = ai.defineFlow(
     outputSchema: AnswerOutputSchema,
   },
   async (input) => {
-    const response = await s05_textMenuPrompt.generate({
-      input: {
-        menuText: input.menuText,
-        question: input.question,
-      },
+    const response = await s05_textMenuPrompt({
+      menuText: input.menuText,
+      question: input.question,
     });
     return { answer: response.text };
   }

@@ -77,32 +77,6 @@ describe('definePrompt - dotprompt', () => {
       );
     });
 
-    it('calls dotprompt with .generate', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
-        },
-        'hi {{ name }}'
-      );
-
-      const response = await hi.generate({
-        input: { name: 'Genkit' },
-        config: { version: 'abc' },
-      });
-      assert.strictEqual(
-        response.text,
-        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
-      );
-    });
-
     it('calls dotprompt with default model via retrieved prompt', async () => {
       ai.definePrompt(
         {
@@ -215,39 +189,6 @@ describe('definePrompt - dotprompt', () => {
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
 
-    it('streams dotprompt .generateStream', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
-        },
-        'hi {{ name }}'
-      );
-
-      const { response, stream } = await hi.generateStream({
-        input: { name: 'Genkit' },
-        config: { version: 'abc' },
-      });
-      const chunks: string[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk.text);
-      }
-      const responseText = (await response).text;
-
-      assert.strictEqual(
-        responseText,
-        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
-      );
-      assert.deepStrictEqual(chunks, ['3', '2', '1']);
-    });
-
     it('calls dotprompt with default model via retrieved prompt', async () => {
       ai.definePrompt(
         {
@@ -316,6 +257,26 @@ describe('definePrompt - dotprompt', () => {
         response.text,
         'Echo: hi Genkit; config: {"temperature":11}'
       );
+    });
+
+    it('rejects on invalid model', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model: 'modelThatDoesNotExist',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = hi({ name: 'Genkit' });
+      await assert.rejects(response, {
+        message: 'Model modelThatDoesNotExist not found',
+      });
     });
   });
 
@@ -620,70 +581,6 @@ describe('definePrompt', () => {
         response.text,
         'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
-    });
-
-    it('works with .generate', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-        },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
-
-      const response = await hi.generate({ input: { name: 'Genkit' } });
-      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
-    });
-
-    it('streams dotprompt with .generateStream', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
-        },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
-
-      const { response, stream } = await hi.generateStream({
-        model: 'echoModel',
-        input: { name: 'Genkit' },
-        config: { version: 'abc' },
-      });
-      const chunks: string[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk.text);
-      }
-      const responseText = (await response).text;
-
-      assert.strictEqual(
-        responseText,
-        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
-      );
-      assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
   });
 
