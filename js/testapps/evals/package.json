@@ -25,6 +25,7 @@
     "genkitx-langchain": "workspace:*",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.0.379",
     "pdfjs-dist-legacy": "^1.0.1"
   },
   "devDependencies": {
