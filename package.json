@@ -39,5 +39,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.7.1"
   },
-  "packageManager": "pnpm@9.12.2+sha256.2ef6e547b0b07d841d605240dce4d635677831148cd30f6d564b8f4f928f73d2"
+  "packageManager": "pnpm@9.12.2+sha256.2ef6e547b0b07d841d605240dce4d635677831148cd30f6d564b8f4f928f73d2",
+  "dependencies": {
+    "uuid": "^11.0.3"
+  }
 }

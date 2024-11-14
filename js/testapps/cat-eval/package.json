@@ -16,7 +16,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
@@ -25,17 +24,19 @@
     "@google-cloud/firestore": "^7.9.0",
     "@opentelemetry/sdk-trace-base": "^1.22.0",
     "firebase-admin": ">=12.2",
+    "genkit": "workspace:*",
     "genkitx-pinecone": "workspace:*",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.0.379",
-    "pdfjs-dist-legacy": "^1.0.1"
+    "pdfjs-dist-legacy": "^1.0.1",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
-    "tsx": "^4.7.0",
-    "rimraf": "^6.0.1",
     "@types/pdf-parse": "^1.1.4",
+    "cross-env": "^7.0.3",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
 }
