@@ -104,6 +104,14 @@ describe('generate', () => {
       });
       assert.strictEqual(response.text, 'Echo: hi; config: {}');
     });
+
+    it('rejects on invalid model', async () => {
+      const response = ai.generate({
+        model: 'modelThatDoesNotExist',
+        prompt: 'hi',
+      });
+      await assert.rejects(response, 'Model modelThatDoesNotExist not found');
+    });
   });
 
   describe('streaming', () => {

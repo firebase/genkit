@@ -15,7 +15,7 @@
  */
 
 import { gemini15Flash } from '@genkit-ai/vertexai';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
 export const s04_ragDataMenuPrompt = ai.definePrompt(

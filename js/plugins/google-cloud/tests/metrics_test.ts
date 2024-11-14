@@ -721,7 +721,7 @@ describe('GoogleCloudMetrics', () => {
   }, 10000); //timeout
 
   it('writes user feedback metrics', async () => {
-    appendSpan(
+    await appendSpan(
       'trace1',
       'parent1',
       {
@@ -750,7 +750,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes user acceptance metrics', async () => {
-    appendSpan(
+    await appendSpan(
       'trace1',
       'parent1',
       {

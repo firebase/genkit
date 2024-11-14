@@ -1,6 +1,6 @@
 # Chroma plugin
 
-The Chroma plugin provides indexer and retriever implementatons that use the
+The Chroma plugin provides indexer and retriever implementations that use the
 [Chroma](https://docs.trychroma.com/) vector database in client/server mode.
 
 ## Installation
@@ -11,77 +11,73 @@ npm i --save genkitx-chromadb
 
 ## Configuration
 
-To use this plugin, specify it when you call `configureGenkit()`:
+To use this plugin, specify it when you initialize Genkit:
 
-```js
+```ts
+import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     chroma([
       {
         collectionName: 'bob_collection',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
     ]),
   ],
-  // ...
 });
 ```
 
-You must specify a Chroma collection and the embedding model you want to use. In
+You must specify a Chroma collection and the embedding model you want to use. In
 addition, there are two optional parameters:
 
-- `clientParams`: If you're not running your Chroma server on the same machine
-  as your Genkit flow, you need to specify auth options, or you're otherwise not
-  running a default Chroma server configuration, you can specify a Chroma
-  [`ChromaClientParams` object](https://docs.trychroma.com/js_reference/Client)
-  to pass to the Chroma client:
+*    `clientParams`: If you're not running your Chroma server on the same machine as your Genkit flow, you need to specify auth options, or you're otherwise not running a default Chroma server configuration, you can specify a Chroma <code>[ChromaClientParams object]([https://docs.trychroma.com/js_reference/Client](https://docs.trychroma.com/js_reference/Client))</code> to pass to the Chroma client:
 
-  ```js
-  clientParams: {
-    path: "http://192.168.10.42:8000",
-  }
-  ```
+    ```ts
+    clientParams: {
+      path: "http://192.168.10.42:8000",
+    }
+    ```
 
-- `embedderOptions`: Use this parameter to pass options to the embedder:
+*   `embedderOptions`: Use this parameter to pass options to the embedder:
 
-  ```js
-  embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
-  ```
+    ```ts
+    embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
+    ```
 
 ## Usage
 
 Import retriever and indexer references like so:
 
-```js
+```ts
 import { chromaRetrieverRef } from 'genkitx-chromadb';
 import { chromaIndexerRef } from 'genkitx-chromadb';
 ```
 
-Then, pass the references to `retrieve()` and `index()`:
+Then, use the references with `ai.retrieve()` and `ai.index()`:
 
-```js
+```ts
 // To use the index you configured when you loaded the plugin:
-let docs = await retrieve({ retriever: chromaRetrieverRef, query });
+let docs = await ai.retrieve({ retriever: chromaRetrieverRef, query });
 
 // To specify an index:
 export const bobFactsRetriever = chromaRetrieverRef({
   collectionName: 'bob-facts',
 });
-docs = await retrieve({ retriever: bobFactsRetriever, query });
+docs = await ai.retrieve({ retriever: bobFactsRetriever, query });
 ```
 
-```js
+```ts
 // To use the index you configured when you loaded the plugin:
-await index({ indexer: chromaIndexerRef, documents });
+await ai.index({ indexer: chromaIndexerRef, documents });
 
 // To specify an index:
 export const bobFactsIndexer = chromaIndexerRef({
   collectionName: 'bob-facts',
 });
-await index({ indexer: bobFactsIndexer, documents });
+await ai.index({ indexer: bobFactsIndexer, documents });
 ```
 
-See the [Retrieval-augmented generation](../rag.md) page for a general
+See the [Retrieval-augmented generation](../rag) page for a general
 discussion on indexers and retrievers.

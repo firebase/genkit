@@ -23,6 +23,7 @@ import {
   modelGardenOpenaiCompatibleModel,
 } from './model_garden.js';
 import { PluginOptions } from './types.js';
+
 /**
  * Add Google Cloud Vertex AI Rerankers API to Genkit.
  */
@@ -30,8 +31,7 @@ export function vertexAIModelGarden(options: PluginOptions): GenkitPlugin {
   return genkitPlugin('vertexAIModelGarden', async (ai: Genkit) => {
     const { projectId, location, authClient } = await getDerivedParams(options);
 
-    const mgModels = options?.modelGardenModels || options?.modelGarden?.models;
-    mgModels!.forEach((m) => {
+    options.models.forEach((m) => {
       const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
         ([_, value]) => value.name === m.name
       );
@@ -49,7 +49,7 @@ export function vertexAIModelGarden(options: PluginOptions): GenkitPlugin {
           projectId,
           location,
           authClient,
-          options.modelGarden?.openAiBaseUrlTemplate
+          options.openAiBaseUrlTemplate
         );
         return;
       }

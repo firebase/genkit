@@ -34,7 +34,7 @@ export async function vertexAiRerankers(
   const rerankOptions = options.rerankOptions;
 
   if (rerankOptions.length === 0) {
-    return;
+    throw new Error('Provide at least one reranker configuration.');
   }
 
   const auth = options.authClient;
@@ -42,6 +42,9 @@ export async function vertexAiRerankers(
   const projectId = options.projectId;
 
   for (const rerankOption of rerankOptions) {
+    if (!rerankOption.name && !rerankOption.model) {
+      throw new Error('At least one of name or model must be provided.');
+    }
     ai.defineReranker(
       {
         name: `vertexai/${rerankOption.name || rerankOption.model}`,

@@ -36,7 +36,9 @@ export function vertexAIRerankers(options: PluginOptions): GenkitPlugin {
       projectId,
       location,
       authClient,
-      rerankOptions: options.rerankOptions,
+      rerankOptions: options.rerankers.map((o) =>
+        typeof o === 'string' ? { model: o } : o
+      ),
     });
   });
 }

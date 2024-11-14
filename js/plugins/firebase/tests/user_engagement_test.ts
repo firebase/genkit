@@ -38,7 +38,7 @@ describe('User Engagement', () => {
   });
 
   it('handles user feedback', async () => {
-    collectUserEngagement(
+    await collectUserEngagement(
       FirebaseUserEngagementSchema.parse({
         ...baseInput,
         feedback: {
@@ -65,7 +65,7 @@ describe('User Engagement', () => {
   });
 
   it('handles user acceptance', async () => {
-    collectUserEngagement(
+    await collectUserEngagement(
       FirebaseUserEngagementSchema.parse({
         ...baseInput,
         acceptance: {
@@ -90,7 +90,7 @@ describe('User Engagement', () => {
   });
 
   it('handles multiple engagement types', async () => {
-    collectUserEngagement(
+    await collectUserEngagement(
       FirebaseUserEngagementSchema.parse({
         ...baseInput,
         acceptance: {
@@ -106,7 +106,7 @@ describe('User Engagement', () => {
   });
 
   it('skips empty input', async () => {
-    collectUserEngagement(FirebaseUserEngagementSchema.parse(baseInput));
+    await collectUserEngagement(FirebaseUserEngagementSchema.parse(baseInput));
 
     expect(appendSpan as jest.Mock).not.toHaveBeenCalled();
   });
