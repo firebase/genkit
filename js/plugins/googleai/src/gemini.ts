@@ -15,6 +15,7 @@
  */
 
 import {
+  CachedContent,
   FileDataPart,
   FunctionCallingMode,
   FunctionCallPart,
@@ -25,6 +26,7 @@ import {
   Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
+  GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
@@ -61,6 +63,11 @@ import {
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import process from 'process';
+import { handleContextCache } from './context-caching';
+import {
+  extractCacheConfig,
+  validateContextCacheRequest,
+} from './context-caching/utils';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -81,6 +88,7 @@ const SafetySettingsSchema = z.object({
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
+  contextCache: z.boolean().optional(),
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
@@ -132,6 +140,8 @@ export const gemini15Flash = modelRef({
       media: true,
       tools: true,
       systemRole: true,
+      // @ts-ignore
+      contextCache: true,
     },
     versions: [
       'gemini-1.5-flash-latest',
@@ -544,17 +554,6 @@ export function defineGoogleAIModel(
         ...request.config,
       };
 
-      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel(
-        {
-          model:
-            requestConfig.version ||
-            model.config?.version ||
-            model.version ||
-            apiModelName,
-        },
-        options
-      );
-
       // make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
@@ -621,7 +620,15 @@ export function defineGoogleAIModel(
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
-      const chatRequest = {
+      const msg = toGeminiMessage(messages[messages.length - 1], model);
+
+      const fromJSONModeScopedGeminiCandidate = (
+        candidate: GeminiCandidate
+      ) => {
+        return fromGeminiCandidate(candidate, jsonMode);
+      };
+
+      let chatRequest = {
         systemInstruction,
         generationConfig,
         tools,
@@ -631,15 +638,54 @@ export function defineGoogleAIModel(
           .map((message) => toGeminiMessage(message, model)),
         safetySettings: requestConfig.safetySettings,
       } as StartChatParams;
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
 
-      const fromJSONModeScopedGeminiCandidate = (
-        candidate: GeminiCandidate
-      ) => {
-        return fromGeminiCandidate(candidate, jsonMode);
-      };
+      let cache: CachedContent | null = null;
+
+      // TODO: fix casting
+      const modelVersion = (request.config?.version ||
+        model.version ||
+        name) as string;
+
+      const cacheConfigDetails = extractCacheConfig(request);
+
+      if (
+        cacheConfigDetails &&
+        validateContextCacheRequest(request, modelVersion)
+      ) {
+        const handleContextCacheResponse = await handleContextCache(
+          apiKey!,
+          request,
+          chatRequest,
+          modelVersion,
+          cacheConfigDetails
+        );
+        chatRequest = handleContextCacheResponse.newChatRequest;
+        cache = handleContextCacheResponse.cache;
+      }
+
+      let genModel: GenerativeModel | null = null;
+
+      const client = new GoogleGenerativeAI(apiKey!);
+
+      if (cache) {
+        genModel = client.getGenerativeModelFromCachedContent(
+          cache,
+          {
+            model: request.config?.version || model.version || name,
+          },
+          options
+        );
+      } else {
+        genModel = client.getGenerativeModel(
+          {
+            model: request.config?.version || model.version || name,
+          },
+          options
+        );
+      }
+
       if (streamingCallback) {
-        const result = await client
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
@@ -667,7 +713,7 @@ export function defineGoogleAIModel(
           custom: response,
         };
       } else {
-        const result = await client
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessage(msg.parts, options);
         if (!result.response.candidates?.length)
