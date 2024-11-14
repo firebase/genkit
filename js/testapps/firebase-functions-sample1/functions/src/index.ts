@@ -155,7 +155,7 @@ export const triggerJokeFlow = onRequest(
 export const collectEngagement = onRequest(
   { memory: '512MiB' },
   async (req, res) => {
-    collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
+    await collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
     res.send({});
   }
 );

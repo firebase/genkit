@@ -17,34 +17,17 @@
 import { ModelReference } from 'genkit';
 import { CommonPluginOptions } from '../common/types.js';
 
-export enum VertexAIEvaluationMetricType {
-  // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums
-  BLEU = 'BLEU',
-  ROUGE = 'ROUGE',
-  FLUENCY = 'FLEUNCY',
-  SAFETY = 'SAFETY',
-  GROUNDEDNESS = 'GROUNDEDNESS',
-  SUMMARIZATION_QUALITY = 'SUMMARIZATION_QUALITY',
-  SUMMARIZATION_HELPFULNESS = 'SUMMARIZATION_HELPFULNESS',
-  SUMMARIZATION_VERBOSITY = 'SUMMARIZATION_VERBOSITY',
-}
-
 /**
  * Evaluation metric config. Use `metricSpec` to define the behavior of the metric.
  * The value of `metricSpec` will be included in the request to the API. See the API documentation
  * for details on the possible values of `metricSpec` for each metric.
  * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
  */
+
 /** Options specific to Model Garden configuration */
 export interface ModelGardenOptions {
-  /**
-   * @deprecated use `modelGarden.models`
-   */
-  modelGardenModels?: ModelReference<any>[];
-  modelGarden?: {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
-  };
+  models: ModelReference<any>[];
+  openAiBaseUrlTemplate?: string;
 }
 
 export interface PluginOptions

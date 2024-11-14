@@ -18,7 +18,6 @@ import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
-import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import { z } from 'zod';
 import {
@@ -40,7 +39,7 @@ import {
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from './tracing.js';
-import { flowMetadataPrefix, isDevEnv } from './utils.js';
+import { flowMetadataPrefix } from './utils.js';
 
 const streamDelimiter = '\n\n';
 
@@ -430,7 +429,7 @@ export class Flow<
 export interface FlowServerOptions {
   /** List of flows to expose via the flow server. */
   flows: (CallableFlow<any, any> | StreamableFlow<any, any>)[];
-  /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
+  /** Port to run the server on. Defaults to env.PORT or 3400. */
   port?: number;
   /** CORS options for the server. */
   cors?: CorsOptions;
@@ -461,28 +460,8 @@ export class FlowServer {
   constructor(registry: Registry, options: FlowServerOptions) {
     this.registry = registry;
     this.options = {
-      port: 3400,
       ...options,
     };
-  }
-
-  /**
-   * Finds a free port to run the server on based on the original chosen port and environment.
-   */
-  async findPort(): Promise<number> {
-    const chosenPort = this.options.port!;
-    if (isDevEnv()) {
-      const freePort = await getPort({
-        port: makeRange(chosenPort, chosenPort + 100),
-      });
-      if (freePort !== chosenPort) {
-        logger.warn(
-          `Port ${chosenPort} is already in use, using next available port ${freePort} instead.`
-        );
-      }
-      return freePort;
-    }
-    return chosenPort;
   }
 
   /**
@@ -508,8 +487,10 @@ export class FlowServer {
     } else {
       logger.warn('No flows registered in flow server.');
     }
-
-    this.port = await this.findPort();
+    this.port =
+      this.options?.port ||
+      (process.env.PORT ? parseInt(process.env.PORT) : 0) ||
+      3400;
     this.server = server.listen(this.port, () => {
       logger.debug(`Flow server running on http://localhost:${this.port}`);
       FlowServer.RUNNING_SERVERS.push(this);

@@ -77,13 +77,10 @@ export function checks(options?: PluginOptions): GenkitPlugin {
 
     const projectId = options?.projectId || (await authClient.getProjectId());
 
-    const confError = (parameter: string, envVariableName: string) => {
-      return new Error(
-        `Checks Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-      );
-    };
     if (!projectId) {
-      throw confError('project', 'GCLOUD_PROJECT');
+      throw new Error(
+        `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into genkit config.`
+      );
     }
 
     const metrics =

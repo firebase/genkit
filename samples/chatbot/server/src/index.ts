@@ -14,19 +14,14 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import {
-  GenerateResponseChunkSchema,
-  ModelReference,
-  PartSchema,
-} from '@genkit-ai/ai/model';
-import { genkit, run } from '@genkit-ai/core';
+import { gemini15Flash, vertexAI } from '@genkit-ai/vertexai';
 import {
   VertexAIEvaluationMetricType,
-  gemini15Flash,
-  llama3,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+  vertexAIEvaluation,
+} from '@genkit-ai/vertexai/evaluation';
+import { llama31, vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
+import { ModelReference, PartSchema, genkit, run } from 'genkit';
+import { GenerateResponseChunkSchema } from 'genkit/model';
 import { z } from 'zod';
 import { inMemoryStore } from './memory.js';
 
@@ -41,20 +36,22 @@ const ai = genkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [llama3],
-      evaluation: {
-        metrics: [
-          VertexAIEvaluationMetricType.SAFETY,
-          VertexAIEvaluationMetricType.FLUENCY,
-        ],
-      },
+    }),
+    vertexAIModelGarden({
+      location: 'us-central1',
+      models: [llama31],
+    }),
+    vertexAIEvaluation({
+      location: 'us-central1',
+      metrics: [
+        VertexAIEvaluationMetricType.SAFETY,
+        VertexAIEvaluationMetricType.FLUENCY,
+      ],
     }),
   ],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
-const llms: ModelReference<any>[] = [gemini15Flash, llama3];
+const llms: ModelReference<any>[] = [gemini15Flash, llama31];
 
 const historyStore = inMemoryStore();
 
@@ -76,9 +73,9 @@ export const chatbotFlow = ai.defineStreamingFlow(
     );
 
     // Run the user prompt (with history) through the primary LLM.
-    const mainResp = await generate({
+    const mainResp = await ai.generate({
       prompt: request.prompt,
-      history: history,
+      messages: history,
       model: llms[request.llmIndex],
       streamingCallback,
     });
@@ -97,3 +94,7 @@ export const chatbotFlow = ai.defineStreamingFlow(
     return mainResp.text;
   }
 );
+
+ai.startFlowServer({
+  flows: [chatbotFlow],
+});

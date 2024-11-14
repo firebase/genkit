@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/ai';
 import { GenerateRequest } from '@genkit-ai/ai/model';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
+import { ai } from '../genkit.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types';
 
 // Define a prompt to handle a customer question about the menu.
 // This prompt uses definePrompt directly.
 
-export const s01_vanillaPrompt = definePrompt(
+export const s01_vanillaPrompt = ai.definePrompt(
   {
     name: 's01_vanillaPrompt',
-    inputSchema: MenuQuestionInputSchema,
+    input: { schema: MenuQuestionInputSchema },
   },
   async (input: MenuQuestionInput): Promise<GenerateRequest> => {
     const promptText = `
@@ -46,10 +45,10 @@ export const s01_vanillaPrompt = definePrompt(
 // that also gives us a type-safe handlebars template system,
 // and well-defined output schemas.
 
-export const s01_staticMenuDotPrompt = defineDotprompt(
+export const s01_staticMenuDotPrompt = ai.definePrompt(
   {
     name: 's01_staticMenuDotPrompt',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: MenuQuestionInputSchema },
     output: { format: 'text' },
   },

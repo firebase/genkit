@@ -35,11 +35,7 @@ const ai = genkit({
     vertexAIRerankers({
       projectId: PROJECT_ID,
       location: LOCATION,
-      rerankOptions: [
-        {
-          model: 'vertexai/reranker',
-        },
-      ],
+      rerankers: ['vertexai/reranker'],
     }),
   ],
 });

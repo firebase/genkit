@@ -4,7 +4,8 @@
   "description": "A Genkit test app for understanding a restaurant menu",
   "main": "./lib/src/index.js",
   "scripts": {
-    "start": "node lib/index.js",
+    "dev": "npx tsx --watch src/index.ts",
+    "start": "genkit start -- pnpm dev",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",

@@ -14,63 +14,52 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai';
 import { MessageData } from '@genkit-ai/ai/model';
-import { runWithRegistry } from '@genkit-ai/core/registry';
-import { gemini15FlashPreview } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { z } from 'zod';
-import { HistoryStore, defineAgent } from './agent.js';
-import { ai } from './index.js';
+import { defineAgent, HistoryStore } from './agent.js';
+import { ai } from './genkit.js';
 
-const weatherTool = runWithRegistry(ai.registry, () =>
-  defineTool(
-    {
-      name: 'weatherTool',
-      description: 'use this tool to display weather',
-      inputSchema: z.object({
-        date: z
-          .string()
-          .describe('date (use datePicker tool if user did not specify)'),
-        location: z.string().describe('location (ZIP, city, etc.)'),
-      }),
-      outputSchema: z.string().optional(),
-    },
-    async () => undefined
-  )
+const weatherTool = ai.defineTool(
+  {
+    name: 'weatherTool',
+    description: 'use this tool to display weather',
+    inputSchema: z.object({
+      date: z
+        .string()
+        .describe('date (use datePicker tool if user did not specify)'),
+      location: z.string().describe('location (ZIP, city, etc.)'),
+    }),
+    outputSchema: z.string().optional(),
+  },
+  async () => undefined
 );
 
-const datePicker = runWithRegistry(ai.registry, () =>
-  defineTool(
-    {
-      name: 'datePicker',
-      description:
-        'user can use this UI tool to enter a date (prefer this over asking the user to enter the date manually)',
-      inputSchema: z.object({
-        ignore: z
-          .string()
-          .describe('ignore this (set to undefined)')
-          .optional(),
-      }),
-      outputSchema: z.string().optional(),
-    },
-    async () => undefined
-  )
+const datePicker = ai.defineTool(
+  {
+    name: 'datePicker',
+    description:
+      'user can use this UI tool to enter a date (prefer this over asking the user to enter the date manually)',
+    inputSchema: z.object({
+      ignore: z.string().describe('ignore this (set to undefined)').optional(),
+    }),
+    outputSchema: z.string().optional(),
+  },
+  async () => undefined
 );
 
-export const chatbotFlow = runWithRegistry(ai.registry, () =>
-  defineAgent({
-    name: 'chatbotFlow',
-    model: gemini15FlashPreview,
-    tools: [weatherTool, datePicker],
-    returnToolRequests: true,
-    systemPrompt:
-      'You are a helpful agent. You have the personality of Agent Smith from Matrix. ' +
-      'There are tools/functions at your disposal, ' +
-      'feel free to call them. If you think a tool/function can help but you do ' +
-      'not have sufficient context make sure to ask clarifying questions.',
-    historyStore: inMemoryStore(),
-  })
-);
+export const chatbotFlow = defineAgent(ai, {
+  name: 'chatbotFlow',
+  model: gemini15Flash,
+  tools: [weatherTool, datePicker],
+  returnToolRequests: true,
+  systemPrompt:
+    'You are a helpful agent. You have the personality of Agent Smith from Matrix. ' +
+    'There are tools/functions at your disposal, ' +
+    'feel free to call them. If you think a tool/function can help but you do ' +
+    'not have sufficient context make sure to ask clarifying questions.',
+  historyStore: inMemoryStore(),
+});
 
 const chatHistory: Record<string, MessageData[]> = {};
 
