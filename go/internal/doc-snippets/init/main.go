@@ -63,7 +63,7 @@ func main() {
 	// pass a nil configuration to Init, Genkit starts a local flow server,
 	// which you can interact with using the developer UI.
 	if err := genkit.Init(ctx, nil); err != nil {
-		log.Fatal()
+		log.Fatal(err)
 	}
 }
 // [END main]
