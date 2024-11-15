@@ -16,7 +16,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/checks": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
     "genkit": "workspace:*",
     "path": "^0.12.7"
   },

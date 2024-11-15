@@ -23,7 +23,10 @@ import {
   ChecksEvaluationMetricType,
   checksEvaluators,
 } from './evaluation.js';
+import { checksMiddleware } from "./middleware.js"
+
 export { ChecksEvaluationMetricType as ChecksEvaluationMetricType };
+export { checksMiddleware as checksMiddleware };
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. Must have quota for the Checks API. */

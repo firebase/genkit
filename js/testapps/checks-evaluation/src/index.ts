@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { checks, ChecksEvaluationMetricType } from '@genkit-ai/checks';
-import { genkit } from 'genkit';
+import { checks, ChecksEvaluationMetricType, checksMiddleware } from '@genkit-ai/checks';
+import { genkit, z } from 'genkit';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 
 export const ai = genkit({
   plugins: [
+    googleAI(),
     checks({
       // Project to charge quota to.
       // Note: If your credentials have a quota project associated with them.
@@ -49,3 +51,23 @@ export const ai = genkit({
     }),
   ],
 });
+
+
+ai.defineFlow({
+  name: "checksMiddlewareTestFlow",
+  inputSchema: z.string(),
+  outputSchema: z.any()
+},
+  async (prompt) => {
+    const { text } = await ai.generate({
+      model: gemini15Flash,
+      prompt: prompt,
+      // use: [checksMiddleware]
+    })
+
+    console.log(text)
+    return text
+  }
+
+
+)
