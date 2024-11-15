@@ -182,6 +182,7 @@ describe('definePrompt - dotprompt', () => {
             }),
           },
           output: {
+            // no format specified
             schema: Foo,
           },
         },
