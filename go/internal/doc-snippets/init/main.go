@@ -21,7 +21,6 @@ import (
 
 	// Import Genkit and the Google AI plugin
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googleai"
 )
 
@@ -57,13 +56,5 @@ func main() {
 	// LLM call.
 	text := resp.Text()
 	println(text)
-
-	// Initialize Genkit and start a flow server. This call must come last,
-	// after all of your plug-in configuration and flow definitions. When you
-	// pass a nil configuration to Init, Genkit starts a local flow server,
-	// which you can interact with using the developer UI.
-	if err := genkit.Init(ctx, nil); err != nil {
-		log.Fatal(err)
-	}
 }
 // [END main]
