@@ -5,10 +5,10 @@ that can provide models, retrievers, indexers, trace stores, and more. You've al
 action just by using Genkit:
 
 ```ts
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from 'genkit';
 import { vertexAI } from '@genkit-ai/vertexai';
 
-configureGenkit({
+const ai = genkit({
   plugins: [vertexAI({ projectId: 'my-project' })],
 });
 ```
@@ -30,7 +30,7 @@ cd genkitx-my-plugin
 
 npm init -y
 
-npm i --save @genkit-ai/core
+npm i --save genkit
 
 npm i --save-dev typescript
 
@@ -40,18 +40,20 @@ npx tsc --init
 Then, define and export your plugin from your main entry point:
 
 ```ts
-import { genkitPlugin } from '@genkit-ai/core';
+import { Genkit, z } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 
 interface MyPluginOptions {
   // add any plugin configuration here
 }
 
-export const myPlugin = genkitPlugin(
-  'my-plugin',
-  async (options: MyPluginOptions) => {
-    // initialize your plugin here...
-  }
-);
+export function myPlugin(options?: MyPluginOptions) {
+  return genkitPlugin('myPlugin', async (ai: Genkit) => {
+    ai.defineModel(...);
+    ai.defineEmbedder(...)
+    // ....
+  });
+};
 ```
 
 ### Plugin options guidance
@@ -62,16 +64,16 @@ requires a secret value, such as API keys, you should offer both an option and a
 default environment variable to configure it:
 
 ```ts
-import { genkitPlugin, GenkitError } from '@genkit-ai/core';
+import { Genkit, z } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { GenkitError } from '@genkit-ai/core';
 
 interface MyPluginOptions {
   apiKey?: string;
 }
 
-export const myPlugin = genkitPlugin(
-  'my-plugin',
-  async (options: MyPluginOptions) => {
-    const apiKey = options.apiKey || process.env.MY_PLUGIN_API_KEY;
+export function myPlugin(options?: MyPluginOptions) {
+  return genkitPlugin('myPlugin', async (ai: Genkit) => {
     if (!apiKey)
       throw new GenkitError({
         source: 'my-plugin',
@@ -79,9 +81,13 @@ export const myPlugin = genkitPlugin(
         message:
           'Must supply either `options.apiKey` or set `MY_PLUGIN_API_KEY` environment variable.',
       });
-    // ... continue initialization
-  }
-);
+
+    ai.defineModel(...);
+    ai.defineEmbedder(...)
+    
+    // ....
+  });
+};
 ```
 
 ## Building your plugin
@@ -110,39 +116,45 @@ npm i --save @genkit-ai/ai
 At a high level, a model plugin might look something like this:
 
 ```ts
-import { genkitPlugin, GenkitError } from '@genkit-ai/core';
-import { defineModel, GenerationCommonConfigSchema } from '@genkit-ai/ai/model';
+import { genkitPlugin, GenkitPlugin } from 'genkit/plugin';
+import { GenkitError } from '@genkit-ai/core';
+import { GenerationCommonConfigSchema } from '@genkit-ai/ai/model';
 import { simulateSystemPrompt } from '@genkit-ai/ai/model/middleware';
-import { z } from 'zod';
+import { z } from 'genkit';
 
-export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: string}) => {
-  defineModel({
-    // be sure to include your plugin as a provider prefix
-    name: 'my-plugin/my-model',
-    // label for your model as shown in Genkit Developer UI
-    label: 'My Awesome Model',
-    // optional list of supported versions of your model
-    versions: ['my-model-001', 'my-model-001'],
-    // model support attributes
-    supports: {
-      multiturn: true, // true if your model supports conversations
-      media: true, // true if your model supports multimodal input
-      tools: true, // true if your model supports tool/function calling
-      systemRole: true, // true if your model supports the system role
-      output: ['text', 'media', 'json'], // types of output your model supports
-    },
-    // Zod schema for your model's custom configuration
-    configSchema: GenerationCommonConfigSchema.extend({
-      safetySettings: z.object({...}),
-    }),
-    // list of middleware for your model to use
-    use: [simulateSystemPrompt()]
-  }, async request => {
-    const myModelRequest = toMyModelRequest(request);
-    const myModelResponse = await myModelApi(myModelRequest);
-    return toGenerateResponse(myModelResponse);
+
+export function myPlugin(options?: MyPluginOptions) {
+  return genkitPlugin('my-plugin', async (ai: Genkit) => {
+    ai.defineModel({
+      // be sure to include your plugin as a provider prefix
+      name: 'my-plugin/my-model',
+      // label for your model as shown in Genkit Developer UI
+      label: 'My Awesome Model',
+      // optional list of supported versions of your model
+      versions: ['my-model-001', 'my-model-001'],
+      // model support attributes
+      supports: {
+        multiturn: true, // true if your model supports conversations
+        media: true, // true if your model supports multimodal input
+        tools: true, // true if your model supports tool/function calling
+        systemRole: true, // true if your model supports the system role
+        output: ['text', 'media', 'json'], // types of output your model supports
+      },
+      // Zod schema for your model's custom configuration
+      configSchema: GenerationCommonConfigSchema.extend({
+        safetySettings: z.object({...}),
+      }),
+      // list of middleware for your model to use
+      use: [simulateSystemPrompt()]
+    }, async request => {
+      const myModelRequest = toMyModelRequest(request);
+      const myModelResponse = await myModelApi(myModelRequest);
+      return toGenerateResponse(myModelResponse);
+    });
   });
-});
+};
+
+
 ```
 
 #### Transforming Requests and Responses
@@ -183,10 +195,6 @@ generate({ model: myModelRef });
 // is equivalent to
 generate({ model: 'my-plugin/my-model' });
 ```
-
-### Telemetry plugins
-
-See [Writing a Genkit Telemetry Plugin](plugin-authoring-telemetry.md).
 
 ## Publishing a plugin
 

@@ -45,15 +45,15 @@ export const pdfQA = ai.defineFlow(
       options: { k: 3 },
     });
 
-    return augmentedPrompt
-      .generate({
-        input: {
-          question: query,
-          context: docs.map((d) => d.text),
-        },
+    return augmentedPrompt(
+      {
+        question: query,
+        context: docs.map((d) => d.text),
+      },
+      {
         streamingCallback,
-      })
-      .then((r) => r.text);
+      }
+    ).then((r) => r.text);
   }
 );
 

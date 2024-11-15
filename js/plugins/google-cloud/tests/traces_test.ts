@@ -207,7 +207,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('attaches additional span', async () => {
-    appendSpan(
+    await appendSpan(
       'trace1',
       'parent1',
       { name: 'span-name', metadata: { metadata_key: 'metadata_value' } },

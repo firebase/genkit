@@ -18,7 +18,6 @@ import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
-import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import { z } from 'zod';
 import {
@@ -40,9 +39,9 @@ import {
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from './tracing.js';
-import { flowMetadataPrefix, isDevEnv } from './utils.js';
+import { flowMetadataPrefix } from './utils.js';
 
-const streamDelimiter = '\n';
+const streamDelimiter = '\n\n';
 
 /**
  * Flow Auth policy. Consumes the authorization context of the flow and
@@ -145,9 +144,7 @@ export type FlowFn<
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback?: S extends z.ZodVoid
-    ? undefined
-    : StreamingCallback<z.infer<S>>
+  streamingCallback?: StreamingCallback<z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
@@ -196,9 +193,7 @@ export class Flow<
   async invoke(
     input: unknown,
     opts: {
-      streamingCallback?: S extends z.ZodVoid
-        ? undefined
-        : StreamingCallback<z.infer<S>>;
+      streamingCallback?: StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
       auth?: unknown;
     }
@@ -353,30 +348,50 @@ export class Flow<
       return;
     }
 
-    if (stream === 'true') {
+    try {
+      await this.authPolicy?.(auth, input);
+    } catch (e: any) {
+      const respBody = {
+        error: {
+          status: 'PERMISSION_DENIED',
+          message: e.message || 'Permission denied to resource',
+        },
+      };
+      response.status(403).send(respBody).end();
+      return;
+    }
+
+    if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
       response.writeHead(200, {
         'Content-Type': 'text/plain',
         'Transfer-Encoding': 'chunked',
       });
       try {
         const result = await this.invoke(input, {
-          streamingCallback: ((chunk: z.infer<S>) => {
-            response.write(JSON.stringify(chunk) + streamDelimiter);
-          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
+          streamingCallback: (chunk: z.infer<S>) => {
+            response.write(
+              'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
+            );
+          },
           auth,
         });
-        response.write({
-          result: result.result, // Need more results!!!!
-        });
+        response.write(
+          'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
+        );
         response.end();
       } catch (e) {
-        response.write({
-          error: {
-            status: 'INTERNAL',
-            message: getErrorMessage(e),
-            details: getErrorStack(e),
-          },
-        });
+        console.log(e);
+        response.write(
+          'data: ' +
+            JSON.stringify({
+              error: {
+                status: 'INTERNAL',
+                message: getErrorMessage(e),
+                details: getErrorStack(e),
+              },
+            }) +
+            streamDelimiter
+        );
         response.end();
       }
     } else {
@@ -412,9 +427,9 @@ export class Flow<
  * Options to configure the flow server.
  */
 export interface FlowServerOptions {
-  /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
-  flows?: CallableFlow<any, any>[];
-  /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
+  /** List of flows to expose via the flow server. */
+  flows: (CallableFlow<any, any> | StreamableFlow<any, any>)[];
+  /** Port to run the server on. Defaults to env.PORT or 3400. */
   port?: number;
   /** CORS options for the server. */
   cors?: CorsOptions;
@@ -442,31 +457,11 @@ export class FlowServer {
   /** Express server instance. Null if server is not running. */
   private server: Server | null = null;
 
-  constructor(registry: Registry, options?: FlowServerOptions) {
+  constructor(registry: Registry, options: FlowServerOptions) {
     this.registry = registry;
     this.options = {
-      port: 3400,
       ...options,
     };
-  }
-
-  /**
-   * Finds a free port to run the server on based on the original chosen port and environment.
-   */
-  async findPort(): Promise<number> {
-    const chosenPort = this.options.port!;
-    if (isDevEnv()) {
-      const freePort = await getPort({
-        port: makeRange(chosenPort, chosenPort + 100),
-      });
-      if (freePort !== chosenPort) {
-        logger.warn(
-          `Port ${chosenPort} is already in use, using next available port ${freePort} instead.`
-        );
-      }
-      return freePort;
-    }
-    return chosenPort;
   }
 
   /**
@@ -492,8 +487,10 @@ export class FlowServer {
     } else {
       logger.warn('No flows registered in flow server.');
     }
-
-    this.port = await this.findPort();
+    this.port =
+      this.options?.port ||
+      (process.env.PORT ? parseInt(process.env.PORT) : 0) ||
+      3400;
     this.server = server.listen(this.port, () => {
       logger.debug(`Flow server running on http://localhost:${this.port}`);
       FlowServer.RUNNING_SERVERS.push(this);

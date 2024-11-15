@@ -13,19 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Genkit } from 'genkit';
-import { logger } from 'genkit/logging';
-import { OllamaPluginParams } from './index.js';
+import { Document, Genkit } from 'genkit';
+import { EmbedRequest, EmbedResponse } from 'ollama';
+import { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
 
-interface OllamaEmbeddingPrediction {
-  embedding: number[];
-}
+async function toOllamaEmbedRequest(
+  modelName: string,
+  dimensions: number,
+  documents: Document[],
+  serverAddress: string,
+  requestHeaders?: RequestHeaders
+): Promise<{
+  url: string;
+  requestPayload: EmbedRequest;
+  headers: Record<string, string>;
+}> {
+  const requestPayload: EmbedRequest = {
+    model: modelName,
+    input: documents.map((doc) => doc.text),
+  };
 
-interface DefineOllamaEmbeddingParams {
-  name: string;
-  modelName: string;
-  dimensions: number;
-  options: OllamaPluginParams;
+  // Determine headers
+  const extraHeaders = requestHeaders
+    ? typeof requestHeaders === 'function'
+      ? await requestHeaders({
+          serverAddress,
+          model: {
+            name: modelName,
+            dimensions,
+          },
+          embedRequest: requestPayload,
+        })
+      : requestHeaders
+    : {};
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...extraHeaders, // Add any dynamic headers
+  };
+
+  return {
+    url: `${serverAddress}/api/embed`,
+    requestPayload,
+    headers,
+  };
 }
 
 export function defineOllamaEmbedder(
@@ -34,9 +65,9 @@ export function defineOllamaEmbedder(
 ) {
   return ai.defineEmbedder(
     {
-      name,
+      name: `ollama/${name}`,
       info: {
-        label: 'Ollama Embedding - ' + modelName,
+        label: 'Ollama Embedding - ' + name,
         dimensions,
         supports: {
           //  TODO: do any ollama models support other modalities?
@@ -44,40 +75,37 @@ export function defineOllamaEmbedder(
         },
       },
     },
-    async (input) => {
-      const serverAddress = options.serverAddress;
-      const responses = await Promise.all(
-        input.map(async (i) => {
-          const requestPayload = {
-            model: modelName,
-            prompt: i.text,
-          };
-          let res: Response;
-          try {
-            res = await fetch(`${serverAddress}/api/embeddings`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(requestPayload),
-            });
-          } catch (e) {
-            logger.error('Failed to fetch Ollama embedding');
-            throw new Error(`Error fetching embedding from Ollama: ${e}`);
-          }
-          if (!res.ok) {
-            logger.error('Failed to fetch Ollama embedding');
-            throw new Error(
-              `Error fetching embedding from Ollama: ${res.statusText}`
-            );
-          }
-          const responseData = (await res.json()) as OllamaEmbeddingPrediction;
-          return responseData;
-        })
+    async (input, config) => {
+      const serverAddress = config?.serverAddress || options.serverAddress;
+
+      const { url, requestPayload, headers } = await toOllamaEmbedRequest(
+        modelName,
+        dimensions,
+        input,
+        serverAddress,
+        options.requestHeaders
       );
-      return {
-        embeddings: responses,
-      };
+
+      const response: Response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Error fetching embedding from Ollama: ${response.statusText}`
+        );
+      }
+
+      const payload: EmbedResponse = await response.json();
+
+      const embeddings: { embedding: number[] }[] = [];
+
+      for (const embedding of payload.embeddings) {
+        embeddings.push({ embedding });
+      }
+      return { embeddings };
     }
   );
 }

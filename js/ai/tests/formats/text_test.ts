@@ -17,8 +17,9 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { textFormatter } from '../../src/formats/text.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
 
 describe('textFormat', () => {
   const streamingTests = [
@@ -48,7 +49,7 @@ describe('textFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = textFormatter.handler({ messages: [] });
+      const parser = textFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
 
       for (const chunk of st.chunks) {
@@ -66,33 +67,32 @@ describe('textFormat', () => {
     });
   }
 
-  const responseTests = [
+  const messageTests = [
     {
       desc: 'parses complete text response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: 'Hello world' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: 'Hello world' }],
+      },
       want: 'Hello world',
     },
     {
       desc: 'handles empty response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '' }],
+      },
       want: '',
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = textFormatter.handler({ messages: [] });
-      assert.strictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = textFormatter.handler();
+      assert.strictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
 });

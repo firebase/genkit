@@ -128,12 +128,14 @@ export async function runInNewSpan<T>(
  * Creates a new child span and attaches it to a previously created trace. This
  * is useful, for example, for adding deferred user engagement metadata.
  */
-export function appendSpan(
+export async function appendSpan(
   traceId: string,
   parentSpanId: string,
   metadata: SpanMetadata,
   labels?: Record<string, string>
 ) {
+  await ensureBasicTelemetryInstrumentation();
+
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
 
   const spanContext = trace.setSpanContext(ROOT_CONTEXT, {

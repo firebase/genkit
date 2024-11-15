@@ -27,7 +27,7 @@ import {
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { checkServerHealth, findRuntimesDir } from '../utils/utils';
+import { checkServerHealth, findRuntimesDir, retriable } from '../utils/utils';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -223,12 +223,12 @@ export class RuntimeManager {
   }
 
   /**
-   * Retrieves all traces for a given environment (e.g. dev or prod).
+   * Retrieves all traces
    */
   async listTraces(
     input: apis.ListTracesRequest
   ): Promise<apis.ListTracesResponse> {
-    const { env, limit, continuationToken } = input;
+    const { limit, continuationToken } = input;
     let query = '';
     if (limit) {
       query += `limit=${limit}`;
@@ -243,10 +243,7 @@ export class RuntimeManager {
     const response = await axios
       .get(`${this.telemetryServerUrl}/api/traces?${query}`)
       .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error listing traces for env='${env}', query='${query}'.`
-        )
+        this.httpErrorHandler(err, `Error listing traces for query='${query}'.`)
       );
 
     return apis.ListTracesResponseSchema.parse(response.data);
@@ -256,13 +253,13 @@ export class RuntimeManager {
    * Retrieves a trace for a given ID.
    */
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
-    const { env, traceId } = input;
+    const { traceId } = input;
     const response = await axios
       .get(`${this.telemetryServerUrl}/api/traces/${traceId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
-          `Error getting trace for traceId='${traceId}', env='${env}'.`
+          `Error getting trace for traceId='${traceId}'`
         )
       );
 
@@ -311,8 +308,15 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const runtimeInfo = JSON.parse(content) as RuntimeInfo;
+      const { content, runtimeInfo } = await retriable(
+        async () => {
+          const content = await fs.readFile(filePath, 'utf-8');
+          const runtimeInfo = JSON.parse(content) as RuntimeInfo;
+          return { content, runtimeInfo };
+        },
+        { maxRetries: 10, delayMs: 500 }
+      );
+
       if (isValidRuntimeInfo(runtimeInfo)) {
         const fileName = path.basename(filePath);
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {

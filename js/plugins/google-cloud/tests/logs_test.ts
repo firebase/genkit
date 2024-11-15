@@ -197,7 +197,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes user feedback log', async () => {
-    appendSpan(
+    await appendSpan(
       'trace1',
       'parent1',
       {
@@ -218,7 +218,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes user acceptance log', async () => {
-    appendSpan(
+    await appendSpan(
       'trace1',
       'parent1',
       {

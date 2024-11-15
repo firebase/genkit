@@ -18,16 +18,16 @@
 
 import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
+  DocumentIndexer,
+  DocumentRetriever,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
-  vertexAI,
+  vertexAIVectorSearch,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
-  type DocumentIndexer,
-  type DocumentRetriever,
-} from '@genkit-ai/vertexai';
-
+} from '@genkit-ai/vertexai/vectorsearch';
 // // Environment variables set with dotenv for simplicity of sample
 import {
   BIGQUERY_DATASET,
@@ -81,6 +81,11 @@ const ai = genkit({
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
+    }),
+    vertexAIVectorSearch({
+      location: LOCATION,
+      projectId: PROJECT_ID,
+      embedder: textEmbedding004,
       vectorSearchOptions: [
         {
           publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
@@ -95,7 +100,6 @@ const ai = genkit({
   ],
 });
 
-// // Define indexing flow
 export const indexFlow = ai.defineFlow(
   {
     name: 'indexFlow',

@@ -349,6 +349,9 @@ class GenerateTelemetry implements Telemetry {
     if (part.text) {
       return this.toPartLogText(part.text);
     }
+    if (part.data) {
+      return this.toPartLogText(JSON.stringify(part.data));
+    }
     if (part.media) {
       return this.toPartLogMedia(part);
     }
@@ -357,6 +360,9 @@ class GenerateTelemetry implements Telemetry {
     }
     if (part.toolResponse) {
       return this.toPartLogToolResponse(part);
+    }
+    if (part.custom) {
+      return this.toPartLogText(JSON.stringify(part.custom));
     }
     return '<unknown format>';
   }

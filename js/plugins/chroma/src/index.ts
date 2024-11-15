@@ -18,6 +18,7 @@ import {
   ChromaClient,
   Collection,
   CollectionMetadata,
+  Embeddings,
   IEmbeddingFunction,
   IncludeEnum,
   Metadata,
@@ -42,8 +43,13 @@ export { IncludeEnum };
 const WhereSchema: z.ZodType<Where> = z.any();
 const WhereDocumentSchema: z.ZodType<WhereDocument> = z.any();
 
+const IncludeOptionSchema = z
+  .array(z.enum(['documents', 'embeddings', 'metadatas', 'distances']))
+  .optional();
+type IncludeOption = z.infer<typeof IncludeOptionSchema>;
+
 const ChromaRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
-  include: z.array(z.nativeEnum(IncludeEnum)).optional(),
+  include: IncludeOptionSchema,
   where: WhereSchema.optional(),
   whereDocument: WhereDocumentSchema.optional(),
 });
@@ -142,21 +148,23 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
       });
       const results = await collection.query({
         nResults: options?.k,
-        include: options?.include,
+        include: getIncludes(options?.include),
         where: options?.where,
         whereDocument: options?.whereDocument,
         queryEmbeddings: embedding,
       });
 
       const documents = results.documents[0];
-      const metadatas = results.metadatas[0];
+      const metadatas = results.metadatas;
+      const embeddings = results.embeddings;
+      const distances = results.distances;
 
       const combined = documents
         .map((d, i) => {
           if (d !== null) {
             return {
               document: d,
-              metadata: metadatas[i] ?? undefined,
+              metadata: constructMetadata(i, metadatas, embeddings, distances),
             };
           }
           return undefined;
@@ -172,6 +180,45 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
       };
     }
   );
+}
+
+/**
+ * Helper method to compute effective Include enum. It always
+ * includes documents
+ */
+function getIncludes(includes: IncludeOption): IncludeEnum[] | undefined {
+  if (!includes) {
+    // Default behaviour
+    return undefined;
+  }
+
+  // Always include documents
+  let effectiveIncludes = [IncludeEnum.Documents];
+  effectiveIncludes = effectiveIncludes.concat(includes as IncludeEnum[]);
+  const includesSet = new Set(effectiveIncludes);
+  return Array.from(includesSet);
+}
+
+/**
+ * Helper method to construct metadata, including the optional {@link IncludeEnum} passed in config.
+ */
+function constructMetadata(
+  i: number,
+  metadatas: (Metadata | null)[][],
+  embeddings: Embeddings[] | null,
+  distances: number[][] | null
+): any {
+  var fullMetadata: Record<string, any> = {};
+  if (metadatas && metadatas[i]) {
+    fullMetadata.metadata = metadatas[i];
+  }
+  if (embeddings) {
+    fullMetadata.embedding = embeddings[i];
+  }
+  if (distances) {
+    fullMetadata.distances = distances[i];
+  }
+  return fullMetadata;
 }
 
 /**

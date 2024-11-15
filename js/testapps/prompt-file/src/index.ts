@@ -51,60 +51,56 @@ ai.defineHelper('list', (data: any) => {
   return data.map((item) => `- ${item}`).join('\n');
 });
 
-ai.prompt('recipe').then((recipePrompt) => {
-  ai.defineFlow(
-    {
-      name: 'chefFlow',
-      inputSchema: z.object({
-        food: z.string(),
-      }),
-      outputSchema: RecipeSchema,
-    },
-    async (input) =>
-      (await recipePrompt.generate<typeof RecipeSchema>({ input: input }))
-        .output!
-  );
-});
+ai.defineFlow(
+  {
+    name: 'chefFlow',
+    inputSchema: z.object({
+      food: z.string(),
+    }),
+    outputSchema: RecipeSchema,
+  },
+  async (input) =>
+    (await ai.prompt<any, typeof RecipeSchema>('recipe')(input)).output!
+);
 
-ai.prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
-  ai.defineFlow(
-    {
-      name: 'robotChefFlow',
-      inputSchema: z.object({
-        food: z.string(),
-      }),
-      outputSchema: z.any(),
-    },
-    async (input) => (await recipePrompt.generate({ input: input })).output
-  );
-});
+ai.defineFlow(
+  {
+    name: 'robotChefFlow',
+    inputSchema: z.object({
+      food: z.string(),
+    }),
+    outputSchema: z.any(),
+  },
+  async (input) =>
+    (await ai.prompt('recipe', { variant: 'robot' })(input)).output
+);
 
 // A variation that supports streaming, optionally
 
-ai.prompt('story').then((storyPrompt) => {
-  ai.defineStreamingFlow(
-    {
-      name: 'tellStory',
-      inputSchema: z.object({
-        subject: z.string(),
-        personality: z.string().optional(),
-      }),
-      outputSchema: z.string(),
-      streamSchema: z.string(),
-    },
-    async ({ subject, personality }, streamingCallback) => {
-      if (streamingCallback) {
-        const { response, stream } = await storyPrompt.generateStream({
-          input: { subject, personality },
-        });
-        for await (const chunk of stream) {
-          streamingCallback(chunk.content[0]?.text!);
-        }
-        return (await response).text;
-      } else {
-        const response = await storyPrompt.generate({ input: { subject } });
-        return response.text;
+ai.defineStreamingFlow(
+  {
+    name: 'tellStory',
+    inputSchema: z.object({
+      subject: z.string(),
+      personality: z.string().optional(),
+    }),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async ({ subject, personality }, streamingCallback) => {
+    const storyPrompt = ai.prompt('story');
+    if (streamingCallback) {
+      const { response, stream } = await storyPrompt.stream({
+        subject,
+        personality,
+      });
+      for await (const chunk of stream) {
+        streamingCallback(chunk.content[0]?.text!);
       }
+      return (await response).text;
+    } else {
+      const response = await storyPrompt({ subject });
+      return response.text;
     }
-  );
-});
+  }
+);

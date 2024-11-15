@@ -37,6 +37,7 @@ import {
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
+  isExecutablePrompt,
   ModelArgument,
   ModelReference,
   Part,
@@ -53,6 +54,7 @@ import {
   ToolAction,
   ToolConfig,
 } from '@genkit-ai/ai';
+import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import {
   defineEmbedder,
   EmbedderAction,
@@ -66,6 +68,7 @@ import {
   EvaluatorAction,
   EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
+import { configureFormats } from '@genkit-ai/ai/formats';
 import {
   defineModel,
   DefineModelOptions,
@@ -88,6 +91,13 @@ import {
   RetrieverFn,
   SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
+import {
+  getCurrentSession,
+  Session,
+  SessionData,
+  SessionError,
+  SessionOptions,
+} from '@genkit-ai/ai/session';
 import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   CallableFlow,
@@ -112,23 +122,16 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
+  Dotprompt,
   PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions } from './chat.js';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
-import {
-  getCurrentSession,
-  Session,
-  SessionData,
-  SessionError,
-  SessionOptions,
-} from './session.js';
 import { toToolDefinition } from './tool.js';
 
 /**
@@ -271,60 +274,39 @@ export class Genkit {
    *
    * @todo TODO: Show an example of a name and variant.
    */
-  async prompt<
+  prompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     name: string,
     options?: { variant?: string }
-  ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
-    // check the registry first as not all prompt types can be
-    // loaded by dotprompt (e.g. functional)
-    let action = (await this.registry.lookupAction(
-      `/prompt/${name}`
-    )) as PromptAction<I>;
-    // nothing in registry - check for dotprompt file.
-    if (!action) {
-      action = (await prompt(this.registry, name, options))
-        .promptAction as PromptAction<I>;
-    }
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+    const actionPromise = (async () => {
+      // check the registry first as not all prompt types can be
+      // loaded by dotprompt (e.g. functional)
+      let action = (await this.registry.lookupAction(
+        `/prompt/${name}`
+      )) as PromptAction<I>;
+      // nothing in registry - check for dotprompt file.
+      if (!action) {
+        action = (
+          await prompt(this.registry, name, {
+            ...options,
+            dir: this.options.promptDir ?? './prompts',
+          })
+        ).promptAction as PromptAction<I>;
+      }
+      const { template, ...opts } = action.__action.metadata!.prompt;
+      return { action, opts };
+    })();
+
     // make sure we get configuration such as model name if applicable
-    const { template, ...opts } = action.__action.metadata!.prompt;
     return this.wrapPromptActionInExecutablePrompt(
-      action as PromptAction<I>,
-      opts
+      actionPromise.then(({ action }) => action),
+      actionPromise.then(({ opts }) => opts)
     ) as ExecutablePrompt<I, O, CustomOptions>;
   }
-
-  /**
-   * Defines and registers a dotprompt.
-   *
-   * This is an alternative to defining and importing a .prompt file.
-   *
-   * ```ts
-   * const hi = ai.definePrompt(
-   *   {
-   *     name: 'hi',
-   *     input: {
-   *       schema: z.object({
-   *         name: z.string(),
-   *       }),
-   *     },
-   *   },
-   *   'hi {{ name }}'
-   * );
-   * const { text } = await hi({ name: 'Genkit' });
-   * ```
-   */
-  definePrompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    options: PromptMetadata<I, CustomOptions>,
-    template: string
-  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   /**
    * Defines and registers a function-based prompt.
@@ -360,6 +342,35 @@ export class Genkit {
     fn: PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
+  /**
+   * Defines and registers a dotprompt.
+   *
+   * This is an alternative to defining and importing a .prompt file.
+   *
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *   },
+   *   'hi {{ name }}'
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
+   */
+  definePrompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: PromptMetadata<I, CustomOptions>,
+    template: string
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -388,7 +399,8 @@ export class Genkit {
       );
       return this.wrapPromptActionInExecutablePrompt(
         dotprompt.promptAction! as PromptAction<I>,
-        options
+        options,
+        dotprompt
       );
     } else {
       const p = definePrompt(
@@ -421,12 +433,15 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    p: PromptAction<I>,
-    options: Partial<PromptMetadata<I, CustomOptions>>
+    promptAction: PromptAction<I> | Promise<PromptAction<I>>,
+    options:
+      | Partial<PromptMetadata<I, CustomOptions>>
+      | Promise<Partial<PromptMetadata<I, CustomOptions>>>,
+    dotprompt?: Dotprompt<z.infer<I>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
-      opts?: PromptGenerateOptions<I, CustomOptions>
+      opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateResponse> => {
       const renderedOpts = await (
         executablePrompt as ExecutablePrompt<I, O, CustomOptions>
@@ -448,41 +463,27 @@ export class Genkit {
       });
       return this.generateStream(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generate(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
-      async (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateStreamResponse<O>> => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render(opt);
-        return this.generateStream(renderedOpts);
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
-      Out extends O,
-    >(
-      opt: PromptGenerateOptions<I, CustomOptions>
-    ): Promise<GenerateOptions<CustomOptions, Out>> => {
-      let model: ModelAction | undefined;
-      try {
-        model = await this.resolveModel(opt?.model ?? options.model);
-      } catch (e) {
-        // ignore, no model on a render is OK?
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async (
+      opt: PromptGenerateOptions<O, CustomOptions> & {
+        input?: I;
       }
-      const promptResult = await p({
-        // this feels a litte hacky, but we need to pass session state as action
-        // input to make it replayable from trace view in the dev ui.
-        __genkit__sessionState: { state: getCurrentSession()?.state },
-        ...opt.input,
-      });
+    ): Promise<GenerateOptions<O, CustomOptions>> => {
+      let model: ModelAction | undefined;
+      options = await options;
+      const modelArg = opt?.model ?? options.model;
+      if (modelArg) {
+        model = await this.resolveModel(modelArg);
+        // If model was explicitly specified and we failed to resolve it (bad ref maybe?), throw an error!
+        if (!model) {
+          throw new Error(`Model ${modelArg} not found`);
+        }
+      }
+      const p = await promptAction;
+      // If it's a dotprompt template, we invoke dotprompt template directly
+      // because it can take in more PromptGenerateOptions (not just inputs).
+      const promptResult = await (dotprompt
+        ? dotprompt.render(opt)
+        : p(opt.input));
       const resultOptions = {
         messages: promptResult.messages,
         docs: promptResult.docs,
@@ -491,7 +492,12 @@ export class Genkit {
           promptResult.output?.format || promptResult.output?.schema
             ? {
                 format: promptResult.output?.format,
-                jsonSchema: promptResult.output?.schema,
+                jsonSchema: dotprompt
+                  ? (promptResult as GenerateOptions).output?.jsonSchema
+                  : promptResult.output.schema,
+                contentType: promptResult.output?.contentType,
+                instructions: promptResult.output?.instructions,
+                schema: promptResult.output?.schema,
               }
             : options.output,
         config: {
@@ -500,13 +506,16 @@ export class Genkit {
           ...opt.config,
         },
         model,
-      } as GenerateOptions<CustomOptions, Out>;
-      delete (resultOptions as PromptGenerateOptions<I, CustomOptions>).input;
+      } as GenerateOptions<O, CustomOptions>;
+      delete (resultOptions as any).input;
+      if ((promptResult as GenerateOptions).prompt) {
+        resultOptions.prompt = (promptResult as GenerateOptions).prompt;
+      }
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
-      (): ToolAction<I, O> => {
-        return p as unknown as ToolAction<I, O>;
+      async (): Promise<ToolAction<I, O>> => {
+        return (await promptAction) as unknown as ToolAction<I, O>;
       };
     return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
   }
@@ -765,9 +774,6 @@ export class Genkit {
     } else {
       resolvedOptions = options as GenerateOptions<O, CustomOptions>;
     }
-    if (!resolvedOptions.model) {
-      resolvedOptions.model = this.options.model;
-    }
     return generate(this.registry, resolvedOptions);
   }
 
@@ -872,9 +878,6 @@ export class Genkit {
     } else {
       resolvedOptions = options as GenerateOptions<O, CustomOptions>;
     }
-    if (!resolvedOptions.model) {
-      resolvedOptions.model = this.options.model;
-    }
     return generateStream(this.registry, resolvedOptions);
   }
 
@@ -889,8 +892,53 @@ export class Genkit {
    * response = await chat.send('another one')
    * ```
    */
-  chat<I>(options?: ChatOptions<I>): Chat {
+  chat<I>(options?: ChatOptions<I>): Chat;
+
+  /**
+   * Create a chat session with the provided preabmle.
+   *
+   * ```ts
+   * const triageAgent = ai.definePrompt({
+   *   system: 'help the user triage a problem',
+   * })
+   * const chat = ai.chat(triageAgent)
+   * const { text } = await chat.send('my phone feels hot');
+   * ```
+   */
+  chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I>): Chat;
+
+  /**
+   * Create a chat session with the provided options.
+   *
+   * ```ts
+   * const chat = ai.chat({
+   *   system: 'talk like a pirate',
+   * })
+   * let response = await chat.send('tell me a joke')
+   * response = await chat.send('another one')
+   * ```
+   */
+  chat<I>(
+    preambleOrOptions?: ChatOptions<I> | ExecutablePrompt<I>,
+    maybeOptions?: ChatOptions<I>
+  ): Chat {
+    let options: ChatOptions<I> | undefined;
+    let preamble: ExecutablePrompt<I> | undefined;
+    if (maybeOptions) {
+      options = maybeOptions;
+    }
+    if (preambleOrOptions) {
+      if (isExecutablePrompt(preambleOrOptions)) {
+        preamble = preambleOrOptions as ExecutablePrompt<I>;
+      } else {
+        options = preambleOrOptions as ChatOptions<I>;
+      }
+    }
+
     const session = this.createSession();
+    if (preamble) {
+      return session.chat(preamble, options);
+    }
     return session.chat(options);
   }
 
@@ -903,7 +951,7 @@ export class Genkit {
       id: sessionId,
       state: options?.initialState,
     };
-    return new Session(this, {
+    return new Session(this.registry, {
       id: sessionId,
       sessionData,
       store: options?.store,
@@ -922,7 +970,7 @@ export class Genkit {
     }
     const sessionData = await options.store.get(sessionId);
 
-    return new Session(this, {
+    return new Session(this.registry, {
       id: sessionId,
       sessionData,
       store: options.store,
@@ -945,10 +993,23 @@ export class Genkit {
    */
   private configure() {
     const activeRegistry = this.registry;
+    // install the default formats in the registry
+    configureFormats(activeRegistry);
     const plugins = [...(this.options.plugins ?? [])];
+    if (this.options.model) {
+      this.registry.registerValue(
+        'defaultModel',
+        'defaultModel',
+        this.options.model
+      );
+    }
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {
-        loadPromptFolder(this.registry, this.options.promptDir ?? './prompts');
+        loadPromptFolder(
+          this.registry,
+          this.options.promptDir ?? './prompts',
+          ''
+        );
       });
       plugins.push(dotprompt);
     }
@@ -997,7 +1058,7 @@ export class Genkit {
     }
   }
 
-  startFlowServer(options?: FlowServerOptions): FlowServer {
+  startFlowServer(options: FlowServerOptions): FlowServer {
     const flowServer = new FlowServer(this.registry, options);
     flowServer.start();
     return flowServer;

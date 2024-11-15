@@ -45,12 +45,12 @@ func (ts *State) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	ts.tp.RegisterSpanProcessor(sp)
 }
 
-// AddTraceStoreImmediate adds tstore to the tracingState.
+// WriteTelemetryImmediate adds a telemetry server to the tracingState.
 // Traces are saved immediately as they are finshed.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
-func (ts *State) AddTraceStoreImmediate(tstore Store) {
-	e := newTraceStoreExporter(tstore)
+func (ts *State) WriteTelemetryImmediate(client TelemetryClient) {
+	e := newTraceServerExporter(client)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
 	ts.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
 	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
@@ -58,14 +58,14 @@ func (ts *State) AddTraceStoreImmediate(tstore Store) {
 	// Also requires traceStoreExporter.Shutdown to be a no-op.
 }
 
-// AddTraceStoreBatch adds ts to the tracingState.
+// WriteTelemetryBatch adds a telemetry server to the tracingState.
 // Traces are batched before being sent for processing.
 // Use this for a gtrace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
-func (ts *State) AddTraceStoreBatch(tstore Store) (shutdown func(context.Context) error) {
-	e := newTraceStoreExporter(tstore)
+func (ts *State) WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
+	e := newTraceServerExporter(client)
 	// Adding a BatchSpanProcessor is like using the WithBatcher option.
 	ts.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return ts.tp.Shutdown

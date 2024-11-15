@@ -95,7 +95,11 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(registry: Registry, tools: ToolArgument[] = []): Promise<ToolAction[]> {
+>(registry: Registry, tools?: ToolArgument[]): Promise<ToolAction[]> {
+  if (!tools || tools.length === 0) {
+    return [];
+  }
+
   return await Promise.all(
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
@@ -103,7 +107,7 @@ export async function resolveTools<
       } else if ((ref as Action).__action) {
         return asTool(ref as Action);
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
-        return (ref as ExecutablePrompt).asTool();
+        return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
         return await lookupToolByName(registry, ref.name);
       }

@@ -42,7 +42,7 @@ const API_BASE_PATH = '/api';
 /**
  * Starts up the Genkit Tools server which includes static files for the UI and the Tools API.
  */
-export async function startServer(manager: RuntimeManager, port: number) {
+export function startServer(manager: RuntimeManager, port: number) {
   let server: Server;
   const app = express();
 
@@ -157,5 +157,9 @@ export async function startServer(manager: RuntimeManager, port: number) {
   server = app.listen(port, () => {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
+  });
+
+  return new Promise<void>((resolve) => {
+    server.once('close', resolve);
   });
 }

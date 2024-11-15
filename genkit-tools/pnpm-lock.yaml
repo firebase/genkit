@@ -209,50 +209,6 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
-  plugins/firebase:
-    dependencies:
-      colorette:
-        specifier: ^2.0.20
-        version: 2.0.20
-    devDependencies:
-      '@genkit-ai/tools-common':
-        specifier: workspace:*
-        version: link:../../common
-      '@types/node':
-        specifier: ^20.11.19
-        version: 20.12.7
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
-
-  plugins/google:
-    dependencies:
-      colorette:
-        specifier: ^2.0.20
-        version: 2.0.20
-    devDependencies:
-      '@genkit-ai/tools-common':
-        specifier: workspace:*
-        version: link:../../common
-      '@types/node':
-        specifier: ^20.11.19
-        version: 20.12.7
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
-
   telemetry-server:
     dependencies:
       '@asteasolutions/zod-to-openapi':

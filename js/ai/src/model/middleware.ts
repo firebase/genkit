@@ -119,12 +119,12 @@ export function validateSupport(options: {
       invalid('tool use, but tools were provided');
     if (supports.multiturn === false && req.messages.length > 1)
       invalid(`multiple messages, but ${req.messages.length} were provided`);
-    if (
-      typeof supports.output !== 'undefined' &&
-      req.output?.format &&
-      !supports.output.includes(req.output?.format)
-    )
-      invalid(`requested output format '${req.output?.format}'`);
+    // if (
+    //   typeof supports.output !== 'undefined' &&
+    //   req.output?.format &&
+    //   !supports.output.includes(req.output?.format)
+    // )
+    //   invalid(`requested output format '${req.output?.format}'`);
     return next();
   };
 }
@@ -135,49 +135,6 @@ function lastUserMessage(messages: MessageData[]) {
       return messages[i];
     }
   }
-}
-
-export function conformOutput(): ModelMiddleware {
-  return async (req, next) => {
-    const lastMessage = lastUserMessage(req.messages);
-    if (!lastMessage) return next(req);
-    const outputPartIndex = lastMessage.content.findIndex(
-      (p) => p.metadata?.purpose === 'output'
-    );
-    const outputPart =
-      outputPartIndex >= 0 ? lastMessage.content[outputPartIndex] : undefined;
-
-    if (!req.output?.schema || (outputPart && !outputPart?.metadata?.pending)) {
-      return next(req);
-    }
-
-    const instructions = `
-
-Output should be in JSON format and conform to the following schema:
-
-\`\`\`
-${JSON.stringify(req.output!.schema!)}
-\`\`\`
-`;
-
-    if (outputPart) {
-      lastMessage.content[outputPartIndex] = {
-        ...outputPart,
-        metadata: {
-          purpose: 'output',
-          source: 'default',
-        },
-        text: instructions,
-      } as Part;
-    } else {
-      lastMessage?.content.push({
-        text: instructions,
-        metadata: { purpose: 'output', source: 'default' },
-      });
-    }
-
-    return next(req);
-  };
 }
 
 /**

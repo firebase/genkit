@@ -17,10 +17,6 @@ toc:
     path: /docs/genkit/
   - title: Get started
     path: /docs/genkit/get-started
-  - title: Get started with Next.js
-    path: /docs/genkit/nextjs
-  - title: Configuration and plugins
-    path: /docs/genkit/config
   - title: Developer tools
     path: /docs/genkit/devtools
   
@@ -31,10 +27,14 @@ toc:
     path: /docs/genkit/flows
   - title: Managing prompts with Dotprompt
     path: /docs/genkit/dotprompt
+  - title: Persistent chat sessions
+    path: /docs/genkit/chat
   - title: Tool calling
     path: /docs/genkit/tool-calling
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
+  - title: Multi-agent systems
+    path: /docs/genkit/multi-agent
   - title: Evaluation
     path: /docs/genkit/evaluation
   - title: Observability & monitoring
@@ -53,8 +53,6 @@ toc:
   - heading: Writing plugins
   - title: Overview
     path: /docs/genkit/plugin-authoring
-  - title: Writing a Telemetry Plugin
-    path: /docs/genkit/plugin-authoring-telemetry
   - title: Writing an Evaluator Plugin
     path: /docs/genkit/plugin-authoring-evaluator
   
@@ -75,9 +73,15 @@ toc:
     path: /docs/genkit/plugins/firebase
   - title: Google Cloud
     path: /docs/genkit/plugins/google-cloud
-  - title: LangChain
-    path: /docs/genkit/plugins/langchain
-  
+
+  - break: true
+  - title: Using Genkit with Next.js
+    path: /docs/genkit/nextjs
+
+  - break: true
+  - title: Migrate from Genkit 0.5
+    path: /docs/genkit/migrating-from-0.5
+
   - break: true
   - title: Connect with us
     path: /docs/genkit/feedback

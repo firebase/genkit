@@ -17,8 +17,9 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { arrayFormatter } from '../../src/formats/array.js';
-import { GenerateResponse, GenerateResponseChunk } from '../../src/generate.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
+import { GenerateResponseChunk } from '../../src/generate.js';
+import { Message } from '../../src/message.js';
+import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
 
 describe('arrayFormat', () => {
   const streamingTests = [
@@ -65,7 +66,7 @@ describe('arrayFormat', () => {
 
   for (const st of streamingTests) {
     it(st.desc, () => {
-      const parser = arrayFormatter.handler({ messages: [] });
+      const parser = arrayFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
       let lastCursor = 0;
 
@@ -84,45 +85,40 @@ describe('arrayFormat', () => {
     });
   }
 
-  const responseTests = [
+  const messageTests = [
     {
       desc: 'parses complete array response',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '[{"id": 1, "name": "test"}]' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '[{"id": 1, "name": "test"}]' }],
+      },
       want: [{ id: 1, name: 'test' }],
     },
     {
       desc: 'parses empty array',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [{ text: '[]' }],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: '[]' }],
+      },
       want: [],
     },
     {
       desc: 'parses array with preamble and code fence',
-      response: new GenerateResponse({
-        message: {
-          role: 'model',
-          content: [
-            { text: 'Here is the array:\n\n```json\n[{"id": 1}]\n```' },
-          ],
-        },
-      }),
+      message: {
+        role: 'model',
+        content: [{ text: 'Here is the array:\n\n```json\n[{"id": 1}]\n```' }],
+      },
       want: [{ id: 1 }],
     },
   ];
 
-  for (const rt of responseTests) {
+  for (const rt of messageTests) {
     it(rt.desc, () => {
-      const parser = arrayFormatter.handler({ messages: [] });
-      assert.deepStrictEqual(parser.parseResponse(rt.response), rt.want);
+      const parser = arrayFormatter.handler();
+      assert.deepStrictEqual(
+        parser.parseMessage(new Message(rt.message as MessageData)),
+        rt.want
+      );
     });
   }
 

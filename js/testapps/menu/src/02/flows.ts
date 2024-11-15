@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types.js';
 import { s02_dataMenuPrompt } from './prompts.js';
 
@@ -27,12 +27,8 @@ export const s02_menuQuestionFlow = ai.defineFlow(
     outputSchema: AnswerOutputSchema,
   },
   async (input) => {
-    return s02_dataMenuPrompt
-      .generate({
-        input: { question: input.question },
-      })
-      .then((response) => {
-        return { answer: response.text };
-      });
+    return s02_dataMenuPrompt({ question: input.question }).then((response) => {
+      return { answer: response.text };
+    });
   }
 );

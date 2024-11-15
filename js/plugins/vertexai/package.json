@@ -17,7 +17,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.9.0-dev.3",
+  "version": "0.9.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -55,7 +55,7 @@
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
-    "tsup": "^8.0.2",
+    "tsup": "^8.3.5",
     "tsx": "^4.7.0",
     "typescript": "^4.9.0"
   },
@@ -66,6 +66,46 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./rerankers": {
+      "require": "./lib/rerankers/index.js",
+      "import": "./lib/rerankers/index.mjs",
+      "types": "./lib/rerankers/index.d.ts",
+      "default": "./lib/rerankers/index.js"
+    },
+    "./evaluation": {
+      "require": "./lib/evaluation/index.js",
+      "import": "./lib/evaluation/index.mjs",
+      "types": "./lib/evaluation/index.d.ts",
+      "default": "./lib/evaluation/index.js"
+    },
+    "./modelgarden": {
+      "require": "./lib/modelgarden/index.js",
+      "import": "./lib/modelgarden/index.mjs",
+      "types": "./lib/modelgarden/index.d.ts",
+      "default": "./lib/modelgarden/index.js"
+    },
+    "./vectorsearch": {
+      "require": "./lib/vectorsearch/index.js",
+      "import": "./lib/vectorsearch/index.mjs",
+      "types": "./lib/vectorsearch/index.d.ts",
+      "default": "./lib/vectorsearch/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "rerankers": [
+        "./lib/rerankers/index"
+      ],
+      "evaluation": [
+        "./lib/evaluation/index"
+      ],
+      "modelgarden": [
+        "./lib/modelgarden/index"
+      ],
+      "vectorsearch": [
+        "./lib/vectorsearch/index"
+      ]
     }
   }
 }

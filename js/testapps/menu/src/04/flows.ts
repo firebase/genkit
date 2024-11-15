@@ -19,7 +19,7 @@ import {
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
 import { Document, z } from 'genkit';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import {
   AnswerOutputSchema,
   MenuItem,
@@ -74,11 +74,9 @@ export const s04_ragMenuQuestionFlow = ai.defineFlow(
     );
 
     // Generate the response
-    const response = await s04_ragDataMenuPrompt.generate({
-      input: {
-        menuData: menuData,
-        question: input.question,
-      },
+    const response = await s04_ragDataMenuPrompt({
+      menuData: menuData,
+      question: input.question,
     });
     return { answer: response.text };
   }
