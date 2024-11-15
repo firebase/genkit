@@ -67,7 +67,10 @@ export const menuSuggestionFlowMarkdown = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.object({
+      dishname: z.string(),
+      description: z.string(),
+    }),
   },
   async (restaurantTheme) => {
     const { output } = await ai.generate({
