@@ -119,7 +119,7 @@ You can deploy Firebase Genkit flows as web services using Cloud Run.
     1.  Start the UI:
 
         ```posix-terminal
-        genkit start -- go run main.go
+        genkit start -- go run .
         ```
 
     1.  In the developer UI (http://localhost:4000/), run the flow:
