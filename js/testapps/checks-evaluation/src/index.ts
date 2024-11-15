@@ -16,6 +16,7 @@
 import { checks, ChecksEvaluationMetricType, checksMiddleware } from '@genkit-ai/checks';
 import { genkit, z } from 'genkit';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { ModelMiddleware } from 'genkit/model';
 
 export const ai = genkit({
   plugins: [
@@ -59,10 +60,11 @@ ai.defineFlow({
   outputSchema: z.any()
 },
   async (prompt) => {
+
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: prompt,
-      // use: [checksMiddleware]
+      use: [checksMiddleware()]
     })
 
     console.log(text)
