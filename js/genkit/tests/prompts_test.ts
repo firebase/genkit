@@ -160,6 +160,39 @@ describe('definePrompt - dotprompt', () => {
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
+    it('defaults to json format', async () => {
+      const Foo = z.object({
+        bar: z.string(),
+      });
+      const model = defineStaticResponseModel(ai, {
+        role: 'model',
+        content: [
+          {
+            text: '```json\n{bar: "baz"}\n```',
+          },
+        ],
+      });
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model,
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+          output: {
+            schema: Foo,
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi({ name: 'Genkit' });
+      const foo: z.infer<typeof Foo> = response.output;
+      assert.deepStrictEqual(foo, { bar: 'baz' });
+    });
+
     it('streams dotprompt with default model', async () => {
       const hi = ai.definePrompt(
         {
