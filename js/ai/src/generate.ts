@@ -235,8 +235,9 @@ export async function generate<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerateResponse<z.infer<O>>> {
-  const resolvedOptions: GenerateOptions<O, CustomOptions> =
-    await Promise.resolve(options);
+  const resolvedOptions: GenerateOptions<O, CustomOptions> = {
+    ...(await Promise.resolve(options)),
+  };
   const resolvedModel = await resolveModel(registry, resolvedOptions.model);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
@@ -248,6 +249,10 @@ export async function generate<
     jsonSchema: resolvedOptions.output?.jsonSchema,
   });
 
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
+    resolvedOptions.output.format = 'json';
+  }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
   const instructions = resolveInstructions(
     resolvedFormat,
