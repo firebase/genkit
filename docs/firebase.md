@@ -416,27 +416,11 @@ Firebase offers a
 [suite of emulators for local development](/docs/emulator-suite), which you can
 use with Genkit.
 
-First, You will need to launch the Genkit Dev UI:
-
-```posix-terminal
-cd $PROJECT_ROOT/functions
-
-npx genkit start -- npx tsx --watch src/index.ts
-```
-
-or
-  
-```posix-terminal
-cd $PROJECT_ROOT/functions
-
-npm run genkit:start
-```
-
-To use Genkit with the Firebase Emulator Suite, start the Firebase emulators
+To use the Genkit Dev UI with the Firebase Emulator Suite, start the Firebase emulators
 like this:
 
 ```posix-terminal
-firebase emulators:start --inspect-functions
+npx genkit start -- firebase emulators:start --inspect-functions
 ```
 
 This will run your code in the emulator and run the Genkit framework in
