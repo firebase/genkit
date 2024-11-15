@@ -399,12 +399,12 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 			return err
 		}
 		var callback streamingCallback[json.RawMessage]
-		if stream {
+		if r.Header.Get("Accept") == "text/event-stream" || stream {
 			w.Header().Set("Content-Type", "text/plain")
 			w.Header().Set("Transfer-Encoding", "chunked")
 			// Stream results are newline-separated JSON.
 			callback = func(ctx context.Context, msg json.RawMessage) error {
-				_, err := fmt.Fprintf(w, "%s\n", msg)
+				_, err := fmt.Fprintf(w, "data: %s\n\n", msg)
 				if err != nil {
 					return err
 				}
@@ -421,7 +421,7 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		}
 		// Responses for non-streaming, non-durable flows are passed back
 		// with the flow result stored in a field called "result."
-		_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)
+		_, err = fmt.Fprintf(w, `data: {"result": %s}\n`, out)
 		return err
 	}
 }
