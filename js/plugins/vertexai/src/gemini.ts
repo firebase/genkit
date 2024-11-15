@@ -507,7 +507,7 @@ export function defineGeminiModel(
       }
       // Cannot use tools and function calling at the same time
       const jsonMode =
-        (request.output?.format === 'json' || !!request.output?.schema || ||
+        (request.output?.format === 'json' || !!request.output?.schema ||
           request.output?.contentType === 'application/json') &&
         tools.length === 0;
 
