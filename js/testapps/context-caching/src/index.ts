@@ -14,60 +14,60 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import * as fs from 'fs/promises'; // Import fs to read text files
-import { genkit, z } from 'genkit';
-import { logger } from 'genkit/logging';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai'; // Import specific AI plugins/models
+import * as fs from 'fs/promises'; // Import fs module to handle file operations asynchronously
+import { genkit, z } from 'genkit'; // Import Genkit framework and Zod for schema validation
+import { logger } from 'genkit/logging'; // Import logging utility from Genkit
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI()], // Initialize Genkit with the Google AI plugin
 });
 
-logger.setLogLevel('debug');
+logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
 
 export const lotrFlow = ai.defineFlow(
   {
-    name: 'lotrFlow',
+    name: 'lotrFlow', // Define a unique name for this flow
     inputSchema: z.object({
-      query: z.string().optional(),
+      query: z.string().optional(), // Define a query input, which is optional
       textFilePath: z.string(), // Add the file path to input schema
     }),
-    outputSchema: z.string(),
+    outputSchema: z.string(), // Define the expected output as a string
   },
   async ({ query, textFilePath }) => {
     const defaultQuery =
-      "Describe Gandalf's relationship with Frodo, referencing Gandalf quotes from the text.";
+      "Describe Gandalf's relationship with Frodo, referencing Gandalf quotes from the text."; // Default query to use if none is provided
 
     // Read the content from the file if the path is provided
-    const textContent = await fs.readFile(textFilePath, 'utf-8');
+    const textContent = await fs.readFile(textFilePath, 'utf-8'); // Read the file as UTF-8 encoded text
 
     const llmResponse = await ai.generate({
       messages: [
         {
-          role: 'user',
+          role: 'user', // Represents the user's input or query
           content: [{ text: textContent }], // Use the loaded file content here
         },
         {
-          role: 'model',
+          role: 'model', // Represents the model's response
           content: [
             {
-              text: 'This is the first few chapters of Lord of the Rings. Can I help in any way?',
+              text: 'This is the first few chapters of Lord of the Rings. Can I help in any way?', // Example model response
             },
           ],
           metadata: {
             cache: {
-              ttlSeconds: 300,
+              ttlSeconds: 300, // Set the cache time-to-live for this message to 300 seconds
             }, // this message is the last one to be cached.
           },
         },
       ],
       config: {
-        version: 'gemini-1.5-flash-001', // Adjust for model version
+        version: 'gemini-1.5-flash-001', // Specify the version of the model to be used
       },
-      model: gemini15Flash,
-      prompt: query || defaultQuery,
+      model: gemini15Flash, // Specify the model (gemini15Flash) to use for generation
+      prompt: query || defaultQuery, // Use the provided query or fall back to the default query
     });
 
-    return llmResponse.text;
+    return llmResponse.text; // Return the generated text from the model
   }
 );

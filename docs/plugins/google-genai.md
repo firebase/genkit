@@ -133,3 +133,97 @@ const llmResponse = await ai.generate({
   }),
 });
 ```
+
+
+
+## Context Caching
+
+The Google Generative AI plugin supports **context caching**, which allows models to reuse previously cached content to optimize performance and reduce latency for repetitive tasks. This feature is especially useful for conversational flows or scenarios where the model references a large body of text consistently across multiple requests.
+
+### How to Use Context Caching
+
+To enable context caching, ensure your model supports it. For example, `gemini15Flash` and `gemini15Pro` are models that support context caching.
+
+You can define a caching mechanism in your application like this:
+
+```ts
+const ai = genkit({
+  plugins: [googleAI()],
+});
+
+const llmResponse = await ai.generate({
+  messages: [
+    {
+      role: 'user',
+      content: [{ text: 'Here is the relevant text from War and Peace.' }],
+    },
+    {
+      role: 'model',
+      content: [
+        {
+          text: 'Based on War and Peace, here is some analysis of Pierre Bezukhov’s character.',
+        },
+      ],
+      metadata: {
+        cache: {
+          ttlSeconds: 300, // Cache this message for 5 minutes
+        },
+      },
+    },
+  ],
+  model: gemini15Flash,
+  prompt: 'Describe Pierre’s transformation throughout the novel.',
+});
+```
+
+In this setup:
+- **`messages`**: Allows you to pass conversation history.
+- **`metadata.cache.ttlSeconds`**: Specifies the time-to-live (TTL) for caching a specific response.
+
+### Example: Leveraging Large Texts with Context
+
+For applications referencing long documents, such as *War and Peace* or *Lord of the Rings*, you can structure your queries to reuse cached contexts:
+
+```ts
+const fs = require('fs/promises');
+
+const textContent = await fs.readFile('path/to/war_and_peace.txt', 'utf-8');
+
+const llmResponse = await ai.generate({
+  messages: [
+    {
+      role: 'user',
+      content: [{ text: textContent }], // Include the large text as context
+    },
+    {
+      role: 'model',
+      content: [
+        {
+          text: 'This analysis is based on the provided text from War and Peace.',
+        },
+      ],
+      metadata: {
+        cache: {
+          ttlSeconds: 300, // Cache the response to avoid reloading the full text
+        },
+      },
+    },
+  ],
+  model: gemini15Flash,
+  prompt: 'Analyze the relationship between Pierre and Natasha.',
+});
+```
+
+### Benefits of Context Caching
+1. **Improved Performance**: Reduces the need for repeated processing of large inputs.
+2. **Cost Efficiency**: Decreases API usage for redundant data, optimizing token consumption.
+3. **Better Latency**: Speeds up response times for repeated or related queries.
+
+### Supported Models for Context Caching
+
+Only specific models, such as `gemini15Flash` and `gemini15Pro`, support context caching. If an unsupported model is used, an error will be raised, indicating that caching cannot be applied.
+
+---
+
+By leveraging context caching, you can significantly enhance the performance and scalability of applications involving large datasets or conversational interactions.
+
