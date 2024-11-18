@@ -261,12 +261,14 @@ type flowState[In, Out any] struct {
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
 	StartTime  tracing.Milliseconds `json:"startTime,omitempty"`
+	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
 	Input      In                   `json:"input,omitempty"`
 	mu         sync.Mutex
 	Cache      map[string]json.RawMessage `json:"cache,omitempty"`
 	Executions []*flowExecution           `json:"executions,omitempty"`
 	// The operation is the user-visible part of the state.
 	Operation *operation[Out] `json:"operation,omitempty"`
+	TraceContext string          `json:"traceContext,omitempty"`
 }
 
 func newFlowState[In, Out any](id, name string, input In) *flowState[In, Out] {
@@ -311,6 +313,11 @@ func (fs *flowState[In, Out]) CacheSet(key string, val json.RawMessage) {
 // An operation describes the state of a Flow that may still be in progress.
 type operation[Out any] struct {
 	FlowID string `json:"name,omitempty"`
+	// The step that the flow is blocked on, if any.
+	BlockedOnStep *struct {
+		Name   string `json:"name"`
+		Schema string `json:"schema"`
+	} `json:"blockedOnStep,omitempty"`
 	// Whether the operation is completed.
 	// If true Result will be non-nil.
 	Done bool `json:"done,omitempty"`
@@ -329,6 +336,7 @@ type FlowResult[Out any] struct {
 	// into JSON.
 	// TODO: replace with  a type that implements error and json.Marshaler.
 	err error
+	StackTrace string `json:"stacktrace,omitempty"`
 }
 
 // FlowResult is called FlowResponse in the javascript.
