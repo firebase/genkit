@@ -57,7 +57,7 @@ export const start = new Command('start')
           if (code === 0) {
             urlResolver(undefined);
           } else {
-            reject(new Error(`app process exited with code ${code}`))
+            reject(new Error(`app process exited with code ${code}`));
           }
         });
       });
