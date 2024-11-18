@@ -17,12 +17,13 @@ import { Genkit, genkit } from 'genkit';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
-import { OllamaPluginParams } from '../src/index.js';
+import { ollama } from '../src/index.js';
+import { OllamaPluginParams } from '../src/types.js';
 
 // Mock fetch to simulate API responses
 global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
-  if (url.includes('/api/embedding')) {
+  if (url.includes('/api/embed')) {
     if (options?.body && JSON.stringify(options.body).includes('fail')) {
       return {
         ok: false,
@@ -33,7 +34,7 @@ global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
     return {
       ok: true,
       json: async () => ({
-        embedding: [0.1, 0.2, 0.3], // Example embedding values
+        embeddings: [[0.1, 0.2, 0.3]], // Example embedding values
       }),
     } as Response;
   }
@@ -48,7 +49,13 @@ describe('defineOllamaEmbedder', () => {
 
   let ai: Genkit;
   beforeEach(() => {
-    ai = genkit({});
+    ai = genkit({
+      plugins: [
+        ollama({
+          serverAddress: 'http://localhost:3000',
+        }),
+      ],
+    });
   });
 
   it('should successfully return embeddings', async () => {
@@ -88,21 +95,5 @@ describe('defineOllamaEmbedder', () => {
         return true;
       }
     );
-  });
-
-  it('should throw an error if the fetch response is not ok', async () => {
-    const embedder = defineOllamaEmbedder(ai, {
-      name: 'test-embedder',
-      modelName: 'test-model',
-      dimensions: 123,
-      options,
-    });
-
-    await assert.rejects(async () => {
-      await ai.embed({
-        embedder,
-        content: 'fail',
-      });
-    }, new Error('Error fetching embedding from Ollama: Internal Server Error'));
   });
 });

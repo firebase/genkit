@@ -71,9 +71,12 @@ export const evalRun = new Command('eval:run')
       if (!options.evaluators) {
         evaluatorActions = await getAllEvaluatorActions(manager);
       } else {
+        const evalActionKeys = options.evaluators
+          .split(',')
+          .map((k) => `/evaluator/${k}`);
         evaluatorActions = await getMatchingEvaluatorActions(
           manager,
-          options.evaluators.split(',')
+          evalActionKeys
         );
       }
       logger.info(

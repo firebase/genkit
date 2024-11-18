@@ -17,11 +17,10 @@
 import { VertexAI } from '@google-cloud/vertexai';
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import { GeminiConfigSchema } from '../gemini';
-import { CLOUD_PLATFORM_OAUTH_SCOPE } from './constants';
-import { PluginOptions } from './types';
-
-export { PluginOptions };
+import { GeminiConfigSchema } from '../gemini.js';
+import { CLOUD_PLATFORM_OAUTH_SCOPE } from './constants.js';
+import type { PluginOptions } from './types.js';
+export type { PluginOptions };
 
 interface DerivedParams {
   location: string;
@@ -32,12 +31,24 @@ interface DerivedParams {
   authClient: GoogleAuth;
 }
 
+function parseFirebaseProjectId(): string | undefined {
+  if (!process.env.FIREBASE_CONFIG) return undefined;
+  try {
+    return JSON.parse(process.env.FIREBASE_CONFIG).projectId as string;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getDerivedParams(
   options?: PluginOptions
 ): Promise<DerivedParams> {
   let authOptions = options?.googleAuth;
   let authClient: GoogleAuth;
-
+  const providedProjectId =
+    options?.projectId ||
+    process.env.GCLOUD_PROJECT ||
+    parseFirebaseProjectId();
   if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
     const serviceAccountCreds = JSON.parse(
       process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
@@ -45,11 +56,15 @@ export async function getDerivedParams(
     authOptions = {
       credentials: serviceAccountCreds,
       scopes: [CLOUD_PLATFORM_OAUTH_SCOPE],
+      projectId: providedProjectId,
     };
     authClient = new GoogleAuth(authOptions);
   } else {
     authClient = new GoogleAuth(
-      authOptions ?? { scopes: [CLOUD_PLATFORM_OAUTH_SCOPE] }
+      authOptions ?? {
+        scopes: [CLOUD_PLATFORM_OAUTH_SCOPE],
+        projectId: providedProjectId,
+      }
     );
   }
 
@@ -76,7 +91,7 @@ export async function getDerivedParams(
       vertexClientFactoryCache[requestLocation] = new VertexAI({
         project: projectId,
         location: requestLocation,
-        googleAuthOptions: authOptions,
+        googleAuthOptions: { projectId: providedProjectId, ...authOptions },
       });
     }
     return vertexClientFactoryCache[requestLocation];

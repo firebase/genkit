@@ -1,7 +1,7 @@
 # Google Cloud plugin
 
 The Google Cloud plugin exports Firebase Genkit's telemetry and logging data to
-[Google Cloud's operation suite](https://cloud.google.com/products/operations).
+[Google Cloud's operation suite](https://cloud.google.com/products/operations) which powers the Firebase AI Monitoring dashboard.
 
 > Note: Logging is facilitated by [Winston](https://github.com/winstonjs/winston) in favor of the [OpenTelemetry](https://opentelemetry.io/) logging APIs. Export of logs is done via a dedicated Winston Google Cloud exporter.
 
@@ -30,19 +30,12 @@ Click [here](https://support.google.com/googleapi/answer/6158841) to learn more 
 
 ## Genkit configuration
 
-To enable exporting to Google Cloud Tracing, Logging, and Monitoring, add the `googleCloud` plugin to your Genkit configuration:
+To enable exporting to Google Cloud Tracing, Logging, and Monitoring, simply call `enableGoogleCloudTelemetry()`:
 
 ```ts
-import { googleCloud } from '@genkit-ai/google-cloud';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 
-export default configureGenkit({
-  plugins: [googleCloud()],
-  enableTracingAndMetrics: true,
-  telemetry: {
-    instrumentation: 'googleCloud',
-    logger: 'googleCloud',
-  },
-});
+enableGoogleCloudTelemetry();
 ```
 
 When running in production, your telemetry gets automatically exported.
@@ -65,7 +58,7 @@ For more information, see the [Application Default Credentials](https://cloud.go
 
 If you are using a service account and running outside of a Google Cloud environment, you can set your credentials as an environment variable. Follow instructions here to [set up your Google Cloud Service Account Key](https://cloud.google.com/iam/docs/keys-create-delete#creating).
 
-Once you have downloaded the key file, you can specify the credentials in two ways a file location using the `GOOGLE_APPLICATION_CREDENTIALS` environment variable or directly copy the contents of the json file to the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS`.
+Once you have downloaded the key file, you can specify the credentials in two ways; a file location using the `GOOGLE_APPLICATION_CREDENTIALS` environment variable or directly copy the contents of the json file to the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS`.
 
 File path:
 
@@ -92,46 +85,27 @@ GCLOUD_SERVICE_ACCOUNT_CREDS='{
 
 ## Plugin configuration
 
-The `googleCloud()` plugin takes an optional configuration object:
-
-```ts
-{
-    projectId?: string,
-    telemetryConfig?: TelemetryConfig
-}
-```
-
-### projectId
-
-This option allows specifying the Google Cloud project ID explicitly. In most cases, this is unnecessary.
-
-### telemetryConfig
-
-This option configures the [OpenTelemetry NodeSDK](https://open-telemetry.github.io/opentelemetry-js/classes/_opentelemetry_sdk_node.NodeSDK.html) instance.
+The `enableGoogleCloudTelemetry()` function takes an optional configuration object which configures the [OpenTelemetry NodeSDK](https://open-telemetry.github.io/opentelemetry-js/classes/_opentelemetry_sdk_node.NodeSDK.html) instance.
 
 ```ts
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 googleCloud({
-  telemetryConfig: {
-    forceDevExport: false, // Set this to true to export telemetry for local runs
-    sampler: new AlwaysOnSampler(),
-    autoInstrumentation: true,
-    autoInstrumentationConfig: {
-      '@opentelemetry/instrumentation-fs': { enabled: false },
-      '@opentelemetry/instrumentation-dns': { enabled: false },
-      '@opentelemetry/instrumentation-net': { enabled: false },
-    },
-    metricExportIntervalMillis: 5_000,
+  forceDevExport: false, // Set this to true to export telemetry for local runs
+  sampler: new AlwaysOnSampler(),
+  autoInstrumentation: true,
+  autoInstrumentationConfig: {
+    '@opentelemetry/instrumentation-fs': { enabled: false },
+    '@opentelemetry/instrumentation-dns': { enabled: false },
+    '@opentelemetry/instrumentation-net': { enabled: false },
   },
+  metricExportIntervalMillis: 5_000,
 });
 ```
+The configuration objects allows fine grained control over various aspects of the telemetry export outlined below.
 
-#### forceDevExport
-
-This option will force Genkit to export telemetry and log data when running in the `dev` environment (e.g. locally).
-
-> Note: When running locally, internal telemetry buffers may not fully flush prior to the process exiting, resulting in an incomplete telemetry export.
+#### credentials
+Allows specifying credentials directly using [JWTInput](http://cloud/nodejs/docs/reference/google-auth-library/latest/google-auth-library/jwtinput) from the google-auth library.
 
 #### sampler
 
@@ -148,189 +122,34 @@ There are four preconfigured samplers:
 
 Enabling [automatic instrumentation](https://opentelemetry.io/docs/languages/js/automatic/) allows OpenTelemetry to capture telemetry data from [third-party libraries](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/src/utils.ts) without the need to modify code.
 
-#### metricsExportInterval
+#### metricExportIntervalMillis
 
 This field specifies the metrics export interval in milliseconds.
 
 > Note: The minimum export interval for Google Cloud Monitoring is 5000ms.
 
+#### metricExportTimeoutMillis
+
+This field specifies the timeout for the metrics export in milliseconds.
+
+#### disableMetrics
+
+Provides an override that disables metrics export while still exporting traces and logs.
+
+#### disableTraces
+
+Provides an override that disables exporting traces while still exprting metrics and logs.
+
+#### disableLoggingIO
+
+Provides an override that disables collecting input and output logs.
+
+#### forceDevExport
+
+This option will force Genkit to export telemetry and log data when running in the `dev` environment (e.g. locally).
+
+> Note: When running locally, internal telemetry buffers may not fully flush prior to the process exiting, resulting in an incomplete telemetry export.
+
 ## Test your integration
 
-When configuring the plugin, use `forceDevExport: true` to enable telemetry export for local runs. This is a quick way to send your first events for monitoring in Google Cloud.
-
-# Production monitoring via Google Cloud's operations suite
-
-Once a flow is deployed, navigate to [Google Cloud's operations suite](https://console.cloud.google.com/) and select your project.
-
-<img src="../resources/cloud-ops-suite.png" width="750">
-
-## Logs and traces
-
-From the side menu, find 'Logging' and click 'Logs explorer'.
-
-<img src="../resources/cloud-ops-logs-explorer-menu.png" width="750">
-
-You will see all logs that are associated with your deployed flow, including `console.log()`. Any log which has the prefix `[genkit]` is a Genkit-internal log that contains information that may be interesting for debugging purposes. For example, Genkit logs in the format `Config[...]` contain metadata such as the temperature and topK values for specific LLM inferences. Logs in the format `Output[...]` contain LLM responses while `Input[...]` logs contain the prompts. Cloud Logging has robust ACLs that allow fine grained control over sensitive logs.
-
-> Note: Prompts and LLM responses are redacted from trace attributes in Cloud Trace.
-
-For specific log lines, it is possible to navigate to their respective traces by clicking on the extended menu <img src="../resources/cloud-ops-log-menu-icon.png" height="15"> icon and selecting "View in trace details".
-
- <img src="../resources/cloud-ops-view-trace-details.png" width="750">
-
-This will bring up a trace preview pane providing a quick glance of the details of the trace. To get to the full details, click the "View in Trace" link at the top right of the pane.
-
- <img src="../resources/cloud-ops-view-in-trace.png" width="750">
-
-The most prominent navigation element in Cloud Trace is the trace scatter plot. It contains all collected traces in a given time span.
-
- <img src="../resources/cloud-ops-trace-graph.png" width="750">
-
-Clicking on each data point will show its details below the scatter plot.
-
- <img src="../resources/cloud-ops-trace-view.png" width="750">
-
-The detailed view contains the flow shape, including all steps, and important timing information. Cloud Trace has the ability to interleave all logs associated with a given trace within this view. Select the "Show expanded" option in the "Logs & events" drop down.
-
- <img src="../resources/cloud-ops-show-expanded.png" width="750">
-
-The resultant view allows detailed examination of logs in the context of the trace, including prompts and LLM responses.
-
- <img src="../resources/cloud-ops-output-logs.png" width="750">
-
-## Metrics
-
-Viewing all metrics that Genkit exports can be done by selecting "Logging" from the side menu and clicking on "Metrics management".
-
-<img src="../resources/cloud-ops-metrics-mgmt.png" width="750">
-
-The metrics management console contains a tabular view of all collected metrics, including those that pertain to Cloud Run and its surrounding environment. Clicking on the 'Workload' option will reveal a list that includes Genkit-collected metrics. Any metric with the `genkit` prefix constitutes an internal Genkit metric.
-
-<img src="../resources/cloud-ops-metrics-table.png" width="750">
-
-Genkit collects several categories of metrics, including flow-level, action-level, and generate-level metrics. Each metric has several useful dimensions facilitating robust filtering and grouping.
-
-Common dimensions include:
-
-- `flow_name` - the top-level name of the flow.
-- `flow_path` - the span and its parent span chain up to the root span.
-- `error_code` - in case of an error, the corresponding error code.
-- `error_message` - in case of an error, the corresponding error message.
-- `model` - the name of the model.
-- `temperature` - the inference temperature [value](https://ai.google.dev/docs/concepts#model-parameters).
-- `topK` - the inference topK [value](https://ai.google.dev/docs/concepts#model-parameters).
-- `topP` - the inference topP [value](https://ai.google.dev/docs/concepts#model-parameters).
-
-### Feature-level metrics
-
-Features are the top-level entry-point to your Genkit code. In most cases, this
-will be a flow, but if you do not use flows, this will be the top-most span in a trace.
-
-| Name                    | Type      | Description             |
-| ----------------------- | --------- | ----------------------- |
-| genkit/feature/requests | Counter   | Number of requests      |
-| genkit/feature/latency  | Histogram | Execution latency in ms |
-
-Each feature-level metric contains the following dimensions:
-
-| Name          | Description                                                                      |
-| ------------- | -------------------------------------------------------------------------------- |
-| name          | The name of the feature. In most cases, this is the top-level Genkit flow        |
-| status        | 'success' or 'failure' depending on whether or not the feature request succeeded |
-| error         | Only set when `status=failure`. Contains the error type that caused the failure  |
-| source        | The Genkit source language. Eg. 'ts'                                             |
-| sourceVersion | The Genkit framework version                                                     |
-
-
-### Action-level metrics
-
-Actions represent a generic step of execution within Genkit. Each of these steps
-will have the following metrics tracked:
-
-| Name                    | Type      | Description                                   |
-| ----------------------- | --------- | --------------------------------------------- |
-| genkit/action/requests  | Counter   | Number of times this action has been executed |
-| genkit/action/latency   | Histogram | Execution latency in ms                       |
-
-Each action-level metric contains the following dimensions:
-
-| Name          | Description                                                                                          |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| name          | The name of the action                                                                               |
-| featureName   | The name of the parent feature being executed                                                        |
-| path          | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
-| status        | 'success' or 'failure' depending on whether or not the action succeeded                              |
-| error         | Only set when `status=failure`. Contains the error type that caused the failure                      |
-| source        | The Genkit source language. Eg. 'ts'                                                                 |
-| sourceVersion | The Genkit framework version                                                                         |
-
-### Generate-level metrics
-
-These are special action metrics relating to actions that interact with a model.
-In addition to requests and latency, input and output are also tracked, with model
-specific dimensions that make debugging and configuration tuning easier.
-
-| Name                                 | Type      | Description                                |
-| ------------------------------------ | --------- | ------------------------------------------ |
-| genkit/ai/generate/requests          | Counter   | Number of times this model has been called |
-| genkit/ai/generate/latency           | Histogram | Execution latency in ms                    |
-| genkit/ai/generate/input/tokens      | Counter   | Input tokens                               |
-| genkit/ai/generate/output/tokens     | Counter   | Output tokens                              |
-| genkit/ai/generate/input/characters  | Counter   | Input characters                           |
-| genkit/ai/generate/output/characters | Counter   | Output characters                          |
-| genkit/ai/generate/input/images      | Counter   | Input images                               |
-| genkit/ai/generate/output/images     | Counter   | Output images                              |
-| genkit/ai/generate/input/audio       | Counter   | Input audio files                          |
-| genkit/ai/generate/output/audio      | Counter   | Output audio files                         |
-
-Each generate-level metric contains the following dimensions:
-
-| Name            | Description                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------- |
-| modelName       | The name of the model                                                                                |
-| featureName     | The name of the parent feature being executed                                                        |
-| path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
-| temperature     | The temperature parameter passed to the model                                                        |
-| maxOutputTokens | The maxOutputTokens parameter passed to the model                                                    |
-| topK            | The topK parameter passed to the model                                                               |
-| topP            | The topP parameter passed to the model                                                               |
-| latencyMs       | The response time taken by the model                                                                 |
-| status          | 'success' or 'failure' depending on whether or not the feature request succeeded                     |
-| error           | Only set when `status=failure`. Contains the error type that caused the failure                      |
-| source          | The Genkit source language. Eg. 'ts'                                                                 |
-| sourceVersion   | The Genkit framework version                                                                         |
-
-Visualizing metrics can be done through the Metrics Explorer. Using the side menu, select 'Logging' and click 'Metrics explorer'
-
-<img src="../resources/cloud-ops-metrics-explorer.png" width="750">
-
-Select a metrics by clicking on the "Select a metric" dropdown, selecting 'Generic Node', 'Genkit', and a metric.
-
-<img src="../resources/cloud-ops-metrics-generic-node.png" width="750">
-
-The visualization of the metric will depend on its type (counter, histogram, etc). The Metrics Explorer provides robust aggregation and querying facilities to help graph metrics by their various dimensions.
-
-<img src="../resources/cloud-ops-metrics-metric.png" width="750">
-
-## Telemetry Delay
-
-There may be a slight delay before telemetry for a particular execution of a flow is displayed in Cloud's operations suite. In most cases, this delay is under 1 minute.
-
-## Quotas and limits
-
-There are several quotas that are important to keep in mind:
-
-- [Cloud Trace Quotas](http://cloud.google.com/trace/docs/quotas)
-  - 128 bytes per attribute key
-  - 256 bytes per attribute value
-- [Cloud Logging Quotas](http://cloud.google.com/logging/quotas)
-  - 256 KB per log entry
-- [Cloud Monitoring Quotas](http://cloud.google.com/monitoring/quotas)
-
-## Cost
-
-Cloud Logging, Cloud Trace, and Cloud Monitoring have generous free tiers. Specific pricing can be found at the following links:
-
-- [Cloud Logging Pricing](http://cloud.google.com/stackdriver/pricing#google-cloud-observability-pricing)
-- [Cloud Trace Pricing](https://cloud.google.com/trace#pricing)
-- [Cloud Monitoring Pricing](https://cloud.google.com/stackdriver/pricing#monitoring-pricing-summary)
+When configuring the plugin, use `forceDevExport: true` to enable telemetry export for local runs. Navigate to the Google Cloud Logs, Metrics, or Trace Explorer to view telemetry. Alternatively, navigate to the Firebase AI Monitoring dashboard for an AI-idiomatic view of telemetry.

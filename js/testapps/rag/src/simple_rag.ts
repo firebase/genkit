@@ -62,14 +62,10 @@ export const askQuestionsAboutCatsFlow = ai.defineFlow(
       query,
       options: { k: 3 },
     });
-    return augmentedPrompt
-      .generate({
-        input: {
-          question: query,
-          context: docs.map((d) => d.text),
-        },
-      })
-      .then((r) => r.text);
+    return augmentedPrompt({
+      question: query,
+      context: docs.map((d) => d.text),
+    }).then((r) => r.text);
   }
 );
 
@@ -87,14 +83,10 @@ export const askQuestionsAboutDogsFlow = ai.defineFlow(
       query,
       options: { k: 3 },
     });
-    return augmentedPrompt
-      .generate({
-        input: {
-          question: query,
-          context: docs.map((d) => d.text),
-        },
-      })
-      .then((r) => r.text);
+    return augmentedPrompt({
+      question: query,
+      context: docs.map((d) => d.text),
+    }).then((r) => r.text);
   }
 );
 

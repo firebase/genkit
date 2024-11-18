@@ -14,54 +14,12 @@
 
 package tracing
 
-import (
-	"context"
-	"errors"
-
-)
-
-// A Store stores trace information.
-// Every trace has a unique ID.
-type Store interface {
-	// Save saves the Data to the store. If a Data with the id already exists,
-	// the two are merged.
-	Save(ctx context.Context, id string, td *Data) error
-	// Load reads the Data with the given ID from the store.
-	// It returns an error that is fs.ErrNotExist if there isn't one.
-	Load(ctx context.Context, id string) (*Data, error)
-	// List returns all the Datas in the store that satisfy q, in some deterministic
-	// order.
-	// It also returns a continuation token: an opaque string that can be passed
-	// to the next call to List to resume the listing from where it left off. If
-	// the listing reached the end, this is the empty string.
-	// If the Query is malformed, List returns an error that is errBadQuery.
-	List(ctx context.Context, q *Query) (tds []*Data, contToken string, err error)
-
-	// LoadAny is like Load, but accepts a pointer to any type.
-	// It is for testing (see conformance_test.go).
-	// TODO: replace Load with this.
-	LoadAny(id string, p any) error
-}
-
-var ErrBadQuery = errors.New("bad trace.Query")
-
-// A Query filters the result of [Store.List].
-type Query struct {
-	// Maximum number of traces to return. If zero, a default value may be used.
-	// Callers should not assume they will get the entire list; they should always
-	// check the returned continuation token.
-	Limit int
-	// Where to continue the listing from. Must be either empty to start from the
-	// beginning, or the result of a recent, previous call to List.
-	ContinuationToken string
-}
-
 // Data is information about a trace.
 type Data struct {
 	TraceID     string               `json:"traceId"`
 	DisplayName string               `json:"displayName"`
-	StartTime   Milliseconds   `json:"startTime"`
-	EndTime     Milliseconds   `json:"endTime"`
+	StartTime   Milliseconds         `json:"startTime"`
+	EndTime     Milliseconds         `json:"endTime"`
 	Spans       map[string]*SpanData `json:"spans"`
 }
 
@@ -74,8 +32,8 @@ type SpanData struct {
 	SpanID                 string                 `json:"spanId"`
 	TraceID                string                 `json:"traceId,omitempty"`
 	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
-	StartTime              Milliseconds     `json:"startTime"`
-	EndTime                Milliseconds     `json:"endTime"`
+	StartTime              Milliseconds           `json:"startTime"`
+	EndTime                Milliseconds           `json:"endTime"`
 	Attributes             map[string]any         `json:"attributes,omitempty"`
 	DisplayName            string                 `json:"displayName"`
 	Links                  []*Link                `json:"links,omitempty"`
@@ -97,7 +55,7 @@ type BoolValue struct {
 
 type TimeEvent struct {
 	Time       Milliseconds `json:"time,omitempty"`
-	Annotation Annotation         `json:"annotation,omitempty"`
+	Annotation Annotation   `json:"annotation,omitempty"`
 }
 
 type Annotation struct {

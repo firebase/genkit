@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"golang.org/x/exp/maps"
@@ -98,6 +99,8 @@ func TestFlowConformance(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			tc := tracing.NewTestOnlyTelemetryClient()
+			r.TracingState().WriteTelemetryImmediate(tc)
 			_ = defineFlow(r, test.Name, flowFunction(test.Commands))
 			key := fmt.Sprintf("/flow/%s", test.Name)
 			resp, err := runAction(context.Background(), r, key, test.Input, nil)
@@ -115,14 +118,18 @@ func TestFlowConformance(t *testing.T) {
 			if test.Trace == nil {
 				return
 			}
-			ts := r.LookupTraceStore(registry.EnvironmentDev)
-			var gotTrace any
-			if err := ts.LoadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
+			gotTrace := tc.Traces[resp.Telemetry.TraceID]
+			var gotTraceAny map[string]any
+			gotTraceBytes, err := json.Marshal(gotTrace)
+			if err != nil {
 				t.Fatal(err)
 			}
-			renameSpans(t, gotTrace)
+			if err := json.Unmarshal(gotTraceBytes, &gotTraceAny); err != nil {
+				t.Fatal(err)
+			}
+			renameSpans(t, gotTraceAny)
 			renameSpans(t, test.Trace)
-			if diff := compareJSON(gotTrace, test.Trace); diff != "" {
+			if diff := compareJSON(gotTraceAny, test.Trace); diff != "" {
 				t.Errorf("trace:\n%s", diff)
 			}
 		})

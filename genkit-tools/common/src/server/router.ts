@@ -17,7 +17,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { getDatasetStore, getEvalStore, runNewEvaluation } from '../eval';
 import { RuntimeManager } from '../manager/manager';
-import { GenkitToolsError } from '../manager/types';
+import { GenkitToolsError, RuntimeInfo } from '../manager/types';
 import { Action } from '../types/action';
 import * as apis from '../types/apis';
 import { EnvironmentVariable } from '../types/env';
@@ -255,6 +255,15 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         //TODO(michaeldoyle): packageVersion: ???,
         environmentVars: parseEnv(process.env),
       };
+    }),
+
+    /**
+     * Get the current active Genkit Runtime. Useful for one-off requests.
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE
+     * at this time.
+     */
+    getCurrentRuntime: t.procedure.query(() => {
+      return manager.getMostRecentRuntime() ?? ({} as RuntimeInfo);
     }),
   });
 

@@ -25,22 +25,9 @@
 package core
 
 import (
-	"context"
-
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
-
-// RegisterTraceStore uses the given trace.Store to record traces in the prod environment.
-// (A trace.Store that writes to the local filesystem is always installed in the dev environment.)
-// The returned function should be called before the program ends to ensure that
-// all pending data is stored.
-// RegisterTraceStore panics if called more than once.
-func RegisterTraceStore(ts tracing.Store) (shutdown func(context.Context) error) {
-	registry.Global.RegisterTraceStore(registry.EnvironmentProd, ts)
-	return registry.Global.TracingState().AddTraceStoreBatch(ts)
-}
 
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
 func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {

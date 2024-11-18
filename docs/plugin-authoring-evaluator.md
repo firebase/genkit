@@ -262,13 +262,14 @@ In this case we have two evaluators `DELICIOUSNESS` and `US_PHONE_REGEX_MATCH`. 
 
 ```ts
 export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
-  params: PluginOptions<ModelCustomOptions>
+  options: PluginOptions<ModelCustomOptions>
 ): PluginProvider {
   // Define the new plugin
-  const plugin = genkitPlugin(
+  const plugin = (options?: MyPluginOptions<ModelCustomOptions>) => {
+    return genkitPlugin(
     'myAwesomeEval',
-    async (params: PluginOptions<ModelCustomOptions>) => {
-      const { judge, judgeConfig, metrics } = params;
+    async (ai: Genkit) => {
+      const { judge, judgeConfig, metrics } = options;
       const evaluators: EvaluatorAction[] = metrics.map((metric) => {
         // We'll create these functions in the next step
         switch (metric) {
@@ -281,11 +282,10 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
         }
       });
       return { evaluators };
-    }
-  );
-
-  // Create the plugin with the passed params
-  return plugin(params);
+    })
+  }
+  // Create the plugin with the passed options
+  return plugin(options);
 }
 export default myAwesomeEval;
 ```
@@ -299,7 +299,7 @@ For evaluation with Gemini, disable safety settings so that the evaluator can ac
 ```ts
 import { gemini15Flash } from '@genkit-ai/googleai';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     ...
     myAwesomeEval({
