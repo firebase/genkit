@@ -296,10 +296,12 @@ export class ReflectionServer {
     try {
       const rootDir = await findProjectRoot();
       const runtimesDir = path.join(rootDir, '.genkit', 'runtimes');
-      const timestamp = new Date().toISOString();
+      const date = new Date();
+      const time = date.getTime();
+      const timestamp = date.toISOString();
       this.runtimeFilePath = path.join(
         runtimesDir,
-        `${process.pid}-${timestamp}.json`
+        `${process.pid}-${time}.json`
       );
       const fileContent = JSON.stringify(
         {
