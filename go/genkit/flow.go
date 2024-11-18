@@ -242,13 +242,8 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 // It is the input for the flow's action.
 // Exactly one field will be non-nil.
 type flowInstruction[In any] struct {
-	Start        *startInstruction[In]    `json:"start,omitempty"`
-	Resume       *resumeInstruction       `json:"resume,omitempty"`
-	Schedule     *scheduleInstruction[In] `json:"schedule,omitempty"`
-	RunScheduled *runScheduledInstruction `json:"runScheduled,omitempty"`
-	State        *stateInstruction        `json:"state,omitempty"`
-	Retry        *retryInstruction        `json:"retry,omitempty"`
-	Auth         map[string]any           `json:"auth,omitempty"`
+	Start *startInstruction[In] `json:"start,omitempty"`
+	Auth  map[string]any        `json:"auth,omitempty"`
 }
 
 // A startInstruction starts a flow.
@@ -257,33 +252,7 @@ type startInstruction[In any] struct {
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
-// A resumeInstruction resumes a flow that was started and then interrupted.
-type resumeInstruction struct {
-	FlowID  string `json:"flowId,omitempty"`
-	Payload any    `json:"payload,omitempty"`
-}
-
-// A scheduleInstruction schedules a flow to start at a later time.
-type scheduleInstruction[In any] struct {
-	DelaySecs float64 `json:"delay,omitempty"`
-	Input     In      `json:"input,omitempty"`
-}
-
-// A runScheduledInstruction starts a scheduled flow.
-type runScheduledInstruction struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
-// A stateInstruction retrieves the flowState from the flow.
-type stateInstruction struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
 // TODO: document
-type retryInstruction struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
 // A flowState is a persistent representation of a flow that may be in the middle of running.
 // It contains all the information needed to resume a flow, including the original input
 // and a cache of all completed steps.
@@ -291,15 +260,13 @@ type flowState[In, Out any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime       tracing.Milliseconds `json:"startTime,omitempty"`
-	Input           In                   `json:"input,omitempty"`
-	mu              sync.Mutex
-	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
-	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
-	Executions      []*flowExecution           `json:"executions,omitempty"`
+	StartTime  tracing.Milliseconds `json:"startTime,omitempty"`
+	Input      In                   `json:"input,omitempty"`
+	mu         sync.Mutex
+	Cache      map[string]json.RawMessage `json:"cache,omitempty"`
+	Executions []*flowExecution           `json:"executions,omitempty"`
 	// The operation is the user-visible part of the state.
-	Operation    *operation[Out] `json:"operation,omitempty"`
-	TraceContext string          `json:"traceContext,omitempty"`
+	Operation *operation[Out] `json:"operation,omitempty"`
 }
 
 func newFlowState[In, Out any](id, name string, input In) *flowState[In, Out] {
@@ -344,11 +311,6 @@ func (fs *flowState[In, Out]) CacheSet(key string, val json.RawMessage) {
 // An operation describes the state of a Flow that may still be in progress.
 type operation[Out any] struct {
 	FlowID string `json:"name,omitempty"`
-	// The step that the flow is blocked on, if any.
-	BlockedOnStep *struct {
-		Name   string `json:"name"`
-		Schema string `json:"schema"`
-	} `json:"blockedOnStep,omitempty"`
 	// Whether the operation is completed.
 	// If true Result will be non-nil.
 	Done bool `json:"done,omitempty"`
@@ -366,8 +328,7 @@ type FlowResult[Out any] struct {
 	// The Error field above is not used in the code, but it gets marshaled
 	// into JSON.
 	// TODO: replace with  a type that implements error and json.Marshaler.
-	err        error
-	StackTrace string `json:"stacktrace,omitempty"`
+	err error
 }
 
 // FlowResult is called FlowResponse in the javascript.
@@ -379,16 +340,6 @@ func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowIn
 	case inst.Start != nil:
 		// TODO: pass msg.Start.Labels.
 		return f.start(ctx, inst.Start.Input, cb)
-	case inst.Resume != nil:
-		return nil, errors.ErrUnsupported
-	case inst.Retry != nil:
-		return nil, errors.ErrUnsupported
-	case inst.RunScheduled != nil:
-		return nil, errors.ErrUnsupported
-	case inst.Schedule != nil:
-		return nil, errors.ErrUnsupported
-	case inst.State != nil:
-		return nil, errors.ErrUnsupported
 	default:
 		return nil, errors.New("all known fields of FlowInvokeEnvelopeMessage are nil")
 	}
@@ -498,8 +449,6 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 	state.mu.Lock()
 	state.Executions = append(state.Executions, exec)
 	state.mu.Unlock()
-	// TODO: retrieve the JSON-marshaled SpanContext from state.traceContext.
-	// TODO: add a span link to the context.
 	output, err := tracing.RunInNewSpan(ctx, fctx.tracingState(), f.name, "flow", true, state.Input, func(ctx context.Context, input In) (Out, error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:execution", strconv.Itoa(len(state.Executions)-1))
 		// TODO: put labels into span metadata.
@@ -509,7 +458,6 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		rootSpanContext := otrace.SpanContextFromContext(ctx)
 		traceID := rootSpanContext.TraceID().String()
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
-		// TODO: Save rootSpanContext in the state.
 		// TODO: If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
 		var err error
@@ -527,7 +475,6 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		}
 		latency := time.Since(start)
 		if err != nil {
-			// TODO: handle InterruptError
 			logger.FromContext(ctx).Error("flow failed",
 				"path", tracing.SpanPath(ctx),
 				"err", err.Error(),
@@ -646,7 +593,6 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 		// The locking here prevents corruption of the cache from concurrent access, but doesn't
 		// prevent two goroutines racing to check the cache and call f. However, that shouldn't
 		// happen because every step has a unique cache key.
-		// TODO: don't memoize a nested flow (see context.ts)
 		fs := fc.stater()
 		j := fs.CacheAt(uName)
 		if j != nil {
