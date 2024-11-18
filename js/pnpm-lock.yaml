@@ -746,6 +746,9 @@ importers:
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
+      google-gax:
+        specifier: ^4.4.1
+        version: 4.4.1(encoding@0.1.13)
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -817,6 +820,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
       '@google/generative-ai':
         specifier: ^0.21.0
         version: 0.21.0
@@ -2199,15 +2205,6 @@ packages:
   '@grpc/grpc-js@1.10.10':
     resolution: {integrity: sha512-HPa/K5NX6ahMoeBv15njAc/sfF4/jmiXLar9UlC2UfHFKZzsCVLc3wbe7+7qua7w9VPh2/L6EBxyAV7/E8Wftg==}
     engines: {node: '>=12.10.0'}
-
-  '@grpc/grpc-js@1.10.4':
-    resolution: {integrity: sha512-MqBisuxTkYvPFnEiu+dag3xG/NBUDzSbAFAWlzfkGnQkjVZ6by3h4atbBc+Ikqup1z5BfB4BN18gKWR1YyppNw==}
-    engines: {node: '>=12.10.0'}
-
-  '@grpc/proto-loader@0.7.12':
-    resolution: {integrity: sha512-DCVwMxqYzpUCiDMl7hQ384FqP4T3DbNpXU8pt681l3UWCip1WUiD5JrkImUwCB9a7f2cq4CUTmi5r/xIMRPY1Q==}
-    engines: {node: '>=6'}
-    hasBin: true
 
   '@grpc/proto-loader@0.7.13':
     resolution: {integrity: sha512-AiXO/bfe9bmxBjxxtYxFAXGZvMaN5s8kO+jBHAJCON8rJoB5YS/D6X7ZNc6XQkuHNmyl4CYaMI1fJ/Gn27RGGw==}
@@ -4330,12 +4327,12 @@ packages:
     resolution: {integrity: sha512-I/AvzBiUXDzLOy4iIZ2W+Zq33W4lcukQv1nl7C8WUA6SQwyQwUwu3waNmWNAvzds//FG8SZ+DnKnW/2k6mQS8A==}
     engines: {node: '>=14'}
 
-  google-gax@4.3.2:
-    resolution: {integrity: sha512-2mw7qgei2LPdtGrmd1zvxQviOcduTnsvAWYzCxhOWXK4IQKmQztHnDQwD0ApB690fBQJemFKSU7DnceAy3RLzw==}
-    engines: {node: '>=14'}
-
   google-gax@4.3.7:
     resolution: {integrity: sha512-3bnD8RASQyaxOYTdWLgwpQco/aytTxFavoI/UN5QN5txDLp8QRrBHNtCUJ5+Ago+551GD92jG8jJduwvmaneUw==}
+    engines: {node: '>=14'}
+
+  google-gax@4.4.1:
+    resolution: {integrity: sha512-Phyp9fMfA00J3sZbJxbbB4jC55b7DBjE3F6poyL3wKMEBVKA79q6BGuHcTiM28yOzVql0NDbRL8MLLh8Iwk9Dg==}
     engines: {node: '>=14'}
 
   google-p12-pem@4.0.1:
@@ -5597,6 +5594,7 @@ packages:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
 
+<<<<<<< HEAD
   property-information@6.5.0:
     resolution: {integrity: sha512-PgTgs/BlvHxOu8QuEN7wi5A0OmXaBcHpmCSTehcs6Uuu9IkDIEo13Hy7n898RHfrQ49vKCoGeWZSaAK01nwVig==}
 
@@ -5604,6 +5602,8 @@ packages:
     resolution: {integrity: sha512-8awBvjO+FwkMd6gNoGFZyqkHZXCFd54CIYTb6De7dPaufGJ2XNW+QUNqbMr8MaAocMdb+KpsD4rxEOaTBDCffA==}
     engines: {node: '>=14.0.0'}
 
+=======
+>>>>>>> 7f44d4c7 (feat(js/plugins/vertexai): add context caching)
   proto3-json-serializer@2.0.2:
     resolution: {integrity: sha512-SAzp/O4Yh02jGdRc+uIrGoe87dkN/XtwxfZ4ZyafJHymd79ozp5VG5nyZ7ygqPM5+cpLDjjGnYFUkngonyDPOQ==}
     engines: {node: '>=14.0.0'}
@@ -6913,7 +6913,7 @@ snapshots:
 
   '@google-cloud/aiplatform@3.25.0(encoding@0.1.13)':
     dependencies:
-      google-gax: 4.3.7(encoding@0.1.13)
+      google-gax: 4.4.1(encoding@0.1.13)
       protobuf.js: 1.1.2
     transitivePeerDependencies:
       - encoding
@@ -6955,7 +6955,7 @@ snapshots:
     dependencies:
       fast-deep-equal: 3.1.3
       functional-red-black-tree: 1.0.1
-      google-gax: 4.3.2(encoding@0.1.13)
+      google-gax: 4.3.7(encoding@0.1.13)
       protobufjs: 7.2.6
     transitivePeerDependencies:
       - encoding
@@ -6994,8 +6994,13 @@ snapshots:
       eventid: 2.0.1
       extend: 3.0.2
       gcp-metadata: 6.1.0(encoding@0.1.13)
+<<<<<<< HEAD
       google-auth-library: 9.14.2(encoding@0.1.13)
       google-gax: 4.3.2(encoding@0.1.13)
+=======
+      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-gax: 4.3.7(encoding@0.1.13)
+>>>>>>> 87b01855 (feat(js/plugins/vertexai): add context caching)
       on-finished: 2.4.1
       pumpify: 2.0.1
       stream-events: 1.0.5
@@ -7094,18 +7099,6 @@ snapshots:
     dependencies:
       '@grpc/proto-loader': 0.7.13
       '@js-sdsl/ordered-map': 4.4.2
-
-  '@grpc/grpc-js@1.10.4':
-    dependencies:
-      '@grpc/proto-loader': 0.7.12
-      '@js-sdsl/ordered-map': 4.4.2
-
-  '@grpc/proto-loader@0.7.12':
-    dependencies:
-      lodash.camelcase: 4.3.0
-      long: 5.2.3
-      protobufjs: 7.2.6
-      yargs: 17.7.2
 
   '@grpc/proto-loader@0.7.13':
     dependencies:
@@ -9499,25 +9492,25 @@ snapshots:
       - encoding
       - supports-color
 
-  google-gax@4.3.2(encoding@0.1.13):
+  google-gax@4.3.7(encoding@0.1.13):
     dependencies:
-      '@grpc/grpc-js': 1.10.4
-      '@grpc/proto-loader': 0.7.12
+      '@grpc/grpc-js': 1.10.10
+      '@grpc/proto-loader': 0.7.13
       '@types/long': 4.0.2
       abort-controller: 3.0.0
       duplexify: 4.1.3
       google-auth-library: 9.14.2(encoding@0.1.13)
       node-fetch: 2.7.0(encoding@0.1.13)
       object-hash: 3.0.0
-      proto3-json-serializer: 2.0.1
-      protobufjs: 7.2.6
+      proto3-json-serializer: 2.0.2
+      protobufjs: 7.3.2
       retry-request: 7.0.2(encoding@0.1.13)
       uuid: 9.0.1
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  google-gax@4.3.7(encoding@0.1.13):
+  google-gax@4.4.1(encoding@0.1.13):
     dependencies:
       '@grpc/grpc-js': 1.10.10
       '@grpc/proto-loader': 0.7.13
@@ -11018,12 +11011,15 @@ snapshots:
       kleur: 3.0.3
       sisteransi: 1.0.5
 
+<<<<<<< HEAD
   property-information@6.5.0: {}
 
   proto3-json-serializer@2.0.1:
     dependencies:
       protobufjs: 7.2.6
 
+=======
+>>>>>>> 7f44d4c7 (feat(js/plugins/vertexai): add context caching)
   proto3-json-serializer@2.0.2:
     dependencies:
       protobufjs: 7.3.2

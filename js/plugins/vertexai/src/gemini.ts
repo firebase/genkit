@@ -15,6 +15,7 @@
  */
 
 import {
+  CachedContent,
   Content,
   FunctionCallingMode,
   FunctionDeclaration,
@@ -23,12 +24,14 @@ import {
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
+  GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
   StartChatParams,
   ToolConfig,
   VertexAI,
 } from '@google-cloud/vertexai';
+import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
 import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
@@ -48,7 +51,13 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
+import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
+import { handleContextCache } from './context_caching/index.js';
+import {
+  extractCacheConfig,
+  validateContextCacheRequest,
+} from './context_caching/utils.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
@@ -469,14 +478,6 @@ export function defineGeminiModel(
     },
     async (request, streamingCallback) => {
       const vertex = vertexClientFactory(request);
-      const client = vertex.preview.getGenerativeModel(
-        {
-          model: request.config?.version || model.version || name,
-        },
-        {
-          apiClient: GENKIT_CLIENT_HEADER,
-        }
-      );
 
       // make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
@@ -516,7 +517,7 @@ export function defineGeminiModel(
         (request.output?.format === 'json' || !!request.output?.schema) &&
         tools.length === 0;
 
-      const chatRequest: StartChatParams = {
+      let chatRequest: StartChatParams = {
         systemInstruction,
         tools,
         toolConfig,
@@ -534,6 +535,39 @@ export function defineGeminiModel(
         },
         safetySettings: request.config?.safetySettings,
       };
+
+      let cache: CachedContent | null = null;
+
+      // TODO: fix casting
+      const modelVersion = (request.config?.version ||
+        model.version ||
+        name) as string;
+
+      const cacheConfigDetails = extractCacheConfig(request);
+
+      if (
+        cacheConfigDetails &&
+        validateContextCacheRequest(request, modelVersion)
+      ) {
+        const apiClient = new ApiClient(
+          options.projectId!,
+          options.location,
+          'v1beta1',
+          new GoogleAuth(options.googleAuth!)
+        );
+
+        const handleContextCacheResponse = await handleContextCache(
+          apiClient,
+          request,
+          chatRequest,
+          modelVersion,
+          cacheConfigDetails
+        );
+        chatRequest = handleContextCacheResponse.newChatRequest;
+        cache = handleContextCacheResponse.cache;
+      }
+
+      let genModel: GenerativeModelPreview | null = null;
 
       if (jsonMode && request.output?.constrained) {
         chatRequest.generationConfig!.responseSchema = cleanSchema(
@@ -565,8 +599,30 @@ export function defineGeminiModel(
         });
       }
       const msg = toGeminiMessage(messages[messages.length - 1], model);
+
+      if (cache) {
+        genModel = vertex.preview.getGenerativeModelFromCachedContent(
+          cache,
+          {
+            model: request.config?.version || model.version || name,
+          },
+          {
+            apiClient: GENKIT_CLIENT_HEADER,
+          }
+        );
+      } else {
+        genModel = vertex.preview.getGenerativeModel(
+          {
+            model: request.config?.version || model.version || name,
+          },
+          {
+            apiClient: GENKIT_CLIENT_HEADER,
+          }
+        );
+      }
+
       if (streamingCallback) {
-        const result = await client
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessageStream(msg.parts);
         for await (const item of result.stream) {
@@ -591,7 +647,7 @@ export function defineGeminiModel(
       } else {
         let result: GenerateContentResult | undefined;
         try {
-          result = await client.startChat(chatRequest).sendMessage(msg.parts);
+          result = await genModel.startChat(chatRequest).sendMessage(msg.parts);
         } catch (err) {
           throw new Error(`Vertex response generation failed: ${err}`);
         }

@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
     "@google/generative-ai": "^0.21.0",
     "genkit": "workspace:*"
   },
