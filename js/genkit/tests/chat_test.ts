@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { MessageData } from '@genkit-ai/ai';
+import { z } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
@@ -531,6 +533,128 @@ describe('preamble', () => {
             text: 'Echo: system:  greet Michael,hi,Echo: system:  greet Pavel,hi,; config: {"temperature":2},hi',
           },
           { text: '; config: {"temperature":2}' },
+        ],
+      },
+    ]);
+  });
+
+  it('initializes chat with history', async () => {
+    const history: MessageData[] = [
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [{ text: 'bye' }],
+      },
+    ];
+
+    const chat = ai.chat({
+      model: 'echoModel',
+      system: 'system instructions',
+      messages: history,
+    });
+
+    const response = await chat.send('hi again');
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'system',
+        content: [{ text: 'system instructions' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'model',
+        content: [{ text: 'bye' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi again' }],
+      },
+      {
+        role: 'model',
+        content: [
+          { text: 'Echo: system: system instructions,hi,bye,hi again' },
+          { text: '; config: {}' },
+        ],
+      },
+    ]);
+  });
+
+  it('initializes chat with history in preamble', async () => {
+    const hi = ai.definePrompt(
+      {
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+      },
+      '{{ role "system"}}system instructions{{ history}}hi {{ name }}'
+    );
+
+    const history: MessageData[] = [
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+      },
+      {
+        role: 'model',
+        content: [{ text: 'bye' }],
+      },
+    ];
+
+    const chat = ai.chat(hi, { input: { name: 'Genkit' }, messages: history });
+
+    const response = await chat.send('hi again');
+    assert.deepStrictEqual(response.messages, [
+      {
+        role: 'system',
+        content: [{ text: 'system instructions' }],
+        metadata: { preamble: true },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi' }],
+        metadata: {
+          preamble: true,
+          purpose: 'history',
+        },
+      },
+      {
+        role: 'model',
+        content: [{ text: 'bye' }],
+        metadata: {
+          preamble: true,
+          purpose: 'history',
+        },
+      },
+      {
+        role: 'model',
+        content: [{ text: 'hi Genkit' }],
+        metadata: {
+          preamble: true,
+        },
+      },
+      {
+        role: 'user',
+        content: [{ text: 'hi again' }],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            text: 'Echo: system: system instructions,hi,bye,hi Genkit,hi again',
+          },
+          { text: '; config: {}' },
         ],
       },
     ]);
