@@ -172,6 +172,9 @@ const llmResponse = await ai.generate({
     },
   ],
   model: gemini15Flash,
+  config: {
+    version: 'gemini-1.5-flash-001', // Only 001 currently supports context caching
+  },
   prompt: 'Describe Pierre’s transformation throughout the novel.',
 });
 ```
@@ -210,20 +213,78 @@ const llmResponse = await ai.generate({
     },
   ],
   model: gemini15Flash,
+  config: {
+    version: 'gemini-1.5-flash-001', // Only 001 currently supports context caching
+  },
   prompt: 'Analyze the relationship between Pierre and Natasha.',
 });
 ```
 
-### Benefits of Context Caching
-1. **Improved Performance**: Reduces the need for repeated processing of large inputs.
-2. **Cost Efficiency**: Decreases API usage for redundant data, optimizing token consumption.
-3. **Better Latency**: Speeds up response times for repeated or related queries.
+### Caching other modes of content
+
+The Gemini models are multi-modal, and other modes of content are allowed to be cached as well.
+
+For example, to cache a long piece of video content, you must first upload using the file manager from the Google AI SDK:
+
+```ts
+import { GoogleAIFileManager } from '@google/generative-ai/server';
+
+```
+
+```ts
+const fileManager = new GoogleAIFileManager(
+  process.env.GOOGLE_GENAI_API_KEY
+);
+
+// Upload video to Google AI using the Gemini Files API
+const uploadResult = await fileManager.uploadFile(videoFilePath, {
+  mimeType: 'video/mp4', // Adjust according to the video format
+  displayName: 'Uploaded Video for Analysis',
+});
+
+const fileUri = uploadResult.file.uri;
+
+```
+Now you may configure the cache in your calls to `ai.generate`:
+```ts
+const analyzeVideoResponse = await ai.generate({
+  messages: [
+    {
+      role: 'user',
+      content: [
+        {
+          media: {
+            url: fileUri, // Use the uploaded file URL
+            contentType: 'video/mp4',
+          },
+        },
+      ],
+    },
+    {
+      role: 'model',
+      content: [
+        {
+          text: 'This video seems to contain several key moments. I will analyze it now and prepare to answer your questions.',
+        },
+      ],
+      // Everything up to (including) this message will be cached.
+      metadata: {
+        cache: true,
+      },
+    },
+  ],
+  config: {
+    version: 'gemini-1.5-flash-001', // Only 001 versions support context caches
+  },
+  model: gemini15Flash,
+  prompt: query,
+});
+```
 
 ### Supported Models for Context Caching
 
 Only specific models, such as `gemini15Flash` and `gemini15Pro`, support context caching. If an unsupported model is used, an error will be raised, indicating that caching cannot be applied.
 
----
+### Further Reading 
 
-By leveraging context caching, you can significantly enhance the performance and scalability of applications involving large datasets or conversational interactions.
-
+See more information regarding context caching on Google AI in their [documentation](https://ai.google.dev/gemini-api/docs/caching?lang=node).

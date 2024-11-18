@@ -30,6 +30,7 @@ import {
   StartChatParams,
   ToolConfig,
   VertexAI,
+  type GoogleSearchRetrieval,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
 import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
@@ -577,7 +578,8 @@ export function defineGeminiModel(
 
       if (request.config?.googleSearchRetrieval) {
         chatRequest.tools?.push({
-          googleSearchRetrieval: request.config.googleSearchRetrieval,
+          googleSearchRetrieval: request.config
+            .googleSearchRetrieval as GoogleSearchRetrieval,
         });
       }
       if (request.config?.vertexRetrieval) {
