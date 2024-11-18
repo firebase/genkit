@@ -53,11 +53,11 @@ import {
 } from 'genkit/model/middleware';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
-import { handleContextCache } from './context_caching/index.js';
+import { handleContextCache } from './context-caching/index.js';
 import {
   extractCacheConfig,
   validateContextCacheRequest,
-} from './context_caching/utils.js';
+} from './context-caching/utils.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
