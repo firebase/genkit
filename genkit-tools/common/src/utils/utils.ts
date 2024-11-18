@@ -65,6 +65,29 @@ export async function findServersDir(projectRoot?: string): Promise<string> {
 }
 
 /**
+ * Extract project name (i.e. basename of the project root folder) from the
+ * path to a runtime file.
+ *
+ * e.g.) /path/to/<basename>/.genkit/runtimes/123.json returns <basename>.
+ *
+ * @param filePath path to a runtime file
+ * @returns project name
+ */
+export function projectNameFromGenkitFilePath(filePath: string): string {
+  const parts = filePath.split('/');
+  const basePath = parts
+    .slice(
+      0,
+      Math.max(
+        parts.findIndex((value) => value === '.genkit'),
+        0
+      )
+    )
+    .join('/');
+  return basePath === '' ? 'unknown' : path.basename(basePath);
+}
+
+/**
  * Detects what runtime is used in the current directory.
  * @returns Runtime of the project directory.
  */
