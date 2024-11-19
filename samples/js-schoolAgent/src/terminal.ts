@@ -28,20 +28,22 @@ const rl = createInterface({
 
 const EXAMPLE_USER_CONTEXT = {
   parentId: 4112,
-  parentName: 'Francis Example',
+  parentName: 'Francis Smith',
   students: [
     {
       id: 3734,
-      name: 'Evelyn Example',
+      name: 'Evelyn Smith',
       grade: 9,
       activities: ['Choir', 'Drama Club'],
     },
-    { id: 9433, name: 'Evan Example', grade: 11, activities: ['Chess Club'] },
+    { id: 9433, name: 'Evan Smith', grade: 11, activities: ['Chess Club'] },
   ],
 };
 
 async function main() {
-  const chat = ai.createSession({ initialState: EXAMPLE_USER_CONTEXT }).chat(infoAgent);
+  const chat = ai
+    .createSession({ initialState: EXAMPLE_USER_CONTEXT })
+    .chat(infoAgent);
 
   const { text: greeting } = await ai.generate(
     'Come up with a short friendly greeting for yourself talking to a parent as Bell, the helpful AI assistant for parents of Sparkyville High School. Feel free to use emoji.'

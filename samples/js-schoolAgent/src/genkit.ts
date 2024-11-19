@@ -14,22 +14,12 @@
  * limitations under the License.
  */
 
-import devLocalVectorstore from '@genkit-ai/dev-local-vectorstore';
-import {
-  gemini15Pro,
-  googleAI,
-  textEmbeddingGecko001,
-} from '@genkit-ai/googleai';
+import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 import { AgentState } from './types';
 
 export const ai = genkit({
-  plugins: [
-    googleAI(),
-    devLocalVectorstore([
-      { indexName: 'school-handbook', embedder: textEmbeddingGecko001 },
-    ]),
-  ],
+  plugins: [googleAI()],
   model: gemini15Pro,
 });
 

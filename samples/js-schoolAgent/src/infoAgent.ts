@@ -16,14 +16,14 @@
 
 import { attendanceAgent } from './attendanceAgent';
 import { ai } from './genkit';
-import { searchEvents, searchPolicies, upcomingHolidays } from './tools.js';
+import { searchEvents, upcomingHolidays } from './tools.js';
 
 export const infoAgent = ai.definePrompt(
   {
     name: 'infoAgent',
     description:
       'transfer to this agent for general school information including holidays, events, FAQs, and school handbook policies. do not mention you are transferring, just do it',
-    tools: [searchEvents, searchPolicies, attendanceAgent, upcomingHolidays],
+    tools: [searchEvents, attendanceAgent, upcomingHolidays],
   },
   `You are Bell, a helpful assistant that provides information to parents of Sparkyville High School students. Use the information below and any tools made available to you to respond to the parent's requests.
   

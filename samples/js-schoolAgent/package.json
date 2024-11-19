@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node lib/terminal.js",
     "dev": "tsx --watch src/terminal.ts",
-    "genkit:dev": "genkit start -- pnpm dev",
+    "genkit:dev": "genkit start -- npm run dev",
     "compile": "tsc",
-    "build": "pnpm build:clean && pnpm compile",
+    "build": "pnpm build:clean && npm run compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
   },
@@ -17,7 +17,7 @@
   "license": "ISC",
   "dependencies": {
     "genkit": "^0.9.3",
-    "@genkit-ai/vertexai": "^0.9.3",
+    "@genkit-ai/googleai": "^0.9.3",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1"
