@@ -40,6 +40,7 @@ export const start = new Command('start')
       runtimePromise = new Promise((urlResolver, reject) => {
         const appProcess = spawn(start.args[0], start.args.slice(1), {
           env: { ...process.env, GENKIT_ENV: 'dev' },
+          shell: process.platform == 'win32',
         });
 
         const originalStdIn = process.stdin;
