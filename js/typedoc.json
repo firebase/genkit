@@ -1,0 +1,10 @@
+{
+  "entryPoints": ["genkit", "plugins/*"],
+  "name": "Genkit TypeScript reference",
+  "out": "api-refs-js",
+  "entryPointStrategy": "packages",
+  "includeVersion": false,
+  "sort": ["kind", "instance-first", "alphabetical"],
+  "sortEntryPoints": true,
+  "plugin": ["typedoc-plugin-zod", "typedoc-material-theme"]
+}
