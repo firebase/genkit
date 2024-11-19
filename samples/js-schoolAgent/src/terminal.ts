@@ -15,11 +15,8 @@
  */
 
 import { createInterface } from 'node:readline';
-import { attendanceAgent } from './attendanceAgent.js';
 import { ai } from './genkit.js';
 import { infoAgent } from './infoAgent.js';
-
-attendanceAgent;
 
 const rl = createInterface({
   input: process.stdin,
