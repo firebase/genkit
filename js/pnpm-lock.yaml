@@ -213,6 +213,9 @@ importers:
       '@genkit-ai/ai':
         specifier: workspace:*
         version: link:../../ai
+      '@googleapis/checks':
+        specifier: ^4.0.2
+        version: 4.0.2(encoding@0.1.13)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -857,9 +860,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      '@googleapis/checks':
+        specifier: ^4.0.2
+        version: 4.0.2(encoding@0.1.13)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
+      googleapis:
+        specifier: ^140.0.1
+        version: 140.0.1(encoding@0.1.13)
       path:
         specifier: ^0.12.7
         version: 0.12.7
@@ -2287,6 +2296,10 @@ packages:
   '@google/generative-ai@0.21.0':
     resolution: {integrity: sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==}
     engines: {node: '>=18.0.0'}
+
+  '@googleapis/checks@4.0.2':
+    resolution: {integrity: sha512-YV6sX7o2pS7ZFYp5N2EyGgnvC8F+0Wxoo3Mx+DFF3PFOsCfOUFZE35/ZQBdUFY6l1L0hcyz1lJQIzwmM7TeiCg==}
+    engines: {node: '>=12.0.0'}
 
   '@grpc/grpc-js@1.10.10':
     resolution: {integrity: sha512-HPa/K5NX6ahMoeBv15njAc/sfF4/jmiXLar9UlC2UfHFKZzsCVLc3wbe7+7qua7w9VPh2/L6EBxyAV7/E8Wftg==}
@@ -5943,10 +5956,6 @@ packages:
     resolution: {integrity: sha512-MvjoMCJwEarSbUYk5O+nmoSzSutSsTwF85zcHPQ9OrlFoZOYIjaqBAJIqIXjptyD5vThxGq52Xu/MaJzRkIk4Q==}
     engines: {node: '>=0.6'}
 
-  qs@6.12.0:
-    resolution: {integrity: sha512-trVZiI6RMOkO476zLGaBIzszOdFPnCCXHPG9kn0yuS1uz6xdVxPfZdB3vUig9pxPFDM9BRAgz/YUIVQ1/vuiUg==}
-    engines: {node: '>=0.6'}
-
   qs@6.13.0:
     resolution: {integrity: sha512-+38qI9SOr8tfZ4QmJNplMUxqjbe7LKvvZgWdExBOmd+egZTtjLB67Gu0HRX3u/XOq7UU2Nx6nsjvS16Z9uwfpg==}
     engines: {node: '>=0.6'}
@@ -7458,6 +7467,13 @@ snapshots:
   '@google/generative-ai@0.15.0': {}
 
   '@google/generative-ai@0.21.0': {}
+
+  '@googleapis/checks@4.0.2(encoding@0.1.13)':
+    dependencies:
+      googleapis-common: 7.2.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   '@grpc/grpc-js@1.10.10':
     dependencies:
@@ -10138,7 +10154,7 @@ snapshots:
       extend: 3.0.2
       gaxios: 6.3.0(encoding@0.1.13)
       google-auth-library: 9.14.2(encoding@0.1.13)
-      qs: 6.12.0
+      qs: 6.13.0
       url-template: 2.0.8
       uuid: 9.0.1
     transitivePeerDependencies:
@@ -11607,10 +11623,6 @@ snapshots:
   pure-rand@6.1.0: {}
 
   qs@6.11.0:
-    dependencies:
-      side-channel: 1.0.6
-
-  qs@6.12.0:
     dependencies:
       side-channel: 1.0.6
 

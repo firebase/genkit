@@ -19,12 +19,14 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/checks": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
+    "@googleapis/checks": "^4.0.2",
     "genkit": "workspace:*",
+    "googleapis": "^140.0.1",
     "path": "^0.12.7"
   },
   "devDependencies": {
-    "rimraf": "^6.0.1",
     "cross-env": "^7.0.3",
+    "rimraf": "^6.0.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }

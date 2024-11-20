@@ -61,15 +61,23 @@ ai.defineFlow({
 },
   async (prompt) => {
 
+    const cm: ModelMiddleware = await checksMiddleware({
+      authOptions: {
+        projectId: "checks-prod"
+      },
+      metrics: [
+        ChecksEvaluationMetricType.DANGEROUS_CONTENT, 
+        ChecksEvaluationMetricType.HARASSMENT
+      ]
+    })
+
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: prompt,
-      use: [checksMiddleware()]
+      use: [cm]
     })
 
     console.log(text)
     return text
   }
-
-
 )
