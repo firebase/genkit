@@ -27,7 +27,12 @@ import {
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { checkServerHealth, findRuntimesDir, retriable } from '../utils/utils';
+import {
+  checkServerHealth,
+  findRuntimesDir,
+  projectNameFromGenkitFilePath,
+  retriable,
+} from '../utils/utils';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -312,6 +317,7 @@ export class RuntimeManager {
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
           const runtimeInfo = JSON.parse(content) as RuntimeInfo;
+          runtimeInfo.projectName = projectNameFromGenkitFilePath(filePath);
           return { content, runtimeInfo };
         },
         { maxRetries: 10, delayMs: 500 }

@@ -87,14 +87,7 @@ Here's one that requires no setup:
 
 ```
 cd js/testapps/flow-sample1
-genkit flow:run basic "\"hello\""
-```
-
-### Run the Developer UI
-
-```
-cd js/testapps/flow-sample1
-genkit start
+genkit start -- tsx --watch src/index.ts
 ```
 
 Point your browser to http://localhost:4000
@@ -109,7 +102,7 @@ To start, let's make sure we have some context to pull from the vector store.
 
 ```
 cd js/testapps/rag
-genkit start
+genkit start -- tsx --watch src/index.ts
 ```
 
 2. Click on the `indexPdf` flow in the left nav.

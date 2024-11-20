@@ -20,6 +20,7 @@ import type { Formatter } from './types';
 export const jsonFormatter: Formatter<unknown, unknown> = {
   name: 'json',
   config: {
+    format: 'json',
     contentType: 'application/json',
     constrained: true,
   },

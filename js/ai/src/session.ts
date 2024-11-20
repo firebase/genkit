@@ -226,6 +226,7 @@ export class Session<S = any> {
             input: renderOptions?.input,
             model: (renderOptions as BaseGenerateOptions)?.model,
             config: (renderOptions as BaseGenerateOptions)?.config,
+            messages: (renderOptions as BaseGenerateOptions)?.messages,
           })
           .then((rb) => {
             return {
