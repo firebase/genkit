@@ -2,6 +2,11 @@ module github.com/firebase/genkit/go
 
 go 1.22.0
 
+retract (
+	v0.1.3 // This shold have been a minor release.
+	v0.1.4 // Retraction only.
+)
+
 require (
 	cloud.google.com/go/aiplatform v1.68.0
 	cloud.google.com/go/logging v1.10.0
