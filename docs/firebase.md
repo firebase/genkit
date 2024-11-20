@@ -400,29 +400,32 @@ cd $PROJECT_ROOT/functions
 npx genkit start -- npx tsx --watch src/index.ts
 ```
 
+or
+  
+```posix-terminal
+cd $PROJECT_ROOT/functions
+
+npm run genkit:start
+```
+
+You can now navigate to the URL printed by the `genkit start` command to access.
+
 ## Optional: Developing using Firebase Local Emulator Suite
 
 Firebase offers a
 [suite of emulators for local development](/docs/emulator-suite), which you can
 use with Genkit.
 
-To use Genkit with the Firebase Emulator Suite, start the Firebase emulators
+To use the Genkit Dev UI with the Firebase Emulator Suite, start the Firebase emulators
 like this:
 
 ```posix-terminal
-GENKIT_ENV=dev firebase emulators:start --inspect-functions
+npx genkit start -- firebase emulators:start --inspect-functions
 ```
 
 This will run your code in the emulator and run the Genkit framework in
 development mode, which launches and exposes the Genkit reflection API (but not
 the Dev UI).
-
-Then, launch the Genkit Dev UI with the `--attach` option to connect it to your
-code running inside the Firebase Emulator:
-
-```posix-terminal
-npx genkit start --attach http://localhost:3100 --port 4001
-```
 
 To see traces from Firestore in the Dev UI you can navigate to the Inspect tab
 and toggle the "Dev/Prod" switch. When toggled to "prod" it will be loading

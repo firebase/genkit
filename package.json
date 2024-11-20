@@ -37,7 +37,12 @@
     "prettier-plugin-organize-imports": "^3.2.4",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
-    "tsx": "^4.7.1"
+    "tsx": "^4.19.2"
   },
-  "packageManager": "pnpm@9.12.2+sha256.2ef6e547b0b07d841d605240dce4d635677831148cd30f6d564b8f4f928f73d2"
+  "pnpm": {
+    "overrides": {
+      "cross-spawn": "^7.0.5"
+    }
+  },
+  "packageManager": "pnpm@9.13.2+sha256.ccce81bf7498c5f0f80e31749c1f8f03baba99d168f64590fc7e13fad3ea1938"
 }

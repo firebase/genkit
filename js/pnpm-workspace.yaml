@@ -20,3 +20,4 @@ packages:
   - '!testapps/firebase-functions-sample1'
   - '!testapps/firebase-functions-sample1/functions'
   - 'third_party/*'
+  - '!./scripts'

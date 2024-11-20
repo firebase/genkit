@@ -95,6 +95,7 @@ Configuration for Genkit is now done per instance. Telemetry and logging is conf
   ```
 
 * Set your logging level independently
+
   ```js
   import { logger } from 'genkit/logging';
 

@@ -122,6 +122,7 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
+  Dotprompt,
   PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
@@ -398,7 +399,8 @@ export class Genkit {
       );
       return this.wrapPromptActionInExecutablePrompt(
         dotprompt.promptAction! as PromptAction<I>,
-        options
+        options,
+        dotprompt
       );
     } else {
       const p = definePrompt(
@@ -434,7 +436,8 @@ export class Genkit {
     promptAction: PromptAction<I> | Promise<PromptAction<I>>,
     options:
       | Partial<PromptMetadata<I, CustomOptions>>
-      | Promise<Partial<PromptMetadata<I, CustomOptions>>>
+      | Promise<Partial<PromptMetadata<I, CustomOptions>>>,
+    dotprompt?: Dotprompt<z.infer<I>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
@@ -476,7 +479,11 @@ export class Genkit {
         }
       }
       const p = await promptAction;
-      const promptResult = await p(opt.input);
+      // If it's a dotprompt template, we invoke dotprompt template directly
+      // because it can take in more PromptGenerateOptions (not just inputs).
+      const promptResult = await (dotprompt
+        ? dotprompt.render(opt)
+        : p(opt.input));
       const resultOptions = {
         messages: promptResult.messages,
         docs: promptResult.docs,
@@ -485,7 +492,12 @@ export class Genkit {
           promptResult.output?.format || promptResult.output?.schema
             ? {
                 format: promptResult.output?.format,
-                jsonSchema: promptResult.output?.schema,
+                jsonSchema: dotprompt
+                  ? (promptResult as GenerateOptions).output?.jsonSchema
+                  : promptResult.output.schema,
+                contentType: promptResult.output?.contentType,
+                instructions: promptResult.output?.instructions,
+                schema: promptResult.output?.schema,
               }
             : options.output,
         config: {
@@ -496,6 +508,9 @@ export class Genkit {
         model,
       } as GenerateOptions<O, CustomOptions>;
       delete (resultOptions as any).input;
+      if ((promptResult as GenerateOptions).prompt) {
+        resultOptions.prompt = (promptResult as GenerateOptions).prompt;
+      }
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =

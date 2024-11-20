@@ -16,6 +16,7 @@
 
 import { JSONSchema } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { OutputOptions } from '../generate.js';
 import { MessageData, TextPart } from '../model.js';
 import { arrayFormatter } from './array';
 import { enumFormatter } from './enum';
@@ -37,20 +38,23 @@ export function defineFormat(
 
 export type FormatArgument =
   | keyof typeof DEFAULT_FORMATS
-  | Formatter
   | Omit<string, keyof typeof DEFAULT_FORMATS>
   | undefined
   | null;
 
 export async function resolveFormat(
   registry: Registry,
-  arg: FormatArgument
+  outputOpts: OutputOptions | undefined
 ): Promise<Formatter<any, any> | undefined> {
-  if (!arg) return undefined;
-  if (typeof arg === 'string') {
-    return registry.lookupValue<Formatter>('format', arg);
+  if (!outputOpts) return undefined;
+  // If schema is set but no explicit format is set we default to json.
+  if (outputOpts.schema && !outputOpts.format) {
+    return registry.lookupValue<Formatter>('format', 'json');
   }
-  return arg as Formatter;
+  if (outputOpts.format) {
+    return registry.lookupValue<Formatter>('format', outputOpts.format);
+  }
+  return undefined;
 }
 
 export function resolveInstructions(

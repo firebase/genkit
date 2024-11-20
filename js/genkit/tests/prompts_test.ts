@@ -148,6 +148,41 @@ describe('definePrompt - dotprompt', () => {
             }),
           },
           output: {
+            format: 'json',
+            schema: Foo,
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi({ name: 'Genkit' });
+      const foo: z.infer<typeof Foo> = response.output;
+      assert.deepStrictEqual(foo, { bar: 'baz' });
+    });
+
+    it('defaults to json format', async () => {
+      const Foo = z.object({
+        bar: z.string(),
+      });
+      const model = defineStaticResponseModel(ai, {
+        role: 'model',
+        content: [
+          {
+            text: '```json\n{bar: "baz"}\n```',
+          },
+        ],
+      });
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model,
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+          output: {
+            // no format specified
             schema: Foo,
           },
         },
@@ -235,6 +270,54 @@ describe('definePrompt - dotprompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
+    it('calls dotprompt with history', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model: 'echoModel',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        '{{ history}} hi {{ name }}'
+      );
+
+      const response = await hi(
+        { name: 'Genkit' },
+        {
+          messages: [
+            { role: 'user', content: [{ text: 'hi' }] },
+            { role: 'model', content: [{ text: 'bye' }] },
+          ],
+        }
+      );
+      assert.deepStrictEqual(response.messages, [
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+          metadata: { purpose: 'history' },
+        },
+        {
+          role: 'model',
+          content: [{ text: 'bye' }],
+          metadata: { purpose: 'history' },
+        },
+        {
+          role: 'model',
+          content: [{ text: ' hi Genkit' }],
+        },
+        {
+          role: 'model',
+          content: [
+            { text: 'Echo: hi,bye, hi Genkit' },
+            { text: '; config: {}' },
+          ],
+        },
+      ]);
+    });
+
     it('calls dotprompt with default model with config', async () => {
       const hi = ai.definePrompt(
         {
@@ -306,16 +389,12 @@ describe('definePrompt - dotprompt', () => {
       assert.deepStrictEqual(response, {
         config: {},
         docs: undefined,
-        messages: [
+        prompt: [
           {
-            content: [
-              {
-                text: 'hi Genkit',
-              },
-            ],
-            role: 'user',
+            text: 'hi Genkit',
           },
         ],
+        messages: [],
         output: undefined,
         tools: [],
       });

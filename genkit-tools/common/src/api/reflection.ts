@@ -24,7 +24,6 @@ import * as path from 'path';
 import * as z from 'zod';
 import * as action from '../types/action';
 import * as apis from '../types/apis';
-import { FlowStateSchema } from '../types/flow';
 import { SpanDataSchema, TraceDataSchema } from '../types/trace';
 
 const registry = new OpenAPIRegistry();
@@ -34,7 +33,6 @@ registry.register(
   action.JSONSchema7Schema.openapi('JSONSchema7')
 );
 registry.register('Action', action.ActionSchema.openapi('Action'));
-registry.register('FlowState', FlowStateSchema.openapi('FlowState'));
 registry.register('TraceData', TraceDataSchema.openapi('TraceData'));
 registry.register('SpanData', SpanDataSchema.openapi('SpanData'));
 registry.registerPath({

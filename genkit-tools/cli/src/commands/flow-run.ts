@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
+import { FlowInvokeEnvelopeMessage } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
@@ -46,7 +46,7 @@ export const flowRun = new Command('flow:run')
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
     await runWithManager(async (manager) => {
       logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-      let state = (
+      let result = (
         await manager.runAction(
           {
             key: `/flow/${flowName}`,
@@ -61,15 +61,12 @@ export const flowRun = new Command('flow:run')
             ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
             : undefined
         )
-      ).result as FlowState;
+      ).result;
 
-      logger.info('Flow response:\n' + JSON.stringify(state, undefined, '  '));
+      logger.info('Result:\n' + JSON.stringify(result, undefined, '  '));
 
-      if (options.output && state.operation.result?.response) {
-        await writeFile(
-          options.output,
-          JSON.stringify(state.operation.result?.response, undefined, ' ')
-        );
+      if (options.output && result) {
+        await writeFile(options.output, JSON.stringify(result, undefined, ' '));
       }
     });
   });

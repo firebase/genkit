@@ -16,9 +16,14 @@
     "json-schema": "^0.4.0",
     "only-allow": "^1.2.1",
     "rimraf": "^6.0.1",
-    "tsx": "^4.9.3",
+    "tsx": "^4.19.2",
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.22.4"
   },
-  "packageManager": "pnpm@9.12.2+sha256.2ef6e547b0b07d841d605240dce4d635677831148cd30f6d564b8f4f928f73d2"
+  "pnpm": {
+    "overrides": {
+      "cross-spawn": "^7.0.5"
+    }
+  },
+  "packageManager": "pnpm@9.13.2+sha256.ccce81bf7498c5f0f80e31749c1f8f03baba99d168f64590fc7e13fad3ea1938"
 }
