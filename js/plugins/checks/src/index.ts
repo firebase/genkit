@@ -46,7 +46,7 @@ const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
  */
 export function checks(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('checks', async (ai: Genkit) => {
-    const googleAuth = await inititializeAuth(options?.googleAuthOptions)
+    const googleAuth = inititializeAuth(options?.googleAuthOptions)
 
     const projectId = options?.projectId || (await googleAuth.getProjectId());
 
@@ -66,11 +66,11 @@ export function checks(options?: PluginOptions): GenkitPlugin {
   });
 }
 
-export async function checksMiddleware(options: {
+export function checksMiddleware(options: {
   authOptions: GoogleAuthOptions,
   metrics: ChecksEvaluationMetric[],
 }) {
-  const googleAuth = await inititializeAuth(options.authOptions)
+  const googleAuth = inititializeAuth(options.authOptions)
 
   return authorizedMiddleware({
     auth: googleAuth,
@@ -85,7 +85,7 @@ export async function checksMiddleware(options: {
  * @param options Options for initializing a GoogleAuth instance.
  * @returns GoogleAuth
  */
-async function inititializeAuth(options?: GoogleAuthOptions): Promise<GoogleAuth> {
+function inititializeAuth(options?: GoogleAuthOptions): GoogleAuth {
   let googleAuth: GoogleAuth;
 
   // Allow customers to pass in cloud credentials from environment variables
@@ -107,12 +107,13 @@ async function inititializeAuth(options?: GoogleAuthOptions): Promise<GoogleAuth
     );
   }
 
-  const client = await googleAuth.getClient();
-  if (client.quotaProjectId) {
-    logger.warn(
-      `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
-    );
-  }
+  googleAuth.getClient().then(client => {
+    if (client.quotaProjectId) {
+      logger.warn(
+        `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
+      );
+    }
+  });
 
   return googleAuth
 }
