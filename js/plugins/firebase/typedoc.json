@@ -1,0 +1,8 @@
+{
+  "entryPoints": [
+    "src/index.ts",
+    "src/functions.ts",
+    "src/auth.ts",
+    "src/user_egagement.ts"
+  ]
+}
