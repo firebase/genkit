@@ -16,7 +16,6 @@
 import { checks, ChecksEvaluationMetricType, checksMiddleware } from '@genkit-ai/checks';
 import { genkit, z } from 'genkit';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { ModelMiddleware } from 'genkit/model';
 
 export const ai = genkit({
   plugins: [
