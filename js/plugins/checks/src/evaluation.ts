@@ -134,15 +134,20 @@ function createPolicyEvaluator(
         ResponseSchema
       );
 
-      return {
-        evaluation: {
-          score: response.policyResults[0].score,
+      const evaluationResults = response.policyResults.map(result => {
+        return {
+          id: result.policyType,
+          score: result.score,
           details: {
-            reasoning: response.policyResults[0].violationResult,
+            reasoning: `Violation result.violationResult`,
           },
-        },
-        testCaseId: datapoint.testCaseId,
-      };
+        }
+      });
+
+      return {
+        evaluation: evaluationResults,
+        testCaseId: datapoint.testCaseId
+      }
     }
   );
 }
