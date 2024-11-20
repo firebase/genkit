@@ -3,8 +3,8 @@ module github.com/firebase/genkit/go
 go 1.22.0
 
 retract (
-	v0.1.3 // This shold have been a minor release.
 	v0.1.4 // Retraction only.
+	v0.1.3 // This shold have been a minor release.
 )
 
 require (
@@ -70,7 +70,7 @@ require (
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.21.0 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
