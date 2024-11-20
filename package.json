@@ -39,5 +39,10 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2"
   },
+  "pnpm": {
+    "overrides": {
+      "cross-spawn": "^7.0.5"
+    }
+  },
   "packageManager": "pnpm@9.13.2+sha256.ccce81bf7498c5f0f80e31749c1f8f03baba99d168f64590fc7e13fad3ea1938"
 }
