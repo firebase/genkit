@@ -616,6 +616,7 @@ function registerFlowAction<
           ? undefined
           : StreamingCallback<z.infer<S>>,
         auth: envelope.auth,
+        labels: envelope.start?.labels,
       });
       return response.result;
     }
