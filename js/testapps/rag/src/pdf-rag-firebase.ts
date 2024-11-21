@@ -25,7 +25,7 @@ import { run, z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
-import { ai } from './genkit.js';
+import { ai } from './genkit';
 
 const app = initializeApp();
 let firestore = getFirestore(app);
@@ -142,7 +142,6 @@ async function indexToFirestore(data: string[]) {
       [indexConfig.vectorField]: FieldValue.vector(embedding),
       [indexConfig.contentField]: text,
     });
-    // await firestore.collection(indexConfig.collection).add({ 'a': 'b' });
   }
 }
 

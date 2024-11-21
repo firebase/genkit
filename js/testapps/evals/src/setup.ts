@@ -15,12 +15,10 @@
  */
 
 import { z } from 'genkit';
-import { indexPdf } from './pdf_rag.js';
-import { indexPdfFirebase } from './pdf_rag_firebase.js';
+import { ai } from './genkit';
+import { indexPdf } from './pdf-rag.js';
 
-import { ai } from './genkit.js';
-
-const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
+const catFacts = ['./docs/cat-handbook.pdf'];
 
 // genkit flow:run setup
 // genkit flow:run setup '[\"your_awesome_pdf.pdf\", \"your_other_awesome_pdf.pdf\""]'
@@ -40,26 +38,6 @@ export const setup = ai.defineFlow(
       documentArr.map(async (document) => {
         console.log(`Indexed ${document}`);
         return indexPdf(document);
-      })
-    );
-  }
-);
-
-export const setupFirebase = ai.defineFlow(
-  {
-    name: 'setupFirebase',
-    inputSchema: z.array(z.string()).optional(),
-  },
-  async (documentArr) => {
-    if (!documentArr) {
-      documentArr = catFacts;
-    } else {
-      documentArr.concat(catFacts);
-    }
-
-    await Promise.all(
-      documentArr.map(async (document) => {
-        return indexPdfFirebase(document);
       })
     );
   }

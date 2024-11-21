@@ -18,18 +18,32 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { gemini15Flash } from '@genkit-ai/vertexai';
-import fs from 'fs';
-import { Document, run, z } from 'genkit';
+import { gemini15Flash } from '@genkit-ai/googleai';
+import { run, z } from 'genkit';
+import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
-import pdf from 'pdf-parse';
+import { getDocument } from 'pdfjs-dist-legacy';
 import { ai } from './genkit.js';
-import { augmentedPrompt } from './prompt.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
+
+function ragTemplate({
+  context,
+  question,
+}: {
+  context: string;
+  question: string;
+}) {
+  return `Use the following pieces of context to answer the question at the end.
+ If you don't know the answer, just say that you don't know, don't try to make up an answer.
+
+${context}
+Question: ${question}
+Helpful Answer:`;
+}
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQA = ai.defineFlow(
@@ -38,22 +52,22 @@ export const pdfQA = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query, streamingCallback) => {
+  async (query) => {
     const docs = await ai.retrieve({
       retriever: pdfChatRetriever,
       query,
       options: { k: 3 },
     });
 
-    return augmentedPrompt(
-      {
-        question: query,
-        context: docs.map((d) => d.text),
-      },
-      {
-        streamingCallback,
-      }
-    ).then((r) => r.text);
+    const augmentedPrompt = ragTemplate({
+      question: query,
+      context: docs.map((d) => d.text).join('\n\n'),
+    });
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: augmentedPrompt,
+    });
+    return llmResponse.text;
   }
 );
 
@@ -66,7 +80,7 @@ const chunkingConfig = {
 } as any;
 
 // Define a flow to index documents into the "vector store"
-// genkit flow:run indexPdf '"35650.pdf"'
+// genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
 export const indexPdf = ai.defineFlow(
   {
     name: 'indexPdf',
@@ -91,43 +105,20 @@ export const indexPdf = ai.defineFlow(
   }
 );
 
-async function extractText(filePath: string) {
-  const pdfFile = path.resolve(filePath);
-  const dataBuffer = fs.readFileSync(pdfFile);
-  const data = await pdf(dataBuffer);
-  return data.text;
-}
+async function extractText(filePath: string): Promise<string> {
+  let doc = await getDocument(filePath).promise;
 
-// genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json
-// genkit flow:batchRun pdfQA synthesizedQuestions.json --output batchinput_small_out.json
-export const synthesizeQuestions = ai.defineFlow(
-  {
-    name: 'synthesizeQuestions',
-    inputSchema: z.string().describe('PDF file path'),
-    outputSchema: z.array(z.string()),
-  },
-  async (filePath) => {
-    filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () => extractText(filePath));
+  let pdfTxt = '';
+  const numPages = doc.numPages;
+  for (let i = 1; i <= numPages; i++) {
+    let page = await doc.getPage(i);
+    let content = await page.getTextContent();
+    let strings = content.items.map((item) => {
+      const str: string = (item as any).str;
+      return str === '' ? '\n' : str;
+    });
 
-    const chunks = await run('chunk-it', async () =>
-      chunk(pdfTxt, chunkingConfig)
-    );
-
-    const questions: string[] = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const qResponse = await ai.generate({
-        model: gemini15Flash,
-        prompt: {
-          text: `Generate one question about the text below: ${chunks[i]}`,
-        },
-      });
-      questions.push(qResponse.text);
-    }
-    return questions;
+    pdfTxt += '\n\npage ' + i + '\n\n' + strings.join('');
   }
-);
-
-ai.startFlowServer({
-  flows: [pdfQA],
-});
+  return pdfTxt;
+}

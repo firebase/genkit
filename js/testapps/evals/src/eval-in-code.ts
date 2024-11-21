@@ -14,30 +14,14 @@
  * limitations under the License.
  */
 
-import { genkitEval, genkitEvalRef, GenkitMetric } from '@genkit-ai/evaluator';
-import { gemini15Flash, textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
-import { genkit, z } from 'genkit';
+import { genkitEvalRef, GenkitMetric } from '@genkit-ai/evaluator';
+import { z } from 'genkit';
 import { Dataset, EvalResponse, EvalResponseSchema } from 'genkit/evaluator';
+import { ai } from './genkit';
 
-const ai = genkit({
-  plugins: [
-    vertexAI(),
-    genkitEval({
-      judge: gemini15Flash,
-      metrics: [
-        GenkitMetric.FAITHFULNESS,
-        GenkitMetric.ANSWER_RELEVANCY,
-        GenkitMetric.MALICIOUSNESS,
-      ],
-      embedder: textEmbedding004,
-    }),
-  ],
-});
+const DOG_DATASET: Dataset = require('../data/dogfacts.json');
 
-// Run this flow to execute the evaluator on the test dataset.
-
-const samples: Dataset = require('../data/dogfacts.json');
-
+// Run this flow to programatically execute the evaluator on the dog dataset.
 export const dogFactsEvalFlow = ai.defineFlow(
   {
     name: 'dogFactsEval',
@@ -47,7 +31,7 @@ export const dogFactsEvalFlow = ai.defineFlow(
   async (): Promise<Array<EvalResponse>> => {
     return await ai.evaluate({
       evaluator: genkitEvalRef(GenkitMetric.FAITHFULNESS),
-      dataset: samples,
+      dataset: DOG_DATASET,
       evalRunId: 'my-dog-eval',
     });
   }
