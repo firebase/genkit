@@ -114,7 +114,7 @@ export function actionWithMiddleware<
       );
     };
 
-    return {result: await dispatch(0, req), telemetry};
+    return { result: await dispatch(0, req), telemetry };
   };
   return wrapped;
 }
@@ -182,8 +182,8 @@ export function action<
       result: output,
       telemetry: {
         traceId,
-        spanId
-      }
+        spanId,
+      },
     };
   };
 
