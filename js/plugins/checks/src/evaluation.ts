@@ -79,11 +79,19 @@ export function checksEvaluators(
 
   // Individual evaluators, one per configured metric.
   const evaluators = policy_configs.map((policy_config) => {
-    return createPolicyEvaluator(projectId, auth, ai, [policy_config], policy_config.type as string);
+    return createPolicyEvaluator(
+      projectId,
+      auth,
+      ai,
+      [policy_config],
+      policy_config.type as string
+    );
   });
 
   // Single evaluator instnace with all configured policies.
-  evaluators.push(createPolicyEvaluator(projectId, auth, ai, policy_configs, "all_metrics"))
+  evaluators.push(
+    createPolicyEvaluator(projectId, auth, ai, policy_configs, 'all_metrics')
+  );
 
   return evaluators;
 }
@@ -109,9 +117,8 @@ function createPolicyEvaluator(
   auth: GoogleAuth,
   ai: Genkit,
   policy_config: ChecksEvaluationMetricConfig[],
-  name: string,
+  name: string
 ): EvaluatorAction {
-
   return ai.defineEvaluator(
     {
       name: `checks/${name.toLowerCase()}`,
@@ -125,11 +132,11 @@ function createPolicyEvaluator(
             content: datapoint.output as string,
           },
         },
-        policies: policy_config.map(config => {
+        policies: policy_config.map((config) => {
           return {
             policy_type: config.type,
             threshold: config.threshold,
-          }
+          };
         }),
       };
 
@@ -140,20 +147,20 @@ function createPolicyEvaluator(
         ResponseSchema
       );
 
-      const evaluationResults = response.policyResults.map(result => {
+      const evaluationResults = response.policyResults.map((result) => {
         return {
           id: result.policyType,
           score: result.score,
           details: {
             reasoning: `Status ${result.violationResult}`,
           },
-        }
+        };
       });
 
       return {
         evaluation: evaluationResults,
-        testCaseId: datapoint.testCaseId
-      }
+        testCaseId: datapoint.testCaseId,
+      };
     }
   );
 }
