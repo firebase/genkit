@@ -138,32 +138,3 @@ async function extractText(filePath: string): Promise<string> {
   }
   return pdfTxt;
 }
-
-// genkit flow:run synthesizeQuestions '"./docs/sfspca-cat-adoption-handbook-2023.pdf"' --output synthesizedQuestions.json
-export const synthesizeQuestions = ai.defineFlow(
-  {
-    name: 'synthesizeQuestions',
-    inputSchema: z.string().describe('PDF file path'),
-    outputSchema: z.array(z.string()),
-  },
-  async (filePath) => {
-    filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () => extractText(filePath));
-
-    const chunks = await run('chunk-it', async () =>
-      chunk(pdfTxt, chunkingConfig)
-    );
-
-    const questions: string[] = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const qResponse = await ai.generate({
-        model: gemini15Flash,
-        prompt: {
-          text: `Generate one question about the text below: ${chunks[i]}`,
-        },
-      });
-      questions.push(qResponse.text);
-    }
-    return questions;
-  }
-);

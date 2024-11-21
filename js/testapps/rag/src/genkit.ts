@@ -15,7 +15,7 @@
  */
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
@@ -25,7 +25,6 @@ import {
 } from '@genkit-ai/vertexai/modelgarden';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
-import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
 import { GoogleAuth, IdTokenClient } from 'google-auth-library';
 
@@ -43,37 +42,6 @@ async function getCloudRunAuthClient(aud: string) {
 export const ai = genkit({
   plugins: [
     googleAI({ apiVersion: ['v1'] }),
-    genkitEval({
-      judge: gemini15Flash,
-      judgeConfig: {
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_NONE',
-          },
-        ],
-      } as any,
-      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
-    }),
-    langchain({
-      evaluators: {
-        criteria: ['coherence'],
-        labeledCriteria: ['correctness'],
-        judge: gemini15Flash,
-      },
-    }),
     vertexAI({
       location: 'us-central1',
     }),
@@ -122,6 +90,30 @@ export const ai = genkit({
         embedder: textEmbedding004,
       },
     ]),
+    genkitEval({
+      judge: gemini15Flash,
+      judgeConfig: {
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_NONE',
+          },
+        ],
+      } as any,
+      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
+    }),
   ],
   model: gemini15Flash,
 });

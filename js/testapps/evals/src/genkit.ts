@@ -16,13 +16,23 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+import {
+  gemini15Flash,
+  gemini15Pro,
+  googleAI,
+  textEmbeddingGecko001,
+} from '@genkit-ai/googleai';
+import { vertexAI } from '@genkit-ai/vertexai';
+import {
+  vertexAIEvaluation,
+  VertexAIEvaluationMetricType,
+} from '@genkit-ai/vertexai/evaluation';
 import { genkit } from 'genkit';
+import { langchain } from 'genkitx-langchain';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
-const PERMISSIVE_SAFETY_SETTINGS: any = {
+export const PERMISSIVE_SAFETY_SETTINGS: any = {
   safetySettings: [
     {
       category: 'HARM_CATEGORY_HATE_SPEECH',
@@ -43,25 +53,46 @@ const PERMISSIVE_SAFETY_SETTINGS: any = {
   ],
 };
 
-const ai = genkit({
+export const ai = genkit({
   plugins: [
     googleAI(),
     genkitEval({
-      judge: gemini15Flash,
+      judge: gemini15Pro,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [
-        GenkitMetric.ANSWER_RELEVANCY,
-        GenkitMetric.FAITHFULNESS,
-        GenkitMetric.MALICIOUSNESS,
-      ],
-      embedder: textEmbedding004,
+      metrics: [GenkitMetric.MALICIOUSNESS],
+      embedder: textEmbeddingGecko001,
     }),
-    vertexAI(),
+    vertexAI({
+      location: 'us-central1',
+    }),
+    vertexAIEvaluation({
+      location: 'us-central1',
+      metrics: [
+        VertexAIEvaluationMetricType.BLEU,
+        VertexAIEvaluationMetricType.GROUNDEDNESS,
+        VertexAIEvaluationMetricType.SAFETY,
+        {
+          type: VertexAIEvaluationMetricType.ROUGE,
+          metricSpec: {
+            rougeType: 'rougeLsum',
+            useStemmer: true,
+            splitSummaries: 'true',
+          },
+        },
+      ],
+    }),
     devLocalVectorstore([
       {
-        indexName: 'evaluating-evaluators',
-        embedder: textEmbedding004,
+        indexName: 'pdfQA',
+        embedder: textEmbeddingGecko001,
       },
     ]),
+    langchain({
+      evaluators: {
+        criteria: ['coherence'],
+        labeledCriteria: ['correctness'],
+        judge: gemini15Flash,
+      },
+    }),
   ],
 });

@@ -1,5 +1,5 @@
 {
-  "cases": [
+  "samples": [
     {
       "input": "What are typical cat behaviors?",
       "reference": "Cats like to purr, push things away and cuddle."

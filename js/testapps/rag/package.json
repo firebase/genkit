@@ -23,7 +23,7 @@
     "@genkit-ai/vertexai": "workspace:*",
     "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
-    "genkitx-langchain": "workspace:*",
+    "firebase-admin": ">=12.2",
     "genkitx-pinecone": "workspace:*",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",

@@ -55,10 +55,10 @@ Genkit provides a CLI and a local UI to streamline your AI development workflow.
 
 ### CLI
 
-The Genkit CLI is the quickest way to start a new Genkit project. It also includes commands for running and evaluating your Genkit functions (flows).
+The Genkit CLI includes commands for running and evaluating your Genkit functions (flows) and collecting telemetry and logs.
 
 - **Install:** `npm i -g genkit`
-- **Initialize a new project:** `genkit init`
+- **Run a command, wrapped with telemetry, a interactive developer UI, etc:** `genkit start -- <command to run your code>`
 
 ### Developer UI
 

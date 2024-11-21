@@ -66,7 +66,7 @@ const chunkingConfig = {
 } as any;
 
 // Define a flow to index documents into the "vector store"
-// genkit flow:run indexPdf '"35650.pdf"'
+// genkit flow:run indexPdf '"./docs/flume-java.pdf"'
 export const indexPdf = ai.defineFlow(
   {
     name: 'indexPdf',
@@ -98,7 +98,7 @@ async function extractText(filePath: string) {
   return data.text;
 }
 
-// genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json
+// genkit flow:run synthesizeQuestions '"./docs/flume-java.pdf"' --output synthesizedQuestions.json
 // genkit flow:batchRun pdfQA synthesizedQuestions.json --output batchinput_small_out.json
 export const synthesizeQuestions = ai.defineFlow(
   {
