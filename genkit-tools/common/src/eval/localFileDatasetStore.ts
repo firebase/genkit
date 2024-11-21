@@ -160,7 +160,8 @@ export class LocalFileDatasetStore implements DatasetStore {
       throw new Error(`Dataset not found for dataset ID {$id}`);
     }
     return await readFile(filePath, 'utf8').then((data) => {
-      return DatasetSchema.parse(JSON.parse(data));
+      const dataset = DatasetSchema.parse(JSON.parse(data));
+      return dataset;
     });
   }
 
@@ -263,7 +264,14 @@ export class LocalFileDatasetStore implements DatasetStore {
     const patchMap = new Map(patch.map((d) => [d.testCaseId, d]));
 
     patchMap.forEach((value, key) => {
-      datasetMap.set(key, value);
+      // DELETE LOGIC START
+      if (value.testCaseId && !value.input && !value.reference) {
+        datasetMap.delete(key);
+      }
+      // DELETE LOGIC END
+      else {
+        datasetMap.set(key, value);
+      }
     });
 
     const newDataset = Array.from(datasetMap.values()) as Dataset;

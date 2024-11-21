@@ -71,6 +71,22 @@ export const pdfQA = ai.defineFlow(
   }
 );
 
+// Define a simple structured flow, we will evaluate this flow
+export const simpleStructured = ai.defineFlow(
+  {
+    name: 'simpleStructured',
+    inputSchema: z.object({ query: z.string() }),
+    outputSchema: z.object({ response: z.string() }),
+  },
+  async (i) => {
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: i.query,
+    });
+    return { response: llmResponse.text };
+  }
+);
+
 const chunkingConfig = {
   minLength: 1000, // number of minimum characters into chunk
   maxLength: 2000, // number of maximum characters into chunk
