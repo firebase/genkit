@@ -41,4 +41,36 @@ describe('action', () => {
       20 // "foomiddle1middle2".length + 1 + 2
     );
   });
+
+  it('returns telemetry info', async () => {
+    const act = action(
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+        use: [
+          async (input, next) => (await next(input + 'middle1')) + 1,
+          async (input, next) => (await next(input + 'middle2')) + 2,
+        ],
+      },
+      async (input) => {
+        return input.length;
+      }
+    );
+
+    const result = await act.run('foo');
+    assert.strictEqual(
+      result.result,
+      20 // "foomiddle1middle2".length + 1 + 2
+    );
+    assert.strictEqual(result.telemetry !== null, true);
+    assert.strictEqual(
+      result.telemetry.traceId !== null && result.telemetry.traceId.length > 0,
+      true
+    );
+    assert.strictEqual(
+      result.telemetry.spanId !== null && result.telemetry.spanId.length > 0,
+      true
+    );
+  });
 });

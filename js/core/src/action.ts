@@ -43,12 +43,21 @@ export interface ActionMetadata<
   metadata?: M;
 }
 
+export interface ActionResult<O> {
+  result: O;
+  telemetry: {
+    traceId: string;
+    spanId: string;
+  };
+}
+
 export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   M extends Record<string, any> = Record<string, any>,
 > = ((input: z.infer<I>) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, M>;
+  run(input: z.infer<I>): Promise<ActionResult<z.infer<O>>>;
 };
 
 export type SideChannelData = Record<string, any>;
@@ -86,10 +95,17 @@ export function actionWithMiddleware<
   middleware: Middleware<z.infer<I>, z.infer<O>>[]
 ): Action<I, O, M> {
   const wrapped = (async (req: z.infer<I>) => {
+    return (await wrapped.run(req)).result;
+  }) as Action<I, O, M>;
+  wrapped.__action = action.__action;
+  wrapped.run = async (req: z.infer<I>): Promise<ActionResult<z.infer<O>>> => {
+    let telemetry;
     const dispatch = async (index: number, req: z.infer<I>) => {
       if (index === middleware.length) {
         // end of the chain, call the original model action
-        return await action(req);
+        const result = await action.run(req);
+        telemetry = result.telemetry;
+        return result.result;
       }
 
       const currentMiddleware = middleware[index];
@@ -98,9 +114,8 @@ export function actionWithMiddleware<
       );
     };
 
-    return await dispatch(0, req);
-  }) as Action<I, O, M>;
-  wrapped.__action = action.__action;
+    return {result: await dispatch(0, req), telemetry};
+  };
   return wrapped;
 }
 
@@ -120,10 +135,26 @@ export function action<
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
   const actionFn = async (input: I) => {
+    return (await actionFn.run(input)).result;
+  };
+  actionFn.__action = {
+    name: actionName,
+    description: config.description,
+    inputSchema: config.inputSchema,
+    inputJsonSchema: config.inputJsonSchema,
+    outputSchema: config.outputSchema,
+    outputJsonSchema: config.outputJsonSchema,
+    metadata: config.metadata,
+  } as ActionMetadata<I, O, M>;
+  actionFn.run = async (
+    input: z.infer<I>
+  ): Promise<ActionResult<z.infer<O>>> => {
     input = parseSchema(input, {
       schema: config.inputSchema,
       jsonSchema: config.inputJsonSchema,
     });
+    let traceId;
+    let spanId;
     let output = await newTrace(
       {
         name: actionName,
@@ -131,7 +162,9 @@ export function action<
           [SPAN_TYPE_ATTR]: 'action',
         },
       },
-      async (metadata) => {
+      async (metadata, span) => {
+        traceId = span.spanContext().traceId;
+        spanId = span.spanContext().spanId;
         metadata.name = actionName;
         metadata.input = input;
 
@@ -145,17 +178,14 @@ export function action<
       schema: config.outputSchema,
       jsonSchema: config.outputJsonSchema,
     });
-    return output;
+    return {
+      result: output,
+      telemetry: {
+        traceId,
+        spanId
+      }
+    };
   };
-  actionFn.__action = {
-    name: actionName,
-    description: config.description,
-    inputSchema: config.inputSchema,
-    inputJsonSchema: config.inputJsonSchema,
-    outputSchema: config.outputSchema,
-    outputJsonSchema: config.outputJsonSchema,
-    metadata: config.metadata,
-  } as ActionMetadata<I, O, M>;
 
   if (config.use) {
     return actionWithMiddleware(actionFn, config.use);
