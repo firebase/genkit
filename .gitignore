@@ -20,6 +20,7 @@ js/testapps/firebase-functions-sample1/.firebase
 js/testapps/firebase-functions-sample1/.firebaserc
 js/testapps/firebase-functions-sample1/public/bundle.js
 js/testapps/firebase-functions-sample1/public/config.js
+.genkit
 js/**/.genkit
 samples/**/.genkit
 go/**/.genkit
