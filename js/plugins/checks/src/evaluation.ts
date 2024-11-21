@@ -77,9 +77,13 @@ export function checksEvaluators(
     }
   );
 
+  // Individual evaluators, one per configured metric.
   const evaluators = policy_configs.map((policy_config) => {
-    return createPolicyEvaluator(projectId, auth, ai, policy_config);
+    return createPolicyEvaluator(projectId, auth, ai, [policy_config], policy_config.type as string);
   });
+
+  // Single evaluator instnace with all configured policies.
+  evaluators.push(createPolicyEvaluator(projectId, auth, ai, policy_configs, "all_policies"))
 
   return evaluators;
 }
@@ -104,15 +108,15 @@ function createPolicyEvaluator(
   projectId: string,
   auth: GoogleAuth,
   ai: Genkit,
-  policy_config: ChecksEvaluationMetricConfig
+  policy_config: ChecksEvaluationMetricConfig[],
+  name: string,
 ): EvaluatorAction {
-  const policyType = policy_config.type as string;
 
   return ai.defineEvaluator(
     {
-      name: `checks/${policyType.toLowerCase()}`,
-      displayName: policyType,
-      definition: `Evaluates text against the Checks ${policyType} policy.`,
+      name: `checks/${name.toLowerCase()}`,
+      displayName: name,
+      definition: `Evaluates text against the Checks ${name} policy.`,
     },
     async (datapoint: BaseEvalDataPoint) => {
       const partialRequest = {
@@ -121,10 +125,12 @@ function createPolicyEvaluator(
             content: datapoint.output as string,
           },
         },
-        policies: {
-          policy_type: policy_config.type,
-          threshold: policy_config.threshold,
-        },
+        policies: policy_config.map(config => {
+          return {
+            policy_type: config.type,
+            threshold: config.threshold,
+          }
+        }),
       };
 
       const response = await checksEvalInstance(
@@ -139,7 +145,7 @@ function createPolicyEvaluator(
           id: result.policyType,
           score: result.score,
           details: {
-            reasoning: `Violation result.violationResult`,
+            reasoning: `Status ${result.violationResult}`,
           },
         }
       });
