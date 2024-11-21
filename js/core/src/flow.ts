@@ -349,19 +349,6 @@ export class Flow<
       return;
     }
 
-    try {
-      await this.authPolicy?.(auth, input);
-    } catch (e: any) {
-      const respBody = {
-        error: {
-          status: 'PERMISSION_DENIED',
-          message: e.message || 'Permission denied to resource',
-        },
-      };
-      response.status(403).send(respBody).end();
-      return;
-    }
-
     if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
       response.writeHead(200, {
         'Content-Type': 'text/plain',
