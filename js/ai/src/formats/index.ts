@@ -18,18 +18,20 @@ import { JSONSchema } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { OutputOptions } from '../generate.js';
 import { MessageData, TextPart } from '../model.js';
-import { arrayFormatter } from './array';
-import { enumFormatter } from './enum';
-import { jsonFormatter } from './json';
-import { jsonlFormatter } from './jsonl';
-import { textFormatter } from './text';
-import { Formatter } from './types';
+import { arrayFormatter } from './array.js';
+import { enumFormatter } from './enum.js';
+import { jsonFormatter } from './json.js';
+import { jsonlFormatter } from './jsonl.js';
+import { textFormatter } from './text.js';
+import { type Formatter } from './types.js';
+
+export { type Formatter };
 
 export function defineFormat(
   registry: Registry,
   options: { name: string } & Formatter['config'],
   handler: Formatter['handler']
-) {
+): { config: Formatter['config']; handler: Formatter['handler'] } {
   const { name, ...config } = options;
   const formatter = { config, handler };
   registry.registerValue('format', name, formatter);

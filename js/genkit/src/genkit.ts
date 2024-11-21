@@ -68,7 +68,11 @@ import {
   EvaluatorAction,
   EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
-import { configureFormats } from '@genkit-ai/ai/formats';
+import {
+  configureFormats,
+  defineFormat,
+  Formatter,
+} from '@genkit-ai/ai/formats';
 import {
   defineModel,
   DefineModelOptions,
@@ -245,6 +249,18 @@ export class Genkit {
    */
   defineSchema<T extends z.ZodTypeAny>(name: string, schema: T): T {
     return defineSchema(this.registry, name, schema);
+  }
+
+  /**
+   * Defines and registers a custom model output formatter.
+   */
+  defineFormat(
+    options: {
+      name: string;
+    } & Formatter['config'],
+    handler: Formatter['handler']
+  ): { config: Formatter['config']; handler: Formatter['handler'] } {
+    return defineFormat(this.registry, options, handler);
   }
 
   /**
