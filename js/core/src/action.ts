@@ -93,14 +93,14 @@ type ActionParams<
 };
 
 /**
- * Middlware function for actions.
+ * Middleware function for actions.
  */
 export interface Middleware<I = any, O = any> {
   (req: I, next: (req?: I) => Promise<O>): Promise<O>;
 }
 
 /**
- * Creates an action with provide middleware.
+ * Creates an action with provided middleware.
  */
 export function actionWithMiddleware<
   I extends z.ZodTypeAny,
