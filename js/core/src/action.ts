@@ -28,6 +28,9 @@ import {
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };
 
+/**
+ * Action metadata.
+ */
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
@@ -43,6 +46,9 @@ export interface ActionMetadata<
   metadata?: M;
 }
 
+/**
+ * Results of an action run. Includes telemetry.
+ */
 export interface ActionResult<O> {
   result: O;
   telemetry: {
@@ -51,6 +57,9 @@ export interface ActionResult<O> {
   };
 }
 
+/**
+ * Self-describing, validating, observable, locally and remotely callable function.
+ */
 export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -60,8 +69,9 @@ export type Action<
   run(input: z.infer<I>): Promise<ActionResult<z.infer<O>>>;
 };
 
-export type SideChannelData = Record<string, any>;
-
+/**
+ * Action factory params.
+ */
 type ActionParams<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
@@ -82,10 +92,16 @@ type ActionParams<
   use?: Middleware<z.infer<I>, z.infer<O>>[];
 };
 
+/**
+ * Middlware function for actions.
+ */
 export interface Middleware<I = any, O = any> {
   (req: I, next: (req?: I) => Promise<O>): Promise<O>;
 }
 
+/**
+ * Creates an action with provide middleware.
+ */
 export function actionWithMiddleware<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
