@@ -83,7 +83,7 @@ export function checksEvaluators(
   });
 
   // Single evaluator instnace with all configured policies.
-  evaluators.push(createPolicyEvaluator(projectId, auth, ai, policy_configs, "all_policies"))
+  evaluators.push(createPolicyEvaluator(projectId, auth, ai, policy_configs, "all_metrics"))
 
   return evaluators;
 }
