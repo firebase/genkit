@@ -51,7 +51,9 @@ logger.setLogLevel('debug');
 
 ## Trace Storage and Developer UI
 Traces are automatically captured and can be viewed in the Genkit Developer UI. To start the UI:
+
 ```posix-terminal
 npx genkit start -- <command to run your code>
 ```
+
 When using Firebase, trace data is automatically stored in Firestore. It's recommended to enable [TTL (Time To Live)](https://firebase.google.com/docs/firestore/ttl) for trace documents to manage storage costs and data retention.

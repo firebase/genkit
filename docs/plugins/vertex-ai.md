@@ -35,7 +35,7 @@ import { vertexAI } from '@genkit-ai/vertexai';
 
 const ai = genkit({
   plugins: [
-    vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' }),
+    vertexAI({ location: 'us-central1' }),
   ],
 });
 ```
@@ -70,7 +70,7 @@ You can use these references to specify which model `ai.generate()` uses:
 
 ```ts
 const ai = genkit({
-  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+  plugins: [vertexAI({ location: 'us-central1' })],
 });
 
 const llmResponse = await ai.generate({
@@ -87,7 +87,7 @@ Example:
 
 ```ts
 const ai = genkit({
-  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+  plugins: [vertexAI({ location: 'us-central1' })],
 });
 
 await ai.generate({
@@ -134,7 +134,7 @@ Or you can generate an embedding directly:
 
 ```ts
 const ai = genkit({
-  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+  plugins: [vertexAI({ location: 'us-central1' })],
 });
 
 const embedding = await ai.embed({
@@ -149,7 +149,7 @@ Imagen3 model allows generating images from user prompt:
 import { imagen3 } from '@genkit-ai/vertexai';
 
 const ai = genkit({
-  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+  plugins: [vertexAI({ location: 'us-central1' })],
 });
 
 const response = await ai.generate({
@@ -165,7 +165,7 @@ and even advanced editing of existing images:
 
 ```ts
 const ai = genkit({
-  plugins: [vertexAI({ projectId: 'your-cloud-project', location: 'us-central1' })],
+  plugins: [vertexAI({ location: 'us-central1' })],
 });
 
 const baseImg = fs.readFileSync('base.png', { encoding: 'base64' });
@@ -203,19 +203,17 @@ Here's sample configuration for enabling Vertex AI Model Garden models:
 ```ts
 import { genkit } from 'genkit';
 import {
-  vertexAI,
   claude3Haiku,
   claude3Sonnet,
   claude3Opus,
-} from '@genkit-ai/vertexai';
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 
 const ai = genkit({
   plugins: [
-    vertexAI({
+    vertexAIModelGarden({
       location: 'us-central1',
-      modelGarden: {
-        models: [claude3Haiku, claude3Sonnet, claude3Opus],
-      },
+      models: [claude3Haiku, claude3Sonnet, claude3Opus],
     }),
   ],
 });
@@ -238,15 +236,13 @@ Here's sample configuration for Llama 3.1 405b in Vertex AI plugin:
 
 ```ts
 import { genkit } from 'genkit';
-import { vertexAI, llama31 } from '@genkit-ai/vertexai';
+import { llama31, vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
 
 const ai = genkit({
   plugins: [
-    vertexAI({
+    vertexAIModelGarden({
       location: 'us-central1',
-      modelGarden: {
-        models: [llama31],
-      },
+      models: [llama31],
     }),
   ],
 });
@@ -267,24 +263,24 @@ To use the evaluators from Vertex AI Rapid Evaluation, add an `evaluation` block
 
 ```ts
 import { genkit } from 'genkit';
-import { vertexAI, VertexAIEvaluationMetricType } from '@genkit-ai/vertexai';
+import {
+  vertexAIEvaluation,
+  VertexAIEvaluationMetricType,
+} from '@genkit-ai/vertexai/evaluation';
 
 const ai = genkit({
   plugins: [
-    vertexAI({
-      projectId: 'your-cloud-project',
+    vertexAIEvaluation({
       location: 'us-central1',
-      evaluation: {
-        metrics: [
-          VertexAIEvaluationMetricType.SAFETY,
-          {
-            type: VertexAIEvaluationMetricType.ROUGE,
-            metricSpec: {
-              rougeType: 'rougeLsum',
-            },
+      metrics: [
+        VertexAIEvaluationMetricType.SAFETY,
+        {
+          type: VertexAIEvaluationMetricType.ROUGE,
+          metricSpec: {
+            rougeType: 'rougeLsum',
           },
-        ],
-      },
+        },
+      ],
     }),
   ],
 });
@@ -320,7 +316,7 @@ To use Vertex AI Vector Search:
     **Cloud Firestore**
 
     ```ts
-    import { getFirestoreDocumentIndexer, getFirestoreDocumentRetriever } from '@genkit-ai/vertexai';
+    import { getFirestoreDocumentIndexer, getFirestoreDocumentRetriever } from '@genkit-ai/vertexai/vectorsearch';
 
     import { initializeApp } from 'firebase-admin/app';
     import { getFirestore } from 'firebase-admin/firestore';
@@ -335,7 +331,7 @@ To use Vertex AI Vector Search:
     **BigQuery**
 
     ```ts
-    import { getBigQueryDocumentIndexer, getBigQueryDocumentRetriever } from '@genkit-ai/vertexai';
+    import { getBigQueryDocumentIndexer, getBigQueryDocumentRetriever } from '@genkit-ai/vertexai/vectorsearch';
     import { BigQuery } from '@google-cloud/bigquery';
 
     const bq = new BigQuery({ projectId: PROJECT_ID });
@@ -365,11 +361,12 @@ To use Vertex AI Vector Search:
 
     ```ts
     import { genkit } from 'genkit';
-    import { vertexAI, textEmbedding004 } from '@genkit-ai/vertexai';
+    import { textEmbedding004 } from '@genkit-ai/vertexai';
+    import { vertexAIVectorSearch } from '@genkit-ai/vertexai/vectorsearch';
 
     const ai = genkit({
       plugins: [
-        vertexAI({
+        vertexAIVectorSearch({
           projectId: PROJECT_ID,
           location: LOCATION,
           vectorSearchOptions: [
@@ -401,7 +398,7 @@ To use Vertex AI Vector Search:
     import {
       vertexAiIndexerRef,
       vertexAiRetrieverRef,
-    } from '@genkit-ai/vertexai';
+    } from '@genkit-ai/vertexai/vectorsearch';
 
     // ... inside your flow function:
 

@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.9.0-rc.3",
+  "version": "0.9.3",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -33,11 +33,11 @@
     "@opentelemetry/sdk-node": "^0.52.0",
     "@opentelemetry/sdk-trace-base": "^1.25.0",
     "ajv": "^8.12.0",
-    "body-parser": "^1.20.2",
+    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "ajv-formats": "^3.0.1",
     "async-mutex": "^0.5.0",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "get-port": "^5.1.0",
     "json-schema": "^0.4.0",
     "zod": "^3.23.8",
@@ -49,8 +49,8 @@
     "genversion": "^3.2.0",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
-    "tsup": "^8.0.2",
-    "tsx": "^4.7.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
     "typescript": "^4.9.0"
   },
   "types": "lib/index.d.ts",

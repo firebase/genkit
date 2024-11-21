@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  FlowInvokeEnvelopeMessage,
-  FlowState,
-  Operation,
-} from '@genkit-ai/tools-common';
+import { FlowInvokeEnvelopeMessage } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
@@ -58,31 +54,25 @@ export const flowBatchRun = new Command('flow:batchRun')
           throw new Error('batch input data must be an array');
         }
 
-        const outputValues = [] as { input: any; output: Operation }[];
+        const outputValues = [] as { input: any; output: any }[];
         for (const data of inputData) {
           logger.info(`Running '/flow/${flowName}'...`);
-          let state = (
-            await manager.runAction({
-              key: `/flow/${flowName}`,
-              input: {
-                start: {
-                  input: data,
-                  labels: options.label
-                    ? { batchRun: options.label }
-                    : undefined,
-                  auth: options.auth ? JSON.parse(options.auth) : undefined,
-                },
-              } as FlowInvokeEnvelopeMessage,
-            })
-          ).result as FlowState;
-
+          let response = await manager.runAction({
+            key: `/flow/${flowName}`,
+            input: {
+              start: {
+                input: data,
+                labels: options.label ? { batchRun: options.label } : undefined,
+                auth: options.auth ? JSON.parse(options.auth) : undefined,
+              },
+            } as FlowInvokeEnvelopeMessage,
+          });
           logger.info(
-            'Flow operation:\n' +
-              JSON.stringify(state.operation, undefined, '  ')
+            'Result:\n' + JSON.stringify(response.result, undefined, '  ')
           );
           outputValues.push({
             input: data,
-            output: state.operation,
+            output: response.result,
           });
         }
 

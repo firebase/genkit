@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, defineStreamingFlow } from '../src/flow.js';
-import { z } from '../src/index.js';
+import { getFlowAuth, z } from '../src/index.js';
 import { Registry } from '../src/registry.js';
 
 function createTestFlow(registry: Registry) {
@@ -30,6 +30,40 @@ function createTestFlow(registry: Registry) {
     },
     async (input) => {
       return `bar ${input}`;
+    }
+  );
+}
+
+function createTestAuthFlow(registry: Registry) {
+  return defineFlow(
+    registry,
+    {
+      name: 'testFlow',
+      inputSchema: z.string(),
+      outputSchema: z.string(),
+    },
+    async (input) => {
+      return `bar ${input} ${JSON.stringify(getFlowAuth())}`;
+    }
+  );
+}
+
+function createTestAuthStreamingFlow(registry: Registry) {
+  return defineStreamingFlow(
+    registry,
+    {
+      name: 'testFlow',
+      inputSchema: z.number(),
+      outputSchema: z.string(),
+      streamSchema: z.object({ count: z.number() }),
+    },
+    async (input, streamingCallback) => {
+      if (streamingCallback) {
+        for (let i = 0; i < input; i++) {
+          streamingCallback({ count: i });
+        }
+      }
+      return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getFlowAuth())}`;
     }
   );
 }
@@ -160,6 +194,34 @@ describe('flow', () => {
         name: 'Error',
         message: 'stream bad happened: foo',
       });
+    });
+  });
+
+  describe('getFlowAuth', () => {
+    it('should run the flow', async () => {
+      const testFlow = createTestAuthFlow(registry);
+
+      const response = await testFlow('foo', {
+        withLocalAuthContext: { user: 'test-user' },
+      });
+
+      assert.equal(response, 'bar foo {"user":"test-user"}');
+    });
+
+    it('should streams the flow', async () => {
+      const testFlow = createTestAuthStreamingFlow(registry);
+
+      const response = testFlow(3, {
+        withLocalAuthContext: { user: 'test-user' },
+      });
+
+      const gotChunks: any[] = [];
+      for await (const chunk of response.stream) {
+        gotChunks.push(chunk);
+      }
+
+      assert.equal(await response.output, 'bar 3 true {"user":"test-user"}');
+      assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
     });
   });
 });

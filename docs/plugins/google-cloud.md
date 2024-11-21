@@ -90,7 +90,7 @@ The `enableGoogleCloudTelemetry()` function takes an optional configuration obje
 ```ts
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
-googleCloud({
+enableGoogleCloudTelemetry({
   forceDevExport: false, // Set this to true to export telemetry for local runs
   sampler: new AlwaysOnSampler(),
   autoInstrumentation: true,

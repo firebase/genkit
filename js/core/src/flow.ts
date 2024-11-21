@@ -301,6 +301,7 @@ export class Flow<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
+            auth: opts?.withLocalAuthContext,
           }
         ).then((s) => s.result)
       )
@@ -615,6 +616,7 @@ function registerFlowAction<
           ? undefined
           : StreamingCallback<z.infer<S>>,
         auth: envelope.auth,
+        labels: envelope.start?.labels,
       });
       return response.result;
     }
