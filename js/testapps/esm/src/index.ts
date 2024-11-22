@@ -35,15 +35,10 @@ import { GoogleAuth, IdTokenClient } from 'google-auth-library';
 enableFirebaseTelemetry();
 enableGoogleCloudTelemetry();
 
-const auth = new GoogleAuth();
-let authClient: IdTokenClient | undefined = undefined;
-
 /** Helper method to cache {@link IdTokenClient} instance */
 async function getCloudRunAuthClient(aud: string) {
-  if (!authClient) {
-    authClient = await auth.getIdTokenClient(aud);
-  }
-  return authClient;
+  const auth = new GoogleAuth();
+  return await auth.getIdTokenClient(aud);
 }
 
 export const ai = genkit({
