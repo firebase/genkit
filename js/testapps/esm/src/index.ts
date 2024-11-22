@@ -43,7 +43,7 @@ async function getCloudRunAuthClient(aud: string) {
 
 export const ai = genkit({
   plugins: [
-    checks(),
+    //checks(),
     googleAI({ apiVersion: ['v1'] }),
     vertexAI({
       location: 'us-central1',
