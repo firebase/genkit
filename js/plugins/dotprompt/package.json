@@ -40,7 +40,8 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^4.9.0",
-    "yaml": "^2.4.1"
+    "yaml": "^2.4.1",
+    "genkit": "workspace:*"
   },
   "types": "./lib/index.d.ts",
   "exports": {

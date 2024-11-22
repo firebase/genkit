@@ -285,18 +285,12 @@ export class Genkit {
     const actionPromise = (async () => {
       // check the registry first as not all prompt types can be
       // loaded by dotprompt (e.g. functional)
-      let action = (await this.registry.lookupAction(
-        `/prompt/${name}`
-      )) as PromptAction<I>;
-      // nothing in registry - check for dotprompt file.
-      if (!action) {
-        action = (
-          await prompt(this.registry, name, {
-            ...options,
-            dir: this.options.promptDir ?? './prompts',
-          })
-        ).promptAction as PromptAction<I>;
-      }
+      let action = (
+        await prompt(this.registry, name, {
+          ...options,
+          dir: this.options.promptDir ?? './prompts',
+        })
+      ).promptAction as PromptAction<I>;
       const { template, ...opts } = action.__action.metadata!.prompt;
       return { action, opts };
     })();

@@ -15,7 +15,7 @@
  */
 
 import { PromptAction } from '@genkit-ai/ai';
-import { GenkitError } from '@genkit-ai/core';
+import { GenkitError, isDevEnv } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { existsSync, readdir, readFileSync } from 'fs';
@@ -42,6 +42,10 @@ export async function lookupPrompt(
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
+  if (isDevEnv()) {
+    return maybeLoadPrompt(registry, dir, name, variant);
+  }
+
   let registryPrompt =
     (await registry.lookupAction(registryLookupKey(name, variant))) ||
     (await registry.lookupAction(
