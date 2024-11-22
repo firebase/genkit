@@ -252,7 +252,6 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
     getGenkitEnvironment: t.procedure.query(() => {
       return {
         cliPackageVersion: toolsPackage.version,
-        //TODO(michaeldoyle): packageVersion: ???,
         environmentVars: parseEnv(process.env),
       };
     }),
