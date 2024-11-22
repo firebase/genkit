@@ -61,7 +61,7 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
       ai,
       GENERIC_GEMINI_MODEL.name,
       options?.apiKey,
-      'v1beta',
+      undefined,
       options?.baseUrl,
       GENERIC_GEMINI_MODEL.info
     );
