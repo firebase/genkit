@@ -87,7 +87,7 @@ you get started:
 
 ### Evaluator plugins
 
-Genkit supports additional evaluators through plugins like the VertexAI Rapid Evaluators via the [VertexAI Plugin](plugins/vertex-ai#evaluation).
+Genkit supports additional evaluators through plugins like the VertexAI Rapid Evaluators via the [VertexAI Plugin](/plugins/vertex-ai#evaluation).
 
 ## Advanced use
 
