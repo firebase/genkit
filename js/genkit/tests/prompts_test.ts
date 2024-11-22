@@ -735,6 +735,17 @@ describe('prompt', () => {
     );
   });
 
+  it('loads a varaint from from the folder', async () => {
+    const testPrompt = ai.prompt('test', { variant: 'variant' }); // see tests/prompts folder
+
+    const { text } = await testPrompt();
+
+    assert.strictEqual(
+      text,
+      'Echo: Hello from a variant of the hello prompt\n; config: {"temperature":13}'
+    );
+  });
+
   it('returns a ref to functional prompts', async () => {
     ai.definePrompt(
       {

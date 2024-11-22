@@ -332,7 +332,7 @@ export class Genkit {
       // check the registry first as not all prompt types can be
       // loaded by dotprompt (e.g. functional)
       let action = (await this.registry.lookupAction(
-        `/prompt/${name}`
+        `/prompt/${name}${options?.variant ? `.${options?.variant}` : ''}`
       )) as PromptAction<I>;
       // nothing in registry - check for dotprompt file.
       if (!action) {
