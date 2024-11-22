@@ -16,14 +16,13 @@
 
 import {
   getStreamingCallback,
-  Middleware,
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
 import { resolveFormat } from '../formats/index.js';
@@ -40,13 +39,14 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
+  ModelMiddleware,
   Part,
-  resolveModel,
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
+  resolveModel,
 } from '../model.js';
-import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -78,7 +78,7 @@ export const GenerateUtilParamSchema = z.object({
 export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: Middleware[]
+  middleware?: ModelMiddleware[]
 ): Promise<GenerateResponseData> {
   // do tracing
   return await runInNewSpan(
@@ -103,7 +103,7 @@ export async function generateHelper(
 async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: Middleware[]
+  middleware?: ModelMiddleware[]
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {

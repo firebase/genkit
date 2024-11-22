@@ -19,7 +19,7 @@ import {
   defineAction,
   GenkitError,
   getStreamingCallback,
-  Middleware,
+  SimpleMiddleware,
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
@@ -304,7 +304,7 @@ export type ModelAction<
   __configSchema: CustomOptionsSchema;
 };
 
-export type ModelMiddleware = Middleware<
+export type ModelMiddleware = SimpleMiddleware<
   z.infer<typeof GenerateRequestSchema>,
   z.infer<typeof GenerateResponseSchema>
 >;
