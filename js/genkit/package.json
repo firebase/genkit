@@ -80,6 +80,12 @@
       "import": "./lib/schema.mjs",
       "default": "./lib/schema.js"
     },
+    "./formats": {
+      "types": "./lib/formats.d.ts",
+      "require": "./lib/formats.js",
+      "import": "./lib/formats.mjs",
+      "default": "./lib/formats.js"
+    },
     "./retriever": {
       "types": "./lib/retriever.d.ts",
       "require": "./lib/retriever.js",
@@ -169,6 +175,9 @@
       ],
       "schema": [
         "lib/schema"
+      ],
+      "formats": [
+        "lib/formats"
       ],
       "retriever": [
         "lib/retriever"
