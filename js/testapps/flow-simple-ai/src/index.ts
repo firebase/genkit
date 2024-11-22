@@ -50,7 +50,7 @@ enableGoogleCloudTelemetry({
 });
 
 const ai = genkit({
-  plugins: [googleAI(), vertexAI()],
+  plugins: [googleAI({ apiVersion: 'v1beta' }), vertexAI()],
 });
 
 const app = initializeApp();

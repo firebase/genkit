@@ -22,14 +22,22 @@ import {
   textEmbeddingGecko001,
 } from './embedder.js';
 import {
+  GENERIC_GEMINI_MODEL,
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
   defineGoogleAIModel,
+  gemini,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
 } from './gemini.js';
-export { gemini10Pro, gemini15Flash, gemini15Pro, textEmbeddingGecko001 };
+export {
+  gemini,
+  gemini10Pro,
+  gemini15Flash,
+  gemini15Pro,
+  textEmbeddingGecko001,
+};
 
 export interface PluginOptions {
   apiKey?: string;
@@ -48,6 +56,15 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
         apiVersions = [options?.apiVersion];
       }
     }
+
+    defineGoogleAIModel(
+      ai,
+      GENERIC_GEMINI_MODEL.name,
+      options?.apiKey,
+      'v1beta',
+      options?.baseUrl
+    );
+
     if (apiVersions.includes('v1beta')) {
       Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
         defineGoogleAIModel(

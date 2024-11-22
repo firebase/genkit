@@ -167,13 +167,51 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-flash-8b': gemini15Flash8b,
 };
 
-export const SUPPORTED_GEMINI_MODELS: Record<
-  string,
-  ModelReference<typeof GeminiConfigSchema>
-> = {
+export const GENERIC_GEMINI_MODEL = modelRef({
+  name: 'googleai/gemini',
+  configSchema: GeminiConfigSchema,
+  info: {
+    label: 'Google Gemini',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+    },
+  },
+});
+
+export const SUPPORTED_GEMINI_MODELS = {
   ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
-};
+} as const;
+
+function longestMatchingPrefix(version: string, potentialMatches: string[]) {
+  return potentialMatches
+    .filter((p) => version.startsWith(p))
+    .reduce(
+      (longest, current) =>
+        current.length > longest.length ? current : longest,
+      ''
+    );
+}
+
+export function gemini(
+  version: keyof typeof SUPPORTED_GEMINI_MODELS | (string & {}),
+  options: z.infer<typeof GeminiConfigSchema> = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const matchingKey = longestMatchingPrefix(
+    version,
+    Object.keys(SUPPORTED_GEMINI_MODELS)
+  );
+  if (matchingKey) {
+    return SUPPORTED_GEMINI_MODELS[matchingKey].withConfig({
+      ...options,
+      version,
+    });
+  }
+  return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
+}
 
 function toGeminiRole(
   role: MessageData['role'],
@@ -624,7 +662,7 @@ export function defineGoogleAIModel(
       const chatRequest = {
         systemInstruction,
         generationConfig,
-        tools,
+        tools: tools.length ? tools : undefined,
         toolConfig,
         history: messages
           .slice(0, -1)
