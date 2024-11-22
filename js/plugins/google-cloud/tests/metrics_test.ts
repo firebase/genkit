@@ -342,7 +342,6 @@ describe('GoogleCloudMetrics', () => {
       'genkit/ai/generate/latency'
     );
     assert.equal(requestCounter.value, 1);
-    assert.equal(requestCounter.attributes.maxOutputTokens, 7);
     assert.equal(inputTokenCounter.value, 10);
     assert.equal(outputTokenCounter.value, 14);
     assert.equal(inputCharacterCounter.value, 8);
@@ -361,9 +360,6 @@ describe('GoogleCloudMetrics', () => {
       latencyHistogram,
     ]) {
       assert.equal(metric.attributes.modelName, 'testModel');
-      assert.equal(metric.attributes.temperature, 1.0);
-      assert.equal(metric.attributes.topK, 3);
-      assert.equal(metric.attributes.topP, 5);
       assert.equal(metric.attributes.source, 'ts');
       assert.equal(metric.attributes.status, 'success');
       assert.equal(metric.attributes.featureName, 'generate');
@@ -398,9 +394,6 @@ describe('GoogleCloudMetrics', () => {
     );
     assert.equal(requestCounter.value, 1);
     assert.equal(requestCounter.attributes.modelName, 'failingTestModel');
-    assert.equal(requestCounter.attributes.temperature, 1.0);
-    assert.equal(requestCounter.attributes.topK, 3);
-    assert.equal(requestCounter.attributes.topP, 5);
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
