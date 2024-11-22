@@ -16,112 +16,31 @@
 
 import { checks } from '@genkit-ai/checks';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
+import { genkitEval } from '@genkit-ai/evaluator';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
-import {
-  claude3Sonnet,
-  llama31,
-  vertexAIModelGarden,
-} from '@genkit-ai/vertexai/modelgarden';
+import { googleAI } from '@genkit-ai/googleai';
+import { vertexAI } from '@genkit-ai/vertexai';
+import { vertexAIEvaluation } from '@genkit-ai/vertexai/evaluation';
+import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
+import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
-import { GoogleAuth, IdTokenClient } from 'google-auth-library';
 
-enableFirebaseTelemetry();
-enableGoogleCloudTelemetry();
+enableFirebaseTelemetry;
+enableGoogleCloudTelemetry;
+checks;
+googleAI;
+vertexAI;
+vertexAIModelGarden;
+vertexAIEvaluation;
+vertexAIRerankers;
+ollama;
+pinecone;
+chroma;
+devLocalVectorstore;
+genkitEval;
 
-/** Helper method to cache {@link IdTokenClient} instance */
-async function getCloudRunAuthClient(aud: string) {
-  const auth = new GoogleAuth();
-  return await auth.getIdTokenClient(aud);
-}
-
-export const ai = genkit({
-  plugins: [
-    //checks(),
-    googleAI({ apiVersion: ['v1'] }),
-    vertexAI({
-      location: 'us-central1',
-    }),
-    vertexAIModelGarden({
-      location: 'us-central1',
-      models: [claude3Sonnet, llama31],
-    }),
-    ollama({
-      models: [{ name: 'gemma', type: 'generate' }],
-      embedders: [{ name: 'nomic-embed-text', dimensions: 768 }],
-      serverAddress: 'http://127.0.0.1:11434',
-    }),
-    pinecone([
-      {
-        indexId: 'cat-facts',
-        embedder: textEmbedding004,
-      },
-      {
-        indexId: 'pdf-chat',
-        embedder: textEmbedding004,
-      },
-    ]),
-    chroma([
-      {
-        collectionName: 'dogfacts_collection',
-        embedder: textEmbedding004,
-        createCollectionIfMissing: true,
-        clientParams: async () => {
-          // Replace this with your Cloud Run Instance URL
-          const host = 'https://<my-cloud-run-url>.run.app';
-          const client = await getCloudRunAuthClient(host);
-          const idToken = await client.idTokenProvider.fetchIdToken(host);
-          return {
-            path: host,
-            fetchOptions: {
-              headers: {
-                Authorization: 'Bearer ' + idToken,
-              },
-            },
-          };
-        },
-      },
-    ]),
-    devLocalVectorstore([
-      {
-        indexName: 'dog-facts',
-        embedder: textEmbedding004,
-      },
-      {
-        indexName: 'pdfQA',
-        embedder: textEmbedding004,
-      },
-    ]),
-    genkitEval({
-      judge: gemini15Flash,
-      judgeConfig: {
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_NONE',
-          },
-        ],
-      } as any,
-      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
-    }),
-  ],
-  model: gemini15Flash,
-});
+export const ai = genkit({});
