@@ -253,6 +253,37 @@ export class Genkit {
 
   /**
    * Defines and registers a custom model output formatter.
+   * 
+   * Here's an example of a custom JSON output formatter:
+   * 
+   * ```ts
+   * import { extractJson } from 'genkit/extract';
+   *
+   * ai.defineFormat(
+   *   { name: 'customJson' },
+   *   (schema) => {
+   *     let instructions: string | undefined;
+   *     if (schema) {
+   *       instructions = `Output should be in JSON format and conform to the following schema:
+   * \`\`\`
+   * ${JSON.stringify(schema)}
+   * \`\`\`
+   * `;
+   *     }
+   *     return {
+   *       parseChunk: (chunk) => extractJson(chunk.accumulatedText),
+   *       parseMessage: (message) => extractJson(message.text),
+   *       instructions,
+   *     };
+   *   }
+   * );
+   * 
+   * const { output } = await ai.generate({
+   *   prompt: 'Invent a menu item for a pirate themed restaurant.',
+   *   output: { format: 'customJson', schema: MenuItemSchema },
+   * });
+
+   * ```
    */
   defineFormat(
     options: {
