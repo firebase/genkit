@@ -53,7 +53,7 @@ To get started with Genkit, install the Genkit CLI and run
 1.  Install the Genkit CLI by running the following command:
 
     ```posix-terminal
-    npm i -g genkit
+    npm i -g genkit-cli
     ```
 
     This command installs the Genkit CLI into your Node installation directory
