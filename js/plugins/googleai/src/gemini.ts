@@ -88,6 +88,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .optional(),
 });
+export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
   name: 'googleai/gemini-1.0-pro',
@@ -195,10 +196,13 @@ function longestMatchingPrefix(version: string, potentialMatches: string[]) {
       ''
     );
 }
+export type GeminiVersionString =
+  | keyof typeof SUPPORTED_GEMINI_MODELS
+  | (string & {});
 
 export function gemini(
-  version: keyof typeof SUPPORTED_GEMINI_MODELS | (string & {}),
-  options: z.infer<typeof GeminiConfigSchema> = {}
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
   const matchingKey = longestMatchingPrefix(
     version,
@@ -511,7 +515,7 @@ export function defineGoogleAIModel(
   apiVersion?: string,
   baseUrl?: string,
   info?: ModelInfo,
-  defaultConfig?: z.infer<typeof GeminiConfigSchema>
+  defaultConfig?: GeminiConfig
 ): ModelAction {
   if (!apiKey) {
     apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
