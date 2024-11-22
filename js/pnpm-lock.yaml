@@ -450,9 +450,6 @@ importers:
 
   plugins/google-cloud:
     dependencies:
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@google-cloud/logging-winston':
         specifier: ^6.0.0
         version: 6.0.0(encoding@0.1.13)(winston@3.13.0)
@@ -895,6 +892,64 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
+
+  testapps/esm:
+    dependencies:
+      '@genkit-ai/checks':
+        specifier: workspace:*
+        version: link:../../plugins/checks
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../../plugins/google-cloud
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 12.3.1(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      genkitx-chromadb:
+        specifier: workspace:*
+        version: link:../../plugins/chroma
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
+      genkitx-pinecone:
+        specifier: workspace:*
+        version: link:../../plugins/pinecone
+      google-auth-library:
+        specifier: ^9.6.3
+        version: 9.14.2(encoding@0.1.13)
+    devDependencies:
+      '@types/pdf-parse':
+        specifier: ^1.1.4
+        version: 1.1.4
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsx:
+        specifier: ^4.19.1
+        version: 4.19.2
+      typescript:
+        specifier: ^5.3.3
+        version: 5.6.3
 
   testapps/evals:
     dependencies:

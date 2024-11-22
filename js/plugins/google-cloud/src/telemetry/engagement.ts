@@ -23,8 +23,8 @@ import {
   MetricCounter,
   Telemetry,
   internalMetricNamespaceWrap,
-} from '../metrics';
-import { createCommonLogAttributes } from '../utils';
+} from '../metrics.js';
+import { createCommonLogAttributes } from '../utils.js';
 
 class EngagementTelemetry implements Telemetry {
   /**

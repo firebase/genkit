@@ -16,7 +16,7 @@
 
 import { TraceFlags } from '@opentelemetry/api';
 import { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
-import { resolveCurrentPrincipal } from './auth';
+import { resolveCurrentPrincipal } from './auth.js';
 
 export function extractOuterFlowNameFromPath(path: string) {
   if (!path || path === '<unknown>') {
