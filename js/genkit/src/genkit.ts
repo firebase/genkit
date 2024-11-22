@@ -285,7 +285,7 @@ export class Genkit {
     const actionPromise = (async () => {
       // check the registry first as not all prompt types can be
       // loaded by dotprompt (e.g. functional)
-      let action = (
+      const action = (
         await prompt(this.registry, name, {
           ...options,
           dir: this.options.promptDir ?? './prompts',

@@ -18,7 +18,7 @@ import { PromptAction } from '@genkit-ai/ai';
 import { GenkitError, isDevEnv } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
-import { existsSync, readdir, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdir } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';
 import { definePartial } from './template.js';
@@ -42,42 +42,64 @@ export async function lookupPrompt(
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
-  if (isDevEnv()) {
-    return maybeLoadPrompt(registry, dir, name, variant);
+  const [promptFromFile, promptFromRegistry] = await Promise.all([
+    loadPromptFromFile(registry, dir, name, variant),
+    loadPromptFromRegistry(registry, name, variant),
+  ]);
+
+  const prompt = isDevEnv()
+    ? promptFromFile || promptFromRegistry
+    : promptFromRegistry || promptFromFile;
+
+  if (!prompt) {
+    throw new GenkitError({
+      source: 'dotprompt',
+      status: 'NOT_FOUND',
+      message: `Could not find '${name}${variant ? `.${variant}` : ''}.prompt' in the prompts folder or in registry.`,
+    });
   }
 
-  let registryPrompt =
+  return prompt;
+}
+
+async function loadPromptFromRegistry(
+  registry: Registry,
+  name: string,
+  variant?: string
+) {
+  const registryPrompt = await registry.lookupAction(`/prompt/${name}`);
+
+  const registryPromptWithVariant =
     (await registry.lookupAction(registryLookupKey(name, variant))) ||
     (await registry.lookupAction(
       registryLookupKey(name, variant, 'dotprompt')
     ));
+
+  if (registryPromptWithVariant) {
+    return Dotprompt.fromAction(
+      registry,
+      registryPromptWithVariant as PromptAction
+    );
+  }
   if (registryPrompt) {
     return Dotprompt.fromAction(registry, registryPrompt as PromptAction);
-  } else {
-    // Handle the case where initialization isn't complete
-    // or a file was added after the prompt folder was loaded.
-    return maybeLoadPrompt(registry, dir, name, variant);
   }
+  return null;
 }
 
-async function maybeLoadPrompt(
+async function loadPromptFromFile(
   registry: Registry,
   dir: string,
   name: string,
   variant?: string
-): Promise<Dotprompt> {
+): Promise<Dotprompt | null> {
   const expectedFileName = `${name}${variant ? `.${variant}` : ''}.prompt`;
   const promptFolder = resolve(dir);
   const promptExists = existsSync(join(promptFolder, expectedFileName));
   if (promptExists) {
     return loadPrompt(registry, promptFolder, expectedFileName);
-  } else {
-    throw new GenkitError({
-      source: 'dotprompt',
-      status: 'NOT_FOUND',
-      message: `Could not find '${expectedFileName}' in the prompts folder.`,
-    });
   }
+  return null;
 }
 
 export async function loadPromptFolder(
