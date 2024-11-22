@@ -253,9 +253,9 @@ export class Genkit {
 
   /**
    * Defines and registers a custom model output formatter.
-   * 
+   *
    * Here's an example of a custom JSON output formatter:
-   * 
+   *
    * ```ts
    * import { extractJson } from 'genkit/extract';
    *
@@ -277,12 +277,11 @@ export class Genkit {
    *     };
    *   }
    * );
-   * 
+   *
    * const { output } = await ai.generate({
    *   prompt: 'Invent a menu item for a pirate themed restaurant.',
    *   output: { format: 'customJson', schema: MenuItemSchema },
    * });
-
    * ```
    */
   defineFormat(
