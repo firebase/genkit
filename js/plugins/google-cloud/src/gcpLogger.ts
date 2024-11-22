@@ -18,8 +18,8 @@ import { LoggingWinston } from '@google-cloud/logging-winston';
 import { getCurrentEnv } from 'genkit';
 import { logger } from 'genkit/logging';
 import { Writable } from 'stream';
-import { GcpTelemetryConfig } from './types';
-import { loggingDenied, loggingDeniedHelpText } from './utils';
+import { GcpTelemetryConfig } from './types.js';
+import { loggingDenied, loggingDeniedHelpText } from './utils.js';
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.

@@ -15,7 +15,7 @@
  */
 import { logger } from 'genkit/logging';
 import { auth, GoogleAuth } from 'google-auth-library';
-import { GcpPrincipal, GcpTelemetryConfig } from './types';
+import { GcpPrincipal, GcpTelemetryConfig } from './types.js';
 
 /**
  * Allows Google Cloud credentials to be to passed in "raw" as an environment

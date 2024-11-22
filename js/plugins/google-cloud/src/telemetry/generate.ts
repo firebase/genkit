@@ -34,12 +34,12 @@ import {
   MetricCounter,
   MetricHistogram,
   Telemetry,
-} from '../metrics';
+} from '../metrics.js';
 import {
   createCommonLogAttributes,
   extractErrorName,
   extractOuterFeatureNameFromPath,
-} from '../utils';
+} from '../utils.js';
 
 type SharedDimensions = {
   modelName?: string;
