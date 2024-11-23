@@ -292,7 +292,7 @@ alongside the native flows. You have two options:
     });  // Registers the middleware
     ```
 
-    For more information about using Express, see the [Cloud Run](/genkit/express)
+    For more information about using Express, see the [Cloud Run](/genkit/cloud-run)
     instructions.
 
 Please note, if you go with (1), you the `middleware` configuration option will
