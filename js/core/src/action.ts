@@ -34,7 +34,7 @@ export { JSONSchema7 };
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
+  S extends z.ZodTypeAny,
 > {
   actionType?: ActionType;
   name: string;
@@ -43,7 +43,8 @@ export interface ActionMetadata<
   inputJsonSchema?: JSONSchema7;
   outputSchema?: O;
   outputJsonSchema?: JSONSchema7;
-  metadata?: M;
+  streamSchema?: S;
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -93,16 +94,15 @@ export interface ActionFnArg<S> {
 export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
-  S = any,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > = ((
   input: z.infer<I>,
   options?: ActionRunOptions<S>
 ) => Promise<z.infer<O>>) & {
-  __action: ActionMetadata<I, O, M>;
+  __action: ActionMetadata<I, O, S>;
   run(
     input: z.infer<I>,
-    options?: ActionRunOptions<S>
+    options?: ActionRunOptions<z.infer<S>>
   ): Promise<ActionResult<z.infer<O>>>;
 };
 
@@ -112,7 +112,6 @@ export type Action<
 type ActionParams<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
   name:
@@ -126,7 +125,7 @@ type ActionParams<
   inputJsonSchema?: JSONSchema7;
   outputSchema?: O;
   outputJsonSchema?: JSONSchema7;
-  metadata?: M;
+  metadata?: Record<string, any>;
   use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
   streamingSchema?: S;
 };
@@ -155,15 +154,14 @@ export type Middleware<I = any, O = any, S = any> =
 export function actionWithMiddleware<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  action: Action<I, O, M>,
+  action: Action<I, O, S>,
   middleware: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[]
-): Action<I, O, M> {
+): Action<I, O, S> {
   const wrapped = (async (req: z.infer<I>) => {
     return (await wrapped.run(req)).result;
-  }) as Action<I, O, M>;
+  }) as Action<I, O, S>;
   wrapped.__action = action.__action;
   wrapped.run = async (
     req: z.infer<I>,
@@ -211,10 +209,9 @@ export function actionWithMiddleware<
 export function action<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: ActionParams<I, O, M, S>,
+  config: ActionParams<I, O, S>,
   fn: (
     input: z.infer<I>,
     options: ActionFnArg<z.infer<S>>
@@ -235,7 +232,7 @@ export function action<
     outputSchema: config.outputSchema,
     outputJsonSchema: config.outputJsonSchema,
     metadata: config.metadata,
-  } as ActionMetadata<I, O, M>;
+  } as ActionMetadata<I, O, S>;
   actionFn.run = async (
     input: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
@@ -317,11 +314,10 @@ function validateActionId(actionId: string) {
 export function defineAction<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  config: ActionParams<I, O, M> & {
+  config: ActionParams<I, O, S> & {
     actionType: ActionType;
   },
   fn: (

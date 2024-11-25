@@ -299,7 +299,7 @@ export type ModelAction<
 > = Action<
   typeof GenerateRequestSchema,
   typeof GenerateResponseSchema,
-  { model: ModelInfo }
+  typeof GenerateResponseChunkSchema
 > & {
   __configSchema: CustomOptionsSchema;
 };
