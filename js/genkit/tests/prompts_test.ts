@@ -811,10 +811,10 @@ describe('prompt', () => {
     };
 
     const { output } = await hi({
-      name: 'Pavel'
+      name: 'Pavel',
     });
 
-    assert.deepStrictEqual(output, {message: 'hello'});
+    assert.deepStrictEqual(output, { message: 'hello' });
   });
 });
 
