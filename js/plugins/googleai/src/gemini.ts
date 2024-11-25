@@ -15,7 +15,6 @@
  */
 
 import {
-  CachedContent,
   FileDataPart,
   FunctionCallingMode,
   FunctionCallPart,
@@ -63,11 +62,8 @@ import {
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import process from 'process';
-import { handleContextCache } from './context-caching';
-import {
-  extractCacheConfig,
-  validateContextCacheRequest,
-} from './context-caching/utils';
+import { handleCacheIfNeeded } from './context-caching';
+import { extractCacheConfig } from './context-caching/utils';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -560,14 +556,13 @@ export function defineGoogleAIModel(
         ...request.config,
       };
 
-      // make a copy so that modifying the request will not produce side-effects
+      // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
 
       // Gemini does not support messages with role system and instead expects
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
-      // Any additional system messages may be considered to be "exceptional".
       let systemInstruction: GeminiMessage | undefined = undefined;
       if (SUPPORTED_V15_MODELS[name]) {
         const systemMessage = messages.find((m) => m.role === 'system');
@@ -606,7 +601,7 @@ export function defineGoogleAIModel(
         };
       }
 
-      //  cannot use tools with json mode
+      // Cannot use tools with JSON mode
       const jsonMode =
         (request.output?.format === 'json' ||
           request.output?.contentType === 'application/json') &&
@@ -634,7 +629,7 @@ export function defineGoogleAIModel(
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      let chatRequest = {
+      let chatRequest: StartChatParams = {
         systemInstruction,
         generationConfig,
         tools,
@@ -644,47 +639,35 @@ export function defineGoogleAIModel(
           .map((message) => toGeminiMessage(message, model)),
         safetySettings: requestConfig.safetySettings,
       } as StartChatParams;
-
-      let cache: CachedContent | null = null;
-
-      // TODO: fix casting
       const modelVersion = (request.config?.version ||
         model.version ||
         name) as string;
-
       const cacheConfigDetails = extractCacheConfig(request);
 
-      if (
-        cacheConfigDetails &&
-        validateContextCacheRequest(request, modelVersion)
-      ) {
-        const handleContextCacheResponse = await handleContextCache(
+      const { chatRequest: updatedChatRequest, cache } =
+        await handleCacheIfNeeded(
           apiKey!,
           request,
           chatRequest,
           modelVersion,
           cacheConfigDetails
         );
-        chatRequest = handleContextCacheResponse.newChatRequest;
-        cache = handleContextCacheResponse.cache;
-      }
-
-      let genModel: GenerativeModel | null = null;
 
       const client = new GoogleGenerativeAI(apiKey!);
+      let genModel: GenerativeModel;
 
       if (cache) {
         genModel = client.getGenerativeModelFromCachedContent(
           cache,
           {
-            model: request.config?.version || model.version || name,
+            model: modelVersion,
           },
           options
         );
       } else {
         genModel = client.getGenerativeModel(
           {
-            model: request.config?.version || model.version || name,
+            model: modelVersion,
           },
           options
         );
@@ -692,7 +675,7 @@ export function defineGoogleAIModel(
 
       if (streamingCallback) {
         const result = await genModel
-          .startChat(chatRequest)
+          .startChat(updatedChatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
@@ -715,17 +698,17 @@ export function defineGoogleAIModel(
           });
         }
         return {
-          candidates: candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
+          candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
           custom: response,
         };
       } else {
         const result = await genModel
-          .startChat(chatRequest)
+          .startChat(updatedChatRequest)
           .sendMessage(msg.parts, options);
         if (!result.response.candidates?.length)
           throw new Error('No valid candidates returned.');
         const responseCandidates =
-          result.response.candidates?.map(fromJSONModeScopedGeminiCandidate) ||
+          result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
           [];
         return {
           candidates: responseCandidates,

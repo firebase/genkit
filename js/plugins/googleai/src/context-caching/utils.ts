@@ -18,7 +18,6 @@ import { CachedContent, StartChatParams } from '@google/generative-ai';
 import { GoogleAICacheManager } from '@google/generative-ai/server';
 import crypto from 'crypto';
 import { GenkitError, MessageData, z } from 'genkit';
-import { logger } from 'genkit/logging';
 import { GenerateRequest } from 'genkit/model';
 import {
   CONTEXT_CACHE_SUPPORTED_MODELS,
@@ -116,52 +115,6 @@ export async function lookupContextCache(
 }
 
 /**
- * Clears all caches using the cache manager.
- */
-export async function clearAllCaches(
-  cacheManager: GoogleAICacheManager,
-  maxPages = 100,
-  pageSize = 100
-): Promise<void> {
-  let currentPage = 0;
-  let pageToken: string | undefined;
-  let totalDeleted = 0;
-
-  while (currentPage < maxPages) {
-    try {
-      const { cachedContents, nextPageToken } = await cacheManager.list({
-        pageSize,
-        pageToken,
-      });
-      totalDeleted += await deleteCachedContents(cacheManager, cachedContents);
-
-      if (!nextPageToken) break;
-      pageToken = nextPageToken;
-      currentPage++;
-    } catch (error) {
-      throw new GenkitError({
-        status: 'INTERNAL',
-        message: `Error clearing caches on page ${currentPage + 1}: ${error}`,
-      });
-    }
-  }
-  logger.info(`Total caches deleted: ${totalDeleted}`);
-}
-
-/**
- * Helper to delete cached contents and return the number of deletions.
- */
-async function deleteCachedContents(
-  cacheManager: GoogleAICacheManager,
-  cachedContents: CachedContent[] = []
-): Promise<number> {
-  for (const content of cachedContents) {
-    if (content.name) await cacheManager.delete(content.name);
-  }
-  return cachedContents.length;
-}
-
-/**
  * Extracts the cache configuration from the request if available.
  */
 export const extractCacheConfig = (
@@ -189,7 +142,7 @@ export const extractCacheConfig = (
  * Validates context caching request for compatibility with model and request configurations.
  */
 export function validateContextCacheRequest(
-  request: any,
+  request: GenerateRequest<z.ZodTypeAny>,
   modelVersion: string
 ): boolean {
   if (!modelVersion || !CONTEXT_CACHE_SUPPORTED_MODELS.includes(modelVersion)) {

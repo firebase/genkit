@@ -17,15 +17,14 @@
 import { CachedContent, StartChatParams } from '@google-cloud/vertexai';
 import { CachedContents } from '@google-cloud/vertexai/build/src/resources';
 import crypto from 'crypto';
-import { GenkitError, MessageData, z } from 'genkit';
-import { logger } from 'genkit/logging';
+import { GenkitError, z } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import {
   CONTEXT_CACHE_SUPPORTED_MODELS,
   DEFAULT_TTL,
   INVALID_ARGUMENT_MESSAGES,
 } from './constants';
-import { CacheConfig, CacheConfigDetails, cacheConfigSchema } from './types';
+import { CacheConfig, CacheConfigDetails } from './types';
 
 /**
  * Generates a SHA-256 hash to use as a cache key.
@@ -116,80 +115,10 @@ export async function lookupContextCache(
 }
 
 /**
- * Clears all caches using the cache manager.
- */
-export async function clearAllCaches(
-  cacheManager: CachedContents,
-  maxPages = 100,
-  pageSize = 100
-): Promise<void> {
-  let currentPage = 0;
-  let pageToken: string | undefined;
-  let totalDeleted = 0;
-
-  while (currentPage < maxPages) {
-    try {
-      const { cachedContents, nextPageToken } = await cacheManager.list(
-        pageSize,
-        pageToken
-      );
-      totalDeleted += await deleteCachedContents(cacheManager, cachedContents);
-
-      if (!nextPageToken) break;
-      pageToken = nextPageToken;
-      currentPage++;
-    } catch (error) {
-      throw new GenkitError({
-        status: 'INTERNAL',
-        message: `Error clearing caches on page ${currentPage + 1}: ${error}`,
-      });
-    }
-  }
-  logger.info(`Total caches deleted: ${totalDeleted}`);
-}
-
-/**
- * Helper to delete cached contents and return the number of deletions.
- */
-async function deleteCachedContents(
-  cacheManager: CachedContents,
-  cachedContents: CachedContent[] = []
-): Promise<number> {
-  for (const content of cachedContents) {
-    if (content.name) await cacheManager.delete(content.name);
-  }
-  return cachedContents.length;
-}
-
-/**
- * Extracts the cache configuration from the request if available.
- */
-export const extractCacheConfig = (
-  request: GenerateRequest<z.ZodTypeAny>
-): {
-  cacheConfig: { ttlSeconds?: number } | boolean;
-  endOfCachedContents: number;
-} | null => {
-  const endOfCachedContents = findLastIndex<MessageData>(
-    request.messages,
-    (message) => !!message.metadata?.cache
-  );
-
-  return endOfCachedContents === -1
-    ? null
-    : {
-        endOfCachedContents,
-        cacheConfig: cacheConfigSchema.parse(
-          request.messages[endOfCachedContents].metadata?.cache
-        ),
-      };
-};
-
-/**
  * Validates context caching request for compatibility with model and request configurations.
  */
 export function validateContextCacheRequest(
-  request: any,
+  request: GenerateRequest<z.ZodTypeAny>,
   modelVersion: string
 ): boolean {
   if (!modelVersion || !CONTEXT_CACHE_SUPPORTED_MODELS.includes(modelVersion)) {

@@ -15,7 +15,6 @@
  */
 
 import {
-  CachedContent,
   Content,
   FunctionCallingMode,
   FunctionDeclaration,
@@ -23,7 +22,6 @@ import {
   Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
-  GenerateContentResult,
   GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
@@ -54,11 +52,8 @@ import {
 } from 'genkit/model/middleware';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
-import { handleContextCache } from './context-caching/index.js';
-import {
-  extractCacheConfig,
-  validateContextCacheRequest,
-} from './context-caching/utils.js';
+import { handleCacheIfNeeded } from './context-caching/index.js';
+import { extractCacheConfig } from './context-caching/utils.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
@@ -480,14 +475,11 @@ export function defineGeminiModel(
     async (request, streamingCallback) => {
       const vertex = vertexClientFactory(request);
 
-      // make a copy so that modifying the request will not produce side-effects
+      // Make a copy of messages to avoid side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
 
-      // Gemini does not support messages with role system and instead expects
-      // systemInstructions to be provided as a separate input. The first
-      // message detected with role=system will be used for systemInstructions.
-      // Any additional system messages may be considered to be "exceptional".
+      // Handle system instructions separately
       let systemInstruction: Content | undefined = undefined;
       if (SUPPORTED_V15_MODELS[name]) {
         const systemMessage = messages.find((m) => m.role === 'system');
@@ -498,7 +490,7 @@ export function defineGeminiModel(
       }
 
       const tools = request.tools?.length
-        ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
+        ? [{ functionDeclarations: request.tools.map(toGeminiTool) }]
         : [];
 
       let toolConfig: ToolConfig | undefined;
@@ -513,6 +505,7 @@ export function defineGeminiModel(
           },
         };
       }
+
       // Cannot use tools and function calling at the same time
       const jsonMode =
         (request.output?.format === 'json' || !!request.output?.schema) &&
@@ -537,53 +530,44 @@ export function defineGeminiModel(
         safetySettings: request.config?.safetySettings,
       };
 
-      let cache: CachedContent | null = null;
-
-      // TODO: fix casting
+      // Handle cache
       const modelVersion = (request.config?.version ||
         model.version ||
         name) as string;
-
       const cacheConfigDetails = extractCacheConfig(request);
 
-      if (
-        cacheConfigDetails &&
-        validateContextCacheRequest(request, modelVersion)
-      ) {
-        const apiClient = new ApiClient(
-          options.projectId!,
-          options.location,
-          'v1beta1',
-          new GoogleAuth(options.googleAuth!)
-        );
+      const apiClient = new ApiClient(
+        options.projectId!,
+        options.location,
+        'v1beta1',
+        new GoogleAuth(options.googleAuth!)
+      );
 
-        const handleContextCacheResponse = await handleContextCache(
+      const { chatRequest: updatedChatRequest, cache } =
+        await handleCacheIfNeeded(
           apiClient,
           request,
           chatRequest,
           modelVersion,
           cacheConfigDetails
         );
-        chatRequest = handleContextCacheResponse.newChatRequest;
-        cache = handleContextCacheResponse.cache;
-      }
 
-      let genModel: GenerativeModelPreview | null = null;
+      let genModel: GenerativeModelPreview;
 
       if (jsonMode && request.output?.constrained) {
-        chatRequest.generationConfig!.responseSchema = cleanSchema(
+        updatedChatRequest.generationConfig!.responseSchema = cleanSchema(
           request.output.schema
         );
       }
 
       if (request.config?.googleSearchRetrieval) {
-        chatRequest.tools?.push({
+        updatedChatRequest.tools?.push({
           googleSearchRetrieval: request.config
             .googleSearchRetrieval as GoogleSearchRetrieval,
         });
       }
+
       if (request.config?.vertexRetrieval) {
-        // https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#ground-gemini
         const vertexRetrieval = request.config.vertexRetrieval;
         const _projectId =
           vertexRetrieval.datastore.projectId || options.projectId;
@@ -591,7 +575,7 @@ export function defineGeminiModel(
           vertexRetrieval.datastore.location || options.location;
         const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
         const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
-        chatRequest.tools?.push({
+        updatedChatRequest.tools?.push({
           retrieval: {
             vertexAiSearch: {
               datastore,
@@ -600,13 +584,14 @@ export function defineGeminiModel(
           },
         });
       }
+
       const msg = toGeminiMessage(messages[messages.length - 1], model);
 
       if (cache) {
         genModel = vertex.preview.getGenerativeModelFromCachedContent(
           cache,
           {
-            model: request.config?.version || model.version || name,
+            model: modelVersion,
           },
           {
             apiClient: GENKIT_CLIENT_HEADER,
@@ -615,7 +600,7 @@ export function defineGeminiModel(
       } else {
         genModel = vertex.preview.getGenerativeModel(
           {
-            model: request.config?.version || model.version || name,
+            model: modelVersion,
           },
           {
             apiClient: GENKIT_CLIENT_HEADER,
@@ -623,10 +608,12 @@ export function defineGeminiModel(
         );
       }
 
+      // Handle streaming and non-streaming responses
       if (streamingCallback) {
         const result = await genModel
-          .startChat(chatRequest)
+          .startChat(updatedChatRequest)
           .sendMessageStream(msg.parts);
+
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
             const c = fromGeminiCandidate(candidate, jsonMode);
@@ -636,30 +623,31 @@ export function defineGeminiModel(
             });
           });
         }
+
         const response = await result.response;
         if (!response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
+
         return {
-          candidates:
-            response.candidates?.map((c) => fromGeminiCandidate(c, jsonMode)) ||
-            [],
+          candidates: response.candidates.map((c) =>
+            fromGeminiCandidate(c, jsonMode)
+          ),
           custom: response,
         };
       } else {
-        let result: GenerateContentResult | undefined;
-        try {
-          result = await genModel.startChat(chatRequest).sendMessage(msg.parts);
-        } catch (err) {
-          throw new Error(`Vertex response generation failed: ${err}`);
-        }
+        const result = await genModel
+          .startChat(updatedChatRequest)
+          .sendMessage(msg.parts);
+
         if (!result?.response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
-        const responseCandidates =
-          result.response.candidates?.map((c) =>
-            fromGeminiCandidate(c, jsonMode)
-          ) || [];
+
+        const responseCandidates = result.response.candidates.map((c) =>
+          fromGeminiCandidate(c, jsonMode)
+        );
+
         return {
           candidates: responseCandidates,
           custom: result.response,

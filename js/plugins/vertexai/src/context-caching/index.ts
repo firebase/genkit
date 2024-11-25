@@ -26,6 +26,7 @@ import {
   generateCacheKey,
   getContentForCache,
   lookupContextCache,
+  validateContextCacheRequest,
 } from './utils.js';
 
 /**
@@ -94,4 +95,38 @@ export async function handleContextCache(
   newChatRequest.cachedContent = cache.name;
 
   return { cache, newChatRequest };
+}
+
+/**
+ * Handles cache validation, creation, and usage, transforming the chatRequest if necessary.
+ * @param apiClient The API client for Vertex AI.
+ * @param options Plugin options containing project details and auth.
+ * @param request The generate request passed to the model.
+ * @param chatRequest The current chat request configuration.
+ * @param modelVersion The version of the model being used.
+ * @param cacheConfigDetails Configuration details for caching.
+ * @returns A transformed chat request and cache data (if applicable).
+ */
+export async function handleCacheIfNeeded(
+  apiClient: ApiClient,
+  request: GenerateRequest<z.ZodTypeAny>,
+  chatRequest: StartChatParams,
+  modelVersion: string,
+  cacheConfigDetails: CacheConfigDetails | null
+): Promise<{ chatRequest: StartChatParams; cache: CachedContent | null }> {
+  if (
+    !cacheConfigDetails ||
+    !validateContextCacheRequest(request, modelVersion)
+  ) {
+    return { chatRequest, cache: null };
+  }
+
+  const { cache, newChatRequest } = await handleContextCache(
+    apiClient,
+    request,
+    chatRequest,
+    modelVersion,
+    cacheConfigDetails
+  );
+  return { chatRequest: newChatRequest, cache };
 }

@@ -27,6 +27,7 @@ import {
   generateCacheKey,
   getContentForCache,
   lookupContextCache,
+  validateContextCacheRequest,
 } from './utils.js';
 
 /**
@@ -88,4 +89,38 @@ export async function handleContextCache(
   }
 
   return { cache, newChatRequest };
+}
+
+/**
+ * Handles cache validation, creation, and usage, transforming the chatRequest if necessary.
+ * @param apiKey The API key for accessing Google AI Gemini.
+ * @param request The generate request passed to the model.
+ * @param chatRequest The current chat request configuration.
+ * @param modelVersion The version of the model being used.
+ * @param cacheConfigDetails Configuration details for caching.
+ * @returns A transformed chat request and cache data (if applicable).
+ */
+export async function handleCacheIfNeeded(
+  apiKey: string,
+  request: GenerateRequest<z.ZodTypeAny>,
+  chatRequest: StartChatParams,
+  modelVersion: string,
+  cacheConfigDetails: CacheConfigDetails | null
+): Promise<{ chatRequest: StartChatParams; cache: CachedContent | null }> {
+  // Skip caching if no configuration or if validation fails
+  if (
+    !cacheConfigDetails ||
+    !validateContextCacheRequest(request, modelVersion)
+  ) {
+    return { chatRequest, cache: null };
+  }
+
+  const { cache, newChatRequest } = await handleContextCache(
+    apiKey,
+    request,
+    chatRequest,
+    modelVersion,
+    cacheConfigDetails
+  );
+  return { chatRequest: newChatRequest, cache };
 }
