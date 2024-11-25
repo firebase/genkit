@@ -89,7 +89,7 @@ export async function deliciousnessScore<
   });
 
   // Call the LLM to generate an evaluation result
-  const response = await generate({
+  const response = await ai.generate({
     model: judgeLlm,
     prompt: finalPrompt,
     config: judgeConfig,
