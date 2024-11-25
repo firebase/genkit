@@ -25,12 +25,7 @@ import { GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
-import {
-  flushTracing,
-  newTrace,
-  setCustomMetadataAttribute,
-  setTelemetryServerUrl,
-} from './tracing.js';
+import { flushTracing, setTelemetryServerUrl } from './tracing.js';
 
 // TODO: Move this to common location for schemas.
 export const RunActionResponseSchema = z.object({
@@ -169,48 +164,30 @@ export class ReflectionServer {
           return;
         }
         if (stream === 'true') {
-          const result = await newTrace(
-            { name: 'dev-run-action-wrapper' },
-            async (_, span) => {
-              setCustomMetadataAttribute('genkit-dev-internal', 'true');
-              traceId = span.spanContext().traceId;
-              return await runWithStreamingCallback(
-                (chunk) => {
-                  response.write(JSON.stringify(chunk) + '\n');
-                },
-                async () => await action(input)
-              );
-            }
+          const result = await runWithStreamingCallback(
+            (chunk) => {
+              response.write(JSON.stringify(chunk) + '\n');
+            },
+            async () => await action.run(input)
           );
           await flushTracing();
           response.write(
             JSON.stringify({
-              result,
-              telemetry: traceId
-                ? {
-                    traceId,
-                  }
-                : undefined,
+              result: result.result,
+              telemetry: {
+                traceId: result.telemetry.traceId,
+              },
             } as RunActionResponse)
           );
           response.end();
         } else {
-          const result = await newTrace(
-            { name: 'dev-run-action-wrapper' },
-            async (_, span) => {
-              setCustomMetadataAttribute('genkit-dev-internal', 'true');
-              traceId = span.spanContext().traceId;
-              return await action(input);
-            }
-          );
+          const result = await action.run(input);
           await flushTracing();
           response.send({
-            result,
-            telemetry: traceId
-              ? {
-                  traceId,
-                }
-              : undefined,
+            result: result.result,
+            telemetry: {
+              traceId: result.telemetry.traceId,
+            },
           } as RunActionResponse);
         }
       } catch (err) {

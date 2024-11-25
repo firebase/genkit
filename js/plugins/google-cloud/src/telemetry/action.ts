@@ -30,7 +30,7 @@ import {
   createCommonLogAttributes,
   extractErrorName,
   extractOuterFeatureNameFromPath,
-} from '../utils';
+} from '../utils.js';
 
 class ActionTelemetry implements Telemetry {
   /**

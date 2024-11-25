@@ -4,7 +4,7 @@
   {% setvar custom_project %}/docs/genkit/_project.yaml{% endsetvar %}
   {% setvar supportsNode %}true{% endsetvar %}
   {% setvar supportsGolang %}true{% endsetvar %}
-  {% setvar youtubeID %}M8rfDySBBvM{% endsetvar %}
+  {% setvar youtubeID %}vZ23UxcJ7Kk{% endsetvar %}
 {% endblock variables %}
 
 {% block extraMeta %}

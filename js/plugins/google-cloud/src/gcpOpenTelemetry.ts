@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/core/logging';
 import {
   ExporterOptions,
   MetricExporter,
@@ -50,20 +49,21 @@ import {
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
+import { logger } from 'genkit/logging';
 import { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { pathsTelemetry } from './telemetry/path.js';
-import { GcpTelemetryConfig } from './types';
+import { GcpTelemetryConfig } from './types.js';
 import {
   extractErrorName,
   metricsDenied,
   metricsDeniedHelpText,
   tracingDenied,
   tracingDeniedHelpText,
-} from './utils';
+} from './utils.js';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;

@@ -25,8 +25,8 @@ import {
   MetricHistogram,
   Telemetry,
   internalMetricNamespaceWrap,
-} from '../metrics';
-import { createCommonLogAttributes, extractErrorName } from '../utils';
+} from '../metrics.js';
+import { createCommonLogAttributes, extractErrorName } from '../utils.js';
 
 class FeaturesTelemetry implements Telemetry {
   /**
