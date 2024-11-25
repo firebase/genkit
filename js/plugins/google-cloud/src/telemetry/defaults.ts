@@ -16,7 +16,7 @@
 
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { isDevEnv } from 'genkit';
-import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from '../types';
+import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from '../types.js';
 
 /** Consolidated defaults for telemetry configuration. */
 

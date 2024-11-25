@@ -20,7 +20,7 @@ import { getDerivedParams } from '../common/index.js';
 import { vertexEvaluators } from './evaluation.js';
 import { PluginOptions } from './types.js';
 export { VertexAIEvaluationMetricType } from './types.js';
-export { PluginOptions };
+export { type PluginOptions };
 
 /**
  * Add Google Cloud Vertex AI Rerankers API to Genkit.

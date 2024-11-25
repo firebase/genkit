@@ -36,6 +36,8 @@ export interface RuntimeInfo {
   reflectionServerUrl: string;
   /** Timestamp when the runtime was started. */
   timestamp: string;
+  /** Display name for the project, typically basename of the root folder */
+  projectName?: string;
 }
 
 export enum RuntimeEvent {

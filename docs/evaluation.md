@@ -87,13 +87,7 @@ you get started:
 
 ### Evaluator plugins
 
-Genkit supports additional evaluators through plugins:
-
-*   VertexAI Rapid Evaluators via the [VertexAI
-    Plugin](http://plugins/vertex-ai#evaluation).
-*   [LangChain Criteria
-    Evaluation](https://python.langchain.com/docs/guides/productionization/evaluation/string/criteria_eval_chain/)
-    via the [LangChain plugin](http://plugins/langchain.md).
+Genkit supports additional evaluators through plugins like the VertexAI Rapid Evaluators via the [VertexAI Plugin](./plugins/vertex-ai#evaluation).
 
 ## Advanced use
 

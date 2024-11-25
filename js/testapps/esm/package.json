@@ -1,0 +1,42 @@
+{
+  "name": "rag",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node lib/index.js",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
+    "compile": "tsc",
+    "build": "pnpm build:clean && pnpm compile",
+    "build:clean": "rimraf ./lib",
+    "build:watch": "tsc --watch",
+    "test": "pnpm build && node lib/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/checks": "workspace:*",
+    "@genkit-ai/dev-local-vectorstore": "workspace:*",
+    "@genkit-ai/evaluator": "workspace:*",
+    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/google-cloud": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "firebase-admin": ">=12.2",
+    "genkit": "workspace:*",
+    "genkitx-chromadb": "workspace:*",
+    "genkitx-ollama": "workspace:*",
+    "genkitx-pinecone": "workspace:*",
+    "google-auth-library": "^9.6.3"
+  },
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.4",
+    "cross-env": "^7.0.3",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.1",
+    "typescript": "^5.3.3"
+  }
+}

@@ -16,7 +16,7 @@
 
 import { gemini15Flash } from '@genkit-ai/vertexai';
 import { z } from 'genkit';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import { TextMenuQuestionInputSchema } from '../types.js';
 
 export const s05_readMenuPrompt = ai.definePrompt(

@@ -40,7 +40,7 @@ import {
   imagen3Fast,
   imagenModel,
 } from './imagen.js';
-export type { PluginOptions } from './common/types.js';
+export { type PluginOptions } from './common/types.js';
 export {
   gemini10Pro,
   gemini15Flash,
@@ -53,6 +53,7 @@ export {
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 };
+
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */

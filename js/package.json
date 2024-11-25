@@ -15,12 +15,25 @@
     "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
     "pack:genkit": "cd genkit && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|plugins|genkit)/**\" test"
+    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|plugins|genkit)/**\" test && pnpm test:esm",
+    "test:esm": "cd testapps/esm && pnpm test",
+    "gendocs": "pnpm build && pnpm typedoc",
+    "typedoc-html": "typedoc --options typedoc.json"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
-    "typescript": "^4.9.0"
+    "typescript": "^4.9.0",
+    "typedoc": "^0.26.11",
+    "typedoc-plugin-markdown": "^4.2.10",
+    "typedoc-plugin-zod": "^1.2.1",
+    "typedoc-material-theme": "^1.1.0",
+    "tsx": "^4.19.2"
   },
-  "packageManager": "pnpm@9.12.2+sha256.2ef6e547b0b07d841d605240dce4d635677831148cd30f6d564b8f4f928f73d2"
+  "pnpm": {
+    "overrides": {
+      "cross-spawn": "^7.0.5"
+    }
+  },
+  "packageManager": "pnpm@9.13.2+sha256.ccce81bf7498c5f0f80e31749c1f8f03baba99d168f64590fc7e13fad3ea1938"
 }

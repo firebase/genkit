@@ -15,7 +15,7 @@
  */
 
 import { MessageData, MessageSchema } from '@genkit-ai/ai/model';
-import * as z from 'zod';
+import { z } from 'genkit';
 
 // Our flow will take a sessionId along with each question to track the chat history.
 // The host application should keep track of these ids somewhere.

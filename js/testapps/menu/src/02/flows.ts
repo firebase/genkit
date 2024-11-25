@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types.js';
 import { s02_dataMenuPrompt } from './prompts.js';
 

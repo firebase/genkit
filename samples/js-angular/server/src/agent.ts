@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import { GenerateResponse, generate } from '@genkit-ai/ai';
 import {
-  GenerateResponseSchema,
+  GenerateResponse,
+  Genkit,
   MessageData,
   ModelArgument,
   PartSchema,
-} from '@genkit-ai/ai/model';
-import { ToolArgument } from '@genkit-ai/ai/tool';
-import { defineFlow, run } from '@genkit-ai/flow';
-import { z } from 'zod';
+  ToolArgument,
+  run,
+  z,
+} from 'genkit';
+import { GenerateResponseSchema } from 'genkit/model';
 
 export interface HistoryStore {
   load(id: string): Promise<MessageData[] | undefined>;
@@ -42,6 +43,7 @@ type AgentFn = (
 ) => Promise<GenerateResponse<any>>;
 
 export function defineAgent(
+  ai: Genkit,
   {
     name,
     tools,
@@ -59,7 +61,7 @@ export function defineAgent(
   },
   customFn?: AgentFn
 ) {
-  return defineFlow(
+  return ai.defineFlow(
     { name, inputSchema: AgentInput, outputSchema: GenerateResponseSchema },
     async (request, streamingCallback) => {
       const history = await run(
@@ -86,9 +88,9 @@ export function defineAgent(
       );
       const resp = customFn
         ? await customFn(request, history)
-        : await generate({
+        : await ai.generate({
             prompt: request.prompt,
-            history,
+            messages: history,
             model,
             tools,
             returnToolRequests,

@@ -67,7 +67,9 @@ export type FirebaseUserEngagement = z.infer<
 >;
 
 /** Associates user engagement metadata with the specified flow execution. */
-export function collectUserEngagement(userEngagement: FirebaseUserEngagement) {
+export async function collectUserEngagement(
+  userEngagement: FirebaseUserEngagement
+) {
   // Collect user feedback, if provided
   if (userEngagement.feedback?.value) {
     const metadata = {
@@ -78,7 +80,7 @@ export function collectUserEngagement(userEngagement: FirebaseUserEngagement) {
       metadata['textFeedback'] = userEngagement.feedback.text;
     }
 
-    appendSpan(
+    await appendSpan(
       userEngagement.traceId,
       userEngagement.spanId,
       {
@@ -94,7 +96,7 @@ export function collectUserEngagement(userEngagement: FirebaseUserEngagement) {
 
   // Collect user acceptance, if provided
   if (userEngagement.acceptance?.value) {
-    appendSpan(
+    await appendSpan(
       userEngagement.traceId,
       userEngagement.spanId,
       {
