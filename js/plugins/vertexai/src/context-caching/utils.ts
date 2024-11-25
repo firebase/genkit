@@ -17,14 +17,14 @@
 import { CachedContent, StartChatParams } from '@google-cloud/vertexai';
 import { CachedContents } from '@google-cloud/vertexai/build/src/resources';
 import crypto from 'crypto';
-import { GenkitError, z } from 'genkit';
+import { GenkitError, MessageData, z } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import {
   CONTEXT_CACHE_SUPPORTED_MODELS,
   DEFAULT_TTL,
   INVALID_ARGUMENT_MESSAGES,
 } from './constants';
-import { CacheConfig, CacheConfigDetails } from './types';
+import { CacheConfig, CacheConfigDetails, cacheConfigSchema } from './types';
 
 /**
  * Generates a SHA-256 hash to use as a cache key.
@@ -113,6 +113,30 @@ export async function lookupContextCache(
   }
   return null;
 }
+
+/**
+ * Extracts the cache configuration from the request if available.
+ */
+export const extractCacheConfig = (
+  request: GenerateRequest<z.ZodTypeAny>
+): {
+  cacheConfig: { ttlSeconds?: number } | boolean;
+  endOfCachedContents: number;
+} | null => {
+  const endOfCachedContents = findLastIndex<MessageData>(
+    request.messages,
+    (message) => !!message.metadata?.cache
+  );
+
+  return endOfCachedContents === -1
+    ? null
+    : {
+        endOfCachedContents,
+        cacheConfig: cacheConfigSchema.parse(
+          request.messages[endOfCachedContents].metadata?.cache
+        ),
+      };
+};
 
 /**
  * Validates context caching request for compatibility with model and request configurations.

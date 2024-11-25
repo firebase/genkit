@@ -51,17 +51,27 @@ export function getContentForCache(
   chatRequest: StartChatParams;
   cacheConfig?: CacheConfig;
 } {
+  // Ensure modelVersion is provided
+  if (!modelVersion) {
+    throw new Error('No model version provided for context caching');
+  }
+
+  // Ensure chatRequest has a history
   if (!chatRequest.history?.length) {
     throw new Error('No history provided for context caching');
   }
 
+  // Validate the history length between request and chatRequest
   validateHistoryLength(request, chatRequest);
 
+  // Extract relevant cached content based on cacheConfigDetails
   const { endOfCachedContents, cacheConfig } = cacheConfigDetails;
   const cachedContent: CachedContent = {
     model: modelVersion,
     contents: chatRequest.history.slice(0, endOfCachedContents + 1),
   };
+
+  // Update the chatRequest history to only include non-cached parts
   chatRequest.history = chatRequest.history.slice(endOfCachedContents + 1);
 
   return { cachedContent, chatRequest, cacheConfig };
@@ -87,31 +97,49 @@ function validateHistoryLength(
 /**
  * Looks up context cache using a cache manager and returns the found item, if any.
  */
+/**
+ * Looks up context cache using a cache manager and returns the found item, if any.
+ */
 export async function lookupContextCache(
   cacheManager: GoogleAICacheManager,
   cacheKey: string,
   maxPages = 100,
   pageSize = 100
-) {
+): Promise<CachedContent | null> {
   let currentPage = 0;
   let pageToken: string | undefined;
 
-  while (currentPage < maxPages) {
-    const { cachedContents, nextPageToken } = await cacheManager.list({
-      pageSize,
-      pageToken,
+  try {
+    while (currentPage < maxPages) {
+      const { cachedContents, nextPageToken } = await cacheManager.list({
+        pageSize,
+        pageToken,
+      });
+
+      // Check for the cached content by key
+      const found = cachedContents?.find(
+        (content) => content.displayName === cacheKey
+      );
+
+      if (found) return found; // Return found content
+
+      // Stop if there's no next page
+      if (!nextPageToken) break;
+
+      pageToken = nextPageToken;
+      currentPage++;
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Unknown Network Error';
+
+    throw new GenkitError({
+      status: 'INTERNAL',
+      message: `Error looking up context cache: ${message}`,
     });
-    const found = cachedContents?.find(
-      (content) => content.displayName === cacheKey
-    );
-
-    if (found) return found;
-    if (!nextPageToken) break;
-
-    pageToken = nextPageToken;
-    currentPage++;
   }
-  return null;
+
+  return null; // Return null if not found or on error
 }
 
 /**
@@ -168,7 +196,7 @@ export function validateContextCacheRequest(
 /**
  * Polyfill function for Array.prototype.findLastIndex for ES2015 compatibility.
  */
-function findLastIndex<T>(
+export function findLastIndex<T>(
   array: T[],
   callback: (element: T, index: number, array: T[]) => boolean
 ): number {

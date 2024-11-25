@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
 import { GenerateContentCandidate } from '@google/generative-ai';
+import { MessageData } from 'genkit/model';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
