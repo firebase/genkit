@@ -136,6 +136,7 @@ import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
+import { toJsonSchema } from './schema.js';
 import { toToolDefinition } from './tool.js';
 
 /**
@@ -465,7 +466,12 @@ export class Genkit {
             ).map(toToolDefinition);
           }
           if (!response.output && options.output) {
-            response.output = options.output;
+            response.output = {
+              schema: toJsonSchema({
+                schema: options.output.schema,
+                jsonSchema: options.output.jsonSchema,
+              }),
+            };
           }
           return response;
         }
