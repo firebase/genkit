@@ -715,6 +715,7 @@ describe('definePrompt', () => {
 
 describe('prompt', () => {
   let ai: Genkit;
+  let pm: ProgrammableModel;
 
   beforeEach(() => {
     ai = genkit({
@@ -722,6 +723,7 @@ describe('prompt', () => {
       promptDir: './tests/prompts',
     });
     defineEchoModel(ai);
+    pm = defineProgrammableModel(ai);
   });
 
   it('loads from from the folder', async () => {
@@ -770,6 +772,49 @@ describe('prompt', () => {
     const { text } = await testPrompt({ name: 'banana' });
 
     assert.strictEqual(text, 'Echo: hi banana; config: {"temperature":11}');
+  });
+
+  it('passes in output options to the model', async () => {
+    const hi = ai.definePrompt(
+      {
+        name: 'hi',
+        model: 'programmableModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+        output: {
+          schema: z.object({
+            message: z.string(),
+          }),
+          format: 'json',
+        },
+      },
+      async (input) => {
+        return {
+          messages: [{ role: 'user', content: [{ text: `hi ${input.name}` }] }],
+          config: {
+            temperature: 11,
+          },
+        };
+      }
+    );
+
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: '```json\n{"message": "hello"}\n```' }],
+        },
+      };
+    };
+
+    const { output } = await hi({
+      name: 'Pavel',
+    });
+
+    assert.deepStrictEqual(output, { message: 'hello' });
   });
 });
 
