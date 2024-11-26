@@ -225,11 +225,11 @@ The prior example requires the `embedding` field to be indexed to work. To creat
     
   The command looks like the following:
 
-```
-gcloud alpha firestore indexes composite create --project=your-project-id \
-  --collection-group=yourCollectionName --query-scope=COLLECTION \
-  --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
-```
+  ```
+  gcloud alpha firestore indexes composite create --project=your-project-id \
+    --collection-group=yourCollectionName --query-scope=COLLECTION \
+    --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
+  ```
 
   However, the correct indexing configuration depends on the queries you will make and the embedding model you're using.
 
@@ -273,21 +273,21 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 - `httpsOptions`: an [`HttpsOptions`](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.https.httpsoptions) object used to configure your Cloud Function:
 
 
-```js
-export const exampleFlow = onFlow(
-  ai,
-  {
-    name: "exampleFlow",
-    httpsOptions: {
-      cors: true,
+  ```js
+  export const exampleFlow = onFlow(
+    ai,
+    {
+      name: "exampleFlow",
+      httpsOptions: {
+        cors: true,
+      },
+      // ...
     },
-    // ...
-  },
-  async (prompt) => {
-    // ...
-  }
-);
-```
+    async (prompt) => {
+      // ...
+    }
+  );
+  ```
 
 - `enforceAppCheck`: when `true`, reject requests with missing or invalid [App Check](https://firebase.google.com/docs/app-check) tokens.  
     
@@ -295,7 +295,7 @@ export const exampleFlow = onFlow(
     
   See [Replay protection](https://firebase.google.com/docs/app-check/cloud-functions#replay-protection).
 
-### **Firebase Authentication**
+### Firebase Authentication
 
 This plugin provides a helper function to create authorization policies around Firebase Auth:
 
