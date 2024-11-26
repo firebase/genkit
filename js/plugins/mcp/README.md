@@ -7,22 +7,24 @@ This plugin provides integration between Genkit and the [Model Context Protocol]
 To create an MCP client, you call the `mcpClient` function to generate a Genkit plugin for an MCP server. For example, to use MCP's example [filesystem server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem):
 
 ```ts
-import { genkit } from "genkit";
-import { mcpClient } from "@genkit-ai/mcp";
+import { genkit } from 'genkit';
+import { mcpClient } from '@genkit-ai/mcp';
 
 // the filesystem server requires one or more allowed directories
-const ALLOWED_DIRS = ["/Users/yourusername/Desktop"];
+const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
 
 const filesystemClient = mcpClient({
-  name: "filesystem",
+  name: 'filesystem',
   serverProcess: {
-    command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-everything", ...ALLOWED_DIRS],
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-everything', ...ALLOWED_DIRS],
   },
 });
 
 const ai = genkit({
-  plugins: [filesystemClient /* ... other plugins such as model providers ...*/],
+  plugins: [
+    filesystemClient /* ... other plugins such as model providers ...*/,
+  ],
 });
 ```
 
@@ -61,15 +63,15 @@ MCP tools return a `content` array as opposed to a structured response like most
 You can also expose all of the tools and prompts from a Genkit instance as an MCP server:
 
 ```ts
-import { genkit, z } from "genkit";
-import { mcpServer } from "@genkit-ai/mcp";
+import { genkit, z } from 'genkit';
+import { mcpServer } from '@genkit-ai/mcp';
 
 const ai = genkit({});
 
 ai.defineTool(
   {
-    name: "add",
-    description: "add two numbers together",
+    name: 'add',
+    description: 'add two numbers together',
     inputSchema: z.object({ a: z.number(), b: z.number() }),
     outputSchema: z.number(),
   },
@@ -80,17 +82,17 @@ ai.defineTool(
 
 ai.definePrompt(
   {
-    name: "happy",
-    description: "everybody together now",
+    name: 'happy',
+    description: 'everybody together now',
     input: {
       schema: z.object({ action: z.string().optional() }),
-      default: { action: "clap your hands" },
+      default: { action: 'clap your hands' },
     },
   },
   `If you're happy and you know it, {{action}}.`
 );
 
-mcpServer(ai, { name: "example_server", version: "0.0.1" }).start();
+mcpServer(ai, { name: 'example_server', version: '0.0.1' }).start();
 ```
 
 The above will start up an MCP server with the stdio transport that exposes a tool called `add` and a prompt called `happy`. To start the server with a different transport, use `mcpServer(...).start(otherTransport)`.

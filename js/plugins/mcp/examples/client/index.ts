@@ -1,16 +1,32 @@
-import { genkit } from "genkit";
-import { gemini15Pro, googleAI } from "@genkit-ai/googleai";
-import { mcpClient } from "@genkit-ai/mcp";
-import { logger } from "genkit/logging";
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-logger.setLogLevel("debug");
+import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
+import { mcpClient } from '@genkit-ai/mcp';
+import { genkit } from 'genkit';
+import { logger } from 'genkit/logging';
+
+logger.setLogLevel('debug');
 
 const everythingClient = mcpClient({
-  name: "everything",
-  version: "1.0.0",
+  name: 'everything',
+  version: '1.0.0',
   serverProcess: {
-    command: "npx",
-    args: ["@modelcontextprotocol/server-everything"],
+    command: 'npx',
+    args: ['@modelcontextprotocol/server-everything'],
   },
 });
 
