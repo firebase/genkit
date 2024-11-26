@@ -146,6 +146,7 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 		}
 		return ret, nil
 	}
+	return nil, fmt.Errorf("picoschema: value %v of type %[1]T is not an object, slice or string", val)
 }
 
 // mapToJSONSchema converts a YAML value to a JSONSchema.
