@@ -459,9 +459,11 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
     if (typeof out[key] === 'object') {
       out[key] = cleanSchema(out[key]);
     }
+    // Zod nullish() and picoschema optional fields will produce type `["string", "null"]`
+    // which is not supported by the model API. Convert them to just `"string"`.
     if (key === 'type' && Array.isArray(out[key])) {
       // find the first that's not `null`.
-      out[key] = out[key].find(t => t !== 'null');
+      out[key] = out[key].find((t) => t !== 'null');
     }
   }
   return out;
