@@ -56,9 +56,10 @@ describe('flow', () => {
     const streamingBananaFlow = ai.defineFlow(
       {
         name: 'banana',
+        inputSchema: z.string(),
         streamSchema: z.string(),
       },
-      (input: string, sendChunk) => {
+      (input, sendChunk) => {
         for (let i = 0; i < input.length; i++) {
           sendChunk(input.charAt(i));
         }
