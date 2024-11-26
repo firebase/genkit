@@ -1,0 +1,9 @@
+{
+  "entryPoints": [
+    "src/index.ts",
+    "src/modelgarden/index.ts",
+    "src/evaluation/index.ts",
+    "src/rerankers/index.ts",
+    "src/vectorsearch/index.ts"
+  ]
+}

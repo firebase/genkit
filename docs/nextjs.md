@@ -98,7 +98,7 @@ For example:
 ```tsx
 'use client';
 
-import { menuSuggestionFlow } from '@/app/genkit';
+import { menuSuggestionFlow } from './genkit';
 import { useState } from 'react';
 
 export default function Home() {

@@ -115,9 +115,7 @@ async function generate(
 
   const tools = await resolveTools(registry, rawRequest.tools);
 
-  const resolvedFormat = rawRequest.output?.format
-    ? await resolveFormat(registry, rawRequest.output?.format)
-    : undefined;
+  const resolvedFormat = await resolveFormat(registry, rawRequest.output);
 
   const request = await actionToGenerateRequest(
     rawRequest,

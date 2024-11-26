@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/core/logging';
 import {
   ExporterOptions,
   MetricExporter,
@@ -50,20 +49,21 @@ import {
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
+import { logger } from 'genkit/logging';
 import { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { pathsTelemetry } from './telemetry/path.js';
-import { GcpTelemetryConfig } from './types';
+import { GcpTelemetryConfig } from './types.js';
 import {
   extractErrorName,
   metricsDenied,
   metricsDeniedHelpText,
   tracingDenied,
   tracingDeniedHelpText,
-} from './utils';
+} from './utils.js';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -312,7 +312,7 @@ class AdjustingTraceExporter implements SpanExporter {
 
       span = this.redactInputOutput(span);
       span = this.markErrorSpanAsError(span);
-      span = this.markFailedAction(span);
+      span = this.markFailedSpan(span);
       span = this.markGenkitFeature(span);
       span = this.markGenkitModel(span);
       span = this.normalizeLabels(span);
@@ -401,20 +401,25 @@ class AdjustingTraceExporter implements SpanExporter {
     };
   }
 
-  private markFailedAction(span: ReadableSpan): ReadableSpan {
+  private markFailedSpan(span: ReadableSpan): ReadableSpan {
     if (
       span.attributes['genkit:state'] === 'error' &&
       (span.attributes['genkit:type'] === 'action' ||
-        span.attributes['genkit:type'] === 'flowStep') &&
-      span.attributes['genkit:name']
+        span.attributes['genkit:type'] === 'flowStep' ||
+        span.attributes['genkit:type'] === 'helper')
     ) {
-      span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
+      if (!!span.attributes['genkit:name']) {
+        span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
+      }
+      if (!!span.attributes['genkit:path']) {
+        span.attributes['genkit:failedPath'] = span.attributes['genkit:path'];
+      }
     }
     return span;
   }
 
   private markGenkitFeature(span: ReadableSpan): ReadableSpan {
-    if (span.attributes['genkit:isRoot'] && span.attributes['genkit:name']) {
+    if (span.attributes['genkit:isRoot'] && !!span.attributes['genkit:name']) {
       span.attributes['genkit:feature'] = span.attributes['genkit:name'];
     }
     return span;
@@ -423,7 +428,7 @@ class AdjustingTraceExporter implements SpanExporter {
   private markGenkitModel(span: ReadableSpan): ReadableSpan {
     if (
       span.attributes['genkit:metadata:subtype'] === 'model' &&
-      span.attributes['genkit:name']
+      !!span.attributes['genkit:name']
     ) {
       span.attributes['genkit:model'] = span.attributes['genkit:name'];
     }

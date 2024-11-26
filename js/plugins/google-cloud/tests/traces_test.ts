@@ -134,9 +134,9 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[1].parentSpanId, undefined);
   });
 
-  it('labels failed actions', async () => {
+  it('labels failed spans', async () => {
     const testFlow = createFlow(ai, 'badFlow', async () => {
-      return await run('badAction', async () => {
+      return await run('badStep', async () => {
         throw new Error('oh no!');
       });
     });
@@ -146,8 +146,12 @@ describe('GoogleCloudTracing', () => {
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 2);
-    assert.equal(spans[0].name, 'badAction');
-    assert.equal(spans[0].attributes['genkit/failedSpan'], 'badAction');
+    assert.equal(spans[0].name, 'badStep');
+    assert.equal(spans[0].attributes['genkit/failedSpan'], 'badStep');
+    assert.equal(
+      spans[0].attributes['genkit/failedPath'],
+      '/{badFlow,t:flow}/{badStep,t:flowStep}'
+    );
   });
 
   it('labels the root feature', async () => {

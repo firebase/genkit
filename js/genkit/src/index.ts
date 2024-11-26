@@ -143,7 +143,6 @@ export {
   type Middleware,
   type ReflectionServerOptions,
   type RunActionResponse,
-  type SideChannelData,
   type Status,
   type StreamableFlow,
   type StreamingCallback,

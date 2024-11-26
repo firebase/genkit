@@ -9,18 +9,17 @@
 
 pnpm login --registry https://wombat-dressing-room.appspot.com
 
-
 CURRENT=`pwd`
-
-cd genkit-tools/cli
-pnpm publish --registry https://wombat-dressing-room.appspot.com
-cd $CURRENT
 
 cd genkit-tools/common
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
 cd genkit-tools/telemetry-server
+pnpm publish --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT
+
+cd genkit-tools/cli
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 

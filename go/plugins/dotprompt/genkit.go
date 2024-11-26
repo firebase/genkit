@@ -218,7 +218,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		model := ai.LookupModel(provider, name)
+		model = ai.LookupModel(provider, name)
 		if model == nil {
 			return nil, fmt.Errorf("no model named %q for provider %q", name, provider)
 		}

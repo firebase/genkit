@@ -29,7 +29,7 @@ firebase-debug.log
 # RAG sample files
 !js/testapps/rag/package.json
 js/testapps/rag/*.json
-js/testapps/cat-eval/__db*.json
+js/testapps/evals/__db*.json
 js/testapps/menu/rag/__db*.json
 
 # Test files
@@ -37,5 +37,6 @@ last_recording.mp4
 
 # auto-generated
 /js/core/src/__codegen
+/js/api-refs-js
 
 !samples/chatbot/server/genkit-ai-vertexai-*.tgz

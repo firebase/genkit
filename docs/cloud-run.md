@@ -158,7 +158,7 @@ chose:
 The only secret you need to set up for this tutorial is for the model provider,
 but in general, you must do something similar for each service your flow uses.
 
-## 4. Deploy flows to Cloud Run
+## 3. Deploy flows to Cloud Run
 
 After you've prepared your project for deployment, you can deploy it using the
 `gcloud` tool.

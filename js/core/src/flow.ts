@@ -301,6 +301,7 @@ export class Flow<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
+            auth: opts?.withLocalAuthContext,
           }
         ).then((s) => s.result)
       )
@@ -334,19 +335,6 @@ export class Flow<
     const auth = request.auth;
 
     let input = request.body.data;
-
-    try {
-      await this.authPolicy?.(auth, input);
-    } catch (e: any) {
-      const respBody = {
-        error: {
-          status: 'PERMISSION_DENIED',
-          message: e.message || 'Permission denied to resource',
-        },
-      };
-      response.status(403).send(respBody).end();
-      return;
-    }
 
     try {
       await this.authPolicy?.(auth, input);
@@ -615,6 +603,7 @@ function registerFlowAction<
           ? undefined
           : StreamingCallback<z.infer<S>>,
         auth: envelope.auth,
+        labels: envelope.start?.labels,
       });
       return response.result;
     }

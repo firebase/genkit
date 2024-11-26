@@ -34,12 +34,12 @@ import {
   MetricCounter,
   MetricHistogram,
   Telemetry,
-} from '../metrics';
+} from '../metrics.js';
 import {
   createCommonLogAttributes,
   extractErrorName,
   extractOuterFeatureNameFromPath,
-} from '../utils';
+} from '../utils.js';
 
 type SharedDimensions = {
   modelName?: string;
@@ -207,10 +207,6 @@ class GenerateTelemetry implements Telemetry {
     }
   ) {
     this.doRecordGenerateActionMetrics(modelName, opts.response?.usage || {}, {
-      temperature: input.config?.temperature,
-      topK: input.config?.topK,
-      topP: input.config?.topP,
-      maxOutputTokens: input.config?.maxOutputTokens,
       featureName,
       path,
       latencyMs: opts.response?.latencyMs,
@@ -342,7 +338,7 @@ class GenerateTelemetry implements Telemetry {
   }
 
   private xOfY(x: number, y: number): string {
-    return `${x} of ${y}`;
+    return `${x + 1} of ${y}`;
   }
 
   private toPartLogContent(part: Part): string {
@@ -415,10 +411,6 @@ class GenerateTelemetry implements Telemetry {
     dimensions: {
       featureName?: string;
       path?: string;
-      temperature?: number;
-      maxOutputTokens?: number;
-      topK?: number;
-      topP?: number;
       latencyMs?: number;
       errName?: string;
       source?: string;
@@ -429,16 +421,12 @@ class GenerateTelemetry implements Telemetry {
       modelName: modelName,
       featureName: dimensions.featureName,
       path: dimensions.path,
-      temperature: dimensions.temperature,
-      topK: dimensions.topK,
-      topP: dimensions.topP,
       source: dimensions.source,
       sourceVersion: dimensions.sourceVersion,
       status: dimensions.errName ? 'failure' : 'success',
     };
 
     this.actionCounter.add(1, {
-      maxOutputTokens: dimensions.maxOutputTokens,
       error: dimensions.errName,
       ...shared,
     });

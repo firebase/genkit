@@ -24,13 +24,13 @@ import {
   MessageData,
 } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { defineOllamaEmbedder } from './embeddings';
+import { defineOllamaEmbedder } from './embeddings.js';
 import {
   ApiType,
   ModelDefinition,
   OllamaPluginParams,
   RequestHeaders,
-} from './types';
+} from './types.js';
 
 export { defineOllamaEmbedder };
 

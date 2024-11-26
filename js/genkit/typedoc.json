@@ -1,0 +1,20 @@
+{
+  "entryPoints": [
+    "src/index.ts",
+    "src/registry.ts",
+    "src/tracing.ts",
+    "src/logging.ts",
+    "src/schema.ts",
+    "src/retriever.ts",
+    "src/reranker.ts",
+    "src/embedder.ts",
+    "src/evaluator.ts",
+    "src/model.ts",
+    "src/middleware.ts",
+    "src/extract.ts",
+    "src/testing.ts",
+    "src/tool.ts",
+    "src/plugin.ts",
+    "src/client/index.ts"
+  ]
+}
