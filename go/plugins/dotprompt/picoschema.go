@@ -64,15 +64,16 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 	case string:
 		typ, desc, found := strings.Cut(val, ",")
 		switch typ {
-		case "string", "boolean", "null", "number", "integer", "any":
+		case "string", "boolean", "null", "number", "integer":
+		case "any":
+			typ = ""
 		default:
 			return nil, fmt.Errorf("picoschema: unsupported scalar type %q", typ)
 		}
-		if typ == "any" {
-			typ = ""
-		}
-		ret := &jsonschema.Schema{
-			Type: typ,
+
+		ret := &jsonschema.Schema{}
+		if typ != "" {
+			ret.Type = typ
 		}
 		if found {
 			ret.Description = strings.TrimSpace(desc)
@@ -100,40 +101,45 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 				return nil, err
 			}
 
-			if !found {
-				ret.Properties.Set(propertyName, property)
-				continue
-			}
-
-			typ = strings.TrimSuffix(typ, ")")
-			typ, desc, found := strings.Cut(strings.TrimSuffix(typ, ")"), ",")
-			switch typ {
-			case "array":
-				property = &jsonschema.Schema{
-					Type:  "array",
-					Items: property,
-				}
-			case "object":
-				// Use property unchanged.
-			case "enum":
-				if property.Enum == nil {
-					return nil, fmt.Errorf("picoschema: enum value %v is not an array", property)
-				}
-				if isOptional {
-					property.Enum = append(property.Enum, nil)
-				}
-
-			case "*":
-				ret.AdditionalProperties = property
-				continue
-			default:
-				return nil, fmt.Errorf("picoschema: parenthetical type %q is none of %q", typ,
-					[]string{"object", "array", "enum", "*"})
-
-			}
-
 			if found {
-				property.Description = strings.TrimSpace(desc)
+				typ = strings.TrimSuffix(typ, ")")
+				typ, desc, found := strings.Cut(strings.TrimSuffix(typ, ")"), ",")
+				switch typ {
+				case "array":
+					property = &jsonschema.Schema{
+						Type:  "array",
+						Items: property,
+					}
+				case "object":
+					// Use property unchanged.
+				case "enum":
+					if property.Enum == nil {
+						return nil, fmt.Errorf("picoschema: enum value %v is not an array", property)
+					}
+
+					if isOptional {
+						property.Enum = append(property.Enum, nil)
+					}
+
+				case "*":
+					ret.AdditionalProperties = property
+					continue
+				default:
+					return nil, fmt.Errorf("picoschema: parenthetical type %q is none of %q", typ,
+						[]string{"object", "array", "enum", "*"})
+
+			}
+			}
+
+				}
+
+				if found {
+					property.Description = strings.TrimSpace(desc)
+				}
+			}
+
+			if isOptional {
+				property = makeNullable(property)
 			}
 
 			ret.Properties.Set(propertyName, property)
@@ -267,4 +273,42 @@ func mapToJSONSchema(m map[string]any) (*jsonschema.Schema, error) {
 	}
 
 	return &ret, nil
+}
+
+func makeNullable(schema *jsonschema.Schema) *jsonschema.Schema {
+	// Do not wrap enums in anyOf
+	if len(schema.Enum) > 0 {
+		return schema
+	}
+	// If the schema is empty (represents 'any'), do not wrap it
+	if schema.Type == "" &&
+		(schema.Properties == nil || schema.Properties.Len() == 0) &&
+		schema.Items == nil &&
+		len(schema.AnyOf) == 0 &&
+		len(schema.AllOf) == 0 &&
+		len(schema.OneOf) == 0 &&
+		len(schema.Enum) == 0 {
+		return schema
+	}
+	// Check if the schema already allows null
+	if schema.Type == "null" {
+		return schema
+	}
+	if len(schema.AnyOf) > 0 {
+		for _, s := range schema.AnyOf {
+			if s.Type == "null" {
+				return schema
+			}
+		}
+	}
+	// Wrap the original schema to allow null
+	return &jsonschema.Schema{
+		AnyOf: []*jsonschema.Schema{
+			schema,
+			{Type: "null"},
+		},
+		Description:          schema.Description,
+		AdditionalProperties: schema.AdditionalProperties,
+		Properties:           schema.Properties,
+	}
 }

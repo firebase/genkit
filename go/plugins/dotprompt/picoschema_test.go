@@ -15,8 +15,10 @@
 package dotprompt
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -41,16 +43,8 @@ func TestPicoschema(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skip := map[string]bool{
-		"required field":                 true,
-		"nested object in array and out": true,
-	}
-
 	for _, test := range tests {
 		t.Run(test.Description, func(t *testing.T) {
-			if skip[test.Description] {
-				t.Skip("no support for type as an array")
-			}
 			var val any
 			if err := yaml.Unmarshal([]byte(test.YAML), &val); err != nil {
 				t.Fatalf("YAML unmarshal failure: %v", err)
@@ -67,8 +61,17 @@ func TestPicoschema(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			gotData, err := json.Marshal(got)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var gotMap map[string]any
+			if err := json.Unmarshal(gotData, &gotMap); err != nil {
+				t.Fatal(err)
+			}
+			replaceAnyOfWithTypeArray(gotMap)
 			want := replaceEmptySchemas(test.Want)
-			if diff := cmp.Diff(want, got); diff != "" {
+			if diff := cmp.Diff(want, gotMap); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
@@ -96,4 +99,55 @@ func replaceEmptySchemas(m map[string]any) any {
 		}
 	}
 	return m
+}
+
+func replaceAnyOfWithTypeArray(schema map[string]any) {
+	// Check if 'anyOf' is present
+	if anyOf, ok := schema["anyOf"].([]any); ok && len(anyOf) > 0 {
+		types := []any{}
+		descriptions := []string{}
+		otherKeysExist := false
+
+		for _, item := range anyOf {
+			if subSchema, ok := item.(map[string]any); ok {
+				// Collect 'type' and 'description' from sub-schemas
+				if t, hasType := subSchema["type"]; hasType {
+					types = append(types, t)
+				} else {
+					otherKeysExist = true
+					break
+				}
+				if desc, hasDesc := subSchema["description"]; hasDesc {
+					descriptions = append(descriptions, desc.(string))
+				}
+			} else {
+				otherKeysExist = true
+				break
+			}
+		}
+
+		// Replace 'anyOf' with 'type' array if no other keys exist
+		if !otherKeysExist && len(types) > 0 {
+			schema["type"] = types
+			delete(schema, "anyOf")
+			// Combine descriptions if necessary
+			if len(descriptions) > 0 && schema["description"] == nil {
+				schema["description"] = strings.Join(descriptions, "; ")
+			}
+		}
+	}
+
+	// Recursively process nested schemas
+	for _, value := range schema {
+		switch v := value.(type) {
+		case map[string]any:
+			replaceAnyOfWithTypeArray(v)
+		case []any:
+			for _, item := range v {
+				if m, ok := item.(map[string]any); ok {
+					replaceAnyOfWithTypeArray(m)
+				}
+			}
+		}
+	}
 }
