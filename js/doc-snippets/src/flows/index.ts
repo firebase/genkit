@@ -152,7 +152,7 @@ export const complexMenuSuggestionFlow = ai.defineFlow(
 // [END ex10]
 
 // [START ex11]
-import { run, z } from 'genkit';
+import { run } from 'genkit';
 export const menuQuestionFlow = ai.defineFlow(
   {
     name: 'menuQuestionFlow',
