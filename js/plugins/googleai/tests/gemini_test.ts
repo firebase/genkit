@@ -364,7 +364,6 @@ describe('cleanSchema', () => {
       $schema: 'http://json-schema.org/draft-07/schema#',
     });
 
-    console.log(JSON.stringify(cleaned, undefined, 2));
     assert.deepStrictEqual(cleaned, {
       type: 'object',
       properties: {
