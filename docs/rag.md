@@ -252,7 +252,7 @@ export const indexMenu = ai.defineFlow(
 #### Run the indexer flow
 
 ```posix-terminal
-genkit flow:run indexMenu "'menu.pdf'"
+genkit flow:run indexMenu '"menu.pdf"'
 ```
 
 After running the `indexMenu` flow, the vector database will be seeded with
