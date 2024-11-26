@@ -74,5 +74,8 @@ describe('flow', () => {
     }
     assert.deepStrictEqual(chunks, ['b', 'a', 'n', 'a', 'n', 'a']);
     assert.strictEqual(await output, 'banana');
+
+    // a "streaming" flow can be invoked in non-streaming mode.
+    assert.strictEqual(await streamingBananaFlow('banana2'), 'banana2');
   });
 });
