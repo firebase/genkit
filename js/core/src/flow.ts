@@ -91,32 +91,37 @@ export interface StreamingFlowConfig<
   streamSchema?: S;
 }
 
+export interface FlowCallOptions {
+  /** @deprecated use {@link context} instead. */
+  withLocalAuthContext?: unknown;
+  context?: unknown;
+}
+
 /**
  * Non-streaming flow that can be called directly like a function.
  */
 export interface CallableFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (
-    input?: z.infer<I>,
-    opts?: { withLocalAuthContext?: unknown }
-  ): Promise<z.infer<O>>;
+  (input?: z.infer<I>, opts?: FlowCallOptions): Promise<z.infer<O>>;
+
+  stream(input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
+
   flow: Flow<I, O, z.ZodVoid>;
 }
 
 /**
  * Streaming flow that can be called directly like a function.
+ * @deprecated use {@link CallableFlow}
  */
 export interface StreamableFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (
-    input?: z.infer<I>,
-    opts?: { withLocalAuthContext?: unknown }
-  ): StreamingResponse<O, S>;
+  (input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
   flow: Flow<I, O, S>;
 }
 
@@ -128,7 +133,7 @@ interface StreamingResponse<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   /** Iterator over the streaming chunks. */
-  stream: AsyncGenerator<unknown, z.infer<O>, z.infer<S> | undefined>;
+  stream: AsyncGenerator<z.infer<S>>;
   /** Final output of the flow. */
   output: Promise<z.infer<O>>;
 }
@@ -144,7 +149,7 @@ export type FlowFn<
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback?: StreamingCallback<z.infer<S>>
+  streamingCallback: StreamingCallback<z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
@@ -223,7 +228,10 @@ export class Flow<
           });
           try {
             metadata.input = input;
-            const output = await this.flowFn(input, opts.streamingCallback);
+            const output = await this.flowFn(
+              input,
+              opts.streamingCallback ?? (() => {})
+            );
             metadata.output = JSON.stringify(output);
             setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
             return {
@@ -252,10 +260,7 @@ export class Flow<
   /**
    * Runs the flow. This is used when calling a flow from another flow.
    */
-  async run(
-    payload?: z.infer<I>,
-    opts?: { withLocalAuthContext?: unknown }
-  ): Promise<z.infer<O>> {
+  async run(payload?: z.infer<I>, opts?: FlowCallOptions): Promise<z.infer<O>> {
     const input = this.inputSchema ? this.inputSchema.parse(payload) : payload;
     await this.authPolicy?.(opts?.withLocalAuthContext, payload);
 
@@ -266,7 +271,7 @@ export class Flow<
     }
 
     const result = await this.invoke(input, {
-      auth: opts?.withLocalAuthContext,
+      auth: opts?.context || opts?.withLocalAuthContext,
     });
     return result.result;
   }
@@ -276,7 +281,7 @@ export class Flow<
    */
   stream(
     payload?: z.infer<I>,
-    opts?: { withLocalAuthContext?: unknown }
+    opts?: FlowCallOptions
   ): StreamingResponse<O, S> {
     let chunkStreamController: ReadableStreamController<z.infer<S>>;
     const chunkStream = new ReadableStream<z.infer<S>>({
@@ -288,7 +293,7 @@ export class Flow<
     });
 
     const authPromise =
-      this.authPolicy?.(opts?.withLocalAuthContext, payload) ??
+      this.authPolicy?.(opts?.context || opts?.withLocalAuthContext, payload) ??
       Promise.resolve();
 
     const invocationPromise = authPromise
@@ -301,7 +306,7 @@ export class Flow<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
-            auth: opts?.withLocalAuthContext,
+            auth: opts?.context || opts?.withLocalAuthContext,
           }
         ).then((s) => s.result)
       )
@@ -530,21 +535,31 @@ export class FlowServer {
 export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  config: FlowConfig<I, O> | string,
-  fn: FlowFn<I, O, z.ZodVoid>
-): CallableFlow<I, O> {
+  config: StreamingFlowConfig<I, O> | string,
+  fn: FlowFn<I, O, S>
+): CallableFlow<I, O, S> {
   const resolvedConfig: FlowConfig<I, O> =
     typeof config === 'string' ? { name: config } : config;
 
-  const flow = new Flow<I, O, z.ZodVoid>(registry, resolvedConfig, fn);
+  const flow = new Flow<I, O, S>(registry, resolvedConfig, fn);
   registerFlowAction(registry, flow);
-  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
+  const callableFlow = async (
+    input: z.infer<I>,
+    opts: FlowCallOptions
+  ): Promise<z.infer<O>> => {
     return flow.run(input, opts);
   };
-  callableFlow.flow = flow;
-  return callableFlow;
+  (callableFlow as CallableFlow<I, O, S>).flow = flow;
+  (callableFlow as CallableFlow<I, O, S>).stream = (
+    input: z.infer<I>,
+    opts: FlowCallOptions
+  ): StreamingResponse<O, S> => {
+    return flow.stream(input, opts);
+  };
+  return callableFlow as CallableFlow<I, O, S>;
 }
 
 /**

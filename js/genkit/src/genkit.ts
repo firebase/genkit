@@ -110,7 +110,6 @@ import {
   defineSchema,
   defineStreamingFlow,
   Flow,
-  FlowConfig,
   FlowFn,
   FlowServer,
   FlowServerOptions,
@@ -202,7 +201,11 @@ export class Genkit {
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(config: FlowConfig<I, O> | string, fn: FlowFn<I, O>): CallableFlow<I, O> {
+    S extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    config: StreamingFlowConfig<I, O, S> | string,
+    fn: FlowFn<I, O, S>
+  ): CallableFlow<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
     this.registeredFlows.push(flow.flow);
     return flow;
@@ -211,7 +214,7 @@ export class Genkit {
   /**
    * Defines and registers a streaming flow.
    *
-   * @todo TODO: Improve this documentation (show snippetss, etc).
+   * @deprecated use {@link defineFlow}
    */
   defineStreamingFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
