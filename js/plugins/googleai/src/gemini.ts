@@ -449,7 +449,7 @@ export function fromGeminiCandidate(
   };
 }
 
-function cleanSchema(schema: JSONSchema): JSONSchema {
+export function cleanSchema(schema: JSONSchema): JSONSchema {
   const out = structuredClone(schema);
   for (const key in out) {
     if (key === '$schema' || key === 'additionalProperties') {
@@ -458,6 +458,10 @@ function cleanSchema(schema: JSONSchema): JSONSchema {
     }
     if (typeof out[key] === 'object') {
       out[key] = cleanSchema(out[key]);
+    }
+    if (key === 'type' && Array.isArray(out[key])) {
+      // find the first that's not `null`.
+      out[key] = out[key].find(t => t !== 'null');
     }
   }
   return out;
