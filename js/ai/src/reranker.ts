@@ -78,11 +78,7 @@ export const RerankerInfoSchema = z.object({
 export type RerankerInfo = z.infer<typeof RerankerInfoSchema>;
 
 export type RerankerAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
-  Action<
-    typeof RerankerRequestSchema,
-    typeof RerankerResponseSchema,
-    { model: RerankerInfo }
-  > & {
+  Action<typeof RerankerRequestSchema, typeof RerankerResponseSchema> & {
     __configSchema?: CustomOptions;
   };
 
