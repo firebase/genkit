@@ -418,7 +418,7 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		out, err := f.runJSON(r.Context(), r.Header.Get("Authorization"), body.Data, callback)
 		if err != nil {
 			if r.Header.Get("Accept") == "text/event-stream" || stream {
-				_, err = fmt.Fprintf(w, `data: {"error": {"status": "INTERNAL", "message": "stream flow error", "details": %s}}\n\n`, err)
+				_, err = fmt.Fprintf(w, `data: {"error": {"status": "INTERNAL", "message": "stream flow error", "details": "%s"}}\n\n`, err)
 				return err
 			}
 			return err
