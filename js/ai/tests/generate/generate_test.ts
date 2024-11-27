@@ -133,7 +133,7 @@ describe('toGenerateRequest', () => {
               required: ['a', 'b'],
               type: 'object',
             },
-            name: 'namespaced/add',
+            name: 'add',
             outputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
               type: 'number',
