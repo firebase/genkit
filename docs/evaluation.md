@@ -248,8 +248,17 @@ might be asking about it.
 import { genkit, run, z } from "genkit";
 import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
 import { chunk } from "llm-chunk";
+import path from 'path';
 
 const ai = genkit({ plugins: [googleAI()] });
+
+const chunkingConfig = {
+  minLength: 1000, // number of minimum characters into chunk
+  maxLength: 2000, // number of maximum characters into chunk
+  splitter: 'sentence', // paragraph | sentence
+  overlap: 100, // number of overlap chracters
+  delimiters: '', // regex for base split method
+} as any;
 
 export const synthesizeQuestions = ai.defineFlow(
   {
@@ -259,6 +268,8 @@ export const synthesizeQuestions = ai.defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
+    // `extractText` loads the PDF and extracts its contents as text.
+    // See our RAG documentation for more details. 
     const pdfTxt = await run("extract-text", () => extractText(filePath));
 
     const chunks = await run("chunk-it", async () =>

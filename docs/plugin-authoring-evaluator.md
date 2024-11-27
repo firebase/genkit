@@ -115,6 +115,7 @@ export async function deliciousnessScore<
 The final step is to write a function that defines the evaluator action itself.
 
 ```ts
+import { Genkit, ModelReference, z } from 'genkit';
 import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
 
 /**
@@ -123,10 +124,11 @@ import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
 export function createDeliciousnessEvaluator<
   ModelCustomOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judge: ModelReference<ModelCustomOptions>,
   judgeConfig: z.infer<ModelCustomOptions>
 ): EvaluatorAction {
-  return defineEvaluator(
+  return ai.defineEvaluator(
     {
       name: `myAwesomeEval/deliciousness`,
       displayName: 'Deliciousness',
@@ -301,11 +303,12 @@ Plugins are registered with the framework via the `genkit.config.ts` file in a p
 In this case we have two evaluators `DELICIOUSNESS` and `US_PHONE_REGEX_MATCH`. This is where those evaluators are registered with the plugin and with Firebase Genkit.
 
 ```ts
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+
 export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
   options: PluginOptions<ModelCustomOptions>
-): PluginProvider {
+): GenkitPlugin {
   // Define the new plugin
-  const plugin = (options?: MyPluginOptions<ModelCustomOptions>) => {
     return genkitPlugin(
     'myAwesomeEval',
     async (ai: Genkit) => {
@@ -321,10 +324,7 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
         }
       });
       return { evaluators };
-    })
-  }
-  // Create the plugin with the passed options
-  return plugin(options);
+    });
 }
 export default myAwesomeEval;
 ```
