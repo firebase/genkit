@@ -85,11 +85,11 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := ai.Generate(ctx, model, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		out := resp.Candidates[0].Message.Content[0].Text
+		out := resp.Message.Content[0].Text
 		const want = "France"
 		if out != want {
 			t.Errorf("got %q, expecting %q", out, want)
@@ -105,9 +105,8 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := ai.Generate(ctx, model,
-			ai.WithCandidates(1),
 			ai.WithTextPrompt("Write one paragraph about the North Pole."),
-			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				out += c.Content[0].Text
 				return nil
@@ -116,7 +115,7 @@ func TestLive(t *testing.T) {
 			t.Fatal(err)
 		}
 		out2 := ""
-		for _, p := range final.Candidates[0].Message.Content {
+		for _, p := range final.Message.Content {
 			out2 += p.Text
 		}
 		if out != out2 {
@@ -136,7 +135,6 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := ai.Generate(ctx, model,
-			ai.WithCandidates(1),
 			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 
@@ -144,7 +142,7 @@ func TestLive(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		out := resp.Candidates[0].Message.Content[0].Text
+		out := resp.Message.Content[0].Text
 		const want = "12.25"
 		if !strings.Contains(out, want) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)

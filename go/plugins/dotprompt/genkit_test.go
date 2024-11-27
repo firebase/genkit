@@ -22,18 +22,14 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
+func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
-	r := &ai.GenerateResponse{
-		Candidates: []*ai.Candidate{
-			{
-				Message: &ai.Message{
-					Content: []*ai.Part{
-						ai.NewTextPart(output),
-					},
-				},
+	r := &ai.ModelResponse{
+		Message: &ai.Message{
+			Content: []*ai.Part{
+				ai.NewTextPart(output),
 			},
 		},
 		Request: req,
@@ -67,24 +63,17 @@ func TestExecute(t *testing.T) {
 	})
 }
 
-func assertResponse(t *testing.T, resp *ai.GenerateResponse) {
-	if len(resp.Candidates) != 1 {
-		t.Errorf("got %d candidates, want 1", len(resp.Candidates))
-		if len(resp.Candidates) < 1 {
-			t.FailNow()
-		}
-	}
-	msg := resp.Candidates[0].Message
-	if msg == nil {
+func assertResponse(t *testing.T, resp *ai.ModelResponse) {
+	if resp.Message == nil {
 		t.Fatal("response has candidate with no message")
 	}
-	if len(msg.Content) != 1 {
-		t.Errorf("got %d message parts, want 1", len(msg.Content))
-		if len(msg.Content) < 1 {
+	if len(resp.Message.Content) != 1 {
+		t.Errorf("got %d message parts, want 1", len(resp.Message.Content))
+		if len(resp.Message.Content) < 1 {
 			t.FailNow()
 		}
 	}
-	got := msg.Content[0].Text
+	got := resp.Message.Content[0].Text
 	want := `AI reply to "TestExecute"`
 	if got != want {
 		t.Errorf("fake model replied with %q, want %q", got, want)

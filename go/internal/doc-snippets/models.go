@@ -82,7 +82,7 @@ func streaming() error {
 		ai.WithTextPrompt("Tell a long story about robots and ninjas."),
 		// stream callback
 		ai.WithStreaming(
-			func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
+			func(ctx context.Context, grc *ai.ModelResponseChunk) error {
 				fmt.Printf("Chunk: %s\n", grc.Text())
 				return nil
 			}))
@@ -147,7 +147,7 @@ func history() error {
 	// [END hist1]
 	_ = err
 	// [START hist2]
-	history = append(history, response.Candidates[0].Message)
+	history = append(history, response.Message)
 	// [END hist2]
 
 	// [START hist3]
