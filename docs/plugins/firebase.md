@@ -138,15 +138,17 @@ import {getFirestore} from "firebase-admin/firestore";
 const app = initializeApp();
 const firestore = getFirestore(app);
 
-const yourRetrieverRef = defineFirestoreRetriever({
-  name: "yourRetriever",
-  firestore: getFirestore(app),
-  collection: "yourCollection",
-  contentField: "yourDataChunks",
-  vectorField: "embedding",
-  embedder: textEmbeddingGecko, // Import from '@genkit-ai/googleai' or '@genkit-ai/vertexai'
-  distanceMeasure: "COSINE", // "EUCLIDEAN", "DOT_PRODUCT", or "COSINE" (default)
-});
+const yourRetrieverRef = defineFirestoreRetriever(
+  ai,
+  {
+    name: "yourRetriever",
+    firestore: getFirestore(app),
+    collection: "yourCollection",
+    contentField: "yourDataChunks",
+    vectorField: "embedding",
+    embedder: textEmbeddingGecko, // Import from '@genkit-ai/googleai' or '@genkit-ai/vertexai'
+    distanceMeasure: "COSINE", // "EUCLIDEAN", "DOT_PRODUCT", or "COSINE" (default)
+  });
 ```
 
 To use it, pass it to the `ai.retrieve()` function:
