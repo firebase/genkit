@@ -1,7 +1,7 @@
 # Genkit MCP
 
 > [!WARNING]  
-> This plugin is experimental, meaning it may not be supported long-term and API are subject to more often breaking changes.
+> This plugin is experimental, meaning it may not be supported long-term and APIs are subject to more often breaking changes.
 
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to both consume MCP tools, prompts, and resources as a client and provide tools and prompts as a server.
 
