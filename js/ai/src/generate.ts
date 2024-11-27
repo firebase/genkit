@@ -129,7 +129,7 @@ export async function toGenerateRequest(
     messages: injectInstructions(messages, instructions),
     config: options.config,
     docs: options.docs,
-    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: tools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: resolvedSchema,
