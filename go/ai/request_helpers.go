@@ -14,10 +14,10 @@
 
 package ai
 
-// NewGenerateRequest create a new GenerateRequest with provided config and
+// NewModelRequest create a new ModelRequest with provided config and
 // messages.
-func NewGenerateRequest(config any, messages ...*Message) *GenerateRequest {
-	return &GenerateRequest{
+func NewModelRequest(config any, messages ...*Message) *ModelRequest {
+	return &ModelRequest{
 		Config:   config,
 		Messages: messages,
 	}

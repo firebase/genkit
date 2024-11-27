@@ -107,7 +107,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 			}
 
 			ret := &answerOutput{
-				Answer: presp.Candidates[0].Message.Content[0].Text,
+				Answer: presp.Message.Content[0].Text,
 			}
 			return ret, nil
 		},
