@@ -15,12 +15,14 @@
  */
 
 import { z } from 'zod';
+import { toJsonSchema } from '../utils';
 import {
   CreateDatasetRequest,
   ListEvalKeysRequest,
   ListEvalKeysResponse,
   UpdateDatasetRequest,
 } from './apis';
+import { GenerateRequestSchema } from './model';
 
 /**
  * This file defines schema and types that are used by the Eval store.
@@ -42,6 +44,18 @@ export type EvalInferenceStructuredInput = z.infer<
   typeof EvalInferenceStructuredInputSchema
 >;
 
+/**
+ * Supported datatype when running eval-inference using models
+ */
+export const ModelInferenceInputSchema = z.union([
+  z.string(),
+  GenerateRequestSchema,
+]);
+export type ModelInferenceInput = z.infer<typeof ModelInferenceInputSchema>;
+
+export const ModelInferenceInputJSONSchema = toJsonSchema(
+  ModelInferenceInputSchema
+);
 /**
  * A set of samples that is ready for inference.
  *
