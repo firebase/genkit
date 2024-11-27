@@ -109,7 +109,10 @@ export async function resolveTools<
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
-        return await lookupToolByName(registry, ref.name);
+        return await lookupToolByName(
+          registry,
+          (ref as ToolDefinition).metadata?.originalName || ref.name
+        );
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
     })
@@ -134,15 +137,15 @@ export async function lookupToolByName(
  * Converts a tool action to a definition of the tool to be passed to a model.
  */
 export function toToolDefinition(
-  tool: Action<z.ZodTypeAny, z.ZodTypeAny>,
-  stripNamespace = false
+  tool: Action<z.ZodTypeAny, z.ZodTypeAny>
 ): ToolDefinition {
-  let name = tool.__action.name;
-  if (stripNamespace) {
-    name = name.substring(name.lastIndexOf('/') + 1);
+  const originalName = tool.__action.name;
+  let name = originalName;
+  if (originalName.includes('/')) {
+    name = originalName.substring(originalName.lastIndexOf('/') + 1);
   }
 
-  return {
+  const out: ToolDefinition = {
     name,
     description: tool.__action.description || '',
     outputSchema: toJsonSchema({
@@ -154,6 +157,12 @@ export function toToolDefinition(
       jsonSchema: tool.__action.inputJsonSchema,
     })!,
   };
+
+  if (originalName !== name) {
+    out.metadata = { originalName };
+  }
+
+  return out;
 }
 
 /**

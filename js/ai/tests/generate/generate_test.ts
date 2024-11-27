@@ -49,7 +49,7 @@ describe('toGenerateRequest', () => {
   };
   registry.registerPluginProvider('namespaced', namespacedPlugin);
 
-  const namespacedTool = defineTool(
+  defineTool(
     registry,
     {
       name: 'namespaced/add',
@@ -138,6 +138,7 @@ describe('toGenerateRequest', () => {
               $schema: 'http://json-schema.org/draft-07/schema#',
               type: 'number',
             },
+            metadata: { originalName: 'namespaced/add' },
           },
         ],
         output: {},

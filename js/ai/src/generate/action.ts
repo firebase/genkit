@@ -250,7 +250,7 @@ async function actionToGenerateRequest(
     messages: options.messages,
     config: options.config,
     docs: options.docs,
-    tools: resolvedTools?.map((tool) => toToolDefinition(tool, true)) || [],
+    tools: resolvedTools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({
