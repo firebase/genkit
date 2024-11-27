@@ -133,6 +133,10 @@ export const ToolDefinitionSchema = z.object({
     .record(z.any())
     .describe('Valid JSON Schema describing the output of the tool.')
     .optional(),
+  metadata: z
+    .record(z.any())
+    .describe('additional metadata for this tool definition')
+    .optional(),
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 

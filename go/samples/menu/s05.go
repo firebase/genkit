@@ -97,7 +97,7 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 				return "", err
 			}
 
-			ret := presp.Candidates[0].Message.Content[0].Text
+			ret := presp.Message.Content[0].Text
 			return ret, nil
 		},
 	)
@@ -115,7 +115,7 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 				return nil, err
 			}
 			ret := &answerOutput{
-				Answer: presp.Candidates[0].Message.Content[0].Text,
+				Answer: presp.Message.Content[0].Text,
 			}
 			return ret, nil
 		},

@@ -16,59 +16,16 @@
 
 package ai
 
-// A Candidate is one of several possible generated responses from a generation
-// request. It contains a single generated message along with additional
-// metadata about its generation. A generation request may result in multiple Candidates.
-type Candidate struct {
-	Custom        any              `json:"custom,omitempty"`
-	FinishMessage string           `json:"finishMessage,omitempty"`
-	FinishReason  FinishReason     `json:"finishReason,omitempty"`
-	Index         int              `json:"index"`
-	Message       *Message         `json:"message,omitempty"`
-	Usage         *GenerationUsage `json:"usage,omitempty"`
-}
-
-// FinishReason is the reason why a model stopped generating tokens.
-type FinishReason string
-
-const (
-	FinishReasonStop    FinishReason = "stop"
-	FinishReasonLength  FinishReason = "length"
-	FinishReasonBlocked FinishReason = "blocked"
-	FinishReasonOther   FinishReason = "other"
-	FinishReasonUnknown FinishReason = "unknown"
-)
-
 type dataPart struct {
 	Data     any            `json:"data,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-// A GenerateRequest is a request to generate completions from a model.
-type GenerateRequest struct {
-	// Candidates indicates the number of responses the model should generate.
-	// Normally this would be set to 1.
-	Candidates int   `json:"candidates,omitempty"`
-	Config     any   `json:"config,omitempty"`
-	Context    []any `json:"context,omitempty"`
-	// Messages is a list of messages to pass to the model. The first n-1 Messages
-	// are treated as history. The last Message is the current request.
-	Messages []*Message `json:"messages,omitempty"`
-	// Output describes the desired response format.
-	Output *GenerateRequestOutput `json:"output,omitempty"`
-	// Tools lists the available tools that the model can ask the client to run.
-	Tools []*ToolDefinition `json:"tools,omitempty"`
-}
-
-// GenerateRequestOutput describes the structure that the model's output
-// should conform to. If Format is [OutputFormatJSON], then Schema
-// can describe the desired form of the generated JSON.
-type GenerateRequestOutput struct {
+type ModelRequestOutput struct {
 	Format OutputFormat   `json:"format,omitempty"`
 	Schema map[string]any `json:"schema,omitempty"`
 }
 
-// OutputFormat is the format that the model's output should produce.
 type OutputFormat string
 
 const (
@@ -76,28 +33,6 @@ const (
 	OutputFormatText  OutputFormat = "text"
 	OutputFormatMedia OutputFormat = "media"
 )
-
-// A GenerateResponse is a model's response to a [GenerateRequest].
-type GenerateResponse struct {
-	// Candidates are the requested responses from the model. The length of this
-	// slice will be equal to [GenerateRequest.Candidates].
-	Candidates []*Candidate `json:"candidates,omitempty"`
-	Custom     any          `json:"custom,omitempty"`
-	// LatencyMs is the time the request took in milliseconds.
-	LatencyMs float64 `json:"latencyMs,omitempty"`
-	// Request is the [GenerateRequest] struct used to trigger this response.
-	Request *GenerateRequest `json:"request,omitempty"`
-	// Usage describes how many resources were used by this generation request.
-	Usage *GenerationUsage `json:"usage,omitempty"`
-}
-
-// A GenerateResponseChunk is the portion of the [GenerateResponse]
-// that is passed to a streaming callback.
-type GenerateResponseChunk struct {
-	Content []*Part `json:"content,omitempty"`
-	Custom  any     `json:"custom,omitempty"`
-	Index   int     `json:"index,omitempty"`
-}
 
 // GenerationCommonConfig holds configuration for generation.
 type GenerationCommonConfig struct {
@@ -112,12 +47,16 @@ type GenerationCommonConfig struct {
 // GenerationUsage provides information about the generation process.
 type GenerationUsage struct {
 	Custom           map[string]float64 `json:"custom,omitempty"`
+	InputAudioFiles  float64            `json:"inputAudioFiles,omitempty"`
 	InputCharacters  int                `json:"inputCharacters,omitempty"`
 	InputImages      int                `json:"inputImages,omitempty"`
 	InputTokens      int                `json:"inputTokens,omitempty"`
+	InputVideos      float64            `json:"inputVideos,omitempty"`
+	OutputAudioFiles float64            `json:"outputAudioFiles,omitempty"`
 	OutputCharacters int                `json:"outputCharacters,omitempty"`
 	OutputImages     int                `json:"outputImages,omitempty"`
 	OutputTokens     int                `json:"outputTokens,omitempty"`
+	OutputVideos     float64            `json:"outputVideos,omitempty"`
 	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
@@ -153,6 +92,49 @@ type ModelInfoSupports struct {
 	SystemRole bool         `json:"systemRole,omitempty"`
 	Tools      bool         `json:"tools,omitempty"`
 }
+
+// A ModelRequest is a request to generate completions from a model.
+type ModelRequest struct {
+	Config   any        `json:"config,omitempty"`
+	Context  []any      `json:"context,omitempty"`
+	Messages []*Message `json:"messages,omitempty"`
+	// Output describes the desired response format.
+	Output *ModelRequestOutput `json:"output,omitempty"`
+	// Tools lists the available tools that the model can ask the client to run.
+	Tools []*ToolDefinition `json:"tools,omitempty"`
+}
+
+// A ModelResponse is a model's response to a [ModelRequest].
+type ModelResponse struct {
+	Custom        any          `json:"custom,omitempty"`
+	FinishMessage string       `json:"finishMessage,omitempty"`
+	FinishReason  FinishReason `json:"finishReason,omitempty"`
+	// LatencyMs is the time the request took in milliseconds.
+	LatencyMs float64  `json:"latencyMs,omitempty"`
+	Message   *Message `json:"message,omitempty"`
+	// Request is the [ModelRequest] struct used to trigger this response.
+	Request *ModelRequest `json:"request,omitempty"`
+	// Usage describes how many resources were used by this generation request.
+	Usage *GenerationUsage `json:"usage,omitempty"`
+}
+
+// A ModelResponseChunk is the portion of the [ModelResponse]
+// that is passed to a streaming callback.
+type ModelResponseChunk struct {
+	Aggregated bool    `json:"aggregated,omitempty"`
+	Content    []*Part `json:"content,omitempty"`
+	Custom     any     `json:"custom,omitempty"`
+}
+
+type FinishReason string
+
+const (
+	FinishReasonStop    FinishReason = "stop"
+	FinishReasonLength  FinishReason = "length"
+	FinishReasonBlocked FinishReason = "blocked"
+	FinishReasonOther   FinishReason = "other"
+	FinishReasonUnknown FinishReason = "unknown"
+)
 
 // Role indicates which entity is responsible for the content of a message.
 type Role string

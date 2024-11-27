@@ -149,9 +149,9 @@ func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 	}
 	return ai.DefineModel(provider, name, meta, func(
 		ctx context.Context,
-		input *ai.GenerateRequest,
-		cb func(context.Context, *ai.GenerateResponseChunk) error,
-	) (*ai.GenerateResponse, error) {
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
 		return generate(ctx, state.gclient, name, input, cb)
 	})
 }
@@ -229,9 +229,9 @@ func generate(
 	ctx context.Context,
 	client *genai.Client,
 	model string,
-	input *ai.GenerateRequest,
-	cb func(context.Context, *ai.GenerateResponseChunk) error,
-) (*ai.GenerateResponse, error) {
+	input *ai.ModelRequest,
+	cb func(context.Context, *ai.ModelResponseChunk) error,
+) (*ai.ModelResponse, error) {
 	gm, err := newModel(client, model, input)
 	if err != nil {
 		return nil, err
@@ -272,7 +272,7 @@ func generate(
 
 	// Streaming version.
 	iter := cs.SendMessageStream(ctx, parts...)
-	var r *ai.GenerateResponse
+	var r *ai.ModelResponse
 	for {
 		chunk, err := iter.Next()
 		if err == iterator.Done {
@@ -285,9 +285,8 @@ func generate(
 		// Send candidates to the callback.
 		for _, c := range chunk.Candidates {
 			tc := translateCandidate(c)
-			err := cb(ctx, &ai.GenerateResponseChunk{
+			err := cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
-				Index:   tc.Index,
 			})
 			if err != nil {
 				return nil, err
@@ -297,15 +296,15 @@ func generate(
 	if r == nil {
 		// No candidates were returned. Probably rare, but it might avoid a NPE
 		// to return an empty instead of nil result.
-		r = &ai.GenerateResponse{}
+		r = &ai.ModelResponse{}
 	}
 	r.Request = input
 	return r, nil
 }
 
-func newModel(client *genai.Client, model string, input *ai.GenerateRequest) (*genai.GenerativeModel, error) {
+func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
 	gm := client.GenerativeModel(model)
-	gm.SetCandidateCount(int32(input.Candidates))
+	gm.SetCandidateCount(1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
 			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
@@ -341,7 +340,7 @@ func newModel(client *genai.Client, model string, input *ai.GenerateRequest) (*g
 }
 
 // startChat starts a chat session and configures it with the input messages.
-func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.ChatSession, error) {
+func startChat(gm *genai.GenerativeModel, input *ai.ModelRequest) (*genai.ChatSession, error) {
 	cs := gm.StartChat()
 
 	// All but the last message goes in the history field.
@@ -470,26 +469,25 @@ func castToStringArray(i []any) []string {
 
 //copy:start vertexai.go translateCandidate
 
-// translateCandidate translates from a genai.GenerateContentResponse to an ai.GenerateResponse.
-func translateCandidate(cand *genai.Candidate) *ai.Candidate {
-	c := &ai.Candidate{}
-	c.Index = int(cand.Index)
+// translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
+func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
+	m := &ai.ModelResponse{}
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
-		c.FinishReason = ai.FinishReasonStop
+		m.FinishReason = ai.FinishReasonStop
 	case genai.FinishReasonMaxTokens:
-		c.FinishReason = ai.FinishReasonLength
+		m.FinishReason = ai.FinishReasonLength
 	case genai.FinishReasonSafety:
-		c.FinishReason = ai.FinishReasonBlocked
+		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonRecitation:
-		c.FinishReason = ai.FinishReasonBlocked
+		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonOther:
-		c.FinishReason = ai.FinishReasonOther
+		m.FinishReason = ai.FinishReasonOther
 	default: // Unspecified
-		c.FinishReason = ai.FinishReasonUnknown
+		m.FinishReason = ai.FinishReasonUnknown
 	}
-	m := &ai.Message{}
-	m.Role = ai.Role(cand.Content.Role)
+	msg := &ai.Message{}
+	msg.Role = ai.Role(cand.Content.Role)
 	for _, part := range cand.Content.Parts {
 		var p *ai.Part
 		switch part := part.(type) {
@@ -505,22 +503,20 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		default:
 			panic(fmt.Sprintf("unknown part %#v", part))
 		}
-		m.Content = append(m.Content, p)
+		msg.Content = append(msg.Content, p)
 	}
-	c.Message = m
-	return c
+	m.Message = msg
+	return m
 }
 
 //copy:stop
 
 //copy:start vertexai.go translateResponse
 
-// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
-func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
-	r := &ai.GenerateResponse{}
-	for _, c := range resp.Candidates {
-		r.Candidates = append(r.Candidates, translateCandidate(c))
-	}
+// Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
+func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
+	r := translateCandidate(resp.Candidates[0])
+
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
