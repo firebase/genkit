@@ -22,7 +22,7 @@ import type {
 import { Genkit, z } from 'genkit';
 import type { McpClientOptions } from '../index.js';
 
-export function registerResourceTools(
+export async function registerResourceTools(
   ai: Genkit,
   client: Client,
   params: McpClientOptions
