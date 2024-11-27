@@ -463,7 +463,7 @@ export class Genkit {
           if (!response.tools && options.tools) {
             response.tools = (
               await resolveTools(this.registry, options.tools)
-            ).map(toToolDefinition);
+            ).map((t) => toToolDefinition(t));
           }
           if (!response.output && options.output) {
             response.output = {

@@ -134,10 +134,16 @@ export async function lookupToolByName(
  * Converts a tool action to a definition of the tool to be passed to a model.
  */
 export function toToolDefinition(
-  tool: Action<z.ZodTypeAny, z.ZodTypeAny>
+  tool: Action<z.ZodTypeAny, z.ZodTypeAny>,
+  stripNamespace = false
 ): ToolDefinition {
+  let name = tool.__action.name;
+  if (stripNamespace) {
+    name = name.substring(name.lastIndexOf('/') + 1);
+  }
+
   return {
-    name: tool.__action.name,
+    name,
     description: tool.__action.description || '',
     outputSchema: toJsonSchema({
       schema: tool.__action.outputSchema ?? z.void(),

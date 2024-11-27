@@ -15,6 +15,7 @@
  */
 
 import {
+  GenkitError,
   getStreamingCallback,
   runWithStreamingCallback,
   z,
@@ -116,6 +117,19 @@ async function generate(
   const tools = await resolveTools(registry, rawRequest.tools);
 
   const resolvedFormat = await resolveFormat(registry, rawRequest.output);
+  // Create a lookup of tool names with namespaces stripped to original names
+  const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
+    const name = tool.__action.name;
+    const shortName = name.substring(name.lastIndexOf('/') + 1);
+    if (acc[shortName]) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Cannot provide two tools with the same name: '${name}' and '${acc[shortName]}'`,
+      });
+    }
+    acc[shortName] = tool;
+    return acc;
+  }, {});
 
   const request = await actionToGenerateRequest(
     rawRequest,
@@ -184,9 +198,7 @@ async function generate(
         'Tool request expected but not provided in tool request part'
       );
     }
-    const tool = tools?.find(
-      (tool) => tool.__action.name === part.toolRequest?.name
-    );
+    const tool = toolMap[part.toolRequest?.name];
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
@@ -238,7 +250,7 @@ async function actionToGenerateRequest(
     messages: options.messages,
     config: options.config,
     docs: options.docs,
-    tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: resolvedTools?.map((tool) => toToolDefinition(tool, true)) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({
