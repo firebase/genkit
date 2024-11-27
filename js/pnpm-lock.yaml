@@ -22,19 +22,19 @@ importers:
         version: 4.19.2
       typedoc:
         specifier: ^0.26.11
-        version: 0.26.11(typescript@5.6.3)
+        version: 0.26.11(typescript@4.9.5)
       typedoc-material-theme:
         specifier: ^1.1.0
-        version: 1.1.0(typedoc@0.26.11(typescript@5.6.3))
+        version: 1.1.0(typedoc@0.26.11(typescript@4.9.5))
       typedoc-plugin-markdown:
         specifier: ^4.2.10
-        version: 4.2.10(typedoc@0.26.11(typescript@5.6.3))
+        version: 4.2.10(typedoc@0.26.11(typescript@4.9.5))
       typedoc-plugin-zod:
         specifier: ^1.2.1
-        version: 1.2.1(typedoc@0.26.11(typescript@5.6.3))
+        version: 1.2.1(typedoc@0.26.11(typescript@4.9.5))
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   ai:
     dependencies:
@@ -71,13 +71,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   core:
     dependencies:
@@ -147,13 +147,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   doc-snippets:
     dependencies:
@@ -218,13 +218,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/checks:
     dependencies:
@@ -246,13 +246,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.0.2
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.7.0
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/chroma:
     dependencies:
@@ -277,13 +277,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/dev-local-vectorstore:
     dependencies:
@@ -308,13 +308,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/dotprompt:
     dependencies:
@@ -345,13 +345,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.4.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.4.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
       yaml:
         specifier: ^2.4.1
         version: 2.4.1
@@ -385,13 +385,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/firebase:
     dependencies:
@@ -437,16 +437,16 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30))(typescript@5.6.3)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/google-cloud:
     dependencies:
@@ -522,16 +522,16 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30))(typescript@5.6.3)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/googleai:
     dependencies:
@@ -559,13 +559,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/langchain:
     dependencies:
@@ -664,13 +664,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/pinecone:
     dependencies:
@@ -695,13 +695,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   plugins/vertexai:
     dependencies:
@@ -751,13 +751,13 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.6.1)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
       typescript:
-        specifier: ^5.3.0
-        version: 5.6.3
+        specifier: ^4.9.0
+        version: 4.9.5
 
   testapps/anthropic-models:
     dependencies:
@@ -11475,7 +11475,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30))(typescript@5.6.3):
+  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30))(typescript@4.9.5):
     dependencies:
       bs-logger: 0.2.6
       ejs: 3.1.10
@@ -11486,7 +11486,7 @@ snapshots:
       lodash.memoize: 4.1.2
       make-error: 1.3.6
       semver: 7.6.3
-      typescript: 5.6.3
+      typescript: 4.9.5
       yargs-parser: 21.1.1
     optionalDependencies:
       '@babel/core': 7.25.7
@@ -11517,6 +11517,33 @@ snapshots:
 
   tslib@2.6.2: {}
 
+  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.4.1):
+    dependencies:
+      bundle-require: 5.0.0(esbuild@0.24.0)
+      cac: 6.7.14
+      chokidar: 4.0.1
+      consola: 3.2.3
+      debug: 4.3.7
+      esbuild: 0.24.0
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.19.2)(yaml@2.4.1)
+      resolve-from: 5.0.0
+      rollup: 4.25.0
+      source-map: 0.8.0-beta.0
+      sucrase: 3.35.0
+      tinyexec: 0.3.1
+      tinyglobby: 0.2.10
+      tree-kill: 1.2.2
+    optionalDependencies:
+      postcss: 8.4.47
+      typescript: 4.9.5
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
+
   tsup@8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1):
     dependencies:
       bundle-require: 5.0.0(esbuild@0.24.0)
@@ -11538,33 +11565,6 @@ snapshots:
     optionalDependencies:
       postcss: 8.4.47
       typescript: 4.9.5
-    transitivePeerDependencies:
-      - jiti
-      - supports-color
-      - tsx
-      - yaml
-
-  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.4.1):
-    dependencies:
-      bundle-require: 5.0.0(esbuild@0.24.0)
-      cac: 6.7.14
-      chokidar: 4.0.1
-      consola: 3.2.3
-      debug: 4.3.7
-      esbuild: 0.24.0
-      joycon: 3.1.1
-      picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.19.2)(yaml@2.4.1)
-      resolve-from: 5.0.0
-      rollup: 4.25.0
-      source-map: 0.8.0-beta.0
-      sucrase: 3.35.0
-      tinyexec: 0.3.1
-      tinyglobby: 0.2.10
-      tree-kill: 1.2.2
-    optionalDependencies:
-      postcss: 8.4.47
-      typescript: 5.6.3
     transitivePeerDependencies:
       - jiti
       - supports-color
@@ -11658,26 +11658,26 @@ snapshots:
       is-typed-array: 1.1.13
       possible-typed-array-names: 1.0.0
 
-  typedoc-material-theme@1.1.0(typedoc@0.26.11(typescript@5.6.3)):
+  typedoc-material-theme@1.1.0(typedoc@0.26.11(typescript@4.9.5)):
     dependencies:
       '@material/material-color-utilities': 0.2.7
-      typedoc: 0.26.11(typescript@5.6.3)
+      typedoc: 0.26.11(typescript@4.9.5)
 
-  typedoc-plugin-markdown@4.2.10(typedoc@0.26.11(typescript@5.6.3)):
+  typedoc-plugin-markdown@4.2.10(typedoc@0.26.11(typescript@4.9.5)):
     dependencies:
-      typedoc: 0.26.11(typescript@5.6.3)
+      typedoc: 0.26.11(typescript@4.9.5)
 
-  typedoc-plugin-zod@1.2.1(typedoc@0.26.11(typescript@5.6.3)):
+  typedoc-plugin-zod@1.2.1(typedoc@0.26.11(typescript@4.9.5)):
     dependencies:
-      typedoc: 0.26.11(typescript@5.6.3)
+      typedoc: 0.26.11(typescript@4.9.5)
 
-  typedoc@0.26.11(typescript@5.6.3):
+  typedoc@0.26.11(typescript@4.9.5):
     dependencies:
       lunr: 2.3.9
       markdown-it: 14.1.0
       minimatch: 9.0.5
       shiki: 1.23.1
-      typescript: 5.6.3
+      typescript: 4.9.5
       yaml: 2.6.1
 
   typescript@4.9.5: {}
