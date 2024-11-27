@@ -4,7 +4,7 @@ The Vertex AI plugin provides interfaces to several AI services:
 
 *   [Google generative AI models](https://cloud.google.com/vertex-ai/generative-ai/docs/):
     *   Gemini text generation
-    *   Imagen2 image generation
+    *   Imagen2 and Imagen3 image generation
     *   Text embedding generation
 *   A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
     *   [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
