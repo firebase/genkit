@@ -263,7 +263,12 @@ export class LocalFileDatasetStore implements DatasetStore {
     const patchMap = new Map(patch.map((d) => [d.testCaseId, d]));
 
     patchMap.forEach((value, key) => {
-      datasetMap.set(key, value);
+      // Delete sample if testCaseId is provided
+      if (value.testCaseId && !value.input && !value.reference) {
+        datasetMap.delete(key);
+      } else {
+        datasetMap.set(key, value);
+      }
     });
 
     const newDataset = Array.from(datasetMap.values()) as Dataset;

@@ -16,8 +16,13 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { gemini15Flash, gemini15Pro, googleAI } from '@genkit-ai/googleai';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+import {
+  gemini15Flash,
+  gemini15Pro,
+  googleAI,
+  textEmbeddingGecko001,
+} from '@genkit-ai/googleai';
+import { vertexAI } from '@genkit-ai/vertexai';
 import {
   vertexAIEvaluation,
   VertexAIEvaluationMetricType,
@@ -54,8 +59,8 @@ export const ai = genkit({
     genkitEval({
       judge: gemini15Pro,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
-      embedder: textEmbedding004,
+      metrics: [GenkitMetric.MALICIOUSNESS],
+      embedder: textEmbeddingGecko001,
     }),
     vertexAI({
       location: 'us-central1',
@@ -79,7 +84,7 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'pdfQA',
-        embedder: textEmbedding004,
+        embedder: textEmbeddingGecko001,
       },
     ]),
     langchain({

@@ -65,6 +65,7 @@ const DELICIOUSNESS_PROMPT = ai.definePrompt(
 Now, define the function that will take an example which includes `output` as is required by the prompt and score the result. Genkit test cases include `input` as required a required field, with optional fields for `output` and `context`. It is the responsibility of the evaluator to validate that all fields required for evaluation are present.
 
 ```ts
+import { ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 
 /**
