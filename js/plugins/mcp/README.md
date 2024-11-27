@@ -5,13 +5,21 @@
 
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to both consume MCP tools, prompts, and resources as a client and provide tools and prompts as a server.
 
+## Installation
+
+To get started, you'll need Genkit and the MCP plugin:
+
+```bash
+npm i genkit genkitx-mcp
+```
+
 ## MCP Client
 
 To create an MCP client, you call the `mcpClient` function to generate a Genkit plugin for an MCP server. For example, to use MCP's example [filesystem server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem):
 
 ```ts
 import { genkit } from 'genkit';
-import { mcpClient } from '@genkit-ai/mcp';
+import { mcpClient } from 'genkitx-mcp';
 
 // the filesystem server requires one or more allowed directories
 const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
@@ -67,7 +75,7 @@ You can also expose all of the tools and prompts from a Genkit instance as an MC
 
 ```ts
 import { genkit, z } from 'genkit';
-import { mcpServer } from '@genkit-ai/mcp';
+import { mcpServer } from 'genkitx-mcp';
 
 const ai = genkit({});
 
