@@ -54,7 +54,7 @@ function registerTool(
   );
   ai.defineTool(
     {
-      name: tool.name,
+      name: `${params.name}/${tool.name}`,
       description: tool.description || '',
       inputJsonSchema: tool.inputSchema,
       outputSchema: z.any(),
