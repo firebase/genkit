@@ -72,11 +72,14 @@ export function mcpClient(params: McpClientOptions) {
       { capabilities: {} }
     );
     await client.connect(transport);
-    await Promise.all([
-      registerAllTools(ai, client, params),
-      registerAllPrompts(ai, client, params),
-      registerResourceTools(ai, client, params),
-    ]);
+    const capabilties = await client.getServerCapabilities();
+    const promises: Promise<any>[] = [];
+    if (capabilties?.tools) promises.push(registerAllTools(ai, client, params));
+    if (capabilties?.prompts)
+      promises.push(registerAllPrompts(ai, client, params));
+    if (capabilties?.resources)
+      promises.push(registerResourceTools(ai, client, params));
+    await Promise.all(promises);
   });
 }
 
