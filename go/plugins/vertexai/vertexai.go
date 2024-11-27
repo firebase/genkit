@@ -42,6 +42,9 @@ var (
 		"gemini-1.0-pro":   gemini.BasicText,
 		"gemini-1.5-pro":   gemini.Multimodal,
 		"gemini-1.5-flash": gemini.Multimodal,
+		"imagen2":          gemini.Multimodal,
+		"imagen3":          gemini.Multimodal,
+		"imagen3-fast":     gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
@@ -169,6 +172,9 @@ func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
+		if strings.HasPrefix(name, "imagen") {
+			return imagenModel(ctx, state.gclient, name, input, cb)
+		}
 		return generate(ctx, state.gclient, name, input, cb)
 	})
 }
