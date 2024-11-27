@@ -402,9 +402,10 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		if r.Header.Get("Accept") == "text/event-stream" || stream {
 			w.Header().Set("Content-Type", "text/plain")
 			w.Header().Set("Transfer-Encoding", "chunked")
-			// Stream results are newline-separated JSON.
+			// Event Stream results are in JSON format separated by two newline escape sequences
+			// including the `data` and `message` labels
 			callback = func(ctx context.Context, msg json.RawMessage) error {
-				_, err := fmt.Fprintf(w, `data: {"message": %s}\n\n`, msg)
+				_, err := fmt.Fprintf(w, "data: {\"message\": %s}\n\n", msg)
 				if err != nil {
 					return err
 				}
@@ -418,7 +419,7 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		out, err := f.runJSON(r.Context(), r.Header.Get("Authorization"), body.Data, callback)
 		if err != nil {
 			if r.Header.Get("Accept") == "text/event-stream" || stream {
-				_, err = fmt.Fprintf(w, `data: {"error": {"status": "INTERNAL", "message": "stream flow error", "details": "%s"}}\n\n`, err)
+				_, err = fmt.Fprintf(w, "data: {\"error\": {\"status\": \"INTERNAL\", \"message\": \"stream flow error\", \"details\": \"%v\"}}\n\n", err)
 				return err
 			}
 			return err
@@ -426,7 +427,7 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		// Responses for streaming, non-durable flows should be prefixed
 		// with "data"
 		if r.Header.Get("Accept") == "text/event-stream" || stream {
-			_, err = fmt.Fprintf(w, `data: {"result": %s}\n\n`, out)
+			_, err = fmt.Fprintf(w, "data: {\"result\": %s}\n\n", out)
 			return err
 		}
 
