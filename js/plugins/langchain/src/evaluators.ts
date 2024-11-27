@@ -42,6 +42,7 @@ export function langchainEvaluator(
               type as 'labeled_criteria' | 'criteria',
               {
                 criteria,
+                // TODO: Figure out why this breaks with TypeScript 5.3
                 llm: genkitModel(ai, judgeLlm, judgeConfig),
                 chainOptions: {
                   callbacks: [new GenkitTracer()],
