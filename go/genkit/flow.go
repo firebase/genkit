@@ -695,48 +695,80 @@ func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(conte
 	return finishedOpResponse(state.Operation)
 }
 
-// StreamFlowValue is either a streamed value or a final output of a flow.
-type StreamFlowValue[Out, Stream any] struct {
-	Done   bool
-	Output Out    // valid if Done is true
-	Stream Stream // valid if Done is false
+// FlowIterator defines the interface for iterating over flow results.
+type FlowIterator[Out, Stream any] interface {
+	// Next returns the next streamed value and a boolean indicating whether the flow has completed.
+	Next() (Stream, bool)
+	// FinalOutput returns the final output of the flow if it has completed.
+	FinalOutput() (Out, error)
 }
 
-// Stream runs the flow on input and delivers both the streamed values and the final output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
-//
-// If the yield function is passed a non-nil error, the flow has failed with that
-// error; the yield function will not be called again. An error is also passed if
-// the flow fails to complete (that is, it has an interrupt).
-// Genkit Go does not yet support interrupts.
-//
-// If the yield function's [StreamFlowValue] argument has Done == true, the value's
-// Output field contains the final output; the yield function will not be called
-// again.
-//
-// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) func(func(*StreamFlowValue[Out, Stream], error) bool) {
-	return func(yield func(*StreamFlowValue[Out, Stream], error) bool) {
-		cb := func(ctx context.Context, s Stream) error {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if !yield(&StreamFlowValue[Out, Stream]{Stream: s}, nil) {
-				return errStop
-			}
-			return nil
-		}
-		output, err := f.run(ctx, input, cb, opts...)
-		if err != nil {
-			yield(nil, err)
-		} else {
-			yield(&StreamFlowValue[Out, Stream]{Done: true, Output: output}, nil)
-		}
+// flowIterator implements the FlowIterator interface.
+type flowIterator[Out, Stream any] struct {
+	done     bool          // true if the flow has completed
+	output   Out           // the final output of the flow
+	err      error         // the error that occurred, if any
+	streamCh chan Stream   // channel to receive streamed values
+	doneCh   chan struct{} // channel to indicate that the flow has completed
+}
+
+// Next returns the next streamed value and a boolean indicating whether the flow has completed.
+// If the flow has completed, the returned Stream pointer will be nil and the boolean will be true.
+func (fi *flowIterator[Out, Stream]) Next() (*Stream, bool) {
+	select {
+	case stream := <-fi.streamCh:
+		return &stream, false
+	case <-fi.doneCh:
+		return nil, true
 	}
 }
 
-var errStop = errors.New("stop")
+// FinalOutput returns the final output of the flow if it has completed.
+// If the flow has not completed, it returns an error.
+// If the flow completed with an error, it returns that error.
+func (fi *flowIterator[Out, Stream]) FinalOutput() (*Out, error) {
+	if !fi.done {
+		return nil, errors.New("flow has not completed")
+	}
+	if fi.err != nil {
+		return nil, fi.err
+	}
+	return &fi.output, nil
+}
+
+// Stream returns a FlowIterator for the flow.
+func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) FlowIterator[*Out, *Stream] {
+	fi := &flowIterator[Out, Stream]{
+		done:     false,
+		streamCh: make(chan Stream),
+		doneCh:   make(chan struct{}),
+	}
+
+	go func() {
+		cb := func(ctx context.Context, s Stream) error {
+			if ctx.Err() != nil {
+				fi.err = ctx.Err()
+				return ctx.Err()
+			}
+			select {
+			case fi.streamCh <- s:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		output, err := f.run(ctx, input, cb, opts...)
+		if err != nil {
+			fi.err = err
+		} else {
+			fi.output = output
+		}
+		fi.done = true
+		close(fi.doneCh)
+	}()
+
+	return fi
+}
 
 func finishedOpResponse[O any](op *operation[O]) (O, error) {
 	if !op.Done {
