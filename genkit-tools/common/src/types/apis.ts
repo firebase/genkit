@@ -17,6 +17,7 @@
 import { z } from 'zod';
 import {
   DatasetSchemaSchema,
+  DatasetType,
   EvalInferenceInputSchema,
   EvalRunKeySchema,
 } from './eval';
@@ -106,6 +107,7 @@ export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
 export const CreateDatasetRequestSchema = z.object({
   data: EvalInferenceInputSchema,
   datasetId: z.string().optional(),
+  datasetType: DatasetType,
   schema: DatasetSchemaSchema.optional(),
   targetAction: z.string().optional(),
 });
