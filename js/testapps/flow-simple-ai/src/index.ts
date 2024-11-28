@@ -28,6 +28,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { MessageSchema, genkit, run, z } from 'genkit';
 import { logger } from 'genkit/logging';
+import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
 
 logger.setLogLevel('debug');
@@ -52,6 +53,32 @@ enableGoogleCloudTelemetry({
 const ai = genkit({
   plugins: [googleAI(), vertexAI()],
 });
+
+const math: PluginProvider = {
+  name: 'math',
+  initializer: async () => {
+    ai.defineTool(
+      {
+        name: 'math/add',
+        description: 'add two numbers',
+        inputSchema: z.object({ a: z.number(), b: z.number() }),
+        outputSchema: z.number(),
+      },
+      async ({ a, b }) => a + b
+    );
+
+    ai.defineTool(
+      {
+        name: 'math/subtract',
+        description: 'subtract two numbers',
+        inputSchema: z.object({ a: z.number(), b: z.number() }),
+        outputSchema: z.number(),
+      },
+      async ({ a, b }) => a - b
+    );
+  },
+};
+ai.registry.registerPluginProvider('math', math);
 
 const app = initializeApp();
 
@@ -538,11 +565,18 @@ export const arrayStreamTester = ai.defineStreamingFlow(
   }
 );
 
-// async function main() {
-//   const { stream, output } = arrayStreamTester();
-//   for await (const chunk of stream) {
-//     console.log(chunk);
-//   }
-//   console.log(await output);
-// }
-// main();
+ai.defineFlow(
+  {
+    name: 'math',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const { text } = await ai.generate({
+      model: gemini15Flash,
+      prompt: query,
+      tools: ['math/add', 'math/subtract'],
+    });
+    return text;
+  }
+);

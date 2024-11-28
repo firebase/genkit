@@ -839,6 +839,11 @@
           "type": "object",
           "additionalProperties": {},
           "description": "Valid JSON Schema describing the output of the tool."
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {},
+          "description": "additional metadata for this tool definition"
         }
       },
       "required": [
