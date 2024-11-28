@@ -184,6 +184,7 @@ export const DatasetSchemaSchema = z.object({
 
 /** Type of dataset, useful for UI niceties. */
 export const DatasetTypeSchema = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
+export type DatasetType = z.infer<typeof DatasetTypeSchema>;
 
 /**
  * Metadata for Dataset objects containing version, create and update time, etc.
