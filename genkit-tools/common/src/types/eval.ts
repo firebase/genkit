@@ -183,7 +183,7 @@ export const DatasetSchemaSchema = z.object({
 });
 
 /** Type of dataset, useful for UI niceties. */
-export const DatasetType = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
+export const DatasetTypeSchema = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
 
 /**
  * Metadata for Dataset objects containing version, create and update time, etc.
@@ -193,7 +193,7 @@ export const DatasetMetadataSchema = z.object({
   datasetId: z.string(),
   size: z.number(),
   schema: DatasetSchemaSchema.optional(),
-  datasetType: DatasetType,
+  datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
