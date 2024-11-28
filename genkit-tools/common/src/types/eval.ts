@@ -15,7 +15,6 @@
  */
 
 import { z } from 'zod';
-import { toJsonSchema } from '../utils';
 import {
   CreateDatasetRequest,
   ListEvalKeysRequest,
@@ -53,9 +52,6 @@ export const ModelInferenceInputSchema = z.union([
 ]);
 export type ModelInferenceInput = z.infer<typeof ModelInferenceInputSchema>;
 
-export const ModelInferenceInputJSONSchema = toJsonSchema(
-  ModelInferenceInputSchema
-);
 /**
  * A set of samples that is ready for inference.
  *

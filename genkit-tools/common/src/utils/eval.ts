@@ -30,8 +30,6 @@ import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { NestedSpanData, TraceData } from '../types/trace';
 import { logger } from './logger';
 import { stackTraceSpans } from './trace';
-import { z } from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
 
 export type EvalExtractorFn = (t: TraceData) => string;
 const JSON_EMPTY_STRING = '""';
@@ -216,17 +214,4 @@ export async function getEvalExtractors(
 /**Global function to generate testCaseId */
 export function generateTestCaseId() {
   return randomUUID();
-}
-
-/**
- * Convertes a Zod schema into a JSON schema
- */
-export function toJsonSchema(
-  schema: z.ZodTypeAny
-){
-  const outSchema = zodToJsonSchema(schema!, {
-    $refStrategy: 'none',
-    removeAdditionalStrategy: 'strict',
-  });
-  return outSchema;
 }
