@@ -25,12 +25,11 @@ import {
   defineAction,
   StreamingCallback,
 } from './action.js';
-import { runWithAuthContext } from './auth.js';
+import { runWithContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
-import { toJsonSchema } from './schema.js';
 
 const streamDelimiter = '\n\n';
 
@@ -183,7 +182,7 @@ export class Flow<
     }
   ): Promise<ActionResult<z.infer<O>>> {
     await this.registry.initializeAllPlugins();
-    return await runWithAuthContext(opts.auth, () =>
+    return await runWithContext(opts.auth, () =>
       this.action.run(input, {
         context: opts.auth,
         telemetryLabels: opts.labels,
@@ -541,7 +540,7 @@ function defineFlowAction<
     },
     async (input, { sendChunk, context }) => {
       await config.authPolicy?.(context, input);
-      return await fn(input, sendChunk);
+      return await runWithContext(context, () => fn(input, sendChunk));
     }
   );
 }

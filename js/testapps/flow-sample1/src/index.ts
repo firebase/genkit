@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkit, run, z } from 'genkit';
+import { genkit, getFlowAuth, run, z } from 'genkit';
 
 const ai = genkit({});
 
@@ -49,6 +49,13 @@ export const withInputSchema = ai.defineFlow(
     return await run('call-llm1', async () => {
       return `foo: ${foo}`;
     });
+  }
+);
+
+export const withContext = ai.defineFlow(
+  { name: 'withContext', inputSchema: z.object({ subject: z.string() }), authPolicy: () => {} },
+  async (input) => {
+    return `subject: ${input.subject}, context: ${JSON.stringify(getFlowAuth())}`
   }
 );
 
