@@ -249,13 +249,12 @@ describe('flow', () => {
       assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
         'genkit:input': '"foo"',
         'genkit:isRoot': true,
-        'genkit:metadata:flow:name': 'testFlow',
-        'genkit:metadata:flow:state': 'done',
+        'genkit:metadata:subtype': 'flow',
         'genkit:name': 'testFlow',
         'genkit:output': '"bar foo"',
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
-        'genkit:type': 'flow',
+        'genkit:type': 'action',
       });
     });
 
@@ -317,13 +316,12 @@ describe('flow', () => {
       assert.deepStrictEqual(spanExporter.exportedSpans[2].attributes, {
         'genkit:input': '"foo"',
         'genkit:isRoot': true,
-        'genkit:metadata:flow:name': 'testFlow',
-        'genkit:metadata:flow:state': 'done',
+        'genkit:metadata:subtype': 'flow',
         'genkit:name': 'testFlow',
         'genkit:output': '"foo bar"',
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
-        'genkit:type': 'flow',
+        'genkit:type': 'action',
       });
     });
   });

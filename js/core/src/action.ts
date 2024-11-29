@@ -71,6 +71,11 @@ export interface ActionRunOptions<S> {
    * Additional runtime context data (ex. auth context data).
    */
   context?: any;
+
+  /**
+   * Additional span attributes to apply to OT spans.
+   */
+  telemetryLabels?: Record<string, string>;
 }
 
 /**
@@ -127,7 +132,8 @@ type ActionParams<
   outputJsonSchema?: JSONSchema7;
   metadata?: Record<string, any>;
   use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
-  streamingSchema?: S;
+  streamSchema?: S;
+  actionType: ActionType;
 };
 
 export type SimpleMiddleware<I = any, O = any> = (
@@ -248,9 +254,13 @@ export function action<
         name: actionName,
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
+          'genkit:metadata:subtype': config.actionType,
+          ...options?.telemetryLabels
         },
       },
       async (metadata, span) => {
+        setCustomMetadataAttributes({ subtype: config.actionType });
+
         traceId = span.spanContext().traceId;
         spanId = span.spanContext().spanId;
         metadata.name = actionName;
@@ -258,7 +268,7 @@ export function action<
 
         const output = await fn(input, {
           context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => {}),
+          sendChunk: options?.onChunk ?? ((c) => {})
         });
 
         metadata.output = JSON.stringify(output);
@@ -317,14 +327,12 @@ export function defineAction<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  config: ActionParams<I, O, S> & {
-    actionType: ActionType;
-  },
+  config: ActionParams<I, O, S>,
   fn: (
     input: z.infer<I>,
     options: ActionFnArg<z.infer<S>>
   ) => Promise<z.infer<O>>
-): Action<I, O> {
+): Action<I, O, S> {
   if (isInRuntimeContext()) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
@@ -337,7 +345,6 @@ export function defineAction<
     validateActionId(config.name.actionId);
   }
   const act = action(config, async (i: I, options): Promise<z.infer<O>> => {
-    setCustomMetadataAttributes({ subtype: config.actionType });
     await registry.initializeAllPlugins();
     return await runInActionRuntimeContext(() => fn(i, options));
   });

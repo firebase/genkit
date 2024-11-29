@@ -153,7 +153,7 @@ export class ReflectionServer {
     });
 
     server.post('/api/runAction', async (request, response, next) => {
-      const { key, input } = request.body;
+      const { key, input, context, telemetryLabels } = request.body;
       const { stream } = request.query;
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
       let traceId;
@@ -164,11 +164,12 @@ export class ReflectionServer {
           return;
         }
         if (stream === 'true') {
+          const callback = (chunk) => {
+            response.write(JSON.stringify(chunk) + '\n');
+          };
           const result = await runWithStreamingCallback(
-            (chunk) => {
-              response.write(JSON.stringify(chunk) + '\n');
-            },
-            async () => await action.run(input)
+            callback,
+            async () => await action.run(input, { context, onChunk: callback })
           );
           await flushTracing();
           response.write(
@@ -181,7 +182,7 @@ export class ReflectionServer {
           );
           response.end();
         } else {
-          const result = await action.run(input);
+          const result = await action.run(input, { context, telemetryLabels });
           await flushTracing();
           response.send({
             result: result.result,

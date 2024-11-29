@@ -64,7 +64,7 @@ export function startServer(manager: RuntimeManager, port: number) {
   });
 
   app.post('/api/streamAction', bodyParser.json(), async (req, res) => {
-    const { key, input } = req.body;
+    const { key, input, context } = req.body;
     res.writeHead(200, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type',
@@ -72,7 +72,7 @@ export function startServer(manager: RuntimeManager, port: number) {
       'Transfer-Encoding': 'chunked',
     });
 
-    const result = await manager.runAction({ key, input }, (chunk) => {
+    const result = await manager.runAction({ key, input, context }, (chunk) => {
       res.write(JSON.stringify(chunk) + '\n');
     });
     res.write(JSON.stringify(result));

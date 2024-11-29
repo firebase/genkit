@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { FlowInvokeEnvelopeMessage } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
@@ -59,13 +58,9 @@ export const flowBatchRun = new Command('flow:batchRun')
           logger.info(`Running '/flow/${flowName}'...`);
           let response = await manager.runAction({
             key: `/flow/${flowName}`,
-            input: {
-              start: {
-                input: data,
-                labels: options.label ? { batchRun: options.label } : undefined,
-                auth: options.auth ? JSON.parse(options.auth) : undefined,
-              },
-            } as FlowInvokeEnvelopeMessage,
+            input: data,
+            context: options.auth ? JSON.parse(options.auth) : undefined,
+            telemetryLabels: options.label ? { batchRun: options.label } : undefined,
           });
           logger.info(
             'Result:\n' + JSON.stringify(response.result, undefined, '  ')

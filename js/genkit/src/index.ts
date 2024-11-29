@@ -101,9 +101,6 @@ export {
 } from '@genkit-ai/ai';
 export { type SessionData, type SessionStore } from '@genkit-ai/ai/session';
 export {
-  FlowActionInputSchema,
-  FlowErrorSchema,
-  FlowInvokeEnvelopeMessageSchema,
   FlowServer,
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
@@ -129,14 +126,9 @@ export {
   type ActionMetadata,
   type CallableFlow,
   type Flow,
-  type FlowActionInput,
   type FlowAuthPolicy,
   type FlowConfig,
-  type FlowError,
   type FlowFn,
-  type FlowInvokeEnvelopeMessage,
-  type FlowResponseSchema,
-  type FlowResultSchema,
   type FlowServerOptions,
   type JSONSchema,
   type JSONSchema7,

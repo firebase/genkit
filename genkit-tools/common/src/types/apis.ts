@@ -61,6 +61,14 @@ export const RunActionRequestSchema = z.object({
     .any()
     .optional()
     .describe('An input with the type that this action expects.'),
+  context: z
+    .any()
+    .optional()
+    .describe('Additional runtime context data (ex. auth context data).'),
+  telemetryLabels: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Labels to be applied to telemetry data.'),
 });
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;

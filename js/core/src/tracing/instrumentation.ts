@@ -230,7 +230,9 @@ function buildPath(
   labels?: Record<string, string>
 ) {
   const stepType =
-    labels && labels['genkit:type'] ? `,t:${labels['genkit:type']}` : '';
+    labels && labels['genkit:type']
+      ? `,t:${labels['genkit:metadata:subtype'] === 'flow' ? 'flow' : labels['genkit:type']}`
+      : '';
   return parentPath + `/{${name}${stepType}}`;
 }
 
