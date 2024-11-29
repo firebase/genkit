@@ -13,13 +13,11 @@ tests:
         messages: [{ role: user, content: [{ text: hello }] }]
     body:
       result:
-        candidates:
-          - index: 0
-            finishReason: stop
-            message:
-              role: model
-              content:
-                - text: '{"messages":[{"content":[{"text":"hello"}],"role":"user"}]}'
+        finishReason: stop
+        message:
+          role: model
+          content:
+            - text: '{"messages":[{"content":[{"text":"hello"}],"role":"user"}]}'
 
   - path: /api/actions
     body:
