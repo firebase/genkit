@@ -260,6 +260,9 @@ export function action<
       },
       async (metadata, span) => {
         setCustomMetadataAttributes({ subtype: config.actionType });
+        if (options?.context) {
+          setCustomMetadataAttributes({ context: JSON.stringify(options.context) });
+        }
 
         traceId = span.spanContext().traceId;
         spanId = span.spanContext().spanId;

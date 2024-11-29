@@ -331,7 +331,7 @@ describe('flow', () => {
           });
         }
       );
-      const result = await testFlow('foo');
+      const result = await testFlow('foo', { context: { user: 'pavel' } });
 
       assert.equal(result, 'foo bar');
       assert.strictEqual(spanExporter.exportedSpans.length, 3);
@@ -364,6 +364,7 @@ describe('flow', () => {
         'genkit:input': '"foo"',
         'genkit:isRoot': true,
         'genkit:metadata:subtype': 'flow',
+        'genkit:metadata:context': '{"user":"pavel"}',
         'genkit:name': 'testFlow',
         'genkit:output': '"foo bar"',
         'genkit:path': '/{testFlow,t:flow}',

@@ -178,17 +178,15 @@ export class Flow<
     opts: {
       streamingCallback?: StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
-      auth?: unknown;
+      context?: unknown;
     }
   ): Promise<ActionResult<z.infer<O>>> {
     await this.registry.initializeAllPlugins();
-    return await runWithContext(opts.auth, () =>
-      this.action.run(input, {
-        context: opts.auth,
-        telemetryLabels: opts.labels,
-        onChunk: opts.streamingCallback ?? (() => {}),
-      })
-    );
+    return await this.action.run(input, {
+      context: opts.context,
+      telemetryLabels: opts.labels,
+      onChunk: opts.streamingCallback ?? (() => {}),
+    });
   }
 
   /**
@@ -205,7 +203,7 @@ export class Flow<
     }
 
     const result = await this.invoke(input, {
-      auth: opts?.context || opts?.withLocalAuthContext,
+      context: opts?.context || opts?.withLocalAuthContext,
     });
     return result.result;
   }
@@ -240,7 +238,7 @@ export class Flow<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
-            auth: opts?.context || opts?.withLocalAuthContext,
+            context: opts?.context || opts?.withLocalAuthContext,
           }
         ).then((s) => s.result)
       )
@@ -300,7 +298,7 @@ export class Flow<
               'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
             );
           },
-          auth,
+          context: auth,
         });
         response.write(
           'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
@@ -323,7 +321,7 @@ export class Flow<
       }
     } else {
       try {
-        const result = await this.invoke(input, { auth });
+        const result = await this.invoke(input, { context: auth });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
