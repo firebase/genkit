@@ -273,7 +273,7 @@ export function action<
 
         const output = await fn(input, {
           context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => {}),
+          sendChunk: options?.onChunk ?? ((c) => {})
         });
 
         metadata.output = JSON.stringify(output);
