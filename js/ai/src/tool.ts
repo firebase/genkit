@@ -109,7 +109,10 @@ export async function resolveTools<
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
-        return await lookupToolByName(registry, ref.name);
+        return await lookupToolByName(
+          registry,
+          (ref as ToolDefinition).metadata?.originalName || ref.name
+        );
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
     })
@@ -136,8 +139,14 @@ export async function lookupToolByName(
 export function toToolDefinition(
   tool: Action<z.ZodTypeAny, z.ZodTypeAny>
 ): ToolDefinition {
-  return {
-    name: tool.__action.name,
+  const originalName = tool.__action.name;
+  let name = originalName;
+  if (originalName.includes('/')) {
+    name = originalName.substring(originalName.lastIndexOf('/') + 1);
+  }
+
+  const out: ToolDefinition = {
+    name,
     description: tool.__action.description || '',
     outputSchema: toJsonSchema({
       schema: tool.__action.outputSchema ?? z.void(),
@@ -148,6 +157,12 @@ export function toToolDefinition(
       jsonSchema: tool.__action.inputJsonSchema,
     })!,
   };
+
+  if (originalName !== name) {
+    out.metadata = { originalName };
+  }
+
+  return out;
 }
 
 /**

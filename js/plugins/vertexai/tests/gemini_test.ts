@@ -19,6 +19,7 @@ import { MessageData } from 'genkit';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
+  cleanSchema,
   fromGeminiCandidate,
   toGeminiMessage,
   toGeminiSystemInstruction,
@@ -347,4 +348,36 @@ describe('fromGeminiCandidate', () => {
       );
     });
   }
+});
+
+describe('cleanSchema', () => {
+  it('strips nulls from type', () => {
+    const cleaned = cleanSchema({
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+        },
+        subtitle: {
+          type: ['string', 'null'],
+        },
+      },
+      required: ['title'],
+      additionalProperties: true,
+      $schema: 'http://json-schema.org/draft-07/schema#',
+    });
+
+    assert.deepStrictEqual(cleaned, {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+        },
+        subtitle: {
+          type: 'string',
+        },
+      },
+      required: ['title'],
+    });
+  });
 });

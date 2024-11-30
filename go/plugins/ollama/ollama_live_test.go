@@ -58,7 +58,7 @@ func TestLive(t *testing.T) {
 
 	// Generate a response from the model
 	resp, err := m.Generate(ctx,
-		ai.NewGenerateRequest(
+		ai.NewModelRequest(
 			&ai.GenerationCommonConfig{Temperature: 1},
 			ai.NewUserTextMessage("I'm hungry, what should I eat?")),
 		nil)

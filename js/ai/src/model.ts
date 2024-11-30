@@ -19,7 +19,7 @@ import {
   defineAction,
   GenkitError,
   getStreamingCallback,
-  Middleware,
+  SimpleMiddleware,
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
@@ -166,6 +166,10 @@ export const ToolDefinitionSchema = z.object({
     .record(z.any())
     .describe('Valid JSON Schema describing the output of the tool.')
     .nullish(),
+  metadata: z
+    .record(z.any())
+    .describe('additional metadata for this tool definition')
+    .optional(),
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
@@ -299,12 +303,12 @@ export type ModelAction<
 > = Action<
   typeof GenerateRequestSchema,
   typeof GenerateResponseSchema,
-  { model: ModelInfo }
+  typeof GenerateResponseChunkSchema
 > & {
   __configSchema: CustomOptionsSchema;
 };
 
-export type ModelMiddleware = Middleware<
+export type ModelMiddleware = SimpleMiddleware<
   z.infer<typeof GenerateRequestSchema>,
   z.infer<typeof GenerateResponseSchema>
 >;
