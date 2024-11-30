@@ -27,8 +27,7 @@
   },
   "author": "genkit",
   "license": "Apache-2.0",
-  "dependencies": {
-  },
+  "dependencies": {},
   "peerDependencies": {
     "genkit": "workspace:*",
     "express": "^4.21.1"
