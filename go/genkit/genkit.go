@@ -37,9 +37,6 @@ type Options struct {
 	// The names of flows to serve.
 	// If empty, all registered flows are served.
 	Flows []string
-	// LogLevel sets the logging level for the application.
-    // If empty, defaults to slog.LevelInfo.
-    LogLevel slog.Level
 }
 
 // Init initializes Genkit.
@@ -62,16 +59,6 @@ func Init(ctx context.Context, opts *Options) error {
 	if opts == nil {
 		opts = &Options{}
 	}
-	// Set default log level if not provided
-    if opts.LogLevel == 0 {
-        opts.LogLevel = slog.LevelInfo
-    }
-
-    // Configure the logger
-    h := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-        Level: opts.LogLevel,
-    }))
-    slog.SetDefault(h)
 	registry.Global.Freeze()
 
 	var mu sync.Mutex

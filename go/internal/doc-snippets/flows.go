@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -169,7 +168,7 @@ func f4() {
 func deploy(ctx context.Context) {
 	// [START init]
 	if err := genkit.Init(ctx,
-		&genkit.Options{FlowAddr: ":3400", LogLevel: slog.LevelDebug}, // Add this parameter.
+		&genkit.Options{FlowAddr: ":3400"}, // Add this parameter.
 	); err != nil {
 		log.Fatal(err)
 	}
