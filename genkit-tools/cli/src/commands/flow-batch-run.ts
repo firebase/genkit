@@ -60,7 +60,9 @@ export const flowBatchRun = new Command('flow:batchRun')
             key: `/flow/${flowName}`,
             input: data,
             context: options.auth ? JSON.parse(options.auth) : undefined,
-            telemetryLabels: options.label ? { batchRun: options.label } : undefined,
+            telemetryLabels: options.label
+              ? { batchRun: options.label }
+              : undefined,
           });
           logger.info(
             'Result:\n' + JSON.stringify(response.result, undefined, '  ')

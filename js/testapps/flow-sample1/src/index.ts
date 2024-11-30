@@ -53,9 +53,13 @@ export const withInputSchema = ai.defineFlow(
 );
 
 export const withContext = ai.defineFlow(
-  { name: 'withContext', inputSchema: z.object({ subject: z.string() }), authPolicy: () => {} },
+  {
+    name: 'withContext',
+    inputSchema: z.object({ subject: z.string() }),
+    authPolicy: () => {},
+  },
   async (input) => {
-    return `subject: ${input.subject}, context: ${JSON.stringify(getFlowAuth())}`
+    return `subject: ${input.subject}, context: ${JSON.stringify(getFlowAuth())}`;
   }
 );
 

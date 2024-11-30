@@ -24,12 +24,14 @@ const contextAsyncLocalStorage = new AsyncLocalStorage<any>();
  * within the async call stack to retrieve the context.
  */
 export function runWithContext<R>(context: any, fn: () => R) {
-  return contextAsyncLocalStorage.run(context, () => runInActionRuntimeContext(fn));
+  return contextAsyncLocalStorage.run(context, () =>
+    runInActionRuntimeContext(fn)
+  );
 }
 
 /**
  * Gets the auth object from the current context.
- * 
+ *
  * @deprecated use {@link getFlowContext}
  */
 export function getFlowAuth(): any {

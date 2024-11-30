@@ -255,13 +255,15 @@ export function action<
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
           'genkit:metadata:subtype': config.actionType,
-          ...options?.telemetryLabels
+          ...options?.telemetryLabels,
         },
       },
       async (metadata, span) => {
         setCustomMetadataAttributes({ subtype: config.actionType });
         if (options?.context) {
-          setCustomMetadataAttributes({ context: JSON.stringify(options.context) });
+          setCustomMetadataAttributes({
+            context: JSON.stringify(options.context),
+          });
         }
 
         traceId = span.spanContext().traceId;
@@ -271,7 +273,7 @@ export function action<
 
         const output = await fn(input, {
           context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => {})
+          sendChunk: options?.onChunk ?? ((c) => {}),
         });
 
         metadata.output = JSON.stringify(output);
