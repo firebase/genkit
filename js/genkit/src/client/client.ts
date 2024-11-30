@@ -97,8 +97,7 @@ async function __flowRunEnvelope({
   streamingCallback: (chunk: any) => void;
   headers?: Record<string, string>;
 }) {
-  let response;
-  response = await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
       data: input,
@@ -109,6 +108,9 @@ async function __flowRunEnvelope({
       ...headers,
     },
   });
+  if (response.status !== 200) {
+    throw new Error(`Server returned: ${response.status}: ${await response.text()}`);
+  }
   if (!response.body) {
     throw new Error('Response body is empty');
   }
@@ -182,6 +184,9 @@ export async function runFlow({
       ...headers,
     },
   });
+  if (response.status !== 200) {
+    throw new Error(`Server returned: ${response.status}: ${await response.text()}`);
+  }
   const wrappedDesult = await response.json();
   return wrappedDesult.result;
 }

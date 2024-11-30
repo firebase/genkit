@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { googleAI } from '@genkit-ai/googleai';
+import { handler } from '@genkit-ai/express';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
 import { genkit, run, z } from 'genkit';
@@ -40,7 +41,7 @@ export const jokeFlow = ai.defineFlow(
     return await run('call-llm', async () => {
       const llmResponse = await ai.generate({
         prompt: `${subject}`,
-        model: 'ollama/gemma',
+        model: gemini15Flash,
         config: {
           temperature: 1,
         },
@@ -53,7 +54,10 @@ export const jokeFlow = ai.defineFlow(
 );
 
 const app = express();
+app.use(express.json());
 const port = process.env.PORT || 5000;
+
+app.post('/jokeHandler', handler(jokeFlow));
 
 app.get('/jokeWithFlow', async (req: Request, res: Response) => {
   const subject = req.query['subject']?.toString();
