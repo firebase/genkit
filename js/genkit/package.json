@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.9.0-rc.2",
+  "version": "0.9.6",
   "type": "commonjs",
   "main": "./lib/cjs/index.js",
   "scripts": {
@@ -37,9 +37,9 @@
     "@types/uuid": "^9.0.6",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
-    "tsup": "^8.0.2",
+    "tsup": "^8.3.5",
     "typescript": "^4.9.0",
-    "tsx": "^4.7.1",
+    "tsx": "^4.19.2",
     "@types/body-parser": "^1.19.5"
   },
   "files": [
@@ -79,6 +79,12 @@
       "require": "./lib/schema.js",
       "import": "./lib/schema.mjs",
       "default": "./lib/schema.js"
+    },
+    "./formats": {
+      "types": "./lib/formats.d.ts",
+      "require": "./lib/formats.js",
+      "import": "./lib/formats.mjs",
+      "default": "./lib/formats.js"
     },
     "./retriever": {
       "types": "./lib/retriever.d.ts",
@@ -169,6 +175,9 @@
       ],
       "schema": [
         "lib/schema"
+      ],
+      "formats": [
+        "lib/formats"
       ],
       "retriever": [
         "lib/retriever"

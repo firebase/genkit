@@ -15,15 +15,15 @@
  */
 
 import {
+  GenkitError,
   getStreamingCallback,
-  Middleware,
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
 import { resolveFormat } from '../formats/index.js';
@@ -40,13 +40,14 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
+  ModelMiddleware,
   Part,
-  resolveModel,
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
+  resolveModel,
 } from '../model.js';
-import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -78,7 +79,7 @@ export const GenerateUtilParamSchema = z.object({
 export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: Middleware[]
+  middleware?: ModelMiddleware[]
 ): Promise<GenerateResponseData> {
   // do tracing
   return await runInNewSpan(
@@ -103,7 +104,7 @@ export async function generateHelper(
 async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: Middleware[]
+  middleware?: ModelMiddleware[]
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -115,9 +116,20 @@ async function generate(
 
   const tools = await resolveTools(registry, rawRequest.tools);
 
-  const resolvedFormat = rawRequest.output?.format
-    ? await resolveFormat(registry, rawRequest.output?.format)
-    : undefined;
+  const resolvedFormat = await resolveFormat(registry, rawRequest.output);
+  // Create a lookup of tool names with namespaces stripped to original names
+  const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
+    const name = tool.__action.name;
+    const shortName = name.substring(name.lastIndexOf('/') + 1);
+    if (acc[shortName]) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Cannot provide two tools with the same name: '${name}' and '${acc[shortName]}'`,
+      });
+    }
+    acc[shortName] = tool;
+    return acc;
+  }, {});
 
   const request = await actionToGenerateRequest(
     rawRequest,
@@ -186,9 +198,7 @@ async function generate(
         'Tool request expected but not provided in tool request part'
       );
     }
-    const tool = tools?.find(
-      (tool) => tool.__action.name === part.toolRequest?.name
-    );
+    const tool = toolMap[part.toolRequest?.name];
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
@@ -240,7 +250,7 @@ async function actionToGenerateRequest(
     messages: options.messages,
     config: options.config,
     docs: options.docs,
-    tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: resolvedTools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({

@@ -54,19 +54,21 @@ OpenAI and Cohere.
 Get started with Genkit in just a few lines of simple code.
 
 ```ts
-// import the Genkit and Google AI plugin libraries 
+// import the Genkit and Google AI plugin libraries
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
-import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 
-// configure a Genkit instance 
+// configure a Genkit instance
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash // set default model 
+  model: gemini15Flash, // set default model
 });
 
-// make a generation request
-const response = await ai.generate('Hello, Gemini!');
-console.log(response.text);
+(async () => {
+  // make a generation request
+  const { text } = await ai.generate('Hello, Gemini!');
+  console.log(text);
+})();
 ```
 
 ## Next steps
@@ -83,6 +85,5 @@ with additional Genkit capabilities, see the following guides:
 *   [Creating flows](/docs/genkit/flows): Learn how to use special Genkit
     functions, called flows, that provide end-to-end observability for workflows
     and rich debugging from Genkit tooling.
-*   [Prompting models](/docs/genkit/prompts): Learn how Genkit lets you treat
-    prompt templates as functions, encapsulating model configurations and
-    input/output schema.
+*   [Managing prompts](/docs/genkit/dotprompt): Learn how Genkit helps you manage
+    your prompts and configuration together as code.

@@ -132,7 +132,7 @@ const changeUserName = ai.defineTool(
     await ai.currentSession<MyState>().updateState({
       userName: input.newUserName,
     });
-    return 'changed username to ${input.newUserName}';
+    return `changed username to ${input.newUserName}`;
   }
 );
 ```

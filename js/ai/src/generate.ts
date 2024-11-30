@@ -46,6 +46,14 @@ import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
 
+export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
+  format?: string;
+  contentType?: string;
+  instructions?: boolean | string;
+  schema?: O;
+  jsonSchema?: any;
+}
+
 export interface GenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -65,13 +73,7 @@ export interface GenerateOptions<
   /** Configuration for the generation request. */
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
-  output?: {
-    format?: string;
-    contentType?: string;
-    instructions?: boolean | string;
-    schema?: O;
-    jsonSchema?: any;
-  };
+  output?: OutputOptions<O>;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
@@ -116,7 +118,7 @@ export async function toGenerateRequest(
     jsonSchema: options.output?.jsonSchema,
   });
 
-  const resolvedFormat = await resolveFormat(registry, options.output?.format);
+  const resolvedFormat = await resolveFormat(registry, options.output);
   const instructions = resolveInstructions(
     resolvedFormat,
     resolvedSchema,
@@ -127,7 +129,7 @@ export async function toGenerateRequest(
     messages: injectInstructions(messages, instructions),
     config: options.config,
     docs: options.docs,
-    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: tools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: resolvedSchema,
@@ -233,8 +235,9 @@ export async function generate<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerateResponse<z.infer<O>>> {
-  const resolvedOptions: GenerateOptions<O, CustomOptions> =
-    await Promise.resolve(options);
+  const resolvedOptions: GenerateOptions<O, CustomOptions> = {
+    ...(await Promise.resolve(options)),
+  };
   const resolvedModel = await resolveModel(registry, resolvedOptions.model);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
@@ -246,10 +249,11 @@ export async function generate<
     jsonSchema: resolvedOptions.output?.jsonSchema,
   });
 
-  const resolvedFormat = await resolveFormat(
-    registry,
-    resolvedOptions.output?.format
-  );
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
+    resolvedOptions.output.format = 'json';
+  }
+  const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
   const instructions = resolveInstructions(
     resolvedFormat,
     resolvedSchema,

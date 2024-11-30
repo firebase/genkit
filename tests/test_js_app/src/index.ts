@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import { genkit } from 'genkit';
-import * as z from 'zod';
+import { genkit, z } from 'genkit';
 
-defineModel(
+const ai = genkit({
+  plugins: [],
+});
+
+ai.defineModel(
   {
     name: 'customReflector',
   },
@@ -30,34 +31,23 @@ defineModel(
     const m = input.messages[0];
     input.messages[0] = { content: m.content, role: m.role };
     return {
-      candidates: [
-        {
-          index: 0,
-          finishReason: 'stop',
-          message: {
-            role: 'model',
-            content: [
-              {
-                text: JSON.stringify(input),
-              },
-            ],
+      finishReason: 'stop',
+      message: {
+        role: 'model',
+        content: [
+          {
+            text: JSON.stringify(input),
           },
-        },
-      ],
+        ],
+      },
     };
   }
 );
 
-const ai = genkit({
-  plugins: [],
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
-});
-
 export const testFlow = ai.defineFlow(
   { name: 'testFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
-    const response = await generate({
+    const response = await ai.generate({
       model: 'customReflector',
       prompt: subject,
     });

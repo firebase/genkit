@@ -22,13 +22,14 @@ js/testapps/firebase-functions-sample1/public/bundle.js
 js/testapps/firebase-functions-sample1/public/config.js
 js/**/.genkit
 samples/**/.genkit
+go/**/.genkit
 ui-debug.log
 firebase-debug.log
 **/*.env
 # RAG sample files
 !js/testapps/rag/package.json
 js/testapps/rag/*.json
-js/testapps/cat-eval/__db*.json
+js/testapps/evals/__db*.json
 js/testapps/menu/rag/__db*.json
 
 # Test files
@@ -36,5 +37,6 @@ last_recording.mp4
 
 # auto-generated
 /js/core/src/__codegen
+/js/api-refs-js
 
 !samples/chatbot/server/genkit-ai-vertexai-*.tgz

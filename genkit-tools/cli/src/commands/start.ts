@@ -32,7 +32,7 @@ interface RunOptions {
 export const start = new Command('start')
   .description('runs a command in Genkit dev mode')
   .option('-n, --noui', 'do not start the Dev UI', false)
-  .option('-p, --port', 'port for the Dev UI')
+  .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
     let runtimePromise = Promise.resolve();
@@ -40,8 +40,10 @@ export const start = new Command('start')
       runtimePromise = new Promise((urlResolver, reject) => {
         const appProcess = spawn(start.args[0], start.args.slice(1), {
           env: { ...process.env, GENKIT_ENV: 'dev' },
+          shell: process.platform === 'win32',
         });
 
+        const originalStdIn = process.stdin;
         appProcess.stderr?.pipe(process.stderr);
         appProcess.stdout?.pipe(process.stdout);
         process.stdin?.pipe(appProcess.stdin);
@@ -52,7 +54,12 @@ export const start = new Command('start')
           process.exitCode = 1;
         });
         appProcess.on('exit', (code) => {
-          urlResolver(undefined);
+          process.stdin?.pipe(originalStdIn);
+          if (code === 0) {
+            urlResolver(undefined);
+          } else {
+            reject(new Error(`app process exited with code ${code}`));
+          }
         });
       });
     }

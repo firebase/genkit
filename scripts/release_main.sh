@@ -9,10 +9,13 @@
 
 pnpm login --registry https://wombat-dressing-room.appspot.com
 
-
 CURRENT=`pwd`
 
 cd genkit-tools/common
+pnpm publish --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT
+
+cd genkit-tools/telemetry-server
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
@@ -28,7 +31,7 @@ cd js/ai
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd js/flow
+cd js/genkit
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
@@ -76,3 +79,10 @@ cd  js/plugins/langchain
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
+cd  js/plugins/checks
+pnpm publish --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT
+
+cd  js/plugins/mcp
+pnpm publish --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT

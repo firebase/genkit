@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
+import { ai } from '../genkit.js';
 import { DataMenuQuestionInputSchema } from '../types';
 
-export const s04_ragDataMenuPrompt = defineDotprompt(
+export const s04_ragDataMenuPrompt = ai.definePrompt(
   {
     name: 's04_ragDataMenu',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: DataMenuQuestionInputSchema },
     output: { format: 'text' },
     config: { temperature: 0.3 },

@@ -13,25 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
-import { genkit } from 'genkit';
-
-// Initialize Genkit
-
-export const ai = genkit({
-  plugins: [
-    // dotprompt(),
-    vertexAI({ location: 'us-central1' }),
-    devLocalVectorstore([
-      {
-        indexName: 'menu-items',
-        embedder: textEmbedding004,
-        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
-      },
-    ]),
-  ],
-});
 
 // Export all of the example prompts and flows
 
@@ -40,8 +21,6 @@ export { s01_staticMenuDotPrompt, s01_vanillaPrompt } from './01/prompts.js';
 // 02
 export { s02_menuQuestionFlow } from './02/flows.js';
 export { s02_dataMenuPrompt } from './02/prompts.js';
-// 03
-export { s03_multiTurnChatFlow } from './03/flows.js';
 // 04
 export { s04_indexMenuItemsFlow, s04_ragMenuQuestionFlow } from './04/flows.js';
 export { s04_ragDataMenuPrompt } from './04/prompts.js';

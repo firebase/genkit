@@ -68,7 +68,11 @@ import {
   EvaluatorAction,
   EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
-import { configureFormats } from '@genkit-ai/ai/formats';
+import {
+  configureFormats,
+  defineFormat,
+  Formatter,
+} from '@genkit-ai/ai/formats';
 import {
   defineModel,
   DefineModelOptions,
@@ -122,6 +126,7 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
+  Dotprompt,
   PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
@@ -131,6 +136,7 @@ import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
+import { toJsonSchema } from './schema.js';
 import { toToolDefinition } from './tool.js';
 
 /**
@@ -247,6 +253,48 @@ export class Genkit {
   }
 
   /**
+   * Defines and registers a custom model output formatter.
+   *
+   * Here's an example of a custom JSON output formatter:
+   *
+   * ```ts
+   * import { extractJson } from 'genkit/extract';
+   *
+   * ai.defineFormat(
+   *   { name: 'customJson' },
+   *   (schema) => {
+   *     let instructions: string | undefined;
+   *     if (schema) {
+   *       instructions = `Output should be in JSON format and conform to the following schema:
+   * \`\`\`
+   * ${JSON.stringify(schema)}
+   * \`\`\`
+   * `;
+   *     }
+   *     return {
+   *       parseChunk: (chunk) => extractJson(chunk.accumulatedText),
+   *       parseMessage: (message) => extractJson(message.text),
+   *       instructions,
+   *     };
+   *   }
+   * );
+   *
+   * const { output } = await ai.generate({
+   *   prompt: 'Invent a menu item for a pirate themed restaurant.',
+   *   output: { format: 'customJson', schema: MenuItemSchema },
+   * });
+   * ```
+   */
+  defineFormat(
+    options: {
+      name: string;
+    } & Formatter['config'],
+    handler: Formatter['handler']
+  ): { config: Formatter['config']; handler: Formatter['handler'] } {
+    return defineFormat(this.registry, options, handler);
+  }
+
+  /**
    * Defines and registers a schema from a JSON schema.
    *
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
@@ -285,7 +333,7 @@ export class Genkit {
       // check the registry first as not all prompt types can be
       // loaded by dotprompt (e.g. functional)
       let action = (await this.registry.lookupAction(
-        `/prompt/${name}`
+        `/prompt/${name}${options?.variant ? `.${options?.variant}` : ''}`
       )) as PromptAction<I>;
       // nothing in registry - check for dotprompt file.
       if (!action) {
@@ -398,7 +446,8 @@ export class Genkit {
       );
       return this.wrapPromptActionInExecutablePrompt(
         dotprompt.promptAction! as PromptAction<I>,
-        options
+        options,
+        dotprompt
       );
     } else {
       const p = definePrompt(
@@ -414,10 +463,15 @@ export class Genkit {
           if (!response.tools && options.tools) {
             response.tools = (
               await resolveTools(this.registry, options.tools)
-            ).map(toToolDefinition);
+            ).map((t) => toToolDefinition(t));
           }
           if (!response.output && options.output) {
-            response.output = options.output;
+            response.output = {
+              schema: toJsonSchema({
+                schema: options.output.schema,
+                jsonSchema: options.output.jsonSchema,
+              }),
+            };
           }
           return response;
         }
@@ -434,7 +488,8 @@ export class Genkit {
     promptAction: PromptAction<I> | Promise<PromptAction<I>>,
     options:
       | Partial<PromptMetadata<I, CustomOptions>>
-      | Promise<Partial<PromptMetadata<I, CustomOptions>>>
+      | Promise<Partial<PromptMetadata<I, CustomOptions>>>,
+    dotprompt?: Dotprompt<z.infer<I>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
@@ -467,13 +522,20 @@ export class Genkit {
     ): Promise<GenerateOptions<O, CustomOptions>> => {
       let model: ModelAction | undefined;
       options = await options;
-      try {
-        model = await this.resolveModel(opt?.model ?? options.model);
-      } catch (e) {
-        // ignore, no model on a render is OK?
+      const modelArg = opt?.model ?? options.model;
+      if (modelArg) {
+        model = await this.resolveModel(modelArg);
+        // If model was explicitly specified and we failed to resolve it (bad ref maybe?), throw an error!
+        if (!model) {
+          throw new Error(`Model ${modelArg} not found`);
+        }
       }
       const p = await promptAction;
-      const promptResult = await p(opt.input);
+      // If it's a dotprompt template, we invoke dotprompt template directly
+      // because it can take in more PromptGenerateOptions (not just inputs).
+      const promptResult = await (dotprompt
+        ? dotprompt.render(opt)
+        : p(opt.input));
       const resultOptions = {
         messages: promptResult.messages,
         docs: promptResult.docs,
@@ -482,7 +544,12 @@ export class Genkit {
           promptResult.output?.format || promptResult.output?.schema
             ? {
                 format: promptResult.output?.format,
-                jsonSchema: promptResult.output?.schema,
+                jsonSchema: dotprompt
+                  ? (promptResult as GenerateOptions).output?.jsonSchema
+                  : promptResult.output.schema,
+                contentType: promptResult.output?.contentType,
+                instructions: promptResult.output?.instructions,
+                schema: promptResult.output?.schema,
               }
             : options.output,
         config: {
@@ -493,6 +560,9 @@ export class Genkit {
         model,
       } as GenerateOptions<O, CustomOptions>;
       delete (resultOptions as any).input;
+      if ((promptResult as GenerateOptions).prompt) {
+        resultOptions.prompt = (promptResult as GenerateOptions).prompt;
+      }
       return resultOptions;
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
+import { PluginProvider, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -41,6 +41,23 @@ describe('toGenerateRequest', () => {
     async (input) => {
       return `Why did the ${input.topic} cross the road?`;
     }
+  );
+
+  const namespacedPlugin: PluginProvider = {
+    name: 'namespaced',
+    initializer: async () => {},
+  };
+  registry.registerPluginProvider('namespaced', namespacedPlugin);
+
+  defineTool(
+    registry,
+    {
+      name: 'namespaced/add',
+      description: 'add two numbers together',
+      inputSchema: z.object({ a: z.number(), b: z.number() }),
+      outputSchema: z.number(),
+    },
+    async ({ a, b }) => a + b
   );
 
   const testCases = [
@@ -90,6 +107,38 @@ describe('toGenerateRequest', () => {
               additionalProperties: true,
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
+          },
+        ],
+        output: {},
+      },
+    },
+    {
+      should: 'strip namespaces from tools when passing to the model',
+      prompt: {
+        model: 'vertexai/gemini-1.0-pro',
+        tools: ['namespaced/add'],
+        prompt: 'Add 10 and 5.',
+      },
+      expectedOutput: {
+        messages: [{ role: 'user', content: [{ text: 'Add 10 and 5.' }] }],
+        config: undefined,
+        docs: undefined,
+        tools: [
+          {
+            description: 'add two numbers together',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+              additionalProperties: true,
+              properties: { a: { type: 'number' }, b: { type: 'number' } },
+              required: ['a', 'b'],
+              type: 'object',
+            },
+            name: 'add',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+              type: 'number',
+            },
+            metadata: { originalName: 'namespaced/add' },
           },
         ],
         output: {},

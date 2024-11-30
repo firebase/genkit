@@ -102,8 +102,7 @@ export const menuSuggestionStreamingFlow = ai.defineStreamingFlow(
         // Here, you could process the chunk in some way before sending it to
         // the output stream via streamingCallback(). In this example, we output
         // the text of the chunk, unmodified.
-        // @ts-ignore
-        streamingCallback(chunk.text());
+        streamingCallback(chunk.text);
       }
     }
 

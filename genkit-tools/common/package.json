@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/tools-common",
-  "version": "0.9.0-rc.2",
+  "version": "0.9.6",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rimraf ./lib",
@@ -25,7 +25,7 @@
     "js-yaml": "^4.1.0",
     "json-2-csv": "^5.5.1",
     "terminate": "^2.6.1",
-    "tsx": "^4.9.3",
+    "tsx": "^4.19.2",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
     "yaml": "^2.4.1",

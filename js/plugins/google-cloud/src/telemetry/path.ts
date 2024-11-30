@@ -25,13 +25,13 @@ import {
   MetricHistogram,
   Telemetry,
   internalMetricNamespaceWrap,
-} from '../metrics';
+} from '../metrics.js';
 import {
   createCommonLogAttributes,
   extractErrorMessage,
   extractErrorName,
   extractErrorStack,
-} from '../utils';
+} from '../utils.js';
 
 class PathsTelemetry implements Telemetry {
   /**

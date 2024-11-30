@@ -4,14 +4,15 @@ You can use PostgreSQL and `pgvector` as your retriever implementation. Use the
 following example as a starting point and modify it to work with your database
 schema.
 
-```js
-import { embed } from '@genkit-ai/ai/embedder';
-import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retriever';
-import { defineFlow } from '@genkit-ai/flow';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+```ts
+import { genkit, z } from 'genkit';
+import { googleAI, textEmbedding004 } from '@genkit-ai/google-ai';
 import { toSql } from 'pgvector';
 import postgres from 'postgres';
-import { z } from 'zod';
+
+const ai = genkit({
+  plugins: [googleAI()],
+});
 
 const sql = postgres({ ssl: false, database: 'recaps' });
 
@@ -20,14 +21,14 @@ const QueryOptions = z.object({
   k: z.number().optional(),
 });
 
-const sqlRetriever = defineRetriever(
+const sqlRetriever = ai.defineRetriever(
   {
     name: 'pgvector-myTable',
     configSchema: QueryOptions,
   },
   async (input, options) => {
-    const embedding = await embed({
-      embedder: textEmbeddingGecko,
+    const embedding = await ai.embed({
+      embedder: textEmbedding004,
       content: input,
     });
     const results = await sql`
@@ -39,7 +40,7 @@ const sqlRetriever = defineRetriever(
     return {
       documents: results.map((row) => {
         const { content, ...metadata } = row;
-        return Document.fromText(content, metadata);
+        return ai.Document.fromText(content, metadata);
       }),
     };
   }
@@ -48,16 +49,16 @@ const sqlRetriever = defineRetriever(
 
 And here's how to use the retriever in a flow:
 
-```js
+```ts
 // Simple flow to use the sqlRetriever
-export const askQuestionsOnGoT = defineFlow(
+export const askQuestionsOnGoT = ai.defineFlow(
   {
     name: 'askQuestionsOnGoT',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (inputQuestion) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: sqlRetriever,
       query: inputQuestion,
       options: {
