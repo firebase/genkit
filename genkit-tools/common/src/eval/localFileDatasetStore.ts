@@ -92,6 +92,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       targetAction,
       size: dataset.length,
       version: 1,
+      datasetType: req.datasetType,
       createTime: now,
       updateTime: now,
     };
@@ -136,6 +137,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       schema: schema ? schema : prevMetadata.schema,
       targetAction: targetAction ? targetAction : prevMetadata.targetAction,
       version: data ? prevMetadata.version + 1 : prevMetadata.version,
+      datasetType: prevMetadata.datasetType,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
