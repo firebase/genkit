@@ -98,10 +98,10 @@ fieldLoop:
 	return m, nil
 }
 
-// buildRequest prepares an [ai.GenerateRequest] based on the prompt,
+// buildRequest prepares an [ai.ModelRequest] based on the prompt,
 // using the input variables and other information in the [ai.PromptRequest].
-func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateRequest, error) {
-	req := &ai.GenerateRequest{}
+func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest, error) {
+	req := &ai.ModelRequest{}
 
 	m, err := p.buildVariables(input)
 	if err != nil {
@@ -109,11 +109,6 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 	}
 	if req.Messages, err = p.RenderMessages(m); err != nil {
 		return nil, err
-	}
-
-	req.Candidates = p.Candidates
-	if req.Candidates == 0 {
-		req.Candidates = 1
 	}
 
 	req.Config = p.GenerationConfig
@@ -130,7 +125,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 		}
 	}
 
-	req.Output = &ai.GenerateRequestOutput{
+	req.Output = &ai.ModelRequestOutput{
 		Format: p.OutputFormat,
 		Schema: outputSchema,
 	}
@@ -179,10 +174,10 @@ func (p *Prompt) Register() error {
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
-	var genReq *ai.GenerateRequest
+	var genReq *ai.ModelRequest
 	var err error
 	if p.prompt != nil {
 		genReq, err = p.prompt.Render(ctx, pr.Variables)
@@ -194,9 +189,6 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 	}
 
 	// Let some fields in pr override those in the prompt config.
-	if pr.Candidates != 0 {
-		genReq.Candidates = pr.Candidates
-	}
 	if pr.Config != nil {
 		genReq.Config = pr.Config
 	}
@@ -218,7 +210,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		model := ai.LookupModel(provider, name)
+		model = ai.LookupModel(provider, name)
 		if model == nil {
 			return nil, fmt.Errorf("no model named %q for provider %q", name, provider)
 		}

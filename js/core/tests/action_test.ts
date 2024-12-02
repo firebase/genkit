@@ -28,7 +28,8 @@ describe('action', () => {
         outputSchema: z.number(),
         use: [
           async (input, next) => (await next(input + 'middle1')) + 1,
-          async (input, next) => (await next(input + 'middle2')) + 2,
+          async (input, opts, next) =>
+            (await next(input + 'middle2', opts)) + 2,
         ],
       },
       async (input) => {
@@ -40,5 +41,68 @@ describe('action', () => {
       await act('foo'),
       20 // "foomiddle1middle2".length + 1 + 2
     );
+  });
+
+  it('returns telemetry info', async () => {
+    const act = action(
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+        use: [
+          async (input, next) => (await next(input + 'middle1')) + 1,
+          async (input, opts, next) =>
+            (await next(input + 'middle2', opts)) + 2,
+        ],
+      },
+      async (input) => {
+        return input.length;
+      }
+    );
+
+    const result = await act.run('foo');
+    assert.strictEqual(
+      result.result,
+      20 // "foomiddle1middle2".length + 1 + 2
+    );
+    assert.strictEqual(result.telemetry !== null, true);
+    assert.strictEqual(
+      result.telemetry.traceId !== null && result.telemetry.traceId.length > 0,
+      true
+    );
+    assert.strictEqual(
+      result.telemetry.spanId !== null && result.telemetry.spanId.length > 0,
+      true
+    );
+  });
+
+  it('run the action with options', async () => {
+    let passedContext;
+    const act = action(
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+      },
+      async (input, { sendChunk, context }) => {
+        passedContext = context;
+        sendChunk(1);
+        sendChunk(2);
+        sendChunk(3);
+        return input.length;
+      }
+    );
+
+    const chunks: any[] = [];
+    await act.run('1234', {
+      context: { foo: 'bar' },
+      onChunk: (c) => chunks.push(c),
+    });
+
+    assert.deepStrictEqual(passedContext, {
+      foo: 'bar',
+    });
+
+    assert.deepStrictEqual(chunks, [1, 2, 3]);
   });
 });

@@ -120,7 +120,7 @@ type ollamaChatRequest struct {
 	Stream   bool             `json:"stream"`
 }
 
-type ollamaGenerateRequest struct {
+type ollamaModelRequest struct {
 	System string   `json:"system,omitempty"`
 	Images []string `json:"images,omitempty"`
 	Model  string   `json:"model"`
@@ -138,7 +138,7 @@ type ollamaChatResponse struct {
 	} `json:"message"`
 }
 
-type ollamaGenerateResponse struct {
+type ollamaModelResponse struct {
 	Model     string `json:"model"`
 	CreatedAt string `json:"created_at"`
 	Response  string `json:"response"`
@@ -168,7 +168,7 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 }
 
 // Generate makes a request to the Ollama API and processes the response.
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 
 	stream := cb != nil
 	var payload any
@@ -178,7 +178,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		if err != nil {
 			return nil, fmt.Errorf("failed to grab image parts: %v", err)
 		}
-		payload = ollamaGenerateRequest{
+		payload = ollamaModelRequest{
 			Model:  g.model.Name,
 			Prompt: concatMessages(input, []ai.Role{ai.RoleUser, ai.RoleModel, ai.RoleTool}),
 			System: concatMessages(input, []ai.Role{ai.RoleSystem}),
@@ -232,11 +232,11 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("server returned non-200 status: %d, body: %s", resp.StatusCode, body)
 		}
-		var response *ai.GenerateResponse
+		var response *ai.ModelResponse
 		if isChatModel {
 			response, err = translateChatResponse(body)
 		} else {
-			response, err = translateGenerateResponse(body)
+			response, err = translateModelResponse(body)
 		}
 		response.Request = input
 		if err != nil {
@@ -244,11 +244,11 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		return response, nil
 	} else {
-		var chunks []*ai.GenerateResponseChunk
+		var chunks []*ai.ModelResponseChunk
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
 			line := scanner.Text()
-			var chunk *ai.GenerateResponseChunk
+			var chunk *ai.ModelResponseChunk
 			if isChatModel {
 				chunk, err = translateChatChunk(line)
 			} else {
@@ -264,20 +264,16 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			return nil, fmt.Errorf("reading response stream: %v", err)
 		}
 		// Create a final response with the merged chunks
-		finalResponse := &ai.GenerateResponse{
-			Request: input,
-			Candidates: []*ai.Candidate{
-				{
-					FinishReason: ai.FinishReason("stop"),
-					Message: &ai.Message{
-						Role: ai.RoleModel,
-					},
-				},
+		finalResponse := &ai.ModelResponse{
+			Request:      input,
+			FinishReason: ai.FinishReason("stop"),
+			Message: &ai.Message{
+				Role: ai.RoleModel,
 			},
 		}
 		// Add all the merged content to the final response's candidate
 		for _, chunk := range chunks {
-			finalResponse.Candidates[0].Message.Content = append(finalResponse.Candidates[0].Message.Content, chunk.Content...)
+			finalResponse.Message.Content = append(finalResponse.Message.Content, chunk.Content...)
 		}
 		return finalResponse, nil // Return the final merged response
 
@@ -308,72 +304,72 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 }
 
 // translateChatResponse translates Ollama chat response into a genkit response.
-func translateChatResponse(responseData []byte) (*ai.GenerateResponse, error) {
+func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
-	generateResponse := &ai.GenerateResponse{}
-	aiCandidate := &ai.Candidate{
+	modelResponse := &ai.ModelResponse{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
 			Role: ai.Role(response.Message.Role),
 		},
 	}
+
 	aiPart := ai.NewTextPart(response.Message.Content)
-	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
-	generateResponse.Candidates = append(generateResponse.Candidates, aiCandidate)
-	return generateResponse, nil
+	modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
+
+	return modelResponse, nil
 }
 
 // translateResponse translates Ollama generate response into a genkit response.
-func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error) {
-	var response ollamaGenerateResponse
+func translateModelResponse(responseData []byte) (*ai.ModelResponse, error) {
+	var response ollamaModelResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
-	generateResponse := &ai.GenerateResponse{}
-	aiCandidate := &ai.Candidate{
+
+	modelResponse := &ai.ModelResponse{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
 			Role: ai.RoleModel,
 		},
 	}
+
 	aiPart := ai.NewTextPart(response.Response)
-	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
-	generateResponse.Candidates = append(generateResponse.Candidates, aiCandidate)
-	generateResponse.Usage = &ai.GenerationUsage{} // TODO: can we get any of this info?
-	return generateResponse, nil
+	modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
+	modelResponse.Usage = &ai.GenerationUsage{} // TODO: can we get any of this info?
+	return modelResponse, nil
 }
 
-func translateChatChunk(input string) (*ai.GenerateResponseChunk, error) {
+func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
-	chunk := &ai.GenerateResponseChunk{}
+	chunk := &ai.ModelResponseChunk{}
 	aiPart := ai.NewTextPart(response.Message.Content)
 	chunk.Content = append(chunk.Content, aiPart)
 	return chunk, nil
 }
 
-func translateGenerateChunk(input string) (*ai.GenerateResponseChunk, error) {
-	var response ollamaGenerateResponse
+func translateGenerateChunk(input string) (*ai.ModelResponseChunk, error) {
+	var response ollamaModelResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
-	chunk := &ai.GenerateResponseChunk{}
+	chunk := &ai.ModelResponseChunk{}
 	aiPart := ai.NewTextPart(response.Response)
 	chunk.Content = append(chunk.Content, aiPart)
 	return chunk, nil
 }
 
 // concatMessages translates a list of messages into a prompt-style format
-func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
+func concatMessages(input *ai.ModelRequest, roles []ai.Role) string {
 	roleSet := make(map[ai.Role]bool)
 	for _, role := range roles {
 		roleSet[role] = true // Create a set for faster lookup
@@ -395,7 +391,7 @@ func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 }
 
 // concatImages grabs the images from genkit message parts
-func concatImages(input *ai.GenerateRequest, roleFilter []ai.Role) ([]string, error) {
+func concatImages(input *ai.ModelRequest, roleFilter []ai.Role) ([]string, error) {
 	roleSet := make(map[ai.Role]bool)
 	for _, role := range roleFilter {
 		roleSet[role] = true

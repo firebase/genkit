@@ -1,0 +1,29 @@
+{
+  "name": "custom-evaluators",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node lib/index.js",
+    "compile": "tsc",
+    "build": "pnpm build:clean && pnpm compile",
+    "build:clean": "rimraf ./lib",
+    "build:watch": "tsc --watch",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/googleai": "workspace:*",
+    "genkit": "workspace:*",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.3.3"
+  }
+}

@@ -53,11 +53,11 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := ai.Generate(ctx, model, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		out := resp.Candidates[0].Message.Content[0].Text
+		out := resp.Message.Content[0].Text
 		if !strings.Contains(out, "France") {
 			t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
 		}
@@ -73,9 +73,8 @@ func TestLive(t *testing.T) {
 		parts := 0
 		model := vertexai.Model(modelName)
 		final, err := ai.Generate(ctx, model,
-			ai.WithCandidates(1),
 			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
-			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				for _, p := range c.Content {
 					out += p.Text
@@ -86,7 +85,7 @@ func TestLive(t *testing.T) {
 			t.Fatal(err)
 		}
 		out2 := ""
-		for _, p := range final.Candidates[0].Message.Content {
+		for _, p := range final.Message.Content {
 			out2 += p.Text
 		}
 		if out != out2 {
@@ -107,14 +106,13 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := ai.Generate(ctx, model,
-			ai.WithCandidates(1),
 			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		out := resp.Candidates[0].Message.Content[0].Text
+		out := resp.Message.Content[0].Text
 		if !strings.Contains(out, "12.25") {
 			t.Errorf("got %s, expecting it to contain \"12.25\"", out)
 		}

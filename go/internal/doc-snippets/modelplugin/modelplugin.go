@@ -26,9 +26,10 @@ const providerID = "mymodels"
 // [START cfg]
 type MyModelConfig struct {
 	ai.GenerationCommonConfig
-	CustomOption int
+	CustomOption        int
 	AnotherCustomOption string
 }
+
 // [END cfg]
 
 func Init() error {
@@ -45,16 +46,16 @@ func Init() error {
 			},
 		},
 		func(ctx context.Context,
-			genRequest *ai.GenerateRequest,
+			genRequest *ai.ModelRequest,
 			_ ai.ModelStreamingCallback,
-		) (*ai.GenerateResponse, error) {
+		) (*ai.ModelResponse, error) {
 			// Verify that the request includes a configuration that conforms to
 			// your schema .
 			if _, ok := genRequest.Config.(MyModelConfig); !ok {
 				return nil, fmt.Errorf("request config must be type MyModelConfig")
 			}
 
-			// Use your custom logic to convert Genkit's ai.GenerateRequest
+			// Use your custom logic to convert Genkit's ai.ModelRequest
 			// into a form usable by the model's native API.
 			apiRequest, err := apiRequestFromGenkitRequest(genRequest)
 			if err != nil {
@@ -69,7 +70,7 @@ func Init() error {
 			}
 
 			// Use your custom logic to convert the model's response to Genkin's
-			// ai.GenerateResponse.
+			// ai.ModelResponse.
 			response, err := genResponseFromAPIResponse(apiResponse)
 			if err != nil {
 				return nil, err
@@ -83,7 +84,7 @@ func Init() error {
 	return nil
 }
 
-func genResponseFromAPIResponse(apiResponse string) (*ai.GenerateResponse, error) {
+func genResponseFromAPIResponse(apiResponse string) (*ai.ModelResponse, error) {
 	panic("unimplemented")
 }
 
@@ -91,6 +92,6 @@ func callModelAPI(apiRequest string) (string, error) {
 	panic("unimplemented")
 }
 
-func apiRequestFromGenkitRequest(genRequest *ai.GenerateRequest) (string, error) {
+func apiRequestFromGenkitRequest(genRequest *ai.ModelRequest) (string, error) {
 	panic("unimplemented")
 }

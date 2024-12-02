@@ -116,9 +116,9 @@ func main() {
 	}
 
 	simpleGreetingFlow := genkit.DefineStreamingFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
-		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		var callback func(context.Context, *ai.ModelResponseChunk) error
 		if cb != nil {
-			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				return cb(ctx, c.Text())
 			}
 		}
@@ -171,9 +171,9 @@ func main() {
 	}
 
 	genkit.DefineStreamingFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
-		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		var callback func(context.Context, *ai.ModelResponseChunk) error
 		if cb != nil {
-			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				return cb(ctx, c.Text())
 			}
 		}

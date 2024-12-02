@@ -74,6 +74,7 @@ const SAMPLE_DATASET_METADATA_1_V1 = {
   datasetId: SAMPLE_DATASET_ID_1,
   size: 2,
   version: 1,
+  datasetType: 'UNKNOWN',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
@@ -81,16 +82,19 @@ const SAMPLE_DATASET_METADATA_1_V2 = {
   datasetId: SAMPLE_DATASET_ID_1,
   size: 3,
   version: 2,
+  datasetType: 'UNKNOWN',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
 
 const CREATE_DATASET_REQUEST = CreateDatasetRequestSchema.parse({
   data: { samples: SAMPLE_DATASET_1_V1 },
+  datasetType: 'UNKNOWN',
 });
 
 const CREATE_DATASET_REQUEST_WITH_SCHEMA = CreateDatasetRequestSchema.parse({
   data: { samples: SAMPLE_DATASET_1_V1 },
+  datasetType: 'UNKNOWN',
   schema: {
     inputSchema: {
       type: 'string',

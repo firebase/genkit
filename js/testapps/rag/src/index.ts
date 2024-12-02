@@ -14,5 +14,6 @@
  * limitations under the License.
  */
 
-export * from './pdf_rag.js';
-export * from './simple_rag.js';
+export * from './pdf-rag-firebase.js';
+export * from './pdf-rag.js';
+export * from './simple-rag.js';

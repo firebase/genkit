@@ -9,7 +9,7 @@
     "prompting",
     "templating"
   ],
-  "version": "0.9.3",
+  "version": "0.9.6",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
