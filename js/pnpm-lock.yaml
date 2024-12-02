@@ -717,6 +717,9 @@ importers:
       '@google-cloud/vertexai':
         specifier: ^1.9.0
         version: 1.9.0(encoding@0.1.13)
+      '@mistralai/mistralai-gcp':
+        specifier: ^1.3.4
+        version: 1.3.4(encoding@0.1.13)(zod@3.23.8)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -1267,7 +1270,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.5)(@genkit-ai/core@0.9.5)
+        version: 0.10.1(@genkit-ai/ai@0.9.6)(@genkit-ai/core@0.9.6)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2056,11 +2059,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.5':
-    resolution: {integrity: sha512-C1YzQILR3t1U7ZQSsliv8bC5zhufSw7S1rAb8OJN83m4pu2dUQLgUk0KoT1Iu+61Vtg48U+7MFLvVkhwUHM5Xg==}
+  '@genkit-ai/ai@0.9.6':
+    resolution: {integrity: sha512-GiNK8LmCIs/sU6TgVG6GxRpYcIerJdXE649RJsjJQb5pTajOGUYTaVB14nWT4CBKsW2UseSembe0oG64gmxCDg==}
 
-  '@genkit-ai/core@0.9.5':
-    resolution: {integrity: sha512-iP7uF/try5RBzn5tS+UOEz0IdkAenE5FoWUl+j4lPVqij8PePjXQROGaTAjA+nIyRCrjHq2hLPjZ4kO9mmtZ7w==}
+  '@genkit-ai/core@0.9.6':
+    resolution: {integrity: sha512-VzcNkVNFSTYNI39bQPAN11QbtZNHuCVxUPcAR0pGAcY6SpqjRSa21WxdLn3dDNjP6sv+pOZdJX3VFln2q5krvg==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -2565,6 +2568,11 @@ packages:
 
   '@material/material-color-utilities@0.2.7':
     resolution: {integrity: sha512-0FCeqG6WvK4/Cc06F/xXMd/pv4FeisI0c1tUpBbfhA2n9Y8eZEv4Karjbmf2ZqQCPUWMrGp8A571tCjizxoTiQ==}
+
+  '@mistralai/mistralai-gcp@1.3.4':
+    resolution: {integrity: sha512-tMWTA8r+MX+/hDn3n1mo8WY/NWN4AJdvwShdgsThrt+bwfwhSlorrz7bH04UFxob13GJ/XsRC3iUg7EAWH0BoQ==}
+    peerDependencies:
+      zod: '>= 3'
 
   '@modelcontextprotocol/sdk@1.0.0':
     resolution: {integrity: sha512-mbe0otw8vTtZoL5pVucXAmx6oEC7YjdXBgVeFkJXASu4OAnLkrIeNw9zwzU5CwEp19M54bjOUGcna90Dl/H5Bw==}
@@ -6805,9 +6813,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.5':
+  '@genkit-ai/ai@0.9.6':
     dependencies:
-      '@genkit-ai/core': 0.9.5
+      '@genkit-ai/core': 0.9.6
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -6818,7 +6826,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.5':
+  '@genkit-ai/core@0.9.6':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -7292,6 +7300,14 @@ snapshots:
       js-tiktoken: 1.0.11
 
   '@material/material-color-utilities@0.2.7': {}
+
+  '@mistralai/mistralai-gcp@1.3.4(encoding@0.1.13)(zod@3.23.8)':
+    dependencies:
+      google-auth-library: 9.14.2(encoding@0.1.13)
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   '@modelcontextprotocol/sdk@1.0.0':
     dependencies:
@@ -9279,10 +9295,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.5)(@genkit-ai/core@0.9.5):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.6)(@genkit-ai/core@0.9.6):
     dependencies:
-      '@genkit-ai/ai': 0.9.5
-      '@genkit-ai/core': 0.9.5
+      '@genkit-ai/ai': 0.9.6
+      '@genkit-ai/core': 0.9.6
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
