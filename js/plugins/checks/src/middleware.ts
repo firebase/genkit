@@ -26,31 +26,38 @@ export function checksMiddleware(options: {
 }): ModelMiddleware {
   const guardrails = new Guardrails(options.auth, options?.projectId);
 
+  const classifyContent = async (content: string) => {
+    const response = await guardrails.classifyContent(
+      content,
+      options.metrics
+    );
+
+    console.log(
+      `Guardrilas response for message: ${content}: `,
+      response.policyResults
+    );
+
+    // Filter for violations
+    const violatedPolicies = response.policyResults.filter(
+      (policy) => policy.violationResult === 'VIOLATIVE'
+    );
+
+    return violatedPolicies
+  }
+
   return async (req, next) => {
     for (const message of req.messages) {
       for (const content of message.content) {
         if (content.text) {
-          const response = await guardrails.classifyContent(
-            content.text,
-            options.metrics
-          );
 
-          console.log(
-            `Request message: ${content.text}: `,
-            response.policyResults
-          );
-
-          // Filter for violations
-          const violatedPolicies = response.policyResults.filter(
-            (policy) => policy.violationResult === 'VIOLATIVE'
-          );
+          const violatedPolicies = await classifyContent(content.text)
 
           // If any input message violates a checks policy. Stop processing,
           // return a blocked response and list of violated policies.
           if (violatedPolicies.length > 0) {
             return {
               finishReason: 'blocked',
-              finishMessage: `Model input violated Checks policies: [${violatedPolicies.map((result) => result.policyType).join(' ')}], further processing blocked.`,
+              finishMessage: `Model input violated Chec: [${violatedPolicies.map((result) => result.policyType).join(' ')}], further processing blocked.`,
             };
           }
         }
@@ -62,20 +69,8 @@ export function checksMiddleware(options: {
     for (const candidate of generatedContent.candidates ?? []) {
       for (const content of candidate.message.content ?? []) {
         if (content.text) {
-          const response = await guardrails.classifyContent(
-            content.text,
-            options.metrics
-          );
 
-          console.log(
-            `Response message: ${content.text}: `,
-            response.policyResults
-          );
-
-          // Filter for violations
-          const violatedPolicies = response.policyResults.filter(
-            (policy) => policy.violationResult === 'VIOLATIVE'
-          );
+          const violatedPolicies = await classifyContent(content.text)
 
           // If the output message violates a checks policy. Stop processing,
           // return a blocked response and list of violated policies.
