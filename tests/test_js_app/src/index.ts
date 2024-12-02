@@ -31,20 +31,15 @@ ai.defineModel(
     const m = input.messages[0];
     input.messages[0] = { content: m.content, role: m.role };
     return {
-      candidates: [
-        {
-          index: 0,
-          finishReason: 'stop',
-          message: {
-            role: 'model',
-            content: [
-              {
-                text: JSON.stringify(input),
-              },
-            ],
+      finishReason: 'stop',
+      message: {
+        role: 'model',
+        content: [
+          {
+            text: JSON.stringify(input),
           },
-        },
-      ],
+        ],
+      },
     };
   }
 );
