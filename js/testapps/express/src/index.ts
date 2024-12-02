@@ -57,6 +57,10 @@ const app = express();
 app.use(express.json());
 const port = process.env.PORT || 5000;
 
+ai.flows.forEach(f => {
+  app.post(`/${f.name}`, handler(f));  
+})
+
 app.post('/jokeHandler', handler(jokeFlow));
 
 app.get('/jokeWithFlow', async (req: Request, res: Response) => {

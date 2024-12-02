@@ -15,7 +15,7 @@
  */
 
 import express from 'express';
-import { CallableFlow, z } from 'genkit';
+import { CallableFlow, Flow, z } from 'genkit';
 import { getErrorMessage, getErrorStack } from './utils';
 
 const streamDelimiter = '\n\n';
@@ -51,11 +51,14 @@ export function handler<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: CallableFlow<I, O, S>,
+  f: CallableFlow<I, O, S> | Flow<I, O, S>,
   opts?: {
     authPolicy?: FlowAuthPolicy<I>;
   }
 ): express.RequestHandler {
+  const flow: Flow<I, O, S> = (f as CallableFlow<I, O, S>).flow
+    ? (f as CallableFlow<I, O, S>).flow
+    : (f as Flow<I, O, S>);
   return async (
     request: __RequestWithAuth,
     response: express.Response
