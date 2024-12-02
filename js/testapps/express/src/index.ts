@@ -17,7 +17,12 @@
 import { FlowAuthPolicy, handler } from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
-import express, { ErrorRequestHandler, Handler, Request, Response } from 'express';
+import express, {
+  ErrorRequestHandler,
+  Handler,
+  Request,
+  Response,
+} from 'express';
 import { genkit, run, z } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 
@@ -119,19 +124,13 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
   res.end();
 });
 
-const errorHandler: ErrorRequestHandler = (
-  error,
-  request,
-  response,
-  next
-) => {
+const errorHandler: ErrorRequestHandler = (error, request, response, next) => {
   if (error instanceof Error) {
     console.log(error.stack);
   }
   return response.status(500).send(error);
 };
 app.use(errorHandler);
-
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
