@@ -99,7 +99,7 @@ export interface CallableFlow<
 
   stream(input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
 
-  flow: Flow<I, O, z.ZodVoid>;
+  flow: Flow<I, O, S>;
 }
 
 /**
