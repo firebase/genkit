@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
+import zodToJsonSchema from 'zod-to-json-schema';
 import {
   CreateDatasetRequest,
   ListEvalKeysRequest,
@@ -51,7 +53,13 @@ export const ModelInferenceInputSchema = z.union([
   GenerateRequestSchema,
 ]);
 export type ModelInferenceInput = z.infer<typeof ModelInferenceInputSchema>;
-
+export const ModelInferenceInputJSONSchema = zodToJsonSchema(
+  ModelInferenceInputSchema,
+  {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  }
+) as JSONSchema7;
 /**
  * A set of samples that is ready for inference.
  *
