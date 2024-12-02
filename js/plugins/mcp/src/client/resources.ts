@@ -43,11 +43,11 @@ export async function registerResourceTools(
         return client.listResources();
       }
 
-      let currentCursor: string | undefined;
+      let currentCursor: string | undefined = cursor;
       const resources: Resource[] = [];
       while (true) {
         const { nextCursor, resources: newResources } =
-          await client.listResources({ cursor });
+          await client.listResources({ cursor: currentCursor });
         resources.push(...newResources);
         currentCursor = nextCursor;
         if (!currentCursor) break;
@@ -72,11 +72,11 @@ export async function registerResourceTools(
         return client.listResourceTemplates();
       }
 
-      let currentCursor: string | undefined;
+      let currentCursor: string | undefined = cursor;
       const resourceTemplates: ResourceTemplate[] = [];
       while (true) {
         const { nextCursor, resourceTemplates: newResourceTemplates } =
-          await client.listResourceTemplates({ cursor });
+          await client.listResourceTemplates({ cursor: currentCursor });
         resourceTemplates.push(...newResourceTemplates);
         currentCursor = nextCursor;
         if (!currentCursor) break;
