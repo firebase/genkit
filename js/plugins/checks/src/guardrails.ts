@@ -1,4 +1,4 @@
-import {  z } from "genkit";
+import { z } from "genkit";
 import { GoogleAuth } from "google-auth-library";
 import {
   ChecksEvaluationMetric,
@@ -29,7 +29,7 @@ const ResponseSchema = z.object({
   policyResults: z.array(
     z.object({
       policyType: z.string(),
-      score: z.number(),
+      score: z.number().optional(),
       violationResult: z.string(),
     })
   ),
