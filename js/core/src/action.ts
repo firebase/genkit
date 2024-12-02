@@ -59,11 +59,11 @@ type ActionParams<
   M extends Record<string, any> = Record<string, any>,
 > = {
   name:
-  | string
-  | {
-    pluginId: string;
-    actionId: string;
-  };
+    | string
+    | {
+        pluginId: string;
+        actionId: string;
+      };
   description?: string;
   inputSchema?: I;
   inputJsonSchema?: JSONSchema7;
@@ -93,7 +93,7 @@ export function actionWithMiddleware<
       }
 
       const currentMiddleware = middleware[index];
-      console.log("calling middleware:  ", currentMiddleware.name)
+      console.log('calling middleware:  ', currentMiddleware.name);
       return currentMiddleware(req, async (modifiedReq) =>
         dispatch(index + 1, modifiedReq || req)
       );
@@ -205,7 +205,7 @@ export function defineAction<
   if (isInRuntimeContext()) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
-      'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
+        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
   if (typeof config.name === 'string') {

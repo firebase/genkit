@@ -18,8 +18,11 @@ import { EvaluatorAction, Genkit, z } from 'genkit';
 import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-import { ChecksEvaluationMetric, ChecksEvaluationMetricConfig, ChecksEvaluationMetricType, isConfig } from './metrics';
-
+import {
+  ChecksEvaluationMetric,
+  ChecksEvaluationMetricConfig,
+  isConfig,
+} from './metrics';
 
 export function checksEvaluators(
   ai: Genkit,
@@ -45,8 +48,6 @@ export function checksEvaluators(
 
   return evaluators;
 }
-
-
 
 const ResponseSchema = z.object({
   policyResults: z.array(

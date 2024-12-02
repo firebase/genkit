@@ -19,8 +19,11 @@ import { logger } from 'genkit/logging';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import { checksEvaluators } from './evaluation.js';
-import { ChecksEvaluationMetric, ChecksEvaluationMetricType } from "./metrics.js"
-import { checksMiddleware as authorizedMiddleware } from "./middleware.js"
+import {
+  ChecksEvaluationMetric,
+  ChecksEvaluationMetricType,
+} from './metrics.js';
+import { checksMiddleware as authorizedMiddleware } from './middleware.js';
 
 export { ChecksEvaluationMetricType as ChecksEvaluationMetricType };
 // export { checksMiddleware as checksMiddleware };
@@ -46,7 +49,7 @@ const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
  */
 export function checks(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('checks', async (ai: Genkit) => {
-    const googleAuth = inititializeAuth(options?.googleAuthOptions)
+    const googleAuth = inititializeAuth(options?.googleAuthOptions);
 
     const projectId = options?.projectId || (await googleAuth.getProjectId());
 
@@ -56,8 +59,7 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       );
     }
 
-
-    console.log("Initializing checks middleware.")
+    console.log('Initializing checks middleware.');
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
@@ -67,21 +69,21 @@ export function checks(options?: PluginOptions): GenkitPlugin {
 }
 
 export function checksMiddleware(options: {
-  authOptions: GoogleAuthOptions,
-  metrics: ChecksEvaluationMetric[],
+  authOptions: GoogleAuthOptions;
+  metrics: ChecksEvaluationMetric[];
 }) {
-  const googleAuth = inititializeAuth(options.authOptions)
+  const googleAuth = inititializeAuth(options.authOptions);
 
   return authorizedMiddleware({
     auth: googleAuth,
     metrics: options.metrics,
     projectId: options.authOptions.projectId,
-  })
+  });
 }
 
 /**
- * Helper function for initializing an instance of GoogleAuth. 
- * 
+ * Helper function for initializing an instance of GoogleAuth.
+ *
  * @param options Options for initializing a GoogleAuth instance.
  * @returns GoogleAuth
  */
@@ -107,7 +109,7 @@ function inititializeAuth(options?: GoogleAuthOptions): GoogleAuth {
     );
   }
 
-  googleAuth.getClient().then(client => {
+  googleAuth.getClient().then((client) => {
     if (client.quotaProjectId) {
       logger.warn(
         `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
@@ -115,7 +117,7 @@ function inititializeAuth(options?: GoogleAuthOptions): GoogleAuth {
     }
   });
 
-  return googleAuth
+  return googleAuth;
 }
 
 export default checks;

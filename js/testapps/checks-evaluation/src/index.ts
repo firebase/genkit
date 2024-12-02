@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { checks, ChecksEvaluationMetricType, checksMiddleware } from '@genkit-ai/checks';
-import { genkit, z } from 'genkit';
+import {
+  checks,
+  ChecksEvaluationMetricType,
+  checksMiddleware,
+} from '@genkit-ai/checks';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { genkit, z } from 'genkit';
 
 export const ai = genkit({
   plugins: [
@@ -52,31 +56,30 @@ export const ai = genkit({
   ],
 });
 
-
-ai.defineFlow({
-  name: "checksMiddlewareTestFlow",
-  inputSchema: z.string(),
-  outputSchema: z.any()
-},
+ai.defineFlow(
+  {
+    name: 'checksMiddlewareTestFlow',
+    inputSchema: z.string(),
+    outputSchema: z.any(),
+  },
   async (prompt) => {
-
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: prompt,
       use: [
         checksMiddleware({
           authOptions: {
-            projectId: "checks-prod"
+            projectId: 'checks-prod',
           },
           metrics: [
             ChecksEvaluationMetricType.DANGEROUS_CONTENT,
-            ChecksEvaluationMetricType.HARASSMENT
-          ]
-        })
-      ]
-    })
+            ChecksEvaluationMetricType.HARASSMENT,
+          ],
+        }),
+      ],
+    });
 
-    console.log(text)
-    return text
+    console.log(text);
+    return text;
   }
-)
+);
