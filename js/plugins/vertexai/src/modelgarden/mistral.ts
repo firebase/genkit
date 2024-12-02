@@ -21,7 +21,10 @@ import {
   ChatCompletionChoiceFinishReason,
   ChatCompletionRequest,
   ChatCompletionResponse,
+  FunctionCall,
+  Tool as MistralTool,
   ToolCall,
+  ToolTypes,
 } from '@mistralai/mistralai-gcp/models/components';
 import {
   GENKIT_CLIENT_HEADER,
@@ -33,6 +36,7 @@ import {
   ModelResponseData,
   Part,
   Role,
+  ToolRequestPart,
   z,
 } from 'genkit';
 import { modelRef } from 'genkit/model';
@@ -55,7 +59,7 @@ export const mistralLarge = modelRef({
     supports: {
       multiturn: true,
       media: false,
-      tools: false,
+      tools: true,
       systemRole: true,
       output: ['text'],
     },
@@ -119,17 +123,76 @@ function toMistralRole(role: Role): MistralRole {
       return 'system';
   }
 }
-// Convert Genkit input to Mistral request format
+function toMistralToolRequest(toolRequest: Record<string, any>): FunctionCall {
+  if (!toolRequest.name) {
+    throw new Error('Tool name is required');
+  }
+
+  return {
+    name: toolRequest.name,
+    // Mistral expects arguments as either a string or object
+    arguments:
+      typeof toolRequest.input === 'string'
+        ? toolRequest.input
+        : JSON.stringify(toolRequest.input),
+  };
+}
+
 export function toMistralRequest(
   model: string,
   input: GenerateRequest<typeof MistralConfigSchema>
 ): ChatCompletionRequest {
-  const messages = input.messages.map((msg) => ({
-    content: msg.content.map((part) => part.text).join(''),
-    role: toMistralRole(msg.role),
-  }));
+  const messages = input.messages.map((msg) => {
+    // Handle regular text messages
+    if (msg.content.every((part) => part.text)) {
+      const content = msg.content.map((part) => part.text || '').join('');
+      return {
+        role: toMistralRole(msg.role),
+        content,
+      };
+    }
 
-  return {
+    // Handle assistant's tool/function calls
+    const toolRequest = msg.content.find((part) => part.toolRequest);
+    if (toolRequest?.toolRequest) {
+      const functionCall = toMistralToolRequest(toolRequest.toolRequest);
+      return {
+        role: 'assistant' as const,
+        content: null,
+        toolCalls: [
+          {
+            // Changed from function_call to tool_calls array
+            id: toolRequest.toolRequest.ref,
+            type: ToolTypes.Function,
+            function: {
+              name: functionCall.name,
+              arguments: functionCall.arguments,
+            },
+          },
+        ],
+      };
+    }
+
+    // Handle tool responses
+    const toolResponse = msg.content.find((part) => part.toolResponse);
+    if (toolResponse?.toolResponse) {
+      return {
+        role: 'tool' as const,
+        name: toolResponse.toolResponse.name,
+        content: JSON.stringify(toolResponse.toolResponse.output),
+        tool_call_id: toolResponse.toolResponse.ref, // This must match the id from tool_calls
+      };
+    }
+
+    return {
+      role: toMistralRole(msg.role),
+      content: msg.content.map((part) => part.text || '').join(''),
+    };
+  });
+
+  validateToolSequence(messages); // This line exists but might not be running?
+
+  const request: ChatCompletionRequest = {
     model,
     messages,
     maxTokens: input.config?.maxOutputTokens ?? 1024,
@@ -137,6 +200,19 @@ export function toMistralRequest(
     topP: input.config?.topP,
     stop: input.config?.stopSequences,
   };
+
+  if (input.tools) {
+    request.tools = input.tools.map((tool) => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema || {},
+      },
+    })) as MistralTool[];
+  }
+
+  return request;
 }
 // Helper to convert Mistral AssistantMessage content into Genkit parts
 function fromMistralTextPart(content: string): Part {
@@ -146,15 +222,19 @@ function fromMistralTextPart(content: string): Part {
 }
 
 // Helper to convert Mistral ToolCall into Genkit parts
-function fromMistralToolCall(toolCall: ToolCall): Part {
-  throw new Error('Tool calls are not yet supported in Mistral models.');
+function fromMistralToolCall(toolCall: ToolCall): ToolRequestPart {
+  if (!toolCall.function) {
+    throw new Error('Tool call must include a function definition');
+  }
+
   return {
-    // TODO: Implement this
-    // @ts-ignore
     toolRequest: {
-      // name: toolCall.id,
-      // input: toolCall.input,
-      // ref: toolCall.id, // Assuming toolCall.id exists; adjust if needed
+      ref: toolCall.id,
+      name: toolCall.function.name,
+      input:
+        typeof toolCall.function.arguments === 'string'
+          ? JSON.parse(toolCall.function.arguments)
+          : toolCall.function.arguments,
     },
   };
 }
@@ -269,7 +349,10 @@ export function mistralModel(
 
         const response = await client.chat.complete(mistralRequest);
 
-        return fromMistralResponse(input, response);
+        const responseToGenkit = fromMistralResponse(input, response);
+
+        // return fromMistralResponse(input, response);
+        return responseToGenkit;
       } else {
         // TODO: is this supported?
         throw new Error('Streaming is not yet implemented for Mistral models.');
@@ -303,7 +386,7 @@ function createClientFactory(
         },
       });
 
-      // This is necessary because the SDK wasn't handling 2411 model correctly
+      // This is necessary because the SDK wasn't handling 2411 model correctly, see https://github.com/mistralai/client-ts/issues/52
       httpClient.addHook('beforeRequest', async (request) => {
         const url = new URL(request.url);
 
@@ -363,4 +446,41 @@ function createClientFactory(
 
     return clients[region];
   };
+}
+
+// Helper function to validate tool calls and responses match
+function validateToolSequence(messages: any[]) {
+  const toolCalls = messages
+    .filter((m) => {
+      return m.role === 'assistant' && (m.toolCalls || m.function_call);
+    })
+    .reduce((acc: any[], m) => {
+      if (m.toolCalls) {
+        return [...acc, ...m.toolCalls];
+      }
+      if (m.function_call) {
+        return [...acc, { id: m.tool_call_id, ...m.function_call }];
+      }
+      return acc;
+    }, []);
+
+  const toolResponses = messages.filter((m) => m.role === 'tool');
+
+  if (toolCalls.length !== toolResponses.length) {
+    throw new Error(
+      `Mismatch between tool calls (${toolCalls.length}) and responses (${toolResponses.length})`
+    );
+  }
+
+  // Verify each tool response matches a call by ID
+  toolResponses.forEach((response) => {
+    const matchingCall = toolCalls.find(
+      (call) => call.id === response.tool_call_id
+    );
+    if (!matchingCall) {
+      throw new Error(
+        `Tool response with ID ${response.tool_call_id} has no matching call`
+      );
+    }
+  });
 }

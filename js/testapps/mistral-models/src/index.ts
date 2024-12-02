@@ -73,11 +73,11 @@ export const menuSuggestionFlow = ai.defineFlow(
     const llmResponse = await ai.generate({
       model: mistralLarge,
       prompt: prompt,
-      // tools: ['menu-suggestion'],
+      tools: ['menu-suggestion'],
       config: {
         temperature: 1,
       },
-      returnToolRequests: true,
+      // returnToolRequests: true,
     });
 
     return llmResponse.text;
