@@ -115,11 +115,11 @@ type ActionParams<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
   name:
-  | string
-  | {
-    pluginId: string;
-    actionId: string;
-  };
+    | string
+    | {
+        pluginId: string;
+        actionId: string;
+      };
   description?: string;
   inputSchema?: I;
   inputJsonSchema?: JSONSchema7;
@@ -258,7 +258,7 @@ export function action<
 
         const output = await fn(input, {
           context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => { }),
+          sendChunk: options?.onChunk ?? ((c) => {}),
         });
 
         metadata.output = JSON.stringify(output);
@@ -328,7 +328,7 @@ export function defineAction<
   if (isInRuntimeContext()) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
-      'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
+        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
   if (typeof config.name === 'string') {
