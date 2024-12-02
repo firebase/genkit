@@ -86,7 +86,7 @@ export function handler<
         'Transfer-Encoding': 'chunked',
       });
       try {
-        const result = await flow.flow.invoke(input, {
+        const result = await flow.invoke(input, {
           onChunk: (chunk: z.infer<S>) => {
             response.write(
               'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
@@ -115,7 +115,7 @@ export function handler<
       }
     } else {
       try {
-        const result = await flow.flow.invoke(input, { context: auth });
+        const result = await flow.invoke(input, { context: auth });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."

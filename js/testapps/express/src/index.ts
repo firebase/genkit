@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { handler } from '@genkit-ai/express';
+import { FlowAuthPolicy, handler } from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
-import express, { Request, Response } from 'express';
+import express, { ErrorRequestHandler, Handler, Request, Response } from 'express';
 import { genkit, run, z } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 
@@ -40,7 +40,7 @@ export const jokeFlow = ai.defineFlow(
   async (subject, streamingCallback) => {
     return await run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        prompt: `${subject}`,
+        prompt: `tell me long joke about ${subject}`,
         model: gemini15Flash,
         config: {
           temperature: 1,
@@ -53,16 +53,37 @@ export const jokeFlow = ai.defineFlow(
   }
 );
 
+const auth: Handler = (req, resp, next) => {
+  const token = req.header('authorization');
+  // pretend we check auth token
+  (req as any).auth = { username: token };
+  next();
+};
+
 const app = express();
 app.use(express.json());
-const port = process.env.PORT || 5000;
 
-ai.flows.forEach(f => {
-  app.post(`/${f.name}`, handler(f));  
-})
+const authPolicies: Record<string, FlowAuthPolicy> = {
+  jokeFlow: (auth) => {
+    if (auth.username != 'authorized') {
+      throw new Error('unauthorized');
+    }
+  },
+};
 
+// curl http://localhost:5000/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: authorized"
+ai.flows.forEach((f) => {
+  app.post(
+    `/${f.name}`,
+    auth,
+    handler(f, { authPolicy: authPolicies[f.name] })
+  );
+});
+
+// curl http://localhost:5000/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"
 app.post('/jokeHandler', handler(jokeFlow));
 
+// curl http://localhost:5000/jokeWithFlow?subject=banana
 app.get('/jokeWithFlow', async (req: Request, res: Response) => {
   const subject = req.query['subject']?.toString();
   if (!subject) {
@@ -72,6 +93,7 @@ app.get('/jokeWithFlow', async (req: Request, res: Response) => {
   res.send(await jokeFlow(subject));
 });
 
+// curl http://localhost:5000/jokeStream?subject=banana
 app.get('/jokeStream', async (req: Request, res: Response) => {
   const subject = req.query['subject']?.toString();
   if (!subject) {
@@ -84,13 +106,12 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
     'Transfer-Encoding': 'chunked',
   });
   await ai.generate({
-    prompt: `Tell me a joke about ${subject}`,
-    model: 'ollama/llama2',
+    prompt: `Tell me a long joke about ${subject}`,
+    model: gemini15Flash,
     config: {
       temperature: 1,
     },
     streamingCallback: (c) => {
-      console.log(c.content[0].text);
       res.write(c.content[0].text);
     },
   });
@@ -98,6 +119,21 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
   res.end();
 });
 
+const errorHandler: ErrorRequestHandler = (
+  error,
+  request,
+  response,
+  next
+) => {
+  if (error instanceof Error) {
+    console.log(error.stack);
+  }
+  return response.status(500).send(error);
+};
+app.use(errorHandler);
+
+
+const port = process.env.PORT || 5000;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
