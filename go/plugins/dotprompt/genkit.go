@@ -32,9 +32,6 @@ type PromptRequest struct {
 	// Input fields for the prompt. If not nil this should be a struct
 	// or pointer to a struct that matches the prompt's input schema.
 	Variables any `json:"variables,omitempty"`
-	// Number of candidates to return; if 0, will be taken
-	// from the prompt config; if still 0, will use 1.
-	Candidates int `json:"candidates,omitempty"`
 	// Model configuration. If nil will be taken from the prompt config.
 	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
 	// Context to pass to model, if any.
@@ -174,8 +171,15 @@ func (p *Prompt) Register() error {
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, opts ...PromptOption) (*ai.ModelResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
+
+	for _, with := range opts {
+		err := with(p)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	var genReq *ai.ModelRequest
 	var err error
@@ -216,7 +220,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 		}
 	}
 
-	resp, err := model.Generate(ctx, genReq, cb)
+	resp, err := model.Generate(ctx, genReq, p.Stream)
 	if err != nil {
 		return nil, err
 	}

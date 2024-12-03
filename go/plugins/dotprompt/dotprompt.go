@@ -91,10 +91,6 @@ type Config struct {
 	// TODO: document
 	Tools []ai.Tool
 
-	// Number of candidates to generate when passing the prompt
-	// to a model. If 0, uses 1.
-	Candidates int
-
 	// Details for the model.
 	GenerationConfig *ai.GenerationCommonConfig
 
@@ -112,7 +108,13 @@ type Config struct {
 
 	// Arbitrary metadata.
 	Metadata map[string]any
+
+	// Streaming callback
+	Stream ai.ModelStreamingCallback
 }
+
+// PromptOption configures params for the prompt
+type PromptOption func(p *Prompt) error
 
 // Open opens and parses a dotprompt file.
 // The name is a base file name, without the ".prompt" extension.
@@ -234,7 +236,6 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		Variant:          fy.Variant,
 		ModelName:        fy.Model,
 		Tools:            tools,
-		Candidates:       fy.Candidates,
 		GenerationConfig: fy.Config,
 		VariableDefaults: fy.Input.Default,
 		Metadata:         fy.Metadata,
@@ -284,11 +285,21 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
-func Define(name, templateText string, cfg Config) (*Prompt, error) {
-	p, err := New(name, templateText, cfg)
+func Define(name, templateText string, opts ...PromptOption) (*Prompt, error) {
+	p, err := New(name, templateText, Config{})
 	if err != nil {
 		return nil, err
 	}
+
+	for _, with := range opts {
+		err := with(p)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// TODO Inherit model from genkit instance
+
 	p.Register()
 	return p, nil
 }
@@ -297,9 +308,6 @@ func Define(name, templateText string, cfg Config) (*Prompt, error) {
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
-	if cfg.ModelName == "" && cfg.Model == nil {
-		return nil, errors.New("dotprompt.New: config must specify either ModelName or Model")
-	}
 	if cfg.ModelName != "" && cfg.Model != nil {
 		return nil, errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
 	}
@@ -319,5 +327,101 @@ func sortSchemaSlices(s *jsonschema.Schema) {
 	}
 	if s.Items != nil {
 		sortSchemaSlices(s.Items)
+	}
+}
+
+// Adds a variant name to the prompt
+func WithVariant(variant string) PromptOption {
+	return func(p *Prompt) error {
+		p.Config.Variant = variant
+		return nil
+	}
+}
+
+// Adds tools to the prompt
+func WithTools(tools ...ai.Tool) PromptOption {
+	return func(p *Prompt) error {
+		var toolSlice []ai.Tool
+		toolSlice = append(toolSlice, tools...)
+		p.Tools = toolSlice
+		return nil
+	}
+}
+
+// Adds Generation details for the model to the prompt.
+func WithGenerationConfig(config *ai.GenerationCommonConfig) PromptOption {
+	return func(p *Prompt) error {
+		p.Config.GenerationConfig = config
+		return nil
+	}
+}
+
+// Adds the struct for input to the prompt.
+func WithInputType(input any) PromptOption {
+	return func(p *Prompt) error {
+		r := &jsonschema.Reflector{
+			AllowAdditionalProperties: false,
+			DoNotReference:            true,
+		}
+		p.InputSchema = r.Reflect(input)
+		return nil
+	}
+}
+
+// Adds the struct for output to the prompt.
+func WithOutputType(output any) PromptOption {
+	return func(p *Prompt) error {
+		r := &jsonschema.Reflector{
+			AllowAdditionalProperties: false,
+			DoNotReference:            true,
+		}
+		p.OutputSchema = r.Reflect(output)
+		return nil
+	}
+}
+
+// Adds the desired output format to the prompt
+func WithOutputFormat(format ai.OutputFormat) PromptOption {
+	return func(p *Prompt) error {
+		p.Config.OutputFormat = format
+		return nil
+	}
+}
+
+// Adds default input variable values
+func WithDefaults(variableDefaults map[string]any) PromptOption {
+	return func(p *Prompt) error {
+		p.Config.VariableDefaults = variableDefaults
+		return nil
+	}
+}
+
+// Adds arbitrary metadata.
+func WithMetaData(metaData map[string]any) PromptOption {
+	return func(p *Prompt) error {
+		p.Config.Metadata = metaData
+		return nil
+	}
+}
+
+// Adds the Model to use.
+func WithModel(model ai.Model) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.ModelName != "" {
+			return errors.New("dotprompt.WithModel: config must specify exactly one of ModelName and Model")
+		}
+		p.Config.Model = model
+		return nil
+	}
+}
+
+// WithStreaming adds a streaming callback to the generate request.
+func WithStreaming(cb ai.ModelStreamingCallback) PromptOption {
+	return func(p *Prompt) error {
+		if p.Stream != nil {
+			return errors.New("cannot set streaming callback (WithStreaming) more than once")
+		}
+		p.Stream = cb
+		return nil
 	}
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
-	"github.com/invopop/jsonschema"
 )
 
 type imageURLInput struct {
@@ -36,14 +35,12 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 		  from the following image of a restaurant menu.
 
 		  {{media url=imageUrl}}`,
-		dotprompt.Config{
-			Model:        genVision,
-			InputSchema:  jsonschema.Reflect(imageURLInput{}),
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.1,
-			},
-		},
+		dotprompt.WithModel(genVision),
+		dotprompt.WithInputType(imageURLInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithGenerationConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.1,
+		}),
 	)
 	if err != nil {
 		return err
@@ -61,14 +58,12 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 		  Answer this customer's question:
 		  {{question}}?
 		`,
-		dotprompt.Config{
-			Model:        gen,
-			InputSchema:  textMenuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.3,
-			},
-		},
+		dotprompt.WithModel(gen),
+		dotprompt.WithInputType(textMenuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithGenerationConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err

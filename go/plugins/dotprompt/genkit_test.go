@@ -20,11 +20,18 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/google/go-cmp/cmp"
 )
 
 func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
+
+	if cb != nil {
+		cb(ctx, &ai.ModelResponseChunk{
+			Content: []*ai.Part{ai.NewTextPart("stream!")},
+		})
+	}
 
 	r := &ai.ModelResponse{
 		Message: &ai.Message{
@@ -44,7 +51,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		resp, err := p.Generate(context.Background(), &PromptRequest{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,12 +62,49 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		resp, err := p.Generate(context.Background(), &PromptRequest{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		assertResponse(t, resp)
 	})
+}
+
+func TestOptionsPatternGenerate(t *testing.T) {
+	type InputOutput struct {
+		Test string `json:"test"`
+	}
+
+	testModel := ai.DefineModel("optionstest", "test", nil, testGenerate)
+
+	p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	streamText := ""
+	resp, err := p.Generate(
+		context.Background(),
+		&PromptRequest{
+			Variables: InputOutput{
+				Test: "testing",
+			},
+		},
+		WithStreaming(func(ctx context.Context, grc *ai.ModelResponseChunk) error {
+			streamText += grc.Text()
+			return nil
+		}),
+		WithModel(testModel),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertResponse(t, resp)
+	if diff := cmp.Diff(streamText, "stream!"); diff != "" {
+		t.Errorf("Text() diff (+got -want):\n%s", diff)
+	}
+
 }
 
 func assertResponse(t *testing.T, resp *ai.ModelResponse) {

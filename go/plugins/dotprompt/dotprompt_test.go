@@ -15,9 +15,11 @@
 package dotprompt
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/google/go-cmp/cmp"
 	"github.com/invopop/jsonschema"
 )
@@ -131,6 +133,65 @@ func TestPrompts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOptionsPatternDefine(t *testing.T) {
+	testTool := ai.DefineTool("optionstest", "use when need to execute a test",
+		func(ctx context.Context, input struct {
+			Test string
+		}) (string, error) {
+			return input.Test, nil
+		},
+	)
+
+	type InputOutput struct {
+		Test string `json:"test"`
+	}
+
+	dotPrompt, err := Define(
+		"TestExecute",
+		"TestExecute",
+		WithVariant("variant"),
+		WithTools(testTool),
+		WithGenerationConfig(&ai.GenerationCommonConfig{}),
+		WithInputType(InputOutput{}),
+		WithOutputType(InputOutput{}),
+		WithOutputFormat(ai.OutputFormatText),
+		WithDefaults(map[string]any{"test": "test"}),
+		WithMetaData(map[string]any{"test": "test"}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dotPrompt.Config.Variant == "" {
+		t.Error("variant not set")
+	}
+	if dotPrompt.Tools == nil {
+		t.Error("tools not set")
+	}
+	if dotPrompt.Config.GenerationConfig == nil {
+		t.Error("generationConfig not set")
+	}
+	if dotPrompt.Config.InputSchema == nil {
+		t.Error("inputschema not set")
+	}
+	if dotPrompt.Config.OutputSchema == nil {
+		t.Error("outputschema not set")
+	}
+	if dotPrompt.Config.OutputFormat == "" {
+		t.Error("outputschema not set")
+	}
+	if dotPrompt.Config.VariableDefaults == nil {
+		t.Error("defaults not set")
+	}
+	if dotPrompt.Config.Metadata == nil {
+		t.Error("metadata not set")
+	}
+	// TODO Inherit from model in genkit
+	// if dotPrompt.Config.Model == nil {
+	// 	t.Error("model not inherited")
+	// }
 }
 
 // cmpSchema compares schema values, returning the output of cmp.Diff.

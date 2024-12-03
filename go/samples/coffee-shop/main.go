@@ -42,7 +42,6 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
-	"github.com/invopop/jsonschema"
 )
 
 const simpleGreetingPromptTemplate = `
@@ -99,17 +98,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := &jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
 	g := googleai.Model("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
-		dotprompt.Config{
-			Model:        g,
-			InputSchema:  r.Reflect(simpleGreetingInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithModel(g),
+		dotprompt.WithInputType(simpleGreetingInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -126,7 +119,7 @@ func main() {
 			&dotprompt.PromptRequest{
 				Variables: input,
 			},
-			callback,
+			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {
 			return "", err
@@ -135,11 +128,9 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
-		dotprompt.Config{
-			Model:        g,
-			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithModel(g),
+		dotprompt.WithInputType(customerTimeAndHistoryInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -159,12 +150,10 @@ func main() {
 	})
 
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
-		dotprompt.Config{
-			Model:        g,
-			InputSchema:  r.Reflect(simpleGreetingInput{}),
-			OutputFormat: ai.OutputFormatJSON,
-			OutputSchema: r.Reflect(simpleGreetingOutput{}),
-		},
+		dotprompt.WithModel(g),
+		dotprompt.WithInputType(simpleGreetingInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatJSON),
+		dotprompt.WithOutputType(simpleGreetingOutput{}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -181,7 +170,7 @@ func main() {
 			&dotprompt.PromptRequest{
 				Variables: input,
 			},
-			callback,
+			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {
 			return "", err
