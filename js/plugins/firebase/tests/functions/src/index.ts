@@ -14,14 +14,25 @@
  * limitations under the License.
  */
 
-import {
-  enableGoogleCloudTelemetry,
-  GcpTelemetryConfigOptions,
-} from '@genkit-ai/google-cloud';
-export { defineFirestoreRetriever } from './firestoreRetriever';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
+import { genkit, z } from 'genkit';
 
-export async function enableFirebaseTelemetry(
-  options?: GcpTelemetryConfigOptions
-) {
-  await enableGoogleCloudTelemetry(options);
-}
+const ai = genkit({});
+enableFirebaseTelemetry({});
+
+export const simpleFlow = onFlow(
+  ai,
+  {
+    name: 'simpleFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    httpsOptions: {
+      cors: '*',
+    },
+    authPolicy: noAuth(),
+  },
+  async (subject) => {
+    return 'hello world!';
+  }
+);

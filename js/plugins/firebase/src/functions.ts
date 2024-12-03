@@ -31,7 +31,7 @@ import {
   z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { initializeAppIfNecessary } from './helpers.js';
+import { initializeAppIfNecessary } from './helpers';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,

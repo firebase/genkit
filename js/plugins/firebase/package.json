@@ -21,7 +21,8 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "jest --verbose"
+    "jest": "node --experimental-vm-modules --dns-result-order=ipv4first node_modules/jest/bin/jest.js --runInBand --verbose",
+    "test": "(cd tests/functions && pnpm run build && cd .. && (firebase emulators:exec --only functions -P demo-test \"npm run jest\" 2>&1 | tee /tmp/firebase_integration_test))"
   },
   "repository": {
     "type": "git",
@@ -42,6 +43,7 @@
     "genkit": "workspace:*"
   },
   "devDependencies": {
+    "axios": "^1.3.2",
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
