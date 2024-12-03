@@ -61,16 +61,15 @@ ai.defineTool(
   }
 );
 
-// Define a simple flow that prompts an LLM to generate menu suggestions.
-export const menuSuggestionFlow = ai.defineFlow(
+export const menuSuggestionFlow = ai.defineStreamingFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (subject) => {
+  async (subject, streamingCallback) => {
     const prompt = `Suggest an item for the menu of a ${subject} themed restaurant`;
-    const llmResponse = await ai.generate({
+    const llmResponse = await ai.generateStream({
       model: mistralLarge,
       prompt: prompt,
       tools: ['menu-suggestion'],
@@ -81,6 +80,15 @@ export const menuSuggestionFlow = ai.defineFlow(
       // returnToolRequests: true,
     });
 
-    return llmResponse.text;
+    if (streamingCallback) {
+      for await (const chunk of llmResponse.stream) {
+        // Here, you could process the chunk in some way before sending it to
+        // the output stream via streamingCallback(). In this example, we output
+        // the text of the chunk, unmodified.
+        streamingCallback(chunk.text);
+      }
+    }
+
+    return (await llmResponse.response).text;
   }
 );

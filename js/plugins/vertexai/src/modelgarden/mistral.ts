@@ -20,10 +20,14 @@ import {
   ChatCompletionChoiceFinishReason,
   ChatCompletionRequest,
   ChatCompletionResponse,
+  CompletionChunk,
   FunctionCall,
   Tool as MistralTool,
+  SystemMessage,
   ToolCall,
+  ToolMessage,
   ToolTypes,
+  UserMessage,
 } from '@mistralai/mistralai-gcp/models/components';
 import {
   GENKIT_CLIENT_HEADER,
@@ -160,7 +164,6 @@ export function toMistralRequest(
         content: null,
         toolCalls: [
           {
-            // Changed from function_call to tool_calls array
             id: toolRequest.toolRequest.ref,
             type: ToolTypes.Function,
             function: {
@@ -179,7 +182,7 @@ export function toMistralRequest(
         role: 'tool' as const,
         name: toolResponse.toolResponse.name,
         content: JSON.stringify(toolResponse.toolResponse.output),
-        tool_call_id: toolResponse.toolResponse.ref, // This must match the id from tool_calls
+        toolCallId: toolResponse.toolResponse.ref, // This must match the id from tool_calls
       };
     }
 
@@ -285,7 +288,7 @@ export function fromMistralFinishReason(
 
 // Converts a Mistral response to a Genkit response
 export function fromMistralResponse(
-  input: GenerateRequest<typeof MistralConfigSchema>,
+  _input: GenerateRequest<typeof MistralConfigSchema>,
   response: ChatCompletionResponse
 ): ModelResponseData {
   const firstChoice = response.choices?.[0];
@@ -355,7 +358,34 @@ export function mistralModel(
 
         return fromMistralResponse(input, response);
       } else {
-        throw new Error('Streaming is not yet implemented for Mistral models.');
+        const mistralRequest = toMistralRequest(versionedModel, input);
+        const stream = await client.chat.stream(mistralRequest, {
+          fetchOptions: {
+            headers: {
+              'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+            },
+          },
+        });
+
+        for await (const event of stream) {
+          const parts = fromMistralCompletionChunk(event.data);
+          if (parts.length > 0) {
+            streamingCallback({
+              content: parts,
+            });
+          }
+        }
+
+        // Get the complete response after streaming
+        const completeResponse = await client.chat.complete(mistralRequest, {
+          fetchOptions: {
+            headers: {
+              'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+            },
+          },
+        });
+
+        return fromMistralResponse(input, completeResponse);
       }
     }
   );
@@ -385,23 +415,28 @@ function createClientFactory(projectId: string) {
   };
 }
 
-// Helper function to validate tool calls and responses match
-function validateToolSequence(messages: any[]) {
-  const toolCalls = messages
-    .filter((m) => {
-      return m.role === 'assistant' && (m.toolCalls || m.function_call);
-    })
-    .reduce((acc: any[], m) => {
-      if (m.toolCalls) {
-        return [...acc, ...m.toolCalls];
-      }
-      if (m.function_call) {
-        return [...acc, { id: m.tool_call_id, ...m.function_call }];
-      }
-      return acc;
-    }, []);
+type MistralMessage =
+  | AssistantMessage
+  | ToolMessage
+  | SystemMessage
+  | UserMessage;
 
-  const toolResponses = messages.filter((m) => m.role === 'tool');
+// Helper function to validate tool calls and responses match
+function validateToolSequence(messages: MistralMessage[]) {
+  const toolCalls = (
+    messages.filter((m) => {
+      return m.role === 'assistant' && m.toolCalls;
+    }) as AssistantMessage[]
+  ).reduce((acc: ToolCall[], m) => {
+    if (m.toolCalls) {
+      return [...acc, ...m.toolCalls];
+    }
+    return acc;
+  }, []);
+
+  const toolResponses = messages.filter(
+    (m) => m.role === 'tool'
+  ) as ToolMessage[];
 
   if (toolCalls.length !== toolResponses.length) {
     throw new Error(
@@ -409,15 +444,44 @@ function validateToolSequence(messages: any[]) {
     );
   }
 
-  // Verify each tool response matches a call by ID
   toolResponses.forEach((response) => {
     const matchingCall = toolCalls.find(
-      (call) => call.id === response.tool_call_id
+      (call) => call.id === response.toolCallId
     );
     if (!matchingCall) {
       throw new Error(
-        `Tool response with ID ${response.tool_call_id} has no matching call`
+        `Tool response with ID ${response.toolCallId} has no matching call`
       );
     }
   });
+}
+
+export function fromMistralCompletionChunk(chunk: CompletionChunk): Part[] {
+  if (!chunk.choices?.[0]?.delta) return [];
+
+  const delta = chunk.choices[0].delta;
+  const parts: Part[] = [];
+
+  if (typeof delta.content === 'string') {
+    parts.push({ text: delta.content });
+  }
+
+  if (delta.toolCalls) {
+    delta.toolCalls.forEach((toolCall) => {
+      if (!toolCall.function) return;
+
+      parts.push({
+        toolRequest: {
+          ref: toolCall.id,
+          name: toolCall.function.name,
+          input:
+            typeof toolCall.function.arguments === 'string'
+              ? JSON.parse(toolCall.function.arguments)
+              : toolCall.function.arguments,
+        },
+      });
+    });
+  }
+
+  return parts;
 }

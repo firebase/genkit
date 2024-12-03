@@ -17,12 +17,14 @@
 import {
   ChatCompletionRequest,
   ChatCompletionResponse,
+  CompletionChunk,
 } from '@mistralai/mistralai-gcp/models/components';
 import { GenerateRequest, GenerateResponseData } from 'genkit';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
   MistralConfigSchema,
+  fromMistralCompletionChunk,
   fromMistralResponse,
   toMistralRequest,
 } from '../../src/modelgarden/mistral';
@@ -527,5 +529,160 @@ describe('fromMistralResponse error handling', () => {
 
     const result = fromMistralResponse(input, response);
     assert.deepEqual(result.message!.content, []);
+  });
+});
+
+describe('fromMistralCompletionChunk', () => {
+  it('should handle text content chunk', () => {
+    const chunk = {
+      id: 'chunk_1',
+      model: MODEL_ID,
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: 'assistant',
+            content: 'Hello world',
+          },
+        },
+      ],
+    };
+
+    const parts = fromMistralCompletionChunk(
+      chunk as unknown as CompletionChunk
+    );
+    assert.deepEqual(parts, [{ text: 'Hello world' }]);
+  });
+
+  it('should handle tool call chunk', () => {
+    const chunk = {
+      id: 'chunk_1',
+      model: MODEL_ID,
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: 'assistant',
+            toolCalls: [
+              {
+                id: 'call_123',
+                type: 'function',
+                function: {
+                  name: 'get_weather',
+                  arguments: '{"location":"San Francisco"}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    const parts = fromMistralCompletionChunk(
+      chunk as unknown as CompletionChunk
+    );
+    assert.deepEqual(parts, [
+      {
+        toolRequest: {
+          ref: 'call_123',
+          name: 'get_weather',
+          input: { location: 'San Francisco' },
+        },
+      },
+    ]);
+  });
+
+  it('should handle empty chunk', () => {
+    const chunk = {
+      id: 'chunk_1',
+      model: MODEL_ID,
+      choices: [],
+    };
+
+    const parts = fromMistralCompletionChunk(chunk);
+    assert.deepEqual(parts, []);
+  });
+
+  it('should handle chunk with empty delta', () => {
+    const chunk = {
+      id: 'chunk_1',
+      model: MODEL_ID,
+      choices: [
+        {
+          index: 0,
+          delta: {},
+        },
+      ],
+    };
+
+    const parts = fromMistralCompletionChunk(
+      chunk as unknown as CompletionChunk
+    );
+    assert.deepEqual(parts, []);
+  });
+
+  it('should handle chunk with invalid tool call', () => {
+    const chunk = {
+      id: 'chunk_1',
+      model: MODEL_ID,
+      choices: [
+        {
+          index: 0,
+          delta: {
+            toolCalls: [
+              {
+                id: 'call_123',
+                type: 'function',
+                // Missing function property
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    const parts = fromMistralCompletionChunk(
+      chunk as unknown as CompletionChunk
+    );
+    assert.deepEqual(parts, []); // Should skip invalid tool call
+  });
+
+  it('should handle mixed content chunk', () => {
+    const chunk = {
+      id: 'chunk_1',
+      model: MODEL_ID,
+      choices: [
+        {
+          index: 0,
+          delta: {
+            content: 'Some text',
+            toolCalls: [
+              {
+                id: 'call_123',
+                type: 'function',
+                function: {
+                  name: 'get_weather',
+                  arguments: '{"location":"San Francisco"}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    const parts = fromMistralCompletionChunk(
+      chunk as unknown as CompletionChunk
+    );
+    assert.deepEqual(parts, [
+      { text: 'Some text' },
+      {
+        toolRequest: {
+          ref: 'call_123',
+          name: 'get_weather',
+          input: { location: 'San Francisco' },
+        },
+      },
+    ]);
   });
 });
