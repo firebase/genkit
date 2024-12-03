@@ -10,8 +10,9 @@
   },
   "functions": [
     {
-      "source": "functions",
+      "source": "../",
       "codebase": "default",
+      "runtime": "nodejs18",
       "ignore": [
         "node_modules",
         ".git",
