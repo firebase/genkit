@@ -286,6 +286,7 @@ export class ReflectionServer {
           pid: process.pid,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
+          genkitVersion: GENKIT_VERSION,
         },
         null,
         2

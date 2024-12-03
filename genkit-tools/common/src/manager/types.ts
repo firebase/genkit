@@ -38,6 +38,8 @@ export interface RuntimeInfo {
   timestamp: string;
   /** Display name for the project, typically basename of the root folder */
   projectName?: string;
+  /** Genkit framework version */
+  genkitVersion?: string;
 }
 
 export enum RuntimeEvent {
