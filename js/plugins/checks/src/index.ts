@@ -59,7 +59,6 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       );
     }
 
-    console.log('Initializing checks middleware.');
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics

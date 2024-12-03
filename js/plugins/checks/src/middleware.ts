@@ -48,7 +48,7 @@ export function checksMiddleware(options: {
           if (violatedPolicies.length > 0) {
             return {
               finishReason: 'blocked',
-              finishMessage: `Model input violated Chec: [${violatedPolicies.map((result) => result.policyType).join(' ')}], further processing blocked.`,
+              finishMessage: `Model input violated Checks policies: [${violatedPolicies.map((result) => result.policyType).join(' ')}], further processing blocked.`,
             };
           }
         }
