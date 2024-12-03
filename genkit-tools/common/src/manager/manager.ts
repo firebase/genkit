@@ -328,7 +328,6 @@ export class RuntimeManager {
       if (isValidRuntimeInfo(runtimeInfo)) {
         const fileName = path.basename(filePath);
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
-          console.log(runtimeInfo);
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
