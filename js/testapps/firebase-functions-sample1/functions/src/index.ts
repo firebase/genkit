@@ -14,26 +14,27 @@
  * limitations under the License.
  */
 
+import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import {
   FirebaseUserEngagementSchema,
   collectUserEngagement,
 } from '@genkit-ai/firebase/user_engagement';
-import { gemini10Pro, vertexAI } from '@genkit-ai/vertexai';
+import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
-  plugins: [vertexAI()],
-  // flowStateStore: 'firebase',
-  // traceStore: 'firebase',
-  // enableTracingAndMetrics: true,
-  // logLevel: 'debug',
-  // telemetry: {
-  //   instrumentation: 'firebase',
-  //   logger: 'firebase',
-  // },
+  plugins: [firebase(), vertexAI()],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+  telemetry: {
+    instrumentation: 'firebase',
+    logger: 'firebase',
+  },
 });
 
 export const simpleFlow = onFlow(
@@ -72,7 +73,7 @@ export const jokeFlow = onFlow(
 
     return await run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        model: gemini10Pro,
+        model: geminiPro,
         prompt: prompt,
       });
 
