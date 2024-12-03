@@ -466,7 +466,7 @@ describe('preamble', () => {
     });
   });
 
-  it('updates the preabmle on fresh chat instance', async () => {
+  it('updates the preamble on fresh chat instance', async () => {
     const agent = ai.definePrompt(
       {
         name: 'agent',

@@ -102,10 +102,7 @@ export class Session<S = any> {
   /**
    * Update messages for a given thread.
    */
-  async updateMessages(
-    thread: string,
-    messasges: MessageData[]
-  ): Promise<void> {
+  async updateMessages(thread: string, messages: MessageData[]): Promise<void> {
     let sessionData = this.sessionData;
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
@@ -113,7 +110,9 @@ export class Session<S = any> {
     if (!sessionData.threads) {
       sessionData.threads = {};
     }
-    sessionData.threads[thread] = messasges;
+    sessionData.threads[thread] = messages.map((m: any) =>
+      m.toJSON ? m.toJSON() : m
+    );
     this.sessionData = sessionData;
 
     await this.store.save(this.id, sessionData);
