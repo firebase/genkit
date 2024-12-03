@@ -40,10 +40,10 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 
 		  Answer this customer's question:
 		  {{question}}?`,
-		dotprompt.WithModel(model),
+		dotprompt.WithDefaultModel(model),
 		dotprompt.WithInputType(dataMenuQuestionInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithGenerationConfig(&ai.GenerationCommonConfig{
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.3,
 		}),
 	)
@@ -96,10 +96,10 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 				Question: input.Question,
 			}
 
-			preq := &dotprompt.PromptRequest{
-				Variables: questionInput,
-			}
-			presp, err := ragDataMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := ragDataMenuPrompt.Generate(
+				ctx,
+				dotprompt.WithVariables(questionInput),
+				nil)
 			if err != nil {
 				return nil, err
 			}

@@ -71,10 +71,10 @@ func setup03(ctx context.Context, model ai.Model) error {
 		    {{this.description}}
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
-		dotprompt.WithModel(model),
+		dotprompt.WithDefaultModel(model),
 		dotprompt.WithInputType(dataMenuQuestionInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithGenerationConfig(&ai.GenerationCommonConfig{
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.3,
 		}),
 	)

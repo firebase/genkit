@@ -108,9 +108,10 @@ type Config struct {
 
 	// Arbitrary metadata.
 	Metadata map[string]any
+}
 
-	// Streaming callback
-	Stream ai.ModelStreamingCallback
+type Options interface {
+	PromptOption | GenerateOption
 }
 
 // PromptOption configures params for the prompt
@@ -330,15 +331,7 @@ func sortSchemaSlices(s *jsonschema.Schema) {
 	}
 }
 
-// Adds a variant name to the prompt
-func WithVariant(variant string) PromptOption {
-	return func(p *Prompt) error {
-		p.Config.Variant = variant
-		return nil
-	}
-}
-
-// Adds tools to the prompt
+// WithTools adds tools to the prompt.
 func WithTools(tools ...ai.Tool) PromptOption {
 	return func(p *Prompt) error {
 		var toolSlice []ai.Tool
@@ -348,39 +341,73 @@ func WithTools(tools ...ai.Tool) PromptOption {
 	}
 }
 
-// Adds Generation details for the model to the prompt.
-func WithGenerationConfig(config *ai.GenerationCommonConfig) PromptOption {
+// WithDefaultConfig adds default model configuration.
+func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
 	return func(p *Prompt) error {
 		p.Config.GenerationConfig = config
 		return nil
 	}
 }
 
-// Adds the struct for input to the prompt.
+// WithInputType uses the type provided to derive the input schema.
 func WithInputType(input any) PromptOption {
 	return func(p *Prompt) error {
+		if p.Config.InputSchema != nil {
+			return errors.New("dotprompt.WithInputType: cannot set both input schema and input type")
+		}
+
 		r := &jsonschema.Reflector{
 			AllowAdditionalProperties: false,
 			DoNotReference:            true,
 		}
-		p.InputSchema = r.Reflect(input)
+		p.Config.InputSchema = r.Reflect(input)
 		return nil
 	}
 }
 
-// Adds the struct for output to the prompt.
+// WithInputSchema adds the schema for input to the prompt.
+func WithInputSchema(schema *jsonschema.Schema) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.InputSchema != nil {
+			return errors.New("dotprompt.WithInputSchema: cannot set both input schema and input type")
+		}
+
+		p.Config.InputSchema = schema
+		return nil
+	}
+}
+
+// WithOutputType uses the type provided to derive the output schema.
 func WithOutputType(output any) PromptOption {
 	return func(p *Prompt) error {
+		if p.Config.OutputSchema != nil {
+			return errors.New("dotprompt.WithOutputType: cannot set both output schema and output type")
+		}
+
 		r := &jsonschema.Reflector{
 			AllowAdditionalProperties: false,
 			DoNotReference:            true,
 		}
-		p.OutputSchema = r.Reflect(output)
+		p.Config.OutputSchema = r.Reflect(output)
+		p.Config.OutputFormat = ai.OutputFormatJSON
 		return nil
 	}
 }
 
-// Adds the desired output format to the prompt
+// WithOutputSchema adds the schema for output to the prompt.
+func WithOutputSchema(schema *jsonschema.Schema) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.OutputSchema != nil {
+			return errors.New("dotprompt.WithOutputSchema: cannot set both output schema and output type")
+		}
+
+		p.Config.OutputSchema = schema
+		p.Config.OutputFormat = ai.OutputFormatJSON
+		return nil
+	}
+}
+
+// WithOutputFormat adds the desired output format to the prompt
 func WithOutputFormat(format ai.OutputFormat) PromptOption {
 	return func(p *Prompt) error {
 		p.Config.OutputFormat = format
@@ -388,7 +415,7 @@ func WithOutputFormat(format ai.OutputFormat) PromptOption {
 	}
 }
 
-// Adds default input variable values
+// WithDefaults adds default input variable values
 func WithDefaults(variableDefaults map[string]any) PromptOption {
 	return func(p *Prompt) error {
 		p.Config.VariableDefaults = variableDefaults
@@ -396,16 +423,16 @@ func WithDefaults(variableDefaults map[string]any) PromptOption {
 	}
 }
 
-// Adds arbitrary metadata.
-func WithMetaData(metaData map[string]any) PromptOption {
+// WithMetadata adds arbitrary metadata.
+func WithMetadata(metadata map[string]any) PromptOption {
 	return func(p *Prompt) error {
-		p.Config.Metadata = metaData
+		p.Config.Metadata = metadata
 		return nil
 	}
 }
 
-// Adds the Model to use.
-func WithModel(model ai.Model) PromptOption {
+// WithDefaultModel adds the default Model to use.
+func WithDefaultModel(model ai.Model) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.ModelName != "" {
 			return errors.New("dotprompt.WithModel: config must specify exactly one of ModelName and Model")
@@ -415,13 +442,13 @@ func WithModel(model ai.Model) PromptOption {
 	}
 }
 
-// WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ai.ModelStreamingCallback) PromptOption {
+// WithDefaultModelName adds the name of the default Model to use.
+func WithDefaultModelName(modelname string) PromptOption {
 	return func(p *Prompt) error {
-		if p.Stream != nil {
-			return errors.New("cannot set streaming callback (WithStreaming) more than once")
+		if p.Config.Model != nil {
+			return errors.New("dotprompt.WithModelName: config must specify exactly one of ModelName and Model")
 		}
-		p.Stream = cb
+		p.Config.ModelName = modelname
 		return nil
 	}
 }

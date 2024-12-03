@@ -51,22 +51,22 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{})
+		resp, err := p.Generate(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertResponse(t, resp)
+		assertResponse(t, resp, `AI reply to "TestExecute"`)
 	})
 	t.Run("ModelName", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{ModelName: "test/test"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{})
+		resp, err := p.Generate(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertResponse(t, resp)
+		assertResponse(t, resp, `AI reply to "TestExecute"`)
 	})
 }
 
@@ -75,39 +75,58 @@ func TestOptionsPatternGenerate(t *testing.T) {
 		Test string `json:"test"`
 	}
 
-	testModel := ai.DefineModel("optionstest", "test", nil, testGenerate)
+	testModel := ai.DefineModel("options", "test", nil, testGenerate)
 
-	p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("Streaming", func(t *testing.T) {
+		p, err := Define("TestExecute", "TestExecute", WithInputType(InputOutput{}))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	streamText := ""
-	resp, err := p.Generate(
-		context.Background(),
-		&PromptRequest{
-			Variables: InputOutput{
+		streamText := ""
+		resp, err := p.Generate(
+			context.Background(),
+			WithVariables(InputOutput{
 				Test: "testing",
-			},
-		},
-		WithStreaming(func(ctx context.Context, grc *ai.ModelResponseChunk) error {
-			streamText += grc.Text()
-			return nil
-		}),
-		WithModel(testModel),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+			}),
+			WithStreaming(func(ctx context.Context, grc *ai.ModelResponseChunk) error {
+				streamText += grc.Text()
+				return nil
+			}),
+			WithModel(testModel),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	assertResponse(t, resp)
-	if diff := cmp.Diff(streamText, "stream!"); diff != "" {
-		t.Errorf("Text() diff (+got -want):\n%s", diff)
-	}
+		assertResponse(t, resp, `AI reply to "TestExecute"`)
+		if diff := cmp.Diff(streamText, "stream!"); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+	})
 
+	t.Run("WithModelName", func(t *testing.T) {
+		p, err := Define("TestModelname", "TestModelname", WithInputType(InputOutput{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := p.Generate(
+			context.Background(),
+			WithVariables(InputOutput{
+				Test: "testing",
+			}),
+			WithModelName("options/test"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assertResponse(t, resp, `AI reply to "TestModelname"`)
+	})
 }
 
-func assertResponse(t *testing.T, resp *ai.ModelResponse) {
+func assertResponse(t *testing.T, resp *ai.ModelResponse, want string) {
 	if resp.Message == nil {
 		t.Fatal("response has candidate with no message")
 	}
@@ -118,7 +137,6 @@ func assertResponse(t *testing.T, resp *ai.ModelResponse) {
 		}
 	}
 	got := resp.Message.Content[0].Text
-	want := `AI reply to "TestExecute"`
 	if got != want {
 		t.Errorf("fake model replied with %q, want %q", got, want)
 	}

@@ -35,10 +35,10 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 		  from the following image of a restaurant menu.
 
 		  {{media url=imageUrl}}`,
-		dotprompt.WithModel(genVision),
+		dotprompt.WithDefaultModel(genVision),
 		dotprompt.WithInputType(imageURLInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithGenerationConfig(&ai.GenerationCommonConfig{
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.1,
 		}),
 	)
@@ -58,10 +58,10 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 		  Answer this customer's question:
 		  {{question}}?
 		`,
-		dotprompt.WithModel(gen),
+		dotprompt.WithDefaultModel(gen),
 		dotprompt.WithInputType(textMenuQuestionInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithGenerationConfig(&ai.GenerationCommonConfig{
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.3,
 		}),
 	)
@@ -82,12 +82,11 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 			data := make([]byte, base64.StdEncoding.EncodedLen(len(image)))
 			base64.StdEncoding.Encode(data, image)
 			imageDataURL := "data:image/jpeg;base64," + string(data)
-			preq := &dotprompt.PromptRequest{
-				Variables: &imageURLInput{
+
+			presp, err := readMenuPrompt.Generate(ctx,
+				dotprompt.WithVariables(&imageURLInput{
 					ImageURL: imageDataURL,
-				},
-			}
-			presp, err := readMenuPrompt.Generate(ctx, preq, nil)
+				}), nil)
 			if err != nil {
 				return "", err
 			}
@@ -102,10 +101,7 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 
 	textMenuQuestionFlow := genkit.DefineFlow("s05_textMenuQuestion",
 		func(ctx context.Context, input *textMenuQuestionInput) (*answerOutput, error) {
-			preq := &dotprompt.PromptRequest{
-				Variables: input,
-			}
-			presp, err := textMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := textMenuPrompt.Generate(ctx, dotprompt.WithVariables(input), nil)
 			if err != nil {
 				return nil, err
 			}

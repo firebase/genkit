@@ -82,7 +82,7 @@ func main() {
 
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
-		dotprompt.WithModel(model),
+		dotprompt.WithDefaultModel(model),
 		dotprompt.WithInputType(simpleQaPromptInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
@@ -118,9 +118,7 @@ func main() {
 		}
 
 		resp, err := simpleQaPrompt.Generate(ctx,
-			&dotprompt.PromptRequest{
-				Variables: promptInput,
-			},
+			dotprompt.WithVariables(promptInput),
 			nil,
 		)
 		if err != nil {

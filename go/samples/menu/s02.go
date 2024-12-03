@@ -51,7 +51,7 @@ func setup02(_ context.Context, m ai.Model) error {
 
 		 Question:
 		 {{question}} ?`,
-		dotprompt.WithModel(m),
+		dotprompt.WithDefaultModel(m),
 		dotprompt.WithInputType(menuQuestionInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
 		dotprompt.WithTools(menuTool),
@@ -63,9 +63,7 @@ func setup02(_ context.Context, m ai.Model) error {
 	genkit.DefineFlow("s02_menuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := dataMenuPrompt.Generate(ctx,
-				&dotprompt.PromptRequest{
-					Variables: input,
-				},
+				dotprompt.WithVariables(input),
 				nil,
 			)
 			if err != nil {

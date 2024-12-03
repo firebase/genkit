@@ -100,7 +100,7 @@ func main() {
 
 	g := googleai.Model("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
-		dotprompt.WithModel(g),
+		dotprompt.WithDefaultModel(g),
 		dotprompt.WithInputType(simpleGreetingInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
@@ -116,9 +116,7 @@ func main() {
 			}
 		}
 		resp, err := simpleGreetingPrompt.Generate(ctx,
-			&dotprompt.PromptRequest{
-				Variables: input,
-			},
+			dotprompt.WithVariables(input),
 			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {
@@ -128,7 +126,7 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
-		dotprompt.WithModel(g),
+		dotprompt.WithDefaultModel(g),
 		dotprompt.WithInputType(customerTimeAndHistoryInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
@@ -138,9 +136,7 @@ func main() {
 
 	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
 		resp, err := greetingWithHistoryPrompt.Generate(ctx,
-			&dotprompt.PromptRequest{
-				Variables: input,
-			},
+			dotprompt.WithVariables(input),
 			nil,
 		)
 		if err != nil {
@@ -150,7 +146,7 @@ func main() {
 	})
 
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
-		dotprompt.WithModel(g),
+		dotprompt.WithDefaultModel(g),
 		dotprompt.WithInputType(simpleGreetingInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatJSON),
 		dotprompt.WithOutputType(simpleGreetingOutput{}),
@@ -167,9 +163,7 @@ func main() {
 			}
 		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
-			&dotprompt.PromptRequest{
-				Variables: input,
-			},
+			dotprompt.WithVariables(input),
 			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {

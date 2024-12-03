@@ -37,8 +37,15 @@ type PromptRequest struct {
 	// Context to pass to model, if any.
 	Context []any `json:"context,omitempty"`
 	// The model to use. This overrides any model specified by the prompt.
-	Model string `json:"model,omitempty"`
+	Model ai.Model `json:"model,omitempty"`
+	// The name of the model to use. This overrides any model specified by the prompt.
+	ModelName string `json:"model,omitempty"`
+	// Streaming callback function
+	Stream ai.ModelStreamingCallback
 }
+
+// GenerateOption configures params for Generate function
+type GenerateOption func(p *PromptRequest) error
 
 // buildVariables returns a map holding prompt field values based
 // on a struct or a pointer to a struct. The struct value should have
@@ -171,11 +178,12 @@ func (p *Prompt) Register() error {
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, opts ...PromptOption) (*ai.ModelResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.ModelResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
+	var pr PromptRequest
 
 	for _, with := range opts {
-		err := with(p)
+		err := with(&pr)
 		if err != nil {
 			return nil, err
 		}
@@ -200,11 +208,16 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, opts ...Prompt
 		genReq.Context = pr.Context
 	}
 
+	// Setting the model on generate, overrides the model defined on the prompt
 	model := p.Model
+	if pr.Model != nil {
+		model = pr.Model
+	}
+
 	if model == nil {
 		modelName := p.ModelName
-		if pr.Model != "" {
-			modelName = pr.Model
+		if pr.ModelName != "" {
+			modelName = pr.ModelName
 		}
 		if modelName == "" {
 			return nil, errors.New("dotprompt execution: model not specified")
@@ -220,10 +233,61 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, opts ...Prompt
 		}
 	}
 
-	resp, err := model.Generate(ctx, genReq, p.Stream)
+	resp, err := model.Generate(ctx, genReq, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
 
 	return resp, nil
+}
+
+// WithVariables adds variables to pass to the model.
+func WithVariables(variables any) GenerateOption {
+	return func(p *PromptRequest) error {
+		p.Variables = variables
+		return nil
+	}
+}
+
+// WithConfig adds model configuration. If nil will be taken from the prompt config.
+func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
+	return func(p *PromptRequest) error {
+		p.Config = config
+		return nil
+	}
+}
+
+// WithContext add context to pass to model, if any.
+func WithContext(context []any) GenerateOption {
+	return func(p *PromptRequest) error {
+		p.Context = context
+		return nil
+	}
+}
+
+// WithModel adds the Model to use. This overrides any model specified by the prompt.
+func WithModel(model ai.Model) GenerateOption {
+	return func(p *PromptRequest) error {
+		p.Model = model
+		return nil
+	}
+}
+
+// WithModelName adds the name of the Model to use. This overrides any model specified by the prompt.
+func WithModelName(model string) GenerateOption {
+	return func(p *PromptRequest) error {
+		p.ModelName = model
+		return nil
+	}
+}
+
+// WithStreaming adds a streaming callback to the generate request.
+func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
+	return func(g *PromptRequest) error {
+		if g.Stream != nil {
+			return errors.New("dotprompt.WithStreaming: cannot set streaming callback (WithStreaming) more than once")
+		}
+		g.Stream = cb
+		return nil
+	}
 }

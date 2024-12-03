@@ -144,54 +144,87 @@ func TestOptionsPatternDefine(t *testing.T) {
 		},
 	)
 
+	testModel := ai.DefineModel("defineoptions", "test", nil, testGenerate)
+
 	type InputOutput struct {
 		Test string `json:"test"`
 	}
 
-	dotPrompt, err := Define(
-		"TestExecute",
-		"TestExecute",
-		WithVariant("variant"),
-		WithTools(testTool),
-		WithGenerationConfig(&ai.GenerationCommonConfig{}),
-		WithInputType(InputOutput{}),
-		WithOutputType(InputOutput{}),
-		WithOutputFormat(ai.OutputFormatText),
-		WithDefaults(map[string]any{"test": "test"}),
-		WithMetaData(map[string]any{"test": "test"}),
-	)
-	if err != nil {
-		t.Fatal(err)
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
 	}
 
-	if dotPrompt.Config.Variant == "" {
-		t.Error("variant not set")
-	}
-	if dotPrompt.Tools == nil {
-		t.Error("tools not set")
-	}
-	if dotPrompt.Config.GenerationConfig == nil {
-		t.Error("generationConfig not set")
-	}
-	if dotPrompt.Config.InputSchema == nil {
-		t.Error("inputschema not set")
-	}
-	if dotPrompt.Config.OutputSchema == nil {
-		t.Error("outputschema not set")
-	}
-	if dotPrompt.Config.OutputFormat == "" {
-		t.Error("outputschema not set")
-	}
-	if dotPrompt.Config.VariableDefaults == nil {
-		t.Error("defaults not set")
-	}
-	if dotPrompt.Config.Metadata == nil {
-		t.Error("metadata not set")
-	}
-	// TODO Inherit from model in genkit
-	// if dotPrompt.Config.Model == nil {
-	// 	t.Error("model not inherited")
-	// }
+	t.Run("WithTypesAndModel", func(t *testing.T) {
+		dotPrompt, err := Define(
+			"TestTypes",
+			"TestTypes",
+			WithTools(testTool),
+			WithDefaultConfig(&ai.GenerationCommonConfig{}),
+			WithInputType(InputOutput{}),
+			WithOutputType(InputOutput{}),
+			WithOutputFormat(ai.OutputFormatText),
+			WithDefaults(map[string]any{"test": "test"}),
+			WithMetadata(map[string]any{"test": "test"}),
+			WithDefaultModel(testModel),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if dotPrompt.Tools == nil {
+			t.Error("tools not set")
+		}
+		if dotPrompt.Config.GenerationConfig == nil {
+			t.Error("generationConfig not set")
+		}
+		if dotPrompt.Config.InputSchema == nil {
+			t.Error("inputschema not set")
+		}
+		if dotPrompt.Config.OutputSchema == nil {
+			t.Error("outputschema not set")
+		}
+		if dotPrompt.Config.OutputFormat == "" {
+			t.Error("outputschema not set")
+		}
+		if dotPrompt.Config.VariableDefaults == nil {
+			t.Error("defaults not set")
+		}
+		if dotPrompt.Config.Metadata == nil {
+			t.Error("metadata not set")
+		}
+		if dotPrompt.Config.Model == nil {
+			t.Error("model not set")
+		}
+		// TODO Inherit from model in genkit
+		// if dotPrompt.Config.Model == nil {
+		// 	t.Error("model not inherited")
+		// }
+	})
+
+	t.Run("WithSchemasAndModelName", func(t *testing.T) {
+		dotPrompt, err := Define(
+			"TestSchemas",
+			"TestSchemas",
+			WithInputSchema(r.Reflect(InputOutput{})),
+			WithOutputSchema(r.Reflect(InputOutput{})),
+			WithDefaultModelName("defineoptions/test"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if dotPrompt.Config.InputSchema == nil {
+			t.Error("inputschema not set")
+		}
+		if dotPrompt.Config.OutputSchema == nil {
+			t.Error("outputschema not set")
+		}
+		if dotPrompt.Config.ModelName == "" {
+			t.Error("modelname not set")
+		}
+	})
+
 }
 
 // cmpSchema compares schema values, returning the output of cmp.Diff.

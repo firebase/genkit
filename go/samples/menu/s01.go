@@ -26,7 +26,7 @@ func setup01(ctx context.Context, g ai.Model) error {
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Customer says: ${input.question}`,
-		dotprompt.WithModel(g),
+		dotprompt.WithDefaultModel(g),
 		dotprompt.WithInputType(menuQuestionInput{}),
 	)
 	if err != nil {
@@ -64,7 +64,7 @@ func setup01(ctx context.Context, g ai.Model) error {
 
 		 Question:
 		 {{question}} ?`,
-		dotprompt.WithModel(g),
+		dotprompt.WithDefaultModel(g),
 		dotprompt.WithInputType(menuQuestionInput{}),
 		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
