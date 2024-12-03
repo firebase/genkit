@@ -75,6 +75,7 @@ export const menuSuggestionFlow = ai.defineFlow(
       prompt: prompt,
       tools: ['menu-suggestion'],
       config: {
+        version: 'mistral-large-2407',
         temperature: 1,
       },
       // returnToolRequests: true,

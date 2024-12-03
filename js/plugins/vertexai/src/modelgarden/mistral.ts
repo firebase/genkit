@@ -15,7 +15,6 @@
  */
 
 import { MistralGoogleCloud } from '@mistralai/mistralai-gcp';
-import { HTTPClient } from '@mistralai/mistralai-gcp/lib/http';
 import {
   AssistantMessage,
   ChatCompletionChoiceFinishReason,
@@ -197,20 +196,19 @@ export function toMistralRequest(
     messages,
     maxTokens: input.config?.maxOutputTokens ?? 1024,
     temperature: input.config?.temperature ?? 0.7,
-    topP: input.config?.topP,
-    stop: input.config?.stopSequences,
+    ...(input.config?.topP && { topP: input.config.topP }),
+    ...(input.config?.stopSequences && { stop: input.config.stopSequences }),
+    ...(input.tools && {
+      tools: input.tools.map((tool) => ({
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.inputSchema || {},
+        },
+      })) as MistralTool[],
+    }),
   };
-
-  if (input.tools) {
-    request.tools = input.tools.map((tool) => ({
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.inputSchema || {},
-      },
-    })) as MistralTool[];
-  }
 
   return request;
 }
@@ -323,7 +321,7 @@ export function mistralModel(
   projectId: string,
   region: string
 ) {
-  const clientFactory = createClientFactory(projectId, GENKIT_CLIENT_HEADER);
+  const getClient = createClientFactory(projectId);
 
   const model = SUPPORTED_MISTRAL_MODELS[modelName];
   if (!model) {
@@ -339,7 +337,7 @@ export function mistralModel(
       versions: model.info?.versions,
     },
     async (input, streamingCallback) => {
-      const client = clientFactory(input.config?.location || region);
+      const client = getClient(input.config?.location || region);
 
       const versionedModel =
         input.config?.version ?? model.info?.versions?.[0] ?? model.name;
@@ -347,104 +345,43 @@ export function mistralModel(
       if (!streamingCallback) {
         const mistralRequest = toMistralRequest(versionedModel, input);
 
-        const response = await client.chat.complete(mistralRequest);
+        const response = await client.chat.complete(mistralRequest, {
+          fetchOptions: {
+            headers: {
+              'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+            },
+          },
+        });
 
-        const responseToGenkit = fromMistralResponse(input, response);
-
-        // return fromMistralResponse(input, response);
-        return responseToGenkit;
+        return fromMistralResponse(input, response);
       } else {
-        // TODO: is this supported?
         throw new Error('Streaming is not yet implemented for Mistral models.');
       }
     }
   );
 }
 
-function createClientFactory(
-  projectId: string,
-  GENKIT_CLIENT_HEADER: string
-): (region: string) => MistralGoogleCloud {
+function createClientFactory(projectId: string) {
   const clients: Record<string, MistralGoogleCloud> = {};
 
   return (region: string): MistralGoogleCloud => {
-    if (!clients[region]) {
-      const httpClient = new HTTPClient({
-        fetcher: (input, init) => {
-          const request = new Request(
-            input instanceof Request ? input : input.toString(),
-            init
-          );
-
-          const modifiedHeaders = new Headers(request.headers);
-          modifiedHeaders.set('X-Goog-Api-Client', GENKIT_CLIENT_HEADER);
-
-          const modifiedRequest = new Request(request, {
-            headers: modifiedHeaders,
-          });
-          return fetch(modifiedRequest);
-        },
-      });
-
-      // This is necessary because the SDK wasn't handling 2411 model correctly, see https://github.com/mistralai/client-ts/issues/52
-      httpClient.addHook('beforeRequest', async (request) => {
-        const url = new URL(request.url);
-
-        // Clone the request to safely handle its body
-        const clonedRequest = request.clone();
-
-        try {
-          // Read and parse the request body if it exists
-          const bodyText = await clonedRequest.text();
-          const body = bodyText ? JSON.parse(bodyText) : null;
-
-          if (body && body.model) {
-            const modelMapping: Record<string, string> = {
-              'mistral-large-2407': 'mistral-large-2407',
-              'mistral-large-2411': 'mistral-large-2411',
-              'mistral-nemo-2407': 'mistral-nemo-2407',
-              'codestral-2405': 'codestral-2405',
-            };
-
-            const mappedModel = modelMapping[body.model] ?? body.model;
-
-            // Update the model name in the body
-            body.model = mappedModel;
-
-            // Update the URL path to include the correct model ID
-            url.pathname = url.pathname.replace(
-              /models\/[^:]+/,
-              `models/${mappedModel}`
-            );
-
-            // Return the modified request with the updated URL and body
-            return new Request(url.toString(), {
-              ...request,
-              method: 'POST', // Ensure the method is POST
-              body: JSON.stringify(body), // Serialize the updated body back to JSON
-              headers: new Headers(request.headers), // Clone headers if needed
-            });
-          }
-        } catch (error) {
-          console.error(
-            'Failed to process request body in beforeRequest hook:',
-            error
-          );
-          throw new Error('Invalid request body format in beforeRequest hook');
-        }
-
-        // If no modifications are needed, return the original request
-        return request;
-      });
-
-      clients[region] = new MistralGoogleCloud({
-        region,
-        projectId,
-        httpClient,
-      });
+    if (!region) {
+      throw new Error('Region is required to create Mistral client');
     }
 
-    return clients[region];
+    try {
+      if (!clients[region]) {
+        clients[region] = new MistralGoogleCloud({
+          region,
+          projectId,
+        });
+      }
+      return clients[region];
+    } catch (error) {
+      throw new Error(
+        `Failed to create/retrieve Mistral client for region ${region}: ${error}`
+      );
+    }
   };
 }
 
