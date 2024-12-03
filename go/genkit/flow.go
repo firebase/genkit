@@ -213,75 +213,31 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 	}
 	f.auth = flowOpts.auth
 	metadata := map[string]any{
-		"inputSchema":  f.inputSchema,
-		"outputSchema": f.outputSchema,
 		"requiresAuth": f.auth != nil,
 	}
-	afunc := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
+	afunc := func(ctx context.Context, input In, cb func(context.Context, Stream) error) (*Out, error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
-		// Only non-durable flows have an auth policy so can safely assume Start.Input.
-		if inst.Start != nil {
-			if f.auth != nil {
-				ctx = f.auth.NewContext(ctx, inst.Auth)
-			}
-			if err := f.checkAuthPolicy(ctx, any(inst.Start.Input)); err != nil {
+		runtimeContext := core.ActionContext(ctx)
+		if f.auth != nil {
+			ctx = f.auth.NewContext(ctx, runtimeContext)
+			if err := f.checkAuthPolicy(ctx, any(input)); err != nil {
 				return nil, err
 			}
 		}
-		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
+		var opts []FlowRunOption
+		if runtimeContext != nil {
+			opts = append(opts, WithLocalAuth(runtimeContext))
+		}
+		result, err := f.run(ctx, input, streamingCallback[Stream](cb), opts...)
+		if err != nil {
+			return nil, err
+		}
+		return &result, err
 	}
 	core.DefineActionInRegistry(r, "", f.name, atype.Flow, metadata, nil, afunc)
 	f.tstate = r.TracingState()
 	r.RegisterFlow(f)
 	return f
-}
-
-// TODO: use flowError?
-
-// A flowInstruction is an instruction to follow with a flow.
-// It is the input for the flow's action.
-// Exactly one field will be non-nil.
-type flowInstruction[In any] struct {
-	Start        *startInstruction[In]    `json:"start,omitempty"`
-	Resume       *resumeInstruction       `json:"resume,omitempty"`
-	Schedule     *scheduleInstruction[In] `json:"schedule,omitempty"`
-	RunScheduled *runScheduledInstruction `json:"runScheduled,omitempty"`
-	State        *stateInstruction        `json:"state,omitempty"`
-	Retry        *retryInstruction        `json:"retry,omitempty"`
-	Auth         map[string]any           `json:"auth,omitempty"`
-}
-
-// A startInstruction starts a flow.
-type startInstruction[In any] struct {
-	Input  In                `json:"input,omitempty"`
-	Labels map[string]string `json:"labels,omitempty"`
-}
-
-// A resumeInstruction resumes a flow that was started and then interrupted.
-type resumeInstruction struct {
-	FlowID  string `json:"flowId,omitempty"`
-	Payload any    `json:"payload,omitempty"`
-}
-
-// A scheduleInstruction schedules a flow to start at a later time.
-type scheduleInstruction[In any] struct {
-	DelaySecs float64 `json:"delay,omitempty"`
-	Input     In      `json:"input,omitempty"`
-}
-
-// A runScheduledInstruction starts a scheduled flow.
-type runScheduledInstruction struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
-// A stateInstruction retrieves the flowState from the flow.
-type stateInstruction struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
-// TODO: document
-type retryInstruction struct {
-	FlowID string `json:"flowId,omitempty"`
 }
 
 // A flowState is a persistent representation of a flow that may be in the middle of running.
@@ -368,30 +324,6 @@ type FlowResult[Out any] struct {
 	// TODO: replace with  a type that implements error and json.Marshaler.
 	err        error
 	StackTrace string `json:"stacktrace,omitempty"`
-}
-
-// FlowResult is called FlowResponse in the javascript.
-
-// runInstruction performs one of several actions on a flow, as determined by msg.
-// (Called runEnvelope in the js.)
-func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowInstruction[In], cb streamingCallback[Stream]) (*flowState[In, Out], error) {
-	switch {
-	case inst.Start != nil:
-		// TODO: pass msg.Start.Labels.
-		return f.start(ctx, inst.Start.Input, cb)
-	case inst.Resume != nil:
-		return nil, errors.ErrUnsupported
-	case inst.Retry != nil:
-		return nil, errors.ErrUnsupported
-	case inst.RunScheduled != nil:
-		return nil, errors.ErrUnsupported
-	case inst.Schedule != nil:
-		return nil, errors.ErrUnsupported
-	case inst.State != nil:
-		return nil, errors.ErrUnsupported
-	default:
-		return nil, errors.New("all known fields of FlowInvokeEnvelopeMessage are nil")
-	}
 }
 
 // The following methods make Flow[I, O, S] implement the flow interface, define in servers.go.

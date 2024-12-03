@@ -18,6 +18,7 @@ import { version } from './__codegen/version.js';
 
 export const GENKIT_VERSION = version;
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
+export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 export { z } from 'zod';
 export * from './action.js';

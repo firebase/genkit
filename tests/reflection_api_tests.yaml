@@ -876,8 +876,3 @@ tests:
       /flow/testFlow:
         key: /flow/testFlow
         name: testFlow
-        metadata:
-          inputSchema:
-            type: string
-          outputSchema:
-            type: string
