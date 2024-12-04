@@ -1,7 +1,8 @@
 {
   "main": "lib/index.js",
   "scripts": {
-    "start": "node lib/index.js",
+    "start:anthropic": "node lib/anthropic.js",
+    "start:mistral": "node lib/mistral.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
