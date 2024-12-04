@@ -59,7 +59,8 @@
     "firebase-functions-test": "^3.1.0",
     "firebase": "^11.0.2",
     "firebase-admin": "^13.0.1",
-    "firebase-functions": ">=4.8"
+    "firebase-functions": ">=4.8",
+    "firebase-tools": "^13.27.0"
   },
   "types": "./lib/index.d.ts",
   "exports": {
