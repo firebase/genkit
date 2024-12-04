@@ -47,7 +47,7 @@ func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Con
 func TestExecute(t *testing.T) {
 	testModel := ai.DefineModel("test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
-		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
+		p, err := New("TestExecute", "TestExecute", Config{Model: &testModel})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,10 +71,6 @@ func TestExecute(t *testing.T) {
 }
 
 func TestOptionsPatternGenerate(t *testing.T) {
-	type InputOutput struct {
-		Test string `json:"test"`
-	}
-
 	testModel := ai.DefineModel("options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
@@ -94,6 +90,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 				return nil
 			}),
 			WithModel(testModel),
+			WithContext([]any{"context"}),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -124,6 +121,53 @@ func TestOptionsPatternGenerate(t *testing.T) {
 
 		assertResponse(t, resp, `AI reply to "TestModelname"`)
 	})
+}
+
+func TestGenerateOptions(t *testing.T) {
+	p, err := Define("TestWithGenerate", "TestWithGenerate", WithInputType(InputOutput{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tests = []struct {
+		name string
+		with GenerateOption
+	}{
+		{
+			name: "WithVariables",
+			with: WithVariables(map[string]any{"test": "test"}),
+		},
+		{
+			name: "WithConfig",
+			with: WithConfig(&ai.GenerationCommonConfig{}),
+		},
+		{
+			name: "WithContext",
+			with: WithContext([]any{"context"}),
+		},
+		{
+			name: "WithModelName",
+			with: WithModelName("defineoptions/test"),
+		},
+		{
+			name: "WithModel",
+			with: WithModel(testModel),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err = p.Generate(
+				context.Background(),
+				test.with,
+				test.with,
+			)
+
+			if err == nil {
+				t.Errorf("%s could be set twice", test.name)
+			}
+		})
+	}
 }
 
 func assertResponse(t *testing.T, resp *ai.ModelResponse, want string) {

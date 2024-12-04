@@ -24,6 +24,22 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
+type InputOutput struct {
+	Test string `json:"test"`
+}
+
+func testTool(name string) *ai.ToolDef[struct{ Test string }, string] {
+	return ai.DefineTool(name, "use when need to execute a test",
+		func(ctx context.Context, input struct {
+			Test string
+		}) (string, error) {
+			return input.Test, nil
+		},
+	)
+}
+
+var testModel = ai.DefineModel("defineoptions", "test", nil, testGenerate)
+
 func TestPrompts(t *testing.T) {
 	SetDirectory("testdata")
 
@@ -136,20 +152,6 @@ func TestPrompts(t *testing.T) {
 }
 
 func TestOptionsPatternDefine(t *testing.T) {
-	testTool := ai.DefineTool("optionstest", "use when need to execute a test",
-		func(ctx context.Context, input struct {
-			Test string
-		}) (string, error) {
-			return input.Test, nil
-		},
-	)
-
-	testModel := ai.DefineModel("defineoptions", "test", nil, testGenerate)
-
-	type InputOutput struct {
-		Test string `json:"test"`
-	}
-
 	r := &jsonschema.Reflector{
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
@@ -159,7 +161,7 @@ func TestOptionsPatternDefine(t *testing.T) {
 		dotPrompt, err := Define(
 			"TestTypes",
 			"TestTypes",
-			WithTools(testTool),
+			WithTools(testTool("testOptionsPatternDefine")),
 			WithDefaultConfig(&ai.GenerationCommonConfig{}),
 			WithInputType(InputOutput{}),
 			WithOutputType(InputOutput{}),
@@ -225,6 +227,78 @@ func TestOptionsPatternDefine(t *testing.T) {
 		}
 	})
 
+}
+
+func TestPromptOptions(t *testing.T) {
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+
+	var tests = []struct {
+		name string
+		with PromptOption
+	}{
+		{
+			name: "WithTools",
+			with: WithTools(testTool("testPromptOptions")),
+		},
+		{
+			name: "WithDefaultConfig",
+			with: WithDefaultConfig(&ai.GenerationCommonConfig{}),
+		},
+		{
+			name: "WithInputType",
+			with: WithInputType(InputOutput{}),
+		},
+		{
+			name: "WithInputSchema",
+			with: WithInputSchema(r.Reflect(InputOutput{})),
+		},
+		{
+			name: "WithOutputType",
+			with: WithOutputType(InputOutput{}),
+		},
+		{
+			name: "WithOutputSchema",
+			with: WithOutputSchema(r.Reflect(InputOutput{})),
+		},
+		{
+			name: "WithOutputFormat",
+			with: WithOutputFormat(ai.OutputFormatText),
+		},
+		{
+			name: "WithDefaults",
+			with: WithDefaults(map[string]any{"test": "test"}),
+		},
+		{
+			name: "WithMetadata",
+			with: WithMetadata(map[string]any{"test": "test"}),
+		},
+		{
+			name: "WithDefaultModelName",
+			with: WithDefaultModelName("defineoptions/test"),
+		},
+		{
+			name: "WithDefaultModel",
+			with: WithDefaultModel(testModel),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Define(
+				"TestWith",
+				"TestWith",
+				test.with,
+				test.with,
+			)
+
+			if err == nil {
+				t.Errorf("%s could be set twice", test.name)
+			}
+		})
+	}
 }
 
 // cmpSchema compares schema values, returning the output of cmp.Diff.

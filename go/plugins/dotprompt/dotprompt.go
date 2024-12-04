@@ -29,6 +29,7 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -85,8 +86,8 @@ type Config struct {
 	ModelName string
 
 	// The Model to use.
-	// If this is non-nil, Model should be the empty string.
-	Model ai.Model
+	// If this is non-nil, ModelName should be the empty string.
+	Model *ai.Model
 
 	// TODO: document
 	Tools []ai.Tool
@@ -108,10 +109,6 @@ type Config struct {
 
 	// Arbitrary metadata.
 	Metadata map[string]any
-}
-
-type Options interface {
-	PromptOption | GenerateOption
 }
 
 // PromptOption configures params for the prompt
@@ -334,6 +331,10 @@ func sortSchemaSlices(s *jsonschema.Schema) {
 // WithTools adds tools to the prompt.
 func WithTools(tools ...ai.Tool) PromptOption {
 	return func(p *Prompt) error {
+		if p.Config.Tools != nil {
+			return errors.New("dotprompt.WithTools: cannot set tools more than once")
+		}
+
 		var toolSlice []ai.Tool
 		toolSlice = append(toolSlice, tools...)
 		p.Tools = toolSlice
@@ -344,6 +345,9 @@ func WithTools(tools ...ai.Tool) PromptOption {
 // WithDefaultConfig adds default model configuration.
 func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
 	return func(p *Prompt) error {
+		if p.Config.GenerationConfig != nil {
+			return errors.New("dotprompt.WithDefaultConfig: cannot set config more than once")
+		}
 		p.Config.GenerationConfig = config
 		return nil
 	}
@@ -353,14 +357,10 @@ func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
 func WithInputType(input any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.InputSchema != nil {
-			return errors.New("dotprompt.WithInputType: cannot set both input schema and input type")
+			return errors.New("dotprompt.WithInputType: cannot set inputType more than once. Set either inputType or inputSchema")
 		}
 
-		r := &jsonschema.Reflector{
-			AllowAdditionalProperties: false,
-			DoNotReference:            true,
-		}
-		p.Config.InputSchema = r.Reflect(input)
+		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
 		return nil
 	}
 }
@@ -369,7 +369,7 @@ func WithInputType(input any) PromptOption {
 func WithInputSchema(schema *jsonschema.Schema) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.InputSchema != nil {
-			return errors.New("dotprompt.WithInputSchema: cannot set both input schema and input type")
+			return errors.New("dotprompt.WithInputSchema: cannot set inputSchema more than once. Set either inputType or inputSchema")
 		}
 
 		p.Config.InputSchema = schema
@@ -381,14 +381,10 @@ func WithInputSchema(schema *jsonschema.Schema) PromptOption {
 func WithOutputType(output any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.OutputSchema != nil {
-			return errors.New("dotprompt.WithOutputType: cannot set both output schema and output type")
+			return errors.New("dotprompt.WithOutputType: cannot set outputType more than once. Set either outputType or outputSchema")
 		}
 
-		r := &jsonschema.Reflector{
-			AllowAdditionalProperties: false,
-			DoNotReference:            true,
-		}
-		p.Config.OutputSchema = r.Reflect(output)
+		p.Config.OutputSchema = base.InferJSONSchemaNonReferencing(output)
 		p.Config.OutputFormat = ai.OutputFormatJSON
 		return nil
 	}
@@ -398,7 +394,7 @@ func WithOutputType(output any) PromptOption {
 func WithOutputSchema(schema *jsonschema.Schema) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.OutputSchema != nil {
-			return errors.New("dotprompt.WithOutputSchema: cannot set both output schema and output type")
+			return errors.New("dotprompt.WithOutputSchema: cannot set outputSchema more than once. Set either outputType or outputSchema")
 		}
 
 		p.Config.OutputSchema = schema
@@ -410,15 +406,22 @@ func WithOutputSchema(schema *jsonschema.Schema) PromptOption {
 // WithOutputFormat adds the desired output format to the prompt
 func WithOutputFormat(format ai.OutputFormat) PromptOption {
 	return func(p *Prompt) error {
+		if p.Config.OutputSchema == nil {
+			return errors.New("dotprompt.WithOutputFormat: outputSchema needs to be set, to set outputFormat")
+		}
+
 		p.Config.OutputFormat = format
 		return nil
 	}
 }
 
 // WithDefaults adds default input variable values
-func WithDefaults(variableDefaults map[string]any) PromptOption {
+func WithDefaults(defaults map[string]any) PromptOption {
 	return func(p *Prompt) error {
-		p.Config.VariableDefaults = variableDefaults
+		if p.Config.VariableDefaults != nil {
+			return errors.New("dotprompt.WithDefaults: cannot set defaults more than once")
+		}
+		p.Config.VariableDefaults = defaults
 		return nil
 	}
 }
@@ -426,6 +429,9 @@ func WithDefaults(variableDefaults map[string]any) PromptOption {
 // WithMetadata adds arbitrary metadata.
 func WithMetadata(metadata map[string]any) PromptOption {
 	return func(p *Prompt) error {
+		if p.Config.Metadata != nil {
+			return errors.New("dotprompt.WithMetadata: cannot set metadata more than once")
+		}
 		p.Config.Metadata = metadata
 		return nil
 	}
@@ -434,21 +440,21 @@ func WithMetadata(metadata map[string]any) PromptOption {
 // WithDefaultModel adds the default Model to use.
 func WithDefaultModel(model ai.Model) PromptOption {
 	return func(p *Prompt) error {
-		if p.Config.ModelName != "" {
-			return errors.New("dotprompt.WithModel: config must specify exactly one of ModelName and Model")
+		if p.Config.ModelName != "" || p.Config.Model != nil {
+			return errors.New("dotprompt.WithDefaultModel: config must specify exactly once, either ModelName or Model")
 		}
-		p.Config.Model = model
+		p.Config.Model = &model
 		return nil
 	}
 }
 
 // WithDefaultModelName adds the name of the default Model to use.
-func WithDefaultModelName(modelname string) PromptOption {
+func WithDefaultModelName(name string) PromptOption {
 	return func(p *Prompt) error {
-		if p.Config.Model != nil {
-			return errors.New("dotprompt.WithModelName: config must specify exactly one of ModelName and Model")
+		if p.Config.ModelName != "" || p.Config.Model != nil {
+			return errors.New("dotprompt.WithDefaultModelName: config must specify exactly once, either ModelName or Model")
 		}
-		p.Config.ModelName = modelname
+		p.Config.ModelName = name
 		return nil
 	}
 }

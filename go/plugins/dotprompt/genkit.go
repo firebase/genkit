@@ -37,9 +37,9 @@ type PromptRequest struct {
 	// Context to pass to model, if any.
 	Context []any `json:"context,omitempty"`
 	// The model to use. This overrides any model specified by the prompt.
-	Model ai.Model `json:"model,omitempty"`
+	Model *ai.Model `json:"model,omitempty"`
 	// The name of the model to use. This overrides any model specified by the prompt.
-	ModelName string `json:"model,omitempty"`
+	ModelName string `json:"modelname,omitempty"`
 	// Streaming callback function
 	Stream ai.ModelStreamingCallback
 }
@@ -189,12 +189,12 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 		}
 	}
 
-	var genReq *ai.ModelRequest
+	var mr *ai.ModelRequest
 	var err error
 	if p.prompt != nil {
-		genReq, err = p.prompt.Render(ctx, pr.Variables)
+		mr, err = p.prompt.Render(ctx, pr.Variables)
 	} else {
-		genReq, err = p.buildRequest(ctx, pr.Variables)
+		mr, err = p.buildRequest(ctx, pr.Variables)
 	}
 	if err != nil {
 		return nil, err
@@ -202,16 +202,19 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 
 	// Let some fields in pr override those in the prompt config.
 	if pr.Config != nil {
-		genReq.Config = pr.Config
+		mr.Config = pr.Config
 	}
 	if len(pr.Context) > 0 {
-		genReq.Context = pr.Context
+		mr.Context = pr.Context
 	}
 
 	// Setting the model on generate, overrides the model defined on the prompt
-	model := p.Model
+	var model ai.Model
+	if p.Model != nil {
+		model = *p.Model
+	}
 	if pr.Model != nil {
-		model = pr.Model
+		model = *pr.Model
 	}
 
 	if model == nil {
@@ -233,7 +236,7 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 		}
 	}
 
-	resp, err := model.Generate(ctx, genReq, pr.Stream)
+	resp, err := model.Generate(ctx, mr, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
@@ -244,6 +247,9 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 // WithVariables adds variables to pass to the model.
 func WithVariables(variables any) GenerateOption {
 	return func(p *PromptRequest) error {
+		if p.Variables != nil {
+			return errors.New("dotprompt.WithVariables: cannot set variables more than once")
+		}
 		p.Variables = variables
 		return nil
 	}
@@ -252,6 +258,9 @@ func WithVariables(variables any) GenerateOption {
 // WithConfig adds model configuration. If nil will be taken from the prompt config.
 func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 	return func(p *PromptRequest) error {
+		if p.Config != nil {
+			return errors.New("dotprompt.WithConfig: cannot set config more than once")
+		}
 		p.Config = config
 		return nil
 	}
@@ -260,6 +269,9 @@ func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 // WithContext add context to pass to model, if any.
 func WithContext(context []any) GenerateOption {
 	return func(p *PromptRequest) error {
+		if p.Context != nil {
+			return errors.New("dotprompt.WithContext: cannot set context more than once")
+		}
 		p.Context = context
 		return nil
 	}
@@ -268,7 +280,10 @@ func WithContext(context []any) GenerateOption {
 // WithModel adds the Model to use. This overrides any model specified by the prompt.
 func WithModel(model ai.Model) GenerateOption {
 	return func(p *PromptRequest) error {
-		p.Model = model
+		if p.ModelName != "" || p.Model != nil {
+			return errors.New("dotprompt.WithModel: config must specify exactly once, either ModelName or Model")
+		}
+		p.Model = &model
 		return nil
 	}
 }
@@ -276,6 +291,9 @@ func WithModel(model ai.Model) GenerateOption {
 // WithModelName adds the name of the Model to use. This overrides any model specified by the prompt.
 func WithModelName(model string) GenerateOption {
 	return func(p *PromptRequest) error {
+		if p.ModelName != "" || p.Model != nil {
+			return errors.New("dotprompt.WithModelName: config must specify exactly once, either ModelName or Model")
+		}
 		p.ModelName = model
 		return nil
 	}
@@ -285,7 +303,7 @@ func WithModelName(model string) GenerateOption {
 func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
 	return func(g *PromptRequest) error {
 		if g.Stream != nil {
-			return errors.New("dotprompt.WithStreaming: cannot set streaming callback (WithStreaming) more than once")
+			return errors.New("dotprompt.WithStreaming: cannot set streaming callback more than once")
 		}
 		g.Stream = cb
 		return nil
