@@ -77,7 +77,7 @@ func (r *Registry) RegisterAction(typ atype.ActionType, a action.Action) {
 	}
 	a.SetTracingState(r.tstate)
 	r.actions[key] = a
-	slog.Info("RegisterAction",
+	slog.Debug("RegisterAction",
 		"type", typ,
 		"name", a.Name())
 }
