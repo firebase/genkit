@@ -113,8 +113,6 @@ Take a look at some samples of Genkit in use:
 
 - **Provide feedback:** Report issues or suggest new features using our GitHub [issue tracker](https://github.com/firebase/genkit/issues).
 
-- **Engage in discussions:** Participate in conversations about Genkit on our [GitHub Discussions](https://github.com/firebase/genkit/discussions) forum.
-
 ## Contributing
 
 Contributions to Genkit are welcome and highly appreciated! See our [Contribution Guide](CONTRIBUTING.md) to get started.
