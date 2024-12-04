@@ -4,8 +4,8 @@
 
 This plugin provides evaluators and middleware for each Checks AI safety policy. Text is classified by calling the [Checks Guardrails API](https://console.cloud.google.com/marketplace/product/google/checks.googleapis.com).
 
-> **Note**: The Guardrails API is currently in private preview, and you will need to request quota. To request quota, fill out this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSdcLZkOJMiqodS8KSG1bg0-jAgtE9W-AludMbArCKqgz99OCA/viewform?usp=sf_link). 
-> 
+> **Note**: The Guardrails API is currently in private preview, and you will need to request quota. To request quota, fill out this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSdcLZkOJMiqodS8KSG1bg0-jAgtE9W-AludMbArCKqgz99OCA/viewform?usp=sf_link).
+>
 > Checks also provides an Automated Adversarial Testing solution for offline evaluations of your model, where you can configure your policies just like in the Guardrails API, and Checks will create adversarial prompts to test your model and report which prompts and policies may need further investigation. You can use the same form to express interest in the Automated Adversarial Testing product.
 
 Currently, the supported policies include:
