@@ -152,6 +152,8 @@ describe('GoogleCloudTracing', () => {
       spans[0].attributes['genkit/failedPath'],
       '/{badFlow,t:flow}/{badStep,t:flowStep}'
     );
+    assert.equal(spans[1].attributes['genkit/isRoot'], true);
+    assert.equal(spans[1].attributes['genkit/rootState'], 'error');
   });
 
   it('labels the root feature', async () => {
@@ -165,6 +167,7 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[0].attributes['genkit/feature'], undefined);
     assert.equal(spans[1].name, 'niceFlow');
     assert.equal(spans[1].attributes['genkit/feature'], 'niceFlow');
+    assert.equal(spans[1].attributes['genkit/rootState'], 'success');
   });
 
   it('adds the genkit/model label for model actions', async () => {

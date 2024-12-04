@@ -67,11 +67,7 @@ export const RetrieverInfoSchema = z.object({
 export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
 
 export type RetrieverAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
-  Action<
-    typeof RetrieverRequestSchema,
-    typeof RetrieverResponseSchema,
-    { model: RetrieverInfo }
-  > & {
+  Action<typeof RetrieverRequestSchema, typeof RetrieverResponseSchema> & {
     __configSchema?: CustomOptions;
   };
 

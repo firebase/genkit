@@ -157,7 +157,7 @@ func findProjectRoot() (string, error) {
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
 func startFlowServer(addr string, flows []string, errCh chan<- error) *http.Server {
-	slog.Info("starting flow server")
+	slog.Debug("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
 	mux := NewFlowServeMux(flows)
 	return startServer(addr, mux, errCh)
@@ -181,7 +181,7 @@ func startServer(addr string, handler http.Handler, errCh chan<- error) *http.Se
 	}
 
 	go func() {
-		slog.Info("server listening", "addr", addr)
+		slog.Debug("server listening", "addr", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- fmt.Errorf("server error on %s: %w", addr, err)
 		}
@@ -204,7 +204,7 @@ func shutdownServers(servers []*http.Server) error {
 			if err := srv.Shutdown(ctx); err != nil {
 				slog.Error("server shutdown failed", "addr", srv.Addr, "err", err)
 			} else {
-				slog.Info("server shutdown successfully", "addr", srv.Addr)
+				slog.Debug("server shutdown successfully", "addr", srv.Addr)
 			}
 		}(server)
 	}

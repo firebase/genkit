@@ -4,7 +4,7 @@ The Vertex AI plugin provides interfaces to several AI services:
 
 *   [Google generative AI models](https://cloud.google.com/vertex-ai/generative-ai/docs/):
     *   Gemini text generation
-    *   Imagen2 image generation
+    *   Imagen2 and Imagen3 image generation
     *   Text embedding generation
 *   A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
     *   [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
@@ -255,6 +255,70 @@ const llmResponse = await ai.generate({
   model: llama31,
   prompt: 'Write a function that adds two numbers together',
 });
+```
+
+#### Mistral Models on Vertex AI Model Garden
+
+If you have access to Mistral models ([Mistral Large](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-large), [Mistral Nemo](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-nemo), or [Codestral](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/codestral)) in Vertex AI Model Garden, you can use them with Genkit.
+
+Here's sample configuration for enabling Vertex AI Model Garden models:
+
+```ts
+import { genkit } from 'genkit';
+import {
+  mistralLarge,
+  mistralNemo,
+  codestral,
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
+
+const ai = genkit({
+  plugins: [
+    vertexAIModelGarden({
+      location: 'us-central1',
+      models: [mistralLarge, mistralNemo, codestral],
+    }),
+  ],
+});
+```
+
+Then use them as regular models:
+
+```ts
+const llmResponse = await ai.generate({
+  model: mistralLarge,
+  prompt: 'Write a function that adds two numbers together',
+  config: {
+    version: 'mistral-large-2411', // Optional: specify model version
+    temperature: 0.7,              // Optional: control randomness (0-1)
+    maxOutputTokens: 1024,         // Optional: limit response length
+    topP: 0.9,                     // Optional: nucleus sampling parameter
+    stopSequences: ['###'],        // Optional: stop generation at sequences
+  }
+});
+```
+
+The models support:
+- `mistralLarge`: Latest Mistral large model with function calling capabilities
+- `mistralNemo`: Optimized for efficiency and speed
+- `codestral`: Specialized for code generation tasks
+
+Each model supports streaming responses and function calling:
+
+```ts
+const response = await ai.generateStream({
+  model: mistralLarge,
+  prompt: 'What should I cook tonight?',
+  tools: ['recipe-finder'],
+  config: {
+    version: 'mistral-large-2411',
+    temperature: 1,
+  },
+});
+
+for await (const chunk of response.stream) {
+  console.log(chunk.text);
+}
 ```
 
 ### Evaluators

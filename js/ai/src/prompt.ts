@@ -25,6 +25,7 @@ import {
 import {
   GenerateRequest,
   GenerateRequestSchema,
+  GenerateResponseChunkSchema,
   ModelArgument,
 } from './model.js';
 import { ToolAction } from './tool.js';
@@ -36,7 +37,8 @@ export type PromptFn<
 
 export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   I,
-  typeof GenerateRequestSchema
+  typeof GenerateRequestSchema,
+  typeof GenerateResponseChunkSchema
 > & {
   __action: {
     metadata: {

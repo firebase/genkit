@@ -117,7 +117,7 @@ func setup03(ctx context.Context, model ai.Model) error {
 				return nil, err
 			}
 
-			messages = append(messages, resp.Candidates[0].Message)
+			messages = append(messages, resp.Message)
 			storedHistory.Store(input.SessionID, messages)
 
 			out := &chatSessionOutput{
