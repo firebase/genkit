@@ -337,6 +337,8 @@ class AdjustingTraceExporter implements SpanExporter {
       featuresTelemetry.tick(span, unused, this.logIO, this.projectId);
       // Report executions and latency for all flow paths only on the root span
       pathsTelemetry.tick(span, paths, this.logIO, this.projectId);
+      // Set root status explicitly
+      span.attributes['genkit:rootState'] = span.attributes['genkit:state'];
     }
     if (type === 'action' && subtype === 'model') {
       // Report generate metrics () for all model actions

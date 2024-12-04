@@ -18,6 +18,7 @@ import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
 import { SUPPORTED_ANTHROPIC_MODELS, anthropicModel } from './anthropic.js';
+import { SUPPORTED_MISTRAL_MODELS, mistralModel } from './mistral.js';
 import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
   modelGardenOpenaiCompatibleModel,
@@ -37,6 +38,13 @@ export function vertexAIModelGarden(options: PluginOptions): GenkitPlugin {
       );
       if (anthropicEntry) {
         anthropicModel(ai, anthropicEntry[0], projectId, location);
+        return;
+      }
+      const mistralEntry = Object.entries(SUPPORTED_MISTRAL_MODELS).find(
+        ([_, value]) => value.name === m.name
+      );
+      if (mistralEntry) {
+        mistralModel(ai, mistralEntry[0], projectId, location);
         return;
       }
       const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
@@ -65,5 +73,6 @@ export {
   claude3Opus,
   claude3Sonnet,
 } from './anthropic.js';
+export { codestral, mistralLarge, mistralNemo } from './mistral.js';
 export { llama3, llama31, llama32 } from './model_garden.js';
 export type { PluginOptions };
