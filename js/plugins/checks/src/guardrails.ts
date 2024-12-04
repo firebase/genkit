@@ -37,7 +37,7 @@ type GuardrailsRequest = {
 };
 
 /**
- * Response type returned by the
+ * Response type returned by the classifyContent endpoint.
  */
 const ResponseSchema = z.object({
   policyResults: z.array(
