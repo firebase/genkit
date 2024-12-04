@@ -1,0 +1,15 @@
+# This file describes the responses to HTTP requests made
+# to the flow server
+
+# TODO: add more test cases
+
+app: flow_server
+tests:
+  - path: /flow/streamy
+    key: /flow/streamy
+    name: streamy
+    metadata:
+      inputSchema:
+        type: string
+      outputSchema:
+        type: string
