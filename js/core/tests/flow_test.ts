@@ -14,11 +14,19 @@
  * limitations under the License.
  */
 
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { defineFlow, defineStreamingFlow } from '../src/flow.js';
-import { getFlowAuth, z } from '../src/index.js';
+import { defineFlow, defineStreamingFlow, run } from '../src/flow.js';
+import { defineAction, getFlowAuth, z } from '../src/index.js';
 import { Registry } from '../src/registry.js';
+import { enableTelemetry } from '../src/tracing.js';
+import { TestSpanExporter } from './utils.js';
+
+const spanExporter = new TestSpanExporter();
+enableTelemetry({
+  spanProcessors: [new SimpleSpanProcessor(spanExporter)],
+});
 
 function createTestFlow(registry: Registry) {
   return defineFlow(
@@ -222,6 +230,101 @@ describe('flow', () => {
 
       assert.equal(await response.output, 'bar 3 true {"user":"test-user"}');
       assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
+    });
+  });
+
+  describe('telemetry', async () => {
+    beforeEach(() => {
+      spanExporter.exportedSpans = [];
+    });
+
+    it('should create a trace', async () => {
+      const testFlow = createTestFlow(registry);
+
+      const result = await testFlow('foo');
+
+      assert.equal(result, 'bar foo');
+      assert.strictEqual(spanExporter.exportedSpans.length, 1);
+      assert.strictEqual(spanExporter.exportedSpans[0].displayName, 'testFlow');
+      assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
+        'genkit:input': '"foo"',
+        'genkit:isRoot': true,
+        'genkit:metadata:flow:name': 'testFlow',
+        'genkit:metadata:flow:state': 'done',
+        'genkit:name': 'testFlow',
+        'genkit:output': '"bar foo"',
+        'genkit:path': '/{testFlow,t:flow}',
+        'genkit:state': 'success',
+        'genkit:type': 'flow',
+      });
+    });
+
+    it('records traces of nested actions', async () => {
+      const testAction = defineAction(
+        registry,
+        {
+          name: 'testAction',
+          actionType: 'tool',
+          metadata: { type: 'tool' },
+        },
+        async (i) => {
+          return 'bar';
+        }
+      );
+
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (input) => {
+          return run('custom', async () => {
+            return 'foo ' + (await testAction(undefined));
+          });
+        }
+      );
+      const result = await testFlow('foo');
+
+      assert.equal(result, 'foo bar');
+      assert.strictEqual(spanExporter.exportedSpans.length, 3);
+
+      assert.strictEqual(
+        spanExporter.exportedSpans[0].displayName,
+        'testAction'
+      );
+      assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
+        'genkit:metadata:subtype': 'tool',
+        'genkit:name': 'testAction',
+        'genkit:output': '"bar"',
+        'genkit:path':
+          '/{testFlow,t:flow}/{custom,t:flowStep}/{testAction,t:action,s:tool}',
+        'genkit:state': 'success',
+        'genkit:type': 'action',
+      });
+
+      assert.strictEqual(spanExporter.exportedSpans[1].displayName, 'custom');
+      assert.deepStrictEqual(spanExporter.exportedSpans[1].attributes, {
+        'genkit:name': 'custom',
+        'genkit:output': '"foo bar"',
+        'genkit:path': '/{testFlow,t:flow}/{custom,t:flowStep}',
+        'genkit:state': 'success',
+        'genkit:type': 'flowStep',
+      });
+
+      assert.strictEqual(spanExporter.exportedSpans[2].displayName, 'testFlow');
+      assert.deepStrictEqual(spanExporter.exportedSpans[2].attributes, {
+        'genkit:input': '"foo"',
+        'genkit:isRoot': true,
+        'genkit:metadata:flow:name': 'testFlow',
+        'genkit:metadata:flow:state': 'done',
+        'genkit:name': 'testFlow',
+        'genkit:output': '"foo bar"',
+        'genkit:path': '/{testFlow,t:flow}',
+        'genkit:state': 'success',
+        'genkit:type': 'flow',
+      });
     });
   });
 });
