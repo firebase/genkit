@@ -38,6 +38,10 @@ export interface RuntimeInfo {
   timestamp: string;
   /** Display name for the project, typically basename of the root folder */
   projectName?: string;
+  /** Genkit runtime library version. Ex: nodejs/0.9.5 or go/0.2.0 */
+  genkitVersion?: string;
+  /** Reflection API specification version. Ex: 1 */
+  reflectionApiSpecVersion?: number;
 }
 
 export enum RuntimeEvent {

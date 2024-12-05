@@ -17,6 +17,7 @@
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
+import { getFlowContext } from '../src/auth.js';
 import { defineFlow, defineStreamingFlow, run } from '../src/flow.js';
 import { defineAction, getFlowAuth, z } from '../src/index.js';
 import { Registry } from '../src/registry.js';
@@ -38,40 +39,6 @@ function createTestFlow(registry: Registry) {
     },
     async (input) => {
       return `bar ${input}`;
-    }
-  );
-}
-
-function createTestAuthFlow(registry: Registry) {
-  return defineFlow(
-    registry,
-    {
-      name: 'testFlow',
-      inputSchema: z.string(),
-      outputSchema: z.string(),
-    },
-    async (input) => {
-      return `bar ${input} ${JSON.stringify(getFlowAuth())}`;
-    }
-  );
-}
-
-function createTestAuthStreamingFlow(registry: Registry) {
-  return defineStreamingFlow(
-    registry,
-    {
-      name: 'testFlow',
-      inputSchema: z.number(),
-      outputSchema: z.string(),
-      streamSchema: z.object({ count: z.number() }),
-    },
-    async (input, streamingCallback) => {
-      if (streamingCallback) {
-        for (let i = 0; i < input; i++) {
-          streamingCallback({ count: i });
-        }
-      }
-      return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getFlowAuth())}`;
     }
   );
 }
@@ -207,7 +174,17 @@ describe('flow', () => {
 
   describe('getFlowAuth', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestAuthFlow(registry);
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (input) => {
+          return `bar ${input} ${JSON.stringify(getFlowAuth())}`;
+        }
+      );
 
       const response = await testFlow('foo', {
         withLocalAuthContext: { user: 'test-user' },
@@ -217,10 +194,80 @@ describe('flow', () => {
     });
 
     it('should streams the flow', async () => {
-      const testFlow = createTestAuthStreamingFlow(registry);
+      const testFlow = defineStreamingFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.number(),
+          outputSchema: z.string(),
+          streamSchema: z.object({ count: z.number() }),
+        },
+        async (input, streamingCallback) => {
+          if (streamingCallback) {
+            for (let i = 0; i < input; i++) {
+              streamingCallback({ count: i });
+            }
+          }
+          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getFlowAuth())}`;
+        }
+      );
 
       const response = testFlow(3, {
         withLocalAuthContext: { user: 'test-user' },
+      });
+
+      const gotChunks: any[] = [];
+      for await (const chunk of response.stream) {
+        gotChunks.push(chunk);
+      }
+
+      assert.equal(await response.output, 'bar 3 true {"user":"test-user"}');
+      assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
+    });
+  });
+
+  describe('getFlowContext', () => {
+    it('should run the flow', async () => {
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (input) => {
+          return `bar ${input} ${JSON.stringify(getFlowContext())}`;
+        }
+      );
+
+      const response = await testFlow('foo', {
+        context: { user: 'test-user' },
+      });
+
+      assert.equal(response, 'bar foo {"user":"test-user"}');
+    });
+
+    it('should streams the flow', async () => {
+      const testFlow = defineStreamingFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.number(),
+          outputSchema: z.string(),
+          streamSchema: z.object({ count: z.number() }),
+        },
+        async (input, streamingCallback) => {
+          if (streamingCallback) {
+            for (let i = 0; i < input; i++) {
+              streamingCallback({ count: i });
+            }
+          }
+          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getFlowContext())}`;
+        }
+      );
+
+      const response = testFlow(3, {
+        context: { user: 'test-user' },
       });
 
       const gotChunks: any[] = [];
@@ -249,13 +296,12 @@ describe('flow', () => {
       assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
         'genkit:input': '"foo"',
         'genkit:isRoot': true,
-        'genkit:metadata:flow:name': 'testFlow',
-        'genkit:metadata:flow:state': 'done',
+        'genkit:metadata:subtype': 'flow',
         'genkit:name': 'testFlow',
         'genkit:output': '"bar foo"',
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
-        'genkit:type': 'flow',
+        'genkit:type': 'action',
       });
     });
 
@@ -285,7 +331,7 @@ describe('flow', () => {
           });
         }
       );
-      const result = await testFlow('foo');
+      const result = await testFlow('foo', { context: { user: 'pavel' } });
 
       assert.equal(result, 'foo bar');
       assert.strictEqual(spanExporter.exportedSpans.length, 3);
@@ -317,13 +363,13 @@ describe('flow', () => {
       assert.deepStrictEqual(spanExporter.exportedSpans[2].attributes, {
         'genkit:input': '"foo"',
         'genkit:isRoot': true,
-        'genkit:metadata:flow:name': 'testFlow',
-        'genkit:metadata:flow:state': 'done',
+        'genkit:metadata:subtype': 'flow',
+        'genkit:metadata:context': '{"user":"pavel"}',
         'genkit:name': 'testFlow',
         'genkit:output': '"foo bar"',
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
-        'genkit:type': 'flow',
+        'genkit:type': 'action',
       });
     });
   });

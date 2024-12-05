@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkit, run, z } from 'genkit';
+import { genkit, getFlowAuth, run, z } from 'genkit';
 
 const ai = genkit({});
 
@@ -22,7 +22,7 @@ const ai = genkit({});
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = ai.defineFlow({ name: 'basic' }, async (subject) => {
+export const basic = ai.defineFlow('basic', async (subject) => {
   const foo = await run('call-llm', async () => {
     return `subject: ${subject}`;
   });
@@ -36,6 +36,30 @@ export const parent = ai.defineFlow(
   { name: 'parent', outputSchema: z.string() },
   async () => {
     return JSON.stringify(await basic('foo'));
+  }
+);
+
+export const withInputSchema = ai.defineFlow(
+  { name: 'withInputSchema', inputSchema: z.object({ subject: z.string() }) },
+  async (input) => {
+    const foo = await run('call-llm', async () => {
+      return `subject: ${input.subject}`;
+    });
+
+    return await run('call-llm1', async () => {
+      return `foo: ${foo}`;
+    });
+  }
+);
+
+export const withContext = ai.defineFlow(
+  {
+    name: 'withContext',
+    inputSchema: z.object({ subject: z.string() }),
+    authPolicy: () => {},
+  },
+  async (input) => {
+    return `subject: ${input.subject}, context: ${JSON.stringify(getFlowAuth())}`;
   }
 );
 

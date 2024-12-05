@@ -21,7 +21,7 @@ import { Server } from 'http';
 import path from 'path';
 import z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
-import { GENKIT_VERSION } from './index.js';
+import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
@@ -153,7 +153,7 @@ export class ReflectionServer {
     });
 
     server.post('/api/runAction', async (request, response, next) => {
-      const { key, input } = request.body;
+      const { key, input, context, telemetryLabels } = request.body;
       const { stream } = request.query;
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
       let traceId;
@@ -164,11 +164,12 @@ export class ReflectionServer {
           return;
         }
         if (stream === 'true') {
+          const callback = (chunk) => {
+            response.write(JSON.stringify(chunk) + '\n');
+          };
           const result = await runWithStreamingCallback(
-            (chunk) => {
-              response.write(JSON.stringify(chunk) + '\n');
-            },
-            async () => await action.run(input)
+            callback,
+            async () => await action.run(input, { context, onChunk: callback })
           );
           await flushTracing();
           response.write(
@@ -181,7 +182,7 @@ export class ReflectionServer {
           );
           response.end();
         } else {
-          const result = await action.run(input);
+          const result = await action.run(input, { context, telemetryLabels });
           await flushTracing();
           response.send({
             result: result.result,
@@ -201,10 +202,26 @@ export class ReflectionServer {
     });
 
     server.post('/api/notify', async (request, response) => {
-      const { telemetryServerUrl } = request.body;
+      const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
       if (typeof telemetryServerUrl === 'string') {
         setTelemetryServerUrl(telemetryServerUrl);
         logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
+      }
+      if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
+        if (
+          !reflectionApiSpecVersion ||
+          reflectionApiSpecVersion < GENKIT_REFLECTION_API_SPEC_VERSION
+        ) {
+          logger.warn(
+            'WARNING: Genkit CLI version may be outdated. Please update `genkit-cli` to the latest version.'
+          );
+        } else {
+          logger.warn(
+            'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
+              'Consider upgrading your runtime library version (debug info: expected ' +
+              `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
+          );
+        }
       }
       response.status(200).send('OK');
     });
@@ -286,6 +303,8 @@ export class ReflectionServer {
           pid: process.pid,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
+          genkitVersion: `nodejs/${GENKIT_VERSION}`,
+          reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
         },
         null,
         2

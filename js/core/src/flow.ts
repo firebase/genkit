@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
@@ -22,24 +21,15 @@ import { Server } from 'http';
 import { z } from 'zod';
 import {
   Action,
+  ActionResult,
   defineAction,
-  getStreamingCallback,
   StreamingCallback,
 } from './action.js';
-import { runWithAuthContext } from './auth.js';
+import { runWithContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
-import { FlowActionInputSchema } from './flowTypes.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
-import { toJsonSchema } from './schema.js';
-import {
-  newTrace,
-  runInNewSpan,
-  setCustomMetadataAttribute,
-  setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
-} from './tracing.js';
-import { flowMetadataPrefix } from './utils.js';
+import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
 const streamDelimiter = '\n\n';
 
@@ -109,7 +99,7 @@ export interface CallableFlow<
 
   stream(input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
 
-  flow: Flow<I, O, z.ZodVoid>;
+  flow: Flow<I, O, S>;
 }
 
 /**
@@ -152,18 +142,6 @@ export type FlowFn<
   streamingCallback: StreamingCallback<z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
-/**
- * Represents the result of a flow execution.
- */
-interface FlowResult<O> {
-  /** The result of the flow execution. */
-  result: O;
-  /** The trace ID associated with the flow execution. */
-  traceId: string;
-  /** The root span ID of the associated trace. */
-  spanId: string;
-}
-
 export class Flow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -175,12 +153,12 @@ export class Flow<
   readonly streamSchema?: S;
   readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
-  readonly flowFn: FlowFn<I, O, S>;
+  readonly action: Action<I, O, S>;
 
   constructor(
     private registry: Registry,
     config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
-    flowFn: FlowFn<I, O, S>
+    action: Action<I, O, S>
   ) {
     this.name = config.name;
     this.inputSchema = config.inputSchema;
@@ -189,7 +167,7 @@ export class Flow<
       'streamSchema' in config ? config.streamSchema : undefined;
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
-    this.flowFn = flowFn;
+    this.action = action;
   }
 
   /**
@@ -200,61 +178,15 @@ export class Flow<
     opts: {
       streamingCallback?: StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
-      auth?: unknown;
+      context?: unknown;
     }
-  ): Promise<FlowResult<z.infer<O>>> {
+  ): Promise<ActionResult<z.infer<O>>> {
     await this.registry.initializeAllPlugins();
-    return await runWithAuthContext(opts.auth, () =>
-      newTrace(
-        {
-          name: this.name,
-          labels: {
-            [SPAN_TYPE_ATTR]: 'flow',
-          },
-        },
-        async (metadata, rootSpan) => {
-          if (opts.labels) {
-            const labels = opts.labels;
-            Object.keys(opts.labels).forEach((label) => {
-              setCustomMetadataAttribute(
-                flowMetadataPrefix(`label:${label}`),
-                labels[label]
-              );
-            });
-          }
-
-          setCustomMetadataAttributes({
-            [flowMetadataPrefix('name')]: this.name,
-          });
-          try {
-            metadata.input = input;
-            const output = await this.flowFn(
-              input,
-              opts.streamingCallback ?? (() => {})
-            );
-            metadata.output = JSON.stringify(output);
-            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
-            return {
-              result: output,
-              traceId: rootSpan.spanContext().traceId,
-              spanId: rootSpan.spanContext().spanId,
-            };
-          } catch (e) {
-            metadata.state = 'error';
-            rootSpan.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: getErrorMessage(e),
-            });
-            if (e instanceof Error) {
-              rootSpan.recordException(e);
-            }
-
-            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'error');
-            throw e;
-          }
-        }
-      )
-    );
+    return await this.action.run(input, {
+      context: opts.context,
+      telemetryLabels: opts.labels,
+      onChunk: opts.streamingCallback ?? (() => {}),
+    });
   }
 
   /**
@@ -271,7 +203,7 @@ export class Flow<
     }
 
     const result = await this.invoke(input, {
-      auth: opts?.context || opts?.withLocalAuthContext,
+      context: opts?.context || opts?.withLocalAuthContext,
     });
     return result.result;
   }
@@ -306,7 +238,7 @@ export class Flow<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
-            auth: opts?.context || opts?.withLocalAuthContext,
+            context: opts?.context || opts?.withLocalAuthContext,
           }
         ).then((s) => s.result)
       )
@@ -366,7 +298,7 @@ export class Flow<
               'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
             );
           },
-          auth,
+          context: auth,
         });
         response.write(
           'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
@@ -389,9 +321,9 @@ export class Flow<
       }
     } else {
       try {
-        const result = await this.invoke(input, { auth });
-        response.setHeader('x-genkit-trace-id', result.traceId);
-        response.setHeader('x-genkit-span-id', result.spanId);
+        const result = await this.invoke(input, { context: auth });
+        response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
+        response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
         response
           .status(200)
@@ -538,18 +470,15 @@ export function defineFlow<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  config: StreamingFlowConfig<I, O> | string,
+  config: StreamingFlowConfig<I, O, S> | string,
   fn: FlowFn<I, O, S>
 ): CallableFlow<I, O, S> {
-  const resolvedConfig: FlowConfig<I, O> =
+  const resolvedConfig: StreamingFlowConfig<I, O, S> =
     typeof config === 'string' ? { name: config } : config;
 
-  const flow = new Flow<I, O, S>(registry, resolvedConfig, fn);
-  registerFlowAction(registry, flow);
-  const callableFlow = async (
-    input: z.infer<I>,
-    opts: FlowCallOptions
-  ): Promise<z.infer<O>> => {
+  const flowAction = defineFlowAction(registry, resolvedConfig, fn);
+  const flow = new Flow<I, O, S>(registry, resolvedConfig, flowAction);
+  const callableFlow = async (input, opts) => {
     return flow.run(input, opts);
   };
   (callableFlow as CallableFlow<I, O, S>).flow = flow;
@@ -574,8 +503,8 @@ export function defineStreamingFlow<
   config: StreamingFlowConfig<I, O, S>,
   fn: FlowFn<I, O, S>
 ): StreamableFlow<I, O, S> {
-  const flow = new Flow(registry, config, fn);
-  registerFlowAction(registry, flow);
+  const flowAction = defineFlowAction(registry, config, fn);
+  const flow = new Flow(registry, config, flowAction);
   const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
     return flow.stream(input, opts);
   };
@@ -586,41 +515,30 @@ export function defineStreamingFlow<
 /**
  * Registers a flow as an action in the registry.
  */
-function registerFlowAction<
+function defineFlowAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  flow: Flow<I, O, S>
-): Action<typeof FlowActionInputSchema, O> {
+  config: StreamingFlowConfig<I, O, S>,
+  fn: FlowFn<I, O, S>
+): Action<I, O, S> {
   return defineAction(
     registry,
     {
       actionType: 'flow',
-      name: flow.name,
-      inputSchema: FlowActionInputSchema,
-      outputSchema: flow.outputSchema,
+      name: config.name,
+      inputSchema: config.inputSchema,
+      outputSchema: config.outputSchema,
+      streamSchema: config.streamSchema,
       metadata: {
-        inputSchema: toJsonSchema({ schema: flow.inputSchema }),
-        outputSchema: toJsonSchema({ schema: flow.outputSchema }),
-        requiresAuth: !!flow.authPolicy,
+        requiresAuth: !!config.authPolicy,
       },
     },
-    async (envelope) => {
-      await flow.authPolicy?.(
-        envelope.auth,
-        envelope.start?.input as I | undefined
-      );
-      setCustomMetadataAttribute(flowMetadataPrefix('wrapperAction'), 'true');
-      const response = await flow.invoke(envelope.start?.input, {
-        streamingCallback: getStreamingCallback() as S extends z.ZodVoid
-          ? undefined
-          : StreamingCallback<z.infer<S>>,
-        auth: envelope.auth,
-        labels: envelope.start?.labels,
-      });
-      return response.result;
+    async (input, { sendChunk, context }) => {
+      await config.authPolicy?.(context, input);
+      return await runWithContext(context, () => fn(input, sendChunk));
     }
   );
 }

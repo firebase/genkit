@@ -264,3 +264,20 @@ func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name s
 	}
 	return a.(*Action[In, Out, Stream])
 }
+
+var actionContextKey = base.NewContextKey[int]()
+
+// WithActionContext returns a new context with action runtime context (side channel data)
+// value set.
+func WithActionContext(ctx context.Context, actionContext map[string]any) context.Context {
+	return context.WithValue(ctx, actionContextKey, actionContext)
+}
+
+// ActionContext returns the action runtime context (side channel data) from ctx.
+func ActionContext(ctx context.Context) map[string]any {
+	val := ctx.Value(actionContextKey)
+	if val == nil {
+		return nil
+	}
+	return val.(map[string]any)
+}
