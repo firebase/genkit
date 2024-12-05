@@ -99,7 +99,7 @@ type Config struct {
 	InputSchema *jsonschema.Schema
 
 	// Default input variable values
-	InputDefault map[string]any
+	DefaultInput map[string]any
 
 	// Desired output format.
 	OutputFormat ai.OutputFormat
@@ -235,7 +235,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		ModelName:        fy.Model,
 		Tools:            tools,
 		GenerationConfig: fy.Config,
-		InputDefault:     fy.Input.Default,
+		DefaultInput:     fy.Input.Default,
 		Metadata:         fy.Metadata,
 	}
 
@@ -346,7 +346,7 @@ func WithTools(tools ...ai.Tool) PromptOption {
 func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.GenerationConfig != nil {
-			return errors.New("dotprompt.WithDefaultConfig: cannot set config more than once")
+			return errors.New("dotprompt.WithDefaultConfig: cannot set Config more than once")
 		}
 		p.Config.GenerationConfig = config
 		return nil
@@ -358,24 +358,24 @@ func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
 func WithInputType(input any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.InputSchema != nil {
-			return errors.New("dotprompt.WithInputType: cannot set inputType more than once. Set either inputType or inputSchema")
+			return errors.New("dotprompt.WithInputType: cannot set InputType more than once")
 		}
 
 		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
 
 		// Set values as default input
-		inputDefault := base.SchemaAsMap(p.Config.InputSchema)
+		defaultInput := base.SchemaAsMap(p.Config.InputSchema)
 		data, err := json.Marshal(input)
 		if err != nil {
 			return err
 		}
 
-		err = json.Unmarshal(data, &inputDefault)
+		err = json.Unmarshal(data, &defaultInput)
 		if err != nil {
 			return err
 		}
 
-		p.Config.InputDefault = inputDefault
+		p.Config.DefaultInput = defaultInput
 		return nil
 	}
 }
@@ -384,7 +384,7 @@ func WithInputType(input any) PromptOption {
 func WithOutputType(output any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.OutputSchema != nil {
-			return errors.New("dotprompt.WithOutputType: cannot set outputType more than once. Set either outputType or outputSchema")
+			return errors.New("dotprompt.WithOutputType: cannot set OutputType more than once")
 		}
 
 		p.Config.OutputSchema = base.InferJSONSchemaNonReferencing(output)
@@ -398,10 +398,10 @@ func WithOutputType(output any) PromptOption {
 func WithOutputFormat(format ai.OutputFormat) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.OutputFormat != "" && p.Config.OutputFormat != format {
-			return errors.New("dotprompt.WithOutputFormat: outputFormat does not match set outputSchema")
+			return errors.New("dotprompt.WithOutputFormat: OutputFormat does not match set OutputSchema")
 		}
 		if format == ai.OutputFormatJSON && p.Config.OutputSchema == nil {
-			return errors.New("dotprompt.WithOutputFormat: to set outputFormat to JSON, outputSchema must be set")
+			return errors.New("dotprompt.WithOutputFormat: to set OutputFormat to JSON, OutputSchema must be set")
 		}
 
 		p.Config.OutputFormat = format
@@ -413,7 +413,7 @@ func WithOutputFormat(format ai.OutputFormat) PromptOption {
 func WithMetadata(metadata map[string]any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.Metadata != nil {
-			return errors.New("dotprompt.WithMetadata: cannot set metadata more than once")
+			return errors.New("dotprompt.WithMetadata: cannot set Metadata more than once")
 		}
 		p.Config.Metadata = metadata
 		return nil

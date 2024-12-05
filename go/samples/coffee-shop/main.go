@@ -148,7 +148,6 @@ func main() {
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
 		dotprompt.WithDefaultModel(g),
 		dotprompt.WithInputType(simpleGreetingInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatJSON),
 		dotprompt.WithOutputType(simpleGreetingOutput{}),
 	)
 	if err != nil {

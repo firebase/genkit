@@ -278,7 +278,7 @@ func (p *Prompt) GenerateData(ctx context.Context, value any, opts ...GenerateOp
 func WithInput(input any) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Input != nil {
-			return errors.New("dotprompt.WithInput: cannot set input more than once")
+			return errors.New("dotprompt.WithInput: cannot set Input more than once")
 		}
 		p.Input = input
 		return nil
@@ -289,7 +289,7 @@ func WithInput(input any) GenerateOption {
 func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Config != nil {
-			return errors.New("dotprompt.WithConfig: cannot set config more than once")
+			return errors.New("dotprompt.WithConfig: cannot set Config more than once")
 		}
 		p.Config = config
 		return nil
@@ -300,7 +300,7 @@ func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 func WithContext(context []any) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Context != nil {
-			return errors.New("dotprompt.WithContext: cannot set context more than once")
+			return errors.New("dotprompt.WithContext: cannot set Context more than once")
 		}
 		p.Context = context
 		return nil
@@ -311,7 +311,7 @@ func WithContext(context []any) GenerateOption {
 func WithModel(model ai.Model) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.ModelName != "" || p.Model != nil {
-			return errors.New("dotprompt.WithModel: model must be specified exactly once, either ModelName or Model")
+			return errors.New("dotprompt.WithModel: Model must be specified exactly once, either ModelName or Model")
 		}
 		p.Model = &model
 		return nil
@@ -322,7 +322,7 @@ func WithModel(model ai.Model) GenerateOption {
 func WithModelName(model string) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.ModelName != "" || p.Model != nil {
-			return errors.New("dotprompt.WithModelName: model must be specified exactly once, either ModelName or Model")
+			return errors.New("dotprompt.WithModelName: Model must be specified exactly once, either ModelName or Model")
 		}
 		p.ModelName = model
 		return nil
@@ -333,7 +333,7 @@ func WithModelName(model string) GenerateOption {
 func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
 	return func(g *PromptRequest) error {
 		if g.Stream != nil {
-			return errors.New("dotprompt.WithStreaming: cannot set streaming callback more than once")
+			return errors.New("dotprompt.WithStreaming: cannot set Stream more than once")
 		}
 		g.Stream = cb
 		return nil

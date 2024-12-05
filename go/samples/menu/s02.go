@@ -53,7 +53,6 @@ func setup02(_ context.Context, m ai.Model) error {
 		 {{question}} ?`,
 		dotprompt.WithDefaultModel(m),
 		dotprompt.WithInputType(menuQuestionInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
 		dotprompt.WithTools(menuTool),
 	)
 	if err != nil {

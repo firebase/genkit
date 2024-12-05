@@ -182,7 +182,7 @@ func TestOptionsPatternDefine(t *testing.T) {
 		if dotPrompt.Config.OutputFormat == "" {
 			t.Error("outputschema not set")
 		}
-		if dotPrompt.Config.InputDefault == nil {
+		if dotPrompt.Config.DefaultInput == nil {
 			t.Error("default input not set")
 		}
 		if dotPrompt.Config.Metadata == nil {
@@ -209,10 +209,10 @@ func TestOptionsPatternDefine(t *testing.T) {
 		if dotPrompt.Config.InputSchema == nil {
 			t.Error("inputschema not set")
 		}
-		if dotPrompt.Config.InputDefault == nil {
+		if dotPrompt.Config.DefaultInput == nil {
 			t.Error("Input default not set")
 		}
-		if dotPrompt.Config.InputDefault["test"] != "test" {
+		if dotPrompt.Config.DefaultInput["test"] != "test" {
 			t.Error("Input default incorrect")
 		}
 	})
@@ -229,10 +229,10 @@ func TestOptionsPatternDefine(t *testing.T) {
 		if dotPrompt.Config.InputSchema == nil {
 			t.Error("inputschema not set")
 		}
-		if dotPrompt.Config.InputDefault == nil {
+		if dotPrompt.Config.DefaultInput == nil {
 			t.Error("Input default not set")
 		}
-		if dotPrompt.Config.InputDefault["text"] != "test" {
+		if dotPrompt.Config.DefaultInput["text"] != "test" {
 			t.Error("Input default incorrect")
 		}
 	})
