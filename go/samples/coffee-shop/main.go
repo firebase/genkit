@@ -116,7 +116,7 @@ func main() {
 			}
 		}
 		resp, err := simpleGreetingPrompt.Generate(ctx,
-			dotprompt.WithVariables(input),
+			dotprompt.WithInput(input),
 			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {
@@ -136,7 +136,7 @@ func main() {
 
 	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
 		resp, err := greetingWithHistoryPrompt.Generate(ctx,
-			dotprompt.WithVariables(input),
+			dotprompt.WithInput(input),
 			nil,
 		)
 		if err != nil {
@@ -163,7 +163,7 @@ func main() {
 			}
 		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
-			dotprompt.WithVariables(input),
+			dotprompt.WithInput(input),
 			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {

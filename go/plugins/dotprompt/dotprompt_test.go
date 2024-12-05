@@ -152,11 +152,6 @@ func TestPrompts(t *testing.T) {
 }
 
 func TestOptionsPatternDefine(t *testing.T) {
-	r := &jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
-
 	t.Run("WithTypesAndModel", func(t *testing.T) {
 		dotPrompt, err := Define(
 			"TestTypes",
@@ -165,8 +160,6 @@ func TestOptionsPatternDefine(t *testing.T) {
 			WithDefaultConfig(&ai.GenerationCommonConfig{}),
 			WithInputType(InputOutput{}),
 			WithOutputType(InputOutput{}),
-			WithOutputFormat(ai.OutputFormatText),
-			WithDefaults(map[string]any{"test": "test"}),
 			WithMetadata(map[string]any{"test": "test"}),
 			WithDefaultModel(testModel),
 		)
@@ -189,8 +182,8 @@ func TestOptionsPatternDefine(t *testing.T) {
 		if dotPrompt.Config.OutputFormat == "" {
 			t.Error("outputschema not set")
 		}
-		if dotPrompt.Config.VariableDefaults == nil {
-			t.Error("defaults not set")
+		if dotPrompt.Config.InputDefault == nil {
+			t.Error("default input not set")
 		}
 		if dotPrompt.Config.Metadata == nil {
 			t.Error("metadata not set")
@@ -204,37 +197,104 @@ func TestOptionsPatternDefine(t *testing.T) {
 		// }
 	})
 
-	t.Run("WithSchemasAndModelName", func(t *testing.T) {
+	t.Run("WithDefaultMap", func(t *testing.T) {
 		dotPrompt, err := Define(
-			"TestSchemas",
-			"TestSchemas",
-			WithInputSchema(r.Reflect(InputOutput{})),
-			WithOutputSchema(r.Reflect(InputOutput{})),
-			WithDefaultModelName("defineoptions/test"),
+			"TestDefaultMap",
+			"TestDefaultMap",
+			WithInputType(map[string]any{"test": "test"}),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		if dotPrompt.Config.InputSchema == nil {
 			t.Error("inputschema not set")
 		}
-		if dotPrompt.Config.OutputSchema == nil {
-			t.Error("outputschema not set")
+		if dotPrompt.Config.InputDefault == nil {
+			t.Error("Input default not set")
 		}
-		if dotPrompt.Config.ModelName == "" {
-			t.Error("modelname not set")
+		if dotPrompt.Config.InputDefault["test"] != "test" {
+			t.Error("Input default incorrect")
 		}
 	})
 
+	t.Run("WithDefaultStruct", func(t *testing.T) {
+		dotPrompt, err := Define(
+			"TestDefaultStruct",
+			"TestDefaultStruct",
+			WithInputType(InputOutput{Text: "test"}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dotPrompt.Config.InputSchema == nil {
+			t.Error("inputschema not set")
+		}
+		if dotPrompt.Config.InputDefault == nil {
+			t.Error("Input default not set")
+		}
+		if dotPrompt.Config.InputDefault["text"] != "test" {
+			t.Error("Input default incorrect")
+		}
+	})
+}
+
+func TestOutputFormat(t *testing.T) {
+	var tests = []struct {
+		name   string
+		output any
+		format ai.OutputFormat
+		err    bool
+	}{
+		{
+			name:   "mismatch",
+			output: InputOutput{},
+			format: ai.OutputFormatText,
+			err:    true,
+		},
+		{
+			name:   "json",
+			output: InputOutput{},
+			format: ai.OutputFormatJSON,
+			err:    false,
+		},
+		{
+			name:   "text",
+			format: ai.OutputFormatText,
+			err:    false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var err error
+
+			if test.output == nil {
+				_, err = Define(
+					"aModel",
+					"aModel",
+					WithInputType(InputOutput{Text: "test"}),
+					WithOutputFormat(test.format),
+				)
+			} else {
+				_, err = Define(
+					"bModel",
+					"bModel",
+					WithInputType(InputOutput{Text: "test"}),
+					WithOutputType(test.output),
+					WithOutputFormat(test.format),
+				)
+			}
+			if err != nil {
+				if test.err {
+					t.Logf("got expected error %v", err)
+					return
+				}
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func TestPromptOptions(t *testing.T) {
-	r := &jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
-
 	var tests = []struct {
 		name string
 		with PromptOption
@@ -252,24 +312,12 @@ func TestPromptOptions(t *testing.T) {
 			with: WithInputType(InputOutput{}),
 		},
 		{
-			name: "WithInputSchema",
-			with: WithInputSchema(r.Reflect(InputOutput{})),
-		},
-		{
 			name: "WithOutputType",
 			with: WithOutputType(InputOutput{}),
 		},
 		{
-			name: "WithOutputSchema",
-			with: WithOutputSchema(r.Reflect(InputOutput{})),
-		},
-		{
 			name: "WithOutputFormat",
-			with: WithOutputFormat(ai.OutputFormatText),
-		},
-		{
-			name: "WithDefaults",
-			with: WithDefaults(map[string]any{"test": "test"}),
+			with: WithOutputFormat(ai.OutputFormatJSON),
 		},
 		{
 			name: "WithMetadata",

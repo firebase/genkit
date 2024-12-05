@@ -98,7 +98,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 
 			presp, err := ragDataMenuPrompt.Generate(
 				ctx,
-				dotprompt.WithVariables(questionInput),
+				dotprompt.WithInput(questionInput),
 				nil)
 			if err != nil {
 				return nil, err

@@ -55,7 +55,7 @@ func dot01() error {
 	}
 	response, err := prompt.Generate(
 		ctx,
-		dotprompt.WithVariables(GreetingPromptInput{
+		dotprompt.WithInput(GreetingPromptInput{
 			Location: "the beach",
 			Style:    "a fancy pirate",
 			Name:     "Ed",
@@ -94,7 +94,7 @@ func dot02() {
 
 	response, err := prompt.Generate(
 		context.Background(),
-		dotprompt.WithVariables(GreetingPromptInput{
+		dotprompt.WithInput(GreetingPromptInput{
 			Location: "the beach",
 			Style:    "a fancy pirate",
 			Name:     "Ed",
@@ -131,7 +131,7 @@ func dot03() error {
 	}
 	response, err := describeImagePrompt.Generate(
 		context.Background(),
-		dotprompt.WithVariables(DescribeImagePromptInput{
+		dotprompt.WithInput(DescribeImagePromptInput{
 			PhotoUrl: dataURI,
 		}),
 		nil,

@@ -31,7 +31,7 @@ import (
 type PromptRequest struct {
 	// Input fields for the prompt. If not nil this should be a struct
 	// or pointer to a struct that matches the prompt's input schema.
-	Variables any `json:"variables,omitempty"`
+	Input any `json:"input,omitempty"`
 	// Model configuration. If nil will be taken from the prompt config.
 	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
 	// Context to pass to model, if any.
@@ -192,9 +192,9 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 	var mr *ai.ModelRequest
 	var err error
 	if p.prompt != nil {
-		mr, err = p.prompt.Render(ctx, pr.Variables)
+		mr, err = p.prompt.Render(ctx, pr.Input)
 	} else {
-		mr, err = p.buildRequest(ctx, pr.Variables)
+		mr, err = p.buildRequest(ctx, pr.Input)
 	}
 	if err != nil {
 		return nil, err
@@ -274,13 +274,13 @@ func (p *Prompt) GenerateData(ctx context.Context, value any, opts ...GenerateOp
 	return resp, nil
 }
 
-// WithVariables adds variables to pass to the model.
-func WithVariables(variables any) GenerateOption {
+// WithInput adds input to pass to the model.
+func WithInput(input any) GenerateOption {
 	return func(p *PromptRequest) error {
-		if p.Variables != nil {
-			return errors.New("dotprompt.WithVariables: cannot set variables more than once")
+		if p.Input != nil {
+			return errors.New("dotprompt.WithInput: cannot set input more than once")
 		}
-		p.Variables = variables
+		p.Input = input
 		return nil
 	}
 }
@@ -311,7 +311,7 @@ func WithContext(context []any) GenerateOption {
 func WithModel(model ai.Model) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.ModelName != "" || p.Model != nil {
-			return errors.New("dotprompt.WithModel: config must specify exactly once, either ModelName or Model")
+			return errors.New("dotprompt.WithModel: model must be specified exactly once, either ModelName or Model")
 		}
 		p.Model = &model
 		return nil
@@ -322,7 +322,7 @@ func WithModel(model ai.Model) GenerateOption {
 func WithModelName(model string) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.ModelName != "" || p.Model != nil {
-			return errors.New("dotprompt.WithModelName: config must specify exactly once, either ModelName or Model")
+			return errors.New("dotprompt.WithModelName: model must be specified exactly once, either ModelName or Model")
 		}
 		p.ModelName = model
 		return nil

@@ -99,7 +99,7 @@ type Config struct {
 	InputSchema *jsonschema.Schema
 
 	// Default input variable values
-	VariableDefaults map[string]any
+	InputDefault map[string]any
 
 	// Desired output format.
 	OutputFormat ai.OutputFormat
@@ -235,7 +235,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		ModelName:        fy.Model,
 		Tools:            tools,
 		GenerationConfig: fy.Config,
-		VariableDefaults: fy.Input.Default,
+		InputDefault:     fy.Input.Default,
 		Metadata:         fy.Metadata,
 	}
 
@@ -354,6 +354,7 @@ func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
 }
 
 // WithInputType uses the type provided to derive the input schema.
+// If passing eg. a struct with values, the struct definition will serve as the schema, the values will serve as defaults if no input is given at generation time.
 func WithInputType(input any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.InputSchema != nil {
@@ -361,18 +362,20 @@ func WithInputType(input any) PromptOption {
 		}
 
 		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
-		return nil
-	}
-}
 
-// WithInputSchema adds the schema for input to the prompt.
-func WithInputSchema(schema *jsonschema.Schema) PromptOption {
-	return func(p *Prompt) error {
-		if p.Config.InputSchema != nil {
-			return errors.New("dotprompt.WithInputSchema: cannot set inputSchema more than once. Set either inputType or inputSchema")
+		// Set values as default input
+		inputDefault := base.SchemaAsMap(p.Config.InputSchema)
+		data, err := json.Marshal(input)
+		if err != nil {
+			return err
 		}
 
-		p.Config.InputSchema = schema
+		err = json.Unmarshal(data, &inputDefault)
+		if err != nil {
+			return err
+		}
+
+		p.Config.InputDefault = inputDefault
 		return nil
 	}
 }
@@ -386,19 +389,7 @@ func WithOutputType(output any) PromptOption {
 
 		p.Config.OutputSchema = base.InferJSONSchemaNonReferencing(output)
 		p.Config.OutputFormat = ai.OutputFormatJSON
-		return nil
-	}
-}
 
-// WithOutputSchema adds the schema for output to the prompt.
-func WithOutputSchema(schema *jsonschema.Schema) PromptOption {
-	return func(p *Prompt) error {
-		if p.Config.OutputSchema != nil {
-			return errors.New("dotprompt.WithOutputSchema: cannot set outputSchema more than once. Set either outputType or outputSchema")
-		}
-
-		p.Config.OutputSchema = schema
-		p.Config.OutputFormat = ai.OutputFormatJSON
 		return nil
 	}
 }
@@ -406,22 +397,14 @@ func WithOutputSchema(schema *jsonschema.Schema) PromptOption {
 // WithOutputFormat adds the desired output format to the prompt
 func WithOutputFormat(format ai.OutputFormat) PromptOption {
 	return func(p *Prompt) error {
-		if p.Config.OutputSchema == nil {
-			return errors.New("dotprompt.WithOutputFormat: outputSchema needs to be set, to set outputFormat")
+		if p.Config.OutputFormat != "" && p.Config.OutputFormat != format {
+			return errors.New("dotprompt.WithOutputFormat: outputFormat does not match set outputSchema")
+		}
+		if format == ai.OutputFormatJSON && p.Config.OutputSchema == nil {
+			return errors.New("dotprompt.WithOutputFormat: to set outputFormat to JSON, outputSchema must be set")
 		}
 
 		p.Config.OutputFormat = format
-		return nil
-	}
-}
-
-// WithDefaults adds default input variable values
-func WithDefaults(defaults map[string]any) PromptOption {
-	return func(p *Prompt) error {
-		if p.Config.VariableDefaults != nil {
-			return errors.New("dotprompt.WithDefaults: cannot set defaults more than once")
-		}
-		p.Config.VariableDefaults = defaults
 		return nil
 	}
 }

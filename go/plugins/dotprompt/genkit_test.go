@@ -111,7 +111,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 		streamText := ""
 		resp, err := p.Generate(
 			context.Background(),
-			WithVariables(InputOutput{
+			WithInput(InputOutput{
 				Text: "testing",
 			}),
 			WithStreaming(func(ctx context.Context, grc *ai.ModelResponseChunk) error {
@@ -139,7 +139,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 
 		resp, err := p.Generate(
 			context.Background(),
-			WithVariables(InputOutput{
+			WithInput(InputOutput{
 				Text: "testing",
 			}),
 			WithModelName("options/test"),
@@ -163,8 +163,8 @@ func TestGenerateOptions(t *testing.T) {
 		with GenerateOption
 	}{
 		{
-			name: "WithVariables",
-			with: WithVariables(map[string]any{"test": "test"}),
+			name: "WithInput",
+			with: WithInput(map[string]any{"test": "test"}),
 		},
 		{
 			name: "WithConfig",
