@@ -244,6 +244,36 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 	return resp, nil
 }
 
+// GenerateText runs generate request for this prompt. Returns generated text only.
+func (p *Prompt) GenerateText(ctx context.Context, opts ...GenerateOption) (string, error) {
+	res, err := p.Generate(ctx, opts...)
+	if err != nil {
+		return "", err
+	}
+
+	return res.Text(), nil
+}
+
+// GenerateData runs generate request for this prompt. Returns ModelResponse struct.
+// TODO: Stream GenerateData with partial JSON
+func (p *Prompt) GenerateData(ctx context.Context, value any, opts ...GenerateOption) (*ai.ModelResponse, error) {
+	with := WithOutputType(value)
+	err := with(p)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := p.Generate(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	err = resp.UnmarshalOutput(value)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // WithVariables adds variables to pass to the model.
 func WithVariables(variables any) GenerateOption {
 	return func(p *PromptRequest) error {

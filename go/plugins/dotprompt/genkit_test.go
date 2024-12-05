@@ -27,6 +27,10 @@ func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Con
 	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
+	if req.Output.Format == "json" {
+		output = `{"text": "AI reply to JSON"}`
+	}
+
 	if cb != nil {
 		cb(ctx, &ai.ModelResponseChunk{
 			Content: []*ai.Part{ai.NewTextPart("stream!")},
@@ -68,6 +72,31 @@ func TestExecute(t *testing.T) {
 		}
 		assertResponse(t, resp, `AI reply to "TestExecute"`)
 	})
+	t.Run("GenerateText", func(t *testing.T) {
+		p, err := New("TestExecute", "TestExecute", Config{ModelName: "test/test"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := p.GenerateText(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp != `AI reply to "TestExecute"` {
+			t.Errorf("got %q, want %q", resp, `AI reply to "TestExecute"`)
+		}
+	})
+	t.Run("GenerateData", func(t *testing.T) {
+		p, err := New("TestExecute", "TestExecute", Config{ModelName: "test/test"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := p.GenerateData(context.Background(), InputOutput{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assertResponse(t, resp, `{"text": "AI reply to JSON"}`)
+	})
 }
 
 func TestOptionsPatternGenerate(t *testing.T) {
@@ -83,7 +112,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 		resp, err := p.Generate(
 			context.Background(),
 			WithVariables(InputOutput{
-				Test: "testing",
+				Text: "testing",
 			}),
 			WithStreaming(func(ctx context.Context, grc *ai.ModelResponseChunk) error {
 				streamText += grc.Text()
@@ -111,7 +140,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 		resp, err := p.Generate(
 			context.Background(),
 			WithVariables(InputOutput{
-				Test: "testing",
+				Text: "testing",
 			}),
 			WithModelName("options/test"),
 		)

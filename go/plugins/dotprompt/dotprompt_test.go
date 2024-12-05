@@ -25,7 +25,7 @@ import (
 )
 
 type InputOutput struct {
-	Test string `json:"test"`
+	Text string `json:"text"`
 }
 
 func testTool(name string) *ai.ToolDef[struct{ Test string }, string] {
