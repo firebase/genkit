@@ -29,6 +29,7 @@ jobs:
       with:
         node-version: 21.x
         cache: 'pnpm'
+        registry-url: 'https://wombat-dressing-room.appspot.com/'
     - name: Install dependencies
       run: pnpm install
     - name: Run build script
