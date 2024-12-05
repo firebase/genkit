@@ -29,7 +29,6 @@ jobs:
       with:
         node-version: 21.x
         cache: 'pnpm'
-        registry-url: 'https://wombat-dressing-room.appspot.com/'
     - name: Install dependencies
       run: pnpm install
     - name: Run build script
@@ -38,6 +37,12 @@ jobs:
       run: pnpm test:js
     - name: Validate working directory is clean
       run: .github/workflows/scripts/ensure-clean-working-tree.sh
+    - name: Set up node v21
+      uses: actions/setup-node@v4
+      with:
+        node-version: 21.x
+        cache: 'pnpm'
+        registry-url: 'https://wombat-dressing-room.appspot.com/'
     - name: release script
       run: scripts/release_main.sh
       env:
