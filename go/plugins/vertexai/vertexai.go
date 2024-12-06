@@ -42,6 +42,9 @@ var (
 		"gemini-1.0-pro":   gemini.BasicText,
 		"gemini-1.5-pro":   gemini.Multimodal,
 		"gemini-1.5-flash": gemini.Multimodal,
+		"imagen2":          gemini.Multimodal,
+		"imagen3":          gemini.Multimodal,
+		"imagen3-fast":     gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
@@ -124,12 +127,30 @@ func Init(ctx context.Context, cfg *Config) error {
 	}
 	state.initted = true
 	for model, caps := range knownCaps {
-		defineModel(model, caps)
+		if strings.HasPrefix(model, "imagen") {
+			defineImagenModel(model, caps)
+		} else {
+			defineModel(model, caps)
+		}
 	}
 	for _, e := range knownEmbedders {
 		defineEmbedder(e)
 	}
 	return nil
+}
+
+func defineImagenModel(name string, caps ai.ModelCapabilities) ai.Model {
+	meta := &ai.ModelMetadata{
+		Label:    labelPrefix + " - " + name,
+		Supports: caps,
+	}
+	return ai.DefineModel(provider, name, meta, func(
+		ctx context.Context,
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
+		return imagenModel(ctx, state.gclient, name, input, cb)
+	})
 }
 
 //copy:sink defineModel from ../googleai/googleai.go
