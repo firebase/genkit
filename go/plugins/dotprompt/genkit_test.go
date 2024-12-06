@@ -17,9 +17,11 @@ package dotprompt
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
@@ -38,13 +40,17 @@ func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Con
 }
 
 func TestExecute(t *testing.T) {
-	testModel := ai.DefineModel("test", "test", nil, testGenerate)
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testModel := ai.DefineModel(g.Reg, "test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		resp, err := p.Generate(context.Background(), g, &PromptRequest{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +61,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		resp, err := p.Generate(context.Background(), g, &PromptRequest{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

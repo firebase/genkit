@@ -16,14 +16,21 @@ package dotprompt
 
 import (
 	"encoding/json"
+	"log"
 	"testing"
 
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/invopop/jsonschema"
 )
 
 func TestPrompts(t *testing.T) {
-	SetDirectory("testdata")
+	g, err := genkit.New(&genkit.Options{
+		PromptDir: "testdata",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var tests = []struct {
 		name   string
@@ -108,7 +115,7 @@ func TestPrompts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			prompt, err := Open(test.name)
+			prompt, err := Open(g, test.name)
 			if err != nil {
 				t.Fatal(err)
 			}

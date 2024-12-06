@@ -73,7 +73,6 @@ export function loadPromptFile(registry: Registry, path: string): Dotprompt {
 
 export async function loadPromptUrl(
   registry: Registry,
-
   name: string,
   url: string
 ): Promise<Dotprompt> {

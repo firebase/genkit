@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
@@ -40,6 +41,11 @@ func TestGenkit(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Make two very similar vectors and one different vector.
 	// Arrange for a fake embedder to return those vectors
@@ -83,9 +89,9 @@ func TestGenkit(t *testing.T) {
 
 	classCfg := ClassConfig{
 		Class:    *testClass,
-		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
 	}
-	indexer, retriever, err := DefineIndexerAndRetriever(ctx, classCfg)
+	indexer, retriever, err := DefineIndexerAndRetriever(ctx, g, classCfg)
 	if err != nil {
 		t.Fatal(err)
 	}

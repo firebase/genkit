@@ -170,11 +170,12 @@ func WithLocalAuth(authContext AuthContext) FlowRunOption {
 //
 // fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](
+	g *Genkit,
 	name string,
 	fn func(ctx context.Context, input In) (Out, error),
 	opts ...FlowOption,
 ) *Flow[In, Out, struct{}] {
-	return defineFlow(registry.Global, name, core.Func[In, Out, struct{}](
+	return defineFlow(g.Reg, name, core.Func[In, Out, struct{}](
 		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
 			return fn(ctx, input)
 		}), opts...)
@@ -190,11 +191,12 @@ func DefineFlow[In, Out any](
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](
+	g *Genkit,
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
 	opts ...FlowOption,
 ) *Flow[In, Out, Stream] {
-	return defineFlow(registry.Global, name, core.Func[In, Out, Stream](fn), opts...)
+	return defineFlow(g.Reg, name, core.Func[In, Out, Stream](fn), opts...)
 }
 
 func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream], opts ...FlowOption) *Flow[In, Out, Stream] {
@@ -205,7 +207,6 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		fn:           fn,
 		inputSchema:  base.InferJSONSchema(i),
 		outputSchema: base.InferJSONSchema(o),
-		// TODO: set stateStore?
 	}
 	flowOpts := &flowOptions{}
 	for _, opt := range opts {
@@ -230,7 +231,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		}
 		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
 	}
-	core.DefineActionInRegistry(r, "", f.name, atype.Flow, metadata, nil, afunc)
+	core.DefineStreamingAction(r, "", f.name, atype.Flow, metadata, afunc)
 	f.tstate = r.TracingState()
 	r.RegisterFlow(f)
 	return f

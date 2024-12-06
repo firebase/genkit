@@ -55,8 +55,8 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 	return ch.preamble
 }
 
-func setup03(ctx context.Context, model ai.Model) error {
-	chatPreamblePrompt, err := dotprompt.Define("s03_chatPreamble",
+func setup03(ctx context.Context, g *genkit.Genkit, m ai.Model) error {
+	chatPreamblePrompt, err := dotprompt.Define(g, "s03_chatPreamble",
 		`
 		  {{ role "user" }}
 		  Hi. What's on the menu today?
@@ -72,7 +72,7 @@ func setup03(ctx context.Context, model ai.Model) error {
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
 		dotprompt.Config{
-			Model:        model,
+			Model:        m,
 			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -102,7 +102,7 @@ func setup03(ctx context.Context, model ai.Model) error {
 		sessions: make(map[string]chatHistory),
 	}
 
-	genkit.DefineFlow("s03_multiTurnChat",
+	genkit.DefineFlow(g, "s03_multiTurnChat",
 		func(ctx context.Context, input *chatSessionInput) (*chatSessionOutput, error) {
 			history := storedHistory.Retrieve(input.SessionID)
 			msg := &ai.Message{
@@ -112,7 +112,7 @@ func setup03(ctx context.Context, model ai.Model) error {
 				Role: ai.RoleUser,
 			}
 			messages := append(slices.Clip(history), msg)
-			resp, err := ai.Generate(ctx, model, ai.WithMessages(messages...))
+			resp, err := genkit.Generate(ctx, g, m, ai.WithMessages(messages...))
 			if err != nil {
 				return nil, err
 			}

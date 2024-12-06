@@ -43,7 +43,12 @@ import (
 )
 
 func main() {
-	basic := genkit.DefineFlow("basic", func(ctx context.Context, subject string) (string, error) {
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatalf("failed to create Genkit: %v", err)
+	}
+
+	basic := genkit.DefineFlow(g, "basic", func(ctx context.Context, subject string) (string, error) {
 		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return "subject: " + subject, nil })
 		if err != nil {
 			return "", err
@@ -51,7 +56,7 @@ func main() {
 		return genkit.Run(ctx, "call-llm", func() (string, error) { return "foo: " + foo, nil })
 	})
 
-	genkit.DefineFlow("parent", func(ctx context.Context, _ struct{}) (string, error) {
+	genkit.DefineFlow(g, "parent", func(ctx context.Context, _ struct{}) (string, error) {
 		return basic.Run(ctx, "foo")
 	})
 
@@ -60,7 +65,7 @@ func main() {
 		Value int    `json:"value"`
 	}
 
-	genkit.DefineFlow("complex", func(ctx context.Context, c complex) (string, error) {
+	genkit.DefineFlow(g, "complex", func(ctx context.Context, c complex) (string, error) {
 		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return c.Key + ": " + strconv.Itoa(c.Value), nil })
 		if err != nil {
 			return "", err
@@ -68,7 +73,7 @@ func main() {
 		return foo, nil
 	})
 
-	genkit.DefineFlow("throwy", func(ctx context.Context, err string) (string, error) {
+	genkit.DefineFlow(g, "throwy", func(ctx context.Context, err string) (string, error) {
 		return "", errors.New(err)
 	})
 
@@ -76,7 +81,7 @@ func main() {
 		Count int `json:"count"`
 	}
 
-	genkit.DefineStreamingFlow("streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
+	genkit.DefineStreamingFlow(g, "streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
 		i := 0
 		if cb != nil {
 			for ; i < count; i++ {
@@ -88,7 +93,7 @@ func main() {
 		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
 	})
 
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := g.Start(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

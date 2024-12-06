@@ -24,8 +24,8 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
-	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
+func setup04(ctx context.Context, g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
+	ragDataMenuPrompt, err := dotprompt.Define(g, "s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
 		  You can answer questions about the food on the menu or any other questions
@@ -57,7 +57,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 		Rows int `json:"rows"`
 	}
 
-	genkit.DefineFlow("s04_indexMenuItems",
+	genkit.DefineFlow(g, "s04_indexMenuItems",
 		func(ctx context.Context, input []*menuItem) (*flowOutput, error) {
 			var docs []*ai.Document
 			for _, m := range input {
@@ -78,7 +78,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 		},
 	)
 
-	genkit.DefineFlow("s04_ragMenuQuestion",
+	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := ai.Retrieve(ctx, retriever,
 				ai.WithRetrieverText(input.Question),
@@ -101,7 +101,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 			preq := &dotprompt.PromptRequest{
 				Variables: questionInput,
 			}
-			presp, err := ragDataMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := ragDataMenuPrompt.Generate(ctx, g, preq, nil)
 			if err != nil {
 				return nil, err
 			}
