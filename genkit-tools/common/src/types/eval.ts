@@ -129,12 +129,14 @@ export const EvalRunKeySchema = z.object({
   datasetVersion: z.number().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
+  actionConfig: z.any().optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
   datasetId: true,
   datasetVersion: true,
   actionRef: true,
+  actionConfig: true,
 });
 export type EvalKeyAugments = z.infer<typeof EvalKeyAugmentsSchema>;
 

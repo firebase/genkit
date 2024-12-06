@@ -93,7 +93,12 @@ export async function runNewEvaluation(
     manager,
     evaluatorActions,
     evalDataset,
-    augments: { actionRef, datasetId, datasetVersion },
+    augments: {
+      actionRef,
+      datasetId,
+      datasetVersion,
+      actionConfig: request.options?.actionConfig,
+    },
   });
   return evalRun.key;
 }
