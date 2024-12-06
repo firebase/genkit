@@ -158,7 +158,9 @@ func (p *Prompt) Register() error {
 	}
 
 	// TODO: Undo clearing of the Version once Monaco Editor supports newer than JSON schema draft-07.
-	p.InputSchema.Version = ""
+	if p.InputSchema != nil {
+		p.InputSchema.Version = ""
+	}
 
 	metadata := map[string]any{
 		"prompt": map[string]any{

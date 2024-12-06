@@ -294,6 +294,129 @@ func TestOutputFormat(t *testing.T) {
 	}
 }
 
+func TestInputFormat(t *testing.T) {
+	type hello struct {
+		Name string `json:"name"`
+	}
+
+	var helloSchema jsonschema.Schema
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+	helloSchemaByRef := r.Reflect(hello{})
+	helloSchema = *helloSchemaByRef
+
+	var tests = []struct {
+		name         string
+		templateText string
+		inputType    any
+		input        map[string]any
+		render       string
+	}{
+		// No input and no inputType is not possible atm because of DefinePrompt
+		// DOCS: DefinePrompt takes a function that renders a prompt template
+		// into a [GenerateRequest] that may be passed to a [Model].
+		// The prompt expects some input described by inputSchema.
+		// DefinePrompt registers the function as an action,
+		// and returns a [Prompt] that runs it.
+		// {
+		// 	name:         "noInput",
+		// 	templateText: "hello world",
+		// 	input:        nil,
+		// 	render:       "hello world",
+		// },
+		// Based on the documentation on NewAction, if inputSchema is nil, it is inferred from In. Issue is, In is nil at Define time
+		// {
+		// 	name:         "noInputType",
+		// 	templateText: "hello {{input}}",
+		// 	input:  map[string]any{"input": "world"},
+		// 	render: "hello world",
+		// },
+		{
+			name:         "structInput",
+			templateText: "hello {{name}}",
+			inputType:    hello{},
+			input:        map[string]any{"name": "world"},
+			render:       "hello world",
+		},
+		{
+			name:         "stringInput",
+			templateText: "hello {{input}}",
+			inputType:    "world",
+			input:        map[string]any{"input": "world"},
+			render:       "hello world",
+		},
+		{
+			name:         "intInput",
+			templateText: "hello {{input}}",
+			inputType:    1,
+			input:        map[string]any{"input": 1},
+			render:       "hello 1",
+		},
+		{
+			name:         "floatInput",
+			templateText: "the value of pi is {{input}}",
+			inputType:    3.14159,
+			input:        map[string]any{"input": 3.14159},
+			render:       "the value of pi is 3.14159",
+		},
+		{
+			name:         "mapInput",
+			templateText: "hello {{name}}",
+			inputType:    map[string]any{"name": "world"},
+			input:        map[string]any{"name": "world"},
+			render:       "hello world",
+		},
+		{
+			name:         "jsonInput",
+			templateText: "hello {{input}}",
+			inputType:    helloSchema,
+			input:        map[string]any{"input": "world"},
+			render:       "hello world",
+		},
+		{
+			name:         "jsonInputByRef",
+			templateText: "hello {{input}}",
+			inputType:    helloSchemaByRef,
+			input:        map[string]any{"input": "world"},
+			render:       "hello world",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var err error
+			var p *Prompt
+
+			if test.inputType != nil {
+				p, err = Define(
+					test.name,
+					test.templateText,
+					WithInputType(test.inputType),
+				)
+			} else {
+				p, err = Define(
+					"inputFormat",
+					test.templateText,
+				)
+			}
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			txt, err := p.RenderText(test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if txt != test.render {
+				t.Errorf("got %q want %q", txt, test.render)
+			}
+		})
+	}
+}
+
 func TestPromptOptions(t *testing.T) {
 	var tests = []struct {
 		name string

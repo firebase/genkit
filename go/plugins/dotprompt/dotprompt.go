@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
@@ -359,6 +360,31 @@ func WithInputType(input any) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.InputSchema != nil {
 			return errors.New("dotprompt.WithInputType: cannot set InputType more than once")
+		}
+
+		// Handle primitives, default to "value" as key
+		// No default necessary, assumed type to be struct
+		switch v := input.(type) {
+		case int:
+			input = map[string]any{"value": strconv.Itoa(v)}
+		case float32:
+		case float64:
+			input = map[string]any{"value": fmt.Sprintf("%f", v)}
+		case string:
+			input = map[string]any{"value": v}
+		// Pass map directly
+		case map[string]any:
+			input = v
+		// Pass schema directly
+		case *jsonschema.Schema:
+			p.Config.InputSchema = v
+		case jsonschema.Schema:
+			p.Config.InputSchema = &v
+		}
+
+		// If a JSON schema is passed, it won't contain values to set as default input
+		if p.Config.InputSchema != nil {
+			return nil
 		}
 
 		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
