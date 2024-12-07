@@ -29,35 +29,6 @@ npm i --save @genkit-ai/firebase
   to the Blaze pay-as-you-go plan.
 - If you want to run code locally that exports telemetry, you need the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) tool installed.
 
-## Configuration
-
-### Project ID
-
-To use this plugin, specify it when you initialize Genkit:
-
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-import { genkit } from 'genkit';
-import { firebase } from '@genkit-ai/firebase';
-
-const ai = genkit({
-  plugins: [firebase({ projectId: "your-firebase-project" })],
-});
-```
-
-The plugin requires you to specify your Firebase project ID. You can specify
-your Firebase project ID in either of the following ways:
-
-- Set `projectId` in the `firebase()` configuration object.
-
-- Set the `GCLOUD_PROJECT` environment variable. If you're running your flow
-  from a Google Cloud environment (Cloud Functions, Cloud Run, and so on),
-  `GCLOUD_PROJECT` is automatically set to the project ID of the environment.
-
-  If you set `GCLOUD_PROJECT`, you can omit the configuration parameter:
-  `firebase()`
-
 ### Credentials
 
 To provide Firebase credentials, you also need to set up Google Cloud
