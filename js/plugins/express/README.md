@@ -6,14 +6,17 @@ This plugin provides utilities for conveninetly exposing Genkit flows and action
 import { handler } from '@genkit-ai/express';
 import express from 'express';
 
-const simpleFlow = ai.defineFlow('simpleFlow', async (input, streamingCallback) => {
-  const { text } = await ai.generate({
-    model: gemini15Flash,
-    prompt: input,
-    streamingCallback,
-  });
-  return text;
-});
+const simpleFlow = ai.defineFlow(
+  'simpleFlow',
+  async (input, streamingCallback) => {
+    const { text } = await ai.generate({
+      model: gemini15Flash,
+      prompt: input,
+      streamingCallback,
+    });
+    return text;
+  }
+);
 
 const app = express();
 app.use(express.json());
@@ -31,9 +34,7 @@ const authMiddleware = async (req, resp, next) => {
   // parse auth headers and convert to auth object.
   (req as RequestWithAuth).auth = {
     user:
-      req.header('authorization') === 'open sesame'
-        ? 'Ali Baba'
-        : '40 thieves',
+      req.header('authorization') === 'open sesame' ? 'Ali Baba' : '40 thieves',
   };
   next();
 };
@@ -58,7 +59,7 @@ import { runFlow, streamFlow } from 'genkit/client';
 
 const result = await runFlow({
   url: `http://localhost:${port}/simpleFlow`,
-  input: 'say hello'
+  input: 'say hello',
 });
 
 console.log(result); // hello
@@ -69,7 +70,7 @@ const result = await runFlow({
   headers: {
     Authorization: 'open sesame',
   },
-  input: 'say hello'
+  input: 'say hello',
 });
 
 console.log(result); // hello
@@ -77,7 +78,7 @@ console.log(result); // hello
 // and streamed
 const result = streamFlow({
   url: `http://localhost:${port}/simpleFlow`,
-  input: 'say hello'
+  input: 'say hello',
 });
 for await (const chunk of result.stream()) {
   console.log(chunk);

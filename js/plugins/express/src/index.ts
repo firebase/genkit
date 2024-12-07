@@ -65,10 +65,6 @@ export interface RequestWithAuth extends express.Request {
 
 /**
  * Exposes provided flow or an action as express handler.
- * 
- * @param f 
- * @param opts 
- * @returns 
  */
 export function handler<
   I extends z.ZodTypeAny = z.ZodTypeAny,
