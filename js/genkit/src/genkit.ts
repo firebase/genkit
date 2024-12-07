@@ -180,7 +180,7 @@ export class Genkit {
   /** Flow server. May be null if the flow server is not enabled in configuration or not started. */
   private flowServer: FlowServer | null = null;
   /** List of flows that have been registered in this instance. */
-  private registeredFlows: Flow<any, any, any>[] = [];
+  readonly flows: Flow<any, any, any>[] = [];
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
@@ -208,7 +208,7 @@ export class Genkit {
     fn: FlowFn<I, O, S>
   ): CallableFlow<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
-    this.registeredFlows.push(flow.flow);
+    this.flows.push(flow.flow);
     return flow;
   }
 
@@ -230,7 +230,7 @@ export class Genkit {
       typeof config === 'string' ? { name: config } : config,
       fn
     );
-    this.registeredFlows.push(flow.flow);
+    this.flows.push(flow.flow);
     return flow;
   }
 

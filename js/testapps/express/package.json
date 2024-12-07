@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "genkit": "workspace:*",
+    "@genkit-ai/express": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "genkitx-ollama": "workspace:*",
