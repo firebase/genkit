@@ -92,13 +92,22 @@ describe('telemetry', async () => {
     app.post(
       '/flowWithAuth',
       async (req, res, next) => {
-        // pretend we verify the auth token
-        (req as any).auth = { user: req.header('authorization') };
+        (req as any).auth = {
+          user:
+            req.header('authorization') === 'open sesame'
+              ? 'Ali Baba'
+              : '40 thieves',
+        };
         next();
       },
       handler(flowWithContext, {
-        authPolicy: (auth) => {
-          if (auth.user !== 'authorized') {
+        authPolicy: ({ auth, flow, input, request }) => {
+          assert.ok(auth, 'auth must be set');
+          assert.ok(flow, 'flow must be set');
+          assert.ok(input, 'input must be set');
+          assert.ok(request, 'request must be set');
+
+          if (auth.user !== 'Ali Baba') {
             throw new Error('not authorized');
           }
         },
@@ -159,10 +168,10 @@ describe('telemetry', async () => {
           question: 'hello',
         },
         headers: {
-          Authorization: 'authorized',
+          Authorization: 'open sesame',
         },
       });
-      assert.strictEqual(result, 'hello - {"user":"authorized"}');
+      assert.strictEqual(result, 'hello - {"user":"Ali Baba"}');
     });
 
     it('should fail a flow with auth', async () => {
@@ -172,10 +181,12 @@ describe('telemetry', async () => {
           question: 'hello',
         },
         headers: {
-          Authorization: 'unauthorized',
+          Authorization: 'thieve #24',
         },
       });
-      await assert.rejects(result, 'Server returned: 403');
+      await assert.rejects(result, (err) => {
+        return (err as Error).message.includes('not authorized');
+      });
     });
   });
 

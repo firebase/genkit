@@ -16,17 +16,23 @@
 
 import express from 'express';
 import { CallableFlow, Flow, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import { getErrorMessage, getErrorStack } from './utils';
 
 const streamDelimiter = '\n\n';
 
 /**
- * Flow Auth policy. Consumes the authorization context of the flow and
- * performs checks before the flow runs. If this throws, the flow will not
- * be executed.
+ * Auth policy context is an object passed to the auth policy providing details necessary for auth.
  */
-export interface FlowAuthPolicy<I> {
-  (auth: any | undefined, input: I): void | Promise<void>;
+export interface AuthPolicyContext<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  flow: Flow<I, O, S>;
+  input: z.infer<I>;
+  auth: any | undefined;
+  request: RequestWithAuth;
 }
 
 /**
@@ -34,15 +40,19 @@ export interface FlowAuthPolicy<I> {
  * performs checks before the flow runs. If this throws, the flow will not
  * be executed.
  */
-export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> {
-  (auth: any | undefined, input: z.infer<I>): void | Promise<void>;
+export interface AuthPolicy<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (ctx: AuthPolicyContext<I, O, S>): void | Promise<void>;
 }
 
 /**
  * For express-based flows, req.auth should contain the value to bepassed into
  * the flow context.
  */
-export interface __RequestWithAuth extends express.Request {
+export interface RequestWithAuth extends express.Request {
   auth?: unknown;
 }
 
@@ -53,14 +63,14 @@ export function handler<
 >(
   f: CallableFlow<I, O, S> | Flow<I, O, S>,
   opts?: {
-    authPolicy?: FlowAuthPolicy<I>;
+    authPolicy?: AuthPolicy<I, O, S>;
   }
 ): express.RequestHandler {
   const flow: Flow<I, O, S> = (f as CallableFlow<I, O, S>).flow
     ? (f as CallableFlow<I, O, S>).flow
     : (f as Flow<I, O, S>);
   return async (
-    request: __RequestWithAuth,
+    request: RequestWithAuth,
     response: express.Response
   ): Promise<void> => {
     const { stream } = request.query;
@@ -68,8 +78,14 @@ export function handler<
     const auth = request.auth;
 
     try {
-      await opts?.authPolicy?.(auth, input);
+      await opts?.authPolicy?.({
+        flow,
+        auth,
+        input,
+        request,
+      });
     } catch (e: any) {
+      logger.debug(e);
       const respBody = {
         error: {
           status: 'PERMISSION_DENIED',
@@ -99,7 +115,7 @@ export function handler<
         );
         response.end();
       } catch (e) {
-        console.log(e);
+        logger.error(e);
         response.write(
           'data: ' +
             JSON.stringify({
