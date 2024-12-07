@@ -15,9 +15,9 @@
  */
 
 import express from 'express';
-import { Genkit, genkit, z } from 'genkit';
+import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
 import { runFlow, streamFlow } from 'genkit/client';
-import { ModelAction } from 'genkit/model';
+import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import * as http from 'http';
 import assert from 'node:assert';
@@ -189,7 +189,7 @@ describe('telemetry', async () => {
     });
 
     it('should call a flow with auth', async () => {
-      const result = await runFlow({
+      const result = await runFlow<string>({
         url: `http://localhost:${port}/flowWithAuth`,
         input: {
           question: 'hello',
@@ -231,7 +231,7 @@ describe('telemetry', async () => {
     });
 
     it('should call a model with auth', async () => {
-      const result = await runFlow({
+      const result = await runFlow<GenerateResponseData>({
         url: `http://localhost:${port}/echoModelWithAuth`,
         input: {
           messages: [{ role: 'user', content: [{ text: 'hello' }] }],
@@ -270,14 +270,14 @@ describe('telemetry', async () => {
 
   describe('streamFlow', () => {
     it('stream a flow', async () => {
-      const result = streamFlow({
+      const result = streamFlow<string, GenerateResponseChunkData>({
         url: `http://localhost:${port}/streamingFlow`,
         input: {
           question: 'olleh',
         },
       });
 
-      const gotChunks: any[] = [];
+      const gotChunks: GenerateResponseChunkData[] = [];
       for await (const chunk of result.stream()) {
         gotChunks.push(chunk);
       }

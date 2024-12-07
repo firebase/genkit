@@ -34,7 +34,7 @@ const __flowStreamDelimiter = '\n\n';
  * console.log(await response.output);
  * ```
  */
-export function streamFlow({
+export function streamFlow<O = any, S = any>({
   url,
   input,
   headers,
@@ -42,7 +42,10 @@ export function streamFlow({
   url: string;
   input?: any;
   headers?: Record<string, string>;
-}) {
+}): {
+  output(): Promise<O>;
+  stream(): AsyncIterable<S>;
+} {
   let chunkStreamController: ReadableStreamDefaultController | undefined =
     undefined;
   const chunkStream = new ReadableStream({
@@ -167,7 +170,7 @@ async function __flowRunEnvelope({
  * console.log(await response);
  * ```
  */
-export async function runFlow({
+export async function runFlow<O = any>({
   url,
   input,
   headers,
@@ -175,7 +178,7 @@ export async function runFlow({
   url: string;
   input?: any;
   headers?: Record<string, string>;
-}) {
+}): Promise<O> {
   const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
