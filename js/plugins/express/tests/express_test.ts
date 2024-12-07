@@ -23,7 +23,7 @@ import * as http from 'http';
 import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { getFlowContext } from '../../../core/lib/auth.js';
-import { handler } from '../src/index.js';
+import { RequestWithAuth, handler } from '../src/index.js';
 
 describe('telemetry', async () => {
   let server: http.Server;
@@ -31,7 +31,7 @@ describe('telemetry', async () => {
 
   beforeEach(async () => {
     const ai = genkit({});
-    defineEchoModel(ai);
+    const echoModel = defineEchoModel(ai);
 
     const voidInput = ai.defineFlow('voidInput', async () => {
       return 'banana';
@@ -91,8 +91,8 @@ describe('telemetry', async () => {
     app.post('/streamingFlow', handler(streamingFlow));
     app.post(
       '/flowWithAuth',
-      async (req, res, next) => {
-        (req as any).auth = {
+      async (req, resp, next) => {
+        (req as RequestWithAuth).auth = {
           user:
             req.header('authorization') === 'open sesame'
               ? 'Ali Baba'
@@ -101,9 +101,36 @@ describe('telemetry', async () => {
         next();
       },
       handler(flowWithContext, {
-        authPolicy: ({ auth, flow, input, request }) => {
+        authPolicy: ({ auth, action, input, request }) => {
           assert.ok(auth, 'auth must be set');
-          assert.ok(flow, 'flow must be set');
+          assert.ok(action, 'flow must be set');
+          assert.ok(input, 'input must be set');
+          assert.ok(request, 'request must be set');
+
+          if (auth.user !== 'Ali Baba') {
+            throw new Error('not authorized');
+          }
+        },
+      })
+    );
+
+    // Can also expose any action.
+    app.post('/echoModel', handler(echoModel));
+    app.post(
+      '/echoModelWithAuth',
+      async (req, resp, next) => {
+        (req as RequestWithAuth).auth = {
+          user:
+            req.header('authorization') === 'open sesame'
+              ? 'Ali Baba'
+              : '40 thieves',
+        };
+        next();
+      },
+      handler(echoModel, {
+        authPolicy: ({ auth, action, input, request }) => {
+          assert.ok(auth, 'auth must be set');
+          assert.ok(action, 'flow must be set');
           assert.ok(input, 'input must be set');
           assert.ok(request, 'request must be set');
 
@@ -188,9 +215,60 @@ describe('telemetry', async () => {
         return (err as Error).message.includes('not authorized');
       });
     });
+
+    it('should call a model', async () => {
+      const result = await runFlow({
+        url: `http://localhost:${port}/echoModel`,
+        input: {
+          messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+        },
+      });
+      assert.strictEqual(result.finishReason, 'stop');
+      assert.deepStrictEqual(result.message, {
+        role: 'model',
+        content: [{ text: 'Echo: hello' }],
+      });
+    });
+
+    it('should call a model with auth', async () => {
+      const result = await runFlow({
+        url: `http://localhost:${port}/echoModelWithAuth`,
+        input: {
+          messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+        },
+        headers: {
+          Authorization: 'open sesame',
+        },
+      });
+      assert.strictEqual(result.finishReason, 'stop');
+      assert.deepStrictEqual(result.message, {
+        role: 'model',
+        content: [{ text: 'Echo: hello' }],
+      });
+    });
+
+    it('should fail a flow with auth', async () => {
+      const result = runFlow({
+        url: `http://localhost:${port}/echoModelWithAuth`,
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: 'hello' }],
+            },
+          ],
+        },
+        headers: {
+          Authorization: 'thieve #24',
+        },
+      });
+      await assert.rejects(result, (err) => {
+        return (err as Error).message.includes('not authorized');
+      });
+    });
   });
 
-  describe('runFlow', () => {
+  describe('streamFlow', () => {
     it('stream a flow', async () => {
       const result = streamFlow({
         url: `http://localhost:${port}/streamingFlow`,
@@ -211,6 +289,38 @@ describe('telemetry', async () => {
       ]);
 
       assert.strictEqual(await result.output(), 'Echo: olleh');
+    });
+
+    it('stream a model', async () => {
+      const result = streamFlow({
+        url: `http://localhost:${port}/echoModel`,
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: 'olleh' }],
+            },
+          ],
+        },
+      });
+
+      const gotChunks: any[] = [];
+      for await (const chunk of result.stream()) {
+        gotChunks.push(chunk);
+      }
+
+      const output = await result.output();
+      assert.strictEqual(output.finishReason, 'stop');
+      assert.deepStrictEqual(output.message, {
+        role: 'model',
+        content: [{ text: 'Echo: olleh' }],
+      });
+
+      assert.deepStrictEqual(gotChunks, [
+        { content: [{ text: '3' }] },
+        { content: [{ text: '2' }] },
+        { content: [{ text: '1' }] },
+      ]);
     });
   });
 });

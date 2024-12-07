@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { FlowAuthPolicy, handler } from '@genkit-ai/express';
+import { AuthPolicy, RequestWithAuth, handler } from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, {
@@ -24,7 +24,10 @@ import express, {
   Response,
 } from 'express';
 import { genkit, run, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import { ollama } from 'genkitx-ollama';
+
+logger.setLogLevel('debug');
 
 const ai = genkit({
   plugins: [
@@ -61,22 +64,24 @@ export const jokeFlow = ai.defineFlow(
 const auth: Handler = (req, resp, next) => {
   const token = req.header('authorization');
   // pretend we check auth token
-  (req as any).auth = { username: token };
+  (req as RequestWithAuth).auth = {
+    username: token === 'open sesame' ? 'Ali Baba' : '40 thieves',
+  };
   next();
 };
 
 const app = express();
 app.use(express.json());
 
-const authPolicies: Record<string, FlowAuthPolicy> = {
-  jokeFlow: (auth) => {
-    if (auth.username != 'authorized') {
-      throw new Error('unauthorized');
+const authPolicies: Record<string, AuthPolicy> = {
+  jokeFlow: ({ auth }) => {
+    if (auth.username != 'Ali Baba') {
+      throw new Error('unauthorized: ' + JSON.stringify(auth));
     }
   },
 };
 
-// curl http://localhost:5000/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: authorized"
+// curl http://localhost:5000/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: open sesame"
 ai.flows.forEach((f) => {
   app.post(
     `/${f.name}`,

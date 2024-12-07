@@ -15,7 +15,13 @@
  */
 
 import express from 'express';
-import { CallableFlow, Flow, z } from 'genkit';
+import {
+  Action,
+  CallableFlow,
+  Flow,
+  runWithStreamingCallback,
+  z,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import { getErrorMessage, getErrorStack } from './utils';
 
@@ -29,7 +35,8 @@ export interface AuthPolicyContext<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  flow: Flow<I, O, S>;
+  flow?: Flow<I, O, S>;
+  action?: Action<I, O, S>;
   input: z.infer<I>;
   auth: any | undefined;
   request: RequestWithAuth;
@@ -56,19 +63,29 @@ export interface RequestWithAuth extends express.Request {
   auth?: unknown;
 }
 
+/**
+ * Exposes provided flow or an action as express handler.
+ * 
+ * @param f 
+ * @param opts 
+ * @returns 
+ */
 export function handler<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  f: CallableFlow<I, O, S> | Flow<I, O, S>,
+  f: CallableFlow<I, O, S> | Flow<I, O, S> | Action<I, O, S>,
   opts?: {
     authPolicy?: AuthPolicy<I, O, S>;
   }
 ): express.RequestHandler {
-  const flow: Flow<I, O, S> = (f as CallableFlow<I, O, S>).flow
-    ? (f as CallableFlow<I, O, S>).flow
-    : (f as Flow<I, O, S>);
+  const flow: Flow<I, O, S> | undefined = (f as Flow<I, O, S>).invoke
+    ? (f as Flow<I, O, S>)
+    : (f as CallableFlow<I, O, S>).flow
+      ? (f as CallableFlow<I, O, S>).flow
+      : undefined;
+  const action: Action<I, O, S> = flow ? flow.action : (f as Action<I, O, S>);
   return async (
     request: RequestWithAuth,
     response: express.Response
@@ -80,6 +97,7 @@ export function handler<
     try {
       await opts?.authPolicy?.({
         flow,
+        action,
         auth,
         input,
         request,
@@ -102,14 +120,17 @@ export function handler<
         'Transfer-Encoding': 'chunked',
       });
       try {
-        const result = await flow.invoke(input, {
-          onChunk: (chunk: z.infer<S>) => {
-            response.write(
-              'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
-            );
-          },
-          context: auth,
-        });
+        const onChunk = (chunk: z.infer<S>) => {
+          response.write(
+            'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
+          );
+        };
+        const result = await runWithStreamingCallback(onChunk, () =>
+          action.run(input, {
+            onChunk,
+            context: auth,
+          })
+        );
         response.write(
           'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
         );
@@ -131,7 +152,7 @@ export function handler<
       }
     } else {
       try {
-        const result = await flow.invoke(input, { context: auth });
+        const result = await action.run(input, { context: auth });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
