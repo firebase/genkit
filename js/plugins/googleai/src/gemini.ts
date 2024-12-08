@@ -210,6 +210,25 @@ export function gemini(
   version: GeminiVersionString,
   options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
+  const nearestModel = nearestGeminiModelRef(version);
+  return modelRef({
+    name: `googleai/${version}`,
+    config: options,
+    configSchema: GeminiConfigSchema,
+    info: {
+      ...nearestModel.info,
+      // If exact suffix match for a known model, use its label, otherwise create a new label
+      label: nearestModel.name.endsWith(version)
+        ? nearestModel.info?.label
+        : `Google AI - ${version}`,
+    },
+  });
+}
+
+function nearestGeminiModelRef(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
   const matchingKey = longestMatchingPrefix(
     version,
     Object.keys(SUPPORTED_GEMINI_MODELS)
@@ -545,7 +564,7 @@ export function defineGoogleAIModel(
   const model: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[name] ??
     modelRef({
-      name,
+      name: `googleai/${apiModelName}`,
       info: {
         label: `Google AI - ${apiModelName}`,
         supports: {

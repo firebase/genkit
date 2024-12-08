@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
+import { Genkit, ModelReference } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
@@ -22,7 +22,7 @@ import {
   textEmbeddingGecko001,
 } from './embedder.js';
 import {
-  GENERIC_GEMINI_MODEL,
+  GeminiConfigSchema,
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
   defineGoogleAIModel,
@@ -43,6 +43,7 @@ export interface PluginOptions {
   apiKey?: string;
   apiVersion?: string | string[];
   baseUrl?: string;
+  models?: (ModelReference<typeof GeminiConfigSchema> | string)[];
 }
 
 export function googleAI(options?: PluginOptions): GenkitPlugin {
@@ -56,15 +57,6 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
         apiVersions = [options?.apiVersion];
       }
     }
-
-    defineGoogleAIModel(
-      ai,
-      GENERIC_GEMINI_MODEL.name,
-      options?.apiKey,
-      undefined,
-      options?.baseUrl,
-      GENERIC_GEMINI_MODEL.info
-    );
 
     if (apiVersions.includes('v1beta')) {
       Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
@@ -99,6 +91,26 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
       Object.keys(EMBEDDER_MODELS).forEach((name) =>
         defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
       );
+    }
+
+    if (options?.models) {
+      for (const modelOrRef of options?.models) {
+        const modelName =
+          typeof modelOrRef === 'string' ? modelOrRef : modelOrRef.name;
+        const modelRef =
+          typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
+        defineGoogleAIModel(
+          ai,
+          modelName,
+          options?.apiKey,
+          undefined,
+          options?.baseUrl,
+          {
+            ...modelRef.info,
+            label: `Google AI - ${modelName}`,
+          }
+        );
+      }
     }
   });
 }
