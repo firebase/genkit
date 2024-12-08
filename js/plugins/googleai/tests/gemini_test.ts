@@ -433,11 +433,7 @@ describe('plugin', () => {
       const ai = genkit({
         plugins: [
           googleAI({
-            models: [
-              'gemini-1.5-pro-002',
-              flash002Ref,
-              'gemini-4.0-banana',
-            ],
+            models: ['gemini-1.5-pro-002', flash002Ref, 'gemini-4.0-banana'],
           }),
         ],
       });
