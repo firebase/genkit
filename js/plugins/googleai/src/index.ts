@@ -96,7 +96,10 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
     if (options?.models) {
       for (const modelOrRef of options?.models) {
         const modelName =
-          typeof modelOrRef === 'string' ? modelOrRef : modelOrRef.name;
+          typeof modelOrRef === 'string'
+            ? modelOrRef
+            // strip out the `googleai/` prefix
+            : modelOrRef.name.split('/')[1];
         const modelRef =
           typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
         defineGoogleAIModel(

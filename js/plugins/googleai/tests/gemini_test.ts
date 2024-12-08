@@ -429,12 +429,13 @@ describe('plugin', () => {
     });
 
     it('references explicitly registered models', async () => {
+      const flash002Ref = gemini('gemini-1.5-flash-002');
       const ai = genkit({
         plugins: [
           googleAI({
             models: [
               'gemini-1.5-pro-002',
-              'gemini-1.5-flash-002',
+              flash002Ref,
               'gemini-4.0-banana',
             ],
           }),
@@ -457,7 +458,6 @@ describe('plugin', () => {
         gemini15Pro.info!
       );
 
-      const flash002Ref = gemini('gemini-1.5-flash-002');
       assert.strictEqual(flash002Ref.name, 'googleai/gemini-1.5-flash-002');
       assertEqualModelInfo(
         flash002Ref.info!,
