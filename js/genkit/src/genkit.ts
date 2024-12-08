@@ -68,7 +68,11 @@ import {
   EvaluatorAction,
   EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
-import { configureFormats } from '@genkit-ai/ai/formats';
+import {
+  configureFormats,
+  defineFormat,
+  Formatter,
+} from '@genkit-ai/ai/formats';
 import {
   defineModel,
   DefineModelOptions,
@@ -106,7 +110,6 @@ import {
   defineSchema,
   defineStreamingFlow,
   Flow,
-  FlowConfig,
   FlowFn,
   FlowServer,
   FlowServerOptions,
@@ -132,6 +135,7 @@ import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
+import { toJsonSchema } from './schema.js';
 import { toToolDefinition } from './tool.js';
 
 /**
@@ -198,7 +202,11 @@ export class Genkit {
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(config: FlowConfig<I, O> | string, fn: FlowFn<I, O>): CallableFlow<I, O> {
+    S extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    config: StreamingFlowConfig<I, O, S> | string,
+    fn: FlowFn<I, O, S>
+  ): CallableFlow<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
     this.registeredFlows.push(flow.flow);
     return flow;
@@ -207,7 +215,7 @@ export class Genkit {
   /**
    * Defines and registers a streaming flow.
    *
-   * @todo TODO: Improve this documentation (show snippetss, etc).
+   * @deprecated use {@link defineFlow}
    */
   defineStreamingFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -245,6 +253,48 @@ export class Genkit {
    */
   defineSchema<T extends z.ZodTypeAny>(name: string, schema: T): T {
     return defineSchema(this.registry, name, schema);
+  }
+
+  /**
+   * Defines and registers a custom model output formatter.
+   *
+   * Here's an example of a custom JSON output formatter:
+   *
+   * ```ts
+   * import { extractJson } from 'genkit/extract';
+   *
+   * ai.defineFormat(
+   *   { name: 'customJson' },
+   *   (schema) => {
+   *     let instructions: string | undefined;
+   *     if (schema) {
+   *       instructions = `Output should be in JSON format and conform to the following schema:
+   * \`\`\`
+   * ${JSON.stringify(schema)}
+   * \`\`\`
+   * `;
+   *     }
+   *     return {
+   *       parseChunk: (chunk) => extractJson(chunk.accumulatedText),
+   *       parseMessage: (message) => extractJson(message.text),
+   *       instructions,
+   *     };
+   *   }
+   * );
+   *
+   * const { output } = await ai.generate({
+   *   prompt: 'Invent a menu item for a pirate themed restaurant.',
+   *   output: { format: 'customJson', schema: MenuItemSchema },
+   * });
+   * ```
+   */
+  defineFormat(
+    options: {
+      name: string;
+    } & Formatter['config'],
+    handler: Formatter['handler']
+  ): { config: Formatter['config']; handler: Formatter['handler'] } {
+    return defineFormat(this.registry, options, handler);
   }
 
   /**
@@ -286,7 +336,7 @@ export class Genkit {
       // check the registry first as not all prompt types can be
       // loaded by dotprompt (e.g. functional)
       let action = (await this.registry.lookupAction(
-        `/prompt/${name}`
+        `/prompt/${name}${options?.variant ? `.${options?.variant}` : ''}`
       )) as PromptAction<I>;
       // nothing in registry - check for dotprompt file.
       if (!action) {
@@ -416,10 +466,15 @@ export class Genkit {
           if (!response.tools && options.tools) {
             response.tools = (
               await resolveTools(this.registry, options.tools)
-            ).map(toToolDefinition);
+            ).map((t) => toToolDefinition(t));
           }
           if (!response.output && options.output) {
-            response.output = options.output;
+            response.output = {
+              schema: toJsonSchema({
+                schema: options.output.schema,
+                jsonSchema: options.output.jsonSchema,
+              }),
+            };
           }
           return response;
         }

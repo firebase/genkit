@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
+import { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
+import zodToJsonSchema from 'zod-to-json-schema';
 import {
   CreateDatasetRequest,
   ListEvalKeysRequest,
   ListEvalKeysResponse,
   UpdateDatasetRequest,
 } from './apis';
+import { GenerateRequestSchema } from './model';
 
 /**
  * This file defines schema and types that are used by the Eval store.
@@ -42,6 +45,21 @@ export type EvalInferenceStructuredInput = z.infer<
   typeof EvalInferenceStructuredInputSchema
 >;
 
+/**
+ * Supported datatype when running eval-inference using models
+ */
+export const ModelInferenceInputSchema = z.union([
+  z.string(),
+  GenerateRequestSchema,
+]);
+export type ModelInferenceInput = z.infer<typeof ModelInferenceInputSchema>;
+export const ModelInferenceInputJSONSchema = zodToJsonSchema(
+  ModelInferenceInputSchema,
+  {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  }
+) as JSONSchema7;
 /**
  * A set of samples that is ready for inference.
  *
@@ -111,12 +129,14 @@ export const EvalRunKeySchema = z.object({
   datasetVersion: z.number().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
+  actionConfig: z.any().optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
   datasetId: true,
   datasetVersion: true,
   actionRef: true,
+  actionConfig: true,
 });
 export type EvalKeyAugments = z.infer<typeof EvalKeyAugmentsSchema>;
 
@@ -172,6 +192,10 @@ export const DatasetSchemaSchema = z.object({
     .optional(),
 });
 
+/** Type of dataset, useful for UI niceties. */
+export const DatasetTypeSchema = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
+export type DatasetType = z.infer<typeof DatasetTypeSchema>;
+
 /**
  * Metadata for Dataset objects containing version, create and update time, etc.
  */
@@ -180,6 +204,7 @@ export const DatasetMetadataSchema = z.object({
   datasetId: z.string(),
   size: z.number(),
   schema: DatasetSchemaSchema.optional(),
+  datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),

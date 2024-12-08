@@ -51,4 +51,4 @@ async function configureGcpPlugin(
 
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
-export { GcpTelemetryConfigOptions } from './types.js';
+export { type GcpTelemetryConfigOptions } from './types.js';

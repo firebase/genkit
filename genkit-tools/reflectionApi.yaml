@@ -332,6 +332,15 @@ paths:
                 input:
                   nullable: true
                   description: An input with the type that this action expects.
+                context:
+                  nullable: true
+                  description: Additional runtime context data (ex. auth context data).
+                telemetryLabels:
+                  type: object
+                  nullable: true
+                  additionalProperties:
+                    type: string
+                  description: Labels to be applied to telemetry data.
               required:
                 - key
       responses:

@@ -1,13 +1,8 @@
 {
   "name": "run",
   "commands": [{"run" :{"name": "r", "command": {"append": "x"}}}],
-  "input": {"start": {"input": ""}},
-  "result": {
-    "operation": {
-      "done": true,
-      "result": {"response": "x"}
-    }
-  },
+  "input": "",
+  "result": "x",
   "trace": {
     "displayName": "dev-run-action-wrapper",
     "spans": {
@@ -73,7 +68,7 @@
           "genkit:type": "action",
           "genkit:name": "run",
           "genkit:path": "/dev-run-action-wrapper/run",
-          "genkit:input": "{\"start\":{}}",
+          "genkit:input": "\"\"",
           "genkit:metadata:flow:wrapperAction": "true",
           "genkit:output": "$ANYTHING",
           "_comment": "The output above is a JSON object with various random IDs",

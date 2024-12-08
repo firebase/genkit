@@ -91,7 +91,8 @@ describe('GoogleCloudTracing', () => {
     const spans = await getExportedSpans();
     // Check some common attributes
     assert.equal(spans[0].attributes['genkit/name'], 'testFlow');
-    assert.equal(spans[0].attributes['genkit/type'], 'flow');
+    assert.equal(spans[0].attributes['genkit/type'], 'action');
+    assert.equal(spans[0].attributes['genkit/metadata/subtype'], 'flow');
     // Ensure we have no attributes with ':' because these are awkward to use in
     // Cloud Trace.
     const spanAttrKeys = Object.entries(spans[0].attributes).map(([k, v]) => k);
@@ -152,6 +153,8 @@ describe('GoogleCloudTracing', () => {
       spans[0].attributes['genkit/failedPath'],
       '/{badFlow,t:flow}/{badStep,t:flowStep}'
     );
+    assert.equal(spans[1].attributes['genkit/isRoot'], true);
+    assert.equal(spans[1].attributes['genkit/rootState'], 'error');
   });
 
   it('labels the root feature', async () => {
@@ -165,6 +168,7 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[0].attributes['genkit/feature'], undefined);
     assert.equal(spans[1].name, 'niceFlow');
     assert.equal(spans[1].attributes['genkit/feature'], 'niceFlow');
+    assert.equal(spans[1].attributes['genkit/rootState'], 'success');
   });
 
   it('adds the genkit/model label for model actions', async () => {

@@ -64,7 +64,7 @@ func pr03() error {
 		"helloPrompt",
 		nil, // Additional model config
 		jsonschema.Reflect(&HelloPromptInput{}),
-		func(ctx context.Context, input any) (*ai.GenerateRequest, error) {
+		func(ctx context.Context, input any) (*ai.ModelRequest, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
 				return nil, errors.New("input doesn't satisfy schema")
@@ -72,7 +72,7 @@ func pr03() error {
 			prompt := fmt.Sprintf(
 				"You are a helpful AI assistant named Walt. Say hello to %s.",
 				params.UserName)
-			return &ai.GenerateRequest{Messages: []*ai.Message{
+			return &ai.ModelRequest{Messages: []*ai.Message{
 				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
 			}}, nil
 		},

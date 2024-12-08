@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { FlowInvokeEnvelopeMessage } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
@@ -50,12 +49,8 @@ export const flowRun = new Command('flow:run')
         await manager.runAction(
           {
             key: `/flow/${flowName}`,
-            input: {
-              start: {
-                input: data ? JSON.parse(data) : undefined,
-              },
-              auth: options.auth ? JSON.parse(options.auth) : undefined,
-            } as FlowInvokeEnvelopeMessage,
+            input: data ? JSON.parse(data) : undefined,
+            context: options.auth ? JSON.parse(options.auth) : undefined,
           },
           options.stream
             ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))

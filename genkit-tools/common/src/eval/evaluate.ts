@@ -25,7 +25,6 @@ import {
   EvalKeyAugments,
   EvalRun,
   EvalRunKey,
-  FlowActionInputSchema,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseSchema,
@@ -94,7 +93,12 @@ export async function runNewEvaluation(
     manager,
     evaluatorActions,
     evalDataset,
-    augments: { actionRef, datasetId, datasetVersion },
+    augments: {
+      actionRef,
+      datasetId,
+      datasetVersion,
+      actionConfig: request.options?.actionConfig,
+    },
   });
   return evalRun.key;
 }
@@ -257,15 +261,10 @@ async function runFlowAction(params: {
   const { manager, actionRef, testCase, auth } = { ...params };
   let state: InferenceRunState;
   try {
-    const flowInput = FlowActionInputSchema.parse({
-      start: {
-        input: testCase.input,
-      },
-      auth: auth ? JSON.parse(auth) : undefined,
-    });
     const runActionResponse = await manager.runAction({
       key: actionRef,
-      input: flowInput,
+      input: testCase.input,
+      context: auth ? JSON.parse(auth) : undefined,
     });
     state = {
       ...testCase,

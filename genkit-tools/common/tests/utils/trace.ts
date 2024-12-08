@@ -235,7 +235,6 @@ export class MockTrace {
     let baseFlowSpan = { ...this.BASE_FLOW_SPAN };
     baseFlowSpan.attributes['genkit:input'] = JSON.stringify(flowInput);
     baseFlowSpan.attributes['genkit:output'] = JSON.stringify(flowOutput);
-    baseFlowSpan.attributes['genkit:metadata:flow:state'] = baseFlowState;
 
     let wrapperActionSpan = { ...this.WRAPPER_ACTION_SPAN };
     wrapperActionSpan.attributes['genkit:input'] = JSON.stringify({

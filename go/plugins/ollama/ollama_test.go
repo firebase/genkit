@@ -68,7 +68,7 @@ func TestConcatMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := &ai.GenerateRequest{Messages: tt.messages}
+			input := &ai.ModelRequest{Messages: tt.messages}
 			got := concatMessages(input, tt.roles)
 			if got != tt.want {
 				t.Errorf("concatMessages() = %q, want %q", got, tt.want)
@@ -81,13 +81,13 @@ func TestTranslateGenerateChunk(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    *ai.GenerateResponseChunk
+		want    *ai.ModelResponseChunk
 		wantErr bool
 	}{
 		{
 			name:  "Valid JSON response",
 			input: `{"model": "my-model", "created_at": "2024-06-20T12:34:56Z", "response": "This is a test response."}`,
-			want: &ai.GenerateResponseChunk{
+			want: &ai.ModelResponseChunk{
 				Content: []*ai.Part{ai.NewTextPart("This is a test response.")},
 			},
 			wantErr: false,
