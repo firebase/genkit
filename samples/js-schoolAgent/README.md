@@ -2,6 +2,8 @@
 
 A demonstration of a conversational AI assistant for a school system using GenKit and Google's Gemini Pro. This agent helps parents with attendance reporting and school information queries.
 
+This multi-agent demo works best on Gemini 1.5 Pro. It also works with Gemini 1.0 Pro but is sometimes more prone to errors / not fully recognizing that the specialized agents come equipped with certain actiions.
+
 ## Features
 
 - **Prompt-as-Tool Architecture**:
@@ -33,7 +35,7 @@ npm install
 export GOOGLE_GENAI_API_KEY=your_api_key_here
 ```
 
-3. Start the development server:
+3. Start the development server in watch mode:
 
 ```bash
 npm run genkit:dev
@@ -53,6 +55,8 @@ bell> Hi there, my name is Bell and I'm here to help! 👋🎉 I'm your friendly
 prompt> [insert your chats here]
 ```
 
+Any changes to the sample will be reflected immediately and should restart the chat agent.
+
 ## Usage
 
 The agent uses a multi-agent architecture:
@@ -66,17 +70,11 @@ Example queries:
 - "What are the upcoming holidays I should be aware of?"
 - "What are Evelyn's grades?"
 
-## Development
-
-- `npm run dev` - Run in development mode with hot reloading
-- `npm run build` - Build the project
-- `npm start` - Run the built version
-
 ## Project Structure
 
 - `src/`
   - `agents/`
-    - `infoAgent.ts` - Main agent that uses other agents as tools
+    - `infoAgent.ts` - Main agent that uses other agents as tools, and has additional tools for general-purpose QA
     - `attendanceAgent.ts` - Specialized attendance agent
     - `gradesAgent.ts` - Specialized grades agent
   - `tools.ts` - Tool definitions
