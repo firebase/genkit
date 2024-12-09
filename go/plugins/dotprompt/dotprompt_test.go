@@ -299,14 +299,6 @@ func TestInputFormat(t *testing.T) {
 		Name string `json:"name"`
 	}
 
-	var helloSchema jsonschema.Schema
-	r := &jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
-	helloSchemaByRef := r.Reflect(hello{})
-	helloSchema = *helloSchemaByRef
-
 	var tests = []struct {
 		name         string
 		templateText string
@@ -314,25 +306,12 @@ func TestInputFormat(t *testing.T) {
 		input        map[string]any
 		render       string
 	}{
-		// No input and no inputType is not possible atm because of DefinePrompt
-		// DOCS: DefinePrompt takes a function that renders a prompt template
-		// into a [GenerateRequest] that may be passed to a [Model].
-		// The prompt expects some input described by inputSchema.
-		// DefinePrompt registers the function as an action,
-		// and returns a [Prompt] that runs it.
-		// {
-		// 	name:         "noInput",
-		// 	templateText: "hello world",
-		// 	input:        nil,
-		// 	render:       "hello world",
-		// },
-		// Based on the documentation on NewAction, if inputSchema is nil, it is inferred from In. Issue is, In is nil at Define time
-		// {
-		// 	name:         "noInputType",
-		// 	templateText: "hello {{input}}",
-		// 	input:  map[string]any{"input": "world"},
-		// 	render: "hello world",
-		// },
+		{
+			name:         "noInput",
+			templateText: "hello world",
+			input:        nil,
+			render:       "hello world",
+		},
 		{
 			name:         "structInput",
 			templateText: "hello {{name}}",
@@ -366,20 +345,6 @@ func TestInputFormat(t *testing.T) {
 			templateText: "hello {{name}}",
 			inputType:    map[string]any{"name": "world"},
 			input:        map[string]any{"name": "world"},
-			render:       "hello world",
-		},
-		{
-			name:         "jsonInput",
-			templateText: "hello {{input}}",
-			inputType:    helloSchema,
-			input:        map[string]any{"input": "world"},
-			render:       "hello world",
-		},
-		{
-			name:         "jsonInputByRef",
-			templateText: "hello {{input}}",
-			inputType:    helloSchemaByRef,
-			input:        map[string]any{"input": "world"},
 			render:       "hello world",
 		},
 	}

@@ -299,6 +299,11 @@ func Define(name, templateText string, opts ...PromptOption) (*Prompt, error) {
 
 	// TODO Inherit model from genkit instance
 
+	// If inputschema is empty, default to empty string, to allow prompts with no input
+	if p.Config.InputSchema == nil {
+		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(map[string]any{"value": ""})
+	}
+
 	p.Register()
 	return p, nil
 }
@@ -375,16 +380,6 @@ func WithInputType(input any) PromptOption {
 		// Pass map directly
 		case map[string]any:
 			input = v
-		// Pass schema directly
-		case *jsonschema.Schema:
-			p.Config.InputSchema = v
-		case jsonschema.Schema:
-			p.Config.InputSchema = &v
-		}
-
-		// If a JSON schema is passed, it won't contain values to set as default input
-		if p.Config.InputSchema != nil {
-			return nil
 		}
 
 		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
