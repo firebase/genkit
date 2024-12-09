@@ -299,11 +299,6 @@ func Define(name, templateText string, opts ...PromptOption) (*Prompt, error) {
 
 	// TODO Inherit model from genkit instance
 
-	// If inputschema is empty, default to empty string, to allow prompts with no input
-	if p.Config.InputSchema == nil {
-		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(map[string]any{"value": ""})
-	}
-
 	p.Register()
 	return p, nil
 }
