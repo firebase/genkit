@@ -16,8 +16,8 @@
 
 import { attendanceAgent } from './attendanceAgent';
 import { ai } from './genkit';
-import { searchEvents, upcomingHolidays } from './tools.js';
 import { gradesAgent } from './gradesAgent';
+import { searchEvents, upcomingHolidays } from './tools.js';
 
 export const infoAgent = ai.definePrompt(
   {

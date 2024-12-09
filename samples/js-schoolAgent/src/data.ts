@@ -74,23 +74,23 @@ export interface GradeEntry {
 export const EXAMPLE_GRADES: GradeEntry[] = [
   {
     studentId: 3734,
-    subject: "Mathematics",
-    grade: "A-",
-    date: "2024-03-01",
-    assignment: "Quadratic Equations Quiz"
+    subject: 'Mathematics',
+    grade: 'A-',
+    date: '2024-03-01',
+    assignment: 'Quadratic Equations Quiz',
   },
   {
     studentId: 3734,
-    subject: "English",
-    grade: "B+",
-    date: "2024-03-05",
-    assignment: "Essay: Shakespeare Analysis"
+    subject: 'English',
+    grade: 'B+',
+    date: '2024-03-05',
+    assignment: 'Essay: Shakespeare Analysis',
   },
   {
     studentId: 9433,
-    subject: "Physics",
-    grade: "A",
-    date: "2024-03-02",
-    assignment: "Forces Lab Report"
-  }
+    subject: 'Physics',
+    grade: 'A',
+    date: '2024-03-02',
+    assignment: 'Forces Lab Report',
+  },
 ];

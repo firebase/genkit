@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EXAMPLE_EVENTS, getUpcomingHolidays, EXAMPLE_GRADES } from './data.js';
+import { EXAMPLE_EVENTS, EXAMPLE_GRADES, getUpcomingHolidays } from './data.js';
 import { ai, z } from './genkit.js';
 import { AgentState } from './types.js';
 
@@ -70,7 +70,10 @@ export const reportAbsence = ai.defineTool(
     }),
   },
   async (input) => {
-    const student = checkIsParent(input.studentId, ai.currentSession<AgentState>().state!);
+    const student = checkIsParent(
+      input.studentId,
+      ai.currentSession<AgentState>().state!
+    );
     console.log(
       `[TOOL] Absence reported for ${student.name} (ID: ${input.studentId}) on ${input.date}`
     );
@@ -125,14 +128,19 @@ export const getRecentGrades = ai.defineTool(
     inputSchema: z.object({
       studentId: z.number().describe('the id of the student'),
       subject: z.string().optional().describe('optional subject filter'),
-      limit: z.number().optional().describe('number of recent grades to return')
+      limit: z
+        .number()
+        .optional()
+        .describe('number of recent grades to return'),
     }),
   },
   async ({ studentId, subject, limit = 5 }) => {
     checkIsParent(studentId, ai.currentSession<AgentState>().state!);
-    let grades = EXAMPLE_GRADES.filter(g => g.studentId === studentId);
+    let grades = EXAMPLE_GRADES.filter((g) => g.studentId === studentId);
     if (subject) {
-      grades = grades.filter(g => g.subject.toLowerCase() === subject.toLowerCase());
+      grades = grades.filter(
+        (g) => g.subject.toLowerCase() === subject.toLowerCase()
+      );
     }
     return grades.slice(0, limit);
   }

@@ -4,7 +4,8 @@ import { getRecentGrades } from './tools.js';
 export const gradesAgent = ai.definePrompt(
   {
     name: 'gradesAgent',
-    description: 'transfer to this agent when the user asks about grades, academic performance, or recent assignments. do not mention that you are transferring, just do it',
+    description:
+      'transfer to this agent when the user asks about grades, academic performance, or recent assignments. do not mention that you are transferring, just do it',
     tools: [getRecentGrades],
   },
   ` {{ role "system"}}
@@ -19,4 +20,4 @@ Guidelines:
 
 {{ userContext @state }}
   `
-); 
+);
