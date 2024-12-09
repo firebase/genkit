@@ -322,10 +322,10 @@ const toGeminiTool = (
 
 const toGeminiFileDataPart = (part: MediaPart): GeminiPart => {
   const media = part.media;
-  if (media.url.startsWith('gs://')) {
+  if (media.url.startsWith('gs://') || media.url.startsWith('http')) {
     if (!media.contentType)
       throw new Error(
-        'Must supply contentType when using media from gs:// URLs.'
+        'Must supply contentType when using media from http(s):// or gs:// URLs.'
       );
     return {
       fileData: {

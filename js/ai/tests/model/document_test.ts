@@ -20,13 +20,13 @@ import { Document } from '../../src/document.js';
 
 describe('document', () => {
   describe('text()', () => {
-    it('retuns single text part', () => {
+    it('returns single text part', () => {
       const doc = new Document({ content: [{ text: 'foo' }] });
 
       assert.equal(doc.text, 'foo');
     });
 
-    it('retuns concatenated text part', () => {
+    it('returns concatenated text part', () => {
       const doc = new Document({ content: [{ text: 'foo' }, { text: 'bar' }] });
 
       assert.equal(doc.text, 'foobar');
@@ -34,7 +34,7 @@ describe('document', () => {
   });
 
   describe('media()', () => {
-    it('retuns first media part', () => {
+    it('retuns an array of media', () => {
       const doc = new Document({
         content: [
           { media: { url: 'data:foo' } },
@@ -42,9 +42,11 @@ describe('document', () => {
         ],
       });
 
-      assert.deepEqual(doc.media, { url: 'data:foo' });
+      assert.deepEqual(doc.media, [{ url: 'data:foo' }, { url: 'data:bar' }]);
     });
   });
+
+  // TODO(ifielker): add new document tests for data and dataType
 
   describe('toJSON()', () => {
     it('retuns data object', () => {

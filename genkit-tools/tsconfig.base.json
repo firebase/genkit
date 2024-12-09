@@ -9,7 +9,9 @@
     "sourceMap": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true
   },
   "lib": ["ES2022"]
 }

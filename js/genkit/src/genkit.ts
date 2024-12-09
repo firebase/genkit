@@ -498,7 +498,7 @@ export class Genkit implements HasRegistry {
    */
   embed<CustomOptions extends z.ZodTypeAny>(
     params: EmbedderParams<CustomOptions>
-  ): Promise<Embedding> {
+  ): Promise<Embedding[]> {
     return embed(this.registry, params);
   }
 
