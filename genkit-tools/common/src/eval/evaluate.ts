@@ -80,7 +80,7 @@ export async function runNewEvaluation(
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
+    evalFlowInput: EvalInferenceInputSchema.parse(dataset),
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -209,16 +209,11 @@ async function bulkRunAction(params: {
 }): Promise<EvalInput[]> {
   const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[]).map((i) => ({
-        input: i,
-        testCaseId: generateTestCaseId(),
-      }))
-    : evalFlowInput.samples.map((c) => ({
-        input: c.input,
-        reference: c.reference,
-        testCaseId: c.testCaseId ?? generateTestCaseId(),
-      }));
+  let testCases: TestCase[] = evalFlowInput.map((c) => ({
+    input: c.input,
+    reference: c.reference,
+    testCaseId: c.testCaseId ?? generateTestCaseId(),
+  }));
 
   let states: InferenceRunState[] = [];
   let evalInputs: EvalInput[] = [];
