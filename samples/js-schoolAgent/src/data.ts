@@ -62,3 +62,35 @@ export const EXAMPLE_EVENTS = [
     grades: [9, 10, 11, 12],
   },
 ];
+
+export interface GradeEntry {
+  studentId: number;
+  subject: string;
+  grade: string;
+  date: string;
+  assignment: string;
+}
+
+export const EXAMPLE_GRADES: GradeEntry[] = [
+  {
+    studentId: 3734,
+    subject: "Mathematics",
+    grade: "A-",
+    date: "2024-03-01",
+    assignment: "Quadratic Equations Quiz"
+  },
+  {
+    studentId: 3734,
+    subject: "English",
+    grade: "B+",
+    date: "2024-03-05",
+    assignment: "Essay: Shakespeare Analysis"
+  },
+  {
+    studentId: 9433,
+    subject: "Physics",
+    grade: "A",
+    date: "2024-03-02",
+    assignment: "Forces Lab Report"
+  }
+];

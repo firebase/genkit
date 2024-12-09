@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
+import { gemini10Pro, gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 import { AgentState } from './types';
 
