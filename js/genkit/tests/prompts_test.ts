@@ -368,7 +368,6 @@ describe('definePrompt - dotprompt', () => {
       ]);
     });
 
-
     it('streams dotprompt with history and places it before user message', async () => {
       const hi = ai.definePrompt(
         {
@@ -414,7 +413,6 @@ describe('definePrompt - dotprompt', () => {
         },
       ]);
     });
-
 
     it('calls dotprompt with default model with config', async () => {
       const hi = ai.definePrompt(
