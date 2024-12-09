@@ -58,12 +58,10 @@ export const evalExtractData = new Command('eval:extractData')
           .map((t) => {
             const rootSpan = Object.values(t.spans).find(
               (s) =>
-                s.attributes['genkit:type'] === 'flow' &&
+                s.attributes['genkit:metadata:subtype'] === 'flow' &&
                 (!options.label ||
-                  s.attributes['genkit:metadata:flow:label:batchRun'] ===
-                    options.label) &&
-                s.attributes['genkit:metadata:flow:name'] === flowName &&
-                s.attributes['genkit:metadata:flow:state'] === 'done'
+                  s.attributes['batchRun'] === options.label) &&
+                s.attributes['genkit:name'] === flowName
             );
             if (!rootSpan) {
               return undefined;
