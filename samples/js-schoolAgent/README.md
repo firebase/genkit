@@ -57,6 +57,7 @@ The agent uses a multi-agent architecture:
 Example queries:
 - "Mark Evenlyn Smith as absent please"
 - "What are the upcoming holidays I should be aware of?"
+- "What are Evelyn's grades?"
 
 
 ## Development
@@ -71,6 +72,7 @@ Example queries:
   - `agents/`
     - `infoAgent.ts` - Main agent that uses other agents as tools
     - `attendanceAgent.ts` - Specialized attendance agent
+    - `gradesAgent.ts` - Specialized grades agent
   - `tools.ts` - Tool definitions
   - `types.ts` - TypeScript types
   - `data.ts` - Sample data
