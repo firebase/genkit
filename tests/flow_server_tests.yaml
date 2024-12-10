@@ -5,11 +5,6 @@
 
 app: flow_server
 tests:
-  - path: /flow/streamy
-    key: /flow/streamy
-    name: streamy
-    metadata:
-      inputSchema:
-        type: string
-      outputSchema:
-        type: string
+  - path: /streamy
+  - post:
+      data: 5
