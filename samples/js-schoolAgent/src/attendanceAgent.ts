@@ -18,13 +18,21 @@ import { ai } from './genkit.js';
 import { reportAbsence, reportTardy } from './tools.js';
 import { agentDescription, agentPrompt } from './util.js';
 
-const tools = [reportAbsence, reportTardy];
+const tools = [reportAbsence, reportTardy, 'routingAgent'];
 const specialization = 'attendance';
+
+const toolNames: string[] = tools.map(item => {
+  if (typeof item === 'string') {
+    return item; 
+  } else {
+    return item.name;
+  }
+});
 
 export const attendanceAgent = ai.definePrompt(
   {
     name: `${specialization}Agent`,
-    description: agentDescription(specialization, tools),
+    description: agentDescription(specialization, toolNames),
     tools,
   },
   ` {{ role "system"}}
