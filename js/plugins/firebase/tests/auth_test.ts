@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { firebaseAuth } from '../src/auth';
+import { firebaseAuth } from '../lib/auth.js';
 
 describe('firebaseAuth', () => {
   it('config unset throws', async () => {
