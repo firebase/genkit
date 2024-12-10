@@ -20,12 +20,7 @@ import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import path from 'path';
 import z from 'zod';
-import {
-  ActionRunError,
-  Status,
-  StatusCodes,
-  runWithStreamingCallback,
-} from './action.js';
+import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
@@ -216,7 +211,7 @@ export class ReflectionServer {
           } as RunActionResponse);
         }
       } catch (err) {
-        const { message, stack, traceId } = err as ActionRunError;
+        const { message, stack, traceId } = err as any;
         next({ message, stack, traceId });
       }
     });

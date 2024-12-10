@@ -280,7 +280,10 @@ export function action<
           metadata.output = JSON.stringify(output);
           return output;
         } catch (err) {
-          throw new ActionRunError(err, traceId);
+          if (typeof err === 'object') {
+            (err as any).traceId = traceId;
+          }
+          throw err;
         }
       }
     );
@@ -404,20 +407,4 @@ export function isInRuntimeContext() {
  */
 export function runInActionRuntimeContext<R>(fn: () => R) {
   return runtimeCtxAls.run('runtime', fn);
-}
-
-/**
- * Error wrapping the original error thrown during action execution.
- */
-export class ActionRunError extends Error {
-  constructor(
-    readonly cause: any,
-    readonly traceId: string
-  ) {
-    super();
-    if (cause instanceof Error) {
-      this.message = cause.message;
-      this.stack = cause.stack;
-    }
-  }
 }
