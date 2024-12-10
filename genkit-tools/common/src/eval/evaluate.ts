@@ -76,6 +76,10 @@ export async function runNewEvaluation(
   );
   const datasetVersion = targetDatasetMetadata?.version;
 
+  if (dataset.length === 0) {
+    throw new Error(`Dataset ${datasetId} is empty.`);
+  }
+
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
@@ -134,6 +138,9 @@ export async function runEvaluation(params: {
   augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
   const { manager, evaluatorActions, evalDataset, augments } = params;
+  if (evalDataset.length === 0) {
+    throw new Error('Cannot run evaluation, no data provided');
+  }
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   logger.info('Running evaluation...');
@@ -219,6 +226,9 @@ async function bulkRunAction(params: {
         reference: c.reference,
         testCaseId: c.testCaseId ?? generateTestCaseId(),
       }));
+  if (testCases.length === 0) {
+    throw new Error('Cannot run inference, no data provided');
+  }
 
   let states: InferenceRunState[] = [];
   let evalInputs: EvalInput[] = [];
