@@ -17,8 +17,9 @@
 import { readFileSync } from 'fs';
 import * as yaml from 'yaml';
 import {
+  diffJSON,
+  retriable,
   runTestsForApp,
-  retriable
 } from './utils.js';
 
 (async () => {
@@ -29,8 +30,28 @@ import {
   });
 })();
 
+
 async function testFlowServer() {
   const url = 'http://localhost:3400';
+  let data = new FormData()
+  data.append("data", "5")
+  await retriable(
+    async () => {
+      const res = await fetch(`${url}/flow/testFlow`,
+        {
+          method: 'post',
+          body: data,
+        });
+      if (res.status != 200) {
+        throw new Error(`timed out waiting for code to become healthy`)
+      }
+    },
+    {
+      maxRetries: 30,
+      delayMs: 1000,
+    }
+  );
+
 
   const t = yaml.parse(readFileSync('flow_server_tests.yaml', 'utf8'));
   for (const test of t.tests) {
@@ -41,7 +62,6 @@ async function testFlowServer() {
     if (test.hasOwnProperty('post')) {
       fetchopts.method = 'POST';
       fetchopts.headers = { 'Content-Type': 'text/event-stream' }
-      fetchopts.headers = { 'Access-Control-Allow-Origin': '*' }
       fetchopts.body = JSON.stringify(test.post)
     }
     const res = await fetch(url + test.path)
@@ -49,6 +69,25 @@ async function testFlowServer() {
       throw new Error(`${test.path}: got status ${res.status}`);
     }
 
+    const gotBody = await res.json();
+    const diff = diffJSON(gotBody, test.body, {
+      sort: true,
+      excludeKeys: [
+        'outputSchema',
+        'inputSchema',
+        'description',
+        'telemetry',
+        'latencyMs',
+      ],
+    });
+
+    console.log("############## DIFF ################")
+    console.log(diff)
+    if (diff != '') {
+      console.log('test failed:', diff);
+      process.exitCode = 1;
+      throw new Error('test failed');
+    }
   }
   console.log('Flow server tests done! \\o/')
 }
