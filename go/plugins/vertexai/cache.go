@@ -217,6 +217,7 @@ func handleCacheIfNeeded(
   cacheKey := generateCacheKey(cachedContent)
 
   cachedContent.Expiration = genai.ExpireTimeOrTTL{TTL: calculateTTL(cacheConfig)}
+  cachedContent.Name = cacheKey
   newCache, err := client.CreateCachedContent(ctx, cachedContent)
   if err != nil {
     return nil, fmt.Errorf("failed to create cache: %w", err)
