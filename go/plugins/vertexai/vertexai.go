@@ -39,9 +39,9 @@ const (
 
 var (
 	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   gemini.BasicText,
-		"gemini-1.5-pro":   gemini.Multimodal,
-		"gemini-1.5-flash": gemini.Multimodal,
+		"gemini-1.0-pro":       gemini.BasicText,
+		"gemini-1.5-pro":       gemini.Multimodal,
+		"gemini-1.5-flash-002": gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
@@ -238,9 +238,22 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
+	cacheConfig := &CacheConfigDetails{
+		TTLSeconds: 3600, // hardcoded to 1 hour
+	}
+
+	// Attempt to handle caching before creating the model.
+	cache, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	gm, err := newModel(client, model, input)
 	if err != nil {
 		return nil, err
+	}
+	if cache != nil {
+		gm.CachedContentName = cache.Name
 	}
 	cs, err := startChat(gm, input)
 	if err != nil {
