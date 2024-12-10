@@ -28,6 +28,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { GenerateResponseData, MessageSchema, genkit, run, z } from 'genkit';
 import { logger } from 'genkit/logging';
+import { ModelMiddleware } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
 
@@ -593,7 +594,7 @@ ai.defineModel(
   }
 );
 
-const blockingMiddleware = async (req, next) => {
+const blockingMiddleware: ModelMiddleware = async (req, next) => {
   return {
     finishReason: 'blocked',
     finishMessage: `Model input violated policies: further processing blocked.`,
