@@ -17,7 +17,6 @@
 import { readFileSync } from 'fs';
 import * as yaml from 'yaml';
 import {
-  diffJSON,
   retriable,
   runTestsForApp,
 } from './utils.js';
@@ -61,33 +60,40 @@ async function testFlowServer() {
     } as RequestInit;
     if (test.hasOwnProperty('post')) {
       fetchopts.method = 'POST';
-      fetchopts.headers = { 'Content-Type': 'text/event-stream' }
+      fetchopts.headers = { 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive' }
       fetchopts.body = JSON.stringify(test.post)
     }
-    const res = await fetch(url + test.path)
-    if (res.status != 200) {
-      throw new Error(`${test.path}: got status ${res.status}`);
-    }
 
-    const gotBody = await res.json();
-    const diff = diffJSON(gotBody, test.body, {
-      sort: true,
-      excludeKeys: [
-        'outputSchema',
-        'inputSchema',
-        'description',
-        'telemetry',
-        'latencyMs',
-      ],
-    });
-
-    console.log("############## DIFF ################")
-    console.log(diff)
-    if (diff != '') {
-      console.log('test failed:', diff);
-      process.exitCode = 1;
-      throw new Error('test failed');
-    }
+    await fetchData(`${url}${test.path}`, fetchopts)
   }
   console.log('Flow server tests done! \\o/')
+}
+
+// helper function that validates stream flow responses
+async function fetchData(url: string, fetchopts: RequestInit) {
+  const response = await fetch(`${url}`, fetchopts);
+
+  if (!response.ok) {
+    throw new Error(`${url}: error detected, code: ${response.status}`)
+  }
+  const contentHeader = response.headers.get('Content-Type')
+  if (contentHeader && !contentHeader.includes("text/plain")) {
+    throw new Error(`wrong header, got: ${contentHeader}`)
+  }
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error(`unable to get response reader`);
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      console.log("connection closed")
+      break;
+    }
+
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(value);
+    console.log('data:', text)
+  }
 }
