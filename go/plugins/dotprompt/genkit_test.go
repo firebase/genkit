@@ -51,7 +51,7 @@ func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Con
 func TestExecute(t *testing.T) {
 	testModel := ai.DefineModel("test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
-		p, err := New("TestExecute", "TestExecute", Config{Model: &testModel})
+		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {
 			t.Fatal(err)
 		}

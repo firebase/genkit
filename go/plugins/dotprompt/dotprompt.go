@@ -87,8 +87,8 @@ type Config struct {
 	ModelName string
 
 	// The Model to use.
-	// If this is non-nil, ModelName should be the empty string.
-	Model *ai.Model
+	// If this is set, ModelName should be an empty string.
+	Model ai.Model
 
 	// TODO: document
 	Tools []ai.Tool
@@ -442,7 +442,7 @@ func WithDefaultModel(model ai.Model) PromptOption {
 		if p.Config.ModelName != "" || p.Config.Model != nil {
 			return errors.New("dotprompt.WithDefaultModel: config must specify exactly once, either ModelName or Model")
 		}
-		p.Config.Model = &model
+		p.Config.Model = model
 		return nil
 	}
 }

@@ -37,7 +37,7 @@ type PromptRequest struct {
 	// Context to pass to model, if any.
 	Context []any `json:"context,omitempty"`
 	// The model to use. This overrides any model specified by the prompt.
-	Model *ai.Model `json:"model,omitempty"`
+	Model ai.Model `json:"model,omitempty"`
 	// The name of the model to use. This overrides any model specified by the prompt.
 	ModelName string `json:"modelname,omitempty"`
 	// Streaming callback function
@@ -213,10 +213,10 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 	// Setting the model on generate, overrides the model defined on the prompt
 	var model ai.Model
 	if p.Model != nil {
-		model = *p.Model
+		model = p.Model
 	}
 	if pr.Model != nil {
-		model = *pr.Model
+		model = pr.Model
 	}
 
 	if model == nil {
@@ -315,7 +315,7 @@ func WithModel(model ai.Model) GenerateOption {
 		if p.ModelName != "" || p.Model != nil {
 			return errors.New("dotprompt.WithModel: Model must be specified exactly once, either ModelName or Model")
 		}
-		p.Model = &model
+		p.Model = model
 		return nil
 	}
 }
