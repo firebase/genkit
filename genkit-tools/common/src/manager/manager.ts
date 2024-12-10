@@ -210,7 +210,8 @@ export class RuntimeManager {
             stack: (err?.data?.details as any).stack,
             data: {
               genkitErrorMessage: err?.data?.message,
-            }
+              genkitErrorDetails: err?.data?.details,
+            },
           };
           rejecter(err);
           return;

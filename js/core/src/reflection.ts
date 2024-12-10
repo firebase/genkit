@@ -20,7 +20,12 @@ import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import path from 'path';
 import z from 'zod';
-import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
+import {
+  ActionRunError,
+  Status,
+  StatusCodes,
+  runWithStreamingCallback,
+} from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
@@ -156,7 +161,6 @@ export class ReflectionServer {
       const { key, input, context, telemetryLabels } = request.body;
       const { stream } = request.query;
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
-      let traceId;
       try {
         const action = await this.registry.lookupAction(key);
         if (!action) {
@@ -194,9 +198,11 @@ export class ReflectionServer {
             if ((err as any).traceId) {
               errorResponse.details.traceId = (err as any).traceId;
             }
-            response.write(JSON.stringify({
-              error: errorResponse,
-            } as RunActionResponse));
+            response.write(
+              JSON.stringify({
+                error: errorResponse,
+              } as RunActionResponse)
+            );
             response.end();
           }
         } else {
@@ -210,7 +216,7 @@ export class ReflectionServer {
           } as RunActionResponse);
         }
       } catch (err) {
-        const { message, stack } = err as Error;
+        const { message, stack, traceId } = err as ActionRunError;
         next({ message, stack, traceId });
       }
     });

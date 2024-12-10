@@ -271,13 +271,17 @@ export function action<
         metadata.name = actionName;
         metadata.input = input;
 
-        const output = await fn(input, {
-          context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => {}),
-        });
+        try {
+          const output = await fn(input, {
+            context: options?.context,
+            sendChunk: options?.onChunk ?? ((c) => {}),
+          });
 
-        metadata.output = JSON.stringify(output);
-        return output;
+          metadata.output = JSON.stringify(output);
+          return output;
+        } catch (err) {
+          throw new ActionRunError(err, traceId);
+        }
       }
     );
     output = parseSchema(output, {
@@ -400,4 +404,20 @@ export function isInRuntimeContext() {
  */
 export function runInActionRuntimeContext<R>(fn: () => R) {
   return runtimeCtxAls.run('runtime', fn);
+}
+
+/**
+ * Error wrapping the original error thrown during action execution.
+ */
+export class ActionRunError extends Error {
+  constructor(
+    readonly cause: any,
+    readonly traceId: string
+  ) {
+    super();
+    if (cause instanceof Error) {
+      this.message = cause.message;
+      this.stack = cause.stack;
+    }
+  }
 }
