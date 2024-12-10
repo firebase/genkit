@@ -6,7 +6,7 @@ schema.
 
 ```ts
 import { genkit, z } from 'genkit';
-import { googleAI, textEmbedding004 } from '@genkit-ai/google-ai';
+import { googleAI, textEmbedding004 } from '@genkit-ai/googleai';
 import { toSql } from 'pgvector';
 import postgres from 'postgres';
 
