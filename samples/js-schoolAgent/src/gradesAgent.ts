@@ -15,13 +15,13 @@
  */
 
 import { ai } from './genkit.js';
-import { reportAbsence, reportTardy } from './tools.js';
+import { getRecentGrades } from './tools.js';
 import { agentDescription, agentPrompt } from './util.js';
 
-const tools = [reportAbsence, reportTardy];
-const specialization = 'attendance';
+const tools = [getRecentGrades];
+const specialization = 'grades';
 
-export const attendanceAgent = ai.definePrompt(
+export const gradesAgent = ai.definePrompt(
   {
     name: `${specialization}Agent`,
     description: agentDescription(specialization, tools),
@@ -30,10 +30,13 @@ export const attendanceAgent = ai.definePrompt(
   ` {{ role "system"}}
 ${agentPrompt(specialization)}
 
-- Parents may only report absences for their own students.
-- If you are unclear about any of the fields required to report an absence or tardy, request clarification before using the tool.
-- If the parent asks about anything other than attendance-related concerns that you can handle, transfer to the info agent.
+Guidelines:
+- Parents may only view grades for their own students
+- Always verify the student belongs to the parent before sharing grade information
+- Be encouraging and positive when discussing grades
+- If asked about non-grade related topics, transfer back to the info agent
+- Format grade information in a clear, easy-to-read manner
 
- {{ userContext @state }}
+{{ userContext @state }}
   `
 );
