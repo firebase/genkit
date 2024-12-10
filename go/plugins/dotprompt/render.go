@@ -50,9 +50,9 @@ func (p *Prompt) RenderText(variables map[string]any) (string, error) {
 // RenderMessages executes the prompt's template and converts it into messages.
 // This just runs the template; it does not call a model.
 func (p *Prompt) RenderMessages(variables map[string]any) ([]*ai.Message, error) {
-	if p.VariableDefaults != nil {
+	if p.DefaultInput != nil {
 		nv := make(map[string]any)
-		maps.Copy(nv, p.VariableDefaults)
+		maps.Copy(nv, p.DefaultInput)
 		maps.Copy(nv, variables)
 		variables = nv
 	}

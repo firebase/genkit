@@ -26,9 +26,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -85,15 +87,11 @@ type Config struct {
 	ModelName string
 
 	// The Model to use.
-	// If this is non-nil, Model should be the empty string.
+	// If this is set, ModelName should be an empty string.
 	Model ai.Model
 
 	// TODO: document
 	Tools []ai.Tool
-
-	// Number of candidates to generate when passing the prompt
-	// to a model. If 0, uses 1.
-	Candidates int
 
 	// Details for the model.
 	GenerationConfig *ai.GenerationCommonConfig
@@ -102,7 +100,7 @@ type Config struct {
 	InputSchema *jsonschema.Schema
 
 	// Default input variable values
-	VariableDefaults map[string]any
+	DefaultInput map[string]any
 
 	// Desired output format.
 	OutputFormat ai.OutputFormat
@@ -113,6 +111,9 @@ type Config struct {
 	// Arbitrary metadata.
 	Metadata map[string]any
 }
+
+// PromptOption configures params for the prompt
+type PromptOption func(p *Prompt) error
 
 // Open opens and parses a dotprompt file.
 // The name is a base file name, without the ".prompt" extension.
@@ -234,9 +235,8 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		Variant:          fy.Variant,
 		ModelName:        fy.Model,
 		Tools:            tools,
-		Candidates:       fy.Candidates,
 		GenerationConfig: fy.Config,
-		VariableDefaults: fy.Input.Default,
+		DefaultInput:     fy.Input.Default,
 		Metadata:         fy.Metadata,
 	}
 
@@ -284,11 +284,21 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
-func Define(name, templateText string, cfg Config) (*Prompt, error) {
-	p, err := New(name, templateText, cfg)
+func Define(name, templateText string, opts ...PromptOption) (*Prompt, error) {
+	p, err := New(name, templateText, Config{})
 	if err != nil {
 		return nil, err
 	}
+
+	for _, with := range opts {
+		err := with(p)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// TODO Inherit model from genkit instance
+
 	p.Register()
 	return p, nil
 }
@@ -297,9 +307,6 @@ func Define(name, templateText string, cfg Config) (*Prompt, error) {
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
-	if cfg.ModelName == "" && cfg.Model == nil {
-		return nil, errors.New("dotprompt.New: config must specify either ModelName or Model")
-	}
 	if cfg.ModelName != "" && cfg.Model != nil {
 		return nil, errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
 	}
@@ -319,5 +326,134 @@ func sortSchemaSlices(s *jsonschema.Schema) {
 	}
 	if s.Items != nil {
 		sortSchemaSlices(s.Items)
+	}
+}
+
+// WithTools adds tools to the prompt.
+func WithTools(tools ...ai.Tool) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.Tools != nil {
+			return errors.New("dotprompt.WithTools: cannot set tools more than once")
+		}
+
+		var toolSlice []ai.Tool
+		toolSlice = append(toolSlice, tools...)
+		p.Tools = toolSlice
+		return nil
+	}
+}
+
+// WithDefaultConfig adds default model configuration.
+func WithDefaultConfig(config *ai.GenerationCommonConfig) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.GenerationConfig != nil {
+			return errors.New("dotprompt.WithDefaultConfig: cannot set Config more than once")
+		}
+		p.Config.GenerationConfig = config
+		return nil
+	}
+}
+
+// WithInputType uses the type provided to derive the input schema.
+// If passing eg. a struct with values, the struct definition will serve as the schema, the values will serve as defaults if no input is given at generation time.
+func WithInputType(input any) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.InputSchema != nil {
+			return errors.New("dotprompt.WithInputType: cannot set InputType more than once")
+		}
+
+		// Handle primitives, default to "value" as key
+		// No default necessary, assumed type to be struct
+		switch v := input.(type) {
+		case int:
+			input = map[string]any{"value": strconv.Itoa(v)}
+		case float32:
+		case float64:
+			input = map[string]any{"value": fmt.Sprintf("%f", v)}
+		case string:
+			input = map[string]any{"value": v}
+		// Pass map directly
+		case map[string]any:
+			input = v
+		}
+
+		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
+
+		// Set values as default input
+		defaultInput := base.SchemaAsMap(p.Config.InputSchema)
+		data, err := json.Marshal(input)
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(data, &defaultInput)
+		if err != nil {
+			return err
+		}
+
+		p.Config.DefaultInput = defaultInput
+		return nil
+	}
+}
+
+// WithOutputType uses the type provided to derive the output schema.
+func WithOutputType(output any) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.OutputSchema != nil {
+			return errors.New("dotprompt.WithOutputType: cannot set OutputType more than once")
+		}
+
+		p.Config.OutputSchema = base.InferJSONSchemaNonReferencing(output)
+		p.Config.OutputFormat = ai.OutputFormatJSON
+
+		return nil
+	}
+}
+
+// WithOutputFormat adds the desired output format to the prompt
+func WithOutputFormat(format ai.OutputFormat) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.OutputFormat != "" && p.Config.OutputFormat != format {
+			return errors.New("dotprompt.WithOutputFormat: OutputFormat does not match set OutputSchema")
+		}
+		if format == ai.OutputFormatJSON && p.Config.OutputSchema == nil {
+			return errors.New("dotprompt.WithOutputFormat: to set OutputFormat to JSON, OutputSchema must be set")
+		}
+
+		p.Config.OutputFormat = format
+		return nil
+	}
+}
+
+// WithMetadata adds arbitrary metadata.
+func WithMetadata(metadata map[string]any) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.Metadata != nil {
+			return errors.New("dotprompt.WithMetadata: cannot set Metadata more than once")
+		}
+		p.Config.Metadata = metadata
+		return nil
+	}
+}
+
+// WithDefaultModel adds the default Model to use.
+func WithDefaultModel(model ai.Model) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.ModelName != "" || p.Config.Model != nil {
+			return errors.New("dotprompt.WithDefaultModel: config must specify exactly once, either ModelName or Model")
+		}
+		p.Config.Model = model
+		return nil
+	}
+}
+
+// WithDefaultModelName adds the name of the default Model to use.
+func WithDefaultModelName(name string) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.ModelName != "" || p.Config.Model != nil {
+			return errors.New("dotprompt.WithDefaultModelName: config must specify exactly once, either ModelName or Model")
+		}
+		p.Config.ModelName = name
+		return nil
 	}
 }
