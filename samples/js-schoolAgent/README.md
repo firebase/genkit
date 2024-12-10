@@ -9,6 +9,11 @@ These specialized agents are represented as prompts and embedded as tools to the
 
 ## Agent Tools & Capabilities
 
+- **Agent Structure**:
+  - `RoutingAgent`: Main entry point and router, handling general queries and delegating to specialized agents
+  - `AttendanceAgent`: Specialized agent for absence/tardy reporting
+  - `GradesAgent`: Manages grade-related inquiries and academic performance
+
 Each specialized agent has its own set of tools that are only accessible to that specific agent:
 
 - **AttendanceAgent**:
@@ -29,22 +34,9 @@ This architectural pattern:
 
 NOTE: The agent description is how the generalized agent knows what tools the specialized agent has available. An agent description that is too general may cause the routing agent to mess up by not knowing that a certain functionality was actually available.
 
-## Features
-
-- **Prompt-as-Tool Architecture**:
-
-  - Main RoutingAgent uses specialized agents as tools
-  - Seamless transitions between agents without explicit routing
-  - Each agent has focused responsibilities and specialized tools
-
-- **Agent Structure**:
-  - `RoutingAgent`: Main entry point and router, handling general queries and delegating to specialized agents
-  - `AttendanceAgent`: Specialized agent for absence/tardy reporting
-  - `GradesAgent`: Manages grade-related inquiries and academic performance
-
 ## Prerequisites
 
-- Node.js installed
+- Node.js and genkit CLI installed
 - Google AI API key
 
 ## Getting Started
@@ -80,6 +72,8 @@ bell> Hi there, my name is Bell and I'm here to help! 👋🎉 I'm your friendly
 
 prompt> [insert your chats here]
 ```
+
+You can feel free to tweak the sample. The project builds in watch mode, so any changes will be picked up immediately and should restart the conversation.
 
 ## Usage
 
