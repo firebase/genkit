@@ -85,7 +85,6 @@ Create a JSON file with the data you want to test. Add as many test cases as you
 genkit eval:run test-dataset.json --evaluators=checks
 ```
 
-
 ### View the results
 
 Run `genkit start -- tsx --watch src/index.ts` and open the genkit ui. Usually at `localhost:4000` and select the Evaluate tab.
