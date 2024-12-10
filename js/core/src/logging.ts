@@ -18,7 +18,7 @@ const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
 
 const loggerKey = '__genkit_logger';
 
-const defaultLogger = {
+const _defaultLogger = {
   shouldLog(targetLevel: string) {
     return LOG_LEVELS.indexOf(this.level) <= LOG_LEVELS.indexOf(targetLevel);
   },
@@ -39,13 +39,13 @@ const defaultLogger = {
 
 function getLogger() {
   if (!global[loggerKey]) {
-    global[loggerKey] = defaultLogger;
+    global[loggerKey] = _defaultLogger;
   }
   return global[loggerKey];
 }
 
 class Logger {
-  readonly defaultLogger;
+  readonly defaultLogger = _defaultLogger;
 
   init(fn: any) {
     global[loggerKey] = fn;
