@@ -164,23 +164,41 @@ export class ReflectionServer {
           return;
         }
         if (stream === 'true') {
-          const callback = (chunk) => {
-            response.write(JSON.stringify(chunk) + '\n');
-          };
-          const result = await runWithStreamingCallback(
-            callback,
-            async () => await action.run(input, { context, onChunk: callback })
-          );
-          await flushTracing();
-          response.write(
-            JSON.stringify({
-              result: result.result,
-              telemetry: {
-                traceId: result.telemetry.traceId,
+          try {
+            const callback = (chunk) => {
+              response.write(JSON.stringify(chunk) + '\n');
+            };
+            const result = await runWithStreamingCallback(callback, () =>
+              action.run(input, { context, onChunk: callback })
+            );
+            await flushTracing();
+            response.write(
+              JSON.stringify({
+                result: result.result,
+                telemetry: {
+                  traceId: result.telemetry.traceId,
+                },
+              } as RunActionResponse)
+            );
+            response.end();
+          } catch (err) {
+            const { message, stack } = err as Error;
+            // since we're streaming, we must do special error handling here -- the headers are already sent.
+            const errorResponse: Status = {
+              code: StatusCodes.INTERNAL,
+              message,
+              details: {
+                stack,
               },
-            } as RunActionResponse)
-          );
-          response.end();
+            };
+            if ((err as any).traceId) {
+              errorResponse.details.traceId = (err as any).traceId;
+            }
+            response.write(JSON.stringify({
+              error: errorResponse,
+            } as RunActionResponse));
+            response.end();
+          }
         } else {
           const result = await action.run(input, { context, telemetryLabels });
           await flushTracing();

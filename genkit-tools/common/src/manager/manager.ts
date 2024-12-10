@@ -198,9 +198,24 @@ export class RuntimeManager {
         rejecter = reject;
       });
       stream.on('end', () => {
-        const actionResponse = RunActionResponseSchema.parse(
-          JSON.parse(buffer)
-        );
+        const parsedBuffer = JSON.parse(buffer);
+        if (parsedBuffer.error) {
+          const err = new GenkitToolsError(
+            `Error running action key='${input.key}'.`
+          );
+          // massage the error into a shape dev ui expects
+          err.data = parsedBuffer.error;
+          err.data = {
+            ...err.data,
+            stack: (err?.data?.details as any).stack,
+            data: {
+              genkitErrorMessage: err?.data?.message,
+            }
+          };
+          rejecter(err);
+          return;
+        }
+        const actionResponse = RunActionResponseSchema.parse(parsedBuffer);
         if (genkitVersion) {
           actionResponse.genkitVersion = genkitVersion;
         }

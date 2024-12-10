@@ -26,7 +26,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, genkit, run, z } from 'genkit';
+import { GenerateResponseData, MessageSchema, genkit, run, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
@@ -580,3 +580,31 @@ ai.defineFlow(
     return text;
   }
 );
+
+ai.defineModel(
+  {
+    name: 'hiModel',
+  },
+  async (request, streamingCallback) => {
+    return {
+      finishReason: 'stop',
+      message: { role: 'model', content: [{ text: 'hi' }] },
+    };
+  }
+);
+
+const blockingMiddleware = async (req, next) => {
+  return {
+    finishReason: 'blocked',
+    finishMessage: `Model input violated policies: further processing blocked.`,
+  } as GenerateResponseData;
+};
+
+ai.defineFlow('blockingMiddleware', async () => {
+  const { text } = await ai.generate({
+    prompt: 'hi',
+    model: 'hiModel',
+    use: [blockingMiddleware],
+  });
+  return text;
+});
