@@ -77,23 +77,7 @@ export function checksEvaluators(
     }
   );
 
-  // Individual evaluators, one per configured metric.
-  const evaluators = policy_configs.map((policy_config) => {
-    return createPolicyEvaluator(
-      projectId,
-      auth,
-      ai,
-      [policy_config],
-      policy_config.type as string
-    );
-  });
-
-  // Single evaluator instnace with all configured policies.
-  evaluators.push(
-    createPolicyEvaluator(projectId, auth, ai, policy_configs, 'all_metrics')
-  );
-
-  return evaluators;
+  return [createPolicyEvaluator(projectId, auth, ai, policy_configs)]
 }
 
 function isConfig(
@@ -117,13 +101,12 @@ function createPolicyEvaluator(
   auth: GoogleAuth,
   ai: Genkit,
   policy_config: ChecksEvaluationMetricConfig[],
-  name: string
 ): EvaluatorAction {
   return ai.defineEvaluator(
     {
-      name: `checks/${name.toLowerCase()}`,
-      displayName: name,
-      definition: `Evaluates text against the Checks ${name} policy.`,
+      name: "checks",
+      displayName: "checks",
+      definition: `Evaluates input text against the Checks ${policy_config.map(policy => policy.type)} policies.`,
     },
     async (datapoint: BaseEvalDataPoint) => {
       const partialRequest = {
