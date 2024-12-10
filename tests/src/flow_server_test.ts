@@ -33,17 +33,17 @@ import {
 
 async function testFlowServer() {
   const url = 'http://localhost:3400';
-  let data = new FormData()
-  data.append("data", "5")
   await retriable(
     async () => {
-      const res = await fetch(`${url}/flow/testFlow`,
+      const res = await fetch(`${url}/streamy`,
         {
-          method: 'post',
-          body: data,
+          method: 'POST',
+          body: JSON.stringify({
+            data: 1
+          },),
         });
       if (res.status != 200) {
-        throw new Error(`timed out waiting for code to become healthy`)
+        throw new Error(`timed out waiting for flow server to become healthy`)
       }
     },
     {
@@ -57,7 +57,7 @@ async function testFlowServer() {
   for (const test of t.tests) {
     console.log('path', test.path)
     let fetchopts = {
-      method: 'GET',
+      method: 'POST',
     } as RequestInit;
     if (test.hasOwnProperty('post')) {
       fetchopts.method = 'POST';
