@@ -16,69 +16,68 @@
 
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
 
-class Logger {
-  logger: {
-    debug(...args: any);
-    info(...args: any);
-    warn(...args: any);
-    error(...args: any);
-    level: string;
-  };
+const loggerKey = '__genkit_logger';
 
-  defaultLogger = {
-    shouldLog(targetLevel: string) {
-      return LOG_LEVELS.indexOf(this.level) <= LOG_LEVELS.indexOf(targetLevel);
-    },
-    debug(...args: any) {
-      this.shouldLog('debug') && console.debug(...args);
-    },
-    info(...args: any) {
-      this.shouldLog('info') && console.info(...args);
-    },
-    warn(...args: any) {
-      this.shouldLog('warn') && console.warn(...args);
-    },
-    error(...args: any) {
-      this.shouldLog('error') && console.error(...args);
-    },
-    level: 'info',
-  };
+const _defaultLogger = {
+  shouldLog(targetLevel: string) {
+    return LOG_LEVELS.indexOf(this.level) <= LOG_LEVELS.indexOf(targetLevel);
+  },
+  debug(...args: any) {
+    this.shouldLog('debug') && console.debug(...args);
+  },
+  info(...args: any) {
+    this.shouldLog('info') && console.info(...args);
+  },
+  warn(...args: any) {
+    this.shouldLog('warn') && console.warn(...args);
+  },
+  error(...args: any) {
+    this.shouldLog('error') && console.error(...args);
+  },
+  level: 'info',
+};
 
-  constructor() {
-    this.logger = this.defaultLogger;
+function getLogger() {
+  if (!global[loggerKey]) {
+    global[loggerKey] = _defaultLogger;
   }
+  return global[loggerKey];
+}
 
-  async init(fn: any) {
-    this.logger = fn;
+class Logger {
+  readonly defaultLogger = _defaultLogger;
+
+  init(fn: any) {
+    global[loggerKey] = fn;
   }
 
   info(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.logger.info.apply(this.logger, args);
+    getLogger().info.apply(getLogger(), args);
   }
   debug(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.logger.debug.apply(this.logger, args);
+    getLogger().debug.apply(getLogger(), args);
   }
   error(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.logger.error.apply(this.logger, args);
+    getLogger().error.apply(getLogger(), args);
   }
   warn(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.logger.warn.apply(this.logger, args);
+    getLogger().warn.apply(getLogger(), args);
   }
 
   setLogLevel(level: 'error' | 'warn' | 'info' | 'debug') {
-    this.logger.level = level;
+    getLogger().level = level;
   }
 
   logStructured(msg: string, metadata: any) {
-    this.logger.info(msg, metadata);
+    getLogger().info(msg, metadata);
   }
 
   logStructuredError(msg: string, metadata: any) {
-    this.logger.error(msg, metadata);
+    getLogger().error(msg, metadata);
   }
 }
 
