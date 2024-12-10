@@ -159,7 +159,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       this.generateFileName(datasetId)
     );
     if (!fs.existsSync(filePath)) {
-      throw new Error(`Dataset not found for dataset ID {$id}`);
+      throw new Error(`Dataset not found for dataset ID ${datasetId}`);
     }
     return await readFile(filePath, 'utf8').then((data) => {
       return DatasetSchema.parse(JSON.parse(data));
