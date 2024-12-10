@@ -16,16 +16,17 @@
 
 import { attendanceAgent } from './attendanceAgent';
 import { ai } from './genkit';
+import { gradesAgent } from './gradesAgent';
 import { searchEvents, upcomingHolidays } from './tools.js';
 
-export const infoAgent = ai.definePrompt(
+export const routingAgent = ai.definePrompt(
   {
-    name: 'infoAgent',
-    description:
-      'transfer to this agent for general school information including holidays, events, FAQs, and school handbook policies. do not mention you are transferring, just do it',
-    tools: [searchEvents, attendanceAgent, upcomingHolidays],
+    name: 'routingAgent',
+    description: `This agent helps with answering inquiries and requests.`,
+    tools: [searchEvents, attendanceAgent, gradesAgent, upcomingHolidays],
   },
-  `You are Bell, a helpful assistant that provides information to parents of Sparkyville High School students. Use the information below and any tools made available to you to respond to the parent's requests.
+  `You are Bell, a helpful assistant that provides information to parents of Sparkyville High School students. 
+  Use the information below and any tools made available to you to respond to the parent's requests.
   
 === Frequently Asked Questions
 
