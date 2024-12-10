@@ -78,41 +78,13 @@ Create a JSON file with the data you want to test. Add as many test cases as you
 
 ```
 
-### Run the evaluators
+### Run the evaluator
 
 ```bash
 # Run all configured classifiers.
-genkit eval:run test-dataset.json --evaluators=checks/all_metrics
-
-# Run just the DANGEROUS_CONTENT classifier.
-genkit eval:run test-dataset.json --evaluators=checks/dangerous_content
-
-# Run just the HARASSMENT classifier.
-genkit eval:run test-dataset.json --evaluators=checks/harassment
-
-# Run just the HATE_SPEECH classifier.
-genkit eval:run test-dataset.json --evaluators=checks/hate_speech
-
-# Run just the MEDICAL_INFO classifier.
-genkit eval:run test-dataset.json --evaluators=checks/medical_info
-
-# Run just the OBSCENITY_AND_PROFANITY classifier.
-genkit eval:run test-dataset.json --evaluators=checks/obscenity_and_profanity
-
-# Run just the PII_SOLICITING_RECITING classifier.
-genkit eval:run test-dataset.json --evaluators=checks/pii_soliciting_reciting
-
-# Run just the SEXUALLY_EXPLICIT classifier.
-genkit eval:run test-dataset.json --evaluators=checks/sexually_explicit
-
-# Run just the VIOLENCE_AND_GORE classifier.
-genkit eval:run test-dataset.json --evaluators=checks/violence_and_gore
+genkit eval:run test-dataset.json --evaluators=checks
 ```
 
-```bash
-# Run all classifiers.
-genkit eval:run test-dataset.json --evaluators=checks/dangerous_content,checks/pii_soliciting_reciting,checks/harassment,checks/sexually_explicit,checks/hate_speech,checks/medical_info,checks/violence_and_gore,checks/obscenity_and_profanity
-```
 
 ### View the results
 
