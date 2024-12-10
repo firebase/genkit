@@ -34,7 +34,7 @@ const ai = genkit({
 ```
 
 **Note:** The configuration above requires installing the `genkit`,
-`@genkit-ai/google-ai`, `@genkit-ai/evaluator` and `@genkit-ai/vertexai`
+`@genkit-ai/googleai`, `@genkit-ai/evaluator` and `@genkit-ai/vertexai`
 packages.
 
 ```posix-terminal
