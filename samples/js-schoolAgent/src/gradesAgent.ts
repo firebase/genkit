@@ -21,9 +21,9 @@ import { agentDescription, agentPrompt } from './util.js';
 const tools = [getRecentGrades, 'routingAgent'];
 const specialization = 'grades';
 
-const toolNames: string[] = tools.map(item => {
+const toolNames: string[] = tools.map((item) => {
   if (typeof item === 'string') {
-    return item; 
+    return item;
   } else {
     return item.name;
   }
