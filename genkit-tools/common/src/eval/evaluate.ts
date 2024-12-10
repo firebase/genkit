@@ -77,7 +77,7 @@ export async function runNewEvaluation(
   const datasetVersion = targetDatasetMetadata?.version;
 
   if (dataset.length === 0) {
-    throw new Error(`Dataset ${datasetId} is empty.`);
+    throw new Error(`Dataset ${datasetId} is empty`);
   }
 
   logger.info('Running inference...');
