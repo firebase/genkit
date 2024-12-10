@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ModelMiddleware } from '@genkit-ai/ai/model';
+import { ModelMiddleware } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { Guardrails } from './guardrails';
 import { ChecksEvaluationMetric } from './metrics';
