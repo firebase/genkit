@@ -30,6 +30,8 @@ npm install @genkit-ai/firebase
 
 You must initialize the Firebase Admin SDK in your application. This is not handled automatically by the plugin.
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import { initializeApp } from 'firebase-admin/app';
 
@@ -63,6 +65,8 @@ To provide Firebase credentials, you also need to set up Google Cloud Applicatio
 
 The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export call `enableFirebaseTelemetry()`:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
@@ -77,10 +81,12 @@ You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 
 This section contains information specific to the `firebase` plugin and Cloud Firestore's vector search feature. See the [Retrieval-augmented generation](/../rag.md) page for a more detailed discussion on implementing RAG using Genkit.
 
-#### Using GCLOUD\_SERVICE\_ACCOUNT\_CREDS and Firestore
+#### Using GCLOUD_SERVICE_ACCOUNT_CREDS and Firestore
 
 If you are using service account credentials by passing credentials directly via `GCLOUD_SERVICE_ACCOUNT_CREDS` and are also using Firestore as a vector store, you will need to pass credentials directly to the Firestore instance during initialization or the singleton may be initialized with application default credentials depending on plugin initialization order.
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
@@ -99,6 +105,8 @@ if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
 
 Use `defineFirestoreRetriever()` to create a retriever for Firestore vector-based queries.
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { initializeApp } from 'firebase-admin/app';
@@ -122,6 +130,8 @@ const retriever = defineFirestoreRetriever(ai, {
 
 To retrieve documents using the defined retriever, pass the retriever instance and query options to `ai.retrieve`.
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 const docs = await ai.retrieve({
   retriever,
@@ -155,6 +165,8 @@ The following options can be passed to the `options` field in `ai.retrieve`:
 
 To populate your Firestore collection, use an embedding generator along with the Admin SDK. For example, the menu ingestion script from the [Retrieval-augmented generation](http://../rag.md) page could be adapted for Firestore in the following way:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import { genkit } from 'genkit';
 import { vertexAI, textEmbedding004 } from "@genkit-ai/vertexai";
@@ -245,6 +257,8 @@ The prior example requires the `embedding` field to be indexed to work. To creat
 
 The plugin provides the `onFlow()` constructor, which creates a flow backed by a Cloud Functions for Firebase HTTPS-triggered function. These functions conform to Firebase's [callable function interface](https://firebase.google.com/docs/functions/callable-reference) and you can use the [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function) to call them.
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import { onFlow, noAuth } from "@genkit-ai/firebase/functions";
 
@@ -272,7 +286,8 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 
 - `httpsOptions`: an [`HttpsOptions`](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.https.httpsoptions) object used to configure your Cloud Function:
 
-
+  <!--See note above on prettier-ignore -->
+  <!-- prettier-ignore -->
   ```js
   export const exampleFlow = onFlow(
     ai,
@@ -299,6 +314,8 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 
 This plugin provides a helper function to create authorization policies around Firebase Auth:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 import {firebaseAuth} from "@genkit-ai/firebase/auth";
 
