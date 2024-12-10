@@ -49,12 +49,17 @@ export const flowBatchRun = new Command('flow:batchRun')
     ) => {
       await runWithManager(async (manager) => {
         const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
-        if (!Array.isArray(inputData)) {
-          throw new Error('batch input data must be an array');
+        let input = inputData;
+        if (inputData.length === 0) {
+          throw new Error('batch input data must be a non-empty array');
+        }
+        if (Object.hasOwn(inputData[0], 'input')) {
+          // If object has "input" field, use that instead.
+          input = inputData.map((d) => d.input);
         }
 
         const outputValues = [] as { input: any; output: any }[];
-        for (const data of inputData) {
+        for (const data of input) {
           logger.info(`Running '/flow/${flowName}'...`);
           let response = await manager.runAction({
             key: `/flow/${flowName}`,

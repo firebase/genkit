@@ -88,12 +88,12 @@ const SAMPLE_DATASET_METADATA_1_V2 = {
 };
 
 const CREATE_DATASET_REQUEST = CreateDatasetRequestSchema.parse({
-  data: { samples: SAMPLE_DATASET_1_V1 },
+  data: SAMPLE_DATASET_1_V1,
   datasetType: 'UNKNOWN',
 });
 
 const CREATE_DATASET_REQUEST_WITH_SCHEMA = CreateDatasetRequestSchema.parse({
-  data: { samples: SAMPLE_DATASET_1_V1 },
+  data: SAMPLE_DATASET_1_V1,
   datasetType: 'UNKNOWN',
   schema: {
     inputSchema: {
@@ -109,7 +109,7 @@ const CREATE_DATASET_REQUEST_WITH_SCHEMA = CreateDatasetRequestSchema.parse({
 });
 
 const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
-  data: { samples: SAMPLE_DATASET_1_V2 },
+  data: SAMPLE_DATASET_1_V2,
   datasetId: SAMPLE_DATASET_ID_1,
 });
 
@@ -205,7 +205,7 @@ describe('localFileDatasetStore', () => {
 
       const datasetMetadata = await DatasetStore.createDataset({
         ...CREATE_DATASET_REQUEST,
-        data: { samples: dataset },
+        data: dataset,
         datasetId: SAMPLE_DATASET_ID_1,
       });
 
@@ -304,13 +304,11 @@ describe('localFileDatasetStore', () => {
         .mockImplementation(() => Promise.resolve(dataset));
 
       const datasetMetadata = await DatasetStore.updateDataset({
-        data: {
-          samples: [
-            {
-              input: 'A new information on cat dog',
-            },
-          ],
-        },
+        data: [
+          {
+            input: 'A new information on cat dog',
+          },
+        ],
         datasetId: SAMPLE_DATASET_ID_1,
       });
 
@@ -357,17 +355,15 @@ describe('localFileDatasetStore', () => {
         .mockImplementation(() => Promise.resolve(dataset));
 
       const datasetMetadata = await DatasetStore.updateDataset({
-        data: {
-          samples: [
-            {
-              input: 'A new information on cat dog',
-            },
-            {
-              testCaseId: '1',
-              input: 'Other information on hot dog',
-            },
-          ],
-        },
+        data: [
+          {
+            input: 'A new information on cat dog',
+          },
+          {
+            testCaseId: '1',
+            input: 'Other information on hot dog',
+          },
+        ],
         datasetId: SAMPLE_DATASET_ID_1,
       });
 
