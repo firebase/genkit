@@ -108,7 +108,7 @@ function inititializeAuth(options?: GoogleAuthOptions): GoogleAuth {
   }
 
   googleAuth.getClient().then((client) => {
-    if (client.quotaProjectId) {
+    if (client.quotaProjectId && options?.projectId) {
       logger.warn(
         `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
       );
