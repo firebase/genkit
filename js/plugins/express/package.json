@@ -1,15 +1,15 @@
 {
-  "name": "@genkit-ai/dotprompt",
-  "description": "Genkit AI framework `.prompt` file format and management library.",
+  "name": "@genkit-ai/express",
+  "description": "Genkit AI framework plugin for Express server",
   "keywords": [
     "genkit",
+    "genkit-plugin",
+    "langchain",
     "ai",
     "genai",
-    "generative-ai",
-    "prompting",
-    "templating"
+    "generative-ai"
   ],
-  "version": "1.0.0-dev.0",
+  "version": "0.9.6",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -17,38 +17,38 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "tsx --test tests/*_test.ts"
+    "test": "node --import tsx --test tests/*_test.ts",
+    "test:watch": "node --import tsx --watch --test tests/*_test.ts"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/firebase/genkit.git",
-    "directory": "js/plugins/dotprompt"
+    "directory": "js/plugins/express"
   },
   "author": "genkit",
   "license": "Apache-2.0",
-  "dependencies": {
-    "front-matter": "^4.0.2",
-    "handlebars": "^4.7.8",
-    "node-fetch": "^3.3.2",
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+  "dependencies": {},
+  "peerDependencies": {
+    "genkit": "workspace:*",
+    "express": "^4.21.1"
   },
   "devDependencies": {
+    "get-port": "^5.1.0",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
-    "typescript": "^4.9.0",
-    "yaml": "^2.4.1"
+    "typescript": "^4.9.0"
   },
   "types": "./lib/index.d.ts",
   "exports": {
     ".": {
       "require": "./lib/index.js",
+      "default": "./lib/index.js",
       "import": "./lib/index.mjs",
-      "types": "./lib/index.d.ts",
-      "default": "./lib/index.js"
+      "types": "./lib/index.d.ts"
     }
   }
 }

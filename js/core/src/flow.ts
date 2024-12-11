@@ -81,10 +81,11 @@ export interface StreamingFlowConfig<
   streamSchema?: S;
 }
 
-export interface FlowCallOptions {
+export interface FlowCallOptions<S> {
   /** @deprecated use {@link context} instead. */
   withLocalAuthContext?: unknown;
   context?: unknown;
+  onChunk?: StreamingCallback<S>;
 }
 
 /**
@@ -95,9 +96,12 @@ export interface CallableFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (input?: z.infer<I>, opts?: FlowCallOptions): Promise<z.infer<O>>;
+  (input?: z.infer<I>, opts?: FlowCallOptions<z.infer<S>>): Promise<z.infer<O>>;
 
-  stream(input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
+  stream(
+    input?: z.infer<I>,
+    opts?: FlowCallOptions<z.infer<S>>
+  ): StreamingResponse<O, S>;
 
   flow: Flow<I, O, S>;
 }
@@ -111,7 +115,10 @@ export interface StreamableFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
+  (
+    input?: z.infer<I>,
+    opts?: FlowCallOptions<z.infer<S>>
+  ): StreamingResponse<O, S>;
   flow: Flow<I, O, S>;
 }
 
@@ -176,7 +183,7 @@ export class Flow<
   async invoke(
     input: unknown,
     opts: {
-      streamingCallback?: StreamingCallback<z.infer<S>>;
+      onChunk?: StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
       context?: unknown;
     }
@@ -185,14 +192,17 @@ export class Flow<
     return await this.action.run(input, {
       context: opts.context,
       telemetryLabels: opts.labels,
-      onChunk: opts.streamingCallback ?? (() => {}),
+      onChunk: opts.onChunk ?? (() => {}),
     });
   }
 
   /**
    * Runs the flow. This is used when calling a flow from another flow.
    */
-  async run(payload?: z.infer<I>, opts?: FlowCallOptions): Promise<z.infer<O>> {
+  async run(
+    payload?: z.infer<I>,
+    opts?: FlowCallOptions<z.infer<S>>
+  ): Promise<z.infer<O>> {
     const input = this.inputSchema ? this.inputSchema.parse(payload) : payload;
     await this.authPolicy?.(opts?.withLocalAuthContext, payload);
 
@@ -204,6 +214,7 @@ export class Flow<
 
     const result = await this.invoke(input, {
       context: opts?.context || opts?.withLocalAuthContext,
+      onChunk: opts?.onChunk,
     });
     return result.result;
   }
@@ -213,7 +224,7 @@ export class Flow<
    */
   stream(
     payload?: z.infer<I>,
-    opts?: FlowCallOptions
+    opts?: Omit<FlowCallOptions<z.infer<S>>, 'onChunk'>
   ): StreamingResponse<O, S> {
     let chunkStreamController: ReadableStreamController<z.infer<S>>;
     const chunkStream = new ReadableStream<z.infer<S>>({
@@ -233,7 +244,7 @@ export class Flow<
         this.invoke(
           this.inputSchema ? this.inputSchema.parse(payload) : payload,
           {
-            streamingCallback: ((chunk: z.infer<S>) => {
+            onChunk: ((chunk: z.infer<S>) => {
               chunkStreamController.enqueue(chunk);
             }) as S extends z.ZodVoid
               ? undefined
@@ -293,7 +304,7 @@ export class Flow<
       });
       try {
         const result = await this.invoke(input, {
-          streamingCallback: (chunk: z.infer<S>) => {
+          onChunk: (chunk: z.infer<S>) => {
             response.write(
               'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
             );
@@ -484,7 +495,7 @@ export function defineFlow<
   (callableFlow as CallableFlow<I, O, S>).flow = flow;
   (callableFlow as CallableFlow<I, O, S>).stream = (
     input: z.infer<I>,
-    opts: FlowCallOptions
+    opts: Omit<FlowCallOptions<z.infer<S>>, 'onChunk'>
   ): StreamingResponse<O, S> => {
     return flow.stream(input, opts);
   };
