@@ -15,12 +15,8 @@
  */
 
 import { readFileSync } from 'fs';
-import * as http from 'http';
 import * as yaml from 'yaml';
-import {
-  retriable,
-  runTestsForApp,
-} from './utils.js';
+import { retriable, runTestsForApp } from './utils.js';
 
 (async () => {
   // TODO: Add NodeJS tests
@@ -30,20 +26,18 @@ import {
   });
 })();
 
-
 async function testFlowServer() {
   const url = 'http://localhost:3400';
   await retriable(
     async () => {
-      const res = await fetch(`${url}/streamy`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            data: 1
-          },),
-        });
+      const res = await fetch(`${url}/streamy`, {
+        method: 'POST',
+        body: JSON.stringify({
+          data: 1,
+        }),
+      });
       if (res.status != 200) {
-        throw new Error(`timed out waiting for flow server to become healthy`)
+        throw new Error(`timed out waiting for flow server to become healthy`);
       }
     },
     {
@@ -52,40 +46,40 @@ async function testFlowServer() {
     }
   );
 
-
   const t = yaml.parse(readFileSync('flow_server_tests.yaml', 'utf8'));
   for (const test of t.tests) {
-    console.log('path', test.path)
+    console.log('path', test.path);
     let fetchopts = {
       method: 'POST',
       headers: {
-        'Accept': 'text/event-stream',
-        'Connection': 'keep-alive',
+        Accept: 'text/event-stream',
+        Connection: 'keep-alive',
       },
       body: JSON.stringify(test.post),
     } as RequestInit;
 
-    await fetchData(`${url}/${test.path}`, fetchopts)
+    await fetchData(`${url}/${test.path}`, fetchopts);
   }
-  console.log('Flow server tests done! \\o/')
+  console.log('Flow server tests done! \\o/');
 }
-
 
 // helper function that validates stream flow responses
 async function fetchData(url: string, fetchopts: RequestInit) {
   const response = await fetch(`${url}`, fetchopts);
 
   if (!response.ok) {
-    throw new Error(`${url}: error detected, code: ${response.status}`)
+    throw new Error(`${url}: error detected, code: ${response.status}`);
   }
 
-  const contentHeader = response.headers.get('Content-Type')
-  if (contentHeader && !contentHeader.includes("text/plain")) {
-    throw new Error(`wrong header, want: text/plain, got: ${contentHeader}`)
+  const contentHeader = response.headers.get('Content-Type');
+  if (contentHeader && !contentHeader.includes('text/plain')) {
+    throw new Error(`wrong header, want: text/plain, got: ${contentHeader}`);
   }
-  const acceptHeader = response.headers.get('Accept')
+  const acceptHeader = response.headers.get('Accept');
   if (acceptHeader && !acceptHeader.includes('text/event-stream')) {
-    throw new Error(`wrong header, want: text/event-stream, got: ${acceptHeader}`)
+    throw new Error(
+      `wrong header, want: text/event-stream, got: ${acceptHeader}`
+    );
   }
 
   const reader = response.body?.getReader();
@@ -96,15 +90,15 @@ async function fetchData(url: string, fetchopts: RequestInit) {
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
-      console.log("connection closed")
+      console.log('connection closed');
       break;
     }
 
     const decoder = new TextDecoder('utf-8');
     const text = decoder.decode(value);
-    if (!text.startsWith("data:")) {
-      throw new Error(`bad stream format detected`)
+    if (!text.startsWith('data:')) {
+      throw new Error(`bad stream format detected`);
     }
-    console.log(text)
+    console.log(text);
   }
 }
