@@ -127,7 +127,7 @@ export const gemini15Flash = modelRef({
 });
 
 export const gemini20FlashExp = modelRef({
-  name: 'googleai/gemini-2.0-flash-exp',
+  name: 'vertexai/gemini-2.0-flash-exp',
   info: {
     label: 'Google AI - Gemini 2.0 Flash (Experimental)',
     versions: [],
