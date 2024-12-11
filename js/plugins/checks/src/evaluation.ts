@@ -64,7 +64,7 @@ export function checksEvaluators(
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string
-): EvaluatorAction[] {
+): EvaluatorAction {
   const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map(
     (metric) => {
       const metricType = isConfig(metric) ? metric.type : metric;
@@ -77,11 +77,7 @@ export function checksEvaluators(
     }
   );
 
-  const evaluators = policy_configs.map((policy_config) => {
-    return createPolicyEvaluator(projectId, auth, ai, policy_config);
-  });
-
-  return evaluators;
+  return createPolicyEvaluator(projectId, auth, ai, policy_configs);
 }
 
 function isConfig(
@@ -104,15 +100,13 @@ function createPolicyEvaluator(
   projectId: string,
   auth: GoogleAuth,
   ai: Genkit,
-  policy_config: ChecksEvaluationMetricConfig
+  policy_config: ChecksEvaluationMetricConfig[]
 ): EvaluatorAction {
-  const policyType = policy_config.type as string;
-
   return ai.defineEvaluator(
     {
-      name: `checks/${policyType.toLowerCase()}`,
-      displayName: policyType,
-      definition: `Evaluates text against the Checks ${policyType} policy.`,
+      name: 'checks/guardrails',
+      displayName: 'checks/guardrails',
+      definition: `Evaluates input text against the Checks ${policy_config.map((policy) => policy.type)} policies.`,
     },
     async (datapoint: BaseEvalDataPoint) => {
       const partialRequest = {
@@ -121,10 +115,12 @@ function createPolicyEvaluator(
             content: datapoint.output as string,
           },
         },
-        policies: {
-          policy_type: policy_config.type,
-          threshold: policy_config.threshold,
-        },
+        policies: policy_config.map((config) => {
+          return {
+            policy_type: config.type,
+            threshold: config.threshold,
+          };
+        }),
       };
 
       const response = await checksEvalInstance(
@@ -134,13 +130,18 @@ function createPolicyEvaluator(
         ResponseSchema
       );
 
-      return {
-        evaluation: {
-          score: response.policyResults[0].score,
+      const evaluationResults = response.policyResults.map((result) => {
+        return {
+          id: result.policyType,
+          score: result.score,
           details: {
-            reasoning: response.policyResults[0].violationResult,
+            reasoning: `Status ${result.violationResult}`,
           },
-        },
+        };
+      });
+
+      return {
+        evaluation: evaluationResults,
         testCaseId: datapoint.testCaseId,
       };
     }
