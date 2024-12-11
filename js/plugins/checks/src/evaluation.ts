@@ -104,8 +104,8 @@ function createPolicyEvaluator(
 ): EvaluatorAction {
   return ai.defineEvaluator(
     {
-      name: 'checks',
-      displayName: 'checks',
+      name: 'checks/guardrails',
+      displayName: 'checks/guardrails',
       definition: `Evaluates input text against the Checks ${policy_config.map((policy) => policy.type)} policies.`,
     },
     async (datapoint: BaseEvalDataPoint) => {

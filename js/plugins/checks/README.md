@@ -82,7 +82,7 @@ Create a JSON file with the data you want to test. Add as many test cases as you
 
 ```bash
 # Run all configured classifiers.
-genkit eval:run test-dataset.json --evaluators=checks
+genkit eval:run test-dataset.json --evaluators=checks/guardrails
 ```
 
 ### View the results
