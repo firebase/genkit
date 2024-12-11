@@ -127,7 +127,7 @@ export const evalFlow = new Command('eval:flow')
         const evalDataset = await runInference({
           manager,
           actionRef,
-          evalFlowInput,
+          evalInferenceInput: evalFlowInput,
           auth: options.auth,
         });
 
