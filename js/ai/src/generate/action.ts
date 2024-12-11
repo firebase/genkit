@@ -83,6 +83,7 @@ export async function generateHelper(
 ): Promise<GenerateResponseData> {
   // do tracing
   return await runInNewSpan(
+    registry,
     {
       metadata: {
         name: 'generate',
@@ -139,8 +140,9 @@ async function generate(
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
-  const streamingCallback = getStreamingCallback();
+  const streamingCallback = getStreamingCallback(registry);
   const response = await runWithStreamingCallback(
+    registry,
     streamingCallback
       ? (chunk: GenerateResponseChunkData) => {
           // Store accumulated chunk data

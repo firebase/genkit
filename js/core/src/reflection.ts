@@ -168,6 +168,7 @@ export class ReflectionServer {
             response.write(JSON.stringify(chunk) + '\n');
           };
           const result = await runWithStreamingCallback(
+            this.registry,
             callback,
             async () => await action.run(input, { context, onChunk: callback })
           );

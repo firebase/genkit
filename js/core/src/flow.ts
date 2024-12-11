@@ -18,6 +18,7 @@ import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
 import { Server } from 'http';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import {
   Action,
@@ -28,7 +29,7 @@ import {
 import { runWithContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { logger } from './logging.js';
-import { Registry } from './registry.js';
+import { HasRegistry, Registry } from './registry.js';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
 const streamDelimiter = '\n\n';
@@ -163,7 +164,7 @@ export class Flow<
   readonly action: Action<I, O, S>;
 
   constructor(
-    private registry: Registry,
+    readonly registry: Registry,
     config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
     action: Action<I, O, S>
   ) {
@@ -549,16 +550,25 @@ function defineFlowAction<
     },
     async (input, { sendChunk, context }) => {
       await config.authPolicy?.(context, input);
-      return await runWithContext(context, () => fn(input, sendChunk));
+      return await legacyRegistryAls.run(registry, () =>
+        runWithContext(registry, context, () => fn(input, sendChunk))
+      );
     }
   );
 }
 
-export function run<T>(name: string, func: () => Promise<T>): Promise<T>;
+const legacyRegistryAls = new AsyncLocalStorage<Registry>();
+
+export function run<T>(
+  name: string,
+  func: () => Promise<T>,
+  registry?: Registry
+): Promise<T>;
 export function run<T>(
   name: string,
   input: any,
-  func: (input?: any) => Promise<T>
+  func: (input?: any) => Promise<T>,
+  registry?: Registry
 ): Promise<T>;
 
 /**
@@ -567,14 +577,47 @@ export function run<T>(
 export function run<T>(
   name: string,
   funcOrInput: () => Promise<T>,
-  fn?: (input?: any) => Promise<T>
+  fnOrRegistry?: Registry | HasRegistry | ((input?: any) => Promise<T>),
+  maybeRegistry?: Registry | HasRegistry
 ): Promise<T> {
-  const func = arguments.length === 3 ? fn : funcOrInput;
-  const input = arguments.length === 3 ? funcOrInput : undefined;
+  let func;
+  let input;
+  let registry: Registry | undefined;
+  if (typeof funcOrInput === 'function') {
+    func = funcOrInput;
+  } else {
+    input = funcOrInput;
+  }
+  if (typeof fnOrRegistry === 'function') {
+    func = fnOrRegistry;
+  } else if (
+    fnOrRegistry instanceof Registry ||
+    (fnOrRegistry as HasRegistry)?.registry
+  ) {
+    registry = (fnOrRegistry as HasRegistry)?.registry
+      ? (fnOrRegistry as HasRegistry)?.registry
+      : (fnOrRegistry as Registry);
+  }
+  if (maybeRegistry) {
+    registry = (maybeRegistry as HasRegistry).registry
+      ? (maybeRegistry as HasRegistry).registry
+      : (maybeRegistry as Registry);
+  }
+
+  if (!registry) {
+    registry = legacyRegistryAls.getStore();
+  }
+  if (!registry) {
+    throw new Error(
+      'Unable to resolve registry. Consider explicitly passing Genkit instance.'
+    );
+  }
+
   if (!func) {
     throw new Error('unable to resolve run function');
   }
   return runInNewSpan(
+    registry,
     {
       metadata: { name },
       labels: {
