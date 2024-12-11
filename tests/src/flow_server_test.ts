@@ -15,6 +15,7 @@
  */
 
 import { readFileSync } from 'fs';
+import * as http from 'http';
 import * as yaml from 'yaml';
 import {
   retriable,
@@ -57,17 +58,18 @@ async function testFlowServer() {
     console.log('path', test.path)
     let fetchopts = {
       method: 'POST',
+      headers: {
+        'Accept': 'text/event-stream',
+        'Connection': 'keep-alive',
+      },
+      body: JSON.stringify(test.post),
     } as RequestInit;
-    if (test.hasOwnProperty('post')) {
-      fetchopts.method = 'POST';
-      fetchopts.headers = { 'Content-Type': 'text/event-stream', 'Connection': 'keep-alive' }
-      fetchopts.body = JSON.stringify(test.post)
-    }
 
-    await fetchData(`${url}${test.path}`, fetchopts)
+    await fetchData(`${url}/${test.path}`, fetchopts)
   }
   console.log('Flow server tests done! \\o/')
 }
+
 
 // helper function that validates stream flow responses
 async function fetchData(url: string, fetchopts: RequestInit) {
@@ -76,10 +78,16 @@ async function fetchData(url: string, fetchopts: RequestInit) {
   if (!response.ok) {
     throw new Error(`${url}: error detected, code: ${response.status}`)
   }
+
   const contentHeader = response.headers.get('Content-Type')
   if (contentHeader && !contentHeader.includes("text/plain")) {
-    throw new Error(`wrong header, got: ${contentHeader}`)
+    throw new Error(`wrong header, want: text/plain, got: ${contentHeader}`)
   }
+  const acceptHeader = response.headers.get('Accept')
+  if (acceptHeader && !acceptHeader.includes('text/event-stream')) {
+    throw new Error(`wrong header, want: text/event-stream, got: ${acceptHeader}`)
+  }
+
   const reader = response.body?.getReader();
   if (!reader) {
     throw new Error(`unable to get response reader`);
@@ -94,6 +102,9 @@ async function fetchData(url: string, fetchopts: RequestInit) {
 
     const decoder = new TextDecoder('utf-8');
     const text = decoder.decode(value);
-    console.log('data:', text)
+    if (!text.startsWith("data:")) {
+      throw new Error(`bad stream format detected`)
+    }
+    console.log(text)
   }
 }
