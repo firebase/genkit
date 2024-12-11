@@ -17,6 +17,7 @@
 import { Registry } from '@genkit-ai/core/registry';
 import { readFileSync } from 'fs';
 import { basename } from 'path';
+import { toFrontmatter } from './metadata.js';
 import {
   defineDotprompt,
   Dotprompt,
@@ -31,6 +32,7 @@ export {
   defineDotprompt,
   Dotprompt,
   loadPromptFolder,
+  toFrontmatter,
   type PromptGenerateOptions,
 };
 

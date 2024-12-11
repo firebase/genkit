@@ -129,6 +129,7 @@ import {
   PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
+  toFrontmatter,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseEvalDataPointSchema } from './evaluator.js';
@@ -359,7 +360,16 @@ export class Genkit {
   }
 
   /**
-   * Defines and registers a function-based prompt.
+   * Defines and registers a prompt based on a function.
+   *
+   * This is an alternative to defining and importing a .prompt file, providing
+   * the most advanced control over how the final request to the model is made.
+   *
+   * @param options - Prompt metadata including model, model params,
+   * input/output schemas, etc
+   * @param fn - A function that returns a {@link GenerateRequest}. Any config
+   * parameters specified by the {@link GenerateRequest} will take precedence
+   * over any parameters specified by `options`.
    *
    * ```ts
    * const hi = ai.definePrompt(
@@ -393,9 +403,13 @@ export class Genkit {
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   /**
-   * Defines and registers a dotprompt.
+   * Defines and registers a prompt based on a template.
    *
-   * This is an alternative to defining and importing a .prompt file.
+   * This is an alternative to defining and importing a .prompt file, in
+   * situations where a static definition will not suffice.
+   *
+   * @param options - The first input number
+   * @param fn - The second input number
    *
    * ```ts
    * const hi = ai.definePrompt(
@@ -426,10 +440,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
+    options: PromptMetadata<I, CustomOptions>,
     templateOrFn: string | PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     if (!options.name) {
@@ -457,9 +468,13 @@ export class Genkit {
         this.registry,
         {
           name: options.name!,
+          description: options.description,
           inputJsonSchema: options.input?.jsonSchema,
           inputSchema: options.input?.schema,
-          description: options.description,
+          metadata: {
+            type: 'prompt',
+            prompt: toFrontmatter(options),
+          },
         },
         async (input: z.infer<I>) => {
           const response = await (templateOrFn as PromptFn<I>)(input);
