@@ -32,7 +32,7 @@ import {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
-  gemini20FlashExperimental,
+  gemini20FlashExp,
 } from './gemini.js';
 import {
   SUPPORTED_IMAGEN_MODELS,
@@ -46,7 +46,7 @@ export {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
-  gemini20FlashExperimental,
+  gemini20FlashExp,
   imagen2,
   imagen3,
   imagen3Fast,
