@@ -5,6 +5,9 @@
 
 app: flow_server
 tests:
-  - path: /streamy
+  - path: streamy
     post:
-      data: 2
+      data: 5
+  - path: streamyThrowy
+    post:
+      data: 4
