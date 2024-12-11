@@ -217,7 +217,7 @@ func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, pr *PromptReque
 		}
 	}
 
-	resp, err := model.Generate(ctx, g.Reg, genReq, cb)
+	resp, err := genkit.GenerateWithRequest(ctx, g, model, genReq, cb)
 	if err != nil {
 		return nil, err
 	}

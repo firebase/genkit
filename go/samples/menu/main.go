@@ -78,14 +78,14 @@ func main() {
 	model := vertexai.Model(g, "gemini-1.5-flash")
 	visionModel := vertexai.Model(g, "gemini-1.5-flash")
 	embedder := vertexai.Embedder(g, "text-embedding-004")
-	if err := setup01(ctx, g, model); err != nil {
+	if err := setup01(g, model); err != nil {
 		log.Fatal(err)
 	}
-	if err := setup02(ctx, g, model); err != nil {
+	if err := setup02(g, model); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := setup03(ctx, g, model); err != nil {
+	if err := setup03(g, model); err != nil {
 		log.Fatal(err)
 	}
 
@@ -99,11 +99,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, g, indexer, retriever, model); err != nil {
+	if err := setup04(g, indexer, retriever, model); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := setup05(ctx, g, model, visionModel); err != nil {
+	if err := setup05(g, model, visionModel); err != nil {
 		log.Fatal(err)
 	}
 

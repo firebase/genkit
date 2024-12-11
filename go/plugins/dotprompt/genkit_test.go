@@ -44,7 +44,7 @@ func TestExecute(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	testModel := ai.DefineModel(g.Reg, "test", "test", nil, testGenerate)
+	testModel := genkit.DefineModel(g, "test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {

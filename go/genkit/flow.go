@@ -175,7 +175,7 @@ func DefineFlow[In, Out any](
 	fn func(ctx context.Context, input In) (Out, error),
 	opts ...FlowOption,
 ) *Flow[In, Out, struct{}] {
-	return defineFlow(g.Reg, name, core.Func[In, Out, struct{}](
+	return defineFlow(g.reg, name, core.Func[In, Out, struct{}](
 		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
 			return fn(ctx, input)
 		}), opts...)
@@ -196,7 +196,7 @@ func DefineStreamingFlow[In, Out, Stream any](
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
 	opts ...FlowOption,
 ) *Flow[In, Out, Stream] {
-	return defineFlow(g.Reg, name, core.Func[In, Out, Stream](fn), opts...)
+	return defineFlow(g.reg, name, core.Func[In, Out, Stream](fn), opts...)
 }
 
 func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream], opts ...FlowOption) *Flow[In, Out, Stream] {

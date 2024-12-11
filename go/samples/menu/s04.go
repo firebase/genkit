@@ -24,7 +24,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
+func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
 	ragDataMenuPrompt, err := dotprompt.Define(g, "s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.

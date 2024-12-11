@@ -15,14 +15,12 @@
 package main
 
 import (
-	"context"
-
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
-func setup01(ctx context.Context, g *genkit.Genkit, m ai.Model) error {
+func setup01(g *genkit.Genkit, m ai.Model) error {
 	_, err := dotprompt.Define(g, "s01_vanillaPrompt",
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.

@@ -29,7 +29,7 @@ type imageURLInput struct {
 	ImageURL string `json:"imageUrl"`
 }
 
-func setup05(ctx context.Context, g *genkit.Genkit, gen, genVision ai.Model) error {
+func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 	readMenuPrompt, err := dotprompt.Define(g, "s05_readMenu",
 		`
 		  Extract _all_ of the text, in order,

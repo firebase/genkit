@@ -179,12 +179,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
-	tstate := a.tstate
-	if tstate == nil {
-		// This action has probably not been registered.
-		tstate = registry.Global.TracingState()
-	}
-	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, a.tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error

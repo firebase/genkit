@@ -55,7 +55,7 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 	return ch.preamble
 }
 
-func setup03(ctx context.Context, g *genkit.Genkit, m ai.Model) error {
+func setup03(g *genkit.Genkit, m ai.Model) error {
 	chatPreamblePrompt, err := dotprompt.Define(g, "s03_chatPreamble",
 		`
 		  {{ role "user" }}
@@ -112,7 +112,7 @@ func setup03(ctx context.Context, g *genkit.Genkit, m ai.Model) error {
 				Role: ai.RoleUser,
 			}
 			messages := append(slices.Clip(history), msg)
-			resp, err := genkit.Generate(ctx, g, m, ai.WithMessages(messages...))
+			resp, err := genkit.Generate(ctx, g, ai.WithModel(m), ai.WithMessages(messages...))
 			if err != nil {
 				return nil, err
 			}
