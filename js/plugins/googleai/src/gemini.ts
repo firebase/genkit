@@ -164,7 +164,7 @@ export const gemini20FlashExp = modelRef({
     versions: [],
     supports: {
       multiturn: true,
-      media: false,
+      media: true,
       tools: true,
       systemRole: true,
     },

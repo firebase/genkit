@@ -129,11 +129,11 @@ export const gemini15Flash = modelRef({
 export const gemini20FlashExp = modelRef({
   name: 'vertexai/gemini-2.0-flash-exp',
   info: {
-    label: 'Google AI - Gemini 2.0 Flash (Experimental)',
+    label: 'Vertex AI - Gemini 2.0 Flash (Experimental)',
     versions: [],
     supports: {
       multiturn: true,
-      media: false,
+      media: true,
       tools: true,
       systemRole: true,
     },
