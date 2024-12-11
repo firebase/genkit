@@ -64,7 +64,7 @@ export function checksEvaluators(
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string
-): EvaluatorAction[] {
+): EvaluatorAction {
   const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map(
     (metric) => {
       const metricType = isConfig(metric) ? metric.type : metric;
@@ -77,7 +77,7 @@ export function checksEvaluators(
     }
   );
 
-  return [createPolicyEvaluator(projectId, auth, ai, policy_configs)];
+  return createPolicyEvaluator(projectId, auth, ai, policy_configs);
 }
 
 function isConfig(
