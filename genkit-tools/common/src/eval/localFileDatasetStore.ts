@@ -241,18 +241,10 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
-    if (Array.isArray(data)) {
-      return data.map((d) => ({
-        testCaseId: d.testCaseId ?? generateTestCaseId(),
-        input: d,
-      }));
-    } else if (!!data.samples) {
-      return data.samples.map((d) => ({
-        testCaseId: d.testCaseId ?? generateTestCaseId(),
-        ...d,
-      }));
-    }
-    return [];
+    return data.map((d) => ({
+      testCaseId: d.testCaseId ?? generateTestCaseId(),
+      ...d,
+    }));
   }
 
   private async patchDataset(

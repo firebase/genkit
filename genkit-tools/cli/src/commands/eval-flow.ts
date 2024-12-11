@@ -42,7 +42,7 @@ interface EvalFlowRunCliOptions {
   outputFormat: string;
 }
 
-const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
+const EVAL_FLOW_SCHEMA = 'Array<{input: any; reference?: any;}>';
 enum SourceType {
   DATA = 'data',
   FILE = 'file',
@@ -177,8 +177,7 @@ async function readInputs(
     case SourceType.DATASET:
       const datasetStore = await getDatasetStore();
       const data = await datasetStore.getDataset(input!);
-      // Format to match EvalInferenceInputSchema
-      parsedData = { samples: data };
+      parsedData = data;
       break;
   }
 
