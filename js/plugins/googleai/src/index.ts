@@ -28,8 +28,10 @@ import {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
+  gemini20FlashExperimental,
+  gemini15Flash8b,
 } from './gemini.js';
-export { gemini10Pro, gemini15Flash, gemini15Pro, textEmbeddingGecko001 };
+export { gemini10Pro, gemini15Flash, gemini15Pro, gemini20FlashExperimental, gemini15Flash8b, textEmbeddingGecko001 };
 
 export interface PluginOptions {
   apiKey?: string;
