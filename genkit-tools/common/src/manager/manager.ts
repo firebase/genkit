@@ -25,6 +25,7 @@ import {
   RunActionResponseSchema,
 } from '../types/action';
 import * as apis from '../types/apis';
+import { GenkitErrorData } from '../types/error';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
@@ -204,13 +205,12 @@ export class RuntimeManager {
             `Error running action key='${input.key}'.`
           );
           // massage the error into a shape dev ui expects
-          err.data = parsedBuffer.error;
           err.data = {
-            ...err.data,
-            stack: (err?.data?.details as any).stack,
+            ...parsedBuffer.error,
+            stack: (parsedBuffer.error?.details as any).stack,
             data: {
-              genkitErrorMessage: err?.data?.message,
-              genkitErrorDetails: err?.data?.details,
+              genkitErrorMessage: parsedBuffer.error?.message,
+              genkitErrorDetails: parsedBuffer.error?.details,
             },
           };
           rejecter(err);
@@ -408,7 +408,7 @@ export class RuntimeManager {
         newError.message = (error.response?.data as any).message;
       }
       // we got a non-200 response; copy the payload and rethrow
-      newError.data = error.response.data as Record<string, unknown>;
+      newError.data = error.response.data as GenkitErrorData;
       throw newError;
     }
 
