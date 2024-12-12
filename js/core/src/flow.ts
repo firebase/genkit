@@ -137,7 +137,7 @@ interface StreamingResponse<
 }
 
 /**
- * Flow execution context for flow to access the streaming callback and 
+ * Flow execution context for flow to access the streaming callback and
  * side-channel context data. The context itself is a function, a short-cut
  * for streaming callback.
  */

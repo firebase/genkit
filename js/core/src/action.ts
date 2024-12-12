@@ -16,6 +16,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
+import { getContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
@@ -23,7 +24,6 @@ import {
   newTrace,
   setCustomMetadataAttributes,
 } from './tracing.js';
-import { getContext } from './context.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };
