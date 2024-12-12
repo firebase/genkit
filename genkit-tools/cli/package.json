@@ -1,6 +1,6 @@
 {
   "name": "genkit-cli",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "description": "CLI for interacting with the Google Genkit AI framework",
   "license": "Apache-2.0",
   "keywords": [
