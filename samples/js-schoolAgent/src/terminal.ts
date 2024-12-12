@@ -79,7 +79,8 @@ async function handleChatResponse(
       m.content
         .filter((p) => !!p.toolRequest)
         .map(
-          (p) => `${p.toolRequest.name}(${JSON.stringify(p.toolRequest.input)})`
+          (p) =>
+            `${p.toolRequest?.name}(${JSON.stringify(p.toolRequest?.input)})`
         )
     )
     .flat()

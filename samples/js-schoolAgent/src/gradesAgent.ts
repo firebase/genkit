@@ -16,7 +16,7 @@
 
 import { ai } from './genkit.js';
 import { getRecentGrades } from './tools.js';
-import { agentDescription, agentPrompt } from './util.js';
+import { agentDescription } from './util.js';
 
 const tools = [getRecentGrades, 'routingAgent'];
 const specialization = 'grades';
@@ -36,7 +36,10 @@ export const gradesAgent = ai.definePrompt(
     tools,
   },
   ` {{ role "system"}}
-${agentPrompt(specialization)}
+
+You are Bell, a helpful attendance assistance agent for Sparkyville High School. 
+A parent has been referred to you to handle a ${specialization}-related concern. 
+Use the tools available to you to assist the parent.
 
 Guidelines:
 - Parents may only view grades for their own students

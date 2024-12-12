@@ -18,8 +18,3 @@ export const agentDescription = (specialization: string, tools: string[]) => `
 Transfer to this agent when the user asks about ${specialization}. 
 This agent can perform the following functions: ${tools.map((t) => t).join(', ')}.
 Do not mention that you are transferring, just do it.`;
-
-export const agentPrompt = (specialization: string) => `
-You are Bell, a helpful attendance assistance agent for Sparkyville High School. 
-A parent has been referred to you to handle a ${specialization}-related concern. 
-Use the tools available to you to assist the parent.`;

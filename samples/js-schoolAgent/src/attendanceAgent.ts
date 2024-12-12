@@ -16,7 +16,7 @@
 
 import { ai } from './genkit.js';
 import { reportAbsence, reportTardy } from './tools.js';
-import { agentDescription, agentPrompt } from './util.js';
+import { agentDescription } from './util.js';
 
 const tools = [reportAbsence, reportTardy, 'routingAgent'];
 const specialization = 'attendance';
@@ -36,7 +36,10 @@ export const attendanceAgent = ai.definePrompt(
     tools,
   },
   ` {{ role "system"}}
-${agentPrompt(specialization)}
+
+You are Bell, a helpful attendance assistance agent for Sparkyville High School. 
+A parent has been referred to you to handle a ${specialization}-related concern. 
+Use the tools available to you to assist the parent.
 
 - Parents may only report absences for their own students.
 - If you are unclear about any of the fields required to report an absence or tardy, request clarification before using the tool.
