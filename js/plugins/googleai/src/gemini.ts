@@ -92,6 +92,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .optional(),
 });
+export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
   name: 'googleai/gemini-1.0-pro',
@@ -189,13 +190,73 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-exp': gemini20FlashExp,
 };
 
-export const SUPPORTED_GEMINI_MODELS: Record<
-  string,
-  ModelReference<typeof GeminiConfigSchema>
-> = {
+export const GENERIC_GEMINI_MODEL = modelRef({
+  name: 'googleai/gemini',
+  configSchema: GeminiConfigSchema,
+  info: {
+    label: 'Google Gemini',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+    },
+  },
+});
+
+export const SUPPORTED_GEMINI_MODELS = {
   ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
-};
+} as const;
+
+function longestMatchingPrefix(version: string, potentialMatches: string[]) {
+  return potentialMatches
+    .filter((p) => version.startsWith(p))
+    .reduce(
+      (longest, current) =>
+        current.length > longest.length ? current : longest,
+      ''
+    );
+}
+export type GeminiVersionString =
+  | keyof typeof SUPPORTED_GEMINI_MODELS
+  | (string & {});
+
+export function gemini(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const nearestModel = nearestGeminiModelRef(version);
+  return modelRef({
+    name: `googleai/${version}`,
+    config: options,
+    configSchema: GeminiConfigSchema,
+    info: {
+      ...nearestModel.info,
+      // If exact suffix match for a known model, use its label, otherwise create a new label
+      label: nearestModel.name.endsWith(version)
+        ? nearestModel.info?.label
+        : `Google AI - ${version}`,
+    },
+  });
+}
+
+function nearestGeminiModelRef(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const matchingKey = longestMatchingPrefix(
+    version,
+    Object.keys(SUPPORTED_GEMINI_MODELS)
+  );
+  if (matchingKey) {
+    return SUPPORTED_GEMINI_MODELS[matchingKey].withConfig({
+      ...options,
+      version,
+    });
+  }
+  return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
+}
 
 function toGeminiRole(
   role: MessageData['role'],
@@ -501,7 +562,7 @@ export function defineGoogleAIModel(
   apiVersion?: string,
   baseUrl?: string,
   info?: ModelInfo,
-  defaultConfig?: z.infer<typeof GeminiConfigSchema>
+  defaultConfig?: GeminiConfig
 ): ModelAction {
   if (!apiKey) {
     apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -519,7 +580,7 @@ export function defineGoogleAIModel(
   const model: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[name] ??
     modelRef({
-      name,
+      name: `googleai/${apiModelName}`,
       info: {
         label: `Google AI - ${apiModelName}`,
         supports: {
@@ -648,7 +709,7 @@ export function defineGoogleAIModel(
       let chatRequest: StartChatParams = {
         systemInstruction,
         generationConfig,
-        tools,
+        tools: tools.length ? tools : undefined,
         toolConfig,
         history: messages
           .slice(0, -1)
