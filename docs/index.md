@@ -214,7 +214,8 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   ```javascript
   import { genkit } from 'genkit';
-  import { googleAI, gemini15Flash, textEmbeddingGecko001 } from '@genkit-ai/googleai';
+  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { textEmbedding004 } from '@genkit-ai/vertexai';
   import { devLocalRetrieverRef, devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 
   const ai = genkit({ 
@@ -223,7 +224,7 @@ See the following code samples for a concrete idea of how to use these capabilit
       devLocalVectorstore([
         {
           indexName: 'BobFacts',
-          embedder: textEmbeddingGecko001,
+          embedder: textEmbedding004,
         },
       ]),
     ],
