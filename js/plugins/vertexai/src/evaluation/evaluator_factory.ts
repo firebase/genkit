@@ -47,6 +47,7 @@ export class EvaluatorFactory {
       async (datapoint: BaseEvalDataPoint) => {
         const responseSchema = config.responseSchema;
         const response = await this.evaluateInstances(
+          ai,
           toRequest(datapoint),
           responseSchema
         );
@@ -60,11 +61,13 @@ export class EvaluatorFactory {
   }
 
   async evaluateInstances<ResponseType extends z.ZodTypeAny>(
+    ai: Genkit,
     partialRequest: any,
     responseSchema: ResponseType
   ): Promise<z.infer<ResponseType>> {
     const locationName = `projects/${this.projectId}/locations/${this.location}`;
     return await runInNewSpan(
+      ai,
       {
         metadata: {
           name: 'EvaluationService#evaluateInstances',

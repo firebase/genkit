@@ -21,13 +21,13 @@ import {
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
+import { HasRegistry, Registry } from '../registry.js';
 import { ensureBasicTelemetryInstrumentation } from '../tracing.js';
 import { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
-export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
-export const traceMetadataAls = new AsyncLocalStorage<TraceMetadata>();
+export const spanMetadataAlsKey = 'core.tracing.instrumentation.span';
+export const traceMetadataAlsKey = 'core.tracing.instrumentation.trace';
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_TYPE_ATTR = ATTR_PREFIX + ':type';
@@ -38,6 +38,7 @@ const TRACER_VERSION = 'v1';
  *
  */
 export async function newTrace<T>(
+  registry: Registry | HasRegistry,
   opts: {
     name: string;
     labels?: Record<string, string>;
@@ -45,14 +46,21 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
+  registry = (registry as HasRegistry).registry
+    ? (registry as HasRegistry).registry
+    : (registry as Registry);
+
   await ensureBasicTelemetryInstrumentation();
-  const traceMetadata: TraceMetadata = traceMetadataAls.getStore() || {
+  const traceMetadata: TraceMetadata = registry.asyncStore.getStore(
+    traceMetadataAlsKey
+  ) || {
     paths: new Set<PathMetadata>(),
     timestamp: performance.now(),
     featureName: opts.name,
   };
-  return await traceMetadataAls.run(traceMetadata, () =>
+  return await registry.asyncStore.run(traceMetadataAlsKey, traceMetadata, () =>
     runInNewSpan(
+      registry,
       {
         metadata: {
           name: opts.name,
@@ -68,9 +76,10 @@ export async function newTrace<T>(
 }
 
 /**
- *
+ * Runs the provided function in a new span.
  */
 export async function runInNewSpan<T>(
+  registry: Registry | HasRegistry,
   opts: {
     metadata: SpanMetadata;
     labels?: Record<string, string>;
@@ -79,9 +88,13 @@ export async function runInNewSpan<T>(
   fn: (metadata: SpanMetadata, otSpan: ApiSpan, isRoot: boolean) => Promise<T>
 ): Promise<T> {
   await ensureBasicTelemetryInstrumentation();
+  const resolvedRegistry = (registry as HasRegistry).registry
+    ? (registry as HasRegistry).registry
+    : (registry as Registry);
 
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
-  const parentStep = spanMetadataAls.getStore();
+  const parentStep =
+    resolvedRegistry.asyncStore.getStore<SpanMetadata>(spanMetadataAlsKey);
   const isInRoot = parentStep?.isRoot === true;
   if (!parentStep) opts.metadata.isRoot ||= true;
   return await tracer.startActiveSpan(
@@ -96,17 +109,19 @@ export async function runInNewSpan<T>(
           opts.labels
         );
 
-        const output = await spanMetadataAls.run(opts.metadata, () =>
-          fn(opts.metadata, otSpan, isInRoot)
+        const output = await resolvedRegistry.asyncStore.run(
+          spanMetadataAlsKey,
+          opts.metadata,
+          () => fn(opts.metadata, otSpan, isInRoot)
         );
         if (opts.metadata.state !== 'error') {
           opts.metadata.state = 'success';
         }
 
-        recordPath(opts.metadata);
+        recordPath(resolvedRegistry, opts.metadata);
         return output;
       } catch (e) {
-        recordPath(opts.metadata, e);
+        recordPath(resolvedRegistry, opts.metadata, e);
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
@@ -183,8 +198,12 @@ function metadataToAttributes(metadata: SpanMetadata): Record<string, string> {
 /**
  * Sets provided attribute value in the current span.
  */
-export function setCustomMetadataAttribute(key: string, value: string) {
-  const currentStep = getCurrentSpan();
+export function setCustomMetadataAttribute(
+  registry: Registry,
+  key: string,
+  value: string
+) {
+  const currentStep = getCurrentSpan(registry);
   if (!currentStep) {
     return;
   }
@@ -197,8 +216,11 @@ export function setCustomMetadataAttribute(key: string, value: string) {
 /**
  * Sets provided attribute values in the current span.
  */
-export function setCustomMetadataAttributes(values: Record<string, string>) {
-  const currentStep = getCurrentSpan();
+export function setCustomMetadataAttributes(
+  registry: Registry,
+  values: Record<string, string>
+) {
+  const currentStep = getCurrentSpan(registry);
   if (!currentStep) {
     return;
   }
@@ -216,8 +238,8 @@ export function toDisplayPath(path: string): string {
   return Array.from(path.matchAll(pathPartRegex), (m) => m[1]).join(' > ');
 }
 
-function getCurrentSpan(): SpanMetadata {
-  const step = spanMetadataAls.getStore();
+function getCurrentSpan(registry: Registry): SpanMetadata {
+  const step = registry.asyncStore.getStore<SpanMetadata>(spanMetadataAlsKey);
   if (!step) {
     throw new Error('running outside step context');
   }
@@ -236,24 +258,29 @@ function buildPath(
   return parentPath + `/{${name}${stepType}}`;
 }
 
-function recordPath(spanMeta: SpanMetadata, err?: any) {
+function recordPath(registry: Registry, spanMeta: SpanMetadata, err?: any) {
   const path = spanMeta.path || '';
   const decoratedPath = decoratePathWithSubtype(spanMeta);
   // Only add the path if a child has not already been added. In the event that
   // an error is rethrown, we don't want to add each step in the unwind.
   const paths = Array.from(
-    traceMetadataAls.getStore()?.paths || new Set<PathMetadata>()
+    registry.asyncStore.getStore<TraceMetadata>(traceMetadataAlsKey)?.paths ||
+      new Set<PathMetadata>()
   );
   const status = err ? 'failure' : 'success';
   if (!paths.some((p) => p.path.startsWith(path) && p.status === status)) {
     const now = performance.now();
-    const start = traceMetadataAls.getStore()?.timestamp || now;
-    traceMetadataAls.getStore()?.paths?.add({
-      path: decoratedPath,
-      error: err?.name,
-      latency: now - start,
-      status,
-    });
+    const start =
+      registry.asyncStore.getStore<TraceMetadata>(traceMetadataAlsKey)
+        ?.timestamp || now;
+    registry.asyncStore
+      .getStore<TraceMetadata>(traceMetadataAlsKey)
+      ?.paths?.add({
+        path: decoratedPath,
+        error: err?.name,
+        latency: now - start,
+        status,
+      });
   }
   spanMeta.path = decoratedPath;
 }

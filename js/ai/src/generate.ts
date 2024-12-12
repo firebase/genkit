@@ -278,6 +278,7 @@ export async function generate<
   };
 
   return await runWithStreamingCallback(
+    registry,
     resolvedOptions.streamingCallback,
     async () => {
       const response = await generateHelper(
