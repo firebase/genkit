@@ -58,41 +58,41 @@ export const ai = genkit({
     googleAI(),
     genkitEval({
       judge: gemini15Pro,
-      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [GenkitMetric.MALICIOUSNESS],
+      // judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+      metrics: [GenkitMetric.FAITHFULNESS],
       embedder: textEmbeddingGecko001,
     }),
     vertexAI({
       location: 'us-central1',
     }),
-    vertexAIEvaluation({
-      location: 'us-central1',
-      metrics: [
-        VertexAIEvaluationMetricType.BLEU,
-        VertexAIEvaluationMetricType.GROUNDEDNESS,
-        VertexAIEvaluationMetricType.SAFETY,
-        {
-          type: VertexAIEvaluationMetricType.ROUGE,
-          metricSpec: {
-            rougeType: 'rougeLsum',
-            useStemmer: true,
-            splitSummaries: 'true',
-          },
-        },
-      ],
-    }),
+    // vertexAIEvaluation({
+    //   location: 'us-central1',
+    //   metrics: [
+    //     VertexAIEvaluationMetricType.BLEU,
+    //     VertexAIEvaluationMetricType.GROUNDEDNESS,
+    //     VertexAIEvaluationMetricType.SAFETY,
+    //     {
+    //       type: VertexAIEvaluationMetricType.ROUGE,
+    //       metricSpec: {
+    //         rougeType: 'rougeLsum',
+    //         useStemmer: true,
+    //         splitSummaries: 'true',
+    //       },
+    //     },
+    //   ],
+    // }),
     devLocalVectorstore([
       {
         indexName: 'pdfQA',
         embedder: textEmbeddingGecko001,
       },
     ]),
-    langchain({
-      evaluators: {
-        criteria: ['coherence'],
-        labeledCriteria: ['correctness'],
-        judge: gemini15Flash,
-      },
-    }),
+    // langchain({
+    //   evaluators: {
+    //     criteria: ['coherence'],
+    //     labeledCriteria: ['correctness'],
+    //     judge: gemini15Flash,
+    //   },
+    // }),
   ],
 });

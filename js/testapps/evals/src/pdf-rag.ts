@@ -138,3 +138,35 @@ async function extractText(filePath: string): Promise<string> {
   }
   return pdfTxt;
 }
+
+
+export const dummyretriever = ai.defineRetriever(
+  {
+    name: "dummyRetriever",
+  },
+  async (i) => {
+    return { documents: ["Hello", "world"].map((t) => Document.fromText(t)) };
+  }
+);
+
+// Define a simple RAG flow, we will evaluate this flow
+export const assistantFlow = ai.defineFlow(
+  {
+    name: "assistantFlow",
+    inputSchema: z.object({
+      question: z.string(),
+      sender: z.string(),
+    }),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const test = await dummyretriever({
+      query: Document.fromText(query.question),
+    });
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: query.question,
+    });
+    return llmResponse.text;
+  }
+);
