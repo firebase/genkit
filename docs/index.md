@@ -214,16 +214,16 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   ```javascript
   import { genkit } from 'genkit';
-  import { googleAI, gemini15Flash, textEmbedding004 } from '@genkit-ai/googleai';
-  import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
+  import { googleAI, gemini15Flash, textEmbeddingGecko001 } from '@genkit-ai/googleai';
+  import { devLocalRetrieverRef, devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 
   const ai = genkit({ 
     plugins: [
-      googleAI()
+      googleAI(),
       devLocalVectorstore([
         {
           indexName: 'BobFacts',
-          embedder: textEmbedding004,
+          embedder: textEmbeddingGecko001,
         },
       ]),
     ],
@@ -233,15 +233,17 @@ See the following code samples for a concrete idea of how to use these capabilit
   // Reference to a local vector database storing Genkit documentation
   const retriever = devLocalRetrieverRef('BobFacts');
 
+  const query = 'How old is Bob?';
+
   // Consistent API to retrieve most relevant documents based on semantic similarity to query
-  const docs = await ai.retrieve(
+  const docs = await ai.retrieve({
     retriever: retriever,
-    query: 'How old is bob?',
-  );
+    query: query,
+  });
 
   const result = await ai.generate({
       prompt: `Use the provided context from the Genkit documentation to answer this query: ${query}`,
-      docs // Pass retrieved documents to the model
+      docs: docs // Pass retrieved documents to the model
   });
   ```
 
