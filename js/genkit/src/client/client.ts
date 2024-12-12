@@ -34,7 +34,7 @@ const __flowStreamDelimiter = '\n\n';
  * console.log(await response.output);
  * ```
  */
-export function streamFlow({
+export function streamFlow<O = any, S = any>({
   url,
   input,
   headers,
@@ -42,7 +42,10 @@ export function streamFlow({
   url: string;
   input?: any;
   headers?: Record<string, string>;
-}) {
+}): {
+  output(): Promise<O>;
+  stream(): AsyncIterable<S>;
+} {
   let chunkStreamController: ReadableStreamDefaultController | undefined =
     undefined;
   const chunkStream = new ReadableStream({
@@ -97,8 +100,7 @@ async function __flowRunEnvelope({
   streamingCallback: (chunk: any) => void;
   headers?: Record<string, string>;
 }) {
-  let response;
-  response = await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
       data: input,
@@ -109,6 +111,11 @@ async function __flowRunEnvelope({
       ...headers,
     },
   });
+  if (response.status !== 200) {
+    throw new Error(
+      `Server returned: ${response.status}: ${await response.text()}`
+    );
+  }
   if (!response.body) {
     throw new Error('Response body is empty');
   }
@@ -163,7 +170,7 @@ async function __flowRunEnvelope({
  * console.log(await response);
  * ```
  */
-export async function runFlow({
+export async function runFlow<O = any>({
   url,
   input,
   headers,
@@ -171,7 +178,7 @@ export async function runFlow({
   url: string;
   input?: any;
   headers?: Record<string, string>;
-}) {
+}): Promise<O> {
   const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
@@ -182,6 +189,11 @@ export async function runFlow({
       ...headers,
     },
   });
+  if (response.status !== 200) {
+    throw new Error(
+      `Server returned: ${response.status}: ${await response.text()}`
+    );
+  }
   const wrappedDesult = await response.json();
   return wrappedDesult.result;
 }

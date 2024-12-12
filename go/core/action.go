@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -140,7 +141,9 @@ func newAction[In, Out, Stream any](
 	var i In
 	var o Out
 	if inputSchema == nil {
-		inputSchema = base.InferJSONSchema(i)
+		if reflect.ValueOf(i).Kind() != reflect.Invalid {
+			inputSchema = base.InferJSONSchema(i)
+		}
 	}
 	return &Action[In, Out, Stream]{
 		name:  name,

@@ -30,22 +30,6 @@ import { GenerateRequestSchema } from './model';
  */
 
 /**
- * Structured input for inference part of evaluation
- */
-export const EvalInferenceStructuredInputSchema = z.object({
-  samples: z.array(
-    z.object({
-      testCaseId: z.string().optional(),
-      input: z.any(),
-      reference: z.any().optional(),
-    })
-  ),
-});
-export type EvalInferenceStructuredInput = z.infer<
-  typeof EvalInferenceStructuredInputSchema
->;
-
-/**
  * Supported datatype when running eval-inference using models
  */
 export const ModelInferenceInputSchema = z.union([
@@ -60,15 +44,19 @@ export const ModelInferenceInputJSONSchema = zodToJsonSchema(
     removeAdditionalStrategy: 'strict',
   }
 ) as JSONSchema7;
+
 /**
  * A set of samples that is ready for inference.
  *
  * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For internal wire-transfer/storage, prefer {@link Dataset}.
  */
-export const EvalInferenceInputSchema = z.union([
-  z.array(z.any()),
-  EvalInferenceStructuredInputSchema,
-]);
+export const EvalInferenceInputSchema = z.array(
+  z.object({
+    testCaseId: z.string().optional(),
+    input: z.any(),
+    reference: z.any().optional(),
+  })
+);
 export type EvalInferenceInput = z.infer<typeof EvalInferenceInputSchema>;
 
 /**

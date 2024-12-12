@@ -25,6 +25,7 @@ import {
   RunActionResponseSchema,
 } from '../types/action';
 import * as apis from '../types/apis';
+import { GenkitErrorData } from '../types/error';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
@@ -198,9 +199,24 @@ export class RuntimeManager {
         rejecter = reject;
       });
       stream.on('end', () => {
-        const actionResponse = RunActionResponseSchema.parse(
-          JSON.parse(buffer)
-        );
+        const parsedBuffer = JSON.parse(buffer);
+        if (parsedBuffer.error) {
+          const err = new GenkitToolsError(
+            `Error running action key='${input.key}'.`
+          );
+          // massage the error into a shape dev ui expects
+          err.data = {
+            ...parsedBuffer.error,
+            stack: (parsedBuffer.error?.details as any).stack,
+            data: {
+              genkitErrorMessage: parsedBuffer.error?.message,
+              genkitErrorDetails: parsedBuffer.error?.details,
+            },
+          };
+          rejecter(err);
+          return;
+        }
+        const actionResponse = RunActionResponseSchema.parse(parsedBuffer);
         if (genkitVersion) {
           actionResponse.genkitVersion = genkitVersion;
         }
@@ -392,7 +408,7 @@ export class RuntimeManager {
         newError.message = (error.response?.data as any).message;
       }
       // we got a non-200 response; copy the payload and rethrow
-      newError.data = error.response.data as Record<string, unknown>;
+      newError.data = error.response.data as GenkitErrorData;
       throw newError;
     }
 

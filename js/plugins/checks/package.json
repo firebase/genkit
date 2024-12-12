@@ -13,7 +13,7 @@
     "google checks",
     "guardrails"
   ],
-  "version": "0.9.6",
+  "version": "1.0.0-dev.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -30,6 +30,8 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@googleapis/checks": "^4.0.2",
     "google-auth-library": "^9.6.3"
   },
   "peerDependencies": {

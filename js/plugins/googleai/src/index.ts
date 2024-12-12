@@ -29,13 +29,17 @@ import {
   gemini,
   gemini10Pro,
   gemini15Flash,
+  gemini15Flash8b,
   gemini15Pro,
+  gemini20FlashExp,
 } from './gemini.js';
 export {
   gemini,
   gemini10Pro,
   gemini15Flash,
+  gemini15Flash8b,
   gemini15Pro,
+  gemini20FlashExp,
   textEmbeddingGecko001,
 };
 

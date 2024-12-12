@@ -76,11 +76,15 @@ export async function runNewEvaluation(
   );
   const datasetVersion = targetDatasetMetadata?.version;
 
+  if (dataset.length === 0) {
+    throw new Error(`Dataset ${datasetId} is empty`);
+  }
+
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
+    evalFlowInput: EvalInferenceInputSchema.parse(dataset),
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -134,6 +138,9 @@ export async function runEvaluation(params: {
   augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
   const { manager, evaluatorActions, evalDataset, augments } = params;
+  if (evalDataset.length === 0) {
+    throw new Error('Cannot run evaluation, no data provided');
+  }
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   logger.info('Running evaluation...');
@@ -209,16 +216,14 @@ async function bulkRunAction(params: {
 }): Promise<EvalInput[]> {
   const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[]).map((i) => ({
-        input: i,
-        testCaseId: generateTestCaseId(),
-      }))
-    : evalFlowInput.samples.map((c) => ({
-        input: c.input,
-        reference: c.reference,
-        testCaseId: c.testCaseId ?? generateTestCaseId(),
-      }));
+  let testCases: TestCase[] = evalFlowInput.map((c) => ({
+    input: c.input,
+    reference: c.reference,
+    testCaseId: c.testCaseId ?? generateTestCaseId(),
+  }));
+  if (testCases.length === 0) {
+    throw new Error('Cannot run inference, no data provided');
+  }
 
   let states: InferenceRunState[] = [];
   let evalInputs: EvalInput[] = [];
