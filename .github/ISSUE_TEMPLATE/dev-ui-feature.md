@@ -2,7 +2,7 @@
 name: Dev UI feature request
 about: Use this to request a feature in the Dev UI
 title: "[Dev UI]"
-labels: dev-ui
+labels: devui
 assignees: ''
 
 ---
@@ -21,7 +21,7 @@ What is the user trying to accomplish with this feature?
 
 ### Designs
 
-Links to Figma or inlined screenshots
+Inlined screenshots
 
 ## Notes
 
