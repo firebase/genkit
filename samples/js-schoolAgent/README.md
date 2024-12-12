@@ -85,7 +85,7 @@ The agent uses a multi-agent architecture:
 
 Example queries:
 
-- "Mark Evenlyn Smith as absent please"
+- "Evelyn will be late today"
 - "What are the upcoming holidays I should be aware of?"
 - "Show me my child's current grades"
 
