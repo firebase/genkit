@@ -23,6 +23,7 @@ import {
   newTrace,
   setCustomMetadataAttributes,
 } from './tracing.js';
+import { getContext } from './context.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };
@@ -277,7 +278,8 @@ export function action<
 
         try {
           const output = await fn(input, {
-            context: options?.context,
+            // Context can either be explicitly set, or inherited from the parent action.
+            context: options?.context ?? getContext(registry),
             sendChunk: options?.onChunk ?? ((c) => {}),
           });
 

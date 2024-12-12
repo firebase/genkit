@@ -43,16 +43,16 @@ export function runWithContext<R>(
  * @deprecated use {@link getFlowContext}
  */
 export function getFlowAuth(registry?: Registry | HasRegistry): any {
-  return getFlowContext(registry);
+  if (!registry) {
+    return legacyContextAsyncLocalStorage.getStore();
+  }
+  return getContext(registry);
 }
 
 /**
  * Gets the runtime context of the current flow.
  */
-export function getFlowContext(registry?: Registry | HasRegistry): any {
-  if (!registry) {
-    return legacyContextAsyncLocalStorage.getStore();
-  }
+export function getContext(registry: Registry | HasRegistry): any {
   if ((registry as HasRegistry).registry) {
     registry = (registry as HasRegistry).registry;
   }
