@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
+import { Genkit, GenkitError } from 'genkit';
+import { extractJson } from 'genkit/extract';
 import { logger } from 'genkit/logging';
 import {
   GenerateRequest,
   GenerateResponseData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MessageData,
+  getBasicUsageStats,
 } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { ErrorResponse } from 'ollama';
 import { defineOllamaEmbedder } from './embeddings.js';
 import {
   ApiType,
+  ChatResponse,
+  GenerateResponse,
+  Message,
   ModelDefinition,
   OllamaPluginParams,
   RequestHeaders,
@@ -143,8 +148,10 @@ function ollamaModel(
         let textResponse = '';
         for await (const chunk of readChunks(reader)) {
           const chunkText = textDecoder.decode(chunk);
-          const json = JSON.parse(chunkText);
-          const message = parseMessage(json, type);
+          const json = extractJson(chunkText) as
+            | ChatResponse
+            | GenerateResponse;
+          const message = parseMessage(json, type, input);
           streamingCallback({
             index: 0,
             content: message.content,
@@ -161,10 +168,8 @@ function ollamaModel(
         };
       } else {
         const txtBody = await res.text();
-        const json = JSON.parse(txtBody);
-        logger.debug(txtBody, 'ollama raw response');
-
-        message = parseMessage(json, type);
+        const json = extractJson(txtBody) as ChatResponse | GenerateResponse;
+        message = parseMessage(json, type, input);
       }
 
       return {
@@ -176,29 +181,82 @@ function ollamaModel(
   );
 }
 
-function parseMessage(response: any, type: ApiType): MessageData {
-  if (response.error) {
+function parseMessage(
+  response: ChatResponse | GenerateResponse,
+  type: ApiType,
+  input: GenerateRequest
+): MessageData {
+  function isErrorResponse(resp: any): resp is ErrorResponse {
+    return 'error' in resp && typeof resp.error === 'string';
+  }
+
+  if (isErrorResponse(response)) {
     throw new Error(response.error);
   }
-  if (type === 'chat') {
+
+  function isChatResponse(resp: any): resp is ChatResponse {
+    return 'message' in resp;
+  }
+
+  function isGenerateResponse(resp: any): resp is GenerateResponse {
+    return 'response' in resp;
+  }
+
+  // Handle JSON format if requested
+  if (input.output?.format === 'json' && input.output.schema) {
+    let rawContent;
+    if (isChatResponse(response)) {
+      try {
+        // Parse the content string into an object
+        const parsedContent = extractJson(response.message.content);
+        // Validate against the schema
+        rawContent = parsedContent;
+      } catch (e) {
+        throw new GenkitError({
+          message: 'Failed to parse structured response from Ollama model',
+          status: 'FAILED_PRECONDITION',
+        });
+      }
+    } else if (isGenerateResponse(response)) {
+      try {
+        const parsedContent = extractJson(response.response);
+        rawContent = parsedContent;
+      } catch (e) {
+        throw new GenkitError({
+          message: 'Failed to parse structured response from Ollama model',
+          status: 'FAILED_PRECONDITION',
+        });
+      }
+    } else {
+      throw new Error('Invalid response format');
+    }
+
     return {
-      role: toGenkitRole(response.message.role),
-      content: [
-        {
-          text: response.message.content,
-        },
-      ],
-    };
-  } else {
-    return {
-      role: 'model',
-      content: [
-        {
-          text: response.response,
-        },
-      ],
+      role:
+        type === 'chat' && isChatResponse(response)
+          ? toGenkitRole(response.message.role)
+          : 'model',
+      content: [{ text: JSON.stringify(rawContent) }],
     };
   }
+
+  // Handle regular output
+  if (isChatResponse(response)) {
+    return {
+      role: toGenkitRole(response.message.role),
+      content: [{ text: response.message.content }],
+    };
+  } else if (isGenerateResponse(response)) {
+    return {
+      role: 'model',
+      content: [{ text: response.response }],
+    };
+  }
+
+  throw new GenkitError({
+    message: 'Invalid response format from Ollama model',
+    status: 'FAILED_PRECONDITION',
+  });
 }
 
 function toOllamaRequest(
@@ -213,6 +271,12 @@ function toOllamaRequest(
     options,
     stream,
   };
+
+  // Add format and schema if specified in output
+  if (input.output?.format === 'json' && input.output.schema) {
+    request.format = input.output.schema;
+  }
+
   if (type === 'chat') {
     const messages: Message[] = [];
     input.messages.forEach((m) => {
@@ -278,10 +342,4 @@ function getSystemMessage(input: GenerateRequest): string {
     .filter((m) => m.role === 'system')
     .map((m) => m.content.map((c) => c.text).join())
     .join();
-}
-
-interface Message {
-  role: string;
-  content: string;
-  images?: string[];
 }

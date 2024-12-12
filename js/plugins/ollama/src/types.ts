@@ -15,11 +15,17 @@
  */
 
 import { GenerateRequest, z } from 'genkit';
-import { EmbedRequest } from 'ollama';
+import {
+  ChatResponse,
+  EmbedRequest,
+  GenerateResponse,
+  Message as OllamaMessage,
+} from 'ollama';
+
 // Define possible API types
 export type ApiType = 'chat' | 'generate';
 
-// Standard model definition
+// Standard model definition - removed format
 export interface ModelDefinition {
   name: string;
   type?: ApiType;
@@ -86,4 +92,8 @@ export interface RequestHeaderFunction {
 // Union type for request headers, supporting both static and dynamic options
 export type RequestHeaders = Record<string, string> | RequestHeaderFunction;
 
-export type OllamaRole = 'assistant' | 'tool' | 'system' | 'user';
+// Use Ollama's Message type
+export type { OllamaMessage as Message };
+
+// Export response types from Ollama
+export type { ChatResponse, GenerateResponse };
