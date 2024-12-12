@@ -6,5 +6,6 @@
   "includeVersion": false,
   "sort": ["kind", "instance-first", "alphabetical"],
   "sortEntryPoints": true,
+  "readme": "none",
   "plugin": ["typedoc-plugin-zod", "typedoc-material-theme"]
 }
