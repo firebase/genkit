@@ -133,43 +133,47 @@ export class Chat {
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return runWithSession(this.session, () =>
-      runInNewSpan({ metadata: { name: 'send' } }, async () => {
-        let resolvedOptions;
-        let streamingCallback = undefined;
+    return runWithSession(this.session.registry, this.session, () =>
+      runInNewSpan(
+        this.session.registry,
+        { metadata: { name: 'send' } },
+        async () => {
+          let resolvedOptions;
+          let streamingCallback = undefined;
 
-        // string
-        if (typeof options === 'string') {
-          resolvedOptions = {
-            prompt: options,
-          } as ChatGenerateOptions<O, CustomOptions>;
-        } else if (Array.isArray(options)) {
-          // Part[]
-          resolvedOptions = {
-            prompt: options,
-          } as ChatGenerateOptions<O, CustomOptions>;
-        } else {
-          resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
-          streamingCallback = resolvedOptions.streamingCallback;
+          // string
+          if (typeof options === 'string') {
+            resolvedOptions = {
+              prompt: options,
+            } as ChatGenerateOptions<O, CustomOptions>;
+          } else if (Array.isArray(options)) {
+            // Part[]
+            resolvedOptions = {
+              prompt: options,
+            } as ChatGenerateOptions<O, CustomOptions>;
+          } else {
+            resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+            streamingCallback = resolvedOptions.streamingCallback;
+          }
+          let request: GenerateOptions = {
+            ...(await this.requestBase),
+            messages: this.messages,
+            ...resolvedOptions,
+          };
+          let response = await generate(this.session.registry, {
+            ...request,
+            streamingCallback,
+          });
+          this.requestBase = Promise.resolve({
+            ...(await this.requestBase),
+            // these things may get changed by tools calling within generate.
+            tools: response?.request?.tools,
+            config: response?.request?.config,
+          });
+          await this.updateMessages(response.messages);
+          return response;
         }
-        let request: GenerateOptions = {
-          ...(await this.requestBase),
-          messages: this.messages,
-          ...resolvedOptions,
-        };
-        let response = await generate(this.session.registry, {
-          ...request,
-          streamingCallback,
-        });
-        this.requestBase = Promise.resolve({
-          ...(await this.requestBase),
-          // these things may get changed by tools calling within generate.
-          tools: response?.request?.tools,
-          config: response?.request?.config,
-        });
-        await this.updateMessages(response.messages);
-        return response;
-      })
+      )
     );
   }
 
@@ -179,47 +183,54 @@ export class Chat {
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    return runWithSession(this.session, () =>
-      runInNewSpan({ metadata: { name: 'send' } }, async () => {
-        let resolvedOptions;
+    return runWithSession(this.session.registry, this.session, () =>
+      runInNewSpan(
+        this.session.registry,
+        { metadata: { name: 'send' } },
+        async () => {
+          let resolvedOptions;
 
-        // string
-        if (typeof options === 'string') {
-          resolvedOptions = {
-            prompt: options,
-          } as GenerateStreamOptions<O, CustomOptions>;
-        } else if (Array.isArray(options)) {
-          // Part[]
-          resolvedOptions = {
-            prompt: options,
-          } as GenerateStreamOptions<O, CustomOptions>;
-        } else {
-          resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
-        }
-
-        const { response, stream } = await generateStream(
-          this.session.registry,
-          {
-            ...(await this.requestBase),
-            messages: this.messages,
-            ...resolvedOptions,
+          // string
+          if (typeof options === 'string') {
+            resolvedOptions = {
+              prompt: options,
+            } as GenerateStreamOptions<O, CustomOptions>;
+          } else if (Array.isArray(options)) {
+            // Part[]
+            resolvedOptions = {
+              prompt: options,
+            } as GenerateStreamOptions<O, CustomOptions>;
+          } else {
+            resolvedOptions = options as GenerateStreamOptions<
+              O,
+              CustomOptions
+            >;
           }
-        );
 
-        return {
-          response: response.finally(async () => {
-            const resolvedResponse = await response;
-            this.requestBase = Promise.resolve({
+          const { response, stream } = await generateStream(
+            this.session.registry,
+            {
               ...(await this.requestBase),
-              // these things may get changed by tools calling within generate.
-              tools: resolvedResponse?.request?.tools,
-              config: resolvedResponse?.request?.config,
-            });
-            this.updateMessages(resolvedResponse.messages);
-          }),
-          stream,
-        };
-      })
+              messages: this.messages,
+              ...resolvedOptions,
+            }
+          );
+
+          return {
+            response: response.finally(async () => {
+              const resolvedResponse = await response;
+              this.requestBase = Promise.resolve({
+                ...(await this.requestBase),
+                // these things may get changed by tools calling within generate.
+                tools: resolvedResponse?.request?.tools,
+                config: resolvedResponse?.request?.config,
+              });
+              this.updateMessages(resolvedResponse.messages);
+            }),
+            stream,
+          };
+        }
+      )
     );
   }
 

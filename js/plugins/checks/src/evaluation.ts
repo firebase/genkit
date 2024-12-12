@@ -124,6 +124,7 @@ function createPolicyEvaluator(
       };
 
       const response = await checksEvalInstance(
+        ai,
         projectId,
         auth,
         partialRequest,
@@ -149,12 +150,14 @@ function createPolicyEvaluator(
 }
 
 async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
+  ai: Genkit,
   projectId: string,
   auth: GoogleAuth,
   partialRequest: any,
   responseSchema: ResponseType
 ): Promise<z.infer<ResponseType>> {
   return await runInNewSpan(
+    ai,
     {
       metadata: {
         name: 'EvaluationService#evaluateInstances',

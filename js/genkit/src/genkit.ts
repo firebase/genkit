@@ -121,6 +121,7 @@ import {
   StreamingFlowConfig,
   z,
 } from '@genkit-ai/core';
+import { HasRegistry } from '@genkit-ai/core/registry';
 import {
   defineDotprompt,
   defineHelper,
@@ -168,7 +169,7 @@ export type PromptMetadata<
  *
  * There may be multiple Genkit instances in a single codebase.
  */
-export class Genkit {
+export class Genkit implements HasRegistry {
   /** Developer-configured options. */
   readonly options: GenkitOptions;
   /** Environments that have been configured (at minimum dev). */
@@ -1036,7 +1037,7 @@ export class Genkit {
    * Gets the current session from async local storage.
    */
   currentSession<S = any>(): Session<S> {
-    const currentSession = getCurrentSession();
+    const currentSession = getCurrentSession(this.registry);
     if (!currentSession) {
       throw new SessionError('not running within a session');
     }
