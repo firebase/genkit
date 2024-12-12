@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/tools-common",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rimraf ./lib",
