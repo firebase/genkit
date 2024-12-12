@@ -27,7 +27,7 @@ import {
   sentinelNoopStreamingCallback,
   StreamingCallback,
 } from './action.js';
-import { runWithContext } from './auth.js';
+import { runWithContext } from './context.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { logger } from './logging.js';
 import { HasRegistry, Registry } from './registry.js';
@@ -138,6 +138,25 @@ interface StreamingResponse<
 }
 
 /**
+ * Flow execution context for flow to access the streaming callback and
+ * side-channel context data. The context itself is a function, a short-cut
+ * for streaming callback.
+ */
+export interface FlowSideChannel<S> {
+  (chunk: S): void;
+
+  /**
+   * Streaming callback (optional).
+   */
+  sendChunk: StreamingCallback<S>;
+
+  /**
+   * Additional runtime context data (ex. auth context data).
+   */
+  context?: any;
+}
+
+/**
  * Function to be executed in the flow.
  */
 export type FlowFn<
@@ -148,7 +167,7 @@ export type FlowFn<
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback: StreamingCallback<z.infer<S>>
+  streamingCallback: FlowSideChannel<z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 export class Flow<
@@ -551,9 +570,14 @@ function defineFlowAction<
     },
     async (input, { sendChunk, context }) => {
       await config.authPolicy?.(context, input);
-      return await legacyRegistryAls.run(registry, () =>
-        runWithContext(registry, context, () => fn(input, sendChunk))
-      );
+      return await legacyRegistryAls.run(registry, () => {
+        const ctx = sendChunk;
+        (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
+        (ctx as FlowSideChannel<z.infer<S>>).context = context;
+        return runWithContext(registry, context, () =>
+          fn(input, ctx as FlowSideChannel<z.infer<S>>)
+        );
+      });
     }
   );
 }

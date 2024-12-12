@@ -16,6 +16,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
+import { getContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
@@ -277,7 +278,8 @@ export function action<
 
         try {
           const output = await fn(input, {
-            context: options?.context,
+            // Context can either be explicitly set, or inherited from the parent action.
+            context: options?.context ?? getContext(registry),
             sendChunk: options?.onChunk ?? ((c) => {}),
           });
 
