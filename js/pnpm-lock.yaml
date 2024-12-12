@@ -683,9 +683,6 @@ importers:
       genkit:
         specifier: workspace:*
         version: link:../../genkit
-      zod-to-json-schema:
-        specifier: ^3.22.4
-        version: 3.22.5(zod@3.23.8)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16

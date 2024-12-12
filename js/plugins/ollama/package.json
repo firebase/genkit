@@ -48,8 +48,5 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     }
-  },
-  "dependencies": {
-    "zod-to-json-schema": "^3.22.4"
   }
 }
