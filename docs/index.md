@@ -149,7 +149,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Chat}
 
   ```javascript
-  import { genkit, z } from 'genkit';
+  import { genkit } from 'genkit';
   import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 
   const ai = genkit({
