@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit, GenkitError } from 'genkit';
+import { Genkit, GenkitError, Role } from 'genkit';
 import { extractJson } from 'genkit/extract';
 import { logger } from 'genkit/logging';
 import {
@@ -39,6 +39,11 @@ import {
 
 export { defineOllamaEmbedder };
 
+/**
+ * Creates and registers a Genkit plugin for Ollama integration.
+ * @param {OllamaPluginParams} params - Configuration options for the Ollama plugin
+ * @returns {GenkitPlugin} A configured Genkit plugin for Ollama
+ */
 export function ollama(params: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin('ollama', async (ai: Genkit) => {
     const serverAddress = params.serverAddress;
@@ -56,6 +61,15 @@ export function ollama(params: OllamaPluginParams): GenkitPlugin {
   });
 }
 
+/**
+ * Defines a new Ollama model in the Genkit registry.
+ * @param {Genkit} ai - The Genkit instance
+ * @param {ModelDefinition} model - The model configuration
+ * @param {string} serverAddress - The Ollama server address
+ * @param {RequestHeaders} [requestHeaders] - Optional headers to include with requests
+ * @returns {Model} The defined Genkit model
+ * @private
+ */
 function ollamaModel(
   ai: Genkit,
   model: ModelDefinition,
@@ -304,18 +318,30 @@ function toOllamaRequest(
   return request;
 }
 
-function toOllamaRole(role) {
+/**
+ * Converts a Genkit role to the corresponding Ollama role.
+ * @param {string} role - The Genkit role to convert
+ * @returns {string} The corresponding Ollama role
+ * @private
+ */
+function toOllamaRole(role: string) {
   if (role === 'model') {
     return 'assistant';
   }
   return role; // everything else seems to match
 }
 
-function toGenkitRole(role) {
+/**
+ * Converts an Ollama role to the corresponding Genkit role.
+ * @param {string} role - The Ollama role to convert
+ * @returns {Role} The corresponding Genkit role
+ * @private
+ */
+function toGenkitRole(role: string): Role {
   if (role === 'assistant') {
-    return 'model';
+    return 'model' as Role;
   }
-  return role; // everything else seems to match
+  return role as Role; // everything else seems to match
 }
 
 function readChunks(reader) {
