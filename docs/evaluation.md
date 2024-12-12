@@ -34,7 +34,7 @@ const ai = genkit({
 ```
 
 **Note:** The configuration above requires installing the `genkit`,
-`@genkit-ai/google-ai`, `@genkit-ai/evaluator` and `@genkit-ai/vertexai`
+`@genkit-ai/googleai`, `@genkit-ai/evaluator` and `@genkit-ai/vertexai`
 packages.
 
 ```posix-terminal
@@ -46,25 +46,30 @@ called `testInputs.json`. This input dataset represents the test cases you will
 use to generate output for evaluation.
 
 ```json
-["Cheese", "Broccoli", "Spinach and Kale"]
+[
+  {
+    "input": "What is the French word for Cheese?"
+  },
+  {
+    "input": "What green vegetable looks like cauliflower?"
+  }
+]
 ```
 
 If the evaluator requires a reference output for evaluating a flow, you can pass both 
 input and reference output using this format instead:
 
 ```json
-{
-  "samples": [
-    {
-      "input": "What is the French word for Cheese?",
-      "reference": "Fromage"
-    },
-    {
-      "input": "What green vegetable looks like cauliflower?",
-      "reference": "Broccoli"
-    }
-  ]
-}
+[
+  {
+    "input": "What is the French word for Cheese?",
+    "reference": "Fromage"
+  },
+  {
+    "input": "What green vegetable looks like cauliflower?",
+    "reference": "Broccoli"
+  }
+]
 ```
 
 Note that you can use any JSON data type in the input JSON file. Genkit will pass them along with the same data type to your flow.

@@ -15,7 +15,6 @@
  */
 
 import { JSONSchema7 } from 'json-schema';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
@@ -71,6 +70,11 @@ export interface ActionRunOptions<S> {
    * Additional runtime context data (ex. auth context data).
    */
   context?: any;
+
+  /**
+   * Additional span attributes to apply to OT spans.
+   */
+  telemetryLabels?: Record<string, string>;
 }
 
 /**
@@ -100,6 +104,7 @@ export type Action<
   options?: ActionRunOptions<S>
 ) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
+  __registry: Registry;
   run(
     input: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
@@ -109,7 +114,7 @@ export type Action<
 /**
  * Action factory params.
  */
-type ActionParams<
+export type ActionParams<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
@@ -127,7 +132,8 @@ type ActionParams<
   outputJsonSchema?: JSONSchema7;
   metadata?: Record<string, any>;
   use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
-  streamingSchema?: S;
+  streamSchema?: S;
+  actionType: ActionType;
 };
 
 export type SimpleMiddleware<I = any, O = any> = (
@@ -163,6 +169,7 @@ export function actionWithMiddleware<
     return (await wrapped.run(req)).result;
   }) as Action<I, O, S>;
   wrapped.__action = action.__action;
+  wrapped.__registry = action.__registry;
   wrapped.run = async (
     req: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
@@ -211,6 +218,7 @@ export function action<
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   config: ActionParams<I, O, S>,
   fn: (
     input: z.infer<I>,
@@ -224,6 +232,7 @@ export function action<
   const actionFn = async (input: I, options?: ActionRunOptions<z.infer<S>>) => {
     return (await actionFn.run(input, options)).result;
   };
+  actionFn.__registry = registry;
   actionFn.__action = {
     name: actionName,
     description: config.description,
@@ -244,25 +253,42 @@ export function action<
     let traceId;
     let spanId;
     let output = await newTrace(
+      registry,
       {
         name: actionName,
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
+          'genkit:metadata:subtype': config.actionType,
+          ...options?.telemetryLabels,
         },
       },
       async (metadata, span) => {
+        setCustomMetadataAttributes(registry, { subtype: config.actionType });
+        if (options?.context) {
+          setCustomMetadataAttributes(registry, {
+            context: JSON.stringify(options.context),
+          });
+        }
+
         traceId = span.spanContext().traceId;
         spanId = span.spanContext().spanId;
         metadata.name = actionName;
         metadata.input = input;
 
-        const output = await fn(input, {
-          context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => {}),
-        });
+        try {
+          const output = await fn(input, {
+            context: options?.context,
+            sendChunk: options?.onChunk ?? ((c) => {}),
+          });
 
-        metadata.output = JSON.stringify(output);
-        return output;
+          metadata.output = JSON.stringify(output);
+          return output;
+        } catch (err) {
+          if (typeof err === 'object') {
+            (err as any).traceId = traceId;
+          }
+          throw err;
+        }
       }
     );
     output = parseSchema(output, {
@@ -317,15 +343,13 @@ export function defineAction<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  config: ActionParams<I, O, S> & {
-    actionType: ActionType;
-  },
+  config: ActionParams<I, O, S>,
   fn: (
     input: z.infer<I>,
     options: ActionFnArg<z.infer<S>>
   ) => Promise<z.infer<O>>
-): Action<I, O> {
-  if (isInRuntimeContext()) {
+): Action<I, O, S> {
+  if (isInRuntimeContext(registry)) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
@@ -336,11 +360,14 @@ export function defineAction<
   } else {
     validateActionId(config.name.actionId);
   }
-  const act = action(config, async (i: I, options): Promise<z.infer<O>> => {
-    setCustomMetadataAttributes({ subtype: config.actionType });
-    await registry.initializeAllPlugins();
-    return await runInActionRuntimeContext(() => fn(i, options));
-  });
+  const act = action(
+    registry,
+    config,
+    async (i: I, options): Promise<z.infer<O>> => {
+      await registry.initializeAllPlugins();
+      return await runInActionRuntimeContext(registry, () => fn(i, options));
+    }
+  );
   act.__action.actionType = config.actionType;
   registry.registerAction(config.actionType, act);
   return act;
@@ -349,7 +376,7 @@ export function defineAction<
 // Streaming callback function.
 export type StreamingCallback<T> = (chunk: T) => void;
 
-const streamingAls = new AsyncLocalStorage<StreamingCallback<any>>();
+const streamingAlsKey = 'core.action.streamingCallback';
 const sentinelNoopCallback = () => null;
 
 /**
@@ -357,35 +384,43 @@ const sentinelNoopCallback = () => null;
  * using {@link getStreamingCallback}.
  */
 export function runWithStreamingCallback<S, O>(
+  registry: Registry,
   streamingCallback: StreamingCallback<S> | undefined,
   fn: () => O
 ): O {
-  return streamingAls.run(streamingCallback || sentinelNoopCallback, fn);
+  return registry.asyncStore.run(
+    streamingAlsKey,
+    streamingCallback || sentinelNoopCallback,
+    fn
+  );
 }
 
 /**
  * Retrieves the {@link StreamingCallback} previously set by {@link runWithStreamingCallback}
  */
-export function getStreamingCallback<S>(): StreamingCallback<S> | undefined {
-  const cb = streamingAls.getStore();
+export function getStreamingCallback<S>(
+  registry: Registry
+): StreamingCallback<S> | undefined {
+  const cb =
+    registry.asyncStore.getStore<StreamingCallback<S>>(streamingAlsKey);
   if (cb === sentinelNoopCallback) {
     return undefined;
   }
   return cb;
 }
 
-const runtimeCtxAls = new AsyncLocalStorage<any>();
+const runtimeContextAslKey = 'core.action.runtimeContext';
 
 /**
  * Checks whether the caller is currently in the runtime context of an action.
  */
-export function isInRuntimeContext() {
-  return !!runtimeCtxAls.getStore();
+export function isInRuntimeContext(registry: Registry) {
+  return !!registry.asyncStore.getStore(runtimeContextAslKey);
 }
 
 /**
  * Execute the provided function in the action runtime context.
  */
-export function runInActionRuntimeContext<R>(fn: () => R) {
-  return runtimeCtxAls.run('runtime', fn);
+export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
+  return registry.asyncStore.run(runtimeContextAslKey, 'runtime', fn);
 }

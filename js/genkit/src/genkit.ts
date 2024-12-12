@@ -110,7 +110,6 @@ import {
   defineSchema,
   defineStreamingFlow,
   Flow,
-  FlowConfig,
   FlowFn,
   FlowServer,
   FlowServerOptions,
@@ -122,6 +121,7 @@ import {
   StreamingFlowConfig,
   z,
 } from '@genkit-ai/core';
+import { HasRegistry } from '@genkit-ai/core/registry';
 import {
   defineDotprompt,
   defineHelper,
@@ -169,7 +169,7 @@ export type PromptMetadata<
  *
  * There may be multiple Genkit instances in a single codebase.
  */
-export class Genkit {
+export class Genkit implements HasRegistry {
   /** Developer-configured options. */
   readonly options: GenkitOptions;
   /** Environments that have been configured (at minimum dev). */
@@ -181,7 +181,7 @@ export class Genkit {
   /** Flow server. May be null if the flow server is not enabled in configuration or not started. */
   private flowServer: FlowServer | null = null;
   /** List of flows that have been registered in this instance. */
-  private registeredFlows: Flow<any, any, any>[] = [];
+  readonly flows: Flow<any, any, any>[] = [];
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
@@ -203,16 +203,20 @@ export class Genkit {
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(config: FlowConfig<I, O> | string, fn: FlowFn<I, O>): CallableFlow<I, O> {
+    S extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    config: StreamingFlowConfig<I, O, S> | string,
+    fn: FlowFn<I, O, S>
+  ): CallableFlow<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
-    this.registeredFlows.push(flow.flow);
+    this.flows.push(flow.flow);
     return flow;
   }
 
   /**
    * Defines and registers a streaming flow.
    *
-   * @todo TODO: Improve this documentation (show snippetss, etc).
+   * @deprecated use {@link defineFlow}
    */
   defineStreamingFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -227,7 +231,7 @@ export class Genkit {
       typeof config === 'string' ? { name: config } : config,
       fn
     );
-    this.registeredFlows.push(flow.flow);
+    this.flows.push(flow.flow);
     return flow;
   }
 
@@ -1033,7 +1037,7 @@ export class Genkit {
    * Gets the current session from async local storage.
    */
   currentSession<S = any>(): Session<S> {
-    const currentSession = getCurrentSession();
+    const currentSession = getCurrentSession(this.registry);
     if (!currentSession) {
       throw new SessionError('not running within a session');
     }

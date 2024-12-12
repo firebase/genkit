@@ -36,8 +36,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -45,10 +47,12 @@ import (
 )
 
 type runtimeFileData struct {
-	ID                  string `json:"id"`
-	PID                 int    `json:"pid"`
-	ReflectionServerURL string `json:"reflectionServerUrl"`
-	Timestamp           string `json:"timestamp"`
+	ID                       string `json:"id"`
+	PID                      int    `json:"pid"`
+	ReflectionServerURL      string `json:"reflectionServerUrl"`
+	Timestamp                string `json:"timestamp"`
+	GenkitVersion            string `json:"genkitVersion"`
+	ReflectionApiSpecVersion int    `json:"reflectionApiSpecVersion"`
 }
 
 type devServer struct {
@@ -94,10 +98,12 @@ func (s *devServer) writeRuntimeFile(url string) error {
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	s.runtimeFilePath = filepath.Join(runtimesDir, fmt.Sprintf("%d-%s.json", os.Getpid(), timestamp))
 	data := runtimeFileData{
-		ID:                  runtimeID,
-		PID:                 os.Getpid(),
-		ReflectionServerURL: fmt.Sprintf("http://%s", url),
-		Timestamp:           timestamp,
+		ID:                       runtimeID,
+		PID:                      os.Getpid(),
+		ReflectionServerURL:      fmt.Sprintf("http://%s", url),
+		Timestamp:                timestamp,
+		GenkitVersion:            "go/" + internal.Version,
+		ReflectionApiSpecVersion: internal.GENKIT_REFLECTION_API_SPEC_VERSION,
 	}
 	fileContent, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
@@ -157,7 +163,7 @@ func findProjectRoot() (string, error) {
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
 func startFlowServer(addr string, flows []string, errCh chan<- error) *http.Server {
-	slog.Info("starting flow server")
+	slog.Debug("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
 	mux := NewFlowServeMux(flows)
 	return startServer(addr, mux, errCh)
@@ -181,7 +187,7 @@ func startServer(addr string, handler http.Handler, errCh chan<- error) *http.Se
 	}
 
 	go func() {
-		slog.Info("server listening", "addr", addr)
+		slog.Debug("server listening", "addr", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- fmt.Errorf("server error on %s: %w", addr, err)
 		}
@@ -204,7 +210,7 @@ func shutdownServers(servers []*http.Server) error {
 			if err := srv.Shutdown(ctx); err != nil {
 				slog.Error("server shutdown failed", "addr", srv.Addr, "err", err)
 			} else {
-				slog.Info("server shutdown successfully", "addr", srv.Addr)
+				slog.Debug("server shutdown successfully", "addr", srv.Addr)
 			}
 		}(server)
 	}
@@ -241,8 +247,9 @@ func newDevServeMux(s *devServer) *http.ServeMux {
 func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	var body struct {
-		Key   string          `json:"key"`
-		Input json.RawMessage `json:"input"`
+		Key     string          `json:"key"`
+		Input   json.RawMessage `json:"input"`
+		Context json.RawMessage `json:"context"`
 	}
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -271,7 +278,11 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 			return nil
 		}
 	}
-	resp, err := runAction(ctx, s.reg, body.Key, body.Input, callback)
+	var contextMap map[string]any = nil
+	if body.Context != nil {
+		json.Unmarshal(body.Context, &contextMap)
+	}
+	resp, err := runAction(ctx, s.reg, body.Key, body.Input, callback, contextMap)
 	if err != nil {
 		return err
 	}
@@ -281,7 +292,8 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 // handleNotify configures the telemetry server URL from the request.
 func (s *devServer) handleNotify(w http.ResponseWriter, r *http.Request) error {
 	var body struct {
-		TelemetryServerURL string `json:"telemetryServerUrl"`
+		TelemetryServerURL       string `json:"telemetryServerUrl"`
+		ReflectionApiSpecVersion int    `json:"reflectionApiSpecVersion"`
 	}
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -290,6 +302,9 @@ func (s *devServer) handleNotify(w http.ResponseWriter, r *http.Request) error {
 	if body.TelemetryServerURL != "" {
 		s.reg.TracingState().WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
 		slog.Debug("connected to telemetry server", "url", body.TelemetryServerURL)
+	}
+	if body.ReflectionApiSpecVersion != internal.GENKIT_REFLECTION_API_SPEC_VERSION {
+		slog.Error("Genkit CLI version is not compatible with runtime library. Please use `genkit-cli` version compatible with runtime library version.")
 	}
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("OK"))
@@ -305,11 +320,15 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage]) (*runActionResponse, error) {
+func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
 		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
 	}
+	if runtimeContext != nil {
+		ctx = core.WithActionContext(ctx, runtimeContext)
+	}
+
 	var traceID string
 	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")

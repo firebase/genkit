@@ -187,7 +187,7 @@ Create a JSON file with the data you want to test. Add as many test cases as you
 
 ```bash
 # Run just the DANGEROUS_CONTENT classifier.
-genkit eval:run test-dataset.json --evaluators=checks/dangerous_content
+genkit eval:run test-dataset.json --evaluators=checks/guardrails
 ```
 
 ```bash

@@ -7,7 +7,7 @@
 # pnpm test:all
 # Run from root: scripts/release_main.sh
 
-pnpm login --registry https://wombat-dressing-room.appspot.com
+# pnpm login --registry https://wombat-dressing-room.appspot.com
 
 CURRENT=`pwd`
 

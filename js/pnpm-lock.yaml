@@ -399,6 +399,40 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  plugins/express:
+    dependencies:
+      express:
+        specifier: ^4.21.1
+        version: 4.21.1
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.21
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.16.9
+      get-port:
+        specifier: ^5.1.0
+        version: 5.1.0
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.6.1)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.2
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/firebase:
     dependencies:
       '@genkit-ai/google-cloud':
@@ -721,8 +755,11 @@ importers:
         specifier: ^3.23.0
         version: 3.25.0(encoding@0.1.13)
       '@google-cloud/vertexai':
-        specifier: ^1.9.0
-        version: 1.9.0(encoding@0.1.13)
+        specifier: ^1.9.2
+        version: 1.9.2(encoding@0.1.13)
+      '@mistralai/mistralai-gcp':
+        specifier: ^1.3.5
+        version: 1.3.5(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.23.8)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -749,6 +786,9 @@ importers:
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
+      google-gax:
+        specifier: ^4.4.1
+        version: 4.4.1(encoding@0.1.13)
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -764,28 +804,6 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
-
-  testapps/anthropic-models:
-    dependencies:
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      express:
-        specifier: ^4.21.0
-        version: 4.21.0
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
-    devDependencies:
-      typescript:
-        specifier: ^5.5.3
-        version: 5.5.3
 
   testapps/basic-gemini:
     dependencies:
@@ -811,6 +829,47 @@ importers:
       typescript:
         specifier: ^5.6.2
         version: 5.6.2
+
+  testapps/context-caching:
+    dependencies:
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      '@google/generative-ai':
+        specifier: ^0.21.0
+        version: 0.21.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.3
+
+  testapps/context-caching2:
+    dependencies:
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@google/generative-ai':
+        specifier: ^0.21.0
+        version: 0.21.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.3
 
   testapps/custom-evaluators:
     dependencies:
@@ -1045,6 +1104,9 @@ importers:
 
   testapps/express:
     dependencies:
+      '@genkit-ai/express':
+        specifier: workspace:*
+        version: link:../../plugins/express
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -1273,7 +1335,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.6)(@genkit-ai/core@0.9.6)
+        version: 0.10.1(@genkit-ai/ai@1.0.0-dev.0)(@genkit-ai/core@1.0.0-dev.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1328,6 +1390,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      '@google-cloud/firestore':
+        specifier: ^7.11.0
+        version: 7.11.0(encoding@0.1.13)
       firebase-admin:
         specifier: '>=12.2'
         version: 12.3.1(encoding@0.1.13)
@@ -1371,6 +1436,31 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
+
+  testapps/vertexai-modelgarden:
+    dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      '@mistralai/mistralai-gcp':
+        specifier: ^1.3.4
+        version: 1.3.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.22.4)
+      express:
+        specifier: ^4.21.0
+        version: 4.21.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      zod:
+        specifier: 3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.5.3
+        version: 5.6.3
 
   testapps/vertexai-reranker:
     dependencies:
@@ -2062,11 +2152,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.6':
-    resolution: {integrity: sha512-GiNK8LmCIs/sU6TgVG6GxRpYcIerJdXE649RJsjJQb5pTajOGUYTaVB14nWT4CBKsW2UseSembe0oG64gmxCDg==}
+  '@genkit-ai/ai@1.0.0-dev.0':
+    resolution: {integrity: sha512-dtQyym12Z/yPw04h7n8n7amU0dpO8iB+uTyDTpSaRe7lkf3SUkNhWM+DDoKUZ70A6cqpAvXN0/haqD9ZpSN+FA==}
 
-  '@genkit-ai/core@0.9.6':
-    resolution: {integrity: sha512-VzcNkVNFSTYNI39bQPAN11QbtZNHuCVxUPcAR0pGAcY6SpqjRSa21WxdLn3dDNjP6sv+pOZdJX3VFln2q5krvg==}
+  '@genkit-ai/core@1.0.0-dev.0':
+    resolution: {integrity: sha512-mHSAdziskC7YOXkGXCK8299RmGu111dPnxzW2hy8epRpyTfis3SXkB1iJEZE3lxA9tKV9vG2zDxDI0bk4iQbXg==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -2080,12 +2170,12 @@ packages:
     resolution: {integrity: sha512-7NBC5vD0au75nkctVs2vEGpdUPFs1BaHTMpeI+RVEgQSMe5/wEU6dx9p0fmZA0bj4HgdpobMKeegOcLUiEoxng==}
     engines: {node: '>=14.0.0'}
 
-  '@google-cloud/firestore@7.6.0':
-    resolution: {integrity: sha512-WUDbaLY8UnPxgwsyIaxj6uxCtSDAaUyvzWJykNH5rZ9i92/SZCsPNNMN0ajrVpAR81hPIL4amXTaMJ40y5L+Yg==}
+  '@google-cloud/firestore@7.11.0':
+    resolution: {integrity: sha512-88uZ+jLsp1aVMj7gh3EKYH1aulTAMFAp8sH/v5a9w8q8iqSG27RiWLoxSAFr/XocZ9hGiWH1kEnBw+zl3xAgNA==}
     engines: {node: '>=14.0.0'}
 
-  '@google-cloud/firestore@7.9.0':
-    resolution: {integrity: sha512-c4ALHT3G08rV7Zwv8Z2KG63gZh66iKdhCBeDfCpIkLrjX6EAjTD/szMdj14M+FnQuClZLFfW5bAgoOjfNmLtJg==}
+  '@google-cloud/firestore@7.6.0':
+    resolution: {integrity: sha512-WUDbaLY8UnPxgwsyIaxj6uxCtSDAaUyvzWJykNH5rZ9i92/SZCsPNNMN0ajrVpAR81hPIL4amXTaMJ40y5L+Yg==}
     engines: {node: '>=14.0.0'}
 
   '@google-cloud/logging-winston@6.0.0':
@@ -2146,8 +2236,8 @@ packages:
     resolution: {integrity: sha512-sZW14pfxEQZSIbBPs6doFYtcbK31Bs3E4jH5Ly3jJnBkYfkMPX8sXG3ZQXCJa88MKtUNPlgBdMN2OJUzmFe5/g==}
     engines: {node: '>=14'}
 
-  '@google-cloud/vertexai@1.9.0':
-    resolution: {integrity: sha512-8brlcJwFXI4fPuBtsDNQqCdWZmz8gV9jeEKOU0vc5H2SjehCQpXK/NwuSEr916zbhlBHtg/sU37qQQdgvh5BRA==}
+  '@google-cloud/vertexai@1.9.2':
+    resolution: {integrity: sha512-pJSUG3r5QIvCFNfkz7/y7kEqvEJaVAk0jZbZoKbcPCRUnXaUeAq7p8I0oklqetGyxbUcZ2FOGpt+Y+4uIltVPg==}
     engines: {node: '>=18.0.0'}
 
   '@google/generative-ai@0.15.0':
@@ -2575,6 +2665,13 @@ packages:
 
   '@material/material-color-utilities@0.2.7':
     resolution: {integrity: sha512-0FCeqG6WvK4/Cc06F/xXMd/pv4FeisI0c1tUpBbfhA2n9Y8eZEv4Karjbmf2ZqQCPUWMrGp8A571tCjizxoTiQ==}
+
+  '@mistralai/mistralai-gcp@1.3.5':
+    resolution: {integrity: sha512-eykxLojLv0AcgGui2D+D/S98Toc18j9g0GCvjyah3E8YtQW0dMb6UyQjmB+2+qDXN3OZjp8+dOkoJ+r7DmwbOQ==}
+    peerDependencies:
+      react: ^18 || ^19
+      react-dom: ^18 || ^19
+      zod: '>= 3'
 
   '@modelcontextprotocol/sdk@1.0.0':
     resolution: {integrity: sha512-mbe0otw8vTtZoL5pVucXAmx6oEC7YjdXBgVeFkJXASu4OAnLkrIeNw9zwzU5CwEp19M54bjOUGcna90Dl/H5Bw==}
@@ -3739,6 +3836,10 @@ packages:
     resolution: {integrity: sha512-U71cyTamuh1CRNCfpGY6to28lxvNwPG4Guz/EVjgf3Jmzv0vlDp1atT9eS5dDjMYHucpHbWns6Lwf3BKz6svdw==}
     engines: {node: '>= 0.6'}
 
+  cookie@0.7.1:
+    resolution: {integrity: sha512-6DnInpx7SJ2AK3+CTUE/ZM0vWTUboZCegxhC2xiIydHR9jNuTAASBrfEpHhiGOZw/nX51bHt6YQl8jsGo4y/0w==}
+    engines: {node: '>= 0.6'}
+
   cors@2.8.5:
     resolution: {integrity: sha512-KIHbLJqu73RGr/hnbrO9uBeixNGuvSQjul/jdFvS/KFSIH1hWVd1ng7zOHx+YrEfInLG7q4n6GHQ9cDtxv/P6g==}
     engines: {node: '>= 0.10'}
@@ -4046,6 +4147,10 @@ packages:
     resolution: {integrity: sha512-VqcNGcj/Id5ZT1LZ/cfihi3ttTn+NJmkli2eZADigjq29qTlWi/hAQ43t/VLPq8+UX06FCEx3ByOYet6ZFblng==}
     engines: {node: '>= 0.10.0'}
 
+  express@4.21.1:
+    resolution: {integrity: sha512-YSFlK1Ee0/GC8QaO91tHcDxJiE/X4FbpAyQWkxAvG6AXCuR65YzK8ua6D9hvi/TzUfZMpc+BwuM1IPw8fmQBiQ==}
+    engines: {node: '>= 0.10.0'}
+
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
 
@@ -4290,6 +4395,10 @@ packages:
 
   google-gax@4.3.7:
     resolution: {integrity: sha512-3bnD8RASQyaxOYTdWLgwpQco/aytTxFavoI/UN5QN5txDLp8QRrBHNtCUJ5+Ago+551GD92jG8jJduwvmaneUw==}
+    engines: {node: '>=14'}
+
+  google-gax@4.4.1:
+    resolution: {integrity: sha512-Phyp9fMfA00J3sZbJxbbB4jC55b7DBjE3F6poyL3wKMEBVKA79q6BGuHcTiM28yOzVql0NDbRL8MLLh8Iwk9Dg==}
     engines: {node: '>=14'}
 
   google-p12-pem@4.0.1:
@@ -5042,6 +5151,10 @@ packages:
   long@5.2.3:
     resolution: {integrity: sha512-lcHwpNoggQTObv5apGNCTdJrO69eHOZMi4BNC+rTLER8iHAqGrUVeLh/irVIM7zTw2bOXA8T6uNPeujwOLg/2Q==}
 
+  loose-envify@1.4.0:
+    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
+    hasBin: true
+
   lru-cache@10.2.0:
     resolution: {integrity: sha512-2bIM8x+VAf6JT4bKAljS1qUWgMsqZRPGJS6FSahIMPVvctcNhyVp7AJu7quxOW9jwkryBReKZY5tY5JYv2n/7Q==}
     engines: {node: 14 || >=16.14}
@@ -5613,8 +5726,17 @@ packages:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
 
+  react-dom@18.3.1:
+    resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
+    peerDependencies:
+      react: ^18.3.1
+
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
+  react@18.3.1:
+    resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+    engines: {node: '>=0.10.0'}
 
   read-pkg@3.0.0:
     resolution: {integrity: sha512-BLq/cCO9two+lBgiTYNqD6GdtK8s4NpaWrl6/rCO9w0TUS8oJl7cmToOZfRYllKTISY6nt1U7jQ53brmKqY6BA==}
@@ -5707,6 +5829,9 @@ packages:
 
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
+
+  scheduler@0.23.2:
+    resolution: {integrity: sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==}
 
   semver@5.7.2:
     resolution: {integrity: sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==}
@@ -6815,9 +6940,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.6':
+  '@genkit-ai/ai@1.0.0-dev.0':
     dependencies:
-      '@genkit-ai/core': 0.9.6
+      '@genkit-ai/core': 1.0.0-dev.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -6828,7 +6953,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.6':
+  '@genkit-ai/core@1.0.0-dev.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -6841,7 +6966,7 @@ snapshots:
       async-mutex: 0.5.0
       body-parser: 1.20.3
       cors: 2.8.5
-      express: 4.21.0
+      express: 4.21.1
       get-port: 5.1.0
       json-schema: 0.4.0
       zod: 3.23.8
@@ -6889,6 +7014,17 @@ snapshots:
       - encoding
       - supports-color
 
+  '@google-cloud/firestore@7.11.0(encoding@0.1.13)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      fast-deep-equal: 3.1.3
+      functional-red-black-tree: 1.0.1
+      google-gax: 4.4.1(encoding@0.1.13)
+      protobufjs: 7.3.2
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   '@google-cloud/firestore@7.6.0(encoding@0.1.13)':
     dependencies:
       fast-deep-equal: 3.1.3
@@ -6898,17 +7034,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-
-  '@google-cloud/firestore@7.9.0(encoding@0.1.13)':
-    dependencies:
-      fast-deep-equal: 3.1.3
-      functional-red-black-tree: 1.0.1
-      google-gax: 4.3.7(encoding@0.1.13)
-      protobufjs: 7.3.2
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
 
   '@google-cloud/logging-winston@6.0.0(encoding@0.1.13)(winston@3.13.0)':
     dependencies:
@@ -7017,7 +7142,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@google-cloud/vertexai@1.9.0(encoding@0.1.13)':
+  '@google-cloud/vertexai@1.9.2(encoding@0.1.13)':
     dependencies:
       google-auth-library: 9.14.2(encoding@0.1.13)
     transitivePeerDependencies:
@@ -7049,7 +7174,7 @@ snapshots:
     dependencies:
       lodash.camelcase: 4.3.0
       long: 5.2.3
-      protobufjs: 7.2.6
+      protobufjs: 7.3.2
       yargs: 17.7.2
 
   '@grpc/proto-loader@0.7.13':
@@ -7309,6 +7434,26 @@ snapshots:
       js-tiktoken: 1.0.11
 
   '@material/material-color-utilities@0.2.7': {}
+
+  '@mistralai/mistralai-gcp@1.3.5(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.23.8)':
+    dependencies:
+      google-auth-library: 9.14.2(encoding@0.1.13)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
+  '@mistralai/mistralai-gcp@1.3.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.22.4)':
+    dependencies:
+      google-auth-library: 9.14.2(encoding@0.1.13)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      zod: 3.22.4
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   '@modelcontextprotocol/sdk@1.0.0':
     dependencies:
@@ -8684,6 +8829,8 @@ snapshots:
 
   cookie@0.6.0: {}
 
+  cookie@0.7.1: {}
+
   cors@2.8.5:
     dependencies:
       object-assign: 4.1.1
@@ -9098,6 +9245,42 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  express@4.21.1:
+    dependencies:
+      accepts: 1.3.8
+      array-flatten: 1.1.1
+      body-parser: 1.20.3
+      content-disposition: 0.5.4
+      content-type: 1.0.5
+      cookie: 0.7.1
+      cookie-signature: 1.0.6
+      debug: 2.6.9
+      depd: 2.0.0
+      encodeurl: 2.0.0
+      escape-html: 1.0.3
+      etag: 1.8.1
+      finalhandler: 1.3.1
+      fresh: 0.5.2
+      http-errors: 2.0.0
+      merge-descriptors: 1.0.3
+      methods: 1.1.2
+      on-finished: 2.4.1
+      parseurl: 1.3.3
+      path-to-regexp: 0.1.10
+      proxy-addr: 2.0.7
+      qs: 6.13.0
+      range-parser: 1.2.1
+      safe-buffer: 5.2.1
+      send: 0.19.0
+      serve-static: 1.16.2
+      setprototypeof: 1.2.0
+      statuses: 2.0.1
+      type-is: 1.6.18
+      utils-merge: 1.0.1
+      vary: 1.1.2
+    transitivePeerDependencies:
+      - supports-color
+
   extend@3.0.2: {}
 
   farmhash-modern@1.1.0: {}
@@ -9174,7 +9357,7 @@ snapshots:
       node-forge: 1.3.1
       uuid: 10.0.0
     optionalDependencies:
-      '@google-cloud/firestore': 7.9.0(encoding@0.1.13)
+      '@google-cloud/firestore': 7.11.0(encoding@0.1.13)
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
@@ -9296,10 +9479,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.6)(@genkit-ai/core@0.9.6):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-dev.0)(@genkit-ai/core@1.0.0-dev.0):
     dependencies:
-      '@genkit-ai/ai': 0.9.6
-      '@genkit-ai/core': 0.9.6
+      '@genkit-ai/ai': 1.0.0-dev.0
+      '@genkit-ai/core': 1.0.0-dev.0
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
@@ -9445,6 +9628,24 @@ snapshots:
       - supports-color
 
   google-gax@4.3.7(encoding@0.1.13):
+    dependencies:
+      '@grpc/grpc-js': 1.10.10
+      '@grpc/proto-loader': 0.7.13
+      '@types/long': 4.0.2
+      abort-controller: 3.0.0
+      duplexify: 4.1.3
+      google-auth-library: 9.14.2(encoding@0.1.13)
+      node-fetch: 2.7.0(encoding@0.1.13)
+      object-hash: 3.0.0
+      proto3-json-serializer: 2.0.2
+      protobufjs: 7.3.2
+      retry-request: 7.0.2(encoding@0.1.13)
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
+  google-gax@4.4.1(encoding@0.1.13):
     dependencies:
       '@grpc/grpc-js': 1.10.10
       '@grpc/proto-loader': 0.7.13
@@ -10439,6 +10640,10 @@ snapshots:
 
   long@5.2.3: {}
 
+  loose-envify@1.4.0:
+    dependencies:
+      js-tokens: 4.0.0
+
   lru-cache@10.2.0: {}
 
   lru-cache@11.0.1: {}
@@ -10945,7 +11150,7 @@ snapshots:
 
   proto3-json-serializer@2.0.1:
     dependencies:
-      protobufjs: 7.2.6
+      protobufjs: 7.3.2
 
   proto3-json-serializer@2.0.2:
     dependencies:
@@ -11037,7 +11242,17 @@ snapshots:
       strip-json-comments: 2.0.1
     optional: true
 
+  react-dom@18.3.1(react@18.3.1):
+    dependencies:
+      loose-envify: 1.4.0
+      react: 18.3.1
+      scheduler: 0.23.2
+
   react-is@18.3.1: {}
+
+  react@18.3.1:
+    dependencies:
+      loose-envify: 1.4.0
 
   read-pkg@3.0.0:
     dependencies:
@@ -11156,6 +11371,10 @@ snapshots:
   safe-stable-stringify@2.4.3: {}
 
   safer-buffer@2.1.2: {}
+
+  scheduler@0.23.2:
+    dependencies:
+      loose-envify: 1.4.0
 
   semver@5.7.2: {}
 

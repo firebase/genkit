@@ -159,7 +159,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       this.generateFileName(datasetId)
     );
     if (!fs.existsSync(filePath)) {
-      throw new Error(`Dataset not found for dataset ID {$id}`);
+      throw new Error(`Dataset not found for dataset ID ${datasetId}`);
     }
     return await readFile(filePath, 'utf8').then((data) => {
       return DatasetSchema.parse(JSON.parse(data));
@@ -241,18 +241,10 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
-    if (Array.isArray(data)) {
-      return data.map((d) => ({
-        testCaseId: d.testCaseId ?? generateTestCaseId(),
-        input: d,
-      }));
-    } else if (!!data.samples) {
-      return data.samples.map((d) => ({
-        testCaseId: d.testCaseId ?? generateTestCaseId(),
-        ...d,
-      }));
-    }
-    return [];
+    return data.map((d) => ({
+      testCaseId: d.testCaseId ?? generateTestCaseId(),
+      ...d,
+    }));
   }
 
   private async patchDataset(

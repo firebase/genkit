@@ -5,13 +5,8 @@
     {"run": {"name": "call-llm", "command": {"append": "y"}}},
     {"run": {"name": "call-llm", "command": {"append": "z"}}}
   ],
-  "input": {"start": {"input": "x"}},
-  "result": {
-    "operation": {
-      "done": true,
-      "result": {"response": "xyz"}
-    }
-  },
+  "input": "x",
+  "result": "xyz",
   "trace": {
     "displayName": "dev-run-action-wrapper",
     "spans": {
@@ -110,7 +105,7 @@
           "genkit:type": "action",
           "genkit:name": "basic",
           "genkit:path": "/dev-run-action-wrapper/basic",
-          "genkit:input": "{\"start\":{\"input\":\"x\"}}",
+          "genkit:input": "\"x\"",
           "genkit:metadata:flow:wrapperAction": "true",
           "genkit:output": "$ANYTHING",
           "genkit:state": "success"

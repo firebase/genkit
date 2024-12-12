@@ -372,7 +372,7 @@ export function defineModel<
     (input) => {
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback()).then((response) => {
+      return runner(input, getStreamingCallback(registry)).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,

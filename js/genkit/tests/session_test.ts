@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Message } from '@genkit-ai/ai';
+import { SessionStore } from '@genkit-ai/ai/session';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
@@ -57,6 +59,32 @@ describe('session', () => {
         role: 'model',
       },
     ]);
+  });
+
+  it('sends ready-to-serialize data to the session store', async () => {
+    let savedData: any;
+    const store: SessionStore = {
+      save: async (id, data) => {
+        savedData = data;
+      },
+      get: async (id) => savedData,
+    };
+    const session = ai.createSession({
+      store,
+      initialState: { foo: 'bar' },
+    });
+
+    session.updateMessages('main', [
+      new Message({ role: 'user', content: [{ text: 'hello there' }] }),
+    ]);
+
+    assert.deepStrictEqual(savedData, {
+      id: session.id,
+      state: { foo: 'bar' },
+      threads: {
+        main: [{ content: [{ text: 'hello there' }], role: 'user' }],
+      },
+    });
   });
 
   it('maintains multithreaded history in the session', async () => {

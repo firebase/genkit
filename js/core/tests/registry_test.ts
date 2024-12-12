@@ -28,12 +28,14 @@ describe('registry class', () => {
   describe('listActions', () => {
     it('returns all registered actions', async () => {
       const fooSomethingAction = action(
-        { name: 'foo_something' },
+        registry,
+        { name: 'foo_something', actionType: 'util' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        { name: 'bar_something' },
+        registry,
+        { name: 'bar_something', actionType: 'util' },
         async () => null
       );
       registry.registerAction('model', barSomethingAction);
@@ -53,11 +55,13 @@ describe('registry class', () => {
         },
       });
       const fooSomethingAction = action(
+        registry,
         {
           name: {
             pluginId: 'foo',
             actionId: 'something',
           },
+          actionType: 'util',
         },
         async () => null
       );
@@ -69,11 +73,13 @@ describe('registry class', () => {
         },
       });
       const barSomethingAction = action(
+        registry,
         {
           name: {
             pluginId: 'bar',
             actionId: 'something',
           },
+          actionType: 'util',
         },
         async () => null
       );
@@ -88,12 +94,14 @@ describe('registry class', () => {
       const child = Registry.withParent(registry);
 
       const fooSomethingAction = action(
-        { name: 'foo_something' },
+        registry,
+        { name: 'foo_something', actionType: 'util' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        { name: 'bar_something' },
+        registry,
+        { name: 'bar_something', actionType: 'util' },
         async () => null
       );
       child.registerAction('model', barSomethingAction);
@@ -140,12 +148,14 @@ describe('registry class', () => {
 
     it('returns registered action', async () => {
       const fooSomethingAction = action(
-        { name: 'foo_something' },
+        registry,
+        { name: 'foo_something', actionType: 'util' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        { name: 'bar_something' },
+        registry,
+        { name: 'bar_something', actionType: 'util' },
         async () => null
       );
       registry.registerAction('model', barSomethingAction);
@@ -169,11 +179,13 @@ describe('registry class', () => {
         },
       });
       const somethingAction = action(
+        registry,
         {
           name: {
             pluginId: 'foo',
             actionId: 'something',
           },
+          actionType: 'util',
         },
         async () => null
       );
@@ -194,7 +206,11 @@ describe('registry class', () => {
     it('should lookup parent registry when child missing action', async () => {
       const childRegistry = new Registry(registry);
 
-      const fooAction = action({ name: 'foo' }, async () => null);
+      const fooAction = action(
+        registry,
+        { name: 'foo', actionType: 'util' },
+        async () => null
+      );
       registry.registerAction('model', fooAction);
 
       assert.strictEqual(await registry.lookupAction('/model/foo'), fooAction);
@@ -209,7 +225,11 @@ describe('registry class', () => {
 
       assert.strictEqual(childRegistry.parent, registry);
 
-      const fooAction = action({ name: 'foo' }, async () => null);
+      const fooAction = action(
+        registry,
+        { name: 'foo', actionType: 'util' },
+        async () => null
+      );
       childRegistry.registerAction('model', fooAction);
 
       assert.strictEqual(await registry.lookupAction('/model/foo'), undefined);
