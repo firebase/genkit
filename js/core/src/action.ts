@@ -377,7 +377,7 @@ export function defineAction<
 export type StreamingCallback<T> = (chunk: T) => void;
 
 const streamingAlsKey = 'core.action.streamingCallback';
-const sentinelNoopCallback = () => null;
+export const sentinelNoopStreamingCallback = () => null;
 
 /**
  * Executes provided function with streaming callback in async local storage which can be retrieved
@@ -390,7 +390,7 @@ export function runWithStreamingCallback<S, O>(
 ): O {
   return registry.asyncStore.run(
     streamingAlsKey,
-    streamingCallback || sentinelNoopCallback,
+    streamingCallback || sentinelNoopStreamingCallback,
     fn
   );
 }
@@ -403,7 +403,7 @@ export function getStreamingCallback<S>(
 ): StreamingCallback<S> | undefined {
   const cb =
     registry.asyncStore.getStore<StreamingCallback<S>>(streamingAlsKey);
-  if (cb === sentinelNoopCallback) {
+  if (cb === sentinelNoopStreamingCallback) {
     return undefined;
   }
   return cb;

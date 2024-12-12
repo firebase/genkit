@@ -251,7 +251,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
       tools: (options.tools || []).concat(this.tools || []),
-      streamingCallback: options.streamingCallback,
+      onChunk: options.onChunk ?? options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
       use: options.use,
     } as GenerateOptions<O, CustomOptions>;
