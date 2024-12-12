@@ -27,9 +27,18 @@ import {
   defineGoogleAIModel,
   gemini10Pro,
   gemini15Flash,
+  gemini15Flash8b,
   gemini15Pro,
+  gemini20FlashExp,
 } from './gemini.js';
-export { gemini10Pro, gemini15Flash, gemini15Pro, textEmbeddingGecko001 };
+export {
+  gemini10Pro,
+  gemini15Flash,
+  gemini15Flash8b,
+  gemini15Pro,
+  gemini20FlashExp,
+  textEmbeddingGecko001,
+};
 
 export interface PluginOptions {
   apiKey?: string;
