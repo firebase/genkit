@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-export { RuntimeEvent, RuntimeInfo } from '../manager/types';
-export { GenkitErrorData } from '../types/error';
-export * from './action';
-export * from './analytics';
-export * from './apis';
-export * from './env';
-export * from './eval';
-export * from './evaluators';
-export * from './model';
-export * from './prompt';
-export * from './retrievers';
-export * from './status';
-export * from './trace';
+export interface GenkitErrorData {
+  message: string;
+  stack?: string;
+  details?: any;
+  data?: {
+    genkitErrorMessage?: string;
+    genkitErrorDetails?: {
+      stack?: string;
+      traceId: string;
+    };
+  };
+}

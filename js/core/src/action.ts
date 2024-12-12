@@ -275,13 +275,20 @@ export function action<
         metadata.name = actionName;
         metadata.input = input;
 
-        const output = await fn(input, {
-          context: options?.context,
-          sendChunk: options?.onChunk ?? ((c) => {}),
-        });
+        try {
+          const output = await fn(input, {
+            context: options?.context,
+            sendChunk: options?.onChunk ?? ((c) => {}),
+          });
 
-        metadata.output = JSON.stringify(output);
-        return output;
+          metadata.output = JSON.stringify(output);
+          return output;
+        } catch (err) {
+          if (typeof err === 'object') {
+            (err as any).traceId = traceId;
+          }
+          throw err;
+        }
       }
     );
     output = parseSchema(output, {
