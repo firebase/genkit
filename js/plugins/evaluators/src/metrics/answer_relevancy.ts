@@ -24,8 +24,8 @@ import { getDirName } from './helper.js';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
-  answered: z.literal(0).or(z.literal(1)),
-  noncommittal: z.literal(0).or(z.literal(1)),
+  answered:  z.enum(["0", "1"] as const),
+  noncommittal: z.enum(["0", "1"] as const),
 });
 
 export async function answerRelevancyScore<
@@ -77,8 +77,8 @@ export async function answerRelevancyScore<
       options: embedderOptions,
     });
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
-    const answered = response.output?.answered === 1;
-    const isNonCommittal = response.output?.noncommittal === 1;
+    const answered = (response.output?.answered === "1" ? 1 : 0);
+    const isNonCommittal = (response.output?.noncommittal === "1" ? 1 : "0");
     const answeredPenalty = !answered ? 0.5 : 0;
     const adjustedScore =
       score - answeredPenalty < 0 ? 0 : score - answeredPenalty;
