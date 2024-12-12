@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 // Product-related functions
 /**
@@ -12,10 +12,10 @@ export async function getProductById(id: number) {
   try {
     return await prisma.product.findUnique({
       where: { id },
-    })
+    });
   } catch (error) {
-    console.error('Error fetching product:', error)
-    throw error
+    console.error('Error fetching product:', error);
+    throw error;
   }
 }
 
@@ -25,10 +25,10 @@ export async function getProductById(id: number) {
  */
 export async function listProducts() {
   try {
-    return await prisma.product.findMany()
+    return await prisma.product.findMany();
   } catch (error) {
-    console.error('Error listing products:', error)
-    throw error
+    console.error('Error listing products:', error);
+    throw error;
   }
 }
 
@@ -50,10 +50,10 @@ export async function getOrderById(id: number) {
           },
         },
       },
-    })
+    });
   } catch (error) {
-    console.error('Error fetching order:', error)
-    throw error
+    console.error('Error fetching order:', error);
+    throw error;
   }
 }
 
@@ -72,10 +72,10 @@ export async function listOrders() {
           },
         },
       },
-    })
+    });
   } catch (error) {
-    console.error('Error listing orders:', error)
-    throw error
+    console.error('Error listing orders:', error);
+    throw error;
   }
 }
 
@@ -89,23 +89,23 @@ export async function getRecentOrders(customerId: number, limit: number = 5) {
   try {
     return await prisma.order.findMany({
       where: {
-        customerId: customerId
+        customerId: customerId,
       },
       orderBy: {
-        orderDate: 'desc'
+        orderDate: 'desc',
       },
       take: limit,
       include: {
         orderItems: {
           include: {
-            product: true
-          }
-        }
-      }
-    })
+            product: true,
+          },
+        },
+      },
+    });
   } catch (error) {
-    console.error('Error fetching recent orders:', error)
-    throw error
+    console.error('Error fetching recent orders:', error);
+    throw error;
   }
 }
 
@@ -118,24 +118,24 @@ export async function getOrdersByCustomerEmail(email: string) {
   try {
     const customer = await prisma.customer.findUnique({
       where: {
-        email: email
+        email: email,
       },
       include: {
         orders: {
           include: {
             orderItems: {
               include: {
-                product: true
-              }
-            }
-          }
-        }
-      }
-    })
-    return customer ? customer.orders : null
+                product: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return customer ? customer.orders : null;
   } catch (error) {
-    console.error('Error fetching orders by customer email:', error)
-    throw error
+    console.error('Error fetching orders by customer email:', error);
+    throw error;
   }
 }
 
@@ -150,24 +150,24 @@ export async function getRecentOrdersByEmail(email: string, limit: number = 5) {
     return await prisma.order.findMany({
       where: {
         customer: {
-          email: email
-        }
+          email: email,
+        },
       },
       orderBy: {
-        orderDate: 'desc'
+        orderDate: 'desc',
       },
       take: limit,
       include: {
         orderItems: {
           include: {
-            product: true
-          }
-        }
-      }
-    })
+            product: true,
+          },
+        },
+      },
+    });
   } catch (error) {
-    console.error('Error fetching recent orders by email:', error)
-    throw error
+    console.error('Error fetching recent orders by email:', error);
+    throw error;
   }
 }
 
@@ -184,10 +184,10 @@ export async function getCustomerById(id: number) {
       include: {
         orders: true,
       },
-    })
+    });
   } catch (error) {
-    console.error('Error fetching customer:', error)
-    throw error
+    console.error('Error fetching customer:', error);
+    throw error;
   }
 }
 
@@ -201,10 +201,10 @@ export async function listCustomers() {
       include: {
         orders: true,
       },
-    })
+    });
   } catch (error) {
-    console.error('Error listing customers:', error)
-    throw error
+    console.error('Error listing customers:', error);
+    throw error;
   }
 }
 
@@ -217,23 +217,23 @@ export async function getCustomerByEmail(email: string) {
   try {
     return await prisma.customer.findUnique({
       where: {
-        email: email
+        email: email,
       },
       include: {
         orders: {
           include: {
             orderItems: {
               include: {
-                product: true
-              }
-            }
-          }
-        }
-      }
-    })
+                product: true,
+              },
+            },
+          },
+        },
+      },
+    });
   } catch (error) {
-    console.error('Error fetching customer by email:', error)
-    throw error
+    console.error('Error fetching customer by email:', error);
+    throw error;
   }
 }
 
@@ -246,7 +246,12 @@ export async function getCustomerByEmail(email: string) {
  * @param threadId The thread ID associated with the escalation
  * @returns The created escalation
  */
-export async function createEscalation(customerId: number, subject: string, description: string, threadId: string) {
+export async function createEscalation(
+  customerId: number,
+  subject: string,
+  description: string,
+  threadId: string
+) {
   try {
     return await prisma.escalation.create({
       data: {
@@ -255,10 +260,10 @@ export async function createEscalation(customerId: number, subject: string, desc
         description,
         threadId,
       },
-    })
+    });
   } catch (error) {
-    console.error('Error creating escalation:', error)
-    throw error
+    console.error('Error creating escalation:', error);
+    throw error;
   }
 }
 
@@ -274,10 +279,10 @@ export async function getEscalationById(id: number) {
       include: {
         customer: true,
       },
-    })
+    });
   } catch (error) {
-    console.error('Error fetching escalation:', error)
-    throw error
+    console.error('Error fetching escalation:', error);
+    throw error;
   }
 }
 
@@ -292,10 +297,10 @@ export async function updateEscalationStatus(id: number, status: string) {
     return await prisma.escalation.update({
       where: { id },
       data: { status },
-    })
+    });
   } catch (error) {
-    console.error('Error updating escalation status:', error)
-    throw error
+    console.error('Error updating escalation status:', error);
+    throw error;
   }
 }
 
@@ -309,10 +314,10 @@ export async function listEscalations() {
       include: {
         customer: true,
       },
-    })
+    });
   } catch (error) {
-    console.error('Error listing escalations:', error)
-    throw error
+    console.error('Error listing escalations:', error);
+    throw error;
   }
 }
 
@@ -320,5 +325,5 @@ export async function listEscalations() {
  * Disconnects the Prisma client
  */
 export async function disconnectPrisma() {
-  await prisma.$disconnect()
+  await prisma.$disconnect();
 }

@@ -5,7 +5,9 @@ module.exports = {
       extractors: {
         context: (trace) => {
           const rootSpan = Object.values(trace.spans).find(
-            (s) => s.attributes['genkit:type'] === 'flow' && s.attributes['genkit:name'] === 'generateDraftFlow'
+            (s) =>
+              s.attributes['genkit:type'] === 'flow' &&
+              s.attributes['genkit:name'] === 'generateDraftFlow'
           );
           if (!rootSpan) return JSON.stringify([]);
 
@@ -20,7 +22,9 @@ module.exports = {
       extractors: {
         context: (trace) => {
           const rootSpan = Object.values(trace.spans).find(
-            (s) => s.attributes['genkit:type'] === 'flow' && s.attributes['genkit:name'] === 'classifyInquiryFlow'
+            (s) =>
+              s.attributes['genkit:type'] === 'flow' &&
+              s.attributes['genkit:name'] === 'classifyInquiryFlow'
           );
           if (!rootSpan) return JSON.stringify([]);
 
@@ -32,4 +36,3 @@ module.exports = {
     },
   ],
 };
-

@@ -1,5 +1,5 @@
-import { z } from 'genkit';
 import * as fs from 'fs';
+import { z } from 'genkit';
 import * as path from 'path';
 import { ai } from '.';
 
@@ -24,10 +24,12 @@ type HandlerInput = {
 };
 
 // Main function to execute a handler based on the given input
-export async function executeHandler(input: HandlerInput): Promise<z.infer<typeof HandlerResult>> {
+export async function executeHandler(
+  input: HandlerInput
+): Promise<z.infer<typeof HandlerResult>> {
   // Get the appropriate prompt for the handler based on intent and subintent
   const handlerPrompt = getHandlerPrompt(input.intent, input.subintent);
-  
+
   // Generate a response using the handler's prompt
   const handlerResult = await handlerPrompt({
     input: {
@@ -55,12 +57,19 @@ function getHandlerPrompt(intent: string, subintent: string) {
   const promptKey = `handler_${intent.toLowerCase()}_${subintent.toLowerCase()}`;
 
   // Determine the file path for the handler's prompt
-  const promptPath = path.join(__dirname, '..', 'prompts', `${promptKey}.prompt`);
-  
+  const promptPath = path.join(
+    __dirname,
+    '..',
+    'prompts',
+    `${promptKey}.prompt`
+  );
+
   // Check if the prompt file exists and return it, or throw an error if not found
   if (fs.existsSync(promptPath)) {
     return ai.prompt(promptKey);
   } else {
-    throw new Error(`NoHandlerPromptError: No handler prompt found for intent '${intent}' and subintent '${subintent}'`);
+    throw new Error(
+      `NoHandlerPromptError: No handler prompt found for intent '${intent}' and subintent '${subintent}'`
+    );
   }
 }

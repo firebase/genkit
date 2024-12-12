@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-
   // Seed Products with hardcoded values
   const products = [];
   const productData = [
@@ -46,13 +45,13 @@ async function main() {
       stockLevel: 30,
       price: 149.99,
       sku: 'WIR-HEAD-BK',
-    }
+    },
   ];
 
   for (const data of productData) {
     products.push(
       await prisma.product.create({
-        data
+        data,
       })
     );
   }
@@ -74,13 +73,13 @@ async function main() {
       id: 3,
       name: 'Bob Wilson',
       email: 'bob.wilson@example.com',
-    }
+    },
   ];
 
   for (const data of customerData) {
     customers.push(
       await prisma.customer.create({
-        data
+        data,
       })
     );
   }
@@ -100,7 +99,7 @@ async function main() {
           {
             productId: products[1].id,
             quantity: 1,
-          }
+          },
         ],
       },
     },
@@ -113,7 +112,7 @@ async function main() {
           {
             productId: products[2].id,
             quantity: 1,
-          }
+          },
         ],
       },
     },
@@ -130,15 +129,15 @@ async function main() {
           {
             productId: products[4].id,
             quantity: 1,
-          }
+          },
         ],
       },
-    }
+    },
   ];
 
   for (const data of orderData) {
     await prisma.order.create({
-      data
+      data,
     });
   }
 
@@ -153,4 +152,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-  

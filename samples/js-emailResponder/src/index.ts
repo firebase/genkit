@@ -1,21 +1,34 @@
-import { genkit, z } from 'genkit';
-import { executeHandler } from './handlers';
-import { createEscalation, getCustomerByEmail, getOrderById, getProductById, getRecentOrdersByEmail, listProducts } from './db';
-import vertexAI, { gemini10Pro, gemini15Pro, textEmbedding004 } from '@genkit-ai/vertexai';
 import genkitEval, { GenkitMetric } from '@genkit-ai/evaluator';
-
+import vertexAI, {
+  gemini10Pro,
+  gemini15Pro,
+  textEmbedding004,
+} from '@genkit-ai/vertexai';
+import { genkit, z } from 'genkit';
+import {
+  createEscalation,
+  getCustomerByEmail,
+  getOrderById,
+  getProductById,
+  getRecentOrdersByEmail,
+  listProducts,
+} from './db';
+import { executeHandler } from './handlers';
 
 // Configure Genkit with necessary plugins
 export const ai = genkit({
   plugins: [
-    vertexAI({projectId: process.env.PROJECT_ID, location: process.env.LOCATION || "us-central1"}),
+    vertexAI({
+      projectId: process.env.PROJECT_ID,
+      location: process.env.LOCATION || 'us-central1',
+    }),
     genkitEval({
       judge: gemini15Pro,
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.ANSWER_RELEVANCY],
       embedder: textEmbedding004,
     }),
   ],
-  model: gemini10Pro
+  model: gemini10Pro,
 });
 
 // Define prompts
@@ -37,7 +50,9 @@ export const classifyInquiryFlow = ai.defineFlow(
   async (input) => {
     try {
       console.log('Classifying inquiry:', input.inquiry);
-      const classificationResult = await classifyInquiryPrompt({ inquiry: input.inquiry });
+      const classificationResult = await classifyInquiryPrompt({
+        inquiry: input.inquiry,
+      });
       return classificationResult.output;
     } catch (error) {
       console.error('Error in classifyInquiryFlow:', error);
@@ -51,16 +66,18 @@ export const customerServiceFlow = ai.defineFlow(
     name: 'customerServiceFlow',
     inputSchema: z.object({
       from: z.string(),
-      to: z.string(), 
+      to: z.string(),
       subject: z.string(),
       body: z.string(),
       sentAt: z.string(), // Changed from timestamp to sentAt
-      threadHistory: z.array(z.object({
-        from: z.string(),
-        to: z.string(),
-        body: z.string(),
-        sentAt: z.string(), // Changed from timestamp to sentAt
-      })),
+      threadHistory: z.array(
+        z.object({
+          from: z.string(),
+          to: z.string(),
+          body: z.string(),
+          sentAt: z.string(), // Changed from timestamp to sentAt
+        })
+      ),
     }),
     outputSchema: z.object({
       intent: z.string(),
@@ -76,12 +93,14 @@ export const customerServiceFlow = ai.defineFlow(
       to: input.to,
       subject: input.subject,
       body: input.body,
-      threadHistoryLength: input.threadHistory.length
+      threadHistoryLength: input.threadHistory.length,
     });
 
     // Step 1: Classify the inquiry
     console.log('Step 1: Classifying inquiry...');
-    const classificationResult = await classifyInquiryFlow({inquiry: input.body});
+    const classificationResult = await classifyInquiryFlow({
+      inquiry: input.body,
+    });
     console.log('Classification result:', classificationResult);
     const { intent, subintent } = classificationResult;
 
@@ -112,9 +131,16 @@ export const customerServiceFlow = ai.defineFlow(
     } catch (error) {
       console.error('Error executing handler:', error);
       // Escalate if no handler
-      if (error instanceof Error && error.message.startsWith('NoHandlerPromptError')) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith('NoHandlerPromptError')
+      ) {
         console.log('No handler found, escalating to human...');
-        const escalationResult = await escalateToHuman(input.body, input.from, 'No handler found');
+        const escalationResult = await escalateToHuman(
+          input.body,
+          input.from,
+          'No handler found'
+        );
         console.log('Escalation result:', escalationResult);
         return {
           intent,
@@ -172,8 +198,9 @@ async function escalateToHuman(inquiry: string, email: string, reason: string) {
   );
 
   return {
-    message: "Your inquiry has been escalated to our customer service team. We'll get back to you as soon as possible.",
-    escalationId: escalation.id
+    message:
+      "Your inquiry has been escalated to our customer service team. We'll get back to you as soon as possible.",
+    escalationId: escalation.id,
   };
 }
 
@@ -197,7 +224,9 @@ export const augmentInfo = ai.defineFlow(
         responseData = { catalog: products };
         break;
       case 'Product':
-        const productInfo = await extractInfoFlow({ inquiry: input.customerInquiry });
+        const productInfo = await extractInfoFlow({
+          inquiry: input.customerInquiry,
+        });
         if (productInfo.productId) {
           const product = await getProductById(productInfo.productId);
           responseData = { product };
@@ -207,7 +236,9 @@ export const augmentInfo = ai.defineFlow(
         }
         break;
       case 'Order':
-        const orderInfo = await extractInfoFlow({ inquiry: input.customerInquiry });
+        const orderInfo = await extractInfoFlow({
+          inquiry: input.customerInquiry,
+        });
         console.log(orderInfo);
         console.log('Extracted order info:', orderInfo);
         if (orderInfo.orderId) {
@@ -225,7 +256,8 @@ export const augmentInfo = ai.defineFlow(
         break;
     }
     return { responseData };
-  })
+  }
+);
 
 export const extractInfoFlow = ai.defineFlow(
   {
@@ -241,16 +273,16 @@ export const extractInfoFlow = ai.defineFlow(
     }),
   },
   async (input) => {
-    const extractionResult = await extractInfoPrompt({ 
-      inquiry: input.inquiry, 
-      category: 'Customer Service' 
+    const extractionResult = await extractInfoPrompt({
+      inquiry: input.inquiry,
+      category: 'Customer Service',
     });
     const output = extractionResult.output;
     return {
       productId: output.productId ? parseInt(output.productId, 10) : 0,
       orderId: output.orderId ? parseInt(output.orderId, 10) : 0,
       customerId: output.customerId ? parseInt(output.customerId, 10) : 0,
-      issue: output.issue || "",
+      issue: output.issue || '',
     };
   }
 );

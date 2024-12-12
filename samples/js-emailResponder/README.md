@@ -1,7 +1,9 @@
 # Customer Service Chatbot with Genkit
+
 This project demonstrates how to build a customer service chatbot using Genkit, a powerful AI framework for building conversational applications. The chatbot is designed to handle various customer inquiries related to products, orders, and general catalog questions.
 
 Key features:
+
 - Uses SQLite as the underlying database for easy setup and portability
 - Implements complex flow logic with conditional branching based on customer intent:
   - Queries distinct data tables depending on the intent / sub-intent
@@ -21,35 +23,39 @@ Before you begin, make sure you have the following installed:
 ## Getting Started
 
 1. Clone this repository:
+
    ```
    git clone https://github.com/jeffdh5/customer-service-chatbot.git
    cd customer-service-chatbot
    ```
 
 2. Install dependencies:
+
    ```
    pnpm i
    ```
 
 3. Set up your database:
    a. Set up your environment variables:
-      Create a `.env` file in the root directory and add the following:
-      ```
-      PROJECT_ID=[YOUR PROJECT ID]
-      LOCATION=[YOUR LOCATION]
-      ```
+   Create a `.env` file in the root directory and add the following:
+
+   ```
+   PROJECT_ID=[YOUR PROJECT ID]
+   LOCATION=[YOUR LOCATION]
+   ```
 
    b. Set up the database and seed with sample data:
-      ```
-      cd src/
-      npx prisma generate
-      npx prisma migrate dev --name init
-      npm run prisma:seed
-      cd ../
-      ```
+
+   ```
+   cd src/
+   npx prisma generate
+   npx prisma migrate dev --name init
+   npm run prisma:seed
+   cd ../
+   ```
 
 4. Test the chatbot with sample data
-   
+
    After seeding the database, you can test the chatbot with these example queries that match our seed data:
 
    ```bash
@@ -73,10 +79,12 @@ Before you begin, make sure you have the following installed:
    ```
 
    ### Seeded Data Reference
+
    The SQLite database comes pre-seeded with some data so that you can
    easily test out your queries.
 
    #### Products:
+
    - Classic Blue T-Shirt ($19.99, SKU: BLU-TSHIRT-M)
    - Running Shoes ($89.99, SKU: RUN-SHOE-42)
    - Denim Jeans ($49.99, SKU: DEN-JEAN-32)
@@ -84,6 +92,7 @@ Before you begin, make sure you have the following installed:
    - Wireless Headphones ($149.99, SKU: WIR-HEAD-BK)
 
    #### Customers and Their Orders:
+
    - John Doe (john.doe@example.com)
      - Order TRACK123456: 2 Blue T-Shirts, 1 Running Shoes (DELIVERED)
    - Jane Smith (jane.smith@example.com)
@@ -93,7 +102,7 @@ Before you begin, make sure you have the following installed:
 
 5. Run evals
    ```
-   genkit eval:flow classifyInquiryFlow --input evals/classifyInquiryTestInputs.json 
+   genkit eval:flow classifyInquiryFlow --input evals/classifyInquiryTestInputs.json
    genkit eval:flow generateDraftFlow --input evals/generateDraftTestInputs.json
    ```
 
