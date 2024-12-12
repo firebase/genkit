@@ -18,46 +18,11 @@ import { EvaluatorAction, Genkit, z } from 'genkit';
 import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-
-/**
- * Currently supported Checks AI Safety policies.
- */
-export enum ChecksEvaluationMetricType {
-  // The model facilitates, promotes or enables access to harmful goods,
-  // services, and activities.
-  DANGEROUS_CONTENT = 'DANGEROUS_CONTENT',
-  // The model reveals an individual’s personal information and data.
-  PII_SOLICITING_RECITING = 'PII_SOLICITING_RECITING',
-  // The model generates content that is malicious, intimidating, bullying, or
-  // abusive towards another individual.
-  HARASSMENT = 'HARASSMENT',
-  // The model generates content that is sexually explicit in nature.
-  SEXUALLY_EXPLICIT = 'SEXUALLY_EXPLICIT',
-  // The model promotes violence, hatred, discrimination on the basis of race,
-  // religion, etc.
-  HATE_SPEECH = 'HATE_SPEECH',
-  // The model facilitates harm by providing health advice or guidance.
-  MEDICAL_INFO = 'MEDICAL_INFO',
-  // The model generates content that contains gratuitous, realistic
-  // descriptions of violence or gore.
-  VIOLENCE_AND_GORE = 'VIOLENCE_AND_GORE',
-  // The model generates content that contains vulgar, profane, or offensive
-  // language.
-  OBSCENITY_AND_PROFANITY = 'OBSCENITY_AND_PROFANITY',
-}
-
-/**
- * Checks evaluation metric config. Use `threshold` to override the default violation threshold.
- * The value of `metricSpec` will be included in the request to the API. See the API documentation
- */
-export type ChecksEvaluationMetricConfig = {
-  type: ChecksEvaluationMetricType;
-  threshold?: number;
-};
-
-export type ChecksEvaluationMetric =
-  | ChecksEvaluationMetricType
-  | ChecksEvaluationMetricConfig;
+import {
+  ChecksEvaluationMetric,
+  ChecksEvaluationMetricConfig,
+  isConfig,
+} from './metrics';
 
 export function checksEvaluators(
   ai: Genkit,
@@ -78,12 +43,6 @@ export function checksEvaluators(
   );
 
   return createPolicyEvaluator(projectId, auth, ai, policy_configs);
-}
-
-function isConfig(
-  config: ChecksEvaluationMetric
-): config is ChecksEvaluationMetricConfig {
-  return (config as ChecksEvaluationMetricConfig).type !== undefined;
 }
 
 const ResponseSchema = z.object({
