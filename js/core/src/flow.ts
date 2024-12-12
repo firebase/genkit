@@ -24,6 +24,7 @@ import {
   Action,
   ActionResult,
   defineAction,
+  sentinelNoopStreamingCallback,
   StreamingCallback,
 } from './action.js';
 import { runWithContext } from './auth.js';
@@ -193,7 +194,7 @@ export class Flow<
     return await this.action.run(input, {
       context: opts.context,
       telemetryLabels: opts.labels,
-      onChunk: opts.onChunk ?? (() => {}),
+      onChunk: opts.onChunk ?? sentinelNoopStreamingCallback,
     });
   }
 

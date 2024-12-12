@@ -65,7 +65,7 @@ describe('telemetry', async () => {
         const { text } = await ai.generate({
           model: 'echoModel',
           prompt: input.question,
-          streamingCallback: sendChunk,
+          onChunk: sendChunk,
         });
         return text;
       }

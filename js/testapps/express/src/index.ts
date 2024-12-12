@@ -121,7 +121,7 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
     config: {
       temperature: 1,
     },
-    streamingCallback: (c) => {
+    onChunk: (c) => {
       res.write(c.content[0].text);
     },
   });

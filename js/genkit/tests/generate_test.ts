@@ -177,6 +177,22 @@ describe('generate', () => {
         await response;
       });
     });
+
+
+    it('strips out the noop streaming callback', async () => {
+      const model = defineEchoModel(ai);
+      const flow = ai.defineFlow('wrapper', async (_, streamingCallback) => {
+        const response = await ai.generate({
+          model: model,
+          prompt: 'hi',
+          onChunk: streamingCallback
+        }); 
+        return response.text; 
+      })
+      const text = await flow();
+      assert.ok(!(model as any).__test__lastStreamingCallback);
+    });
+
   });
 
   describe('config', () => {
