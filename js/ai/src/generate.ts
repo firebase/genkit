@@ -78,7 +78,7 @@ export interface GenerateOptions<
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
-  maxToolterations?: number;
+  maxTurns?: number,
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
   onChunk?: StreamingCallback<GenerateResponseChunk>;
   /**
@@ -284,7 +284,7 @@ export async function generate<
       jsonSchema: resolvedSchema,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
-    maxToolterations: resolvedOptions.maxToolterations,
+    maxTurns: resolvedOptions.maxTurns,
   };
 
   return await runWithStreamingCallback(

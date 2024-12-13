@@ -72,7 +72,7 @@ export const GenerateUtilParamSchema = z.object({
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests: z.boolean().optional(),
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
-  maxToolterations: z.number().optional(),
+  maxTurns: z.number().optional(),
 });
 
 /**
@@ -85,7 +85,7 @@ export async function generateHelper(
   toolCallIteration?: number
 ): Promise<GenerateResponseData> {
   toolCallIteration = toolCallIteration ?? 0;
-  const maxIterations = input.maxToolterations ?? 5;
+  const maxIterations = input.maxTurns ?? 5;
   if (toolCallIteration > maxIterations) {
     throw new Error(`Exceeded maximum tool call iterations (${maxIterations})`);
   }

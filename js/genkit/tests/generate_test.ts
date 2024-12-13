@@ -387,7 +387,7 @@ describe('generate', () => {
         ai.generate({
           prompt: 'call the tool',
           tools: ['testTool'],
-          maxToolterations: 17,
+          maxTurns: 17,
         }),
         (err: Error) => {
           return err.message.includes(
