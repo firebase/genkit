@@ -18,7 +18,12 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
 import { Genkit, genkit } from '../src/genkit';
-import { defineEchoModel, runAsync } from './helpers';
+import {
+  ProgrammableModel,
+  defineEchoModel,
+  defineProgrammableModel,
+  runAsync,
+} from './helpers';
 
 describe('generate', () => {
   describe('default model', () => {
@@ -253,6 +258,142 @@ describe('generate', () => {
       assert.strictEqual(
         response.text,
         'Echo: hi; config: {"version":"bcd","temperature":11}'
+      );
+    });
+  });
+
+  describe('tools', () => {
+    let ai: Genkit;
+    let pm: ProgrammableModel;
+
+    beforeEach(() => {
+      ai = genkit({
+        model: 'programmableModel',
+      });
+      pm = defineProgrammableModel(ai);
+      defineEchoModel(ai);
+    });
+
+    it('call the tool', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { text } = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      assert.strictEqual(text, 'done');
+      assert.deepStrictEqual(
+        pm.lastRequest,
+
+        {
+          config: {},
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: 'call the tool' }],
+            },
+            {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    input: {},
+                    name: 'testTool',
+                    ref: 'ref123',
+                  },
+                },
+              ],
+            },
+            {
+              role: 'tool',
+              content: [
+                {
+                  toolResponse: {
+                    name: 'testTool',
+                    output: 'tool called',
+                    ref: 'ref123',
+                  },
+                },
+              ],
+            },
+          ],
+          output: {},
+          tools: [
+            {
+              description: 'description',
+              inputSchema: {
+                $schema: 'http://json-schema.org/draft-07/schema#',
+              },
+              name: 'testTool',
+              outputSchema: {
+                $schema: 'http://json-schema.org/draft-07/schema#',
+              },
+            },
+          ],
+        }
+      );
+    });
+
+    it('throws when exceeding max tool call iterations', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      // this will result in the tool getting called infinitely in a loop.
+      pm.handleResponse = async () => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              {
+                toolRequest: {
+                  name: 'testTool',
+                  input: {},
+                  ref: 'ref123',
+                },
+              },
+            ],
+          },
+        };
+      };
+
+      await assert.rejects(
+        ai.generate({
+          prompt: 'call the tool',
+          tools: ['testTool'],
+          maxTurns: 17,
+        }),
+        (err: Error) => {
+          return err.message.includes(
+            'Exceeded maximum tool call iterations (17)'
+          );
+        }
       );
     });
   });

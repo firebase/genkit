@@ -134,10 +134,12 @@ describe('Prompt', () => {
         input: { name: 'Michael' },
         onChunk: streamingCallback,
         returnToolRequests: true,
+        maxTurns: 17,
         use: middleware,
       });
       assert.strictEqual(rendered.onChunk, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
+      assert.strictEqual(rendered.maxTurns, 17);
       assert.strictEqual(rendered.use, middleware);
     });
 
@@ -449,12 +451,14 @@ describe('DotpromptRef', () => {
       input: { name: 'Charlie' },
       onChunk: streamingCallback,
       returnToolRequests: true,
+      maxTurns: 17,
     };
 
     const rendered = await ref.render(registry, options);
 
     assert.strictEqual(rendered.onChunk, streamingCallback);
     assert.strictEqual(rendered.returnToolRequests, true);
+    assert.strictEqual(rendered.maxTurns, 17);
   });
 
   it('Should cache loaded prompt in DotpromptRef', async () => {
