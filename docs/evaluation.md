@@ -18,19 +18,35 @@ Genkit faithfulness and answer relevancy metrics:
 ```ts
 import { genkit } from 'genkit';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { vertexAI, textEmbedding004, gemini15Flash } from '@genkit-ai/vertexai';
+import { vertexAI, textEmbedding004, gemini15Pro } from '@genkit-ai/vertexai';
 
 const ai = genkit({
   plugins: [
     vertexAI(),
     genkitEval({
-      judge: gemini15Flash,
-      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.ANSWER_RELEVANCY],
+      judge: gemini15Pro, // Use a powerful LLM as judge
+      metrics: [GenkitMetric.MALICIOUSNESS, GenkitMetric.ANSWER_RELEVANCY],
       embedder: textEmbedding004, // GenkitMetric.ANSWER_RELEVANCY requires an embedder
     }),
   ],
   // ...
 });
+
+// Define a simple menu suggestion flow
+export const menuSuggestionFlow = ai.defineFlow(
+  {
+    name: "menuSuggestionFlow",
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: `Suggest a menu item using ${query}`,
+    });
+    return llmResponse.text;
+  }
+);
 ```
 
 **Note:** The configuration above requires installing the `genkit`,
@@ -74,6 +90,12 @@ input and reference output using this format instead:
 
 Note that you can use any JSON data type in the input JSON file. Genkit will pass them along with the same data type to your flow.
 
+You are now ready to start evaluating your flow. Begin by starting up your app with `genkit start`:
+
+```posix-terminal
+genkit start -- <command to start your app>
+```
+
 You can then use the `eval:flow` command to evaluate your flow against the test
 cases provided in `testInputs.json`.
 
@@ -87,13 +109,14 @@ If your flow requires auth, you may specify it using the `--auth` argument:
 genkit eval:flow menuSuggestionFlow --input testInputs.json --auth "{\"email_verified\": true}"
 ```
 
-You can then see evaluation results in the Developer UI by running:
+To run on a subset of the configured evaluators, use the `--evaluators` flag and
+provide a comma-separated list of evaluators by name:
 
 ```posix-terminal
-genkit start
+genkit eval:flow menuSuggestionFlow --input testInputs.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
 ```
 
-Then navigate to `localhost:4000/evaluate`.
+Then navigate to `localhost:4000/evaluate` to view your evaluation results.
 
 Alternatively, you can provide an output file to inspect the output in a JSON
 file.
@@ -125,7 +148,7 @@ Genkit supports additional evaluators through plugins like the VertexAI Rapid Ev
 `eval:flow` is a convenient way to quickly evaluate the flow, but sometimes you
 might need more control over evaluation steps. This may occur if you are using a
 different framework and already have some output you would like to evaluate. You
-can perform all the steps that `eval:flow` performs semi-manually.
+can perform all the steps that `eval:flow` performs semi-automaticaly.
 
 You can batch run your Genkit flow and add a unique label to the run which then
 will be used to extract an evaluation dataset (a set of inputs, outputs, and
@@ -134,13 +157,13 @@ contexts).
 Run the flow over your test inputs:
 
 ```posix-terminal
-genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label customLabel
+genkit flow:batchRun menuSuggestionFlow testInputs.json --label myFavoriteFoods
 ```
 
 Extract the evaluation data:
 
 ```posix-terminal
-genkit eval:extractData myRagFlow --label customLabel --output customLabel_dataset.json
+genkit eval:extractData menuSuggestionFlow --label myFavoriteFoods --output myFavoriteFoods_dataset.json
 ```
 
 The exported data will be output as a JSON file with each testCase in the
@@ -159,7 +182,14 @@ following format:
 ```
 
 The data extractor will automatically locate retrievers and add the produced
-docs to the context array. By default, `eval:run` will run against all
+docs to the context array. You can run evaluation metrics on this extracted dataset using the `eval:run` 
+command.
+
+```posix-terminal
+genkit eval:run myFavoriteFoods_dataset.json
+```
+
+By default, `eval:run` will run against all
 configured evaluators, and like `eval:flow`, results for `eval:run` will appear
 in the evaluation page of Developer UI, located at `localhost:4000/evaluate`.
 
@@ -169,11 +199,40 @@ You can also provide custom extractors to be used in `eval:extractData` and
 `eval:flow` commands. Custom extractors allow you to override the default
 extraction logic giving you more power in creating datasets and evaluating them.
 
+Let us first introduce an auxilary step in our `menuSuggestionFlow` example:
+
+```js
+export const menuSuggestionFlow = ai.defineFlow(
+  {
+    name: "menuSuggestionFlow",
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const allergyItems = await run('allergyItems', async () => {
+        // You are allergic to these!
+        //
+        // This step is for demo purposes, think of it as something auxillary
+        // to your model input, eg: an API call that you would 
+        // include in the prompt, etc. 
+        return ["Shirmp", "Eggs", "Peanuts"];
+    });
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: `Suggest a menu item using ${query}. Assume that I am allergic to these ingredients ${allergyItems.join(', ')}`,
+    });
+    return llmResponse.text;
+  }
+);
+```
+
+Now let us configure a custom extractor to use the output of the `allergyItems` step when evaluating this flow.
+
 To configure custom extractors, add a tools config file named
 `genkit-tools.conf.js` to your project root if you don't have one already.
 
 ```posix-terminal
-cd $GENKIT_PROJECT_HOME
+cd /path/to/your/genkit/app
 
 touch genkit-tools.conf.js
 ```
@@ -184,19 +243,22 @@ In the tools config file, add the following code:
 module.exports = {
   evaluators: [
     {
-      actionRef: '/flow/myFlow',
+      actionRef: '/flow/menuSuggestionFlow',
       extractors: {
-        context: { outputOf: 'foo-step' },
-        output: 'bar-step',
+        context: { outputOf: 'allergyItems' },
       },
     },
   ],
 };
 ```
 
-In this sample, you configure an extractor for `myFlow` flow. The config
-overrides the extractors for `context` and `output` fields and uses the default
-logic for the `input` field.
+This config overrides the default extractors of Genkit's tooling, specifically changing what is considered as as `context` when evaluating this flow.
+
+You can run evaluation again and you will see that context is now populated as the output of the step.
+
+```posix-terminal
+genkit eval:flow menuSuggestionFlow --input testInputs.json
+```
 
 The specification of the evaluation extractors is as follows:
 
@@ -222,27 +284,6 @@ tooling will parse this JSON string at the time of evaluation automatically. If
 providing a function extractor, make sure that the output is a valid JSON
 string. For example: `"Hello, world!"` is not valid JSON; `"\"Hello, world!\""`
 is valid.
-
-### Running on existing datasets
-
-To run evaluation over an already extracted dataset:
-
-```posix-terminal
-genkit eval:run customLabel_dataset.json
-```
-
-To output to a different location, use the `--output` flag.
-
-```posix-terminal
-genkit eval:flow menuSuggestionFlow --input testInputs.json --output customLabel_evalresult.json
-```
-
-To run on a subset of the configured evaluators, use the `--evaluators` flag and
-provide a comma-separated list of evaluators by name:
-
-```posix-terminal
-genkit eval:run customLabel_dataset.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
-```
 
 ### Synthesizing test data using an LLM
 
