@@ -90,7 +90,7 @@ export async function deliciousnessScore<
     throw new Error('Output is required for Deliciousness detection');
   }
 
-  //Hydrate the prompt and generate an evaluation result
+  // Hydrate the prompt and generate an evaluation result
   const deliciousnessPrompt = getDeliciousnessPrompt(ai);
   const response = await deliciousnessPrompt(
     {
@@ -151,13 +151,6 @@ export function createDeliciousnessEvaluator<
   );
 }
 ```
-
-<!-- TODO: Test out the deliciousness evaluator 
-
-
-export const deliciousness = createDeliciousnessEvaluator(ai, gemini15Pro);
-
--->
 
 The `defineEvaluator` method is similar to other Genkit constructors like `defineFlow`, `defineRetriever` etc. The user should provide an `EvaluatorFn` to the `defineEvaluator` callback. The `EvaluatorFn` accepts a `BaseEvalDataPoint` which corresponds to a single entry in a dataset under evaluation, along with an optional custom options parameter if specified. The function, should process the datapoint and return an `EvalResponse` object. 
 
@@ -268,7 +261,7 @@ export function createUSPhoneRegexEvaluator(ai: Genkit): EvaluatorAction {
 }
 ```
 
-## Configuration
+## Putting it together
 
 ### Plugin definition
 

@@ -18,7 +18,7 @@ Genkit faithfulness and answer relevancy metrics:
 ```ts
 import { genkit } from 'genkit';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { vertexAI, textEmbedding004, gemini15Pro } from '@genkit-ai/vertexai';
+import { vertexAI, textEmbedding004, gemini15Flash, gemini15Pro } from '@genkit-ai/vertexai';
 
 const ai = genkit({
   plugins: [
