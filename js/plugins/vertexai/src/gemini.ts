@@ -510,7 +510,12 @@ export function defineGeminiModel(
         : [];
 
       let toolConfig: ToolConfig | undefined;
-      if (request?.config?.functionCallingConfig) {
+      if (
+        request?.config?.functionCallingConfig &&
+        // This is a workround for issue: https://github.com/firebase/genkit/issues/1520
+        // TODO: remove this when the issue is resolved upstream in the Gemini API
+        !messages.at(-1)?.content.find((c) => c.toolResponse)
+      ) {
         toolConfig = {
           functionCallingConfig: {
             allowedFunctionNames:
