@@ -109,12 +109,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(
-        registry,
-        input,
-        maxTurns!,
-        middleware
-      );
+      const output = await generate(registry, input, middleware, maxTurns!);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -124,8 +119,8 @@ export async function generateHelper(
 async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  maxTurns: number,
-  middleware?: ModelMiddleware[]
+  middleware: ModelMiddleware[] | undefined,
+  maxTurns: number
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -260,12 +255,7 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
-  return await generateHelper(
-    registry,
-    nextRequest,
-    middleware,
-    maxTurns + 1
-  );
+  return await generateHelper(registry, nextRequest, middleware, maxTurns + 1);
 }
 
 async function actionToGenerateRequest(
