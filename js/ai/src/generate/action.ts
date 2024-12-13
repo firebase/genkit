@@ -82,11 +82,11 @@ export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: ModelMiddleware[],
-  toolCallIteration?: number
+  maxTurns?: number
 ): Promise<GenerateResponseData> {
-  toolCallIteration = toolCallIteration ?? 0;
+  maxTurns = maxTurns ?? 0;
   const maxIterations = input.maxTurns ?? 5;
-  if (toolCallIteration > maxIterations) {
+  if (maxTurns > maxIterations) {
     throw new GenkitError({
       message: `Exceeded maximum tool call iterations (${maxIterations})`,
       status: 'ABORTED',
@@ -112,7 +112,7 @@ export async function generateHelper(
       const output = await generate(
         registry,
         input,
-        toolCallIteration!,
+        maxTurns!,
         middleware
       );
       metadata.output = JSON.stringify(output);
@@ -124,7 +124,7 @@ export async function generateHelper(
 async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  toolCallIteration: number,
+  maxTurns: number,
   middleware?: ModelMiddleware[]
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
@@ -264,7 +264,7 @@ async function generate(
     registry,
     nextRequest,
     middleware,
-    toolCallIteration + 1
+    maxTurns + 1
   );
 }
 
