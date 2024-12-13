@@ -167,8 +167,10 @@ export class ReflectionServer {
             const callback = (chunk) => {
               response.write(JSON.stringify(chunk) + '\n');
             };
-            const result = await runWithStreamingCallback(callback, () =>
-              action.run(input, { context, onChunk: callback })
+            const result = await runWithStreamingCallback(
+              this.registry,
+              callback,
+              () => action.run(input, { context, onChunk: callback })
             );
             await flushTracing();
             response.write(

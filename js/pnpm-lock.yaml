@@ -1329,7 +1329,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@0.9.7)(@genkit-ai/core@0.9.7)
+        version: 0.10.1(@genkit-ai/ai@1.0.0-dev.0)(@genkit-ai/core@1.0.0-dev.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1384,6 +1384,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      '@google-cloud/firestore':
+        specifier: ^7.11.0
+        version: 7.11.0(encoding@0.1.13)
       firebase-admin:
         specifier: '>=12.2'
         version: 12.3.1(encoding@0.1.13)
@@ -2143,11 +2146,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@0.9.7':
-    resolution: {integrity: sha512-CHnN12+J/577EN3uo7qw8tSTa124qwIE+NPHn+TBEtoEkHc70Ck+CxJm0UCfN606hAQyJjj0i6BJ6M4Lr0sMzw==}
+  '@genkit-ai/ai@1.0.0-dev.0':
+    resolution: {integrity: sha512-dtQyym12Z/yPw04h7n8n7amU0dpO8iB+uTyDTpSaRe7lkf3SUkNhWM+DDoKUZ70A6cqpAvXN0/haqD9ZpSN+FA==}
 
-  '@genkit-ai/core@0.9.7':
-    resolution: {integrity: sha512-dNKw172HSzgjgRwf8gwyyjYGnopYwfW3iVPHUaCvIXTCX+C/7kJGYea4Xes7b9ushWYOmhG34q/uea7rhLS/Qg==}
+  '@genkit-ai/core@1.0.0-dev.0':
+    resolution: {integrity: sha512-mHSAdziskC7YOXkGXCK8299RmGu111dPnxzW2hy8epRpyTfis3SXkB1iJEZE3lxA9tKV9vG2zDxDI0bk4iQbXg==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -2161,12 +2164,12 @@ packages:
     resolution: {integrity: sha512-7NBC5vD0au75nkctVs2vEGpdUPFs1BaHTMpeI+RVEgQSMe5/wEU6dx9p0fmZA0bj4HgdpobMKeegOcLUiEoxng==}
     engines: {node: '>=14.0.0'}
 
-  '@google-cloud/firestore@7.6.0':
-    resolution: {integrity: sha512-WUDbaLY8UnPxgwsyIaxj6uxCtSDAaUyvzWJykNH5rZ9i92/SZCsPNNMN0ajrVpAR81hPIL4amXTaMJ40y5L+Yg==}
+  '@google-cloud/firestore@7.11.0':
+    resolution: {integrity: sha512-88uZ+jLsp1aVMj7gh3EKYH1aulTAMFAp8sH/v5a9w8q8iqSG27RiWLoxSAFr/XocZ9hGiWH1kEnBw+zl3xAgNA==}
     engines: {node: '>=14.0.0'}
 
-  '@google-cloud/firestore@7.9.0':
-    resolution: {integrity: sha512-c4ALHT3G08rV7Zwv8Z2KG63gZh66iKdhCBeDfCpIkLrjX6EAjTD/szMdj14M+FnQuClZLFfW5bAgoOjfNmLtJg==}
+  '@google-cloud/firestore@7.6.0':
+    resolution: {integrity: sha512-WUDbaLY8UnPxgwsyIaxj6uxCtSDAaUyvzWJykNH5rZ9i92/SZCsPNNMN0ajrVpAR81hPIL4amXTaMJ40y5L+Yg==}
     engines: {node: '>=14.0.0'}
 
   '@google-cloud/logging-winston@6.0.0':
@@ -6927,9 +6930,9 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.9.7':
+  '@genkit-ai/ai@1.0.0-dev.0':
     dependencies:
-      '@genkit-ai/core': 0.9.7
+      '@genkit-ai/core': 1.0.0-dev.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -6940,7 +6943,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@0.9.7':
+  '@genkit-ai/core@1.0.0-dev.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -7001,6 +7004,17 @@ snapshots:
       - encoding
       - supports-color
 
+  '@google-cloud/firestore@7.11.0(encoding@0.1.13)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      fast-deep-equal: 3.1.3
+      functional-red-black-tree: 1.0.1
+      google-gax: 4.4.1(encoding@0.1.13)
+      protobufjs: 7.3.2
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   '@google-cloud/firestore@7.6.0(encoding@0.1.13)':
     dependencies:
       fast-deep-equal: 3.1.3
@@ -7010,17 +7024,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-
-  '@google-cloud/firestore@7.9.0(encoding@0.1.13)':
-    dependencies:
-      fast-deep-equal: 3.1.3
-      functional-red-black-tree: 1.0.1
-      google-gax: 4.3.7(encoding@0.1.13)
-      protobufjs: 7.3.2
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
 
   '@google-cloud/logging-winston@6.0.0(encoding@0.1.13)(winston@3.13.0)':
     dependencies:
@@ -7154,7 +7157,7 @@ snapshots:
     dependencies:
       lodash.camelcase: 4.3.0
       long: 5.2.3
-      protobufjs: 7.2.6
+      protobufjs: 7.3.2
       yargs: 17.7.2
 
   '@grpc/proto-loader@0.7.13':
@@ -9337,7 +9340,7 @@ snapshots:
       node-forge: 1.3.1
       uuid: 10.0.0
     optionalDependencies:
-      '@google-cloud/firestore': 7.9.0(encoding@0.1.13)
+      '@google-cloud/firestore': 7.11.0(encoding@0.1.13)
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
@@ -9459,10 +9462,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@0.9.7)(@genkit-ai/core@0.9.7):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-dev.0)(@genkit-ai/core@1.0.0-dev.0):
     dependencies:
-      '@genkit-ai/ai': 0.9.7
-      '@genkit-ai/core': 0.9.7
+      '@genkit-ai/ai': 1.0.0-dev.0
+      '@genkit-ai/core': 1.0.0-dev.0
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
@@ -11130,7 +11133,7 @@ snapshots:
 
   proto3-json-serializer@2.0.1:
     dependencies:
-      protobufjs: 7.2.6
+      protobufjs: 7.3.2
 
   proto3-json-serializer@2.0.2:
     dependencies:
