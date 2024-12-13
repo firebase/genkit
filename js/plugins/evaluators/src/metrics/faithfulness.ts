@@ -25,7 +25,7 @@ const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
 const NliResponseBaseSchema = z.object({
   statement: z.string(),
   reason: z.string(),
-  verdict: z.enum(["0", "1"] as const),
+  verdict: z.enum(['0', '1'] as const),
 });
 
 type NliResponseBase = z.infer<typeof NliResponseBaseSchema>;
@@ -98,14 +98,12 @@ export async function faithfulnessScore<
   }
 }
 
-function nliResponseToScore(
-  input: NliResponseBase[] | null
-): Score {
+function nliResponseToScore(input: NliResponseBase[] | null): Score {
   if (!input) {
     throw new Error(`Evaluator response empty`);
   }
   const faithfulStatements = input.reduce((total, resp) => {
-    return total + (resp.verdict === "1" ? 1 : 0);
+    return total + (resp.verdict === '1' ? 1 : 0);
   }, 0);
   return {
     score: faithfulStatements / input.length,
