@@ -38,9 +38,9 @@ describe('eval utils', () => {
       expect(Object.keys(extractors).sort()).toEqual(
         ['input', 'output', 'context'].sort()
       );
-      expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
-      expect(extractors.output(trace)).toEqual(JSON.stringify('My output'));
-      expect(extractors.context(trace)).toEqual(JSON.stringify([]));
+      expect(extractors.input(trace)).toEqual('My input');
+      expect(extractors.output(trace)).toEqual('My output');
+      expect(extractors.context(trace)).toEqual([]);
     });
   });
 
@@ -63,9 +63,9 @@ describe('eval utils', () => {
     expect(Object.keys(extractors).sort()).toEqual(
       ['input', 'output', 'context'].sort()
     );
-    expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
-    expect(extractors.output(trace)).toEqual(JSON.stringify('My output'));
-    expect(extractors.context(trace)).toEqual(JSON.stringify(CONTEXT_TEXTS));
+    expect(extractors.input(trace)).toEqual('My input');
+    expect(extractors.output(trace)).toEqual('My output');
+    expect(extractors.context(trace)).toEqual(CONTEXT_TEXTS);
   });
 
   it('returns custom extractors by stepName', async () => {
@@ -100,11 +100,9 @@ describe('eval utils', () => {
 
     const extractors = await getEvalExtractors('/flow/multiSteps');
 
-    expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
-    expect(extractors.output(trace)).toEqual(
-      JSON.stringify({ out: 'my-object-output' })
-    );
-    expect(extractors.context(trace)).toEqual(JSON.stringify(CONTEXT_TEXTS));
+    expect(extractors.input(trace)).toEqual('My input');
+    expect(extractors.output(trace)).toEqual({ out: 'my-object-output' });
+    expect(extractors.context(trace)).toEqual(CONTEXT_TEXTS);
   });
 
   it('returns custom extractors by stepSelector', async () => {
@@ -146,11 +144,9 @@ describe('eval utils', () => {
 
     const extractors = await getEvalExtractors('/flow/multiSteps');
 
-    expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
-    expect(extractors.output(trace)).toEqual(JSON.stringify('step2-input'));
-    expect(extractors.context(trace)).toEqual(
-      JSON.stringify(['Hello', 'World'])
-    );
+    expect(extractors.input(trace)).toEqual('My input');
+    expect(extractors.output(trace)).toEqual('step2-input');
+    expect(extractors.context(trace)).toEqual(['Hello', 'World']);
   });
 
   it('returns custom extractors by trace function', async () => {
@@ -160,23 +156,21 @@ describe('eval utils', () => {
           actionRef: '/flow/multiSteps',
           extractors: {
             input: (trace: TraceData) => {
-              return JSON.stringify(
-                Object.values(trace.spans)
-                  .filter(
-                    (s) =>
-                      s.attributes['genkit:type'] === 'action' &&
-                      s.attributes['genkit:metadata:subtype'] !== 'retriever'
-                  )
-                  .map((s) => {
-                    const inputValue = JSON.parse(
-                      s.attributes['genkit:input'] as string
-                    ).start.input;
-                    if (!inputValue) {
-                      return '';
-                    }
-                    return inputValue + ' TEST TEST TEST';
-                  })
-              );
+              return Object.values(trace.spans)
+                .filter(
+                  (s) =>
+                    s.attributes['genkit:type'] === 'action' &&
+                    s.attributes['genkit:metadata:subtype'] !== 'retriever'
+                )
+                .map((s) => {
+                  const inputValue = JSON.parse(
+                    s.attributes['genkit:input'] as string
+                  ).start.input;
+                  if (!inputValue) {
+                    return '';
+                  }
+                  return inputValue + ' TEST TEST TEST';
+                });
             },
             output: { inputOf: 'step2' },
             context: { outputOf: 'step3-array' },
@@ -211,13 +205,9 @@ describe('eval utils', () => {
 
     const extractors = await getEvalExtractors('/flow/multiSteps');
 
-    expect(extractors.input(trace)).toEqual(
-      JSON.stringify(['My input TEST TEST TEST'])
-    );
-    expect(extractors.output(trace)).toEqual(JSON.stringify('step2-input'));
-    expect(extractors.context(trace)).toEqual(
-      JSON.stringify(['Hello', 'World'])
-    );
+    expect(extractors.input(trace)).toEqual(['My input TEST TEST TEST']);
+    expect(extractors.output(trace)).toEqual('step2-input');
+    expect(extractors.context(trace)).toEqual(['Hello', 'World']);
   });
 
   it('returns runs default extractors when trace fails', async () => {
@@ -239,8 +229,8 @@ describe('eval utils', () => {
     expect(Object.keys(extractors).sort()).toEqual(
       ['input', 'output', 'context'].sort()
     );
-    expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
-    expect(extractors.output(trace)).toEqual(JSON.stringify(''));
-    expect(extractors.context(trace)).toEqual(JSON.stringify(CONTEXT_TEXTS));
+    expect(extractors.input(trace)).toEqual('My input');
+    expect(extractors.output(trace)).toEqual('');
+    expect(extractors.context(trace)).toEqual(CONTEXT_TEXTS);
   });
 });
