@@ -139,7 +139,7 @@ describe('Prompt', () => {
       });
       assert.strictEqual(rendered.onChunk, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
-      assert.strictEqual(rendered.returnToolRequests, 17);
+      assert.strictEqual(rendered.maxToolterations, 17);
       assert.strictEqual(rendered.use, middleware);
     });
 
