@@ -670,7 +670,7 @@ export function defineGoogleAIModel(
         requestConfig.functionCallingConfig &&
         // This is a workround for issue: https://github.com/firebase/genkit/issues/1520
         // TODO: remove this when the issue is resolved upstream in the Gemini API
-        !messages[messages.length - 1].content.find((c) => c.toolResponse)
+        !messages.at(-1)?.content.find((c) => c.toolResponse)
       ) {
         toolConfig = {
           functionCallingConfig: {
