@@ -195,9 +195,9 @@ in the evaluation page of Developer UI, located at `localhost:4000/evaluate`.
 
 ### Custom extractors
 
-You can also provide custom extractors to be used in `eval:extractData` and
-`eval:flow` commands. Custom extractors allow you to override the default
-extraction logic giving you more power in creating datasets and evaluating them.
+Genkit tooling provides reasonable default logic for extracting the necessary fields (`input`, `output` and `context`) 
+while doing an evaluation. However you may find that you need more control over the extraction logic for these fields. Genkit supports customs extractors to achieve this. You can provide custom extractors to be used in `eval:extractData` and
+`eval:flow` commands.
 
 Let us first introduce an auxilary step in our `menuSuggestionFlow` example:
 
@@ -274,16 +274,12 @@ The specification of the evaluation extractors is as follows:
         inputOf: 'foo-step' }` would extract the input of step `foo-step` for
         this key.
     *   `(trace) => string;` - For further flexibility, you can provide a
-        function that accepts a Genkit trace and returns a `string`, and specify
+        function that accepts a Genkit trace and returns `any`, and specify
         the extraction logic inside this function. Refer to
         `genkit/genkit-tools/common/src/types/trace.ts` for the exact TraceData
         schema.
 
-**Note:** The extracted data for all these steps will be a JSON string. The
-tooling will parse this JSON string at the time of evaluation automatically. If
-providing a function extractor, make sure that the output is a valid JSON
-string. For example: `"Hello, world!"` is not valid JSON; `"\"Hello, world!\""`
-is valid.
+**Note:** The extracted data for all these extractors will be the type corresponding to the extractor. For e.g. if you are using `context: {outputOf: 'foo-step'}` and foo-step returns an array of objects, then the extracted context will also be an array of objects. 
 
 ### Synthesizing test data using an LLM
 
