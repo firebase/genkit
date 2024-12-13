@@ -232,7 +232,17 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
+	cacheConfig := &CacheConfigDetails{
+		TTLSeconds: 3600, // hardcoded to 1 hour
+	}
+	cache, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
+	if err != nil {
+		return nil, err
+	}
 	gm, err := newModel(client, model, input)
+	if cache != nil {
+		gm.CachedContentName = cache.Name
+	}
 	if err != nil {
 		return nil, err
 	}
