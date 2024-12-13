@@ -71,6 +71,8 @@ export const GenerateUtilParamSchema = z.object({
     .optional(),
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests: z.boolean().optional(),
+  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
+  maxToolterations: z.number().optional(),
 });
 
 /**
@@ -79,8 +81,14 @@ export const GenerateUtilParamSchema = z.object({
 export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: ModelMiddleware[]
+  middleware?: ModelMiddleware[],
+  toolCallIteration?: number,
 ): Promise<GenerateResponseData> {
+  toolCallIteration = toolCallIteration ?? 0;
+  const maxIterations = input.maxToolterations ?? 5;
+  if (toolCallIteration > maxIterations) {
+    throw new Error(`Exceeded maximum tool call iterations (${maxIterations})`);
+  }
   // do tracing
   return await runInNewSpan(
     registry,
@@ -95,7 +103,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(registry, input, middleware);
+      const output = await generate(registry, input, toolCallIteration!, middleware);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -105,7 +113,8 @@ export async function generateHelper(
 async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: ModelMiddleware[]
+  toolCallIteration: number,
+  middleware?: ModelMiddleware[],
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -240,7 +249,7 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
-  return await generateHelper(registry, nextRequest, middleware);
+  return await generateHelper(registry, nextRequest, middleware, toolCallIteration + 1);
 }
 
 async function actionToGenerateRequest(
