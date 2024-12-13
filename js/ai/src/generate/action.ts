@@ -82,7 +82,7 @@ export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: ModelMiddleware[],
-  toolCallIteration?: number,
+  toolCallIteration?: number
 ): Promise<GenerateResponseData> {
   toolCallIteration = toolCallIteration ?? 0;
   const maxIterations = input.maxToolterations ?? 5;
@@ -103,7 +103,12 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(registry, input, toolCallIteration!, middleware);
+      const output = await generate(
+        registry,
+        input,
+        toolCallIteration!,
+        middleware
+      );
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -114,7 +119,7 @@ async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   toolCallIteration: number,
-  middleware?: ModelMiddleware[],
+  middleware?: ModelMiddleware[]
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -249,7 +254,12 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
-  return await generateHelper(registry, nextRequest, middleware, toolCallIteration + 1);
+  return await generateHelper(
+    registry,
+    nextRequest,
+    middleware,
+    toolCallIteration + 1
+  );
 }
 
 async function actionToGenerateRequest(
