@@ -3,6 +3,8 @@
 Firebase Genkit is fully instrumented with
 [OpenTelemetry](https://opentelemetry.io/) and provides built-in telemetry support for tracing and metrics.
 
+Note: Production monitoring capabilities for applications using ESM are supported in Genkit 0.9.11+. 
+
 ## Telemetry Configuration
 
 Genkit automatically manages tracing and metrics without requiring explicit configuration. You can enable telemetry exports for Firebase or Google Cloud using their respective plugins and helper functions. Using either plugin poweres the [Firebase AI Monitoring dashboard (private preview)](https://forms.gle/Lp5S1NxbZUXsWc457) that has an AI-idiomatic view of telemetry data.
