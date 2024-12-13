@@ -87,7 +87,13 @@ export async function generateHelper(
   toolCallIteration = toolCallIteration ?? 0;
   const maxIterations = input.maxTurns ?? 5;
   if (toolCallIteration > maxIterations) {
-    throw new Error(`Exceeded maximum tool call iterations (${maxIterations})`);
+    throw new GenkitError({
+      message: `Exceeded maximum tool call iterations (${maxIterations})`,
+      status: 'ABORTED',
+      detail: {
+        request: input,
+      },
+    });
   }
   // do tracing
   return await runInNewSpan(
