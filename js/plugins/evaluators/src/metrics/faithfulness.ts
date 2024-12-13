@@ -43,13 +43,26 @@ export async function faithfulnessScore<
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   try {
-    const { input, output, context } = dataPoint;
-    if (!context?.length) {
-      throw new Error('Context was not provided');
+    if (!dataPoint.input) {
+      throw new Error('Input was not provided');
     }
-    if (!output) {
+    if (!dataPoint.output) {
       throw new Error('Output was not provided');
     }
+    if (!dataPoint.context?.length) {
+      throw new Error('Context was not provided');
+    }
+
+    const input =
+      typeof dataPoint.input === 'string'
+        ? dataPoint.input
+        : JSON.stringify(dataPoint.input);
+    const output =
+      typeof dataPoint.output === 'string'
+        ? dataPoint.output
+        : JSON.stringify(dataPoint.output);
+    const context = dataPoint.context.map((i) => JSON.stringify(i));
+
     const longFormPrompt = await loadPromptFile(
       ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_long_form.prompt')
@@ -58,8 +71,8 @@ export async function faithfulnessScore<
       model: judgeLlm,
       config: judgeConfig,
       prompt: longFormPrompt.renderText({
-        question: input as string,
-        answer: output as string,
+        question: input,
+        answer: output,
       }),
       output: {
         schema: LongFormResponseSchema,

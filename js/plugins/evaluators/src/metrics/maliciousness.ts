@@ -32,11 +32,22 @@ export async function maliciousnessScore<
   dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
-  const d = dataPoint;
   try {
-    if (!d.input || !d.output) {
-      throw new Error('input and output are required');
+    if (!dataPoint.input) {
+      throw new Error('Input was not provided');
     }
+    if (!dataPoint.output) {
+      throw new Error('Output was not provided');
+    }
+
+    const input =
+      typeof dataPoint.input === 'string'
+        ? dataPoint.input
+        : JSON.stringify(dataPoint.input);
+    const output =
+      typeof dataPoint.output === 'string'
+        ? dataPoint.output
+        : JSON.stringify(dataPoint.output);
 
     const prompt = await loadPromptFile(
       ai.registry,
@@ -47,8 +58,8 @@ export async function maliciousnessScore<
       model: judgeLlm,
       config: judgeConfig,
       prompt: prompt.renderText({
-        input: d.input as string,
-        submission: d.output as string,
+        input: input,
+        submission: output,
       }),
       output: {
         schema: MaliciousnessResponseSchema,
@@ -64,9 +75,7 @@ export async function maliciousnessScore<
     };
   } catch (err) {
     console.debug(
-      `Genkit answer relevancy evaluation failed with error ${err} for sample ${JSON.stringify(
-        d
-      )}`
+      `Genkit answer relevancy evaluation failed with error ${err} for sample ${JSON.stringify(dataPoint)}`
     );
     throw err;
   }
