@@ -20,6 +20,7 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { run, z } from 'genkit';
+import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
@@ -138,3 +139,46 @@ async function extractText(filePath: string): Promise<string> {
   }
   return pdfTxt;
 }
+
+export const testEval = ai.defineEvaluator(
+  {
+    name: 'testEval',
+    displayName: 'test',
+    definition: 'test',
+    isBilled: false,
+  },
+  async (datapoint: BaseEvalDataPoint) => {
+    console.log(datapoint);
+    return {
+      testCaseId: datapoint.testCaseId,
+      evaluation: {
+        score: 1,
+      },
+    };
+  }
+);
+
+export const assistantFlow = ai.defineFlow(
+  {
+    name: 'assistantFlow',
+    inputSchema: z.object({
+      question: z.string(),
+      sender: z.string(),
+    }),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const data = await run('get-obj', async () => {
+      return {
+        test: true,
+        value: 'Helo object',
+      };
+    });
+
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: query.question,
+    });
+    return llmResponse.text;
+  }
+);

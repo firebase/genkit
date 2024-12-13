@@ -31,8 +31,7 @@ import { NestedSpanData, TraceData } from '../types/trace';
 import { logger } from './logger';
 import { stackTraceSpans } from './trace';
 
-export type EvalExtractorFn = (t: TraceData) => string;
-const JSON_EMPTY_STRING = '""';
+export type EvalExtractorFn = (t: TraceData) => any;
 
 export const EVALUATOR_ACTION_PREFIX = '/evaluator';
 
@@ -78,30 +77,39 @@ function getRootSpan(trace: TraceData): NestedSpanData | undefined {
   return stackTraceSpans(trace);
 }
 
+function safeParse(value?: string) {
+  if (value) {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return '';
+    }
+  }
+  return '';
+}
+
 const DEFAULT_INPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
   const rootSpan = getRootSpan(trace);
-  return (rootSpan?.attributes['genkit:input'] as string) || JSON_EMPTY_STRING;
+  return safeParse(rootSpan?.attributes['genkit:input'] as string);
 };
 const DEFAULT_OUTPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
   const rootSpan = getRootSpan(trace);
-  return (rootSpan?.attributes['genkit:output'] as string) || JSON_EMPTY_STRING;
+  return safeParse(rootSpan?.attributes['genkit:output'] as string);
 };
 const DEFAULT_CONTEXT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
-  return JSON.stringify(
-    Object.values(trace.spans)
-      .filter((s) => s.attributes['genkit:metadata:subtype'] === 'retriever')
-      .flatMap((s) => {
-        const output: RetrieverResponse = JSON.parse(
-          s.attributes['genkit:output'] as string
-        );
-        if (!output) {
-          return [];
-        }
-        return output.documents.flatMap((d: DocumentData) =>
-          d.content.map((c) => c.text).filter((text): text is string => !!text)
-        );
-      })
-  );
+  return Object.values(trace.spans)
+    .filter((s) => s.attributes['genkit:metadata:subtype'] === 'retriever')
+    .flatMap((s) => {
+      const output: RetrieverResponse = safeParse(
+        s.attributes['genkit:output'] as string
+      );
+      if (!output) {
+        return [];
+      }
+      return output.documents.flatMap((d: DocumentData) =>
+        d.content.map((c) => c.text).filter((text): text is string => !!text)
+      );
+    });
 };
 
 const DEFAULT_FLOW_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
@@ -113,29 +121,29 @@ const DEFAULT_FLOW_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
 const DEFAULT_MODEL_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
   input: DEFAULT_INPUT_EXTRACTOR,
   output: DEFAULT_OUTPUT_EXTRACTOR,
-  context: () => JSON.stringify([]),
+  context: () => [],
 };
 
 function getStepAttribute(
   trace: TraceData,
   stepName: string,
   attributeName?: string
-): string {
+) {
   // Default to output
   const attr = attributeName ?? 'genkit:output';
   const values = Object.values(trace.spans)
     .filter((step) => step.displayName === stepName)
     .flatMap((step) => {
-      return JSON.parse(step.attributes[attr] as string);
+      return safeParse(step.attributes[attr] as string);
     });
   if (values.length === 0) {
-    return JSON_EMPTY_STRING;
+    return '';
   }
   if (values.length === 1) {
-    return JSON.stringify(values[0]);
+    return values[0];
   }
   // Return array if multiple steps have the same name
-  return JSON.stringify(values);
+  return values;
 }
 
 function getExtractorFromStepName(stepName: string): EvalExtractorFn {
@@ -159,7 +167,7 @@ function getExtractorFromStepSelector(
       selectedAttribute = 'genkit:output';
     }
     if (!stepName) {
-      return JSON_EMPTY_STRING;
+      return '';
     } else {
       return getStepAttribute(trace, stepName, selectedAttribute);
     }
@@ -196,7 +204,6 @@ export async function getEvalExtractors(
     return Promise.resolve(DEFAULT_MODEL_EXTRACTORS);
   }
   const config = await findToolsConfig();
-  logger.info(`Found tools config... ${JSON.stringify(config)}`);
   const extractors = config?.evaluators
     ?.filter((e) => e.actionRef === actionRef)
     .map((e) => e.extractors);

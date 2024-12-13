@@ -376,7 +376,7 @@ async function gatherEvalInput(params: {
     input,
     output,
     error,
-    context: JSON.parse(context) as string[],
+    context: Array.isArray(context) ? context : [context],
     reference: state.reference,
     traceIds: [traceId],
   };
