@@ -31,6 +31,7 @@ import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
+  GenerationResponseError,
   tagAsPreamble,
 } from '../generate.js';
 import {
@@ -82,19 +83,9 @@ export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: ModelMiddleware[],
-  maxTurns?: number
+  currentTurns?: number
 ): Promise<GenerateResponseData> {
-  maxTurns = maxTurns ?? 0;
-  const maxIterations = input.maxTurns ?? 5;
-  if (maxTurns > maxIterations) {
-    throw new GenkitError({
-      message: `Exceeded maximum tool call iterations (${maxIterations})`,
-      status: 'ABORTED',
-      detail: {
-        request: input,
-      },
-    });
-  }
+  currentTurns = currentTurns ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -109,7 +100,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(registry, input, middleware, maxTurns!);
+      const output = await generate(registry, input, middleware, currentTurns!);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -120,7 +111,7 @@ async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware: ModelMiddleware[] | undefined,
-  maxTurns: number
+  currentTurn: number
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -206,6 +197,16 @@ async function generate(
   if (rawRequest.returnToolRequests || toolCalls.length === 0) {
     return response.toJSON();
   }
+  const maxIterations = rawRequest.maxTurns ?? 5;
+  if (currentTurn + 1 > maxIterations) {
+    throw new GenerationResponseError(
+      response,
+      `Exceeded maximum tool call iterations (${maxIterations})`,
+      'ABORTED',
+      { request }
+    );
+  }
+
   const toolResponses: ToolResponsePart[] = [];
   let messages: MessageData[] = [...request.messages, message];
   let newTools = rawRequest.tools;
@@ -255,7 +256,12 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
-  return await generateHelper(registry, nextRequest, middleware, maxTurns + 1);
+  return await generateHelper(
+    registry,
+    nextRequest,
+    middleware,
+    currentTurn + 1
+  );
 }
 
 async function actionToGenerateRequest(
