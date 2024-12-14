@@ -14,42 +14,77 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, vertexAI } from '@genkit-ai/vertexai';
 import { genkit, z } from 'genkit';
 
+// Initialize Genkit with GoogleAI and VertexAI plugins
 const ai = genkit({
   plugins: [googleAI(), vertexAI()],
 });
+console.log('Genkit initialized:', ai);
 
+/**
+ * @tool jokeSubjectGenerator
+ * A tool to generate a subject for a joke based on input or return a default value.
+ *
+ * @param {string} subject - The initial subject or fallback.
+ * @returns {string} The joke subject.
+ *
+ * @example
+ * Input: "apple"
+ * Output: "apple"
+ */
 const jokeSubjectGenerator = ai.defineTool(
   {
     name: 'jokeSubjectGenerator',
-    description: 'Can be called to generate a subject for a joke',
+    description: 'Generates a subject for a joke based on input',
   },
-  async () => {
-    return 'banana';
+  async (subject: string = 'banana') => {
+    return subject;
   }
 );
 
+/**
+ * @flow jokeFlow
+ * A flow to generate a joke subject using a Large Language Model.
+ *
+ * @flowDescription
+ * This flow leverages the `jokeSubjectGenerator` tool to provide a subject
+ * and constructs a joke using the `gemini15Flash` model from VertexAI.
+ *
+ * @returns {Promise<string>} Generated joke subject as a string.
+ *
+ * @example
+ * Input: { jokeSubject: "apple" }
+ * Output: "Generated joke about: apple"
+ */
 export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
-    inputSchema: z.void(),
-    outputSchema: z.any(),
+    inputSchema: z.object({
+      jokeSubject: z.string().optional().default('banana'), // Accepts input from the UI
+    }),
+    outputSchema: z.string(), // Outputs a string
   },
-  async () => {
+  async (input) => {
+    console.log('Flow execution started');
+
+    // Use the provided joke subject or fallback to default
+    const jokeSubject = await jokeSubjectGenerator(input.jokeSubject);
+    console.log('Generated joke subject:', jokeSubject);
+
+    // Generate response using the LLM model
     const llmResponse = await ai.generate({
       model: gemini15Flash,
       config: {
-        temperature: 2,
+        temperature: 2, // Adjust model temperature to control creativity
       },
-      output: {
-        schema: z.object({ jokeSubject: z.string() }),
-      },
-      tools: [jokeSubjectGenerator],
-      prompt: `come up with a subject to joke about (using the function provided)`,
+      tools: [jokeSubjectGenerator], // Tool used in the flow
+      prompt: `Generate a joke about the following subject: ${jokeSubject}`,
     });
-    return llmResponse.output;
+
+    console.log('LLM Response:', llmResponse.text); // Logs the response text from the model
+    return llmResponse.text;
   }
 );
