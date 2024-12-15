@@ -10,9 +10,7 @@ npm i --save @genkit-ai/google-cloud
 
 ```ts
 import { genkit } from 'genkit';
-import {
-  enableGoogleCloudTelemetry,
-} from '@genkit-ai/google-cloud';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 
 enableGoogleCloudTelemetry();
 

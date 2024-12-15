@@ -119,7 +119,7 @@ function maybeFlushMetrics(): Promise<void> {
 
 /**
  * Flushes all configured span processors.
- * 
+ *
  * @hidden
  */
 export async function flushTracing() {

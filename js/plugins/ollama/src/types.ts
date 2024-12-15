@@ -52,7 +52,7 @@ export interface DefineOllamaEmbeddingParams {
 export interface OllamaPluginParams {
   /**
    * Array of models to be defined.
-   * 
+   *
    * ```ts
    * const ai = genkit({
    *   plugins: [
@@ -68,7 +68,7 @@ export interface OllamaPluginParams {
 
   /**
    * Array of embedding models to be defined.
-   * 
+   *
    * ```ts
    * const ai = genkit({
    *   plugins: [
@@ -89,7 +89,7 @@ export interface OllamaPluginParams {
 
   /**
    * Optional request headers, which can be either static or dynamically generated.
-   * 
+   *
    * ```ts
    * const ai = genkit({
    *   plugins: [

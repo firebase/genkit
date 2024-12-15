@@ -10,7 +10,11 @@ npm i --save genkitx-pinecone
 
 ```ts
 import { genkit } from 'genkit';
-import { pinecone, pineconeRetrieverRef, pineconeIndexerRef } from 'genkitx-pinecone';
+import {
+  pinecone,
+  pineconeRetrieverRef,
+  pineconeIndexerRef,
+} from 'genkitx-pinecone';
 
 const ai = genkit({
   plugins: [
@@ -36,7 +40,6 @@ export const bobFactsRetriever = pineconeRetrieverRef({
 // To use the index you configured when you loaded the plugin:
 let docs = await ai.retrieve({ retriever: pineconeRetrieverRef, query });
 ```
-
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 

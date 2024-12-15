@@ -9,15 +9,15 @@ This guide assumes that you're familiar with building applications with Node.js.
 To complete this quickstart, make sure that your development environment meets
 the following requirements:
 
-*   Node.js v20+
-*   npm
+- Node.js v20+
+- npm
 
 ## Install Genkit dependencies
 
 Install the following Genkit dependencies to use Genkit in your project:
 
-*   `genkit` provides Genkit core capabilities.
-*   `@genkit-ai/googleai` provides access to the Google AI Gemini models. Check out other plugins: https://www.npmjs.com/search?q=keywords:genkit-plugin
+- `genkit` provides Genkit core capabilities.
+- `@genkit-ai/googleai` provides access to the Google AI Gemini models. Check out other plugins: https://www.npmjs.com/search?q=keywords:genkit-plugin
 
 ```posix-terminal
 npm install genkit @genkit-ai/googleai
@@ -51,17 +51,15 @@ Now that you’re set up to make model requests with Genkit, learn how to use mo
 Genkit capabilities to build your AI-powered apps and workflows. To get started
 with additional Genkit capabilities, see the following guides:
 
-*   [Developer tools](/docs/genkit/devtools): Learn how to set up and use
-    Genkit’s CLI and developer UI to help you locally test and debug your app.
-*   [Generating content](/docs/genkit/models): Learn how to use Genkit’s unified
-    generation API to generate text and structured data from any supported
-    model.
-*   [Creating flows](/docs/genkit/flows): Learn how to use special Genkit
-    functions, called flows, that provide end-to-end observability for workflows
-    and rich debugging from Genkit tooling.
-*   [Managing prompts](/docs/genkit/dotprompt): Learn how Genkit helps you manage
-    your prompts and configuration together as code.
-
+- [Developer tools](/docs/genkit/devtools): Learn how to set up and use
+  Genkit’s CLI and developer UI to help you locally test and debug your app.
+- [Generating content](/docs/genkit/models): Learn how to use Genkit’s unified
+  generation API to generate text and structured data from any supported
+  model.
+- [Creating flows](/docs/genkit/flows): Learn how to use special Genkit
+  functions, called flows, that provide end-to-end observability for workflows
+  and rich debugging from Genkit tooling.
+- [Managing prompts](/docs/genkit/dotprompt): Learn how Genkit helps you manage
+  your prompts and configuration together as code.
 
 License: Apache 2.0
-

@@ -228,7 +228,7 @@ export type GeminiVersionString =
 
 /**
  * Returns a reference to a model that can be used in generate calls.
- * 
+ *
  * ```js
  * await ai.generate({
  *   prompt: 'hi',
