@@ -19,6 +19,7 @@ import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   defineGoogleAIEmbedder,
+  textEmbedding004,
   textEmbeddingGecko001,
 } from './embedder.js';
 import {
@@ -40,6 +41,7 @@ export {
   gemini15Flash8b,
   gemini15Pro,
   gemini20FlashExp,
+  textEmbedding004,
   textEmbeddingGecko001,
 };
 

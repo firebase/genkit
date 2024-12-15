@@ -62,6 +62,7 @@ function commonRef(
 
 export const textEmbeddingGecko003 = commonRef('textembedding-gecko@003');
 export const textEmbedding004 = commonRef('text-embedding-004');
+export const textEmbedding005 = commonRef('text-embedding-005');
 export const textEmbeddingGeckoMultilingual001 = commonRef(
   'textembedding-gecko-multilingual@001'
 );
@@ -72,6 +73,7 @@ export const textMultilingualEmbedding002 = commonRef(
 export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko@003': textEmbeddingGecko003,
   'text-embedding-004': textEmbedding004,
+  'text-embedding-005': textEmbedding005,
   'textembedding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
   'text-multilingual-embedding-002': textMultilingualEmbedding002,
   // TODO: add support for multimodal embeddings
