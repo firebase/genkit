@@ -203,7 +203,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     const metadataMap = await this.getMetadataMap();
     const keys = Object.keys(metadataMap);
     if (datasetId) {
-      const isValid = /^[a-z][A-Za-z0-9_.-]{4,34}[A-Za-z0-9]$/g.test(datasetId);
+      const isValid = /^[A-Za-z][A-Za-z0-9_.-]{4,34}[A-Za-z0-9]$/g.test(
+        datasetId
+      );
       if (!isValid) {
         throw new Error(
           'Invalid datasetId provided. ID must be alphanumeric, with hyphens, dots and dashes. Is must start with an alphabet, end with an alphabet or a number, and must be 6-36 characters long.'

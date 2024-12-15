@@ -283,6 +283,23 @@ describe('localFileDatasetStore', () => {
         });
       }).rejects.toThrow('Invalid datasetId');
     });
+
+    it('does not fail if datasetId starts with capitals', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+
+      expect(async () => {
+        await DatasetStore.createDataset({
+          ...CREATE_DATASET_REQUEST,
+          datasetId: 'UltracoolId',
+        });
+      }).not.toThrow();
+    });
   });
 
   describe('updateDataset', () => {

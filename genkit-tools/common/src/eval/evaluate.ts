@@ -376,7 +376,7 @@ async function gatherEvalInput(params: {
     input,
     output,
     error,
-    context: JSON.parse(context) as string[],
+    context: Array.isArray(context) ? context : [context],
     reference: state.reference,
     traceIds: [traceId],
   };
@@ -395,12 +395,11 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
   }
 }
 
-function getErrorFromModelResponse(output: string): string | undefined {
-  const obj = JSON.parse(output);
+function getErrorFromModelResponse(obj: any): string | undefined {
   const response = GenerateResponseSchema.parse(obj);
 
   if (!response || !response.candidates || response.candidates.length === 0) {
-    return `No response was extracted from the output. '${output}'`;
+    return `No response was extracted from the output. '${JSON.stringify(obj)}'`;
   }
 
   // We currently only support the first candidate

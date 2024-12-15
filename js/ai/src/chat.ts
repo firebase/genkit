@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
+import { StreamingCallback, z } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import {
-  generate,
   GenerateOptions,
   GenerateResponse,
-  generateStream,
+  GenerateResponseChunk,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   MessageData,
   Part,
+  generate,
+  generateStream,
 } from './index.js';
 import {
   BaseGenerateOptions,
-  runWithSession,
   Session,
   SessionStore,
+  runWithSession,
 } from './session';
 
 export const MAIN_THREAD = 'main';
@@ -138,8 +139,10 @@ export class Chat {
         this.session.registry,
         { metadata: { name: 'send' } },
         async () => {
-          let resolvedOptions;
-          let streamingCallback = undefined;
+          let resolvedOptions: ChatGenerateOptions<O, CustomOptions>;
+          let streamingCallback:
+            | StreamingCallback<GenerateResponseChunk>
+            | undefined = undefined;
 
           // string
           if (typeof options === 'string') {
@@ -153,7 +156,8 @@ export class Chat {
             } as ChatGenerateOptions<O, CustomOptions>;
           } else {
             resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
-            streamingCallback = resolvedOptions.streamingCallback;
+            streamingCallback =
+              resolvedOptions.onChunk ?? resolvedOptions.streamingCallback;
           }
           let request: GenerateOptions = {
             ...(await this.requestBase),
@@ -162,7 +166,7 @@ export class Chat {
           };
           let response = await generate(this.session.registry, {
             ...request,
-            streamingCallback,
+            onChunk: streamingCallback,
           });
           this.requestBase = Promise.resolve({
             ...(await this.requestBase),

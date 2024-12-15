@@ -1172,6 +1172,12 @@ importers:
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.25.0
         version: 1.25.1(@opentelemetry/api@1.9.0)
+      body-parser:
+        specifier: ^1.20.3
+        version: 1.20.3
+      express:
+        specifier: ^4.21.0
+        version: 4.21.0
       firebase-admin:
         specifier: '>=12.2'
         version: 12.3.1(encoding@0.1.13)
@@ -1185,6 +1191,9 @@ importers:
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.2
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
