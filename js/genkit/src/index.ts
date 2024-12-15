@@ -15,6 +15,7 @@
  */
 
 export {
+  BaseDataPointSchema,
   Document,
   DocumentDataSchema,
   GenerationBlockedError,
@@ -24,23 +25,17 @@ export {
   LlmStatsSchema,
   Message,
   MessageSchema,
-  ModelIdSchema,
   ModelRequestSchema,
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
   ToolCallSchema,
   ToolSchema,
-  asTool,
   embedderRef,
   evaluatorRef,
   indexerRef,
   rerankerRef,
   retrieverRef,
-  toGenerateRequest,
-  toToolWireFormat,
-  type BaseDataPointSchema,
-  type CommonLlmOptions,
   type DocumentData,
   type EmbedderAction,
   type EmbedderArgument,
@@ -71,7 +66,6 @@ export {
   type MediaPart,
   type MessageData,
   type ModelArgument,
-  type ModelId,
   type ModelReference,
   type ModelRequest,
   type ModelResponseData,
@@ -106,15 +100,12 @@ export {
   GENKIT_VERSION,
   GenkitError,
   ReflectionServer,
-  RunActionResponseSchema,
   StatusCodes,
   StatusSchema,
   defineFlow,
   defineJsonSchema,
   defineSchema,
   defineStreamingFlow,
-  deleteUndefinedProps,
-  flowMetadataPrefix,
   getCurrentEnv,
   getFlowAuth,
   getStreamingCallback,
@@ -143,4 +134,4 @@ export {
   type __RequestWithAuth,
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
-export * from './genkit.js';
+export { Genkit, GenkitOptions, PromptMetadata, genkit } from './genkit.js';

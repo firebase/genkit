@@ -166,6 +166,8 @@ export type PromptMetadata<
 /**
  * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
  *
+ * Do not instantiate this class directly. Use {@link genkit}.
+ * 
  * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
  *
  * There may be multiple Genkit instances in a single codebase.

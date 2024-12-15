@@ -164,7 +164,7 @@ async function getClosestDocuments<
 /**
  * Configures a local vectorstore retriever
  */
-export function configureDevLocalRetriever<
+function configureDevLocalRetriever<
   EmbedderCustomOptions extends z.ZodTypeAny,
 >(
   ai: Genkit,
@@ -203,7 +203,7 @@ export function configureDevLocalRetriever<
 /**
  * Configures a local vectorstore indexer.
  */
-export function configureDevLocalIndexer<
+function configureDevLocalIndexer<
   EmbedderCustomOptions extends z.ZodTypeAny,
 >(
   ai: Genkit,

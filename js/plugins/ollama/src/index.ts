@@ -32,7 +32,7 @@ import {
   RequestHeaders,
 } from './types.js';
 
-export { defineOllamaEmbedder };
+export { OllamaPluginParams };
 
 export function ollama(params: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin('ollama', async (ai: Genkit) => {

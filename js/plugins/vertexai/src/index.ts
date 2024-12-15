@@ -27,6 +27,7 @@ import {
   textMultilingualEmbedding002,
 } from './embedder.js';
 import {
+  GeminiConfig,
   SUPPORTED_GEMINI_MODELS,
   defineGeminiModel,
   gemini10Pro,
@@ -43,6 +44,7 @@ import {
 } from './imagen.js';
 export { type PluginOptions } from './common/types.js';
 export {
+  GeminiConfig,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,

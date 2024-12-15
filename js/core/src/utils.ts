@@ -47,13 +47,6 @@ export function isDevEnv(): boolean {
 /**
  * Adds flow-specific prefix for OpenTelemetry span attributes.
  */
-export function flowMetadataPrefix(name: string) {
-  return `flow:${name}`;
-}
-
-/**
- * Adds flow-specific prefix for OpenTelemetry span attributes.
- */
 export function featureMetadataPrefix(name: string) {
   return `feature:${name}`;
 }

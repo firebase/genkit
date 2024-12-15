@@ -22,6 +22,7 @@ import {
   textEmbeddingGecko001,
 } from './embedder.js';
 import {
+  GeminiConfig,
   GeminiConfigSchema,
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
@@ -34,6 +35,7 @@ import {
   gemini20FlashExp,
 } from './gemini.js';
 export {
+  GeminiConfig,
   gemini,
   gemini10Pro,
   gemini15Flash,
@@ -47,9 +49,15 @@ export interface PluginOptions {
   apiKey?: string;
   apiVersion?: string | string[];
   baseUrl?: string;
-  models?: (ModelReference<typeof GeminiConfigSchema> | string)[];
+  models?: (
+    | ModelReference</** @ignore */ typeof GeminiConfigSchema>
+    | string
+  )[];
 }
 
+/**
+ * A Google Gemini Developer API plugin.
+ */
 export function googleAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('googleai', async (ai: Genkit) => {
     let apiVersions = ['v1'];

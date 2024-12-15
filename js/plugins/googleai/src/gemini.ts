@@ -218,10 +218,24 @@ function longestMatchingPrefix(version: string, potentialMatches: string[]) {
       ''
     );
 }
+
+/**
+ * Known model names, to allow code completion for convenience. Allows other model names.
+ */
 export type GeminiVersionString =
   | keyof typeof SUPPORTED_GEMINI_MODELS
   | (string & {});
 
+/**
+ * Returns a reference to a model that can be used in generate calls.
+ * 
+ * ```js
+ * await ai.generate({
+ *   prompt: 'hi',
+ *   model: gemini('gemini-1.5-flash')
+ * });
+ * ```
+ */
 export function gemini(
   version: GeminiVersionString,
   options: GeminiConfig = {}

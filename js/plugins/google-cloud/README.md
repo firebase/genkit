@@ -1,29 +1,25 @@
-# Ollama plugin for Genkit
+# Google Cloud plugin for Genkit
 
 ## Installing the plugin
 
 ```bash
-npm i --save genkitx-ollama
+npm i --save @genkit-ai/google-cloud
 ```
 
 ## Using the plugin
 
 ```ts
 import { genkit } from 'genkit';
-import { ollama } from 'genkitx-ollama';
+import {
+  enableGoogleCloudTelemetry,
+} from '@genkit-ai/google-cloud';
+
+enableGoogleCloudTelemetry();
 
 const ai = genkit({
   plugins: [
-    ollama({
-      models: [{ name: 'gemma' }],
-      serverAddress: 'http://127.0.0.1:11434', // default local address
-    }),
+    // ...
   ],
-});
-
-(async () => {
-  const { text } = ai.generate({prompt: 'hi Gemini!', model: 'ollama/gemma');
-  console.log(text);
 });
 ```
 

@@ -17,13 +17,6 @@
 import { Action, z } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 
-export const ModelIdSchema = z.object({
-  modelProvider: z.string().readonly(),
-  modelName: z.string().readonly(),
-});
-
-export type ModelId = z.infer<typeof ModelIdSchema>;
-
 export const LlmStatsSchema = z.object({
   latencyMs: z.number().optional(),
   inputTokenCount: z.number().optional(),
@@ -79,10 +72,3 @@ export function toToolWireFormat(
     };
   });
 }
-
-// Does it even make sense to have common options? since they are referenced differently in different LLMs.
-export const CommonLlmOptions = z.object({
-  temperature: z.number().optional(),
-  topK: z.number().optional(),
-  topP: z.number().optional(),
-});

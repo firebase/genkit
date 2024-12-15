@@ -52,6 +52,8 @@ export interface ReflectionServerOptions {
  * Reflection server exposes an API for inspecting and interacting with Genkit in development.
  *
  * This is for use in development environments.
+ * 
+ * @hidden
  */
 export class ReflectionServer {
   /** List of all running servers needed to be cleaned up on process exit. */

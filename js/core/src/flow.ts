@@ -47,6 +47,8 @@ export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> {
 /**
  * For express-based flows, req.auth should contain the value to bepassed into
  * the flow context.
+ * 
+ * @hidden
  */
 export interface __RequestWithAuth extends express.Request {
   auth?: unknown;
@@ -400,6 +402,8 @@ export interface FlowServerOptions {
  * Flow server exposes registered flows as HTTP endpoints.
  *
  * This is for use in production environments.
+ * 
+ * @hidden
  */
 export class FlowServer {
   /** List of all running servers needed to be cleaned up on process exit. */
