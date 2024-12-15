@@ -81,7 +81,7 @@ export const EvalInputSchema = z.object({
   input: z.any(),
   output: z.any(),
   error: z.string().optional(),
-  context: z.array(z.string()).optional(),
+  context: z.array(z.any()).optional(),
   reference: z.any().optional(),
   traceIds: z.array(z.string()),
 });

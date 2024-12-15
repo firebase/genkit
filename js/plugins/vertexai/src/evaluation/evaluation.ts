@@ -49,6 +49,10 @@ export type VertexAIEvaluationMetric =
   | VertexAIEvaluationMetricType
   | VertexAIEvaluationMetricConfig;
 
+function stringify(input: unknown) {
+  return typeof input === 'string' ? input : JSON.stringify(input);
+}
+
 export function vertexEvaluators(
   ai: Genkit,
   auth: GoogleAuth,
@@ -123,7 +127,7 @@ function createBleuEvaluator(
           metricSpec,
           instances: [
             {
-              prediction: datapoint.output as string,
+              prediction: stringify(datapoint.output),
               reference: datapoint.reference,
             },
           ],
@@ -164,7 +168,7 @@ function createRougeEvaluator(
         rougeInput: {
           metricSpec,
           instances: {
-            prediction: datapoint.output as string,
+            prediction: stringify(datapoint.output),
             reference: datapoint.reference,
           },
         },
@@ -204,7 +208,7 @@ function createFluencyEvaluator(
         fluencyInput: {
           metricSpec,
           instance: {
-            prediction: datapoint.output as string,
+            prediction: stringify(datapoint.output),
           },
         },
       };
@@ -246,7 +250,7 @@ function createSafetyEvaluator(
         safetyInput: {
           metricSpec,
           instance: {
-            prediction: datapoint.output as string,
+            prediction: stringify(datapoint.output),
           },
         },
       };
@@ -289,7 +293,7 @@ function createGroundednessEvaluator(
         groundednessInput: {
           metricSpec,
           instance: {
-            prediction: datapoint.output as string,
+            prediction: stringify(datapoint.output),
             context: datapoint.context?.join('. '),
           },
         },
@@ -332,8 +336,8 @@ function createSummarizationQualityEvaluator(
         summarizationQualityInput: {
           metricSpec,
           instance: {
-            prediction: datapoint.output as string,
-            instruction: datapoint.input as string,
+            prediction: stringify(datapoint.output),
+            instruction: stringify(datapoint.input),
             context: datapoint.context?.join('. '),
           },
         },
@@ -377,8 +381,8 @@ function createSummarizationHelpfulnessEvaluator(
         summarizationHelpfulnessInput: {
           metricSpec,
           instance: {
-            prediction: datapoint.output as string,
-            instruction: datapoint.input as string,
+            prediction: stringify(datapoint.output),
+            instruction: stringify(datapoint.input),
             context: datapoint.context?.join('. '),
           },
         },
@@ -421,8 +425,8 @@ function createSummarizationVerbosityEvaluator(
         summarizationVerbosityInput: {
           metricSpec,
           instance: {
-            prediction: datapoint.output as string,
-            instruction: datapoint.input as string,
+            prediction: stringify(datapoint.output),
+            instruction: stringify(datapoint.input),
             context: datapoint.context?.join('. '),
           },
         },

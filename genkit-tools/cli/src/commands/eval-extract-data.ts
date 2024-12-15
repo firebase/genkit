@@ -74,7 +74,7 @@ export const evalExtractData = new Command('eval:extractData')
               testCaseId: generateTestCaseId(),
               input: extractors.input(trace),
               output: extractors.output(trace),
-              context: JSON.parse(extractors.context(trace)) as string[],
+              context: toArray(extractors.context(trace)),
               // The trace (t) does not contain the traceId, so we have to pull it out of the
               // spans, de- dupe, and turn it back into an array.
               traceIds: Array.from(
@@ -105,3 +105,7 @@ export const evalExtractData = new Command('eval:extractData')
       }
     });
   });
+
+function toArray(input: any) {
+  return Array.isArray(input) ? input : [input];
+}
