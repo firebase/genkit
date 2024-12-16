@@ -18,11 +18,11 @@
 
 /**
  * Main genkit import.
- * 
+ *
  * ```ts
  * import { genkit } from 'genkit';
  * ```
- * 
+ *
  * @module /
  */
 export {
@@ -113,10 +113,8 @@ export {
   ReflectionServer,
   StatusCodes,
   StatusSchema,
-  defineFlow,
   defineJsonSchema,
   defineSchema,
-  defineStreamingFlow,
   getCurrentEnv,
   getFlowAuth,
   getStreamingCallback,

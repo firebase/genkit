@@ -12,7 +12,7 @@
     "plugins/ollama",
     "plugins/chroma",
     "plugins/pinecone",
-    "plugins/mcp",
+    "plugins/mcp"
   ],
   "name": "Genkit JS API reference",
   "out": "api-refs-js",
@@ -21,7 +21,7 @@
   "sort": ["kind", "instance-first", "alphabetical"],
   "sortEntryPoints": true,
   "readme": "index.typedoc.md",
-  "plugin": ["typedoc-plugin-zod"],
+  "plugin": ["typedoc-plugin-zod", "typedoc-github-theme"],
   "navigation": {
     "includeCategories": false,
     "includeGroups": false,

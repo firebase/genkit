@@ -32,6 +32,8 @@ export function deleteUndefinedProps(obj: any) {
 
 /**
  * Returns the current environment that the app code is running in.
+ *
+ * @hidden
  */
 export function getCurrentEnv(): string {
   return process.env.GENKIT_ENV || 'prod';

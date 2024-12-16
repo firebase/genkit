@@ -136,6 +136,8 @@ export function parseSchema<T = unknown>(
 
 /**
  * Registers provided schema as a named schema object in the Genkit registry.
+ *
+ * @hidden
  */
 export function defineSchema<T extends z.ZodTypeAny>(
   registry: Registry,
@@ -148,6 +150,8 @@ export function defineSchema<T extends z.ZodTypeAny>(
 
 /**
  * Registers provided JSON schema as a named schema object in the Genkit registry.
+ *
+ * @hidden
  */
 export function defineJsonSchema(
   registry: Registry,
