@@ -36,6 +36,14 @@ export const GeminiEmbeddingConfigSchema = z.object({
   taskType: TaskTypeSchema.optional(),
   title: z.string().optional(),
   version: z.string().optional(),
+  /**
+   * The `dimensions` parameter allows you to specify the dimensionality of the embedding output.
+   * By default, the model generates embeddings with 768 dimensions. Models such as
+   * `text-embedding-004`, `text-embedding-005`, and `text-multilingual-embedding-002`
+   * allow the output dimensionality to be adjusted between 1 and 768.
+   * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
+   **/
+  dimensions: z.number().min(1).max(768).optional(),
 });
 
 export type GeminiEmbeddingConfig = z.infer<typeof GeminiEmbeddingConfigSchema>;
@@ -68,6 +76,8 @@ export const SUPPORTED_MODELS = {
   'embedding-001': textEmbeddingGecko001,
   'text-embedding-004': textEmbedding004,
 };
+
+const customDimensionsSupportedModelNames = [textEmbedding004.name];
 
 export function defineGoogleAIEmbedder(
   ai: Genkit,
@@ -106,6 +116,11 @@ export function defineGoogleAIEmbedder(
       info: embedder.info!,
     },
     async (input, options) => {
+      const dimensions =
+        customDimensionsSupportedModelNames.includes(embedder.name) &&
+        options?.dimensions
+          ? options.dimensions
+          : undefined;
       const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel({
         model:
           options?.version ||
@@ -122,6 +137,7 @@ export function defineGoogleAIEmbedder(
               role: '',
               parts: [{ text: doc.text }],
             },
+            outputDimensionality: dimensions,
           } as EmbedContentRequest);
           const values = response.embedding.values;
           return { embedding: values };

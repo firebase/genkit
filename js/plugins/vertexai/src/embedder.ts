@@ -165,7 +165,7 @@ export function defineVertexAIEmbedder(
             title: options?.title,
           };
         }),
-        dimensions ? { outputDimensionality: dimensions } : {}
+        { outputDimensionality: dimensions }
       );
       return {
         embeddings: response.predictions.map((p) => ({

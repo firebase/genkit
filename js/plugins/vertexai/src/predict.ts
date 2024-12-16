@@ -33,7 +33,7 @@ interface PredictionResponse<R> {
 
 export type PredictClient<I = unknown, R = unknown, P = unknown> = (
   instances: I[],
-  parameters?: P
+  parameters: P
 ) => Promise<PredictionResponse<R>>;
 
 export function predictModel<I = unknown, R = unknown, P = unknown>(
@@ -43,7 +43,7 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
 ): PredictClient<I, R, P> {
   return async (
     instances: I[],
-    parameters?: P
+    parameters: P
   ): Promise<PredictionResponse<R>> => {
     const fetch = (await import('node-fetch')).default;
 
