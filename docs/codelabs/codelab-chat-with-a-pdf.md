@@ -4,9 +4,7 @@ This codelab shows you how to use Genkit to implement an app that lets you chat 
 
 ## Prerequisites
 
-
 This codelab assumes that you’re familiar with building applications with Node.js. To complete this codelab, make sure that your development environment meets the following requirements:
-
 
 - Node.js v20+
 - npm
@@ -20,7 +18,7 @@ mkdir chat-with-a-pdf
 cd chat-with-a-pdf
 ```
 
-- Initialise a new TypeScript project
+- Initialize a new TypeScript project
 
 ```shell
 npm init -y
