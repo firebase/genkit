@@ -95,7 +95,7 @@ jobs:
           version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-chromadb version to {{version}}'
-          tag-prefix:  'genkitx-chromadb'
+          tag-prefix:  'genkitx-chromadb@'
       - name: 'js/plugins/dev-local-vectorstore version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
