@@ -45,7 +45,7 @@ npm install genkit @genkit-ai/googleai
 ## Configure your model API key
 
 
-For this guide, we’ll show you how to use the Gemini API which provides a
+For this guide, we’ll show you how to use the Gemini API, which provides a
 generous free-of-charge tier and does not require a credit card to get 
 started. To use the Gemini API, you'll need an API key. If you don't 
 already have one, create a key in Google AI Studio.
