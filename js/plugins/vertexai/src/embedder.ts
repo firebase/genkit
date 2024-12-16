@@ -40,13 +40,13 @@ export const VertexEmbeddingConfigSchema = z.object({
   location: z.string().optional(),
   version: z.string().optional(),
   /**
-   * The `dimensions` parameter allows you to specify the dimensionality of the embedding output.
+   * The `outputDimensionality` parameter allows you to specify the dimensionality of the embedding output.
    * By default, the model generates embeddings with 768 dimensions. Models such as
    * `text-embedding-004`, `text-embedding-005`, and `text-multilingual-embedding-002`
    * allow the output dimensionality to be adjusted between 1 and 768.
    * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
    **/
-  dimensions: z.number().min(1).max(768).optional(),
+  outputDimensionality: z.number().min(1).max(768).optional(),
 });
 
 export type VertexEmbeddingConfig = z.infer<typeof VertexEmbeddingConfigSchema>;
@@ -90,12 +90,6 @@ export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   //   'text',
   // ]),
 };
-
-const customDimensionsSupportedModelNames = [
-  textEmbedding004.name,
-  textEmbedding005.name,
-  textMultilingualEmbedding002.name,
-];
 
 interface EmbeddingInstance {
   task_type?: TaskType;
@@ -151,11 +145,6 @@ export function defineVertexAIEmbedder(
       info: embedder.info!,
     },
     async (input, options) => {
-      const dimensions =
-        customDimensionsSupportedModelNames.includes(embedder.name) &&
-        options?.dimensions
-          ? options.dimensions
-          : undefined;
       const predictClient = predictClientFactory(options);
       const response = await predictClient(
         input.map((i) => {
@@ -165,7 +154,7 @@ export function defineVertexAIEmbedder(
             title: options?.title,
           };
         }),
-        { outputDimensionality: dimensions }
+        { outputDimensionality: options?.outputDimensionality }
       );
       return {
         embeddings: response.predictions.map((p) => ({

@@ -50,7 +50,7 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
     const accessToken = await auth.getAccessToken();
     const req = {
       instances,
-      parameters: parameters || {},
+      parameters,
     };
 
     const response = await fetch(
