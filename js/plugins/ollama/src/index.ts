@@ -28,11 +28,11 @@ import { defineOllamaEmbedder } from './embeddings.js';
 import {
   ApiType,
   ModelDefinition,
-  OllamaPluginParams,
   RequestHeaders,
+  type OllamaPluginParams,
 } from './types.js';
 
-export { OllamaPluginParams };
+export { type OllamaPluginParams };
 
 export function ollama(params: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin('ollama', async (ai: Genkit) => {

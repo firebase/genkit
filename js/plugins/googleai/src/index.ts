@@ -22,7 +22,6 @@ import {
   textEmbeddingGecko001,
 } from './embedder.js';
 import {
-  GeminiConfig,
   GeminiConfigSchema,
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
@@ -33,9 +32,9 @@ import {
   gemini15Flash8b,
   gemini15Pro,
   gemini20FlashExp,
+  type GeminiConfig,
 } from './gemini.js';
 export {
-  GeminiConfig,
   gemini,
   gemini10Pro,
   gemini15Flash,
@@ -43,6 +42,7 @@ export {
   gemini15Pro,
   gemini20FlashExp,
   textEmbeddingGecko001,
+  type GeminiConfig,
 };
 
 export interface PluginOptions {

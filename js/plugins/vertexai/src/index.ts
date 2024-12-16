@@ -33,13 +33,13 @@ import {
   textMultilingualEmbedding002,
 } from './embedder.js';
 import {
-  GeminiConfig,
   SUPPORTED_GEMINI_MODELS,
   defineGeminiModel,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
   gemini20FlashExp,
+  type GeminiConfig,
 } from './gemini.js';
 import {
   SUPPORTED_IMAGEN_MODELS,
@@ -50,7 +50,6 @@ import {
 } from './imagen.js';
 export { type PluginOptions } from './common/types.js';
 export {
-  GeminiConfig,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
@@ -62,6 +61,7 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
+  type GeminiConfig,
 };
 
 /**
