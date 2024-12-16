@@ -1,10 +1,13 @@
 # Chat with a PDF file
 
-This codelab shows you how to use Genkit to implement an app that lets you chat with a PDF file.
+This codelab shows you how to use Genkit to implement an app that lets you
+chat with a PDF file.
 
 ## Prerequisites
 
-This codelab assumes that you’re familiar with building applications with Node.js. To complete this codelab, make sure that your development environment meets the following requirements:
+This codelab assumes that you’re familiar with building applications with
+Node.js. To complete this codelab, make sure that your development environment
+meets the following requirements:
 
 - Node.js v20+
 - npm
@@ -42,17 +45,22 @@ npm install genkit @genkit-ai/googleai
 ## Configure your model API key
 
 
-For this guide, we’ll show you how to use the Gemini API which provides a generous free tier and does not require a credit card to get started. To use the Gemini API, you'll need an API key. If you don't already have one, create a key in Google AI Studio.
+For this guide, we’ll show you how to use the Gemini API which provides a
+generous free tier and does not require a credit card to get started. To
+use the Gemini API, you'll need an API key. If you don't already have one,
+create a key in Google AI Studio.
 
 [Get an API key from Google AI Studio](https://makersuite.google.com/app/apikey)
 
-After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment variable to your key with the following command:
+After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment
+variable to your key with the following command:
 
 ```shell
 export GOOGLE_GENAI_API_KEY=<your API key>
 ```
 
-> **Note:** While this tutorial uses the Gemini API from AI Studio, Genkit supports a wide variety of model providers, including:
+> **Note:** While this tutorial uses the Gemini API from AI Studio, Genkit
+supports a wide variety of model providers, including:
 > * [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models)
 > * Anthropic’s Claude 3 models and Llama 3.1 through the [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden)
 > * Open source models through [Ollama](https://firebase.google.com/docs/genkit/plugins/ollama)
@@ -60,7 +68,8 @@ export GOOGLE_GENAI_API_KEY=<your API key>
 
 ## Import and initialise Genkit
 
-Create a new folder `src`, and inside it, a new file `index.ts`. Add the following lines to import Genkit and the Google AI plugin:
+Create a new folder `src`, and inside it, a new file `index.ts`. Add the
+following lines to import Genkit and the Google AI plugin:
 
 ```typescript
 import {gemini15Flash, googleAI} from '@genkit-ai/googleai';
@@ -68,7 +77,8 @@ import {genkit} from 'genkit';
 ```
 
 
-Add the following lines to configure Genkit and set Gemini 1.5 Flash as the default model:
+Add the following lines to configure Genkit and set Gemini 1.5 Flash as the
+default model:
 
 ```typescript
 const ai = genkit({
@@ -98,7 +108,10 @@ Add the main body of your app:
 ## Load and parse a PDF file
 
 
-In this step, you will write code to load and parse a PDF file. PDF files can be quite complex, and parsing them is notoriously difficult, so making sure any type of PDF file can be parse is outside the scope of this codelab. The PDF parser you will be using should do a reasonably good job on most PDF files.
+In this step, you will write code to load and parse a PDF file. PDF files can
+be quite complex, and parsing them is notoriously difficult, so making sure
+any type of PDF file can be parse is outside the scope of this codelab. The
+PDF parser you will be using should do a reasonably good job on most PDF files.
 
 First, install `pdf-parse`:
 
@@ -139,14 +152,16 @@ Load the contents of the PDF file
 ## Set up the prompt
 
 
-Allow the user to provide a custom prompt via the command line. If they don’t provide a prompt, use a default:
+Allow the user to provide a custom prompt via the command line. If they don’t
+provide a prompt, use a default:
 
 ```typescript
 const prefix = process.argv[3] || "Answer the user's questions about the contents of this PDF file.";
 ```
 
 
-Inject the prompt prefix and the full text of the PDF file into the prompt for the model:
+Inject the prompt prefix and the full text of the PDF file into the prompt for
+the model:
 
 ```typescript
     const prompt = `
@@ -160,7 +175,8 @@ Inject the prompt prefix and the full text of the PDF file into the prompt for t
 ## Implement the chat loop
 
 
-Start the chat with the model by calling the `chat` method, passing the prompt (which includes the full text of the PDF file):
+Start the chat with the model by calling the `chat` method, passing the prompt
+(which includes the full text of the PDF file):
 
 ```typescript
 const chat = ai.chat({ system: prompt })
@@ -182,7 +198,8 @@ Instantiate a text input, then display a message to the user:
 ```
 
 
-In an endless loop, read the user’s input, then send it to the model using `chat.send`:
+In an endless loop, read the user’s input, then send it to the model
+using `chat.send`:
 
 ```typescript
     while (true) {
@@ -196,7 +213,8 @@ In an endless loop, read the user’s input, then send it to the model using `ch
 ## Run the app
 
 
-You can now run the app from your terminal. Open the terminal in the root folder of your project, then run the following command:
+You can now run the app from your terminal. Open the terminal in the root
+folder of your project, then run the following command:
 
 ```typescript
 npx tsx src/index.ts path/to/some.pdf
