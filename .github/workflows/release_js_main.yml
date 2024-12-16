@@ -16,7 +16,16 @@ name: Release Genkit JS (latest)
 
 on:
   workflow_dispatch:
-  
+    inputs:
+      releaseTag:
+        description: Release tag
+        type: choice
+        default: next
+        required: true
+        options:
+          - main
+          - next
+        
 jobs:
   build:
     name: Run build tasks
@@ -29,6 +38,10 @@ jobs:
       with:
         node-version: 21.x
         cache: 'pnpm'
+    - name: Extract branch name
+      shell: bash
+      run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+      id: extract_branch
     - name: Install dependencies
       run: pnpm install
     - name: Run build script
@@ -44,6 +57,7 @@ jobs:
         cache: 'pnpm'
         registry-url: 'https://wombat-dressing-room.appspot.com/'
     - name: release script
-      run: scripts/release_main.sh
+      shell: bash
+      run: echo RELEASE_BRANCH=${{ steps.extract_branch.outputs.branch }} RELEASE_TAG=${{ inputs.releaseTag }} scripts/release_main.sh
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
