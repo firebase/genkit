@@ -144,6 +144,8 @@ In this step, you will write code to load and parse a PDF file.
 
 ## Set up the prompt
 
+Follow these steps to set up the prompt.
+
 Allow the user to provide a custom prompt via the command line. If they don’t
 provide a prompt, use a default:
 
