@@ -14,8 +14,10 @@ RELEASE_BRANCH="${RELEASE_BRANCH:-main}"
 RELEASE_TAG="${RELEASE_TAG:-next}"
 
 cd genkit-tools/common
-pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
+echo pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
+
+exit 0
 
 cd genkit-tools/telemetry-server
 pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
