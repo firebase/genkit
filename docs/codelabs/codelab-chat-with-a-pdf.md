@@ -14,25 +14,23 @@ meets the following requirements:
 
 ## Create a new project
 
-- Create a new empty folder
+1. Create a new empty folder
 
-```shell
-mkdir chat-with-a-pdf
-cd chat-with-a-pdf
-```
+   ```shell
+   mkdir chat-with-a-pdf
+   cd chat-with-a-pdf
+   ```
 
-- Initialize a new TypeScript project
+1. Initialize a new TypeScript project
 
-```shell
-npm init -y
-```
+   ```shell
+   npm init -y
+   ```
 
 
 ## Install Genkit
 
-
 Install the following Genkit dependencies to use Genkit in your project:
-
 
 - `genkit` provides Genkit core capabilities.
 - `@genkit-ai/googleai` provides access to the Google AI Gemini models.
@@ -41,9 +39,7 @@ Install the following Genkit dependencies to use Genkit in your project:
 npm install genkit @genkit-ai/googleai
 ```
 
-
 ## Configure your model API key
-
 
 For this guide, we’ll show you how to use the Gemini API, which provides a
 generous free-of-charge tier and does not require a credit card to get 
@@ -68,45 +64,41 @@ supports a wide variety of model providers, including:
 
 ## Import and initialise Genkit
 
-Create a new folder `src`, and inside it, a new file `index.ts`. Add the
+1. Create a new folder `src`, and inside it, a new file `index.ts`. Add the
 following lines to import Genkit and the Google AI plugin:
 
-```typescript
-import {gemini15Flash, googleAI} from '@genkit-ai/googleai';
-import {genkit} from 'genkit';
-```
+   ```typescript
+   import {gemini15Flash, googleAI} from '@genkit-ai/googleai';
+   import {genkit} from 'genkit';
+   ```
 
-
-Add the following lines to configure Genkit and set Gemini 1.5 Flash as the
+1. Add the following lines to configure Genkit and set Gemini 1.5 Flash as the
 default model:
 
-```typescript
-const ai = genkit({
-  plugins: [googleAI()],
-  model: gemini15Flash,
-});
-```
+   ```typescript
+   const ai = genkit({
+     plugins: [googleAI()],
+     model: gemini15Flash,
+   });
+   ```
 
+1. Add the main body of your app:
 
-Add the main body of your app:
-
-```typescript
-(async () => {
-  try {
-    // 1: get command line arguments
-    // 2: load PDF file
-    // 3: construct prompt
-    // 4: start chat
-    // 5: chat loop
-  } catch (error) {
-    console.error("Error parsing PDF or interacting with Genkit:", error);
-  }
-})(); // <-- don't forget the trailing parentheses to call the function!
-```
-
+   ```typescript
+   (async () => {
+     try {
+       // 1: get command line arguments
+       // 2: load PDF file
+       // 3: construct prompt
+       // 4: start chat
+       // 5: chat loop
+     } catch (error) {
+       console.error("Error parsing PDF or interacting with Genkit:", error);
+     }
+   })(); // <-- don't forget the trailing parentheses to call the function!
+   ```
 
 ## Load and parse a PDF file
-
 
 In this step, you will write code to load and parse a PDF file.
 
@@ -166,43 +158,38 @@ the model:
 
 ## Implement the chat loop
 
-Start the chat with the model by calling the `chat` method, passing the prompt
-(which includes the full text of the PDF file):
+1. Start the chat with the model by calling the `chat` method, passing the prompt
+(which includes the full text of the PDF file)
 
-```typescript
-const chat = ai.chat({ system: prompt })
-```
+   ```typescript
+   const chat = ai.chat({ system: prompt })
+   ```
 
+1. Import `createInterface`; this will allow you to build a text-based UI:
 
-Import `createInterface`; this will allow you to build a text-based UI:
+   ```typescript
+   import {createInterface} from "node:readline/promises";
+   ```
 
-```typescript
-import {createInterface} from "node:readline/promises";
-```
+1. Instantiate a text input, then display a message to the user:
 
+   ```typescript
+       const readline = createInterface(process.stdin, process.stdout);
+       console.log("You're chatting with Gemini. Ctrl-C to quit.\n");
+   ```
 
-Instantiate a text input, then display a message to the user:
-
-```typescript
-    const readline = createInterface(process.stdin, process.stdout);
-    console.log("You're chatting with Gemini. Ctrl-C to quit.\n");
-```
-
-
-Read the user’s input, then send it to the model using `chat.send`. This part 
+1. Read the user’s input, then send it to the model using `chat.send`. This part 
 of the app will loop until the user presses _CTRL + C_.
 
-```typescript
-    while (true) {
-      const userInput = await readline.question("> ");
-      const {text} = await chat.send(userInput);
-      console.log(text);
-    }
-```
-
+   ```typescript
+       while (true) {
+         const userInput = await readline.question("> ");
+         const {text} = await chat.send(userInput);
+         console.log(text);
+       }
+   ```
 
 ## Run the app
-
 
 You can now run the app from your terminal. Open the terminal in the root
 folder of your project, then run the following command:
@@ -210,6 +197,5 @@ folder of your project, then run the following command:
 ```typescript
 npx tsx src/index.ts path/to/some.pdf
 ```
-
 
 You can then start chatting with the PDF file.
