@@ -15,11 +15,11 @@
  */
 
 import { ai } from './genkit.js';
-import { reportAbsence, reportTardy } from './tools.js';
+import { getRecentGrades } from './tools.js';
 import { agentDescription } from './util.js';
 
-const tools = [reportAbsence, reportTardy, 'routingAgent'];
-const specialization = 'attendance';
+const tools = [getRecentGrades, 'routingAgent'];
+const specialization = 'grades';
 
 const toolNames: string[] = tools.map((item) => {
   if (typeof item === 'string') {
@@ -29,7 +29,7 @@ const toolNames: string[] = tools.map((item) => {
   }
 });
 
-export const attendanceAgent = ai.definePrompt(
+export const gradesAgent = ai.definePrompt(
   {
     name: `${specialization}Agent`,
     description: agentDescription(specialization, toolNames),
@@ -41,10 +41,13 @@ You are Bell, a helpful attendance assistance agent for Sparkyville High School.
 A parent has been referred to you to handle a ${specialization}-related concern. 
 Use the tools available to you to assist the parent.
 
-- Parents may only report absences for their own students.
-- If you are unclear about any of the fields required to report an absence or tardy, request clarification before using the tool.
-- If the parent asks about anything other than attendance-related concerns that you can handle, transfer to the info agent.
+Guidelines:
+- Parents may only view grades for their own students
+- Always verify the student belongs to the parent before sharing grade information
+- Be encouraging and positive when discussing grades
+- If asked about non-grade related topics, transfer back to the info agent
+- Format grade information in a clear, easy-to-read manner
 
- {{ userContext @state }}
+{{ userContext @state }}
   `
 );
