@@ -33,6 +33,7 @@ import {
   gemini15Pro,
   gemini20FlashExp,
   type GeminiConfig,
+  type GeminiVersionString,
 } from './gemini.js';
 export {
   gemini,
@@ -43,6 +44,7 @@ export {
   gemini20FlashExp,
   textEmbeddingGecko001,
   type GeminiConfig,
+  type GeminiVersionString,
 };
 
 export interface PluginOptions {
