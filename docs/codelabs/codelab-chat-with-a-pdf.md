@@ -123,7 +123,7 @@ In this step, you will write code to load and parse a PDF file.
    import fs from 'fs';
    ```
 
-1. Read the name of the PDF file from the command line.
+1. Read the PDF filename that was passed in from the command line.
 
    ```typescript
      // 1: get command line arguments
