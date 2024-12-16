@@ -146,27 +146,25 @@ In this step, you will write code to load and parse a PDF file.
 
 Follow these steps to set up the prompt.
 
-Allow the user to provide a custom prompt via the command line. If they don’t
-provide a prompt, use a default:
+1. Allow the user to provide a custom prompt via the command line. If they don’t
+provide a prompt, use a default.
 
-```typescript
-const prefix = process.argv[3] || "Answer the user's questions about the contents of this PDF file.";
-```
+   ```typescript
+   const prefix = process.argv[3] || "Answer the user's questions about the contents of this PDF file.";
+   ```
 
-Inject the prompt prefix and the full text of the PDF file into the prompt for
+1. Inject the prompt prefix and the full text of the PDF file into the prompt for
 the model:
 
-```typescript
-    const prompt = `
-      ${prefix}
-      Context:
-      ${data.text}
-    `
-```
-
+   ```typescript
+       const prompt = `
+         ${prefix}
+         Context:
+         ${data.text}
+       `
+   ```
 
 ## Implement the chat loop
-
 
 Start the chat with the model by calling the `chat` method, passing the prompt
 (which includes the full text of the PDF file):
