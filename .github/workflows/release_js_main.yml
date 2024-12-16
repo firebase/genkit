@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Release Genkit JS (latest)
+name: Release Genkit JS
 
 on:
   workflow_dispatch:
@@ -23,8 +23,8 @@ on:
         default: next
         required: true
         options:
-          - main
           - next
+          - latest
         
 jobs:
   build:
@@ -58,6 +58,6 @@ jobs:
         registry-url: 'https://wombat-dressing-room.appspot.com/'
     - name: release script
       shell: bash
-      run: echo RELEASE_BRANCH=${{ steps.extract_branch.outputs.branch }} RELEASE_TAG=${{ inputs.releaseTag }} scripts/release_main.sh
+      run: RELEASE_BRANCH=${{ steps.extract_branch.outputs.branch }} RELEASE_TAG=${{ inputs.releaseTag }} scripts/release_main.sh
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
