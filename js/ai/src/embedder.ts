@@ -19,19 +19,14 @@ import { Registry } from '@genkit-ai/core/registry';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 /**
- * A batch (array) of embeddings.
- */
-export type EmbeddingBatch = { embedding: number[] }[];
-
-/**
- * Zod schema of an embedding vector.
- */
-export const EmbeddingSchema = z.array(z.number());
-
-/**
  * Embedding vector.
  */
-export type Embedding = z.infer<typeof EmbeddingSchema>;
+export type Embedding = number[];
+
+/**
+ * A batch (array) of embeddings.
+ */
+export type EmbeddingBatch = { embedding: Embedding }[];
 
 /**
  * A function used for embedder definition, encapsulates embedder implementation.
@@ -53,7 +48,7 @@ const EmbedRequestSchema = z.object({
  * Zod schema of an embed response.
  */
 const EmbedResponseSchema = z.object({
-  embeddings: z.array(z.object({ embedding: EmbeddingSchema })),
+  embeddings: z.array(z.object({ embedding: z.array(z.number()) })),
   // TODO: stats, etc.
 });
 type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
