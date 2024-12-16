@@ -174,7 +174,7 @@ const chat = ai.chat({ system: prompt })
 ```
 
 
-Import `createInterface` - this will allow you to build a text-based UI:
+Import `createInterface`; this will allow you to build a text-based UI:
 
 ```typescript
 import {createInterface} from "node:readline/promises";
@@ -189,8 +189,8 @@ Instantiate a text input, then display a message to the user:
 ```
 
 
-In an endless loop, read the user’s input, then send it to the model
-using `chat.send`:
+Read the user’s input, then send it to the model using `chat.send`. This part 
+of the app will loop until the user presses _CTRL + C_.
 
 ```typescript
     while (true) {
