@@ -52,11 +52,13 @@ After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment va
 export GOOGLE_GENAI_API_KEY=<your API key>
 ```
 
-> **Note:** While this tutorial uses the Gemini API from AI Studio, Genkit supports a wide variety of model providers including [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models), Anthropic’s Claude 3 models and Llama 3.1 through the [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden), open source models through [Ollama](https://firebase.google.com/docs/genkit/plugins/ollama), and several other [community-supported providers](https://firebase.google.com/docs/genkit/models#models-supported) like OpenAI and Cohere.
-
+> **Note:** While this tutorial uses the Gemini API from AI Studio, Genkit supports a wide variety of model providers, including:
+> * [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models)
+> * Anthropic’s Claude 3 models and Llama 3.1 through the [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden)
+> * Open source models through [Ollama](https://firebase.google.com/docs/genkit/plugins/ollama)
+> * [Community-supported providers](https://firebase.google.com/docs/genkit/models#models-supported) such as OpenAI and Cohere.
 
 ## Import and initialise Genkit
-
 
 Create a new folder `src`, and inside it, a new file `index.ts`. Add the following lines to import Genkit and the Google AI plugin:
 
