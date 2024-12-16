@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +16,15 @@
  * limitations under the License.
  */
 
+/**
+ * Main genkit import.
+ * 
+ * ```ts
+ * import { genkit } from 'genkit';
+ * ```
+ * 
+ * @module /
+ */
 export {
   BaseDataPointSchema,
   Document,
@@ -134,4 +145,9 @@ export {
   type __RequestWithAuth,
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
-export { Genkit, GenkitOptions, PromptMetadata, genkit } from './genkit.js';
+export {
+  Genkit,
+  genkit,
+  type GenkitOptions,
+  type PromptMetadata,
+} from './genkit.js';
