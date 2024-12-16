@@ -101,7 +101,7 @@ Add the main body of your app:
   } catch (error) {
     console.error("Error parsing PDF or interacting with Genkit:", error);
   }
-})(); // <-- don't forget the trailing parentesis to call the function!
+})(); // <-- don't forget the trailing parentheses to call the function!
 ```
 
 
