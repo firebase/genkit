@@ -58,7 +58,7 @@ export GOOGLE_GENAI_API_KEY=<your API key>
 ## Import and initialise Genkit
 
 
-Create a new folder `src`, and iniside it, a new file `index.ts`. Add the following lines to import Genkit and the Google AI plugin:
+Create a new folder `src`, and inside it, a new file `index.ts`. Add the following lines to import Genkit and the Google AI plugin:
 
 ```typescript
 import {gemini15Flash, googleAI} from '@genkit-ai/googleai';
