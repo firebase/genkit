@@ -14,14 +14,14 @@ meets the following requirements:
 
 ## Create a new project
 
-1. Create a new empty folder
+1. Create a new empty folder.
 
    ```shell
    mkdir chat-with-a-pdf
    cd chat-with-a-pdf
    ```
 
-1. Initialize a new TypeScript project
+1. Initialize a new TypeScript project.
 
    ```shell
    npm init -y
@@ -65,7 +65,7 @@ supports a wide variety of model providers, including:
 ## Import and initialise Genkit
 
 1. Create a new folder `src`, and inside it, a new file `index.ts`. Add the
-following lines to import Genkit and the Google AI plugin:
+following lines to import Genkit and the Google AI plugin.
 
    ```typescript
    import {gemini15Flash, googleAI} from '@genkit-ai/googleai';
@@ -73,7 +73,7 @@ following lines to import Genkit and the Google AI plugin:
    ```
 
 1. Add the following lines to configure Genkit and set Gemini 1.5 Flash as the
-default model:
+default model.
 
    ```typescript
    const ai = genkit({
@@ -82,7 +82,7 @@ default model:
    });
    ```
 
-1. Add the main body of your app:
+1. Add the main body of your app.
 
    ```typescript
    (async () => {
@@ -146,7 +146,7 @@ provide a prompt, use a default.
    ```
 
 1. Inject the prompt prefix and the full text of the PDF file into the prompt for
-the model:
+the model.
 
    ```typescript
        const prompt = `
@@ -159,19 +159,19 @@ the model:
 ## Implement the chat loop
 
 1. Start the chat with the model by calling the `chat` method, passing the prompt
-(which includes the full text of the PDF file)
+(which includes the full text of the PDF file).
 
    ```typescript
    const chat = ai.chat({ system: prompt })
    ```
 
-1. Import `createInterface`; this will allow you to build a text-based UI:
+1. Import `createInterface`; this will allow you to build a text-based UI.
 
    ```typescript
    import {createInterface} from "node:readline/promises";
    ```
 
-1. Instantiate a text input, then display a message to the user:
+1. Instantiate a text input, then display a message to the user.
 
    ```typescript
        const readline = createInterface(process.stdin, process.stdout);
