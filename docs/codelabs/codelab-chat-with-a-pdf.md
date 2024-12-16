@@ -108,49 +108,41 @@ Add the main body of your app:
 ## Load and parse a PDF file
 
 
-In this step, you will write code to load and parse a PDF file. PDF files can
-be quite complex, and parsing them is notoriously difficult, so making sure
-any type of PDF file can be parse is outside the scope of this codelab. The
-PDF parser you will be using should do a reasonably good job on most PDF files.
+In this step, you will write code to load and parse a PDF file.
 
-First, install `pdf-parse`:
+1. Install `pdf-parse`.
 
-```typescript
-npm i pdf-parse
-```
+   ```typescript
+   npm i pdf-parse
+   ```
 
+1. Import the PDF library into your app.
 
-Import the PDF libray to your app
+   ```typescript
+   import pdf from 'pdf-parse';
+   import fs from 'fs';
+   ```
 
-```typescript
-import pdf from 'pdf-parse';
-import fs from 'fs';
-```
+1. Read the name of the PDF file from the command line.
 
+   ```typescript
+     // 1: get command line arguments
+     const filename = process.argv[2];
+     if (!filename) {
+       console.error("Please provide a filename as a command line argument.");
+       process.exit(1);
+     }
+   ```
 
-Read the name of the PDF file from the command line:
+1. Load the contents of the PDF file.
 
-```typescript
-	// 1: get command line arguments
-	const filename = process.argv[2];
-	if (!filename) {
-		console.error("Please provide a filename as a command line argument.");
-		process.exit(1);
-	}
-```
-
-
-Load the contents of the PDF file
-
-```typescript
-	// 2: load PDF file
-	let dataBuffer = fs.readFileSync(filename);
-	const { text } = await pdf(dataBuffer);
-```
-
+   ```typescript
+     // 2: load PDF file
+     let dataBuffer = fs.readFileSync(filename);
+     const { text } = await pdf(dataBuffer);
+   ```
 
 ## Set up the prompt
-
 
 Allow the user to provide a custom prompt via the command line. If they don’t
 provide a prompt, use a default:
@@ -158,7 +150,6 @@ provide a prompt, use a default:
 ```typescript
 const prefix = process.argv[3] || "Answer the user's questions about the contents of this PDF file.";
 ```
-
 
 Inject the prompt prefix and the full text of the PDF file into the prompt for
 the model:
