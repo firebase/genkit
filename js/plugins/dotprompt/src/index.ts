@@ -19,9 +19,10 @@ import { readFileSync } from 'fs';
 import { basename } from 'path';
 import { toFrontmatter } from './metadata.js';
 import {
-  defineDotprompt,
   Dotprompt,
   DotpromptRef,
+  defineDotprompt,
+  type DotpromptAction,
   type PromptGenerateOptions,
 } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
@@ -29,10 +30,11 @@ import { loadPromptFolder, lookupPrompt } from './registry.js';
 export { type PromptMetadata } from './metadata.js';
 export { defineHelper, definePartial } from './template.js';
 export {
-  defineDotprompt,
   Dotprompt,
+  defineDotprompt,
   loadPromptFolder,
   toFrontmatter,
+  type DotpromptAction,
   type PromptGenerateOptions,
 };
 

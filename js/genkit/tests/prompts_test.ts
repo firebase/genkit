@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { modelRef } from '@genkit-ai/ai/model';
+import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
@@ -25,6 +25,168 @@ import {
   defineProgrammableModel,
   defineStaticResponseModel,
 } from './helpers';
+
+const wrapRequest: ModelMiddleware = async (req, next) => {
+  return next({
+    ...req,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text:
+              '(' +
+              req.messages
+                .map((m) => m.content.map((c) => c.text).join())
+                .join() +
+              ')',
+          },
+        ],
+      },
+    ],
+  });
+};
+const wrapResponse: ModelMiddleware = async (req, next) => {
+  const res = await next(req);
+  return {
+    message: {
+      role: 'model',
+      content: [
+        {
+          text: '[' + res.message!.content.map((c) => c.text).join() + ']',
+        },
+      ],
+    },
+    finishReason: res.finishReason,
+  };
+};
+
+describe('definePrompt - functional', () => {
+  let ai: Genkit;
+
+  beforeEach(() => {
+    ai = genkit({
+      model: 'echoModel',
+    });
+    defineEchoModel(ai);
+  });
+
+  it('should apply middleware to a prompt call', async () => {
+    const prompt = ai.definePrompt(
+      {
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+      },
+      async (input) => {
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: `hi ${input.name}` }],
+            },
+          ],
+        };
+      }
+    );
+
+    const response = await prompt(
+      { name: 'Genkit' },
+      { use: [wrapRequest, wrapResponse] }
+    );
+    assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+  });
+
+  it.only('should apply middleware configured on a prompt', async () => {
+    const prompt = ai.definePrompt(
+      {
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+        use: [wrapRequest, wrapResponse],
+      },
+      async (input) => {
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: `hi ${input.name}` }],
+            },
+          ],
+        };
+      }
+    );
+
+    const response = await prompt({ name: 'Genkit' });
+    assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+  });
+
+  it.only('should apply middleware to a prompt call on a looked up prompt', async () => {
+    ai.definePrompt(
+      {
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+        use: [wrapRequest, wrapResponse],
+      },
+      async (input) => {
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: `hi ${input.name}` }],
+            },
+          ],
+        };
+      }
+    );
+
+    const prompt = ai.prompt('hi');
+
+    const response = await prompt({ name: 'Genkit' });
+    assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+  });
+
+  it('should apply middleware configured on a prompt on a looked up prompt', async () => {
+    ai.definePrompt(
+      {
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+      },
+      async (input) => {
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: `hi ${input.name}` }],
+            },
+          ],
+        };
+      }
+    );
+
+    const prompt = ai.prompt('hi');
+
+    const response = await prompt(
+      { name: 'Genkit' },
+      { use: [wrapRequest, wrapResponse] }
+    );
+    assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+  });
+});
 
 describe('definePrompt - dotprompt', () => {
   describe('default model', () => {
@@ -94,6 +256,86 @@ describe('definePrompt - dotprompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
+    });
+
+    it('should apply middleware to a prompt call', async () => {
+      const prompt = ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await prompt(
+        { name: 'Genkit' },
+        { use: [wrapRequest, wrapResponse] }
+      );
+      assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+    });
+
+    it('should apply middleware configured on a prompt', async () => {
+      const prompt = ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+          use: [wrapRequest, wrapResponse],
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await prompt({ name: 'Genkit' });
+      assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+    });
+
+    it.only('should apply middleware to a prompt call on a looked up prompt', async () => {
+      ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+          use: [wrapRequest, wrapResponse],
+        },
+        'hi {{ name }}'
+      );
+
+      const prompt = ai.prompt('hi');
+
+      const response = await prompt({ name: 'Genkit' });
+      assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
+    });
+
+    it.only('should apply middleware configured on a prompt on a looked up prompt', async () => {
+      ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const prompt = ai.prompt('hi');
+
+      const response = await prompt(
+        { name: 'Genkit' },
+        { use: [wrapRequest, wrapResponse] }
+      );
+      assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
     });
   });
 

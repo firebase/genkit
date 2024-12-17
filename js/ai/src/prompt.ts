@@ -27,6 +27,7 @@ import {
   GenerateRequestSchema,
   GenerateResponseChunkSchema,
   ModelArgument,
+  ModelMiddleware,
 } from './model.js';
 import { ToolAction } from './tool.js';
 
@@ -45,6 +46,7 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
       type: 'prompt';
     };
   };
+  __config: PromptConfig;
 };
 
 /**
@@ -56,6 +58,7 @@ export interface PromptConfig<I extends z.ZodTypeAny = z.ZodTypeAny> {
   inputSchema?: I;
   inputJsonSchema?: JSONSchema7;
   metadata?: Record<string, any>;
+  use?: ModelMiddleware[];
 }
 
 export function isPrompt(arg: any): boolean {
@@ -135,12 +138,16 @@ export function definePrompt<I extends z.ZodTypeAny>(
   const a = defineAction(
     registry,
     {
-      ...config,
+      name: config.name,
+      inputJsonSchema: config.inputJsonSchema,
+      inputSchema: config.inputSchema,
+      description: config.description,
       actionType: 'prompt',
       metadata: { ...(config.metadata || { prompt: {} }), type: 'prompt' },
     },
     fn
   );
+  (a as PromptAction<I>).__config = config;
   return a as PromptAction<I>;
 }
 
