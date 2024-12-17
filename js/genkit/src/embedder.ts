@@ -17,9 +17,6 @@
 export {
   EmbedderInfoSchema,
   embedderRef,
-  /**
-   * banana
-   */
   type EmbedderAction,
   type EmbedderArgument,
   type EmbedderInfo,
