@@ -18,7 +18,7 @@ import { modelRef } from '@genkit-ai/ai/model';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { z } from '../src/index';
+import { PromptAction, z } from '../src/index';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -270,7 +270,7 @@ describe('definePrompt - dotprompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('calls dotprompt with history', async () => {
+    it('calls dotprompt with history and places it at {{ history }}', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -281,7 +281,7 @@ describe('definePrompt - dotprompt', () => {
             }),
           },
         },
-        '{{ history}} hi {{ name }}'
+        '{{ role "system"}} talk like a pirate {{ history}} hi {{ name }}'
       );
 
       const response = await hi(
@@ -294,6 +294,10 @@ describe('definePrompt - dotprompt', () => {
         }
       );
       assert.deepStrictEqual(response.messages, [
+        {
+          role: 'system',
+          content: [{ text: ' talk like a pirate ' }],
+        },
         {
           role: 'user',
           content: [{ text: 'hi' }],
@@ -311,7 +315,99 @@ describe('definePrompt - dotprompt', () => {
         {
           role: 'model',
           content: [
-            { text: 'Echo: hi,bye, hi Genkit' },
+            { text: 'Echo: system:  talk like a pirate ,hi,bye, hi Genkit' },
+            { text: '; config: {}' },
+          ],
+        },
+      ]);
+    });
+
+    it('calls dotprompt with history and places it before user message', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model: 'echoModel',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi(
+        { name: 'Genkit' },
+        {
+          messages: [
+            { role: 'user', content: [{ text: 'hi' }] },
+            { role: 'model', content: [{ text: 'bye' }] },
+          ],
+        }
+      );
+      assert.deepStrictEqual(response.messages, [
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'bye' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hi Genkit' }],
+        },
+        {
+          role: 'model',
+          content: [
+            { text: 'Echo: hi,bye,hi Genkit' },
+            { text: '; config: {}' },
+          ],
+        },
+      ]);
+    });
+
+    it('streams dotprompt with history and places it before user message', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model: 'echoModel',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi.stream(
+        { name: 'Genkit' },
+        {
+          messages: [
+            { role: 'user', content: [{ text: 'hi' }] },
+            { role: 'model', content: [{ text: 'bye' }] },
+          ],
+        }
+      );
+      assert.deepStrictEqual((await response.response).messages, [
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'bye' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hi Genkit' }],
+        },
+        {
+          role: 'model',
+          content: [
+            { text: 'Echo: hi,bye,hi Genkit' },
             { text: '; config: {}' },
           ],
         },
@@ -413,7 +509,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('calls dotprompt with default model', async () => {
+    it('calls prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -436,7 +532,7 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('calls dotprompt with default model with config', async () => {
+    it('calls prompt with default model with config', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -465,7 +561,7 @@ describe('definePrompt', () => {
       );
     });
 
-    it('calls dotprompt with default model via retrieved prompt', async () => {
+    it('calls prompt with default model via retrieved prompt', async () => {
       ai.definePrompt(
         {
           name: 'hi',
@@ -503,7 +599,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('calls dotprompt with default model', async () => {
+    it('calls prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -526,7 +622,7 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('streams dotprompt with default model', async () => {
+    it('streams prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -571,7 +667,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('calls dotprompt with default model', async () => {
+    it('calls prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -595,7 +691,7 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('calls dotprompt with default model with config', async () => {
+    it('calls prompt with default model with config', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -625,7 +721,7 @@ describe('definePrompt', () => {
       );
     });
 
-    it('calls dotprompt with default model with call site config', async () => {
+    it('calls prompt with default model with call site config', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -772,6 +868,57 @@ describe('prompt', () => {
     const { text } = await testPrompt({ name: 'banana' });
 
     assert.strictEqual(text, 'Echo: hi banana; config: {"temperature":11}');
+  });
+
+  it('includes metadata for functional prompts', async () => {
+    ai.definePrompt(
+      {
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+        config: {
+          temperature: 0.13,
+        },
+      },
+      async (input) => {
+        return {
+          messages: [],
+          config: {
+            temperature: 11,
+          },
+        };
+      }
+    );
+    const testPrompt: PromptAction =
+      await ai.registry.lookupAction('/prompt/hi');
+
+    assert.deepStrictEqual(testPrompt.__action.metadata, {
+      type: 'prompt',
+      prompt: {
+        name: 'hi',
+        model: 'echoModel',
+        config: {
+          temperature: 0.13,
+        },
+        input: {
+          schema: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+              },
+            },
+            required: ['name'],
+            additionalProperties: true,
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      },
+    });
   });
 
   it('passes in output options to the model', async () => {

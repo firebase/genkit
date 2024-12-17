@@ -15,6 +15,7 @@
  */
 
 export { RuntimeEvent, RuntimeInfo } from '../manager/types';
+export { GenkitErrorData } from '../types/error';
 export * from './action';
 export * from './analytics';
 export * from './apis';

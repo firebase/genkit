@@ -76,11 +76,15 @@ export async function runNewEvaluation(
   );
   const datasetVersion = targetDatasetMetadata?.version;
 
+  if (dataset.length === 0) {
+    throw new Error(`Dataset ${datasetId} is empty`);
+  }
+
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
+    evalFlowInput: EvalInferenceInputSchema.parse(dataset),
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -134,6 +138,9 @@ export async function runEvaluation(params: {
   augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
   const { manager, evaluatorActions, evalDataset, augments } = params;
+  if (evalDataset.length === 0) {
+    throw new Error('Cannot run evaluation, no data provided');
+  }
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   logger.info('Running evaluation...');
@@ -209,16 +216,14 @@ async function bulkRunAction(params: {
 }): Promise<EvalInput[]> {
   const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[]).map((i) => ({
-        input: i,
-        testCaseId: generateTestCaseId(),
-      }))
-    : evalFlowInput.samples.map((c) => ({
-        input: c.input,
-        reference: c.reference,
-        testCaseId: c.testCaseId ?? generateTestCaseId(),
-      }));
+  let testCases: TestCase[] = evalFlowInput.map((c) => ({
+    input: c.input,
+    reference: c.reference,
+    testCaseId: c.testCaseId ?? generateTestCaseId(),
+  }));
+  if (testCases.length === 0) {
+    throw new Error('Cannot run inference, no data provided');
+  }
 
   let states: InferenceRunState[] = [];
   let evalInputs: EvalInput[] = [];
@@ -371,7 +376,7 @@ async function gatherEvalInput(params: {
     input,
     output,
     error,
-    context: JSON.parse(context) as string[],
+    context: Array.isArray(context) ? context : [context],
     reference: state.reference,
     traceIds: [traceId],
   };
@@ -390,12 +395,11 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
   }
 }
 
-function getErrorFromModelResponse(output: string): string | undefined {
-  const obj = JSON.parse(output);
+function getErrorFromModelResponse(obj: any): string | undefined {
   const response = GenerateResponseSchema.parse(obj);
 
   if (!response || !response.candidates || response.candidates.length === 0) {
-    return `No response was extracted from the output. '${output}'`;
+    return `No response was extracted from the output. '${JSON.stringify(obj)}'`;
   }
 
   // We currently only support the first candidate

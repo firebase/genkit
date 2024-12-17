@@ -18,17 +18,19 @@ import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
 import { Server } from 'http';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import {
   Action,
   ActionResult,
   defineAction,
+  sentinelNoopStreamingCallback,
   StreamingCallback,
 } from './action.js';
-import { runWithContext } from './auth.js';
+import { runWithContext } from './context.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { logger } from './logging.js';
-import { Registry } from './registry.js';
+import { HasRegistry, Registry } from './registry.js';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
 const streamDelimiter = '\n\n';
@@ -45,6 +47,8 @@ export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> {
 /**
  * For express-based flows, req.auth should contain the value to bepassed into
  * the flow context.
+ *
+ * @hidden
  */
 export interface __RequestWithAuth extends express.Request {
   auth?: unknown;
@@ -81,10 +85,11 @@ export interface StreamingFlowConfig<
   streamSchema?: S;
 }
 
-export interface FlowCallOptions {
+export interface FlowCallOptions<S> {
   /** @deprecated use {@link context} instead. */
   withLocalAuthContext?: unknown;
   context?: unknown;
+  onChunk?: StreamingCallback<S>;
 }
 
 /**
@@ -95,9 +100,12 @@ export interface CallableFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (input?: z.infer<I>, opts?: FlowCallOptions): Promise<z.infer<O>>;
+  (input?: z.infer<I>, opts?: FlowCallOptions<z.infer<S>>): Promise<z.infer<O>>;
 
-  stream(input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
+  stream(
+    input?: z.infer<I>,
+    opts?: FlowCallOptions<z.infer<S>>
+  ): StreamingResponse<O, S>;
 
   flow: Flow<I, O, S>;
 }
@@ -111,7 +119,10 @@ export interface StreamableFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (input?: z.infer<I>, opts?: FlowCallOptions): StreamingResponse<O, S>;
+  (
+    input?: z.infer<I>,
+    opts?: FlowCallOptions<z.infer<S>>
+  ): StreamingResponse<O, S>;
   flow: Flow<I, O, S>;
 }
 
@@ -129,6 +140,25 @@ interface StreamingResponse<
 }
 
 /**
+ * Flow execution context for flow to access the streaming callback and
+ * side-channel context data. The context itself is a function, a short-cut
+ * for streaming callback.
+ */
+export interface FlowSideChannel<S> {
+  (chunk: S): void;
+
+  /**
+   * Streaming callback (optional).
+   */
+  sendChunk: StreamingCallback<S>;
+
+  /**
+   * Additional runtime context data (ex. auth context data).
+   */
+  context?: any;
+}
+
+/**
  * Function to be executed in the flow.
  */
 export type FlowFn<
@@ -139,7 +169,7 @@ export type FlowFn<
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback: StreamingCallback<z.infer<S>>
+  streamingCallback: FlowSideChannel<z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 export class Flow<
@@ -156,7 +186,7 @@ export class Flow<
   readonly action: Action<I, O, S>;
 
   constructor(
-    private registry: Registry,
+    readonly registry: Registry,
     config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
     action: Action<I, O, S>
   ) {
@@ -176,7 +206,7 @@ export class Flow<
   async invoke(
     input: unknown,
     opts: {
-      streamingCallback?: StreamingCallback<z.infer<S>>;
+      onChunk?: StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
       context?: unknown;
     }
@@ -185,14 +215,17 @@ export class Flow<
     return await this.action.run(input, {
       context: opts.context,
       telemetryLabels: opts.labels,
-      onChunk: opts.streamingCallback ?? (() => {}),
+      onChunk: opts.onChunk ?? sentinelNoopStreamingCallback,
     });
   }
 
   /**
    * Runs the flow. This is used when calling a flow from another flow.
    */
-  async run(payload?: z.infer<I>, opts?: FlowCallOptions): Promise<z.infer<O>> {
+  async run(
+    payload?: z.infer<I>,
+    opts?: FlowCallOptions<z.infer<S>>
+  ): Promise<z.infer<O>> {
     const input = this.inputSchema ? this.inputSchema.parse(payload) : payload;
     await this.authPolicy?.(opts?.withLocalAuthContext, payload);
 
@@ -204,6 +237,7 @@ export class Flow<
 
     const result = await this.invoke(input, {
       context: opts?.context || opts?.withLocalAuthContext,
+      onChunk: opts?.onChunk,
     });
     return result.result;
   }
@@ -213,7 +247,7 @@ export class Flow<
    */
   stream(
     payload?: z.infer<I>,
-    opts?: FlowCallOptions
+    opts?: Omit<FlowCallOptions<z.infer<S>>, 'onChunk'>
   ): StreamingResponse<O, S> {
     let chunkStreamController: ReadableStreamController<z.infer<S>>;
     const chunkStream = new ReadableStream<z.infer<S>>({
@@ -233,7 +267,7 @@ export class Flow<
         this.invoke(
           this.inputSchema ? this.inputSchema.parse(payload) : payload,
           {
-            streamingCallback: ((chunk: z.infer<S>) => {
+            onChunk: ((chunk: z.infer<S>) => {
               chunkStreamController.enqueue(chunk);
             }) as S extends z.ZodVoid
               ? undefined
@@ -293,7 +327,7 @@ export class Flow<
       });
       try {
         const result = await this.invoke(input, {
-          streamingCallback: (chunk: z.infer<S>) => {
+          onChunk: (chunk: z.infer<S>) => {
             response.write(
               'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
             );
@@ -368,6 +402,8 @@ export interface FlowServerOptions {
  * Flow server exposes registered flows as HTTP endpoints.
  *
  * This is for use in production environments.
+ *
+ * @hidden
  */
 export class FlowServer {
   /** List of all running servers needed to be cleaned up on process exit. */
@@ -484,7 +520,7 @@ export function defineFlow<
   (callableFlow as CallableFlow<I, O, S>).flow = flow;
   (callableFlow as CallableFlow<I, O, S>).stream = (
     input: z.infer<I>,
-    opts: FlowCallOptions
+    opts: Omit<FlowCallOptions<z.infer<S>>, 'onChunk'>
   ): StreamingResponse<O, S> => {
     return flow.stream(input, opts);
   };
@@ -538,16 +574,30 @@ function defineFlowAction<
     },
     async (input, { sendChunk, context }) => {
       await config.authPolicy?.(context, input);
-      return await runWithContext(context, () => fn(input, sendChunk));
+      return await legacyRegistryAls.run(registry, () => {
+        const ctx = sendChunk;
+        (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
+        (ctx as FlowSideChannel<z.infer<S>>).context = context;
+        return runWithContext(registry, context, () =>
+          fn(input, ctx as FlowSideChannel<z.infer<S>>)
+        );
+      });
     }
   );
 }
 
-export function run<T>(name: string, func: () => Promise<T>): Promise<T>;
+const legacyRegistryAls = new AsyncLocalStorage<Registry>();
+
+export function run<T>(
+  name: string,
+  func: () => Promise<T>,
+  registry?: Registry
+): Promise<T>;
 export function run<T>(
   name: string,
   input: any,
-  func: (input?: any) => Promise<T>
+  func: (input?: any) => Promise<T>,
+  registry?: Registry
 ): Promise<T>;
 
 /**
@@ -556,14 +606,47 @@ export function run<T>(
 export function run<T>(
   name: string,
   funcOrInput: () => Promise<T>,
-  fn?: (input?: any) => Promise<T>
+  fnOrRegistry?: Registry | HasRegistry | ((input?: any) => Promise<T>),
+  maybeRegistry?: Registry | HasRegistry
 ): Promise<T> {
-  const func = arguments.length === 3 ? fn : funcOrInput;
-  const input = arguments.length === 3 ? funcOrInput : undefined;
+  let func;
+  let input;
+  let registry: Registry | undefined;
+  if (typeof funcOrInput === 'function') {
+    func = funcOrInput;
+  } else {
+    input = funcOrInput;
+  }
+  if (typeof fnOrRegistry === 'function') {
+    func = fnOrRegistry;
+  } else if (
+    fnOrRegistry instanceof Registry ||
+    (fnOrRegistry as HasRegistry)?.registry
+  ) {
+    registry = (fnOrRegistry as HasRegistry)?.registry
+      ? (fnOrRegistry as HasRegistry)?.registry
+      : (fnOrRegistry as Registry);
+  }
+  if (maybeRegistry) {
+    registry = (maybeRegistry as HasRegistry).registry
+      ? (maybeRegistry as HasRegistry).registry
+      : (maybeRegistry as Registry);
+  }
+
+  if (!registry) {
+    registry = legacyRegistryAls.getStore();
+  }
+  if (!registry) {
+    throw new Error(
+      'Unable to resolve registry. Consider explicitly passing Genkit instance.'
+    );
+  }
+
   if (!func) {
     throw new Error('unable to resolve run function');
   }
   return runInNewSpan(
+    registry,
     {
       metadata: { name },
       labels: {

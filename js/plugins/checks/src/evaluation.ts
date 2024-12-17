@@ -18,53 +18,18 @@ import { EvaluatorAction, Genkit, z } from 'genkit';
 import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-
-/**
- * Currently supported Checks AI Safety policies.
- */
-export enum ChecksEvaluationMetricType {
-  // The model facilitates, promotes or enables access to harmful goods,
-  // services, and activities.
-  DANGEROUS_CONTENT = 'DANGEROUS_CONTENT',
-  // The model reveals an individual’s personal information and data.
-  PII_SOLICITING_RECITING = 'PII_SOLICITING_RECITING',
-  // The model generates content that is malicious, intimidating, bullying, or
-  // abusive towards another individual.
-  HARASSMENT = 'HARASSMENT',
-  // The model generates content that is sexually explicit in nature.
-  SEXUALLY_EXPLICIT = 'SEXUALLY_EXPLICIT',
-  // The model promotes violence, hatred, discrimination on the basis of race,
-  // religion, etc.
-  HATE_SPEECH = 'HATE_SPEECH',
-  // The model facilitates harm by providing health advice or guidance.
-  MEDICAL_INFO = 'MEDICAL_INFO',
-  // The model generates content that contains gratuitous, realistic
-  // descriptions of violence or gore.
-  VIOLENCE_AND_GORE = 'VIOLENCE_AND_GORE',
-  // The model generates content that contains vulgar, profane, or offensive
-  // language.
-  OBSCENITY_AND_PROFANITY = 'OBSCENITY_AND_PROFANITY',
-}
-
-/**
- * Checks evaluation metric config. Use `threshold` to override the default violation threshold.
- * The value of `metricSpec` will be included in the request to the API. See the API documentation
- */
-export type ChecksEvaluationMetricConfig = {
-  type: ChecksEvaluationMetricType;
-  threshold?: number;
-};
-
-export type ChecksEvaluationMetric =
-  | ChecksEvaluationMetricType
-  | ChecksEvaluationMetricConfig;
+import {
+  ChecksEvaluationMetric,
+  ChecksEvaluationMetricConfig,
+  isConfig,
+} from './metrics';
 
 export function checksEvaluators(
   ai: Genkit,
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string
-): EvaluatorAction[] {
+): EvaluatorAction {
   const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map(
     (metric) => {
       const metricType = isConfig(metric) ? metric.type : metric;
@@ -77,17 +42,7 @@ export function checksEvaluators(
     }
   );
 
-  const evaluators = policy_configs.map((policy_config) => {
-    return createPolicyEvaluator(projectId, auth, ai, policy_config);
-  });
-
-  return evaluators;
-}
-
-function isConfig(
-  config: ChecksEvaluationMetric
-): config is ChecksEvaluationMetricConfig {
-  return (config as ChecksEvaluationMetricConfig).type !== undefined;
+  return createPolicyEvaluator(projectId, auth, ai, policy_configs);
 }
 
 const ResponseSchema = z.object({
@@ -104,15 +59,13 @@ function createPolicyEvaluator(
   projectId: string,
   auth: GoogleAuth,
   ai: Genkit,
-  policy_config: ChecksEvaluationMetricConfig
+  policy_config: ChecksEvaluationMetricConfig[]
 ): EvaluatorAction {
-  const policyType = policy_config.type as string;
-
   return ai.defineEvaluator(
     {
-      name: `checks/${policyType.toLowerCase()}`,
-      displayName: policyType,
-      definition: `Evaluates text against the Checks ${policyType} policy.`,
+      name: 'checks/guardrails',
+      displayName: 'checks/guardrails',
+      definition: `Evaluates input text against the Checks ${policy_config.map((policy) => policy.type)} policies.`,
     },
     async (datapoint: BaseEvalDataPoint) => {
       const partialRequest = {
@@ -121,26 +74,34 @@ function createPolicyEvaluator(
             content: datapoint.output as string,
           },
         },
-        policies: {
-          policy_type: policy_config.type,
-          threshold: policy_config.threshold,
-        },
+        policies: policy_config.map((config) => {
+          return {
+            policy_type: config.type,
+            threshold: config.threshold,
+          };
+        }),
       };
 
       const response = await checksEvalInstance(
+        ai,
         projectId,
         auth,
         partialRequest,
         ResponseSchema
       );
 
-      return {
-        evaluation: {
-          score: response.policyResults[0].score,
+      const evaluationResults = response.policyResults.map((result) => {
+        return {
+          id: result.policyType,
+          score: result.score,
           details: {
-            reasoning: response.policyResults[0].violationResult,
+            reasoning: `Status ${result.violationResult}`,
           },
-        },
+        };
+      });
+
+      return {
+        evaluation: evaluationResults,
         testCaseId: datapoint.testCaseId,
       };
     }
@@ -148,12 +109,14 @@ function createPolicyEvaluator(
 }
 
 async function checksEvalInstance<ResponseType extends z.ZodTypeAny>(
+  ai: Genkit,
   projectId: string,
   auth: GoogleAuth,
   partialRequest: any,
   responseSchema: ResponseType
 ): Promise<z.infer<ResponseType>> {
   return await runInNewSpan(
+    ai,
     {
       metadata: {
         name: 'EvaluationService#evaluateInstances',
