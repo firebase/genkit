@@ -60,7 +60,7 @@ export interface PluginOptions {
 }
 
 /**
- * A Google Gemini Developer API plugin.
+ * Google Gemini Developer API plugin.
  */
 export function googleAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('googleai', async (ai: Genkit) => {
