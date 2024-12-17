@@ -33,6 +33,8 @@ import {
   gemini15Flash8b,
   gemini15Pro,
   gemini20FlashExp,
+  type GeminiConfig,
+  type GeminiVersionString,
 } from './gemini.js';
 export {
   gemini,
@@ -43,15 +45,23 @@ export {
   gemini20FlashExp,
   textEmbedding004,
   textEmbeddingGecko001,
+  type GeminiConfig,
+  type GeminiVersionString,
 };
 
 export interface PluginOptions {
   apiKey?: string;
   apiVersion?: string | string[];
   baseUrl?: string;
-  models?: (ModelReference<typeof GeminiConfigSchema> | string)[];
+  models?: (
+    | ModelReference</** @ignore */ typeof GeminiConfigSchema>
+    | string
+  )[];
 }
 
+/**
+ * Google Gemini Developer API plugin.
+ */
 export function googleAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('googleai', async (ai: Genkit) => {
     let apiVersions = ['v1'];

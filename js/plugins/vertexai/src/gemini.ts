@@ -73,11 +73,91 @@ const GoogleSearchRetrievalSchema = z.object({
   disableAttribution: z.boolean().optional(),
 });
 
+/**
+ * Zod schema of Gemini model options.
+ */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  /**
+   * GCP region (e.g. us-central1)
+   */
+  location: z.string().describe('banana').optional(),
+
+  /**
+   * Safety filter settings. See: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters#configurable-filters
+   *
+   * E.g.
+   *
+   * ```js
+   * config: {
+   *   safetySettings: [
+   *     {
+   *       category: 'HARM_CATEGORY_HATE_SPEECH',
+   *       threshold: 'BLOCK_LOW_AND_ABOVE',
+   *     },
+   *     {
+   *       category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+   *       threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+   *     },
+   *     {
+   *       category: 'HARM_CATEGORY_HARASSMENT',
+   *       threshold: 'BLOCK_ONLY_HIGH',
+   *     },
+   *     {
+   *       category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+   *       threshold: 'BLOCK_NONE',
+   *     },
+   *   ],
+   * }
+   * ```
+   */
   safetySettings: z.array(SafetySettingsSchema).optional(),
-  location: z.string().optional(),
+
+  /**
+   * Vertex retrieval options.
+   *
+   * E.g.
+   *
+   * ```js
+   *   config: {
+   *     vertexRetrieval: {
+   *       datastore: {
+   *         projectId: 'your-cloud-project',
+   *         location: 'us-central1',
+   *         collection: 'your-collection',
+   *       },
+   *       disableAttribution: true,
+   *     }
+   *   }
+   * ```
+   */
   vertexRetrieval: VertexRetrievalSchema.optional(),
+
+  /**
+   * Google Search retrieval options.
+   *
+   * ```js
+   *   config: {
+   *     googleSearchRetrieval: {
+   *       disableAttribution: true,
+   *     }
+   *   }
+   * ```
+   */
   googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
+
+  /**
+   * Function calling options.
+   *
+   * E.g. forced tool call:
+   *
+   * ```js
+   *   config: {
+   *     functionCallingConfig: {
+   *       mode: 'ANY',
+   *     }
+   *   }
+   * ```
+   */
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
@@ -85,6 +165,40 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .optional(),
 });
+
+/**
+ * Gemini model configuration options.
+ *
+ * E.g.
+ * ```js
+ *   config: {
+ *     temperature: 0.9,
+ *     maxOutputTokens: 300,
+ *     safetySettings: [
+ *       {
+ *         category: 'HARM_CATEGORY_HATE_SPEECH',
+ *         threshold: 'BLOCK_LOW_AND_ABOVE',
+ *       },
+ *       {
+ *         category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+ *         threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+ *       },
+ *       {
+ *         category: 'HARM_CATEGORY_HARASSMENT',
+ *         threshold: 'BLOCK_ONLY_HIGH',
+ *       },
+ *       {
+ *         category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+ *         threshold: 'BLOCK_NONE',
+ *       },
+ *     ],
+ *     functionCallingConfig: {
+ *       mode: 'ANY',
+ *     }
+ *   }
+ * ```
+ */
+export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
   name: 'vertexai/gemini-1.0-pro',

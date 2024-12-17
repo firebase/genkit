@@ -399,6 +399,8 @@ export function runWithStreamingCallback<S, O>(
 
 /**
  * Retrieves the {@link StreamingCallback} previously set by {@link runWithStreamingCallback}
+ *
+ * @hidden
  */
 export function getStreamingCallback<S>(
   registry: Registry

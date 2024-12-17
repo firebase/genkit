@@ -15,10 +15,6 @@
  */
 
 export {
-  GenkitSpanProcessorWrapper,
-  InstrumentationLibrarySchema,
-  LinkSchema,
-  PathMetadataSchema,
   SPAN_TYPE_ATTR,
   SpanContextSchema,
   SpanDataSchema,
@@ -29,9 +25,7 @@ export {
   TraceMetadataSchema,
   TraceServerExporter,
   appendSpan,
-  cleanUpTracing,
   enableTelemetry,
-  ensureBasicTelemetryInstrumentation,
   flushTracing,
   newTrace,
   runInNewSpan,
