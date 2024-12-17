@@ -384,7 +384,7 @@ function itemToMetadata(
 }
 
 /**
- * Simple retiriever options.
+ * Simple retriever options.
  */
 export interface SimpleRetrieverOptions<
   C extends z.ZodTypeAny = z.ZodTypeAny,
