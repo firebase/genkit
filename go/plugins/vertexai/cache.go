@@ -138,8 +138,6 @@ func calculateTTL(cacheConfig *CacheConfigDetails) time.Duration {
   return time.Duration(cacheConfig.TTLSeconds) * time.Second
 }
 
-
-
 // getKeysFrom returns the keys from the given map as a slice of strings, it is using to get the supported models
 func getKeysFrom(m map[string]ai.ModelCapabilities) []string {
   keys := make([]string, 0, len(m))
