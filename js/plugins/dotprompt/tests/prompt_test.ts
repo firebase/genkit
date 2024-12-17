@@ -128,7 +128,11 @@ describe('Prompt', () => {
       );
 
       const streamingCallback = (c) => console.log(c);
-      const middleware = [];
+      const middleware = [
+        async (req, next) => {
+          return next();
+        },
+      ];
 
       const rendered = prompt.render({
         input: { name: 'Michael' },
@@ -140,7 +144,7 @@ describe('Prompt', () => {
       assert.strictEqual(rendered.onChunk, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
       assert.strictEqual(rendered.maxTurns, 17);
-      assert.strictEqual(rendered.use, middleware);
+      assert.deepStrictEqual(rendered.use, middleware);
     });
 
     it('should support system prompt with history', () => {

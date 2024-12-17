@@ -22,6 +22,7 @@
 import {
   GenerationCommonConfigSchema,
   ModelArgument,
+  ModelMiddleware,
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
 import { z } from '@genkit-ai/core';
@@ -79,6 +80,9 @@ export interface PromptMetadata<
 
   /** Arbitrary metadata to be used by code, tools, and libraries. */
   metadata?: Record<string, any>;
+
+  /** Middleware to be used with this model call. */
+  use?: ModelMiddleware[];
 }
 
 /**
