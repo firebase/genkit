@@ -10,7 +10,7 @@ Key features:
 - Includes evaluation examples using Genkit's evaluation framework to measure:
   - Response faithfulness to source data
   - Answer relevancy to customer questions
-- Ready for deployment on Google Cloud Platform with Vertex AI integration
+- Ready for deployment on Google Cloud Platform with Google AI integration
 
 ## Prerequisites
 
@@ -36,15 +36,13 @@ Before you begin, make sure you have the following installed:
    ```
 
 3. Set up your database:
-   a. Set up your environment variables:
-   Create a `.env` file in the root directory and add the following:
-
+   a. Export environment variables:
    ```
-   PROJECT_ID=[YOUR PROJECT ID]
-   LOCATION=[YOUR LOCATION]
+   export PROJECT_ID=[YOUR PROJECT ID]
+   export LOCATION=[YOUR LOCATION]
    ```
 
-   b. Set up the database and seed with sample data:
+   c. Set up the database and seed with sample data:
 
    ```
    cd src/
