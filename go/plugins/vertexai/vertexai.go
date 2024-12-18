@@ -169,7 +169,6 @@ func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		fmt.Println("input any", input.Config)
 		return generate(ctx, state.gclient, name, input, cb)
 	})
 }
@@ -239,9 +238,21 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
+	options := ai.WithConfig(input.Config)
+	req := ai.GetParams(options)
+	cacheConfig := &CacheConfigDetails{
+		TTLSeconds: req.TTL,
+	}
+	cache, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
+	if err != nil {
+		return nil, err
+	}
 	gm, err := newModel(client, model, input)
 	if err != nil {
 		return nil, err
+	}
+	if cache != nil {
+		gm.CachedContentName = cache.Name
 	}
 	cs, err := startChat(gm, input)
 	if err != nil {

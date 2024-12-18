@@ -7,7 +7,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 	"log"
-	"os"
 	"time"
 )
 
@@ -27,5 +26,5 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("output", resp.Message.Text())
+	fmt.Println("output:", resp.Message.Text())
 }

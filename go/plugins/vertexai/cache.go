@@ -34,7 +34,7 @@ const DEFAULT_TTL = 300
 type CacheConfigDetails struct {
 	// TTLSeconds is how long to keep the cached content.
 	// If zero, defaults to 60 minutes.
-	TTLSeconds int
+	TTLSeconds time.Duration
 }
 
 var (
@@ -99,7 +99,7 @@ func getContentForCache(
 			Parts: []genai.Part{genai.Text(systemInstruction)},
 		},
 		Contents:   userParts,
-		Expiration: genai.ExpireTimeOrTTL{TTL: calculateTTL(cacheConfig.TTLSeconds) * time.Second},
+		Expiration: genai.ExpireTimeOrTTL{TTL: calculateTTL(cacheConfig.TTLSeconds)},
 	}
 
 	return content, nil
@@ -135,11 +135,11 @@ func generateCacheKey(content *genai.CachedContent) string {
 }
 
 // calculateTTL returns the TTL as a time.Duration.
-func calculateTTL(ttl int) time.Duration {
+func calculateTTL(ttl time.Duration) time.Duration {
 	if ttl <= 0 {
 		return DEFAULT_TTL
 	}
-	return time.Duration(ttl) * time.Second
+	return ttl * time.Second
 }
 
 // getKeysFrom returns the keys from the given map as a slice of strings, it is using to get the supported models

@@ -2,6 +2,7 @@
 node_modules
 lib
 dist
+.idea
 .vscode
 .DS_Store
 package-lock.json
