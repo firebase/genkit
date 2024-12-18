@@ -12,8 +12,6 @@ import (
 )
 
 func main() {
-	os.Setenv("GCLOUD_PROJECT", "404021582266")
-	os.Setenv("GOOGLE_GENAI_API_KEY", "AIzaSyBGeUMp-a8EPKkm_OEww0rjX4sMMti8eEo")
 	ctx := context.Background()
 	if err := vertexai.Init(ctx, nil); err != nil {
 		log.Fatal(err)
