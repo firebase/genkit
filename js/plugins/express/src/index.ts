@@ -23,6 +23,7 @@ import {
   z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
+import { Registry } from 'genkit/registry';
 import { getErrorMessage, getErrorStack } from './utils';
 
 const streamDelimiter = '\n\n';
@@ -82,6 +83,7 @@ export function handler<
       ? (f as CallableFlow<I, O, S>).flow
       : undefined;
   const action: Action<I, O, S> = flow ? flow.action : (f as Action<I, O, S>);
+  const registry: Registry = flow ? flow.registry : action.__registry;
   return async (
     request: RequestWithAuth,
     response: express.Response
@@ -121,7 +123,7 @@ export function handler<
             'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
           );
         };
-        const result = await runWithStreamingCallback(onChunk, () =>
+        const result = await runWithStreamingCallback(registry, onChunk, () =>
           action.run(input, {
             onChunk,
             context: auth,

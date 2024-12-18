@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
 import { logger } from './logging.js';
@@ -65,6 +66,8 @@ export class Registry {
   private schemasByName: Record<string, Schema> = {};
   private valueByTypeAndName: Record<string, Record<string, any>> = {};
   private allPluginsInitialized = false;
+
+  readonly asyncStore = new AsyncStore();
 
   constructor(public parent?: Registry) {}
 
@@ -233,4 +236,29 @@ export class Registry {
   lookupSchema(name: string): Schema | undefined {
     return this.schemasByName[name] || this.parent?.lookupSchema(name);
   }
+}
+
+/**
+ * Manages AsyncLocalStorage instances in a single place.
+ */
+export class AsyncStore {
+  private asls: Record<string, AsyncLocalStorage<any>> = {};
+
+  getStore<T>(key: string): T | undefined {
+    return this.asls[key]?.getStore();
+  }
+
+  run<T, R>(key: string, store: T, callback: () => R): R {
+    if (!this.asls[key]) {
+      this.asls[key] = new AsyncLocalStorage<T>();
+    }
+    return this.asls[key].run(store, callback);
+  }
+}
+
+/**
+ * An object that has a reference to Genkit Registry.
+ */
+export interface HasRegistry {
+  get registry(): Registry;
 }

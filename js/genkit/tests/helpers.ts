@@ -27,11 +27,13 @@ import {
 import { SessionData, SessionStore } from '../src/session';
 
 export function defineEchoModel(ai: Genkit): ModelAction {
-  return ai.defineModel(
+  const model = ai.defineModel(
     {
       name: 'echoModel',
     },
     async (request, streamingCallback) => {
+      (model as any).__test__lastRequest = request;
+      (model as any).__test__lastStreamingCallback = streamingCallback;
       if (streamingCallback) {
         await runAsync(() => {
           streamingCallback({
@@ -86,6 +88,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
       }));
     }
   );
+  return model;
 }
 
 export function bonknessEvaluator(ai: Genkit) {

@@ -35,6 +35,9 @@ let nodeOtelConfig: TelemetryConfig | null = null;
 
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 
+/**
+ * @hidden
+ */
 export async function ensureBasicTelemetryInstrumentation() {
   if (global[instrumentationKey]) {
     return await global[instrumentationKey];
@@ -115,7 +118,9 @@ function maybeFlushMetrics(): Promise<void> {
 }
 
 /**
- * Flushes all configured span processors
+ * Flushes all configured span processors.
+ *
+ * @hidden
  */
 export async function flushTracing() {
   if (nodeOtelConfig?.spanProcessors) {

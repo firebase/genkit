@@ -182,8 +182,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    */
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
     let sessionStateData: Record<string, any> | undefined = undefined;
-    if (getCurrentSession()) {
-      sessionStateData = { state: getCurrentSession()?.state };
+    if (getCurrentSession(this.registry)) {
+      sessionStateData = { state: getCurrentSession(this.registry)?.state };
     }
     input = parseSchema(input, {
       schema: this.input?.schema,
@@ -251,8 +251,9 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
       tools: (options.tools || []).concat(this.tools || []),
-      streamingCallback: options.streamingCallback,
+      onChunk: options.onChunk ?? options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
+      maxTurns: options.maxTurns,
       use: options.use,
     } as GenerateOptions<O, CustomOptions>;
   }
@@ -278,6 +279,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   >(opt: PromptGenerateOptions<I>): Promise<GenerateOptions<CustomOptions, O>> {
     const spanName = this.variant ? `${this.name}.${this.variant}` : this.name;
     return runInNewSpan(
+      this.registry,
       {
         metadata: {
           name: spanName,
@@ -288,7 +290,11 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
         },
       },
       async (metadata) => {
-        setCustomMetadataAttribute('prompt_fingerprint', this.hash);
+        setCustomMetadataAttribute(
+          this.registry,
+          'prompt_fingerprint',
+          this.hash
+        );
         const generateOptions = this._generateOptions<CustomOptions, O>(opt);
         metadata.output = generateOptions;
         return generateOptions;

@@ -22,7 +22,6 @@ import getPort from 'get-port';
 import * as http from 'http';
 import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { getFlowContext } from '../../../core/lib/auth.js';
 import { RequestWithAuth, handler } from '../src/index.js';
 
 describe('telemetry', async () => {
@@ -65,7 +64,7 @@ describe('telemetry', async () => {
         const { text } = await ai.generate({
           model: 'echoModel',
           prompt: input.question,
-          streamingCallback: sendChunk,
+          onChunk: sendChunk,
         });
         return text;
       }
@@ -76,8 +75,8 @@ describe('telemetry', async () => {
         name: 'flowWithContext',
         inputSchema: z.object({ question: z.string() }),
       },
-      async (input) => {
-        return `${input.question} - ${JSON.stringify(getFlowContext())}`;
+      async (input, { context }) => {
+        return `${input.question} - ${JSON.stringify(context)}`;
       }
     );
 
