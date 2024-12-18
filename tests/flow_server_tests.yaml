@@ -1,0 +1,13 @@
+# This file describes the responses to HTTP requests made
+# to the flow server
+
+# TODO: add more test cases
+
+app: flow_server
+tests:
+  - path: streamy
+    post:
+      data: 5
+    response:
+      message: '{"count":{count}}'
+      result: 'done {count}, streamed: {count} times'

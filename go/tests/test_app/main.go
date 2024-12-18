@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
@@ -26,6 +28,15 @@ import (
 )
 
 func main() {
+	opts := genkit.Options{
+		FlowAddr: "127.0.0.1:3400",
+	}
+
+	// used for streamed flows
+	type chunk struct {
+		Count int `json:"count"`
+	}
+
 	model := ai.DefineModel("", "customReflector", nil, echo)
 	genkit.DefineFlow("testFlow", func(ctx context.Context, in string) (string, error) {
 		res, err := ai.Generate(ctx, model, ai.WithTextPrompt(in))
@@ -35,7 +46,35 @@ func main() {
 		_ = res
 		return "TBD", nil
 	})
-	if err := genkit.Init(context.Background(), nil); err != nil {
+
+	genkit.DefineStreamingFlow("streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
+		i := 0
+		if cb != nil {
+			for ; i < count; i++ {
+				if err := cb(ctx, chunk{i}); err != nil {
+					return "", err
+				}
+			}
+		}
+		return fmt.Sprintf("done %d, streamed: %d times", count, i), nil
+	})
+
+	genkit.DefineStreamingFlow("streamyThrowy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
+		i := 0
+		if cb != nil {
+			for ; i < count; i++ {
+				if i == 3 {
+					return "", errors.New("boom!")
+				}
+				if err := cb(ctx, chunk{i}); err != nil {
+					return "", err
+				}
+			}
+		}
+		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
+	})
+
+	if err := genkit.Init(context.Background(), &opts); err != nil {
 		log.Fatal(err)
 	}
 }
