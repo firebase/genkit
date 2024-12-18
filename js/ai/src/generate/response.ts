@@ -24,6 +24,7 @@ import {
   GenerateRequest,
   GenerateResponseData,
   GenerationUsage,
+  GenerateClientTelemetry,
   MessageData,
   ModelResponseData,
   ToolRequestPart,
@@ -48,6 +49,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   request?: GenerateRequest;
   /** The parser for output parsing of this response. */
   parser?: MessageParser<O>;
+  /** Client telemetry information associated with this request */
+  clientTelemetry?: GenerateClientTelemetry;
 
   constructor(
     response: GenerateResponseData,
@@ -71,6 +74,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     this.usage = response.usage || {};
     this.custom = response.custom || {};
     this.request = options?.request;
+    this.clientTelemetry = response.clientTelemetry;
   }
 
   private get assertMessage(): Message<O> {
@@ -196,9 +200,11 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       usage: this.usage,
       custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
       request: this.request,
+      clientTelemetry: this.clientTelemetry,
     };
     if (!out.finishMessage) delete out.finishMessage;
     if (!out.request) delete out.request;
+    if (!out.clientTelemetry) delete out.clientTelemetry;
     return out;
   }
 }

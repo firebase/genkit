@@ -34,6 +34,7 @@ import { GenerateUtilParamSchema, generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
+import { writeMetrics } from './metrics.js';
 import {
   GenerateRequest,
   GenerationCommonConfigSchema,
@@ -300,10 +301,12 @@ export async function generate<
         ...resolvedOptions,
         tools,
       });
-      return new GenerateResponse<O>(response, {
+      const generateResponse = new GenerateResponse<O>(response, {
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
+      writeMetrics(generateResponse);
+      return generateResponse;
     }
   );
 }
