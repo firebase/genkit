@@ -10,4 +10,4 @@ tests:
       data: 5
     response:
       message: '{"count":{count}}'
-      result: "done {count}, streamed: {count} times"
+      result: 'done {count}, streamed: {count} times'

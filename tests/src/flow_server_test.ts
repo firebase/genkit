@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { streamFlow } from 'genkit/client';
 import { readFileSync } from 'fs';
+import { streamFlow } from 'genkit/client';
 import * as yaml from 'yaml';
 import { retriable, runTestsForApp } from './utils.js';
-
 
 (async () => {
   // TODO: Add NodeJS tests
@@ -57,7 +56,7 @@ async function testFlowServer() {
   const t = yaml.parse(readFileSync('flow_server_tests.yaml', 'utf8'));
   for (const test of t.tests) {
     let chunkCount = 0;
-    let expected: string = ""
+    let expected: string = '';
     let want: TestResults = {
       message: test.response.message,
       result: test.response.result,
@@ -70,20 +69,26 @@ async function testFlowServer() {
       });
 
       for await (const chunk of response.stream()) {
-        expected = want.message.replace("{count}", chunkCount.toString())
-        let chunkJSON = JSON.stringify(await chunk)
+        expected = want.message.replace('{count}', chunkCount.toString());
+        let chunkJSON = JSON.stringify(await chunk);
         if (chunkJSON != expected) {
-          throw new Error(`unexpected chunk data received, got: ${chunkJSON}, want: ${want.message}`)
+          throw new Error(
+            `unexpected chunk data received, got: ${chunkJSON}, want: ${want.message}`
+          );
         }
-        chunkCount++
+        chunkCount++;
       }
       if (chunkCount != test.post.data) {
-        throw new Error(`unexpected number of stream chunks received: got ${chunkCount}, want: ${test.post.data}`)
+        throw new Error(
+          `unexpected number of stream chunks received: got ${chunkCount}, want: ${test.post.data}`
+        );
       }
-      let out = await response.output()
-      want.result = want.result.replace(/\{count\}/g, chunkCount.toString())
+      let out = await response.output();
+      want.result = want.result.replace(/\{count\}/g, chunkCount.toString());
       if (out != want.result) {
-        throw new Error(`unexpected output received, got: ${out}, want: ${want.result}`)
+        throw new Error(
+          `unexpected output received, got: ${out}, want: ${want.result}`
+        );
       }
     })();
   }
