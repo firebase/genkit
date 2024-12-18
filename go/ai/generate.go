@@ -106,7 +106,7 @@ type GenerateParams struct {
 	Stream       ModelStreamingCallback
 	History      []*Message
 	SystemPrompt *Message
-	TTL          time.Duration
+	TTL          *time.Duration
 }
 
 // GenerateOption configures params of the Generate call.
@@ -117,7 +117,7 @@ func WithTextPrompt(prompt string, ttl ...int) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
 		if len(ttl) > 0 {
-			req.TTL = time.Duration(ttl[0]) * time.Second
+			*req.TTL = time.Duration(ttl[0]) * time.Second
 		}
 		return nil
 	}

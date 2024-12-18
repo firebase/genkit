@@ -39,9 +39,10 @@ const (
 
 var (
 	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   gemini.BasicText,
-		"gemini-1.5-pro":   gemini.Multimodal,
-		"gemini-1.5-flash": gemini.Multimodal,
+		"gemini-1.0-pro":       gemini.BasicText,
+		"gemini-1.5-pro":       gemini.Multimodal,
+		"gemini-1.5-flash":     gemini.Multimodal,
+		"gemini-1.5-flash-002": gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
@@ -238,10 +239,15 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	options := ai.WithConfig(input.Config)
-	req := ai.GetParams(options)
-	cacheConfig := &CacheConfigDetails{
-		TTLSeconds: req.TTL,
+	req, ok := input.Config.(*ai.GenerationCommonConfig)
+	if !ok {
+		return nil, fmt.Errorf("vertexai.Generate(%s): expected CacheConfigDetails", model)
+	}
+	var cacheConfig *CacheConfigDetails
+	if req.TTL != 0 {
+		cacheConfig = &CacheConfigDetails{
+			TTLSeconds: req.TTL,
+		}
 	}
 	cache, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
 	if err != nil {

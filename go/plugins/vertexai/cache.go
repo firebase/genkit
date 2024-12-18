@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -161,19 +162,6 @@ func contains(slice []string, target string) bool {
 	return false
 }
 
-func countTokensInMessages(messages []*ai.Message) int {
-	totalTokens := 0
-	for _, msg := range messages {
-		for _, part := range msg.Content {
-			if part.IsText() {
-				words := strings.Fields(part.Text)
-				totalTokens += len(words)
-			}
-		}
-	}
-	return totalTokens
-}
-
 // validateContextCacheRequest decides if we should try caching for this request.
 // For demonstration, we will cache if there are more than 2 messages or if there's a system prompt.
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
@@ -183,14 +171,6 @@ func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) 
 	}
 	if len(request.Tools) > 0 {
 		return fmt.Errorf(INVALID_ARGUMENT_MESSAGES.tools)
-	}
-
-	tokenCount := countTokensInMessages(request.Messages)
-	// The minimum input token count for context caching is 32,768, and the maximum is the same as the maximum for the given model.
-	// https://ai.google.dev/gemini-api/docs/caching?lang=go
-	const minTokens = 32768
-	if tokenCount < minTokens {
-		return fmt.Errorf("the cached content is of %d tokens. The minimum token count to start caching is %d.", tokenCount, minTokens)
 	}
 
 	// If we reach here, request is valid for context caching
@@ -217,12 +197,13 @@ func handleCacheIfNeeded(
 
 	cachedContent.Model = modelVersion
 	cacheKey := generateCacheKey(cachedContent)
-
-	cachedContent.Name = cacheKey
 	newCache, err := client.CreateCachedContent(ctx, cachedContent)
 	if err != nil {
+		if strings.Contains(err.Error(), "The minimum token count to start caching is 32768.") {
+			slog.Debug("not enough token count to start caching: %s cacheKey: %s", err.Error(), cacheKey)
+			return nil, nil
+		}
 		return nil, fmt.Errorf("failed to create cache: %w", err)
 	}
-
 	return newCache, nil
 }

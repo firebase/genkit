@@ -15,7 +15,7 @@ func main() {
 	if err := vertexai.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
-	m := vertexai.Model("gemini-1.5-flash")
+	m := vertexai.Model("gemini-1.5-flash-002")
 	if m == nil {
 		log.Fatal(errors.New("vertexai init failed"))
 	}
