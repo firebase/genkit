@@ -8,6 +8,6 @@ tests:
   - path: streamy
     post:
       data: 5
-  - path: streamyThrowy
-    post:
-      data: 4
+    response:
+      message: '{"count":{count}}'
+      result: "done {count}, streamed: {count} times"
