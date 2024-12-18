@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, EvalInput } from '@genkit-ai/tools-common';
+import { Action, EvalInputDataset } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
   getAllEvaluatorActions,
@@ -25,10 +25,10 @@ import {
 import {
   confirmLlmUse,
   generateTestCaseId,
+  loadEvalInputDataset,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
-import { readFile } from 'fs/promises';
 import { runWithManager } from '../utils/manager-utils';
 
 interface EvalRunCliOptions {
@@ -92,8 +92,8 @@ export const evalRun = new Command('eval:run')
         }
       }
 
-      const evalDataset: EvalInput[] = JSON.parse(
-        (await readFile(dataset)).toString('utf-8')
+      const evalDataset: EvalInputDataset = (
+        await loadEvalInputDataset(dataset)
       ).map((testCase: any) => ({
         ...testCase,
         testCaseId: testCase.testCaseId || generateTestCaseId(),
