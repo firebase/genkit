@@ -25,13 +25,13 @@ import { retriable, runTestsForApp } from './utils.js';
   // Run the tests for go test app
   await runTestsForApp('../go/tests/test_app', 'go run main.go', async () => {
     await testFlowServer();
+    console.log('Flow server tests done! \\o/');
   });
 })();
 
 type TestResults = {
   message: string;
   result: string;
-  error: string;
 };
 
 async function testFlowServer() {
@@ -61,7 +61,6 @@ async function testFlowServer() {
     let want: TestResults = {
       message: test.response.message,
       result: test.response.result,
-      error: test.response.error,
     };
     console.log(`checking stream for: ${test.path}`);
     (async () => {
