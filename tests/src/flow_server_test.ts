@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+import { streamFlow } from 'genkit/client';
 import { readFileSync } from 'fs';
 import * as yaml from 'yaml';
 import { retriable, runTestsForApp } from './utils.js';
+
 
 (async () => {
   // TODO: Add NodeJS tests
@@ -25,6 +27,12 @@ import { retriable, runTestsForApp } from './utils.js';
     await testFlowServer();
   });
 })();
+
+type TestResults = {
+  message: string;
+  result: string;
+  error: string;
+};
 
 async function testFlowServer() {
   const url = 'http://localhost:3400';
@@ -48,57 +56,36 @@ async function testFlowServer() {
 
   const t = yaml.parse(readFileSync('flow_server_tests.yaml', 'utf8'));
   for (const test of t.tests) {
-    console.log('path', test.path);
-    let fetchopts = {
-      method: 'POST',
-      headers: {
-        Accept: 'text/event-stream',
-        Connection: 'keep-alive',
-      },
-      body: JSON.stringify(test.post),
-    } as RequestInit;
+    let chunkCount = 0;
+    let expected: string = ""
+    let want: TestResults = {
+      message: test.response.message,
+      result: test.response.result,
+      error: test.response.error,
+    };
+    console.log(`checking stream for: ${test.path}`);
+    (async () => {
+      const response = await streamFlow({
+        url: `${url}/${test.path}`,
+        input: test.post.data,
+      });
 
-    await fetchData(`${url}/${test.path}`, fetchopts);
-  }
-  console.log('Flow server tests done! \\o/');
-}
-
-// helper function that validates stream flow responses
-async function fetchData(url: string, fetchopts: RequestInit) {
-  const response = await fetch(`${url}`, fetchopts);
-
-  if (!response.ok) {
-    throw new Error(`${url}: error detected, code: ${response.status}`);
-  }
-
-  const contentHeader = response.headers.get('Content-Type');
-  if (contentHeader && !contentHeader.includes('text/plain')) {
-    throw new Error(`wrong header, want: text/plain, got: ${contentHeader}`);
-  }
-  const acceptHeader = response.headers.get('Accept');
-  if (acceptHeader && !acceptHeader.includes('text/event-stream')) {
-    throw new Error(
-      `wrong header, want: text/event-stream, got: ${acceptHeader}`
-    );
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error(`unable to get response reader`);
-  }
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      console.log('connection closed');
-      break;
-    }
-
-    const decoder = new TextDecoder('utf-8');
-    const text = decoder.decode(value);
-    if (!text.startsWith('data:')) {
-      throw new Error(`bad stream format detected`);
-    }
-    console.log(text);
+      for await (const chunk of response.stream()) {
+        expected = want.message.replace("{count}", chunkCount.toString())
+        let chunkJSON = JSON.stringify(await chunk)
+        if (chunkJSON != expected) {
+          throw new Error(`unexpected chunk data received, got: ${chunkJSON}, want: ${want.message}`)
+        }
+        chunkCount++
+      }
+      if (chunkCount != test.post.data) {
+        throw new Error(`unexpected number of stream chunks received: got ${chunkCount}, want: ${test.post.data}`)
+      }
+      let out = await response.output()
+      want.result = want.result.replace(/\{count\}/g, chunkCount.toString())
+      if (out != want.result) {
+        throw new Error(`unexpected output received, got: ${out}, want: ${want.result}`)
+      }
+    })();
   }
 }
