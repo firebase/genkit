@@ -169,6 +169,7 @@ func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
+		fmt.Println("input any", input.Config)
 		return generate(ctx, state.gclient, name, input, cb)
 	})
 }

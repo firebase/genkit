@@ -16,6 +16,8 @@
 
 package ai
 
+import "time"
+
 type dataPart struct {
 	Data     any            `json:"data,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
@@ -36,12 +38,13 @@ const (
 
 // GenerationCommonConfig holds configuration for generation.
 type GenerationCommonConfig struct {
-	MaxOutputTokens int      `json:"maxOutputTokens,omitempty"`
-	StopSequences   []string `json:"stopSequences,omitempty"`
-	Temperature     float64  `json:"temperature,omitempty"`
-	TopK            int      `json:"topK,omitempty"`
-	TopP            float64  `json:"topP,omitempty"`
-	Version         string   `json:"version,omitempty"`
+	MaxOutputTokens int           `json:"maxOutputTokens,omitempty"`
+	StopSequences   []string      `json:"stopSequences,omitempty"`
+	Temperature     float64       `json:"temperature,omitempty"`
+	TopK            int           `json:"topK,omitempty"`
+	TopP            float64       `json:"topP,omitempty"`
+	TTL             time.Duration `json:"ttl,omitempty"`
+	Version         string        `json:"version,omitempty"`
 }
 
 // GenerationUsage provides information about the generation process.
