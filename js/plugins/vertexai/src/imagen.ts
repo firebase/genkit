@@ -25,7 +25,7 @@ import {
 } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
-import { PredictClient, predictModel } from './predict.js';
+import { PredictClient, predictModel, endpoint } from './predict.js';
 
 const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   /** Language of the prompt text. */
@@ -231,6 +231,7 @@ export function imagenModel(
     request: GenerateRequest<typeof ImagenConfigSchema>
   ): PredictClient<ImagenInstance, ImagenPrediction, ImagenParameters> => {
     const requestLocation = request.config?.location || options.location;
+    const requestModel = request.config?.version || model.version || name;
     if (!predictClients[requestLocation]) {
       predictClients[requestLocation] = predictModel<
         ImagenInstance,
@@ -303,6 +304,18 @@ export function imagenModel(
           custom: { generations: candidates.length },
         },
         custom: response,
+        clientTelemetry: {
+          system: 'vertex_ai',
+          requestModel: request.config?.version || model.version || name,
+          responseModel: response['modelVersion'],
+          operationName: 'image_generation',
+          serverAddress: endpoint({
+            projectId: options.projectId || '',
+            location: request.config?.location || options.location,
+            model: request.config?.version || model.version || name
+          }),
+          serverPort: 80,
+        }
       };
     }
   );
