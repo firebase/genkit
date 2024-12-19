@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { Histogram, Meter, metrics, ValueType } from '@opentelemetry/api';
-import { GenerateResponse } from './generate/response.js';
+import { Counter, Histogram, Meter, metrics } from '@opentelemetry/api';
 
 type MetricCreateFn<T> = (meter: Meter) => T;
 export const METER_NAME = 'genkit';
@@ -28,7 +27,7 @@ export const METER_NAME = 'genkit';
  * conditions we defer the instantiation of the metric to when it is first
  * ticked.
  */
-class Metric<T> {
+export class Metric<T> {
   readonly createFn: MetricCreateFn<T>;
   readonly meterName: string;
   metric?: T;
@@ -50,6 +49,25 @@ class Metric<T> {
 }
 
 /**
+ * Wrapper for an OpenTelemetry Counter.
+ *
+ * By using this wrapper, we defer initialization of the counter until it is
+ * need, which ensures that the OpenTelemetry SDK has been initialized before
+ * the metric has been defined.
+ */
+export class MetricCounter extends Metric<Counter> {
+  constructor(name: string, options: any) {
+    super((meter) => meter.createCounter(name, options));
+  }
+
+  add(val?: number, opts?: any) {
+    if (val) {
+      this.get().add(val, opts);
+    }
+  }
+}
+
+/**
  * Wrapper for an OpenTelemetry Histogram.
  *
  * By using this wrapper, we defer initialization of the counter until it is
@@ -66,40 +84,4 @@ export class MetricHistogram extends Metric<Histogram> {
       this.get().record(val, opts);
     }
   }
-}
-
-const tokenUsage = new MetricHistogram('gen_ai.client.token.usage', {
-  description: 'Usage of GenAI tokens.',
-  valueType: ValueType.INT,
-  unit: 'token',
-});
-
-const operationDuration = new MetricHistogram(
-  'gen_ai.client.operation.duration',
-  {
-    description: 'Time taken for GenAI operations',
-    valueType: ValueType.DOUBLE,
-    unit: 'token',
-  }
-);
-
-export function writeMetrics(resp: GenerateResponse, durationMs: number): void {
-  const commonDimensions = {
-    'gen_ai.client.framework': 'genkit',
-    'gen_ai.operation.name': resp.clientTelemetry?.operationName,
-    'gen_ai.system': resp.clientTelemetry?.system,
-    'gen_ai.request.model': resp.clientTelemetry?.requestModel,
-    'server.port': resp.clientTelemetry?.serverPort,
-    'gen_ai.response.model': resp.clientTelemetry?.responseModel,
-    'server.address': resp.clientTelemetry?.serverAddress,
-  };
-  tokenUsage.record(resp.usage?.inputTokens || 0, {
-    ...commonDimensions,
-    'gen_ai.token.type': 'input',
-  });
-  tokenUsage.record(resp.usage?.outputTokens || 0, {
-    ...commonDimensions,
-    'gen_ai.token.type': 'output',
-  });
-  operationDuration.record(durationMs, commonDimensions);
 }

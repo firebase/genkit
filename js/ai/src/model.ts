@@ -25,9 +25,11 @@ import {
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import { SpanMetadata, spanMetadataAlsKey } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
 import { augmentWithContext, validateSupport } from './model/middleware.js';
+import { writeSemConvTelemetry } from './telemetry.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -375,6 +377,8 @@ export const GenerateClientTelemetrySchema = z.object({
   operationName: z.string().optional(),
   serverPort: z.number().optional(),
   serverAddress: z.string().optional(),
+  encodingFormats: z.array(z.string()).optional(),
+  responseId: z.string().optional(),
 });
 export type GenerateClientTelemetry = z.infer<
   typeof GenerateClientTelemetrySchema
@@ -515,6 +519,9 @@ export function defineModel<
           ...response,
           latencyMs: performance.now() - startTimeMs,
         };
+        const span =
+          registry.asyncStore.getStore<SpanMetadata>(spanMetadataAlsKey);
+        writeSemConvTelemetry(timedResponse, span);
         return timedResponse;
       });
     }
