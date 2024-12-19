@@ -33,7 +33,7 @@ import {
   Session,
   SessionStore,
   runWithSession,
-} from './session';
+} from './session.js';
 
 export const MAIN_THREAD = 'main';
 
