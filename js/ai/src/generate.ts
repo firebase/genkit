@@ -292,6 +292,7 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
+      const startTime = performance.now();
       const response = await generateHelper(
         registry,
         params,
@@ -305,7 +306,8 @@ export async function generate<
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
-      writeMetrics(generateResponse);
+      const endTime = performance.now();
+      writeMetrics(generateResponse, endTime - startTime);
       return generateResponse;
     }
   );

@@ -35,14 +35,14 @@ import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
+  GenerateRequestData,
+  GenerateResponseData,
   GenerationCommonConfigSchema,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
   ModelReference,
-  GenerateRequestData,
-  GenerateResponseData,
   Part,
   ToolDefinitionSchema,
   getBasicUsageStats,
@@ -765,9 +765,16 @@ export function defineGeminiModel(
         if (!response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
-        const candidates =
-          response.candidates.map((c) => fromGeminiCandidate(c, jsonMode));
-        return toModelResponseData(modelVersion, chatRequest, request, response, candidates);
+        const candidates = response.candidates.map((c) =>
+          fromGeminiCandidate(c, jsonMode)
+        );
+        return toModelResponseData(
+          modelVersion,
+          chatRequest,
+          request,
+          response,
+          candidates
+        );
       } else {
         const result = await genModel
           .startChat(updatedChatRequest)
@@ -777,8 +784,16 @@ export function defineGeminiModel(
           throw new Error('No valid candidates returned.');
         }
         const candidates =
-          result.response.candidates.map((c) => fromGeminiCandidate(c, jsonMode)) || [];
-        return toModelResponseData(modelVersion, chatRequest, request, result.response, candidates);
+          result.response.candidates.map((c) =>
+            fromGeminiCandidate(c, jsonMode)
+          ) || [];
+        return toModelResponseData(
+          modelVersion,
+          chatRequest,
+          request,
+          result.response,
+          candidates
+        );
       }
     }
   );
@@ -813,7 +828,7 @@ function toModelResponseData(
   chatRequest: StartChatParams,
   requestData: GenerateRequestData,
   response: GenerateContentResponse,
-  candidates: CandidateData[],
+  candidates: CandidateData[]
 ): GenerateResponseData {
   return {
     candidates,

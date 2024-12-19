@@ -74,7 +74,13 @@ const tokenUsage = new MetricHistogram('gen_ai.client.token.usage', {
   unit: 'token',
 });
 
-export function writeMetrics(resp: GenerateResponse): void {
+const operationDuration = new MetricHistogram('gen_ai.client.operation.duration', {
+  description: 'Time taken for GenAI operations',
+  valueType: ValueType.DOUBLE,
+  unit: 'token',
+});
+
+export function writeMetrics(resp: GenerateResponse, durationMs: double): void {
   const commonDimensions = {
     'gen_ai.client.framework': 'genkit',
     'gen_ai.operation.name': resp.clientTelemetry?.operationName,
@@ -92,4 +98,5 @@ export function writeMetrics(resp: GenerateResponse): void {
     ...commonDimensions,
     'gen_ai.token.type': 'output',
   });
+  operationDuration.record(durationMs, commonDimensions);
 }

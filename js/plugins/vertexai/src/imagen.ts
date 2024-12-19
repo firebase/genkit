@@ -25,7 +25,7 @@ import {
 } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
-import { PredictClient, predictModel, endpoint } from './predict.js';
+import { PredictClient, endpoint, predictModel } from './predict.js';
 
 const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   /** Language of the prompt text. */
@@ -312,10 +312,10 @@ export function imagenModel(
           serverAddress: endpoint({
             projectId: options.projectId || '',
             location: request.config?.location || options.location,
-            model: request.config?.version || model.version || name
+            model: request.config?.version || model.version || name,
           }),
           serverPort: 80,
-        }
+        },
       };
     }
   );

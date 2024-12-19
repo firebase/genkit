@@ -376,7 +376,9 @@ export const GenerateClientTelemetrySchema = z.object({
   serverPort: z.number().optional(),
   serverAddress: z.string().optional(),
 });
-export type GenerateClientTelemetry = z.infer<typeof GenerateClientTelemetrySchema>;
+export type GenerateClientTelemetry = z.infer<
+  typeof GenerateClientTelemetrySchema
+>;
 
 /**
  * Zod schema of a model response.
