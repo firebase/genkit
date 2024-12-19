@@ -201,6 +201,7 @@ Heuristic evaluators in Genkit are made up of 2 components:
 Just like the LLM-based evaluator, define the scoring function. In this case, the scoring function does not need to know about the judge LLM or its config.
 
 ```ts
+import { EvalResponses } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 
 const US_PHONE_REGEX =
@@ -218,8 +219,8 @@ export async function usPhoneRegexScore(
   }
   const matches = US_PHONE_REGEX.test(d.output as string);
   const reasoning = matches
-    ? `Output matched regex ${regex.source}`
-    : `Output did not match regex ${regex.source}`;
+    ? `Output matched regex ${US_PHONE_REGEX.source}`
+    : `Output did not match regex ${US_PHONE_REGEX.source}`;
   return {
     score: matches,
     details: { reasoning },
@@ -227,9 +228,9 @@ export async function usPhoneRegexScore(
 }
 
 /**
- * Create an EvalResponse from an individual scored datapoint.
+ * Create an EvalResponses from an individual scored datapoint.
  */
-function fillScores(dataPoint: BaseEvalDataPoint, score: Score): EvalResponse {
+function fillScores(dataPoint: BaseEvalDataPoint, score: Score): EvalResponses {
   return {
     testCaseId: dataPoint.testCaseId,
     evaluation: score,
@@ -240,31 +241,31 @@ function fillScores(dataPoint: BaseEvalDataPoint, score: Score): EvalResponse {
 #### Define the evaluator action
 
 ```ts
+import { Genkit } from 'genkit';
 import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
 
 /**
  * Configures a regex evaluator to match a US phone number.
  */
 export function createUSPhoneRegexEvaluator(
-  metrics: RegexMetric[]
-): EvaluatorAction[] {
-  return metrics.map((metric) => {
-    const regexMetric = metric as RegexMetric;
-    return defineEvaluator(
-      {
-        name: `myAwesomeEval/${metric.name.toLocaleLowerCase()}`,
-        displayName: 'Regex Match',
-        definition:
-          'Runs the output against a regex and responds with true if a match is found and false otherwise.',
-        isBilled: false,
-      },
-      async (datapoint: BaseEvalDataPoint) => {
-        const score = await usPhoneRegexScore(datapoint);
-        return fillScores(datapoint, score);
-      }
-    );
-  });
+  ai: Genkit,
+  metric: MyAwesomeMetric
+): EvaluatorAction {
+  return ai.defineEvaluator(
+    {
+      name: `myAwesomeEval/${metric.toLocaleLowerCase()}`,
+      displayName: 'Regex Match',
+      definition:
+        'Runs the output against a regex and responds with true if a match is found and false otherwise.',
+      isBilled: false,
+    },
+    async (datapoint: BaseEvalDataPoint) => {
+      const score = await usPhoneRegexScore(datapoint);
+      return fillScores(datapoint, score);
+    }
+  );
 }
+
 ```
 
 ## Configuration
@@ -278,6 +279,7 @@ At a minimum it will need to take the definition of which metrics to register.
 ```ts
 export enum MyAwesomeMetric {
   WORD_COUNT = 'WORD_COUNT',
+  DELICIOUSNESS = 'DELICIOUSNESS',
   US_PHONE_REGEX_MATCH = 'US_PHONE_REGEX_MATCH',
 }
 
@@ -309,22 +311,22 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
   options: PluginOptions<ModelCustomOptions>
 ): GenkitPlugin {
   // Define the new plugin
-    return genkitPlugin(
+  return genkitPlugin(
     'myAwesomeEval',
     async (ai: Genkit) => {
       const { judge, judgeConfig, metrics } = options;
       const evaluators: EvaluatorAction[] = metrics.map((metric) => {
         switch (metric) {
-          case DELICIOUSNESS:
+          case MyAwesomeMetric.DELICIOUSNESS:
             // This evaluator requires an LLM as judge
             return createDeliciousnessEvaluator(ai, judge, judgeConfig);
-          case US_PHONE_REGEX_MATCH:
+          case MyAwesomeMetric.US_PHONE_REGEX_MATCH:
             // This evaluator does not require an LLM
-            return createUSPhoneRegexEvaluator();
+            return createUSPhoneRegexEvaluator(ai, metric);
         }
       });
-      return { evaluators };
-    });
+    }
+  );
 }
 export default myAwesomeEval;
 ```
