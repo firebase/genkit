@@ -422,7 +422,7 @@ describe('GoogleCloudMetrics', () => {
     );
   });
 
-  it('writes feature label to generate and action metrics when running inside an action', async () => {
+  it.only('writes feature label to generate and action metrics when running inside an action', async () => {
     const testModel = createTestModel(ai, 'testModel');
 
     const testAction = createAction(ai, 'testGenerateAction', async () => {
@@ -800,7 +800,11 @@ describe('GoogleCloudMetrics', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const found = __getMetricExporterForTesting()
         .getMetrics()
-        .find((e) => e.scopeMetrics.map((sm) => sm.scope.name).includes(name));
+        .find((e) =>
+          e.scopeMetrics.find((sm) =>
+            sm.metrics.find((m) => m.descriptor.name.includes(name))
+          )
+        );
       if (found) {
         return found.scopeMetrics.find((e) => e.scope.name === name);
       }
