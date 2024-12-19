@@ -30,12 +30,13 @@ export const spanMetadataAlsKey = 'core.tracing.instrumentation.span';
 export const traceMetadataAlsKey = 'core.tracing.instrumentation.trace';
 
 export const ATTR_PREFIX = 'genkit';
+/** @hidden */
 export const SPAN_TYPE_ATTR = ATTR_PREFIX + ':type';
 const TRACER_NAME = 'genkit-tracer';
 const TRACER_VERSION = 'v1';
 
 /**
- *
+ * @hidden
  */
 export async function newTrace<T>(
   registry: Registry | HasRegistry,
@@ -77,6 +78,8 @@ export async function newTrace<T>(
 
 /**
  * Runs the provided function in a new span.
+ *
+ * @hidden
  */
 export async function runInNewSpan<T>(
   registry: Registry | HasRegistry,
@@ -142,6 +145,8 @@ export async function runInNewSpan<T>(
 /**
  * Creates a new child span and attaches it to a previously created trace. This
  * is useful, for example, for adding deferred user engagement metadata.
+ *
+ * @hidden
  */
 export async function appendSpan(
   traceId: string,
@@ -197,6 +202,8 @@ function metadataToAttributes(metadata: SpanMetadata): Record<string, string> {
 
 /**
  * Sets provided attribute value in the current span.
+ *
+ * @hidden
  */
 export function setCustomMetadataAttribute(
   registry: Registry,
@@ -215,6 +222,8 @@ export function setCustomMetadataAttribute(
 
 /**
  * Sets provided attribute values in the current span.
+ *
+ * @hidden
  */
 export function setCustomMetadataAttributes(
   registry: Registry,
@@ -232,7 +241,11 @@ export function setCustomMetadataAttributes(
   }
 }
 
-/** Converts a fully annotated path to a friendly display version for logs */
+/**
+ * Converts a fully annotated path to a friendly display version for logs
+ *
+ * @hidden
+ */
 export function toDisplayPath(path: string): string {
   const pathPartRegex = /\{([^\,}]+),[^\}]+\}/g;
   return Array.from(path.matchAll(pathPartRegex), (m) => m[1]).join(' > ');

@@ -18,7 +18,7 @@ import { modelRef } from '@genkit-ai/ai/model';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { z } from '../src/index';
+import { PromptAction, z } from '../src/index';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -509,7 +509,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('calls dotprompt with default model', async () => {
+    it('calls prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -532,7 +532,7 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('calls dotprompt with default model with config', async () => {
+    it('calls prompt with default model with config', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -561,7 +561,7 @@ describe('definePrompt', () => {
       );
     });
 
-    it('calls dotprompt with default model via retrieved prompt', async () => {
+    it('calls prompt with default model via retrieved prompt', async () => {
       ai.definePrompt(
         {
           name: 'hi',
@@ -599,7 +599,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('calls dotprompt with default model', async () => {
+    it('calls prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -622,7 +622,7 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('streams dotprompt with default model', async () => {
+    it('streams prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -667,7 +667,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('calls dotprompt with default model', async () => {
+    it('calls prompt with default model', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -691,7 +691,7 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('calls dotprompt with default model with config', async () => {
+    it('calls prompt with default model with config', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -721,7 +721,7 @@ describe('definePrompt', () => {
       );
     });
 
-    it('calls dotprompt with default model with call site config', async () => {
+    it('calls prompt with default model with call site config', async () => {
       const hi = ai.definePrompt(
         {
           name: 'hi',
@@ -868,6 +868,57 @@ describe('prompt', () => {
     const { text } = await testPrompt({ name: 'banana' });
 
     assert.strictEqual(text, 'Echo: hi banana; config: {"temperature":11}');
+  });
+
+  it('includes metadata for functional prompts', async () => {
+    ai.definePrompt(
+      {
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+        config: {
+          temperature: 0.13,
+        },
+      },
+      async (input) => {
+        return {
+          messages: [],
+          config: {
+            temperature: 11,
+          },
+        };
+      }
+    );
+    const testPrompt: PromptAction =
+      await ai.registry.lookupAction('/prompt/hi');
+
+    assert.deepStrictEqual(testPrompt.__action.metadata, {
+      type: 'prompt',
+      prompt: {
+        name: 'hi',
+        model: 'echoModel',
+        config: {
+          temperature: 0.13,
+        },
+        input: {
+          schema: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+              },
+            },
+            required: ['name'],
+            additionalProperties: true,
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      },
+    });
   });
 
   it('passes in output options to the model', async () => {

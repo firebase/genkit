@@ -462,14 +462,17 @@ function getErrorHandler(
   };
 }
 
+/** @hidden */
 export function __getMetricExporterForTesting(): InMemoryMetricExporter {
   return metricExporter as InMemoryMetricExporter;
 }
 
+/** @hidden */
 export function __getSpanExporterForTesting(): InMemorySpanExporter {
   return spanExporter.getExporter() as InMemorySpanExporter;
 }
 
+/** @hidden */
 export function __forceFlushSpansForTesting() {
   spanProcessor.forceFlush();
 }

@@ -81,4 +81,13 @@ class Logger {
   }
 }
 
+/**
+ * Genkit logger.
+ *
+ * ```ts
+ * import { logger } from 'genkit/logging';
+ *
+ * logger.setLogLevel('debug');
+ * ```
+ */
 export const logger = new Logger();

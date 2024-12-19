@@ -33,11 +33,11 @@ import {
   GenerateResponse,
   Message,
   ModelDefinition,
-  OllamaPluginParams,
   RequestHeaders,
+  type OllamaPluginParams,
 } from './types.js';
 
-export { defineOllamaEmbedder };
+export { type OllamaPluginParams };
 
 /**
  * Creates and registers a Genkit plugin for Ollama integration.

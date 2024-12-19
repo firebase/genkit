@@ -84,11 +84,33 @@ export interface DefineOllamaEmbeddingParams {
 export interface OllamaPluginParams {
   /**
    * Array of models to be defined.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [
+   *     ollama({
+   *       models: [{ name: 'gemma' }],
+   *       serverAddress: 'http://127.0.0.1:11434', // default local address
+   *     }),
+   *   ],
+   * });
+   * ```
    */
   models?: ModelDefinition[];
 
   /**
    * Array of embedding models to be defined.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [
+   *     ollama({
+   *       serverAddress: 'http://localhost:11434',
+   *       embedders: [{ name: 'nomic-embed-text', dimensions: 768 }],
+   *     }),
+   *   ],
+   * });
+   * ```
    */
   embedders?: EmbeddingModelDefinition[];
 
@@ -99,6 +121,21 @@ export interface OllamaPluginParams {
 
   /**
    * Optional request headers, which can be either static or dynamically generated.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [
+   *     ollama({
+   *       models: [...],
+   *       serverAddress: 'https://my-deployment.server.address',
+   *       requestHeaders: async (params) => {
+   *         const headers = await fetchAuthHeaders(params.serverAddress);
+   *         return { Authorization: headers['Authorization'] };
+   *       },
+   *     }),
+   *   ],
+   * });
+   * ```
    */
   requestHeaders?: RequestHeaders;
 }
