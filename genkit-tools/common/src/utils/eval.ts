@@ -15,7 +15,10 @@
  */
 
 import { randomUUID } from 'crypto';
+import { createReadStream } from 'fs';
+import { readFile } from 'fs/promises';
 import * as inquirer from 'inquirer';
+import { createInterface } from 'readline';
 import {
   EvalField,
   EvaluationExtractor,
@@ -25,6 +28,14 @@ import {
   findToolsConfig,
   isEvalField,
 } from '../plugin';
+import {
+  EvalInferenceInput,
+  EvalInferenceInputSchema,
+  EvalInferenceSampleSchema,
+  EvalInputDataset,
+  EvalInputDatasetSchema,
+  EvalInputSchema,
+} from '../types';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { NestedSpanData, TraceData } from '../types/trace';
@@ -221,4 +232,70 @@ export async function getEvalExtractors(
 /**Global function to generate testCaseId */
 export function generateTestCaseId() {
   return randomUUID();
+}
+
+/** Load a {@link EvalInferenceInput} file. Supports JSON / JSONL */
+export async function loadEvalInference(
+  fileName: string
+): Promise<EvalInferenceInput> {
+  const isJsonl = fileName.endsWith('.jsonl');
+
+  if (isJsonl) {
+    return await readJsonlForInference(fileName);
+  } else {
+    const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
+    return EvalInferenceInputSchema.parse(parsedData);
+  }
+}
+
+/** Load a {@link Eval} file. Supports JSON / JSONL */
+export async function loadEvalInputDataset(
+  fileName: string
+): Promise<EvalInputDataset> {
+  const isJsonl = fileName.endsWith('.jsonl');
+
+  if (isJsonl) {
+    return await readJsonlForEvaluation(fileName);
+  } else {
+    const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
+    return EvalInputDatasetSchema.parse(parsedData);
+  }
+}
+
+async function readJsonlForInference(
+  fileName: string
+): Promise<EvalInferenceInput> {
+  const lines = await readLines(fileName);
+  const samples: EvalInferenceInput = [];
+  for (const line of lines) {
+    const parsedSample = EvalInferenceSampleSchema.parse(JSON.parse(line));
+    samples.push(parsedSample);
+  }
+  return samples;
+}
+
+async function readJsonlForEvaluation(
+  fileName: string
+): Promise<EvalInputDataset> {
+  const lines = await readLines(fileName);
+  const inputs: EvalInputDataset = [];
+  for (const line of lines) {
+    const parsedSample = EvalInputSchema.parse(JSON.parse(line));
+    inputs.push(parsedSample);
+  }
+  return inputs;
+}
+
+async function readLines(fileName: string): Promise<string[]> {
+  const lines: string[] = [];
+  const fileStream = createReadStream(fileName);
+  const rl = createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
+
+  for await (const line of rl) {
+    lines.push(line);
+  }
+  return lines;
 }
