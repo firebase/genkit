@@ -136,6 +136,9 @@ export async function runInNewSpan<T>(
         throw e;
       } finally {
         otSpan.setAttributes(metadataToAttributes(opts.metadata));
+        if (opts.metadata.telemetry) {
+          otSpan.setAttributes(opts.metadata.telemetry);
+        }
         otSpan.end();
       }
     }
@@ -183,6 +186,10 @@ function getErrorMessage(e: any): string {
 function metadataToAttributes(metadata: SpanMetadata): Record<string, string> {
   const out = {} as Record<string, string>;
   Object.keys(metadata).forEach((key) => {
+    // The telemetry metadata gets added directly as span attributes
+    if (key === 'telemetry') {
+      return;
+    }
     if (
       key === 'metadata' &&
       typeof metadata[key] === 'object' &&
