@@ -34,6 +34,7 @@ import { GenerateUtilParamSchema, generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
+import { writeMetrics } from './metrics.js';
 import {
   GenerateRequest,
   GenerationCommonConfigSchema,
@@ -291,6 +292,7 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
+      const startTime = performance.now();
       const response = await generateHelper(
         registry,
         params,
@@ -300,10 +302,13 @@ export async function generate<
         ...resolvedOptions,
         tools,
       });
-      return new GenerateResponse<O>(response, {
+      const generateResponse = new GenerateResponse<O>(response, {
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
+      const endTime = performance.now();
+      writeMetrics(generateResponse, endTime - startTime);
+      return generateResponse;
     }
   );
 }

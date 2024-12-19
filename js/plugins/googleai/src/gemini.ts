@@ -15,9 +15,10 @@
  */
 
 import {
+  EnhancedGenerateContentResponse,
   FileDataPart,
-  FunctionCallingMode,
   FunctionCallPart,
+  FunctionCallingMode,
   FunctionDeclaration,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
@@ -35,27 +36,29 @@ import {
   ToolConfig,
 } from '@google/generative-ai';
 import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
+  Genkit,
   GenkitError,
   JSONSchema,
   z,
 } from 'genkit';
 import {
   CandidateData,
+  GenerateRequestData,
+  GenerateResponseData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -793,29 +796,22 @@ export function defineGoogleAIModel(
             message: 'No valid candidates returned.',
           });
         }
-        return {
-          candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
-          custom: response,
-        };
+        return toModelResponseData(
+          modelVersion,
+          request,
+          response,
+          fromJSONModeScopedGeminiCandidate
+        );
       } else {
         const result = await genModel
           .startChat(updatedChatRequest)
           .sendMessage(msg.parts, options);
-        if (!result.response.candidates?.length)
-          throw new Error('No valid candidates returned.');
-        const responseCandidates =
-          result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
-          [];
-        return {
-          candidates: responseCandidates,
-          custom: result.response,
-          usage: {
-            ...getBasicUsageStats(request.messages, responseCandidates),
-            inputTokens: result.response.usageMetadata?.promptTokenCount,
-            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-            totalTokens: result.response.usageMetadata?.totalTokenCount,
-          },
-        };
+        return toModelResponseData(
+          modelVersion,
+          request,
+          result.response,
+          fromJSONModeScopedGeminiCandidate
+        );
       }
     }
   );
@@ -843,4 +839,32 @@ function toGeminiFunctionMode(
     default:
       throw new Error(`unsupported function calling mode: ${genkitMode}`);
   }
+}
+
+function toModelResponseData(
+  modelName: string,
+  request: GenerateRequestData,
+  response: EnhancedGenerateContentResponse,
+  fromJSONModeScopedGeminiCandidate: (GeminiCandidate) => CandidateData
+): GenerateResponseData {
+  if (!response.candidates?.length)
+    throw new Error('No valid candidates returned.');
+  const candidates =
+    response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [];
+  return {
+    candidates,
+    custom: response,
+    usage: {
+      ...getBasicUsageStats(request.messages, candidates),
+      inputTokens: response.usageMetadata?.promptTokenCount,
+      outputTokens: response.usageMetadata?.candidatesTokenCount,
+      totalTokens: response.usageMetadata?.totalTokenCount,
+    },
+    clientTelemetry: {
+      system: 'google_ai',
+      requestModel: modelName,
+      responseModel: response['modelVersion'],
+      operationName: 'chat',
+    },
+  };
 }
