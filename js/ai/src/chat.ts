@@ -33,7 +33,7 @@ import {
   Session,
   SessionStore,
   runWithSession,
-} from './session';
+} from './session.js';
 
 export const MAIN_THREAD = 'main';
 
@@ -242,7 +242,7 @@ export class Chat {
     return this._messages ?? [];
   }
 
-  async updateMessages(messages: MessageData[]): Promise<void> {
+  private async updateMessages(messages: MessageData[]): Promise<void> {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }

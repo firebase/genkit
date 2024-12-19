@@ -17,7 +17,7 @@
 import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
+import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat.js';
 import {
   ExecutablePrompt,
   GenerateOptions,
