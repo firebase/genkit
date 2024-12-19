@@ -422,7 +422,7 @@ describe('GoogleCloudMetrics', () => {
     );
   });
 
-  it.only('writes feature label to generate and action metrics when running inside an action', async () => {
+  it('writes feature label to generate and action metrics when running inside an action', async () => {
     const testModel = createTestModel(ai, 'testModel');
 
     const testAction = createAction(ai, 'testGenerateAction', async () => {
