@@ -21,10 +21,10 @@ import {
 } from '../generate.js';
 import { Message, MessageParser } from '../message.js';
 import {
+  GenerateClientTelemetry,
   GenerateRequest,
   GenerateResponseData,
   GenerationUsage,
-  GenerateClientTelemetry,
   MessageData,
   ModelResponseData,
   ToolRequestPart,

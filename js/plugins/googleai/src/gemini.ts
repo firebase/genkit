@@ -15,9 +15,10 @@
  */
 
 import {
+  EnhancedGenerateContentResponse,
   FileDataPart,
-  FunctionCallingMode,
   FunctionCallPart,
+  FunctionCallingMode,
   FunctionDeclaration,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
@@ -33,32 +34,31 @@ import {
   StartChatParams,
   Tool,
   ToolConfig,
-  EnhancedGenerateContentResponse,
 } from '@google/generative-ai';
 import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
+  Genkit,
   GenkitError,
   JSONSchema,
   z,
 } from 'genkit';
 import {
   CandidateData,
+  GenerateRequestData,
+  GenerateResponseData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  GenerateRequestData,
-  GenerateResponseData,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -796,12 +796,22 @@ export function defineGoogleAIModel(
             message: 'No valid candidates returned.',
           });
         }
-        return toModelResponseData(modelVersion, request, response, fromJSONModeScopedGeminiCandidate);
+        return toModelResponseData(
+          modelVersion,
+          request,
+          response,
+          fromJSONModeScopedGeminiCandidate
+        );
       } else {
         const result = await genModel
           .startChat(updatedChatRequest)
           .sendMessage(msg.parts, options);
-        return toModelResponseData(modelVersion, request, result.response, fromJSONModeScopedGeminiCandidate);
+        return toModelResponseData(
+          modelVersion,
+          request,
+          result.response,
+          fromJSONModeScopedGeminiCandidate
+        );
       }
     }
   );
@@ -835,7 +845,7 @@ function toModelResponseData(
   modelName: string,
   request: GenerateRequestData,
   response: EnhancedGenerateContentResponse,
-  fromJSONModeScopedGeminiCandidate: (GeminiCandidate) => CandidateData,
+  fromJSONModeScopedGeminiCandidate: (GeminiCandidate) => CandidateData
 ): GenerateResponseData {
   if (!response.candidates?.length)
     throw new Error('No valid candidates returned.');
