@@ -242,7 +242,7 @@ export class Chat {
     return this._messages ?? [];
   }
 
-  async updateMessages(messages: MessageData[]): Promise<void> {
+  private async updateMessages(messages: MessageData[]): Promise<void> {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }

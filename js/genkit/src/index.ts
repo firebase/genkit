@@ -104,7 +104,12 @@ export {
   type ToolRequestPart,
   type ToolResponsePart,
 } from '@genkit-ai/ai';
-export { type SessionData, type SessionStore } from '@genkit-ai/ai/session';
+export { Chat } from '@genkit-ai/ai/chat';
+export {
+  Session,
+  type SessionData,
+  type SessionStore,
+} from '@genkit-ai/ai/session';
 export {
   FlowServer,
   GENKIT_CLIENT_HEADER,
