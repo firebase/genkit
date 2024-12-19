@@ -22,7 +22,7 @@ const __flowStreamDelimiter = '\n\n';
  * For example:
  *
  * ```js
- * import { streamFlow } from '@genkit-ai/core/flow-client';
+ * import { streamFlow } from 'genkit/client';
  *
  * const response = streamFlow({
  *   url: 'https://my-flow-deployed-url',
