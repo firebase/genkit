@@ -363,6 +363,22 @@ export const CandidateErrorSchema = z.object({
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
 /**
+ * Additional telemetry information associated with a Generate request.
+ * See
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/#generative-ai-client-metrics
+ * for details.
+ */
+export const GenerateClientTelemetrySchema = z.object({
+  system: z.string().optional(),
+  requestModel: z.string().optional(),
+  responseModel: z.string().optional(),
+  operationName: z.string().optional(),
+  serverPort: z.number().optional(),
+  serverAddress: z.string().optional(),
+});
+export type GenerateClientTelemetry = z.infer<typeof GenerateClientTelemetrySchema>;
+
+/**
  * Zod schema of a model response.
  */
 export const ModelResponseSchema = z.object({
@@ -375,6 +391,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  clientTelemetry: GenerateClientTelemetrySchema.optional(),
 });
 
 /**
