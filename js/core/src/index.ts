@@ -33,10 +33,18 @@ export { getFlowAuth } from './context.js';
 export { GenkitError } from './error.js';
 export {
   defineFlow,
+  defineStreamingFlow,
+  Flow,
+  FlowServer,
   run,
-  type Flow,
+  type __RequestWithAuth,
+  type CallableFlow,
+  type FlowAuthPolicy,
   type FlowConfig,
   type FlowFn,
+  type FlowServerOptions,
+  type StreamableFlow,
+  type StreamingFlowConfig,
 } from './flow.js';
 export * from './plugin.js';
 export * from './reflection.js';
