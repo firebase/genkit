@@ -51,7 +51,9 @@ func TestDefaultInMemSessionStore(t *testing.T) {
 		Threads: map[string][]*ai.Message{
 			"testThread": {ai.NewUserTextMessage("testMessage")},
 		},
-		State: "testState",
+		State: map[string]any{
+			"state": "testState",
+		},
 	}
 
 	// test found
@@ -64,7 +66,7 @@ func TestDefaultInMemSessionStore(t *testing.T) {
 		t.Error("message not found")
 	}
 
-	if data.State != "testState" {
+	if data.State["state"] != "testState" {
 		t.Error("state not found")
 	}
 
@@ -188,8 +190,77 @@ func TestLoadSessionFromStore(t *testing.T) {
 	_helper_check_stored_messages(t, loadS, "hello")
 }
 
-func TestSessionState(t *testing.T) {
-	// set with types
+func TestSessionStateFormat(t *testing.T) {
+	type hello struct {
+		Name string `json:"name"`
+	}
+
+	var tests = []struct {
+		name         string
+		stateType    any
+		defaultState map[string]any
+		newState     any
+	}{
+		{
+			name:         "structInput",
+			stateType:    hello{},
+			defaultState: map[string]any{"name": ""},
+			newState:     hello{Name: "new world"},
+		},
+		{
+			name:         "stringInput",
+			stateType:    "world",
+			defaultState: map[string]any{"state": "world"},
+			newState:     "new world",
+		},
+		{
+			name:         "intInput",
+			stateType:    1,
+			defaultState: map[string]any{"state": 1},
+			newState:     2,
+		},
+		{
+			name:         "floatInput",
+			stateType:    3.14159,
+			defaultState: map[string]any{"state": 3.14159},
+			newState:     2.71828,
+		},
+		{
+			name:         "mapInput",
+			stateType:    map[string]any{"name": "world"},
+			defaultState: map[string]any{"name": "world"},
+			newState:     map[string]any{"name": "new world"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			session, err := NewSession(
+				WithStateType(test.stateType),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			//fmt.Print(base.PrettyJSONString(session.SessionData.State))
+			if !reflect.DeepEqual(test.defaultState, session.SessionData.State) {
+				t.Errorf("default state not set correctly")
+			}
+
+			err = session.UpdateState(test.newState)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			//fmt.Print(base.PrettyJSONString(session.SessionData))
+			if reflect.DeepEqual(test.defaultState, session.SessionData.State) {
+				t.Errorf("state not updated")
+			}
+		})
+	}
+}
+
+func TestUpdateSessionState(t *testing.T) {
+
 }
 
 func TestSessionWithOptions(t *testing.T) {
@@ -199,7 +270,9 @@ func TestSessionWithOptions(t *testing.T) {
 		}),
 		WithSessionID("test"),
 		WithSessionData(SessionData{
-			State: "test",
+			State: map[string]any{
+				"state": "testState",
+			},
 			Threads: map[string][]*ai.Message{
 				"test": {ai.NewUserTextMessage("hello")},
 			},
@@ -228,7 +301,7 @@ func TestSessionWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	if data.State != "test" {
+	if data.State["state"] != "test" {
 		t.Error("session state not overwritten")
 	}
 
@@ -253,11 +326,17 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 		{
 			name: "WithSessionData",
 			with: WithSessionData(SessionData{
-				State: "test",
+				State: map[string]any{
+					"state": "testState",
+				},
 				Threads: map[string][]*ai.Message{
 					"test": {ai.NewUserTextMessage("hello")},
 				},
 			}),
+		},
+		{
+			name: "WithStateType",
+			with: WithStateType(map[string]any{"name": "world"}),
 		},
 	}
 

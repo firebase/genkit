@@ -16,9 +16,13 @@ package genkit
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/uuid"
+	"github.com/invopop/jsonschema"
 )
 
 // Sessions are by default stored in memory only.
@@ -30,7 +34,11 @@ type SessionStore interface {
 
 type SessionData struct {
 	// Any state that should be stored
-	State any
+	State map[string]any
+	// Schema for state variables
+	StateSchema *jsonschema.Schema
+	// Default state variable values
+	DefaultState any
 	// The messages for each thread
 	Threads map[string][]*ai.Message
 }
@@ -68,10 +76,10 @@ func NewSession(opts ...SessionOption) (session *Session, err error) {
 	}
 
 	if s.SessionData.Threads == nil {
-		s.SessionData = SessionData{
-			Threads: make(map[string][]*ai.Message),
-		}
+		s.SessionData.Threads = make(map[string][]*ai.Message)
 	}
+
+	s.UpdateState(s.SessionData.DefaultState)
 
 	// Initialize session in store
 	s.Store.Save(s.ID, s.SessionData)
@@ -97,9 +105,41 @@ func LoadSession(sessionId string, store SessionStore) (session *Session, err er
 
 // TODO: Session from context? How does that work? From genkit registry when that is done?
 
-// TODO: Is this state from the js docs?
-func (s *Session) UpdateState(data any) error {
-	s.SessionData.State = data
+// UpdateState takes any data and sets it as state in the store.
+func (s *Session) UpdateState(state any) error {
+	// Handle primitives, default to "state" as key
+	// Default to empty map
+	switch v := state.(type) {
+	case int:
+		s.SessionData.State = map[string]any{"state": strconv.Itoa(v)}
+	case float32:
+	case float64:
+		s.SessionData.State = map[string]any{"state": fmt.Sprintf("%f", v)}
+	case string:
+		s.SessionData.State = map[string]any{"state": v}
+	// Pass map directly
+	case map[string]any:
+		s.SessionData.State = v
+	}
+
+	// TODO: Check if schema matches originally set schema?
+	s.SessionData.StateSchema = base.InferJSONSchemaNonReferencing(s.SessionData.State)
+	// newState := base.SchemaAsMap(s.SessionData.StateSchema)
+	// data, err := json.Marshal(state)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// err = json.Unmarshal(data, &newState)
+	// if err != nil {
+	// 	return err
+	// }
+
+	//fmt.Print(base.PrettyJSONString(s.SessionData.State))
+	//fmt.Print(base.PrettyJSONString(s.SessionData.StateSchema))
+
+	//s.SessionData.State = newState
+
 	return s.Store.Save(s.ID, s.SessionData)
 }
 
@@ -142,10 +182,19 @@ func WithSessionStore(store SessionStore) SessionOption {
 	}
 }
 
-// How is this supposed to work????
-// func WithStateType() SessionOption {
+// WithStateType uses the type provided to derive the state schema.
+// If passing eg. a struct with values, the struct definition will serve as the schema, the values will serve as defaults.
+func WithStateType(state any) SessionOption {
+	return func(s *Session) error {
+		// TODO: Wrong check?
+		if s.SessionData.StateSchema != nil {
+			return errors.New("cannot set state type (WithStateType) more than once")
+		}
 
-// }
+		s.SessionData.DefaultState = state
+		return nil
+	}
+}
 
 // Default in-memory session store.
 type InMemSessionStore struct {

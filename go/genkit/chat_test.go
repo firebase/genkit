@@ -17,6 +17,7 @@ package genkit
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -277,4 +278,13 @@ func TestChatSendWithPrompt(t *testing.T) {
 func TestToolWithDefaultState(t *testing.T) {
 	// Set
 	// Update
+
+	var _ = ai.DefineTool("updateState", "use to update state",
+		func(ctx context.Context, input struct {
+			Value float64
+			Over  float64
+		}) (float64, error) {
+			return math.Pow(input.Value, input.Over), nil
+		},
+	)
 }
