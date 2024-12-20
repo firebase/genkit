@@ -46,6 +46,7 @@ export {
   type StreamingFlowConfig,
   type __RequestWithAuth,
 } from './flow.js';
+export * from './metrics.js';
 export * from './plugin.js';
 export * from './reflection.js';
 export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
