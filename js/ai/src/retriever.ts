@@ -370,6 +370,7 @@ function itemToMetadata(
   if (Array.isArray(options.metadata) && typeof item === 'object') {
     const out: Record<string, any> = {};
     options.metadata.forEach((key) => (out[key] = item[key]));
+    return out;
   }
   if (typeof options.metadata === 'function') return options.metadata(item);
   if (!options.metadata && typeof item === 'object') {
