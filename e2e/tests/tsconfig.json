@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "noImplicitAny": false,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "target": "es2015",
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "typeRoots": ["./node_modules/@types"],
+    "noEmit": true
+  },
+  "compileOnSave": true
+}

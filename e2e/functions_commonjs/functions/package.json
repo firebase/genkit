@@ -1,0 +1,34 @@
+{
+  "main": "lib/index.js",
+  "scripts": {
+    "genkit:start": "genkit start -- tsx --watch src/index.ts",
+    "compile": "tsc",
+    "build:clean": "rimraf ./lib",
+    "build": "npm-run-all build:clean compile",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "name": "functions",
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@genkit-ai/firebase": "file:dist/genkit-ai-firebase-1.0.0-rc.1.tgz",
+    "@genkit-ai/googleai": "file:dist/genkit-ai-googleai-1.0.0-rc.1.tgz",
+    "express": "^4.21.2",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1",
+    "genkit": "file:dist/genkit-1.0.0-rc.1.tgz"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^4.9.5"
+  },
+  "private": true
+}
