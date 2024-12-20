@@ -15,7 +15,32 @@
  */
 
 import { genkit, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import { ollama } from 'genkitx-ollama';
+// Define our schemas upfront for better type safety and documentation
+const PokemonSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  type: z.array(
+    z.enum(['Electric', 'Fire', 'Grass', 'Poison', 'Water', 'Normal', 'Fairy'])
+  ),
+  stats: z.object({
+    attack: z.number(),
+    defense: z.number(),
+    speed: z.number(),
+  }),
+});
+
+const QueryResponseSchema = z.object({
+  matchedPokemon: z.array(z.string()),
+  analysis: z.object({
+    answer: z.string(),
+    confidence: z.number().min(0).max(1),
+    relevantTypes: z.array(z.string()),
+  }),
+});
+
+type Pokemon = z.infer<typeof PokemonSchema>;
 
 const ai = genkit({
   plugins: [
@@ -25,7 +50,6 @@ const ai = genkit({
       models: [{ name: 'phi3.5:latest' }],
       requestHeaders: async (params) => {
         console.log('Using server address', params.serverAddress);
-        // Simulate a token-based authentication
         await new Promise((resolve) => setTimeout(resolve, 200));
         return { Authorization: 'Bearer my-token' };
       },
@@ -33,108 +57,126 @@ const ai = genkit({
   ],
 });
 
-interface PokemonInfo {
-  name: string;
-  description: string;
-  embedding: number[] | null;
-}
-
-const pokemonList: PokemonInfo[] = [
+// Enhanced Pokemon database with more structured data
+const pokemonDatabase: Pokemon[] = [
   {
     name: 'Pikachu',
     description:
       'An Electric-type Pokemon known for its strong electric attacks.',
-    embedding: null,
+    type: ['Electric'],
+    stats: { attack: 55, defense: 40, speed: 90 },
   },
   {
     name: 'Charmander',
     description:
       'A Fire-type Pokemon that evolves into the powerful Charizard.',
-    embedding: null,
+    type: ['Fire'],
+    stats: { attack: 52, defense: 43, speed: 65 },
   },
   {
     name: 'Bulbasaur',
     description:
       'A Grass/Poison-type Pokemon that grows into a powerful Venusaur.',
-    embedding: null,
+    type: ['Grass', 'Poison'],
+    stats: { attack: 49, defense: 49, speed: 45 },
   },
   {
     name: 'Squirtle',
     description:
       'A Water-type Pokemon known for its water-based attacks and high defense.',
-    embedding: null,
+    type: ['Water'],
+    stats: { attack: 48, defense: 65, speed: 43 },
   },
   {
     name: 'Jigglypuff',
     description: 'A Normal/Fairy-type Pokemon with a hypnotic singing ability.',
-    embedding: null,
+    type: ['Normal', 'Fairy'],
+    stats: { attack: 45, defense: 20, speed: 20 },
   },
 ];
-
-// Step 1: Embed each Pokemon's description
-async function embedPokemon() {
-  for (const pokemon of pokemonList) {
-    pokemon.embedding = await ai.embed({
-      embedder: 'ollama/nomic-embed-text',
-      content: pokemon.description,
-    });
-  }
-}
-
-// Step 2: Find top 3 Pokemon closest to the input
-function findNearestPokemon(inputEmbedding: number[], topN = 3) {
-  if (pokemonList.some((pokemon) => pokemon.embedding === null))
-    throw new Error('Some Pokemon are not yet embedded');
-  const distances = pokemonList.map((pokemon) => ({
-    pokemon,
-    distance: cosineDistance(inputEmbedding, pokemon.embedding!),
-  }));
-  return distances
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, topN)
-    .map((entry) => entry.pokemon);
-}
-
-// Helper function: cosine distance calculation
-function cosineDistance(a: number[], b: number[]) {
-  const dotProduct = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
-  const magnitudeA = Math.sqrt(a.reduce((sum, ai) => sum + ai * ai, 0));
-  const magnitudeB = Math.sqrt(b.reduce((sum, bi) => sum + bi * bi, 0));
-  if (magnitudeA === 0 || magnitudeB === 0)
-    throw new Error('Invalid input: zero vector');
-  return 1 - dotProduct / (magnitudeA * magnitudeB);
-}
-
-// Step 3: Generate response with RAG results in context
-async function generateResponse(question: string) {
-  const inputEmbedding = await ai.embed({
-    embedder: 'ollama/nomic-embed-text',
-    content: question,
-  });
-
-  const nearestPokemon = findNearestPokemon(inputEmbedding);
-  const pokemonContext = nearestPokemon
-    .map((pokemon) => `${pokemon.name}: ${pokemon.description}`)
-    .join('\n');
-
-  return await ai.generate({
-    model: 'ollama/phi3.5:latest',
-    prompt: `Given the following context on Pokemon:\n${pokemonContext}\n\nQuestion: ${question}\n\nAnswer:`,
-  });
-}
 
 export const pokemonFlow = ai.defineFlow(
   {
     name: 'Pokedex',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
+    inputSchema: z.object({
+      question: z.string(),
+      maxResults: z.number().default(3).optional(),
+    }),
+    outputSchema: QueryResponseSchema,
   },
-  async (input) => {
-    await embedPokemon();
-    const response = await generateResponse(input);
+  async ({ question, maxResults = 3 }) => {
+    // Embed the question and all Pokemon descriptions in parallel
+    const [questionEmbedding, pokemonEmbeddings] = await Promise.all([
+      ai.embed({
+        embedder: 'ollama/nomic-embed-text',
+        content: question,
+      }),
+      Promise.all(
+        pokemonDatabase.map((pokemon) =>
+          ai.embed({
+            embedder: 'ollama/nomic-embed-text',
+            content: pokemon.description,
+          })
+        )
+      ),
+    ]);
 
-    const answer = response.text;
+    // Calculate similarity and sort Pokemon by relevance
+    const similarityScores = pokemonEmbeddings.map((embedding, index) => ({
+      pokemon: pokemonDatabase[index],
+      similarity: 1 - cosineSimilarity(questionEmbedding, embedding),
+    }));
 
-    return answer;
+    const topPokemon = similarityScores
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, maxResults);
+
+    logger.info('Top Pokemon:', topPokemon);
+
+    // Build context for the LLM
+    const context = topPokemon.map(({ pokemon }) => ({
+      name: pokemon.name,
+      description: pokemon.description,
+      type: pokemon.type,
+      stats: pokemon.stats,
+    }));
+
+    // Generate structured response using the LLM
+    const response = await ai.generate({
+      model: 'ollama/phi3.5:latest',
+      prompt: `Given these Pokemon details:
+${JSON.stringify(context, null, 2)}
+
+Answer this question: ${question}
+
+Format your response as JSON with:
+- matchedPokemon: names of relevant Pokemon
+- analysis.answer: detailed explanation
+- analysis.confidence: score from 0-1 indicating certainty
+- analysis.relevantTypes: Pokemon types mentioned in answer`,
+      output: {
+        format: 'json',
+        schema: QueryResponseSchema,
+      },
+    });
+
+    return (
+      response.output || {
+        matchedPokemon: [],
+        analysis: {
+          answer: '',
+          confidence: 0,
+          relevantTypes: [],
+        },
+      }
+    );
   }
 );
+
+// Helper function for vector similarity
+function cosineSimilarity(a: number[], b: number[]): number {
+  const dotProduct = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
+  const magnitudeA = Math.sqrt(a.reduce((sum, ai) => sum + ai * ai, 0));
+  const magnitudeB = Math.sqrt(b.reduce((sum, bi) => sum + bi * bi, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+}
