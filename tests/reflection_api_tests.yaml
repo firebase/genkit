@@ -876,3 +876,7 @@ tests:
       /flow/testFlow:
         key: /flow/testFlow
         name: testFlow
+
+      /flow/streamy:
+        key: /flow/streamy
+        name: streamy
