@@ -45,7 +45,7 @@ type test struct {
 const hostPort = "http://localhost:3100"
 
 func TestReflectionAPI(t *testing.T) {
-	filenames, err := filepath.Glob(filepath.FromSlash("../../tests/*.yaml"))
+	filenames, err := filepath.Glob(filepath.FromSlash("../../tests/reflection_api_tests.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
