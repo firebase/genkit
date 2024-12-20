@@ -60,3 +60,23 @@ export const testFlow = ai.defineFlow(
     return 'Test flow passed';
   }
 );
+
+// genkit flow:run streamy 5 -s
+export const streamy = ai.defineStreamingFlow(
+  {
+    name: 'streamy',
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.object({ count: z.number() }),
+  },
+  async (count, streamingCallback) => {
+    let i = 0;
+    if (streamingCallback) {
+      for (; i < count; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        streamingCallback({ count: i });
+      }
+    }
+    return `done: ${count}, streamed: ${i} times`;
+  }
+);
