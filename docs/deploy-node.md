@@ -48,6 +48,7 @@ sample flow.
   ```typescript
   import { genkit } from 'genkit';
   import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { startFlowServer } from '@genkit-ai/express';
 
   const ai = genkit({
     plugins: [googleAI()],
@@ -66,7 +67,7 @@ sample flow.
     }
   );
 
-  ai.startFlowServer({
+  startFlowServer({
     flows: [menuSuggestionFlow],
   });
   ```

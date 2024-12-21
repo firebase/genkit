@@ -23,7 +23,7 @@ import {
   jest,
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, genkit, run, z } from 'genkit';
+import { Genkit, genkit, z } from 'genkit';
 import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import {
@@ -103,8 +103,8 @@ describe('GoogleCloudTracing', () => {
 
   it('sub actions are contained within flows', async () => {
     const testFlow = createFlow(ai, 'testFlow', async () => {
-      return await run('subAction', async () => {
-        return await run('subAction2', async () => {
+      return await ai.run('subAction', async () => {
+        return await ai.run('subAction2', async () => {
           return 'done';
         });
       });
@@ -137,7 +137,7 @@ describe('GoogleCloudTracing', () => {
 
   it('labels failed spans', async () => {
     const testFlow = createFlow(ai, 'badFlow', async () => {
-      return await run('badStep', async () => {
+      return await ai.run('badStep', async () => {
         throw new Error('oh no!');
       });
     });
@@ -159,7 +159,7 @@ describe('GoogleCloudTracing', () => {
 
   it('labels the root feature', async () => {
     const testFlow = createFlow(ai, 'niceFlow', async () => {
-      return run('niceStep', async () => {});
+      return ai.run('niceStep', async () => {});
     });
     await testFlow();
 
@@ -195,7 +195,7 @@ describe('GoogleCloudTracing', () => {
       }
     );
     const testFlow = createFlow(ai, 'modelFlow', async () => {
-      return run('runFlow', async () => {
+      return ai.run('runFlow', async () => {
         await ai.generate({
           model: echoModel,
           prompt: 'Testing model telemetry',
