@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { run, z } from 'genkit';
+import { z } from 'genkit';
 import { generateString } from '../common/util';
 import { ai } from '../genkit.js';
 
@@ -25,7 +25,7 @@ import { ai } from '../genkit.js';
 const flowSingleStep = ai.defineFlow(
   { name: 'flowSingleStep' },
   async (input) => {
-    return await run('step1', async () => {
+    return await ai.run('step1', async () => {
       return input;
     });
   }
@@ -40,15 +40,15 @@ const flowMultiStep = ai.defineFlow(
   async (input) => {
     let i = 1;
 
-    const result1 = await run('step1', async () => {
+    const result1 = await ai.run('step1', async () => {
       return `${input} ${i++},`;
     });
 
-    const result2 = await run('step2', async () => {
+    const result2 = await ai.run('step2', async () => {
       return `${result1} ${i++},`;
     });
 
-    return await run('step3', async () => {
+    return await ai.run('step3', async () => {
       return `${result2} ${i++}`;
     });
   }
@@ -76,7 +76,7 @@ const flowNested = ai.defineFlow(
 // Flow - streaming
 //
 
-ai.defineStreamingFlow(
+ai.defineFlow(
   {
     name: 'flowStreaming',
     inputSchema: z.number(),
@@ -100,7 +100,7 @@ ai.defineStreamingFlow(
 //
 
 ai.defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
-  return await run('step1', async () => {
+  return await ai.run('step1', async () => {
     if (input) {
       throw new Error('Got an error!');
     }
@@ -115,18 +115,18 @@ ai.defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
 ai.defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
   let i = 1;
 
-  const result1 = await run('step1', async () => {
+  const result1 = await ai.run('step1', async () => {
     return `${input} ${i++},`;
   });
 
-  const result2 = await run('step2', async () => {
+  const result2 = await ai.run('step2', async () => {
     if (result1) {
       throw new Error('Got an error!');
     }
     return `${result1} ${i++},`;
   });
 
-  return await run('step3', async () => {
+  return await ai.run('step3', async () => {
     return `${result2} ${i++}`;
   });
 });
@@ -138,13 +138,13 @@ ai.defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
 ai.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
   let i = 1;
 
-  const result1 = await run('step1', async () => {
+  const result1 = await ai.run('step1', async () => {
     return `${input} ${i++},`;
   });
 
   let result2 = '';
   try {
-    result2 = await run('step2', async () => {
+    result2 = await ai.run('step2', async () => {
       if (result1) {
         throw new Error('Got an error!');
       }
@@ -152,7 +152,7 @@ ai.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
     });
   } catch (e) {}
 
-  return await run('step3', async () => {
+  return await ai.run('step3', async () => {
     return `${result2} ${i++}`;
   });
 });
@@ -161,7 +161,7 @@ ai.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
 // Flow - streamingThrows
 //
 
-ai.defineStreamingFlow(
+ai.defineFlow(
   {
     name: 'flowStreamingThrows',
     inputSchema: z.number(),
@@ -193,16 +193,16 @@ ai.defineStreamingFlow(
 export const largeSteps = ai.defineFlow(
   { name: 'flowLargeOutput' },
   async () => {
-    await run('step1', async () => {
+    await ai.run('step1', async () => {
       return generateString(100_000);
     });
-    await run('step2', async () => {
+    await ai.run('step2', async () => {
       return generateString(800_000);
     });
-    await run('step3', async () => {
+    await ai.run('step3', async () => {
       return generateString(900_000);
     });
-    await run('step4', async () => {
+    await ai.run('step4', async () => {
       return generateString(999_000);
     });
     return 'something...';

@@ -111,7 +111,6 @@ export {
   type SessionStore,
 } from '@genkit-ai/ai/session';
 export {
-  FlowServer,
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
   GenkitError,
@@ -124,28 +123,22 @@ export {
   getFlowAuth,
   getStreamingCallback,
   isDevEnv,
-  run,
   runWithStreamingCallback,
   z,
   type Action,
   type ActionMetadata,
-  type CallableFlow,
   type Flow,
-  type FlowAuthPolicy,
   type FlowConfig,
   type FlowFn,
-  type FlowServerOptions,
   type JSONSchema,
   type JSONSchema7,
   type Middleware,
   type ReflectionServerOptions,
   type RunActionResponse,
   type Status,
-  type StreamableFlow,
   type StreamingCallback,
-  type StreamingFlowConfig,
+  type StreamingResponse,
   type TelemetryConfig,
-  type __RequestWithAuth,
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
 export {

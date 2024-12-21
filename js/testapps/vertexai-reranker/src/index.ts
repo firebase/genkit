@@ -87,7 +87,3 @@ export const rerankFlow = ai.defineFlow(
     }));
   }
 );
-
-ai.startFlowServer({
-  flows: [rerankFlow],
-});

@@ -16,7 +16,7 @@
 
 import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
 import { readFile } from 'fs/promises';
-import { run, z } from 'genkit';
+import { z } from 'genkit';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
@@ -48,12 +48,12 @@ export const indexMenu = ai.defineFlow(
     filePath = path.resolve(filePath);
 
     // Read the pdf.
-    const pdfTxt = await run('extract-text', () =>
+    const pdfTxt = await ai.run('extract-text', () =>
       extractTextFromPdf(filePath)
     );
 
     // Divide the pdf text into segments.
-    const chunks = await run('chunk-it', async () =>
+    const chunks = await ai.run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
