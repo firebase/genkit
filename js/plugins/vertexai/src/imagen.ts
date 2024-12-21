@@ -269,11 +269,6 @@ export function imagenModel(
         };
       }
 
-      const req: any = {
-        instances: [instance],
-        parameters: toParameters(request),
-      };
-
       const predictClient = predictClientFactory(request);
       const response = await predictClient([instance], toParameters(request));
 
