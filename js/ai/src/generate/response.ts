@@ -73,14 +73,6 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     this.request = options?.request;
   }
 
-  private get assertMessage(): Message<O> {
-    if (!this.message)
-      throw new Error(
-        'Operation could not be completed because the response does not contain a generated message.'
-      );
-    return this.message;
-  }
-
   /**
    * Throws an error if the response does not contain valid output.
    */

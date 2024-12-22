@@ -204,6 +204,8 @@ export const ModelInfoSchema = z.object({
       contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
+      /** Model supports controlling tool choice, e.g. forced tool calling. */
+      toolChoice: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
@@ -287,6 +289,7 @@ export const ModelRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   docs: z.array(DocumentDataSchema).optional(),
 });

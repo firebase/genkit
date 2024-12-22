@@ -172,6 +172,7 @@ export class Chat {
             ...(await this.requestBase),
             // these things may get changed by tools calling within generate.
             tools: response?.request?.tools,
+            toolChoice: response?.request?.toolChoice,
             config: response?.request?.config,
           });
           await this.updateMessages(response.messages);
@@ -227,6 +228,7 @@ export class Chat {
                 ...(await this.requestBase),
                 // these things may get changed by tools calling within generate.
                 tools: resolvedResponse?.request?.tools,
+                toolChoice: resolvedResponse?.request?.toolChoice,
                 config: resolvedResponse?.request?.config,
               });
               this.updateMessages(resolvedResponse.messages);
