@@ -99,13 +99,8 @@ Want to skip the local setup? Click below to try out Genkit using [Project IDX](
 
 ## Sample apps
 
-Take a look at some samples of Genkit in use:
-
-- ["AI barista"](samples/js-coffee-shop/) -- demonstrates simple LLM usage
-- [A simple chatbot with a JavaScript frontend](samples/chatbot/) -- add history to LLM sessions
-- [Restaurant menu Q&A app](samples/js-menu/) -- this sample shows progressively
-  more sophisticated versions of a menu understanding app.
-- [Streaming to an Angular frontend](samples/js-angular/)
+These samples have migrated to the Firebase
+[`quickstart-nodejs` repo](https://github.com/firebase/quickstart-nodejs).
 
 ## Connect with us
 
