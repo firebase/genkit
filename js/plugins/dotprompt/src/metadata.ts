@@ -52,6 +52,9 @@ export interface PromptMetadata<
   /** Names of tools (registered separately) to allow use of in this prompt. */
   tools?: ToolArgument[];
 
+  /** Specifies how tools should be called by the model.  */
+  toolChoice?: 'auto' | 'required' | 'none';
+
   /** Model configuration. Not all models support all options. */
   config?: z.infer<Options>;
 

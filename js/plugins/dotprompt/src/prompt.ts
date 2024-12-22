@@ -81,6 +81,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   input?: PromptMetadata['input'];
   output?: PromptMetadata['output'];
   tools?: PromptMetadata['tools'];
+  toolChoice?: PromptMetadata['toolChoice'];
   config?: PromptMetadata['config'];
   use?: PromptMetadata['use'];
 
@@ -147,6 +148,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     this.input = options.input || { schema: z.any() };
     this.output = options.output;
     this.tools = options.tools;
+    this.toolChoice = options.toolChoice;
     this.config = options.config;
     this.use = options.use;
     this.template = template;
@@ -265,6 +267,9 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     const middleware = (options.use || []).concat(this.use || []);
     if (middleware.length > 0) {
       res.use = middleware;
+    }
+    if (options.toolChoice || this.toolChoice) {
+      res.toolChoice = options.toolChoice ?? this.toolChoice;
     }
     return res;
   }

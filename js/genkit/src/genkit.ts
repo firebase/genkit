@@ -566,6 +566,20 @@ export class Genkit implements HasRegistry {
       } else if (opt.use) {
         resultOptions.use = opt.use;
       }
+      if ((promptResult as GenerateOptions).tools) {
+        resultOptions.tools = (promptResult as GenerateOptions).tools;
+      } else if (p.__config?.tools) {
+        resultOptions.tools = p.__config?.tools;
+      } else if (opt.tools) {
+        resultOptions.tools = opt.tools;
+      }
+      if ((promptResult as GenerateOptions).toolChoice) {
+        resultOptions.toolChoice = (promptResult as GenerateOptions).toolChoice;
+      } else if (p.__config?.toolChoice) {
+        resultOptions.toolChoice = p.__config?.toolChoice;
+      } else if (opt.toolChoice) {
+        resultOptions.toolChoice = opt.toolChoice;
+      }
       delete (resultOptions as any).input;
       if ((promptResult as GenerateOptions).prompt) {
         resultOptions.prompt = (promptResult as GenerateOptions).prompt;

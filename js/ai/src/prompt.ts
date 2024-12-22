@@ -21,6 +21,7 @@ import {
   GenerateOptions,
   GenerateResponse,
   GenerateStreamResponse,
+  ToolChoice,
 } from './generate.js';
 import {
   GenerateRequest,
@@ -29,7 +30,7 @@ import {
   ModelArgument,
   ModelMiddleware,
 } from './model.js';
-import { ToolAction } from './tool.js';
+import { ToolAction, ToolArgument } from './tool.js';
 
 /**
  * Prompt implementation function signature.
@@ -64,6 +65,8 @@ export interface PromptConfig<I extends z.ZodTypeAny = z.ZodTypeAny> {
   inputSchema?: I;
   inputJsonSchema?: JSONSchema7;
   metadata?: Record<string, any>;
+  tools?: ToolArgument[];
+  toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
 }
 

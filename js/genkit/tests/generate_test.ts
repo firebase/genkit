@@ -82,6 +82,29 @@ describe('generate', () => {
       });
     });
 
+    it('calls the default model with tool choice', async () => {
+      const response = await ai.generate({
+        prompt: 'hi',
+        toolChoice: 'required',
+      });
+      assert.strictEqual(response.text, 'Echo: hi; config: {}');
+      assert.deepStrictEqual(response.request, {
+        config: {
+          version: undefined,
+        },
+        docs: undefined,
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: 'hi' }],
+          },
+        ],
+        output: {},
+        tools: [],
+        toolChoice: 'required',
+      });
+    });
+
     it('streams the default model', async () => {
       const { response, stream } = await ai.generateStream('hi');
 

@@ -41,7 +41,9 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
+  ModelInfo,
   ModelMiddleware,
+  ModelRequest,
   Part,
   Role,
   ToolDefinitionSchema,
@@ -59,6 +61,8 @@ export const GenerateUtilParamSchema = z.object({
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
+  /** Tool calling mode. */
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   /** Configuration for the generation request. */
   config: z.any().optional(),
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
@@ -141,7 +145,8 @@ async function generate(
   const request = await actionToGenerateRequest(
     rawRequest,
     tools,
-    resolvedFormat
+    resolvedFormat,
+    model.__action.metadata?.model as ModelInfo
   );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
@@ -210,6 +215,7 @@ async function generate(
   const toolResponses: ToolResponsePart[] = [];
   let messages: MessageData[] = [...request.messages, message];
   let newTools = rawRequest.tools;
+  let newToolChoice = rawRequest.toolChoice;
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -235,6 +241,7 @@ async function generate(
         ...messages.filter((m) => !m?.metadata?.preamble),
       ];
       newTools = newPreamble.tools;
+      newToolChoice = newPreamble.toolChoice;
     } else {
       toolResponses.push({
         toolResponse: {
@@ -255,6 +262,7 @@ async function generate(
       },
     ] as MessageData[],
     tools: newTools,
+    toolCoice: newToolChoice,
   };
   return await generateHelper(
     registry,
@@ -267,9 +275,22 @@ async function generate(
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
   resolvedTools?: ToolAction[],
-  resolvedFormat?: Formatter
+  resolvedFormat?: Formatter,
+  modelInfo?: ModelInfo
 ): Promise<GenerateRequest> {
-  const out = {
+  if ((options.tools?.length ?? 0) > 0 && !modelInfo?.supports?.tools) {
+    logger.warn(
+      `The model does not support tools (you set: ${options.tools?.length} tools). ` +
+        'The model may not behave the way you expect.'
+    );
+  }
+  if (options.toolChoice && !modelInfo?.supports?.toolChoice) {
+    logger.warn(
+      `The model does not support toolChoice option (you set: ${options.toolChoice}). ` +
+        'The model may not behave the way you expect.'
+    );
+  }
+  const out: ModelRequest = {
     messages: options.messages,
     config: options.config,
     docs: options.docs,
@@ -281,7 +302,10 @@ async function actionToGenerateRequest(
       }),
     },
   };
-  if (!out.output.schema) delete out.output.schema;
+  if (options.toolChoice) {
+    out.toolChoice = options.toolChoice;
+  }
+  if (out.output && !out.output.schema) delete out.output.schema;
   return out;
 }
 

@@ -47,6 +47,9 @@ import { ExecutablePrompt } from './prompt.js';
 import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
 
+/** Specifies how tools should be called by the model. */
+export type ToolChoice = 'auto' | 'required' | 'none';
+
 export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   format?: string;
   contentType?: string;
@@ -71,6 +74,8 @@ export interface GenerateOptions<
   messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
+  /** Specifies how tools should be called by the model.  */
+  toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
@@ -274,6 +279,7 @@ export async function generate<
     docs: resolvedOptions.docs,
     messages: injectInstructions(messages, instructions),
     tools,
+    toolChoice: resolvedOptions.toolChoice,
     config: {
       version: resolvedModel.version,
       ...stripUndefinedOptions(resolvedModel.config),
