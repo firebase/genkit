@@ -688,7 +688,7 @@ describe('session state', () => {
     await session.updateState({ userName: 'Jane', color: 'red', age: 26 });
     assert.deepStrictEqual(
       session.state,
-      { userName: 'Jane', color: 'Green', age: 26 },
+      { userName: 'Jane', color: 'red', age: 26 },
       'should preserve non-updated properties when updating multiple fields'
     );
 
@@ -710,17 +710,17 @@ describe('session state', () => {
     const chat = session.chat();
     await chat.send('hi');
 
-    await session.updateState({ userName: 'Jacob' });
     assert.deepStrictEqual(
       session.state,
-      { userName: 'John', status: 'active' },
+      { userName: 'Pavel' },
       'should preserve state between chat messages'
     );
+    await session.updateState({ userName: 'Jacob' });
 
     await chat.send('bye');
     assert.deepStrictEqual(
       session.state,
-      { userName: 'John', status: 'active' },
+      { userName: 'Jacob' },
       'state should remain stable after chat messages'
     );
   });
