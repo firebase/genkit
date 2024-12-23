@@ -40,6 +40,7 @@ export {
   GenerateResponseChunk,
   GenerationBlockedError,
   GenerationResponseError,
+  ToolInterrupt,
   generate,
   generateStream,
   tagAsPreamble,

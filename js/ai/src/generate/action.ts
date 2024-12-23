@@ -32,6 +32,7 @@ import {
   GenerateResponse,
   GenerateResponseChunk,
   GenerationResponseError,
+  ToolInterrupt,
   tagAsPreamble,
 } from '../generate.js';
 import {
@@ -80,6 +81,10 @@ export const GenerateUtilParamSchema = z.object({
   maxTurns: z.number().optional(),
 });
 
+export interface GenerateHelperResponse extends GenerateResponseData {
+  interruptedTools?: string[];
+}
+
 /**
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
  */
@@ -88,7 +93,7 @@ export async function generateHelper(
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: ModelMiddleware[],
   currentTurns?: number
-): Promise<GenerateResponseData> {
+): Promise<GenerateHelperResponse> {
   currentTurns = currentTurns ?? 0;
   // do tracing
   return await runInNewSpan(
@@ -116,7 +121,7 @@ async function generate(
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware: ModelMiddleware[] | undefined,
   currentTurn: number
-): Promise<GenerateResponseData> {
+): Promise<GenerateHelperResponse> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
     logger.warn(
@@ -216,6 +221,8 @@ async function generate(
   let messages: MessageData[] = [...request.messages, message];
   let newTools = rawRequest.tools;
   let newToolChoice = rawRequest.toolChoice;
+
+  let interruptedParts: Part[] = [];
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -227,29 +234,47 @@ async function generate(
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
     if ((tool.__action.metadata.type as string) === 'prompt') {
-      const newPreamble = await tool(part.toolRequest?.input);
-      toolResponses.push({
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: `transferred to ${part.toolRequest.name}`,
-        },
-      });
-      // swap out the preamble
-      messages = [
-        ...tagAsPreamble(newPreamble.messages)!,
-        ...messages.filter((m) => !m?.metadata?.preamble),
-      ];
-      newTools = newPreamble.tools;
-      newToolChoice = newPreamble.toolChoice;
+      try {
+        const newPreamble = await tool(part.toolRequest?.input);
+        toolResponses.push({
+          toolResponse: {
+            name: part.toolRequest.name,
+            ref: part.toolRequest.ref,
+            output: `transferred to ${part.toolRequest.name}`,
+          },
+        });
+        // swap out the preamble
+        messages = [
+          ...tagAsPreamble(newPreamble.messages)!,
+          ...messages.filter((m) => !m?.metadata?.preamble),
+        ];
+        newTools = newPreamble.tools;
+        newToolChoice = newPreamble.toolChoice;
+      } catch (e) {
+        if (e instanceof ToolInterrupt) {
+          logger.debug(`interrupted tool ${part.toolRequest?.name}`);
+          interruptedParts.push(part);
+        } else {
+          throw e;
+        }
+      }
     } else {
-      toolResponses.push({
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: await tool(part.toolRequest?.input),
-        },
-      });
+      try {
+        toolResponses.push({
+          toolResponse: {
+            name: part.toolRequest.name,
+            ref: part.toolRequest.ref,
+            output: await tool(part.toolRequest?.input),
+          },
+        });
+      } catch (e) {
+        if (e instanceof ToolInterrupt) {
+          logger.debug(`interrupted tool ${part.toolRequest?.name}`);
+          interruptedParts.push(part);
+        } else {
+          throw e;
+        }
+      }
     }
   }
   const nextRequest = {
@@ -264,6 +289,15 @@ async function generate(
     tools: newTools,
     toolCoice: newToolChoice,
   };
+  if (interruptedParts.length > 0) {
+    return {
+      ...response.toJSON(),
+      message: {
+        role: 'model',
+        content: interruptedParts,
+      },
+    };
+  }
   return await generateHelper(
     registry,
     nextRequest,

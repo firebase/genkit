@@ -16,28 +16,22 @@
 
 import {
   BaseDataPointSchema,
-  definePrompt,
-  defineTool,
   Document,
-  embed,
   EmbedderInfo,
   EmbedderParams,
   Embedding,
   EvalResponses,
-  evaluate,
   EvaluatorParams,
   ExecutablePrompt,
-  generate,
   GenerateOptions,
   GenerateRequest,
   GenerateResponse,
   GenerateResponseData,
-  generateStream,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
-  isExecutablePrompt,
+  ToolInterrupt,
   ModelArgument,
   ModelReference,
   Part,
@@ -45,85 +39,92 @@ import {
   PromptFn,
   PromptGenerateOptions,
   RankedDocument,
-  rerank,
   RerankerParams,
-  retrieve,
   RetrieverAction,
   RetrieverInfo,
   RetrieverParams,
   ToolAction,
   ToolConfig,
+  definePrompt,
+  defineTool,
+  embed,
+  evaluate,
+  generate,
+  generateStream,
+  isExecutablePrompt,
+  rerank,
+  retrieve,
 } from '@genkit-ai/ai';
 import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import {
-  defineEmbedder,
   EmbedderAction,
   EmbedderArgument,
   EmbedderFn,
   EmbeddingBatch,
+  defineEmbedder,
   embedMany,
 } from '@genkit-ai/ai/embedder';
 import {
-  defineEvaluator,
   EvaluatorAction,
   EvaluatorFn,
+  defineEvaluator,
 } from '@genkit-ai/ai/evaluator';
 import {
+  Formatter,
   configureFormats,
   defineFormat,
-  Formatter,
 } from '@genkit-ai/ai/formats';
 import {
-  defineModel,
   DefineModelOptions,
   GenerateResponseChunkData,
   ModelAction,
+  defineModel,
 } from '@genkit-ai/ai/model';
 import {
-  defineReranker,
   RerankerFn,
   RerankerInfo,
+  defineReranker,
 } from '@genkit-ai/ai/reranker';
 import {
-  defineIndexer,
-  defineRetriever,
-  defineSimpleRetriever,
   DocumentData,
-  index,
   IndexerAction,
   IndexerFn,
   RetrieverFn,
   SimpleRetrieverOptions,
+  defineIndexer,
+  defineRetriever,
+  defineSimpleRetriever,
+  index,
 } from '@genkit-ai/ai/retriever';
 import {
-  getCurrentSession,
   Session,
   SessionData,
   SessionError,
   SessionOptions,
+  getCurrentSession,
 } from '@genkit-ai/ai/session';
 import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   Action,
+  FlowConfig,
+  FlowFn,
+  JSONSchema,
+  ReflectionServer,
+  StreamingCallback,
   defineFlow,
   defineJsonSchema,
   defineSchema,
-  FlowConfig,
-  FlowFn,
   isDevEnv,
-  JSONSchema,
-  ReflectionServer,
   run,
-  StreamingCallback,
   z,
 } from '@genkit-ai/core';
 import { HasRegistry } from '@genkit-ai/core/registry';
 import {
+  Dotprompt,
+  PromptMetadata as DotpromptPromptMetadata,
   defineDotprompt,
   defineHelper,
   definePartial,
-  Dotprompt,
-  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
   toFrontmatter,
@@ -221,6 +222,15 @@ export class Genkit implements HasRegistry {
     fn: (input: z.infer<I>) => Promise<z.infer<O>>
   ): ToolAction<I, O> {
     return defineTool(this.registry, config, fn);
+  }
+
+  /**
+   * Defines an interrupting tool.
+   */
+  defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: ToolConfig<I, O>
+  ): ToolAction<I, O> {
+    return defineTool(this.registry, config, async () => this.interrupt());
   }
 
   /**
@@ -1107,6 +1117,10 @@ export class Genkit implements HasRegistry {
       return run(name, funcOrInput, maybeFunc, this.registry);
     }
     return run(name, funcOrInput, this.registry);
+  }
+
+  interrupt() {
+    throw new ToolInterrupt();
   }
 
   /**

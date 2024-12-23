@@ -455,3 +455,8 @@ export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
     },
   }));
 }
+
+/**
+ * Thrown when tools execution is interrupted. It's meant to be caugh by the framework, not public API.
+ */
+export class ToolInterrupt extends Error {}
