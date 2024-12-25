@@ -292,6 +292,7 @@ async function generate(
   if (interruptedParts.length > 0) {
     return {
       ...response.toJSON(),
+      finishReason: 'interrupted',
       message: {
         role: 'model',
         content: interruptedParts,

@@ -225,15 +225,6 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Defines an interrupting tool.
-   */
-  defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    config: ToolConfig<I, O>
-  ): ToolAction<I, O> {
-    return defineTool(this.registry, config, async () => this.interrupt());
-  }
-
-  /**
    * Defines and registers a schema from a Zod schema.
    *
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
