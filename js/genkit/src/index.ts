@@ -29,6 +29,7 @@ export {
   BaseDataPointSchema,
   Document,
   DocumentDataSchema,
+  GenerateResponseChunk,
   GenerationBlockedError,
   GenerationCommonConfigSchema,
   GenerationResponseError,

@@ -573,12 +573,12 @@ describe('preamble', () => {
       {
         role: 'user',
         content: [{ text: 'hi' }],
-        metadata: { preamble: true },
+        //        metadata: { preamble: true },
       },
       {
         role: 'model',
         content: [{ text: 'bye' }],
-        metadata: { preamble: true },
+        //metadata: { preamble: true },
       },
       {
         role: 'user',

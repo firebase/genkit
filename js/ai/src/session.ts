@@ -55,7 +55,7 @@ export interface SessionOptions<S = any> {
  */
 export class Session<S = any> {
   readonly id: string;
-  private sessionData?: SessionData<S>;
+  sessionData?: SessionData<S>;
   private store: SessionStore<S>;
 
   constructor(
@@ -243,7 +243,7 @@ export class Session<S = any> {
         }
         delete baseOptions.system;
         if (baseOptions.messages) {
-          messages.push(...baseOptions.messages);
+          //messages.push(...baseOptions.messages);
         }
         baseOptions.messages = tagAsPreamble(messages);
 
@@ -253,6 +253,7 @@ export class Session<S = any> {
         thread: threadName,
         id: this.id,
         messages:
+          (!preamble ? (options as BaseGenerateOptions)?.messages : undefined) ??
           (this.sessionData?.threads &&
             this.sessionData?.threads[threadName]) ??
           [],
