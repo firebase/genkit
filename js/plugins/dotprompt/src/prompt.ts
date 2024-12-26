@@ -48,6 +48,10 @@ import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
 
+export type DotpromptAction<I> = PromptAction & {
+  __dotprompt: Dotprompt<I>;
+};
+
 export type PromptGenerateOptions<
   V = unknown,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -78,6 +82,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   output?: PromptMetadata['output'];
   tools?: PromptMetadata['tools'];
   config?: PromptMetadata['config'];
+  use?: PromptMetadata['use'];
 
   private _promptAction?: PromptAction;
 
@@ -143,6 +148,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     this.output = options.output;
     this.tools = options.tools;
     this.config = options.config;
+    this.use = options.use;
     this.template = template;
     this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
 
@@ -216,6 +222,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       async (input?: I) =>
         toGenerateRequest(this.registry, this.render({ input }))
     );
+    (this._promptAction as DotpromptAction<I>).__dotprompt = this;
   }
 
   get promptAction(): PromptAction | undefined {
@@ -239,7 +246,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       renderedPrompt = undefined;
       renderedMessages = messages;
     }
-    return {
+    const res = {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config },
       messages: renderedMessages,
@@ -254,8 +261,12 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       onChunk: options.onChunk ?? options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
       maxTurns: options.maxTurns,
-      use: options.use,
     } as GenerateOptions<O, CustomOptions>;
+    const middleware = (options.use || []).concat(this.use || []);
+    if (middleware.length > 0) {
+      res.use = middleware;
+    }
+    return res;
   }
 
   /**
