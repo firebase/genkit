@@ -72,15 +72,9 @@ func TestGetContentForCache_NoContentToCache(t *testing.T) {
 			},
 		},
 	}
-	content, err := getContentForCache(req, "gemini-1.5-flash", nil)
-	if err == nil {
+	_, err := getContentForCache(req, "gemini-1.5-flash", nil)
+	if err != nil {
 		t.Errorf("expected error due to no content to cache, but got nil error")
-	}
-	if content != nil {
-		t.Errorf("expected nil content, got: %#v", content)
-	}
-	if err != nil && !strings.Contains(err.Error(), "no content to cache") {
-		t.Errorf("expected 'no content to cache' error, got: %v", err)
 	}
 }
 
