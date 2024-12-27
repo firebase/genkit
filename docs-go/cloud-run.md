@@ -1,8 +1,6 @@
 # Firebase Genkit with Cloud Run
 
-You can deploy Firebase Genkit flows as web services using Cloud Run. This page,
-as an example, walks you through the process of deploying the default sample
-flow.
+You can deploy Firebase Genkit flows as web services using Cloud Run.
 
 1.  Install the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) if
     you haven't already.
@@ -36,23 +34,26 @@ flow.
     go mod init example/cloudrun
     ```
 
-1.  Initialize Genkit in your project:
+1.  Install the Genkit package and the model plugin you want to use:
 
     ```posix-terminal
-    genkit init
+    go get "github.com/firebase/genkit/go"
     ```
 
-    Select the model provider you want to use.
+    One of the following:
 
-    Accept the defaults for the remaining prompts. The `genkit` tool will create
-    a sample source file to get you started developing your own AI flows.
-    For the rest of this tutorial, however, you'll just deploy the sample flow.
+    ```posix-terminal
+    go get "github.com/firebase/genkit/go/plugins/googleai"
+    ```
 
-1.  Edit the sample file (`main.go` or `genkit.go`) to explicitly specify the
-    port the flow server should listen on:
+    ```posix-terminal
+    go get "github.com/firebase/genkit/go/plugins/vertexai"
+    ```
+
+1.  Create a file (`main.go`) for your flows:
 
     ```golang
-    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="init" adjust_indentation="auto" %}
+    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/deploy/main.go" region_tag="main" adjust_indentation="auto" %}
     ```
 
 1.  Make API credentials available to your deployed function. Do one of the
@@ -118,7 +119,7 @@ flow.
     1.  Start the UI:
 
         ```posix-terminal
-        genkit start
+        genkit start -- go run .
         ```
 
     1.  In the developer UI (http://localhost:4000/), run the flow:
@@ -139,14 +140,14 @@ flow.
     - {Gemini (Google AI)}
 
       ```posix-terminal
-      gcloud run deploy --port 3400 \
+      gcloud run deploy \
         --update-secrets=GOOGLE_GENAI_API_KEY=<your-secret-name>:latest
       ```
 
     - {Gemini (Vertex AI)}
 
       ```posix-terminal
-      gcloud run deploy --port 3400 \
+      gcloud run deploy \
         --set-env-vars GCLOUD_PROJECT=<your-gcloud-project> \
         --set-env-vars GCLOUD_LOCATION=us-central1
       ```

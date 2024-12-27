@@ -3,7 +3,7 @@
 You can deploy Firebase Genkit flows as web services using any service that can
 host a Go binary.
 This page, as an example, walks you through the general process of deploying the
-default sample flow, and points out where you must take provider-specific
+a sample flow, and points out where you must take provider-specific
 actions.
 
 1.  Create a directory for the Genkit sample project:
@@ -22,27 +22,27 @@ actions.
     go mod init example/cloudrun
     ```
 
-1.  Initialize Genkit in your project:
+1.  Install the Genkit package and the model plugin you want to use:
 
     ```posix-terminal
-    genkit init
+    go get "github.com/firebase/genkit/go"
     ```
 
-    Select the model provider you want to use.
+    One of the following:
 
-    Accept the defaults for the remaining prompts. The `genkit` tool will create
-    a sample source file to get you started developing your own AI flows.
-    For the rest of this tutorial, however, you'll just deploy the sample flow.
+    ```posix-terminal
+    go get "github.com/firebase/genkit/go/plugins/googleai"
+    ```
 
-1.  Edit the sample file (`main.go` or `genkit.go`) to explicitly specify the
-    port the flow server should listen on:
+    ```posix-terminal
+    go get "github.com/firebase/genkit/go/plugins/vertexai"
+    ```
+
+1.  Create a file (`main.go`) for your flows:
 
     ```golang
-    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="init" adjust_indentation="auto" %}
+    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/deploy/main.go" region_tag="main" adjust_indentation="auto" %}
     ```
-
-    If your provider requires you to listen on a specific port, be sure to
-    configure Genkit accordingly.
 
 1.  Implement some form of authentication and authorization to gate access to
     the flows you plan to deploy.
@@ -120,7 +120,7 @@ actions.
     1.  Start the UI:
 
         ```posix-terminal
-        genkit start
+        genkit start -- go run .
         ```
 
     1.  In the developer UI (http://localhost:4000/), run the flow:
