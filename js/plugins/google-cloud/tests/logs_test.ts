@@ -23,7 +23,7 @@ import {
   jest,
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { GenerateResponseData, Genkit, genkit, run, z } from 'genkit';
+import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
 import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { Writable } from 'stream';
@@ -147,8 +147,8 @@ describe('GoogleCloudLogs', () => {
       };
     });
     const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
-      return await run('sub1', async () => {
-        return await run('sub2', async () => {
+      return await ai.run('sub1', async () => {
+        return await ai.run('sub2', async () => {
           return await ai.generate({
             model: testModel,
             prompt: `${input} prompt`,

@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { action } from '../src/action.js';
+import { action, defineAction } from '../src/action.js';
 import { Registry } from '../src/registry.js';
 
 describe('action', () => {
@@ -116,5 +116,32 @@ describe('action', () => {
     });
 
     assert.deepStrictEqual(chunks, [1, 2, 3]);
+  });
+
+  it('should stream the response', async () => {
+    const action = defineAction(
+      registry,
+      { name: 'hello', actionType: 'custom' },
+      async (input, { sendChunk }) => {
+        sendChunk({ count: 1 });
+        sendChunk({ count: 2 });
+        sendChunk({ count: 3 });
+        return `hi ${input}`;
+      }
+    );
+
+    const response = action.stream('Pavel');
+
+    const gotChunks: any[] = [];
+    for await (const chunk of response.stream) {
+      gotChunks.push(chunk);
+    }
+
+    assert.equal(await response.output, 'hi Pavel');
+    assert.deepStrictEqual(gotChunks, [
+      { count: 1 },
+      { count: 2 },
+      { count: 3 },
+    ]);
   });
 });

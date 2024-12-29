@@ -24,7 +24,7 @@ import {
   RunnablePassthrough,
   RunnableSequence,
 } from '@langchain/core/runnables';
-import { genkit, run, z } from 'genkit';
+import { genkit, z } from 'genkit';
 import { GenkitTracer } from 'genkitx-langchain';
 import { ollama } from 'genkitx-ollama';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
@@ -51,10 +51,10 @@ const model = new GoogleVertexAI();
 export const indexPdf = ai.defineFlow(
   { name: 'indexPdf', inputSchema: z.string(), outputSchema: z.void() },
   async (filePath) => {
-    const docs = await run('load-pdf', async () => {
+    const docs = await ai.run('load-pdf', async () => {
       return await new PDFLoader(filePath).load();
     });
-    await run('index', async () => {
+    await ai.run('index', async () => {
       vectorStore.addDocuments(docs);
     });
   }
@@ -83,7 +83,3 @@ export const pdfQA = ai.defineFlow(
     return await chain.invoke(question, { callbacks: [new GenkitTracer()] });
   }
 );
-
-ai.startFlowServer({
-  flows: [pdfQA],
-});

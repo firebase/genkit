@@ -167,7 +167,3 @@ export const queryFlow = ai.defineFlow(
     };
   }
 );
-
-ai.startFlowServer({
-  flows: [indexFlow, queryFlow],
-});

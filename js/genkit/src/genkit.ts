@@ -104,21 +104,17 @@ import {
 } from '@genkit-ai/ai/session';
 import { resolveTools } from '@genkit-ai/ai/tool';
 import {
-  CallableFlow,
+  Action,
   defineFlow,
   defineJsonSchema,
   defineSchema,
-  defineStreamingFlow,
-  Flow,
+  FlowConfig,
   FlowFn,
-  FlowServer,
-  FlowServerOptions,
   isDevEnv,
   JSONSchema,
   ReflectionServer,
-  StreamableFlow,
+  run,
   StreamingCallback,
-  StreamingFlowConfig,
   z,
 } from '@genkit-ai/core';
 import { HasRegistry } from '@genkit-ai/core/registry';
@@ -182,10 +178,8 @@ export class Genkit implements HasRegistry {
   readonly registry: Registry;
   /** Reflection server for this registry. May be null if not started. */
   private reflectionServer: ReflectionServer | null = null;
-  /** Flow server. May be null if the flow server is not enabled in configuration or not started. */
-  private flowServer: FlowServer | null = null;
   /** List of flows that have been registered in this instance. */
-  readonly flows: Flow<any, any, any>[] = [];
+  readonly flows: Action<any, any, any>[] = [];
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
@@ -209,33 +203,11 @@ export class Genkit implements HasRegistry {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     S extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    config: StreamingFlowConfig<I, O, S> | string,
+    config: FlowConfig<I, O, S> | string,
     fn: FlowFn<I, O, S>
-  ): CallableFlow<I, O, S> {
+  ): Action<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
-    this.flows.push(flow.flow);
-    return flow;
-  }
-
-  /**
-   * Defines and registers a streaming flow.
-   *
-   * @deprecated use {@link defineFlow}
-   */
-  defineStreamingFlow<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    S extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    config: StreamingFlowConfig<I, O, S> | string,
-    fn: FlowFn<I, O, S>
-  ): StreamableFlow<I, O, S> {
-    const flow = defineStreamingFlow(
-      this.registry,
-      typeof config === 'string' ? { name: config } : config,
-      fn
-    );
-    this.flows.push(flow.flow);
+    this.flows.push(flow);
     return flow;
   }
 
@@ -1076,6 +1048,54 @@ export class Genkit implements HasRegistry {
   }
 
   /**
+   * A flow step that executes the provided function. Each run step is recorded separately in the trace.
+   *
+   * ```ts
+   * ai.defineFlow('hello', async() => {
+   *   await ai.run('step1', async () => {
+   *     // ... step 1
+   *   });
+   *   await ai.run('step2', async () => {
+   *     // ... step 2
+   *   });
+   *   return result;
+   * })
+   * ```
+   */
+  run<T>(name: string, func: () => Promise<T>): Promise<T>;
+
+  /**
+   * A flow step that executes the provided function. Each run step is recorded separately in the trace.
+   *
+   * ```ts
+   * ai.defineFlow('hello', async() => {
+   *   await ai.run('step1', async () => {
+   *     // ... step 1
+   *   });
+   *   await ai.run('step2', async () => {
+   *     // ... step 2
+   *   });
+   *   return result;
+   * })
+   */
+  run<T>(
+    name: string,
+    input: any,
+    func: (input?: any) => Promise<T>
+  ): Promise<T>;
+
+  run<T>(
+    name: string,
+    funcOrInput: () => Promise<T> | any,
+    maybeFunc?: (input?: any) => Promise<T>
+  ): Promise<T> {
+    if (maybeFunc) {
+      return run(name, funcOrInput, maybeFunc, this.registry);
+    }
+    return run(name, funcOrInput, this.registry);
+  }
+
+  /**
    * Configures the Genkit instance.
    */
   private configure() {
@@ -1117,9 +1137,8 @@ export class Genkit implements HasRegistry {
    * Stops all servers.
    */
   async stopServers() {
-    await Promise.all([this.reflectionServer?.stop(), this.flowServer?.stop()]);
+    await this.reflectionServer?.stop();
     this.reflectionServer = null;
-    this.flowServer = null;
   }
 
   private async resolveModel(
@@ -1144,12 +1163,6 @@ export class Genkit implements HasRegistry {
       )) as ModelAction;
     }
   }
-
-  startFlowServer(options: FlowServerOptions): FlowServer {
-    const flowServer = new FlowServer(this.registry, options);
-    flowServer.start();
-    return flowServer;
-  }
 }
 
 /**
@@ -1164,7 +1177,7 @@ export function genkit(options: GenkitOptions): Genkit {
 
 const shutdown = async () => {
   logger.info('Shutting down all Genkit servers...');
-  await Promise.all([ReflectionServer.stopAll(), FlowServer.stopAll()]);
+  await ReflectionServer.stopAll();
   process.exit(0);
 };
 

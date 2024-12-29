@@ -77,7 +77,7 @@ ai.defineFlow(
 
 // A variation that supports streaming, optionally
 
-ai.defineStreamingFlow(
+ai.defineFlow(
   {
     name: 'tellStory',
     inputSchema: z.object({

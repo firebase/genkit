@@ -19,7 +19,7 @@ import {
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { run, z } from 'genkit';
+import { z } from 'genkit';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
@@ -104,9 +104,9 @@ export const indexPdf = ai.defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () => extractText(filePath));
+    const pdfTxt = await ai.run('extract-text', () => extractText(filePath));
 
-    const chunks = await run('chunk-it', async () =>
+    const chunks = await ai.run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
