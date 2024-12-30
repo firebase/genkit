@@ -120,7 +120,7 @@ func (g *Genkit) Start(ctx context.Context, opts *StartOptions) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s := startFlowServer(g.reg, opts.FlowAddr, opts.Flows, errCh)
+			s := startFlowServer(g, opts.FlowAddr, opts.Flows, errCh)
 			mu.Lock()
 			servers = append(servers, s)
 			mu.Unlock()

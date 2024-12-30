@@ -156,10 +156,10 @@ func findProjectRoot() (string, error) {
 // for the port, and if that is empty it uses ":3400".
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
-func startFlowServer(r *registry.Registry, addr string, flows []string, errCh chan<- error) *http.Server {
+func startFlowServer(g *Genkit, addr string, flows []string, errCh chan<- error) *http.Server {
 	slog.Debug("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
-	mux := NewFlowServeMux(r, flows)
+	mux := NewFlowServeMux(g, flows)
 	return startServer(addr, mux, errCh)
 }
 
@@ -347,8 +347,8 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux(r *registry.Registry, flows []string) *http.ServeMux {
-	return newFlowServeMux(r, flows)
+func NewFlowServeMux(g *Genkit, flows []string) *http.ServeMux {
+	return newFlowServeMux(g.reg, flows)
 }
 
 func newFlowServeMux(r *registry.Registry, flows []string) *http.ServeMux {
