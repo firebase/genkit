@@ -14,13 +14,13 @@ performance of your system's building blocks.
 
 Genkit supports two types of evaluations:
 
-1. **Inference-based evaluation**: In this type of evaluation, a system is run on a collection of pre-determined inputs and the corresponding outputs are assessed for quality. 
+* **Inference-based evaluation**: This type of evaluation is run against a collection of of pre-determined inputs and the corresponding outputs are assessed for quality. 
     
     This is the most common evaluation type, suitable for most use cases. This approach tests the actual output of a system for each evaluation run.
 
     The quality assessment can be done manually by visually inspecting the results or automated by using an evaluation metric. 
 
-2. **Raw evaluation**: This type of evaluation directly assesses the quality of inputs without any inference. This approach typically is used with automated evaluation using metrics. All required fields for evaluation (`context`, `output`) must be present in the input dataset. This is useful when you have data coming from an external source (eg: collected from your production traces) and you simply want to have an objective measurement of the quality of the collected data.
+* **Raw evaluation**: This type of evaluation directly assesses the quality of inputs without any inference. This approach typically is used with automated evaluation using metrics. All required fields for evaluation (`context`, `output`) must be present in the input dataset. This is useful when you have data coming from an external source (eg: collected from your production traces) and you simply want to have an objective measurement of the quality of the collected data.
 
     We will cover more on this approach in our Advanced section below.
 
