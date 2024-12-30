@@ -22,7 +22,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
-	"github.com/invopop/jsonschema"
 )
 
 type imageURLInput struct {
@@ -36,14 +35,12 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 		  from the following image of a restaurant menu.
 
 		  {{media url=imageUrl}}`,
-		dotprompt.Config{
-			Model:        genVision,
-			InputSchema:  jsonschema.Reflect(imageURLInput{}),
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.1,
-			},
-		},
+		dotprompt.WithDefaultModel(genVision),
+		dotprompt.WithInputType(imageURLInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.1,
+		}),
 	)
 	if err != nil {
 		return err
@@ -61,14 +58,12 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 		  Answer this customer's question:
 		  {{question}}?
 		`,
-		dotprompt.Config{
-			Model:        gen,
-			InputSchema:  textMenuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.3,
-			},
-		},
+		dotprompt.WithDefaultModel(gen),
+		dotprompt.WithInputType(textMenuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err
@@ -87,12 +82,11 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 			data := make([]byte, base64.StdEncoding.EncodedLen(len(image)))
 			base64.StdEncoding.Encode(data, image)
 			imageDataURL := "data:image/jpeg;base64," + string(data)
-			preq := &dotprompt.PromptRequest{
-				Variables: &imageURLInput{
+
+			presp, err := readMenuPrompt.Generate(ctx,
+				dotprompt.WithInput(&imageURLInput{
 					ImageURL: imageDataURL,
-				},
-			}
-			presp, err := readMenuPrompt.Generate(ctx, preq, nil)
+				}), nil)
 			if err != nil {
 				return "", err
 			}
@@ -107,10 +101,7 @@ func setup05(ctx context.Context, gen, genVision ai.Model) error {
 
 	textMenuQuestionFlow := genkit.DefineFlow("s05_textMenuQuestion",
 		func(ctx context.Context, input *textMenuQuestionInput) (*answerOutput, error) {
-			preq := &dotprompt.PromptRequest{
-				Variables: input,
-			}
-			presp, err := textMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := textMenuPrompt.Generate(ctx, dotprompt.WithInput(input), nil)
 			if err != nil {
 				return nil, err
 			}

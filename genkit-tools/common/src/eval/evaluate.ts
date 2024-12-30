@@ -81,7 +81,7 @@ export async function runNewEvaluation(
     if (dataset.length === 0) {
       throw new Error(`Dataset ${datasetId} is empty`);
     }
-    evalInferenceInput = EvalInferenceInputSchema.parse({ samples: dataset });
+    evalInferenceInput = EvalInferenceInputSchema.parse(dataset);
 
     const datasetMetadatas = await datasetStore.listDatasets();
     const targetDatasetMetadata = datasetMetadatas.find(
@@ -97,7 +97,7 @@ export async function runNewEvaluation(
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalInferenceInput: evalInferenceInput,
+    evalInferenceInput,
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -228,16 +228,11 @@ async function bulkRunAction(params: {
 }): Promise<EvalInput[]> {
   const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = Array.isArray(evalInferenceInput)
-    ? (evalInferenceInput as any[]).map((i) => ({
-        input: i,
-        testCaseId: generateTestCaseId(),
-      }))
-    : evalInferenceInput.samples.map((c) => ({
-        input: c.input,
-        reference: c.reference,
-        testCaseId: c.testCaseId ?? generateTestCaseId(),
-      }));
+  let testCases: TestCase[] = evalInferenceInput.map((c) => ({
+    input: c.input,
+    reference: c.reference,
+    testCaseId: c.testCaseId ?? generateTestCaseId(),
+  }));
   if (testCases.length === 0) {
     throw new Error('Cannot run inference, no data provided');
   }
@@ -393,7 +388,7 @@ async function gatherEvalInput(params: {
     input,
     output,
     error,
-    context: JSON.parse(context) as string[],
+    context: Array.isArray(context) ? context : [context],
     reference: state.reference,
     traceIds: [traceId],
   };
@@ -412,12 +407,11 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
   }
 }
 
-function getErrorFromModelResponse(output: string): string | undefined {
-  const obj = JSON.parse(output);
+function getErrorFromModelResponse(obj: any): string | undefined {
   const response = GenerateResponseSchema.parse(obj);
 
   if (!response || !response.candidates || response.candidates.length === 0) {
-    return `No response was extracted from the output. '${output}'`;
+    return `No response was extracted from the output. '${JSON.stringify(obj)}'`;
   }
 
   // We currently only support the first candidate

@@ -35,10 +35,8 @@ const t = initTRPC.create({
         ...shape,
         data: {
           ...shape.data,
-          genkitErrorMessage: (error.cause.data as Record<string, unknown>)
-            .message,
-          genkitErrorDetails: (error.cause.data as Record<string, unknown>)
-            .details,
+          genkitErrorMessage: error.cause.data.message,
+          genkitErrorDetails: error.cause.data.details,
         },
       };
     }

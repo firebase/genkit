@@ -15,13 +15,20 @@
  */
 
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { action } from '../src/action.js';
+import { Registry } from '../src/registry.js';
 
 describe('action', () => {
+  var registry: Registry;
+  beforeEach(() => {
+    registry = new Registry();
+  });
+
   it('applies middleware', async () => {
     const act = action(
+      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -31,6 +38,7 @@ describe('action', () => {
           async (input, opts, next) =>
             (await next(input + 'middle2', opts)) + 2,
         ],
+        actionType: 'util',
       },
       async (input) => {
         return input.length;
@@ -45,6 +53,7 @@ describe('action', () => {
 
   it('returns telemetry info', async () => {
     const act = action(
+      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -54,6 +63,7 @@ describe('action', () => {
           async (input, opts, next) =>
             (await next(input + 'middle2', opts)) + 2,
         ],
+        actionType: 'util',
       },
       async (input) => {
         return input.length;
@@ -79,10 +89,12 @@ describe('action', () => {
   it('run the action with options', async () => {
     let passedContext;
     const act = action(
+      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
         outputSchema: z.number(),
+        actionType: 'util',
       },
       async (input, { sendChunk, context }) => {
         passedContext = context;

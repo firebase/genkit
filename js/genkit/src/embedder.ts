@@ -16,7 +16,6 @@
 
 export {
   EmbedderInfoSchema,
-  EmbeddingSchema,
   embedderRef,
   type EmbedderAction,
   type EmbedderArgument,
