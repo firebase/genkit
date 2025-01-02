@@ -1,0 +1,67 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+app-bar {
+  border-bottom: 1px solid var(--divider-color);
+  grid-area: header;
+}
+
+article {
+  grid-area: content;
+}
+
+.wrapper {
+  display: grid;
+  grid-template:
+    'header' auto
+    'content' 1fr
+    / 1fr;
+  height: 100vh;
+}
+
+.home-link {
+  align-items: center;
+  color: var(--mat-app-color);
+  display: flex;
+  gap: 8px;
+
+  img {
+    height: 22px;
+    padding-left: 4px;
+  }
+}
+
+.mat-toolbar {
+  background: #d7e3ff;
+  color: #005cbb;
+  gap: 4px;
+}
+
+nav {
+  --mdc-secondary-navigation-tab-container-height: 64px;
+  --mat-tab-header-divider-height: 0;
+  margin-left: 32px;
+}
+
+.preview-badge {
+  margin-left: 8px;
+
+  mat-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+  }
+}

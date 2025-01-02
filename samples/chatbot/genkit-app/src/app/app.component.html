@@ -1,0 +1,36 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="wrapper">
+  <mat-toolbar color="secondary">
+    <a routerLink="/" class="home-link">Chat with an LLM</a>
+
+    <mat-tab-nav-panel #tabPanel></mat-tab-nav-panel>
+
+    <div class="flex-spacer"></div>
+    <a
+      mat-icon-button
+      href="https://firebase.google.com/docs/genkit"
+      matTooltip="Docs"
+      target="_blank">
+      <mat-icon>description</mat-icon>
+    </a>
+  </mat-toolbar>
+
+  <article>
+    <router-outlet></router-outlet>
+  </article>
+</div>
