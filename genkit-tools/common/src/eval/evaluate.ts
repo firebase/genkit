@@ -66,25 +66,38 @@ export async function runNewEvaluation(
   manager: RuntimeManager,
   request: RunNewEvaluationRequest
 ): Promise<EvalRunKey> {
-  const { datasetId, actionRef, evaluators } = request;
-  const datasetStore = await getDatasetStore();
-  logger.info(`Fetching dataset ${datasetId}...`);
-  const dataset = await datasetStore.getDataset(datasetId);
-  const datasetMetadatas = await datasetStore.listDatasets();
-  const targetDatasetMetadata = datasetMetadatas.find(
-    (d) => d.datasetId === datasetId
-  );
-  const datasetVersion = targetDatasetMetadata?.version;
+  const { dataSource, actionRef, evaluators } = request;
+  const { datasetId, data } = dataSource;
+  if (!datasetId && !data) {
+    throw new Error(`Either 'data' or 'datasetId' must be provided`);
+  }
 
-  if (dataset.length === 0) {
-    throw new Error(`Dataset ${datasetId} is empty`);
+  let evalInferenceInput: EvalInferenceInput;
+  let metadata = {};
+  if (datasetId) {
+    const datasetStore = await getDatasetStore();
+    logger.info(`Fetching dataset ${datasetId}...`);
+    const dataset = await datasetStore.getDataset(datasetId);
+    if (dataset.length === 0) {
+      throw new Error(`Dataset ${datasetId} is empty`);
+    }
+    evalInferenceInput = EvalInferenceInputSchema.parse(dataset);
+
+    const datasetMetadatas = await datasetStore.listDatasets();
+    const targetDatasetMetadata = datasetMetadatas.find(
+      (d) => d.datasetId === datasetId
+    );
+    const datasetVersion = targetDatasetMetadata?.version;
+    metadata = { datasetId, datasetVersion };
+  } else {
+    evalInferenceInput = data!;
   }
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalFlowInput: EvalInferenceInputSchema.parse(dataset),
+    evalInferenceInput,
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -98,9 +111,8 @@ export async function runNewEvaluation(
     evaluatorActions,
     evalDataset,
     augments: {
+      ...metadata,
       actionRef,
-      datasetId,
-      datasetVersion,
       actionConfig: request.options?.actionConfig,
     },
   });
@@ -111,11 +123,11 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalFlowInput: EvalInferenceInput;
+  evalInferenceInput: EvalInferenceInput;
   auth?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
+  const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
@@ -123,7 +135,7 @@ export async function runInference(params: {
   const evalDataset: EvalInput[] = await bulkRunAction({
     manager,
     actionRef,
-    evalFlowInput,
+    evalInferenceInput,
     auth,
     actionConfig,
   });
@@ -210,13 +222,13 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalFlowInput: EvalInferenceInput;
+  evalInferenceInput: EvalInferenceInput;
   auth?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
+  const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = evalFlowInput.map((c) => ({
+  let testCases: TestCase[] = evalInferenceInput.map((c) => ({
     input: c.input,
     reference: c.reference,
     testCaseId: c.testCaseId ?? generateTestCaseId(),
