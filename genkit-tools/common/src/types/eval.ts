@@ -30,22 +30,6 @@ import { GenerateRequestSchema } from './model';
  */
 
 /**
- * Structured input for inference part of evaluation
- */
-export const EvalInferenceStructuredInputSchema = z.object({
-  samples: z.array(
-    z.object({
-      testCaseId: z.string().optional(),
-      input: z.any(),
-      reference: z.any().optional(),
-    })
-  ),
-});
-export type EvalInferenceStructuredInput = z.infer<
-  typeof EvalInferenceStructuredInputSchema
->;
-
-/**
  * Supported datatype when running eval-inference using models
  */
 export const ModelInferenceInputSchema = z.union([
@@ -60,15 +44,22 @@ export const ModelInferenceInputJSONSchema = zodToJsonSchema(
     removeAdditionalStrategy: 'strict',
   }
 ) as JSONSchema7;
+
+/**
+ * A single sample to be used for inference.
+ **/
+export const EvalInferenceSampleSchema = z.object({
+  testCaseId: z.string().optional(),
+  input: z.any(),
+  reference: z.any().optional(),
+});
+
 /**
  * A set of samples that is ready for inference.
  *
  * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For internal wire-transfer/storage, prefer {@link Dataset}.
  */
-export const EvalInferenceInputSchema = z.union([
-  z.array(z.any()),
-  EvalInferenceStructuredInputSchema,
-]);
+export const EvalInferenceInputSchema = z.array(EvalInferenceSampleSchema);
 export type EvalInferenceInput = z.infer<typeof EvalInferenceInputSchema>;
 
 /**
@@ -93,11 +84,14 @@ export const EvalInputSchema = z.object({
   input: z.any(),
   output: z.any(),
   error: z.string().optional(),
-  context: z.array(z.string()).optional(),
+  context: z.array(z.any()).optional(),
   reference: z.any().optional(),
   traceIds: z.array(z.string()),
 });
 export type EvalInput = z.infer<typeof EvalInputSchema>;
+
+export const EvalInputDatasetSchema = z.array(EvalInputSchema);
+export type EvalInputDataset = z.infer<typeof EvalInputDatasetSchema>;
 
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
@@ -129,12 +123,14 @@ export const EvalRunKeySchema = z.object({
   datasetVersion: z.number().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
+  actionConfig: z.any().optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
   datasetId: true,
   datasetVersion: true,
   actionRef: true,
+  actionConfig: true,
 });
 export type EvalKeyAugments = z.infer<typeof EvalKeyAugmentsSchema>;
 

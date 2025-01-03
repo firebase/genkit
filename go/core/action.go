@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -147,7 +148,9 @@ func newAction[In, Out, Stream any](
 	var i In
 	var o Out
 	if inputSchema == nil {
-		inputSchema = base.InferJSONSchema(i)
+		if reflect.ValueOf(i).Kind() != reflect.Invalid {
+			inputSchema = base.InferJSONSchema(i)
+		}
 	}
 	return &Action[In, Out, Stream]{
 		name:  name,
@@ -265,4 +268,21 @@ func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.Action
 		return nil
 	}
 	return a.(*Action[In, Out, Stream])
+}
+
+var actionContextKey = base.NewContextKey[int]()
+
+// WithActionContext returns a new context with action runtime context (side channel data)
+// value set.
+func WithActionContext(ctx context.Context, actionContext map[string]any) context.Context {
+	return context.WithValue(ctx, actionContextKey, actionContext)
+}
+
+// ActionContext returns the action runtime context (side channel data) from ctx.
+func ActionContext(ctx context.Context) map[string]any {
+	val := ctx.Value(actionContextKey)
+	if val == nil {
+		return nil
+	}
+	return val.(map[string]any)
 }

@@ -40,14 +40,12 @@ func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model
 
 		  Answer this customer's question:
 		  {{question}}?`,
-		dotprompt.Config{
-			Model:        model,
-			InputSchema:  dataMenuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.3,
-			},
-		},
+		dotprompt.WithDefaultModel(model),
+		dotprompt.WithInputType(dataMenuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err
@@ -98,10 +96,10 @@ func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model
 				Question: input.Question,
 			}
 
-			preq := &dotprompt.PromptRequest{
-				Variables: questionInput,
-			}
-			presp, err := ragDataMenuPrompt.Generate(ctx, g, preq, nil)
+			presp, err := ragDataMenuPrompt.Generate(
+				ctx, g,
+				dotprompt.WithInput(questionInput),
+				nil)
 			if err != nil {
 				return nil, err
 			}

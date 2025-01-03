@@ -25,10 +25,8 @@ func setup01(g *genkit.Genkit, m ai.Model) error {
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Customer says: ${input.question}`,
-		dotprompt.Config{
-			Model:       m,
-			InputSchema: menuQuestionInputSchema,
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(menuQuestionInput{}),
 	)
 	if err != nil {
 		return err
@@ -65,11 +63,9 @@ func setup01(g *genkit.Genkit, m ai.Model) error {
 
 		 Question:
 		 {{question}} ?`,
-		dotprompt.Config{
-			Model:        m,
-			InputSchema:  menuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(menuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 
 	return err

@@ -27,6 +27,9 @@ import { SpanData, TraceData } from './types.js';
 
 export let telemetryServerUrl: string | undefined;
 
+/**
+ * @hidden
+ */
 export function setTelemetryServerUrl(url: string) {
   telemetryServerUrl = url;
 }

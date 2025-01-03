@@ -32,7 +32,9 @@ use GitHub pull requests for this purpose. Consult
 [GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
 information on using pull requests.
 
-## Environment
+## Setup
+
+### Environment
 
 1. [Install node v20](https://nodejs.org/en/download)
 2. Run `corepack enable pnpm` to enable pnpm.
@@ -40,7 +42,7 @@ information on using pull requests.
 Note: We recommend using Node v20 or greater when compiling and running Genkit.
 Any older versions of Node may not work properly.
 
-## Quick setup
+### Install dependencies
 
 ```
 pnpm i
@@ -49,7 +51,7 @@ pnpm run setup
 
 This will install all dependencies and build all packages.
 
-## Build it
+### Build it
 
 ```
 pnpm build
@@ -57,7 +59,7 @@ pnpm build
 
 This will build all packages in this repository. This is recommended the first time you check out a fresh repo or pull new revisions.
 
-## Pack it
+### Pack it
 
 Pack packages for testing/distribution.
 
@@ -69,7 +71,7 @@ pnpm pack:all
 
 This will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
 
-## Link it
+### Link it
 
 You will need the Genkit CLI to run test apps and the Developer UI (this is done for you with `pnpm run setup`):
 
@@ -92,7 +94,7 @@ genkit start -- tsx --watch src/index.ts
 
 Point your browser to http://localhost:4000
 
-### Run evaluations
+### Run an evaluation
 
 We'll be using the `pdfQA` flow for our example.
 
@@ -101,24 +103,24 @@ To start, let's make sure we have some context to pull from the vector store.
 1. Start the Developer UI
 
 ```
-cd js/testapps/rag
-genkit start -- tsx --watch src/index.ts
+cd js/testapps/evals
+genkit start -- pnpm genkit:dev
 ```
 
 2. Click on the `indexPdf` flow in the left nav.
 3. Input paths to pdfs you want to index. There's one checked into the directory:
 
 ```
-"./35650.pdf"
+"./docs/cat-handbook.pdf"
 ```
 
-4. Run the evaluation
+4. Run an evaluation on a sample dataset checked into the testapp
 
 ```
-genkit eval:flow pdfQA '"What's a brief description of MapReduce?"'
+genkit eval:flow pdfQA --input ./data/cat_adoption_questions.json
 ```
 
-5. To see the output, look for the log line `Saving EvalRun` with the path to the json file.
+5. Go to the **Evaluations** tab in the Developer UI to view the evaluation results.
 
 ## Code it
 
@@ -145,6 +147,16 @@ pnpm build:watch
 ```
 
 in the package that you're editing.
+
+## Document it
+
+If you are contributing to the core Genkit JS SDK (under the `/js` directory), please make sure that all exported members have a valid [JSDoc](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html) associated with them.
+
+Use the following command to build and view the new API reference locally.
+
+```
+cd js && pnpm build && pnpm typedoc-html && open api-refs-js/index.html
+```
 
 ## Send it
 

@@ -42,7 +42,6 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
-	"github.com/invopop/jsonschema"
 )
 
 const simpleGreetingPromptTemplate = `
@@ -106,15 +105,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := &jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
+	m := googleai.Model(g, "gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define(g, "simpleGreeting2", simpleGreetingPromptTemplate,
-		dotprompt.Config{
-			InputSchema:  r.Reflect(simpleGreetingInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(simpleGreetingInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -127,11 +122,10 @@ func main() {
 				return cb(ctx, c.Text())
 			}
 		}
-		resp, err := simpleGreetingPrompt.Generate(ctx, g,
-			&dotprompt.PromptRequest{
-				Variables: input,
-			},
-			callback,
+		resp, err := simpleGreetingPrompt.Generate(ctx,
+			g,
+			dotprompt.WithInput(input),
+			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {
 			return "", err
@@ -140,10 +134,9 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define(g, "greetingWithHistory", greetingWithHistoryPromptTemplate,
-		dotprompt.Config{
-			InputSchema:  r.Reflect(customerTimeAndHistoryInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(customerTimeAndHistoryInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -151,9 +144,7 @@ func main() {
 
 	greetingWithHistoryFlow := genkit.DefineFlow(g, "greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
 		resp, err := greetingWithHistoryPrompt.Generate(ctx, g,
-			&dotprompt.PromptRequest{
-				Variables: input,
-			},
+			dotprompt.WithInput(input),
 			nil,
 		)
 		if err != nil {
@@ -163,11 +154,9 @@ func main() {
 	})
 
 	simpleStructuredGreetingPrompt, err := dotprompt.Define(g, "simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
-		dotprompt.Config{
-			InputSchema:  r.Reflect(simpleGreetingInput{}),
-			OutputFormat: ai.OutputFormatJSON,
-			OutputSchema: r.Reflect(simpleGreetingOutput{}),
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(simpleGreetingInput{}),
+		dotprompt.WithOutputType(simpleGreetingOutput{}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -181,10 +170,8 @@ func main() {
 			}
 		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx, g,
-			&dotprompt.PromptRequest{
-				Variables: input,
-			},
-			callback,
+			dotprompt.WithInput(input),
+			dotprompt.WithStreaming(callback),
 		)
 		if err != nil {
 			return "", err

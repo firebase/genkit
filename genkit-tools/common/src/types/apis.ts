@@ -61,6 +61,14 @@ export const RunActionRequestSchema = z.object({
     .any()
     .optional()
     .describe('An input with the type that this action expects.'),
+  context: z
+    .any()
+    .optional()
+    .describe('Additional runtime context data (ex. auth context data).'),
+  telemetryLabels: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Labels to be applied to telemetry data.'),
 });
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;
@@ -123,7 +131,10 @@ export const UpdateDatasetRequestSchema = z.object({
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
 
 export const RunNewEvaluationRequestSchema = z.object({
-  datasetId: z.string(),
+  dataSource: z.object({
+    datasetId: z.string().optional(),
+    data: EvalInferenceInputSchema.optional(),
+  }),
   actionRef: z.string(),
   evaluators: z.array(z.string()).optional(),
   options: z

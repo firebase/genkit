@@ -121,6 +121,7 @@ import {
   StreamingFlowConfig,
   z,
 } from '@genkit-ai/core';
+import { HasRegistry } from '@genkit-ai/core/registry';
 import {
   defineDotprompt,
   defineHelper,
@@ -129,6 +130,8 @@ import {
   PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
+  toFrontmatter,
+  type DotpromptAction,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseEvalDataPointSchema } from './evaluator.js';
@@ -164,11 +167,13 @@ export type PromptMetadata<
 /**
  * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
  *
+ * Do not instantiate this class directly. Use {@link genkit}.
+ *
  * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
  *
  * There may be multiple Genkit instances in a single codebase.
  */
-export class Genkit {
+export class Genkit implements HasRegistry {
   /** Developer-configured options. */
   readonly options: GenkitOptions;
   /** Environments that have been configured (at minimum dev). */
@@ -180,7 +185,7 @@ export class Genkit {
   /** Flow server. May be null if the flow server is not enabled in configuration or not started. */
   private flowServer: FlowServer | null = null;
   /** List of flows that have been registered in this instance. */
-  private registeredFlows: Flow<any, any, any>[] = [];
+  readonly flows: Flow<any, any, any>[] = [];
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
@@ -208,7 +213,7 @@ export class Genkit {
     fn: FlowFn<I, O, S>
   ): CallableFlow<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
-    this.registeredFlows.push(flow.flow);
+    this.flows.push(flow.flow);
     return flow;
   }
 
@@ -230,7 +235,7 @@ export class Genkit {
       typeof config === 'string' ? { name: config } : config,
       fn
     );
-    this.registeredFlows.push(flow.flow);
+    this.flows.push(flow.flow);
     return flow;
   }
 
@@ -359,7 +364,16 @@ export class Genkit {
   }
 
   /**
-   * Defines and registers a function-based prompt.
+   * Defines and registers a prompt based on a function.
+   *
+   * This is an alternative to defining and importing a .prompt file, providing
+   * the most advanced control over how the final request to the model is made.
+   *
+   * @param options - Prompt metadata including model, model params,
+   * input/output schemas, etc
+   * @param fn - A function that returns a {@link GenerateRequest}. Any config
+   * parameters specified by the {@link GenerateRequest} will take precedence
+   * over any parameters specified by `options`.
    *
    * ```ts
    * const hi = ai.definePrompt(
@@ -393,9 +407,13 @@ export class Genkit {
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   /**
-   * Defines and registers a dotprompt.
+   * Defines and registers a prompt based on a template.
    *
-   * This is an alternative to defining and importing a .prompt file.
+   * This is an alternative to defining and importing a .prompt file, in
+   * situations where a static definition will not suffice.
+   *
+   * @param options - The first input number
+   * @param fn - The second input number
    *
    * ```ts
    * const hi = ai.definePrompt(
@@ -426,10 +444,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
+    options: PromptMetadata<I, CustomOptions>,
     templateOrFn: string | PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     if (!options.name) {
@@ -449,17 +464,25 @@ export class Genkit {
       );
       return this.wrapPromptActionInExecutablePrompt(
         dotprompt.promptAction! as PromptAction<I>,
-        options,
-        dotprompt
+        options
       );
     } else {
       const p = definePrompt(
         this.registry,
         {
+          ...options,
           name: options.name!,
+          description: options.description,
           inputJsonSchema: options.input?.jsonSchema,
           inputSchema: options.input?.schema,
-          description: options.description,
+          metadata: {
+            type: 'prompt',
+            // TODO: As a stop-gap, we are using the dotprompt interpretation of
+            // the "prompt metadata", which is roughly the same as the dotprompt
+            // frontmatter schema. This should be inverted, such that Genkit
+            // defines the metadata spec and registered dotprompts conform.
+            prompt: toFrontmatter(options),
+          },
         },
         async (input: z.infer<I>) => {
           const response = await (templateOrFn as PromptFn<I>)(input);
@@ -491,8 +514,7 @@ export class Genkit {
     promptAction: PromptAction<I> | Promise<PromptAction<I>>,
     options:
       | Partial<PromptMetadata<I, CustomOptions>>
-      | Promise<Partial<PromptMetadata<I, CustomOptions>>>,
-    dotprompt?: Dotprompt<z.infer<I>>
+      | Promise<Partial<PromptMetadata<I, CustomOptions>>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
@@ -536,6 +558,9 @@ export class Genkit {
       const p = await promptAction;
       // If it's a dotprompt template, we invoke dotprompt template directly
       // because it can take in more PromptGenerateOptions (not just inputs).
+      const dotprompt: Dotprompt<z.infer<I>> | undefined = (
+        p as DotpromptAction<z.infer<I>>
+      ).__dotprompt;
       const promptResult = await (dotprompt
         ? dotprompt.render(opt)
         : p(opt.input));
@@ -562,6 +587,13 @@ export class Genkit {
         },
         model,
       } as GenerateOptions<O, CustomOptions>;
+      if ((promptResult as GenerateOptions).use) {
+        resultOptions.use = (promptResult as GenerateOptions).use;
+      } else if (p.__config?.use) {
+        resultOptions.use = p.__config?.use;
+      } else if (opt.use) {
+        resultOptions.use = opt.use;
+      }
       delete (resultOptions as any).input;
       if ((promptResult as GenerateOptions).prompt) {
         resultOptions.prompt = (promptResult as GenerateOptions).prompt;
@@ -1036,7 +1068,7 @@ export class Genkit {
    * Gets the current session from async local storage.
    */
   currentSession<S = any>(): Session<S> {
-    const currentSession = getCurrentSession();
+    const currentSession = getCurrentSession(this.registry);
     if (!currentSession) {
       throw new SessionError('not running within a session');
     }

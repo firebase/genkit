@@ -15,7 +15,10 @@
  */
 
 import { randomUUID } from 'crypto';
+import { createReadStream } from 'fs';
+import { readFile } from 'fs/promises';
 import * as inquirer from 'inquirer';
+import { createInterface } from 'readline';
 import {
   EvalField,
   EvaluationExtractor,
@@ -25,14 +28,21 @@ import {
   findToolsConfig,
   isEvalField,
 } from '../plugin';
+import {
+  EvalInferenceInput,
+  EvalInferenceInputSchema,
+  EvalInferenceSampleSchema,
+  EvalInputDataset,
+  EvalInputDatasetSchema,
+  EvalInputSchema,
+} from '../types';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { NestedSpanData, TraceData } from '../types/trace';
 import { logger } from './logger';
 import { stackTraceSpans } from './trace';
 
-export type EvalExtractorFn = (t: TraceData) => string;
-const JSON_EMPTY_STRING = '""';
+export type EvalExtractorFn = (t: TraceData) => any;
 
 export const EVALUATOR_ACTION_PREFIX = '/evaluator';
 
@@ -78,30 +88,39 @@ function getRootSpan(trace: TraceData): NestedSpanData | undefined {
   return stackTraceSpans(trace);
 }
 
+function safeParse(value?: string) {
+  if (value) {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return '';
+    }
+  }
+  return '';
+}
+
 const DEFAULT_INPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
   const rootSpan = getRootSpan(trace);
-  return (rootSpan?.attributes['genkit:input'] as string) || JSON_EMPTY_STRING;
+  return safeParse(rootSpan?.attributes['genkit:input'] as string);
 };
 const DEFAULT_OUTPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
   const rootSpan = getRootSpan(trace);
-  return (rootSpan?.attributes['genkit:output'] as string) || JSON_EMPTY_STRING;
+  return safeParse(rootSpan?.attributes['genkit:output'] as string);
 };
 const DEFAULT_CONTEXT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
-  return JSON.stringify(
-    Object.values(trace.spans)
-      .filter((s) => s.attributes['genkit:metadata:subtype'] === 'retriever')
-      .flatMap((s) => {
-        const output: RetrieverResponse = JSON.parse(
-          s.attributes['genkit:output'] as string
-        );
-        if (!output) {
-          return [];
-        }
-        return output.documents.flatMap((d: DocumentData) =>
-          d.content.map((c) => c.text).filter((text): text is string => !!text)
-        );
-      })
-  );
+  return Object.values(trace.spans)
+    .filter((s) => s.attributes['genkit:metadata:subtype'] === 'retriever')
+    .flatMap((s) => {
+      const output: RetrieverResponse = safeParse(
+        s.attributes['genkit:output'] as string
+      );
+      if (!output) {
+        return [];
+      }
+      return output.documents.flatMap((d: DocumentData) =>
+        d.content.map((c) => c.text).filter((text): text is string => !!text)
+      );
+    });
 };
 
 const DEFAULT_FLOW_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
@@ -113,29 +132,29 @@ const DEFAULT_FLOW_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
 const DEFAULT_MODEL_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
   input: DEFAULT_INPUT_EXTRACTOR,
   output: DEFAULT_OUTPUT_EXTRACTOR,
-  context: () => JSON.stringify([]),
+  context: () => [],
 };
 
 function getStepAttribute(
   trace: TraceData,
   stepName: string,
   attributeName?: string
-): string {
+) {
   // Default to output
   const attr = attributeName ?? 'genkit:output';
   const values = Object.values(trace.spans)
     .filter((step) => step.displayName === stepName)
     .flatMap((step) => {
-      return JSON.parse(step.attributes[attr] as string);
+      return safeParse(step.attributes[attr] as string);
     });
   if (values.length === 0) {
-    return JSON_EMPTY_STRING;
+    return '';
   }
   if (values.length === 1) {
-    return JSON.stringify(values[0]);
+    return values[0];
   }
   // Return array if multiple steps have the same name
-  return JSON.stringify(values);
+  return values;
 }
 
 function getExtractorFromStepName(stepName: string): EvalExtractorFn {
@@ -159,7 +178,7 @@ function getExtractorFromStepSelector(
       selectedAttribute = 'genkit:output';
     }
     if (!stepName) {
-      return JSON_EMPTY_STRING;
+      return '';
     } else {
       return getStepAttribute(trace, stepName, selectedAttribute);
     }
@@ -196,7 +215,6 @@ export async function getEvalExtractors(
     return Promise.resolve(DEFAULT_MODEL_EXTRACTORS);
   }
   const config = await findToolsConfig();
-  logger.info(`Found tools config... ${JSON.stringify(config)}`);
   const extractors = config?.evaluators
     ?.filter((e) => e.actionRef === actionRef)
     .map((e) => e.extractors);
@@ -214,4 +232,70 @@ export async function getEvalExtractors(
 /**Global function to generate testCaseId */
 export function generateTestCaseId() {
   return randomUUID();
+}
+
+/** Load a {@link EvalInferenceInput} file. Supports JSON / JSONL */
+export async function loadEvalInference(
+  fileName: string
+): Promise<EvalInferenceInput> {
+  const isJsonl = fileName.endsWith('.jsonl');
+
+  if (isJsonl) {
+    return await readJsonlForInference(fileName);
+  } else {
+    const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
+    return EvalInferenceInputSchema.parse(parsedData);
+  }
+}
+
+/** Load a {@link Eval} file. Supports JSON / JSONL */
+export async function loadEvalInputDataset(
+  fileName: string
+): Promise<EvalInputDataset> {
+  const isJsonl = fileName.endsWith('.jsonl');
+
+  if (isJsonl) {
+    return await readJsonlForEvaluation(fileName);
+  } else {
+    const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
+    return EvalInputDatasetSchema.parse(parsedData);
+  }
+}
+
+async function readJsonlForInference(
+  fileName: string
+): Promise<EvalInferenceInput> {
+  const lines = await readLines(fileName);
+  const samples: EvalInferenceInput = [];
+  for (const line of lines) {
+    const parsedSample = EvalInferenceSampleSchema.parse(JSON.parse(line));
+    samples.push(parsedSample);
+  }
+  return samples;
+}
+
+async function readJsonlForEvaluation(
+  fileName: string
+): Promise<EvalInputDataset> {
+  const lines = await readLines(fileName);
+  const inputs: EvalInputDataset = [];
+  for (const line of lines) {
+    const parsedSample = EvalInputSchema.parse(JSON.parse(line));
+    inputs.push(parsedSample);
+  }
+  return inputs;
+}
+
+async function readLines(fileName: string): Promise<string[]> {
+  const lines: string[] = [];
+  const fileStream = createReadStream(fileName);
+  const rl = createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
+
+  for await (const line of rl) {
+    lines.push(line);
+  }
+  return lines;
 }

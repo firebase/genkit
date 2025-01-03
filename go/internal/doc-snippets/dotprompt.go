@@ -62,13 +62,11 @@ func dot01() error {
 	}
 	response, err := prompt.Generate(
 		ctx, g,
-		&dotprompt.PromptRequest{
-			Variables: GreetingPromptInput{
-				Location: "the beach",
-				Style:    "a fancy pirate",
-				Name:     "Ed",
-			},
-		},
+		dotprompt.WithInput(GreetingPromptInput{
+			Location: "the beach",
+			Style:    "a fancy pirate",
+			Name:     "Ed",
+		}),
 		nil,
 	)
 	if err != nil {
@@ -109,17 +107,15 @@ func dot02() {
 	response, err := prompt.Generate(
 		context.Background(),
 		g,
-		&dotprompt.PromptRequest{
-			Variables: GreetingPromptInput{
-				Location: "the beach",
-				Style:    "a fancy pirate",
-				Name:     "Ed",
-			},
-			Model: "vertexai/gemini-1.5-flash",
-			Config: &ai.GenerationCommonConfig{
-				Temperature: 1.0,
-			},
-		},
+		dotprompt.WithInput(GreetingPromptInput{
+			Location: "the beach",
+			Style:    "a fancy pirate",
+			Name:     "Ed",
+		}),
+		dotprompt.WithModelName("vertexai/gemini-1.5-flash"),
+		dotprompt.WithConfig(&ai.GenerationCommonConfig{
+			Temperature: 1.0,
+		}),
 		nil,
 	)
 	// [END dot02]
@@ -153,9 +149,9 @@ func dot03() error {
 	}
 	response, err := describeImagePrompt.Generate(
 		context.Background(), g,
-		&dotprompt.PromptRequest{Variables: DescribeImagePromptInput{
+		dotprompt.WithInput(DescribeImagePromptInput{
 			PhotoUrl: dataURI,
-		}},
+		}),
 		nil,
 	)
 	// [END dot03]

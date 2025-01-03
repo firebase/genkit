@@ -128,17 +128,23 @@ describe('Prompt', () => {
       );
 
       const streamingCallback = (c) => console.log(c);
-      const middleware = [];
+      const middleware = [
+        async (req, next) => {
+          return next();
+        },
+      ];
 
       const rendered = prompt.render({
         input: { name: 'Michael' },
-        streamingCallback,
+        onChunk: streamingCallback,
         returnToolRequests: true,
+        maxTurns: 17,
         use: middleware,
       });
-      assert.strictEqual(rendered.streamingCallback, streamingCallback);
+      assert.strictEqual(rendered.onChunk, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
-      assert.strictEqual(rendered.use, middleware);
+      assert.strictEqual(rendered.maxTurns, 17);
+      assert.deepStrictEqual(rendered.use, middleware);
     });
 
     it('should support system prompt with history', () => {
@@ -447,14 +453,16 @@ describe('DotpromptRef', () => {
     const streamingCallback = (chunk) => console.log(chunk);
     const options = {
       input: { name: 'Charlie' },
-      streamingCallback,
+      onChunk: streamingCallback,
       returnToolRequests: true,
+      maxTurns: 17,
     };
 
     const rendered = await ref.render(registry, options);
 
-    assert.strictEqual(rendered.streamingCallback, streamingCallback);
+    assert.strictEqual(rendered.onChunk, streamingCallback);
     assert.strictEqual(rendered.returnToolRequests, true);
+    assert.strictEqual(rendered.maxTurns, 17);
   });
 
   it('Should cache loaded prompt in DotpromptRef', async () => {

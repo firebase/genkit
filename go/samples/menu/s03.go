@@ -71,14 +71,12 @@ func setup03(g *genkit.Genkit, m ai.Model) error {
 		    {{this.description}}
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
-		dotprompt.Config{
-			Model:        m,
-			InputSchema:  dataMenuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.3,
-			},
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(dataMenuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err

@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +16,17 @@
  * limitations under the License.
  */
 
+/**
+ * Main genkit import.
+ *
+ * ```ts
+ * import { genkit } from 'genkit';
+ * ```
+ *
+ * @module /
+ */
 export {
+  BaseDataPointSchema,
   Document,
   DocumentDataSchema,
   GenerationBlockedError,
@@ -24,23 +36,17 @@ export {
   LlmStatsSchema,
   Message,
   MessageSchema,
-  ModelIdSchema,
   ModelRequestSchema,
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
   ToolCallSchema,
   ToolSchema,
-  asTool,
   embedderRef,
   evaluatorRef,
   indexerRef,
   rerankerRef,
   retrieverRef,
-  toGenerateRequest,
-  toToolWireFormat,
-  type BaseDataPointSchema,
-  type CommonLlmOptions,
   type DocumentData,
   type EmbedderAction,
   type EmbedderArgument,
@@ -71,7 +77,6 @@ export {
   type MediaPart,
   type MessageData,
   type ModelArgument,
-  type ModelId,
   type ModelReference,
   type ModelRequest,
   type ModelResponseData,
@@ -99,25 +104,22 @@ export {
   type ToolRequestPart,
   type ToolResponsePart,
 } from '@genkit-ai/ai';
-export { type SessionData, type SessionStore } from '@genkit-ai/ai/session';
+export { Chat } from '@genkit-ai/ai/chat';
 export {
-  FlowActionInputSchema,
-  FlowErrorSchema,
-  FlowInvokeEnvelopeMessageSchema,
+  Session,
+  type SessionData,
+  type SessionStore,
+} from '@genkit-ai/ai/session';
+export {
   FlowServer,
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
   GenkitError,
   ReflectionServer,
-  RunActionResponseSchema,
   StatusCodes,
   StatusSchema,
-  defineFlow,
   defineJsonSchema,
   defineSchema,
-  defineStreamingFlow,
-  deleteUndefinedProps,
-  flowMetadataPrefix,
   getCurrentEnv,
   getFlowAuth,
   getStreamingCallback,
@@ -129,14 +131,9 @@ export {
   type ActionMetadata,
   type CallableFlow,
   type Flow,
-  type FlowActionInput,
   type FlowAuthPolicy,
   type FlowConfig,
-  type FlowError,
   type FlowFn,
-  type FlowInvokeEnvelopeMessage,
-  type FlowResponseSchema,
-  type FlowResultSchema,
   type FlowServerOptions,
   type JSONSchema,
   type JSONSchema7,
@@ -151,4 +148,9 @@ export {
   type __RequestWithAuth,
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
-export * from './genkit.js';
+export {
+  Genkit,
+  genkit,
+  type GenkitOptions,
+  type PromptMetadata,
+} from './genkit.js';

@@ -48,6 +48,10 @@ import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
 
+export type DotpromptAction<I> = PromptAction & {
+  __dotprompt: Dotprompt<I>;
+};
+
 export type PromptGenerateOptions<
   V = unknown,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -78,6 +82,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   output?: PromptMetadata['output'];
   tools?: PromptMetadata['tools'];
   config?: PromptMetadata['config'];
+  use?: PromptMetadata['use'];
 
   private _promptAction?: PromptAction;
 
@@ -143,6 +148,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     this.output = options.output;
     this.tools = options.tools;
     this.config = options.config;
+    this.use = options.use;
     this.template = template;
     this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
 
@@ -182,8 +188,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    */
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
     let sessionStateData: Record<string, any> | undefined = undefined;
-    if (getCurrentSession()) {
-      sessionStateData = { state: getCurrentSession()?.state };
+    if (getCurrentSession(this.registry)) {
+      sessionStateData = { state: getCurrentSession(this.registry)?.state };
     }
     input = parseSchema(input, {
       schema: this.input?.schema,
@@ -216,6 +222,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       async (input?: I) =>
         toGenerateRequest(this.registry, this.render({ input }))
     );
+    (this._promptAction as DotpromptAction<I>).__dotprompt = this;
   }
 
   get promptAction(): PromptAction | undefined {
@@ -239,7 +246,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       renderedPrompt = undefined;
       renderedMessages = messages;
     }
-    return {
+    const res = {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config },
       messages: renderedMessages,
@@ -251,10 +258,15 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
       tools: (options.tools || []).concat(this.tools || []),
-      streamingCallback: options.streamingCallback,
+      onChunk: options.onChunk ?? options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
-      use: options.use,
+      maxTurns: options.maxTurns,
     } as GenerateOptions<O, CustomOptions>;
+    const middleware = (options.use || []).concat(this.use || []);
+    if (middleware.length > 0) {
+      res.use = middleware;
+    }
+    return res;
   }
 
   /**
@@ -278,6 +290,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   >(opt: PromptGenerateOptions<I>): Promise<GenerateOptions<CustomOptions, O>> {
     const spanName = this.variant ? `${this.name}.${this.variant}` : this.name;
     return runInNewSpan(
+      this.registry,
       {
         metadata: {
           name: spanName,
@@ -288,7 +301,11 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
         },
       },
       async (metadata) => {
-        setCustomMetadataAttribute('prompt_fingerprint', this.hash);
+        setCustomMetadataAttribute(
+          this.registry,
+          'prompt_fingerprint',
+          this.hash
+        );
         const generateOptions = this._generateOptions<CustomOptions, O>(opt);
         metadata.output = generateOptions;
         return generateOptions;

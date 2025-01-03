@@ -91,7 +91,8 @@ describe('GoogleCloudTracing', () => {
     const spans = await getExportedSpans();
     // Check some common attributes
     assert.equal(spans[0].attributes['genkit/name'], 'testFlow');
-    assert.equal(spans[0].attributes['genkit/type'], 'flow');
+    assert.equal(spans[0].attributes['genkit/type'], 'action');
+    assert.equal(spans[0].attributes['genkit/metadata/subtype'], 'flow');
     // Ensure we have no attributes with ':' because these are awkward to use in
     // Cloud Trace.
     const spanAttrKeys = Object.entries(spans[0].attributes).map(([k, v]) => k);

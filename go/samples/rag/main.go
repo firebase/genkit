@@ -44,7 +44,6 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/invopop/jsonschema"
 )
 
 const simpleQaPromptTemplate = `
@@ -87,11 +86,9 @@ func main() {
 
 	simpleQaPrompt, err := dotprompt.Define(g, "simpleQaPrompt",
 		simpleQaPromptTemplate,
-		dotprompt.Config{
-			Model:        model,
-			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithDefaultModel(model),
+		dotprompt.WithInputType(simpleQaPromptInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -125,9 +122,7 @@ func main() {
 		}
 
 		resp, err := simpleQaPrompt.Generate(ctx, g,
-			&dotprompt.PromptRequest{
-				Variables: promptInput,
-			},
+			dotprompt.WithInput(promptInput),
 			nil,
 		)
 		if err != nil {

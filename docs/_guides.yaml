@@ -19,6 +19,10 @@ toc:
     path: /docs/genkit/get-started
   - title: Developer tools
     path: /docs/genkit/devtools
+
+  - heading: Codelabs
+  - title: Chat with a PDF file
+    path: /docs/genkit/codelabs/codelab-chat-with-a-pdf
   
   - heading: Building AI workflows
   - title: Generating content

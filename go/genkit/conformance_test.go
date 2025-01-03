@@ -103,7 +103,7 @@ func TestFlowConformance(t *testing.T) {
 			r.TracingState().WriteTelemetryImmediate(tc)
 			_ = defineFlow(r, test.Name, flowFunction(test.Commands))
 			key := fmt.Sprintf("/flow/%s", test.Name)
-			resp, err := runAction(context.Background(), r, key, test.Input, nil)
+			resp, err := runAction(context.Background(), r, key, test.Input, nil, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
