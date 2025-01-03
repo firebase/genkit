@@ -138,19 +138,3 @@ async () => {
   resp = await session.resume({value: 88});
   console.log(resp.text);
 })();
-
-const escalate = ai.defineInterrupt({
-  name: 'escalate',
-  description: 'use this agent when user inquiry does not fall into predefined categories',
-  inputSchema: z.object({
-    inquirySummary: z.string().describe("brief summary of the user's request"),
-  }),
-});
-
-ai.defineAgent({
-  name: 'supportTriageAgent',
-  description: 'triages incoming requests and transfers to an appropriate specialist',
-  instructions: '{{ role "system" }} triage user request and call the specialized tool',
-  tools: [refundAgent, generalInquiryAgent, escalate],
-  toolChoice: 'required',
-})

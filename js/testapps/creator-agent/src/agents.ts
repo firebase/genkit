@@ -1,4 +1,8 @@
+import { Chat, ChatGenerateOptions, ChatOptions } from '@genkit-ai/ai/chat';
+import { SessionOptions } from '@genkit-ai/ai/session';
+import { Dotprompt } from '@genkit-ai/dotprompt';
 import {
+  Action,
   GenerateResponse,
   GenerateResponseChunk,
   GenerateStreamOptions,
@@ -14,11 +18,32 @@ import {
   ToolRequestPart,
   z,
 } from 'genkit';
-import { Chat, ChatGenerateOptions, ChatOptions } from '../../../ai/lib/chat';
-import { SessionOptions } from '../../../ai/lib/session';
 
 export function initAgents(ai: Genkit) {
   return new Agents(ai);
+}
+
+function agentMetadata<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  options: DefineAgentOptions<I, O>
+): Record<string, any> {
+  return {
+    agentMetadata: {
+      name: options.name,
+      instructions: options.instructions,
+      description: options.description,
+      toolChoice: options.toolChoice,
+      tools: options?.tools?.map(t => {
+        if (typeof t === 'string') {
+          return t;
+        } 
+        if ((t as Action).__action) {
+          return (t as Action).__action.name;
+        }
+        throw 'unsupported tool type';
+      }),
+      config: options.config,
+    }
+  }
 }
 
 export type AgentAction<
@@ -43,7 +68,7 @@ export interface DefineAgentOptions<
   name: string;
   /** Description of the tool. This is passed to the model to help understand what the tool is used for. */
   description: string;
-  instructions?: string | Part[] | MessageData[];
+  instructions: string | Part | Part[];
   tools?: ToolArgument[];
   config?: any;
   toolChoice?: 'auto' | 'required' | 'none';
@@ -75,6 +100,7 @@ export class Agents {
       {
         name: options.name,
         description: options.description,
+        metadata: agentMetadata(options)
       },
       async () => this.ai.interrupt()
     ) as AgentAction<I, O>;
@@ -85,9 +111,8 @@ export class Agents {
   defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     options: DefineInterruptOptions<I, O>
   ): InterruptAction<I, O> {
-    const tool = this.ai.defineTool(
-      options,
-      async () => this.ai.interrupt()
+    const tool = this.ai.defineTool(options, async () =>
+      this.ai.interrupt()
     ) as InterruptAction<I, O>;
     tool.__interruptOptions = options;
     return tool;
@@ -96,7 +121,14 @@ export class Agents {
   startSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>(
     options: StartSessionOptions<I, O, S>
   ): AgentSession<I, O, S> {
-    return new AgentSession(this.ai, this.ai.createSession(options), options);
+    return new AgentSession(this.ai, this.ai.createSession({
+      ...options,
+      initialState: {
+        ...options.initialState,
+        __agent_currentThread: options.agent.__action.name,
+        __agent_currentThreadInput: options.input
+      } as S
+    }), options);
   }
 }
 
@@ -104,8 +136,8 @@ export class AgentSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>
   implements Pick<Chat, 'send' | 'sendStream'>
 {
   private currentThread: string;
-  private currentChat: Chat;
   private currentAgent: AgentAction<any, any>;
+  private currentChat: Chat;
 
   constructor(
     readonly ai: Genkit,
@@ -144,7 +176,23 @@ export class AgentSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    const response = await this.currentChat.send(options);
+    let resolveOptions: ChatGenerateOptions<O, CustomOptions>;
+    if (typeof options === 'string' || Array.isArray(options)) {
+      resolveOptions = {
+        prompt: options,
+      };
+    } else {
+      resolveOptions = options;
+    }
+    this.currentChat = this.session.chat(
+      this.currentThread,
+      this.reRenderChatOptions()
+    );
+
+    const response = await this.currentChat.send({
+      ...resolveOptions,
+      returnToolRequests: true,
+    });
     if (response.toolRequests) {
       for (const req of response.toolRequests) {
         const tool = await this.ai.registry.lookupAction(
@@ -168,21 +216,39 @@ export class AgentSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>
               req.toolRequest.input as any,
               this.session?.sessionData?.threads?.[this.currentThread]
             ),
-            messages: this.session.sessionData?.threads?.['main'] ?? [],
           });
           this.currentAgent = nextAgent;
           await this.session.updateState({
             ...this.session.state,
             __agent_currentThread: this.currentThread,
+            __agent_currentThreadInput: req.toolRequest.input,
           } as any);
-          return this.send(`transferred to ${this.currentThread}`);
-        }
-        if ((tool as InterruptAction<any, any>).__interruptOptions) {
+          return this.send(`transferred to ${req.toolRequest.name}`);
+        } else if ((tool as InterruptAction<any, any>).__interruptOptions) {
           await this.session.updateState({
             ...this.session.state,
             __interrupted_at: req,
           } as any);
           return response;
+        } else {
+          return this.send({
+            messages: [
+              {
+                role: 'tool',
+                content: [
+                  {
+                    toolResponse: {
+                      name: req.toolRequest.name,
+                      ref: req.toolRequest.ref,
+                      output: await this.session.run(() =>
+                        tool(req.toolRequest.input)
+                      ),
+                    },
+                  },
+                ],
+              },
+            ],
+          });
         }
       }
     }
@@ -190,12 +256,13 @@ export class AgentSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>
   }
 
   private transformExit(): MessageData[] {
+    const prefilter = this.currentChat.messages
+      .filter((m) => !m.metadata?.agentHistory)
+      .filter((m) => m.role !== 'system');
     if (this.currentAgent.__agentOptions.onFinish) {
-      return this.currentAgent.__agentOptions.onFinish(
-        this.currentChat.messages
-      );
+      return this.currentAgent.__agentOptions.onFinish(prefilter);
     }
-    return this.currentChat.messages;
+    return prefilter;
   }
 
   private renderChatOptions(
@@ -203,12 +270,52 @@ export class AgentSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>
     input: any | undefined,
     history: MessageData[] | undefined
   ): ChatOptions {
-    return {
-      system: agent.__agentOptions.instructions,
+    const taggedHistory = tagAsAgentHistory(history) ?? [];
+    const opts: ChatOptions = {
       config: agent.__agentOptions.config,
       tools: agent.__agentOptions.tools,
       toolChoice: agent.__agentOptions.toolChoice,
+      messages: taggedHistory,
     };
+    if (typeof agent.__agentOptions.instructions === 'string') {
+      const dp = new Dotprompt(
+        this.ai.registry,
+        {},
+        agent.__agentOptions.instructions
+      );
+      const rendered = this.session.run(() => dp.render({ input }));
+      if (rendered.messages && rendered.messages.length > 0) {
+        throw new Error('instructions can only be a single message.');
+      }
+      opts.system = rendered.prompt;
+    } else {
+      opts.system = agent.__agentOptions.instructions;
+    }
+    return opts;
+  }
+
+  private reRenderChatOptions(): ChatOptions {
+    const opts: ChatOptions = {
+      config: this.currentAgent.__agentOptions.config,
+      tools: this.currentAgent.__agentOptions.tools,
+      toolChoice: this.currentAgent.__agentOptions.toolChoice,
+      messages: this.currentChat.messages.filter(m => m.role !== 'system'),
+    };
+    if (typeof this.currentAgent.__agentOptions.instructions === 'string') {
+      const dp = new Dotprompt(
+        this.ai.registry,
+        {},
+        this.currentAgent.__agentOptions.instructions
+      );
+      const rendered = this.session.run(() => dp.render({ input: (this.session.sessionData as any)?.['__agent_currentThreadInput'] }));
+      if (rendered.messages && rendered.messages.length > 0) {
+        throw new Error('instructions can only be a single message.');
+      }
+      opts.system = rendered.prompt;
+    } else {
+      opts.system = this.currentAgent.__agentOptions.instructions;
+    }
+    return opts;
   }
 
   async sendStream<
@@ -244,4 +351,24 @@ export class AgentSession<I extends z.ZodTypeAny, O extends z.ZodTypeAny, S>
       },
     };
   }
+}
+
+export function tagAsAgentHistory(
+  msgs?: MessageData[]
+): MessageData[] | undefined {
+  if (!msgs) {
+    return undefined;
+  }
+  return (
+    msgs
+      // make sure we don't accidentally include previous system instructions.
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        ...m,
+        metadata: {
+          ...m.metadata,
+          agentHistory: true,
+        },
+      }))
+  );
 }

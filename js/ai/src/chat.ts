@@ -161,8 +161,8 @@ export class Chat {
           }
           let request: GenerateOptions = {
             ...(await this.requestBase),
-            messages: this.messages,
             ...resolvedOptions,
+            messages: (this.messages ?? []).concat(resolvedOptions.messages ?? []),
           };
           let response = await generate(this.session.registry, {
             ...request,
