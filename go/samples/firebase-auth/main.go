@@ -27,6 +27,11 @@ import (
 func main() {
 	ctx := context.Background()
 
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatalf("failed to create Genkit: %v", err)
+	}
+
 	policy := func(authContext genkit.AuthContext, input any) error {
 		user := input.(string)
 		if authContext == nil || authContext["UID"] != user {
@@ -39,7 +44,7 @@ func main() {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
 
-	flowWithRequiredAuth := genkit.DefineFlow("flow-with-required-auth", func(ctx context.Context, user string) (string, error) {
+	flowWithRequiredAuth := genkit.DefineFlow(g, "flow-with-required-auth", func(ctx context.Context, user string) (string, error) {
 		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
@@ -48,11 +53,11 @@ func main() {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
 
-	flowWithAuth := genkit.DefineFlow("flow-with-auth", func(ctx context.Context, user string) (string, error) {
+	flowWithAuth := genkit.DefineFlow(g, "flow-with-auth", func(ctx context.Context, user string) (string, error) {
 		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
-	genkit.DefineFlow("super-caller", func(ctx context.Context, _ struct{}) (string, error) {
+	genkit.DefineFlow(g, "super-caller", func(ctx context.Context, _ struct{}) (string, error) {
 		// Auth is required so we have to pass local credentials.
 		resp1, err := flowWithRequiredAuth.Run(ctx, "admin-user", genkit.WithLocalAuth(map[string]any{"UID": "admin-user"}))
 		if err != nil {
@@ -66,7 +71,7 @@ func main() {
 		return resp1 + ", " + resp2, nil
 	})
 
-	if err := genkit.Init(ctx, nil); err != nil {
+	if err := g.Start(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

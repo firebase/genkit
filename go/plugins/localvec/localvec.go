@@ -32,6 +32,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 const provider = "devLocalVectorStore"
@@ -48,35 +49,35 @@ func Init() error { return nil }
 
 // DefineIndexerAndRetriever defines an Indexer and Retriever that share the same underlying storage.
 // The name uniquely identifies the the Indexer and Retriever in the registry.
-func DefineIndexerAndRetriever(name string, cfg Config) (ai.Indexer, ai.Retriever, error) {
+func DefineIndexerAndRetriever(g *genkit.Genkit, name string, cfg Config) (ai.Indexer, ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
 	}
-	return ai.DefineIndexer(provider, name, ds.index),
-		ai.DefineRetriever(provider, name, ds.retrieve),
+	return genkit.DefineIndexer(g, provider, name, ds.index),
+		genkit.DefineRetriever(g, provider, name, ds.retrieve),
 		nil
 }
 
 // IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
-func IsDefinedIndexer(name string) bool {
-	return ai.IsDefinedIndexer(provider, name)
+func IsDefinedIndexer(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedIndexer(g, provider, name)
 }
 
 // Indexer returns the registered indexer with the given name.
-func Indexer(name string) ai.Indexer {
-	return ai.LookupIndexer(provider, name)
+func Indexer(g *genkit.Genkit, name string) ai.Indexer {
+	return genkit.LookupIndexer(g, provider, name)
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
-func IsDefinedRetriever(name string) bool {
-	return ai.IsDefinedRetriever(provider, name)
+func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedRetriever(g, provider, name)
 }
 
 // Retriever returns the retriever with the given name.
 // The name must match the [Config.Name] value passed to [Init].
-func Retriever(name string) ai.Retriever {
-	return ai.LookupRetriever(provider, name)
+func Retriever(g *genkit.Genkit, name string) ai.Retriever {
+	return genkit.LookupRetriever(g, provider, name)
 }
 
 // docStore implements a local vector database.

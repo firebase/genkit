@@ -16,14 +16,23 @@ package dotprompt
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 )
 
 // TestRender is some of the tests from prompt_test.ts.
 func TestRender(t *testing.T) {
+	g, err := genkit.New(&genkit.Options{
+		PromptDir: "testdata",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var tests = []struct {
 		prompt string
 		input  map[string]any
@@ -62,7 +71,7 @@ This is the rest of the prompt`,
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			prompt, err := Parse(t.Name(), "", []byte(test.prompt))
+			prompt, err := Parse(g, t.Name(), "", []byte(test.prompt))
 			if err != nil {
 				if test.bad {
 					t.Logf("got expected error %v", err)
@@ -86,6 +95,13 @@ This is the rest of the prompt`,
 
 // TestRenderMessages is some of the tests from template_test.ts.
 func TestRenderMessages(t *testing.T) {
+	g, err := genkit.New(&genkit.Options{
+		PromptDir: "testdata",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var tests = []struct {
 		name     string
 		template string
@@ -212,7 +228,7 @@ func TestRenderMessages(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			prompt, err := Parse(t.Name(), "", []byte(test.template))
+			prompt, err := Parse(g, t.Name(), "", []byte(test.template))
 			if err != nil {
 				t.Fatal(err)
 			}

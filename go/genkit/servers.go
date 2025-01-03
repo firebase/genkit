@@ -63,10 +63,10 @@ type devServer struct {
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
 // or ":3100" if it is empty.
-func startReflectionServer(ctx context.Context, errCh chan<- error) *http.Server {
+func startReflectionServer(ctx context.Context, r *registry.Registry, errCh chan<- error) *http.Server {
 	slog.Debug("starting reflection server")
 	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
-	s := &devServer{reg: registry.Global}
+	s := &devServer{reg: r}
 	if err := s.writeRuntimeFile(addr); err != nil {
 		slog.Error("failed to write runtime file", "error", err)
 	}
@@ -162,10 +162,10 @@ func findProjectRoot() (string, error) {
 // for the port, and if that is empty it uses ":3400".
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
-func startFlowServer(addr string, flows []string, errCh chan<- error) *http.Server {
+func startFlowServer(g *Genkit, addr string, flows []string, errCh chan<- error) *http.Server {
 	slog.Debug("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
-	mux := NewFlowServeMux(flows)
+	mux := NewFlowServeMux(g, flows)
 	return startServer(addr, mux, errCh)
 }
 
@@ -366,8 +366,8 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux(flows []string) *http.ServeMux {
-	return newFlowServeMux(registry.Global, flows)
+func NewFlowServeMux(g *Genkit, flows []string) *http.ServeMux {
+	return newFlowServeMux(g.reg, flows)
 }
 
 func newFlowServeMux(r *registry.Registry, flows []string) *http.ServeMux {

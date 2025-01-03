@@ -30,6 +30,6 @@ import (
 )
 
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
-func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	registry.Global.RegisterSpanProcessor(sp)
+func RegisterSpanProcessor(r *registry.Registry, sp sdktrace.SpanProcessor) {
+	r.RegisterSpanProcessor(sp)
 }

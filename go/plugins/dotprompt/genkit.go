@@ -24,6 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // PromptRequest is a request to execute a dotprompt template and
@@ -144,7 +145,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest,
 }
 
 // Register registers an action to render a prompt.
-func (p *Prompt) Register() error {
+func (p *Prompt) Register(g *genkit.Genkit) error {
 	if p.prompt != nil {
 		return nil
 	}
@@ -170,7 +171,7 @@ func (p *Prompt) Register() error {
 			"template": p.TemplateText,
 		},
 	}
-	p.prompt = ai.DefinePrompt("dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
+	p.prompt = genkit.DefinePrompt(g, "dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
 
 	return nil
 }
@@ -180,7 +181,7 @@ func (p *Prompt) Register() error {
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.ModelResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...GenerateOption) (*ai.ModelResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 	var pr PromptRequest
 
@@ -232,13 +233,13 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		model = ai.LookupModel(provider, name)
+		model = genkit.LookupModel(g, provider, name)
 		if model == nil {
 			return nil, fmt.Errorf("no model named %q for provider %q", name, provider)
 		}
 	}
 
-	resp, err := model.Generate(ctx, mr, pr.Stream)
+	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
@@ -247,8 +248,8 @@ func (p *Prompt) Generate(ctx context.Context, opts ...GenerateOption) (*ai.Mode
 }
 
 // GenerateText runs generate request for this prompt. Returns generated text only.
-func (p *Prompt) GenerateText(ctx context.Context, opts ...GenerateOption) (string, error) {
-	res, err := p.Generate(ctx, opts...)
+func (p *Prompt) GenerateText(ctx context.Context, g *genkit.Genkit, opts ...GenerateOption) (string, error) {
+	res, err := p.Generate(ctx, g, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -258,14 +259,14 @@ func (p *Prompt) GenerateText(ctx context.Context, opts ...GenerateOption) (stri
 
 // GenerateData runs generate request for this prompt. Returns ModelResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func (p *Prompt) GenerateData(ctx context.Context, value any, opts ...GenerateOption) (*ai.ModelResponse, error) {
+func (p *Prompt) GenerateData(ctx context.Context, g *genkit.Genkit, value any, opts ...GenerateOption) (*ai.ModelResponse, error) {
 	with := WithOutputType(value)
 	err := with(p)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := p.Generate(ctx, opts...)
+	resp, err := p.Generate(ctx, g, opts...)
 	if err != nil {
 		return nil, err
 	}
