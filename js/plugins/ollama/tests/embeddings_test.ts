@@ -15,31 +15,12 @@
  */
 import { Genkit, genkit } from 'genkit';
 import assert from 'node:assert';
-import { beforeEach, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
 import { ollama } from '../src/index.js';
 import { OllamaPluginParams } from '../src/types.js';
 
-// Mock fetch to simulate API responses
-global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
-  const url = typeof input === 'string' ? input : input.toString();
-  if (url.includes('/api/embed')) {
-    if (options?.body && JSON.stringify(options.body).includes('fail')) {
-      return {
-        ok: false,
-        statusText: 'Internal Server Error',
-        json: async () => ({}),
-      } as Response;
-    }
-    return {
-      ok: true,
-      json: async () => ({
-        embeddings: [[0.1, 0.2, 0.3]], // Example embedding values
-      }),
-    } as Response;
-  }
-  throw new Error('Unknown API endpoint');
-};
+let originalFetch: typeof fetch;
 
 describe('defineOllamaEmbedder', () => {
   const options: OllamaPluginParams = {
@@ -48,6 +29,38 @@ describe('defineOllamaEmbedder', () => {
   };
 
   let ai: Genkit;
+
+  before(() => {
+    // Store original fetch
+    originalFetch = global.fetch;
+
+    // Mock fetch to simulate API responses
+    global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/api/embed')) {
+        if (options?.body && JSON.stringify(options.body).includes('fail')) {
+          return {
+            ok: false,
+            statusText: 'Internal Server Error',
+            json: async () => ({}),
+          } as Response;
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            embeddings: [[0.1, 0.2, 0.3]], // Example embedding values
+          }),
+        } as Response;
+      }
+      throw new Error('Unknown API endpoint');
+    };
+  });
+
+  after(() => {
+    // Restore original fetch
+    global.fetch = originalFetch;
+  });
+
   beforeEach(() => {
     ai = genkit({
       plugins: [

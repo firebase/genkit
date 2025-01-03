@@ -697,8 +697,8 @@ importers:
         specifier: ^4.1.5
         version: 4.1.5
       ollama:
-        specifier: ^0.5.9
-        version: 0.5.9
+        specifier: ^0.5.11
+        version: 0.5.11
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -5371,8 +5371,8 @@ packages:
     resolution: {integrity: sha512-byy+U7gp+FVwmyzKPYhW2h5l3crpmGsxl7X2s8y43IgxvG4g3QZ6CffDtsNQy1WsmZpQbO+ybo0AlW7TY6DcBQ==}
     engines: {node: '>= 0.4'}
 
-  ollama@0.5.9:
-    resolution: {integrity: sha512-F/KZuDRC+ZsVCuMvcOYuQ6zj42/idzCkkuknGyyGVmNStMZ/sU3jQpvhnl4SyC0+zBzLiKNZJnJeuPFuieWZvQ==}
+  ollama@0.5.11:
+    resolution: {integrity: sha512-lDAKcpmBU3VAOGF05NcQipHNKTdpKfAHpZ7bjCsElkUkmX7SNZImi6lwIxz/l1zQtLq0S3wuLneRuiXxX2KIew==}
 
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
@@ -10719,7 +10719,7 @@ snapshots:
       has-symbols: 1.0.3
       object-keys: 1.1.1
 
-  ollama@0.5.9:
+  ollama@0.5.11:
     dependencies:
       whatwg-fetch: 3.6.20
 

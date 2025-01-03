@@ -17,6 +17,16 @@ import { Document, Genkit } from 'genkit';
 import { EmbedRequest, EmbedResponse } from 'ollama';
 import { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
 
+/**
+ * Constructs an Ollama embedding request from the provided parameters.
+ * @param {string} modelName - The name of the Ollama model to use
+ * @param {number} dimensions - The number of dimensions for the embeddings
+ * @param {Document[]} documents - The documents to embed
+ * @param {string} serverAddress - The Ollama server address
+ * @param {RequestHeaders} [requestHeaders] - Optional headers to include with the request
+ * @returns {Promise<{url: string, requestPayload: EmbedRequest, headers: Record<string, string>}>} The prepared request
+ * @private
+ */
 async function toOllamaEmbedRequest(
   modelName: string,
   dimensions: number,
@@ -59,6 +69,12 @@ async function toOllamaEmbedRequest(
   };
 }
 
+/**
+ * Defines and registers an Ollama embedder in the Genkit environment.
+ * @param {Genkit} ai - The Genkit instance
+ * @param {DefineOllamaEmbeddingParams} params - Configuration for the embedder
+ * @returns {Embedder} The defined Genkit embedder
+ */
 export function defineOllamaEmbedder(
   ai: Genkit,
   { name, modelName, dimensions, options }: DefineOllamaEmbeddingParams

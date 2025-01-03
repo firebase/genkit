@@ -151,3 +151,59 @@ async function getEmbedding() {
 
 getEmbedding().then((e) => console.log(e))
 ```
+
+## Structured Output
+The Ollama plugin supports structured output through JSON schema validation. This allows you to specify the exact structure of the response you expect from the model.
+### Basic Usage
+Here's a simple example using Zod to define a schema and get structured output:
+```ts
+import { genkit, z } from 'genkit';
+import { ollama } from 'genkitx-ollama';
+
+// Define your schema using Zod
+const CountrySchema = z.object({
+  name: z.string(),
+  capital: z.string(),
+  languages: z.array(z.string()),
+});
+
+// Initialize Genkit with Ollama plugin
+const ai = genkit({
+  plugins: [
+    ollama({
+      models: [{ name: 'your-model', type: 'chat' }],
+      serverAddress: 'http://localhost:11434',
+    }),
+  ],
+});
+
+// ...
+// ...
+
+// Use structured output in your request
+const llmResponse = await ai.generate({
+  model: 'ollama/your-model',
+  messages: [
+    {
+      role: 'system',
+      content: [
+        {
+          text: 'You are a helpful assistant that provides information about countries in a structured format.',
+        },
+      ],
+    },
+    {
+      role: 'user',
+      content: [{ text: 'Tell me about Canada.' }],
+    },
+  ],
+  output: {
+    format: 'json',
+    schema: CountrySchema,
+  },
+});
+
+// Now output should be typed correectly:
+const {name, capital, languages} = llmResponse.output;
+
+```
