@@ -82,14 +82,28 @@ const SafetySettingsSchema = z.object({
 });
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  safetySettings: z.array(SafetySettingsSchema).optional(),
-  codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
-  contextCache: z.boolean().optional(),
+  version: z.string().describe('Model version').optional(),
+  temperature: z.number().describe('Temperature').min(0).max(2).optional(),
+  maxOutputTokens: z.number().describe('Maximum number of tokens').optional(),
+  topK: z.number().describe('Top-K').min(1).max(40).optional(),
+  topP: z.number().describe('Top-P').min(0).max(1).optional(),
+  stopSequences: z.array(z.string()).describe('Stop sequences').optional(),
+
+  safetySettings: z
+    .array(SafetySettingsSchema)
+    .describe('Safety settings')
+    .optional(),
+  codeExecution: z
+    .union([z.boolean(), z.object({}).strict()])
+    .describe('Enable code execution')
+    .optional(),
+  contextCache: z.boolean().describe('Enable context caching').optional(),
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
     })
+    .describe('Function calling config')
     .optional(),
 });
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
