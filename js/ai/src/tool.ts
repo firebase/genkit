@@ -187,3 +187,16 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   );
   return a as ToolAction<I, O>;
 }
+
+/**
+ * Thrown when tools execution is interrupted. It's meant to be caugh by the framework, not public API.
+ */
+export class ToolInterruptError extends Error {}
+
+/**
+ * Interrupts current tool execution causing tool request to be returned in the generation response.
+ * Should only be called within a tool.
+ */
+export function interruptTool() {
+  throw new ToolInterruptError();
+}

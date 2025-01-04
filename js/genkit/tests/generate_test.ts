@@ -19,6 +19,7 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
 import { Genkit, genkit } from '../src/genkit';
+import { interruptTool } from '../src/index';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -559,6 +560,72 @@ describe('generate', () => {
           );
         }
       );
+    });
+
+    it('interrupts tool execution', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => interruptTool()
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const response = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      assert.strictEqual(reqCounter, 1);
+      assert.deepStrictEqual(response.toolRequests, [
+        {
+          toolRequest: {
+            input: {},
+            name: 'testTool',
+            ref: 'ref123',
+          },
+        },
+      ]);
+      assert.deepStrictEqual(pm.lastRequest, {
+        config: {},
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: 'call the tool' }],
+          },
+        ],
+        output: {},
+        tools: [
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'testTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+        ],
+      });
     });
   });
 });

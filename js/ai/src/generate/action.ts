@@ -51,7 +51,12 @@ import {
   ToolResponsePart,
   resolveModel,
 } from '../model.js';
-import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
+import {
+  ToolAction,
+  ToolInterruptError,
+  resolveTools,
+  toToolDefinition,
+} from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -238,6 +243,7 @@ async function generate(
   let messages: MessageData[] = [...request.messages, message];
   let newTools = options.rawRequest.tools;
   let newToolChoice = options.rawRequest.toolChoice;
+  let interruptedParts: Part[] = [];
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -249,29 +255,47 @@ async function generate(
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
     if ((tool.__action.metadata.type as string) === 'prompt') {
-      const newPreamble = await tool(part.toolRequest?.input);
-      toolResponses.push({
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: `transferred to ${part.toolRequest.name}`,
-        },
-      });
-      // swap out the preamble
-      messages = [
-        ...tagAsPreamble(newPreamble.messages)!,
-        ...messages.filter((m) => !m?.metadata?.preamble),
-      ];
-      newTools = newPreamble.tools;
-      newToolChoice = newPreamble.toolChoice;
+      try {
+        const newPreamble = await tool(part.toolRequest?.input);
+        toolResponses.push({
+          toolResponse: {
+            name: part.toolRequest.name,
+            ref: part.toolRequest.ref,
+            output: `transferred to ${part.toolRequest.name}`,
+          },
+        });
+        // swap out the preamble
+        messages = [
+          ...tagAsPreamble(newPreamble.messages)!,
+          ...messages.filter((m) => !m?.metadata?.preamble),
+        ];
+        newTools = newPreamble.tools;
+        newToolChoice = newPreamble.toolChoice;
+      } catch (e) {
+        if (e instanceof ToolInterruptError) {
+          logger.debug(`interrupted tool ${part.toolRequest?.name}`);
+          interruptedParts.push(part);
+        } else {
+          throw e;
+        }
+      }
     } else {
-      toolResponses.push({
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: await tool(part.toolRequest?.input),
-        },
-      });
+      try {
+        toolResponses.push({
+          toolResponse: {
+            name: part.toolRequest.name,
+            ref: part.toolRequest.ref,
+            output: await tool(part.toolRequest?.input),
+          },
+        });
+      } catch (e) {
+        if (e instanceof ToolInterruptError) {
+          logger.debug(`interrupted tool ${part.toolRequest?.name}`);
+          interruptedParts.push(part);
+        } else {
+          throw e;
+        }
+      }
     }
   }
   options.messageIndex++;
@@ -299,8 +323,17 @@ async function generate(
         previousChunks: accumulatedChunks,
         parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
       }
-    )
-  );
+    ));
+  if (interruptedParts.length > 0) {
+    return {
+      ...response.toJSON(),
+      finishReason: 'interrupted',
+      message: {
+        role: 'model',
+        content: interruptedParts,
+      },
+    };
+  }
   return await generateHelper(registry, {
     rawRequest: nextRequest,
     middleware: options.middleware,
