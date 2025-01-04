@@ -52,9 +52,15 @@ type ModelCapabilities struct {
 	SystemRole bool // the model supports a system prompt or role
 }
 
+type ModelDetails struct {
+	Versions []string
+	Caps     ModelCapabilities
+}
+
 // ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
 type ModelMetadata struct {
 	Label    string
+	Versions []string
 	Supports ModelCapabilities
 }
 
@@ -78,6 +84,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 		"tools":      metadata.Supports.Tools,
 	}
 	metadataMap["supports"] = supports
+	metadataMap["versions"] = metadata.Versions
 
 	return (*modelActionDef)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
@@ -103,8 +110,8 @@ func LookupModel(provider, name string) Model {
 type generateParams struct {
 	Request      *ModelRequest
 	Stream       ModelStreamingCallback
-	History      []*Message
 	SystemPrompt *Message
+	History      []*Message
 }
 
 // GenerateOption configures params of the Generate call.
