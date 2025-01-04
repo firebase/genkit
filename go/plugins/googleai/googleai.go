@@ -47,10 +47,26 @@ var state struct {
 }
 
 var (
-	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   gemini.BasicText,
-		"gemini-1.5-pro":   gemini.Multimodal,
-		"gemini-1.5-flash": gemini.Multimodal,
+	supportedModels = map[string]ai.ModelDetails{
+		"gemini-1.0-pro": {
+			Versions: []string{"gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro-001"},
+			Caps:     gemini.BasicText,
+		},
+
+		"gemini-1.5-flash": {
+			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
+			Caps:     gemini.Multimodal,
+		},
+
+		"gemini-1.5-pro": {
+			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
+			Caps:     gemini.Multimodal,
+		},
+
+		"gemini-1.5-flash-8b": {
+			Versions: []string{"gemini-1.5-flash-8b-latest", "gemini-1.5-flash-8b-001"},
+			Caps:     gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
@@ -97,7 +113,8 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 
 	opts := append([]option.ClientOption{
 		option.WithAPIKey(apiKey),
-		genai.WithClientInfo("genkit-go", internal.Version)},
+		genai.WithClientInfo("genkit-go", internal.Version),
+	},
 		cfg.ClientOptions...,
 	)
 	client, err := genai.NewClient(ctx, opts...)
@@ -107,8 +124,8 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 	state.gclient = client
 	state.pclient = client
 	state.initted = true
-	for model, caps := range knownCaps {
-		defineModel(model, caps)
+	for model, details := range supportedModels {
+		defineModel(model, details)
 	}
 	for _, e := range knownEmbedders {
 		defineEmbedder(e)
@@ -128,24 +145,26 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	var mc ai.ModelCapabilities
+	var md ai.ModelDetails
 	if caps == nil {
 		var ok bool
-		mc, ok = knownCaps[name]
+		md, ok = supportedModels[name]
 		if !ok {
 			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelCapabilities", provider, name)
 		}
 	} else {
-		mc = *caps
+		// TODO: unknown models could also specify versions?
+		md.Caps = *caps
 	}
-	return defineModel(name, mc), nil
+	return defineModel(name, md), nil
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
+func defineModel(name string, details ai.ModelDetails) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
-		Supports: caps,
+		Supports: details.Caps,
+		Versions: details.Versions,
 	}
 	return ai.DefineModel(provider, name, meta, func(
 		ctx context.Context,
@@ -326,7 +345,6 @@ func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*gena
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
 			return nil, err
-
 		}
 		// system prompts go into GenerativeModel.SystemInstruction field.
 		if m.Role == ai.RoleSystem {
