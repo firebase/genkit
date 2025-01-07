@@ -43,6 +43,10 @@ export const TelemetryConfigs = {
       disableTraces: false,
       exportIO: !overrides.disableLoggingIO,
       export: !!overrides.forceDevExport, // false
+      media: {
+        exportMedia: false,
+        bucketName: '',
+      },
     };
     return { ...defaults, ...overrides };
   },
@@ -64,6 +68,10 @@ export const TelemetryConfigs = {
       disableLoggingIO: false,
       exportIO: !overrides.disableLoggingIO,
       export: true,
+      media: {
+        exportMedia: false,
+        bucketName: '',
+      },
     };
     return { ...defaults, ...overrides };
   },

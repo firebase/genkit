@@ -19,6 +19,11 @@ import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { JWTInput } from 'google-auth-library';
 
+export interface GcpTelemetryMediaConfig {
+  exportMedia: boolean;
+  bucketName: string;
+}
+
 /** Configuration options for the Google Cloud plugin. */
 export interface GcpTelemetryConfigOptions {
   /** Cloud projectId is required, either passed here, through GCLOUD_PROJECT or application default credentials. */
@@ -50,6 +55,9 @@ export interface GcpTelemetryConfigOptions {
 
   /** When true, telemetry data will be exported, even for local runs. Defaults to not exporting development traces. */
   forceDevExport?: boolean;
+
+  /** Media export options. When set, input and generated media parts will be stored in Google Cloud Storage. */
+  media?: GcpTelemetryMediaConfig;
 }
 
 /**
@@ -69,6 +77,7 @@ export interface GcpTelemetryConfig {
   disableTraces: boolean;
   exportIO: boolean;
   export: boolean;
+  media: GcpTelemetryMediaConfig;
 }
 
 export interface GcpPrincipal {

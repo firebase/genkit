@@ -349,6 +349,7 @@ class GenerateTelemetry implements Telemetry {
       return this.toPartLogText(JSON.stringify(part.data));
     }
     if (part.media) {
+      console.log(this.toPartLogMedia(part));
       return this.toPartLogMedia(part);
     }
     if (part.toolRequest) {
