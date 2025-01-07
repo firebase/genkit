@@ -20,7 +20,6 @@ import { runInNewSpan } from '@genkit-ai/core/tracing';
 import assert from 'node:assert';
 import { generate } from '../generate';
 import { ModelAction } from '../model';
-import { defineTool } from '../tool';
 
 const tests: Record<string, TestCase> = {
   'basic hi': async (registry: Registry, model: string) => {
@@ -53,9 +52,9 @@ const tests: Record<string, TestCase> = {
       ],
     });
 
-    const want = '';
+    const want = /plus/i;
     const got = response.text.trim();
-    assert.match(got, /plus/i);
+    assert.match(got, want);
   },
   history: async (registry: Registry, model: string) => {
     const resolvedModel = (await registry.lookupAction(
@@ -155,21 +154,6 @@ export async function testModels(
   registry: Registry,
   models: string[]
 ): Promise<TestReport> {
-  const gablorkenTool = defineTool(
-    registry,
-    {
-      name: 'gablorkenTool',
-      description: 'use when need to calculate a gablorken',
-      inputSchema: z.object({
-        value: z.number(),
-      }),
-      outputSchema: z.number(),
-    },
-    async (input) => {
-      return Math.pow(input.value, 3) + 1.407;
-    }
-  );
-
   return await runInNewSpan(
     registry,
     { metadata: { name: 'testModels' } },

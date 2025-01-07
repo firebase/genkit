@@ -26,7 +26,7 @@ export interface Formatter<O = unknown, CO = unknown> {
   config: ModelRequest['output'];
   handler: (schema?: JSONSchema) => {
     parseMessage(message: Message): O;
-    parseChunk?: (chunk: GenerateResponseChunk, cursor?: CC) => CO;
+    parseChunk?: (chunk: GenerateResponseChunk) => CO;
     instructions?: string;
   };
 }

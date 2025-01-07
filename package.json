@@ -1,11 +1,12 @@
 {
   "name": "genkit",
   "private": true,
+  "type": "module",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
-    "format": "(prettier . --write) && (ts-node scripts/copyright.ts)",
-    "format:check": "(prettier . --check) && (ts-node scripts/copyright.ts --check)",
+    "format": "(prettier . --write) && (tsx scripts/copyright.ts)",
+    "format:check": "(prettier . --check) && (tsx scripts/copyright.ts --check)",
     "build": "pnpm build:js && pnpm build:genkit-tools",
     "build:js": "cd js && pnpm i && pnpm build",
     "build:genkit-tools": "cd genkit-tools && pnpm i && pnpm build",
@@ -36,7 +37,6 @@
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
     "rimraf": "^6.0.1",
-    "ts-node": "^10.9.2",
     "tsx": "^4.19.2"
   },
   "pnpm": {
