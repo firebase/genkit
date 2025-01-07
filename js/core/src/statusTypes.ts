@@ -16,6 +16,9 @@
 
 import * as z from 'zod';
 
+/**
+ * Enumeration of response status codes.
+ */
 export enum StatusCodes {
   // Not an error; returned on success.
   //

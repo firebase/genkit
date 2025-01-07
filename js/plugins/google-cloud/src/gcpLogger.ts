@@ -110,6 +110,7 @@ export class GcpLogger {
   }
 }
 
+/** @hidden */
 export function __addTransportStreamForTesting(stream: Writable) {
   additionalStream = stream;
 }

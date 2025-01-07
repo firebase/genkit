@@ -1,26 +1,24 @@
-# A Vertex AI plugin for Genkit
+# Google Cloud plugin for Genkit
 
 ## Installing the plugin
 
 ```bash
-npm i --save @genkit-ai/vertexai
+npm i --save @genkit-ai/google-cloud
 ```
 
 ## Using the plugin
 
 ```ts
 import { genkit } from 'genkit';
-import { vertexAI, gemini, gemini15Flash } from '@genkit-ai/vertexai';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
+
+enableGoogleCloudTelemetry();
 
 const ai = genkit({
-  plugins: [vertexAI()],
-  model: gemini15Flash,
+  plugins: [
+    // ...
+  ],
 });
-
-async () => {
-  const { text } = ai.generate('hi Gemini!');
-  console.log(text);
-};
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.

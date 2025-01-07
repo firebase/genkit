@@ -131,6 +131,7 @@ import {
   loadPromptFolder,
   prompt,
   toFrontmatter,
+  type DotpromptAction,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseEvalDataPointSchema } from './evaluator.js';
@@ -165,6 +166,8 @@ export type PromptMetadata<
 
 /**
  * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
+ *
+ * Do not instantiate this class directly. Use {@link genkit}.
  *
  * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
  *
@@ -461,13 +464,13 @@ export class Genkit implements HasRegistry {
       );
       return this.wrapPromptActionInExecutablePrompt(
         dotprompt.promptAction! as PromptAction<I>,
-        options,
-        dotprompt
+        options
       );
     } else {
       const p = definePrompt(
         this.registry,
         {
+          ...options,
           name: options.name!,
           description: options.description,
           inputJsonSchema: options.input?.jsonSchema,
@@ -511,8 +514,7 @@ export class Genkit implements HasRegistry {
     promptAction: PromptAction<I> | Promise<PromptAction<I>>,
     options:
       | Partial<PromptMetadata<I, CustomOptions>>
-      | Promise<Partial<PromptMetadata<I, CustomOptions>>>,
-    dotprompt?: Dotprompt<z.infer<I>>
+      | Promise<Partial<PromptMetadata<I, CustomOptions>>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
@@ -556,6 +558,9 @@ export class Genkit implements HasRegistry {
       const p = await promptAction;
       // If it's a dotprompt template, we invoke dotprompt template directly
       // because it can take in more PromptGenerateOptions (not just inputs).
+      const dotprompt: Dotprompt<z.infer<I>> | undefined = (
+        p as DotpromptAction<z.infer<I>>
+      ).__dotprompt;
       const promptResult = await (dotprompt
         ? dotprompt.render(opt)
         : p(opt.input));
@@ -582,6 +587,13 @@ export class Genkit implements HasRegistry {
         },
         model,
       } as GenerateOptions<O, CustomOptions>;
+      if ((promptResult as GenerateOptions).use) {
+        resultOptions.use = (promptResult as GenerateOptions).use;
+      } else if (p.__config?.use) {
+        resultOptions.use = p.__config?.use;
+      } else if (opt.use) {
+        resultOptions.use = opt.use;
+      }
       delete (resultOptions as any).input;
       if ((promptResult as GenerateOptions).prompt) {
         resultOptions.prompt = (promptResult as GenerateOptions).prompt;

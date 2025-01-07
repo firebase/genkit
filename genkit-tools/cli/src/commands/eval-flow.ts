@@ -28,9 +28,12 @@ import {
   runEvaluation,
   runInference,
 } from '@genkit-ai/tools-common/eval';
-import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
+import {
+  confirmLlmUse,
+  loadEvalInference,
+  logger,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
-import { readFile } from 'fs/promises';
 import { runWithManager } from '../utils/manager-utils';
 
 interface EvalFlowRunCliOptions {
@@ -127,7 +130,7 @@ export const evalFlow = new Command('eval:flow')
         const evalDataset = await runInference({
           manager,
           actionRef,
-          evalFlowInput,
+          evalInferenceInput: evalFlowInput,
           auth: options.auth,
         });
 
@@ -172,8 +175,11 @@ async function readInputs(
       parsedData = JSON.parse(dataField!);
       break;
     case SourceType.FILE:
-      parsedData = JSON.parse(await readFile(input!, 'utf8'));
-      break;
+      try {
+        return await loadEvalInference(input!);
+      } catch (e) {
+        throw new Error(`Error parsing the input from file. Error: ${e}`);
+      }
     case SourceType.DATASET:
       const datasetStore = await getDatasetStore();
       const data = await datasetStore.getDataset(input!);
