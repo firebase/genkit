@@ -17,8 +17,24 @@
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 
 /**
- * Provides a {NodeSDKConfiguration} configuration for use with the
- * Open-Telemetry SDK. This configuration allows plugins to specify how and
- * where open telemetry data will be exported.
+ * Options governing whether Genkit will write telemetry data following the
+ * OpenTelemetry Semantic Conventions for Generative AI systems:
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/
  */
-export type TelemetryConfig = Partial<NodeSDKConfiguration>;
+interface SemConvOptions {
+  writeMetrics: boolean;
+  writeSpanAttributes: boolean;
+}
+
+/** Global options governing how Genkit will write telemetry data. */
+interface TelemetryOptions {
+  semConv?: SemConvOptions;
+}
+
+/**
+ * Provides a {NodeSDKConfiguration} configuration for use with the
+ * Open-Telemetry SDK and other configuration options. This configuration
+ * allows plugins to specify how and where open telemetry data will be
+ * exported.
+ */
+export type TelemetryConfig = Partial<NodeSDKConfiguration> & TelemetryOptions;
