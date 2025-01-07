@@ -64,33 +64,33 @@
   "types": "./lib/index.d.ts",
   "exports": {
     ".": {
-      "require": "./lib/index.js",
-      "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.js",
       "default": "./lib/index.js"
     },
     "./rerankers": {
-      "require": "./lib/rerankers/index.js",
-      "import": "./lib/rerankers/index.mjs",
       "types": "./lib/rerankers/index.d.ts",
+      "import": "./lib/rerankers/index.mjs",
+      "require": "./lib/rerankers/index.js",
       "default": "./lib/rerankers/index.js"
     },
     "./evaluation": {
-      "require": "./lib/evaluation/index.js",
-      "import": "./lib/evaluation/index.mjs",
       "types": "./lib/evaluation/index.d.ts",
+      "import": "./lib/evaluation/index.mjs",
+      "require": "./lib/evaluation/index.js",
       "default": "./lib/evaluation/index.js"
     },
     "./modelgarden": {
-      "require": "./lib/modelgarden/index.js",
-      "import": "./lib/modelgarden/index.mjs",
       "types": "./lib/modelgarden/index.d.ts",
+      "import": "./lib/modelgarden/index.mjs",
+      "require": "./lib/modelgarden/index.js",
       "default": "./lib/modelgarden/index.js"
     },
     "./vectorsearch": {
-      "require": "./lib/vectorsearch/index.js",
-      "import": "./lib/vectorsearch/index.mjs",
       "types": "./lib/vectorsearch/index.d.ts",
+      "import": "./lib/vectorsearch/index.mjs",
+      "require": "./lib/vectorsearch/index.js",
       "default": "./lib/vectorsearch/index.js"
     }
   },

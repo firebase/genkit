@@ -56,27 +56,27 @@
   "types": "./lib/index.d.ts",
   "exports": {
     ".": {
-      "require": "./lib/index.js",
-      "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.js",
       "default": "./lib/index.js"
     },
     "./functions": {
-      "require": "./lib/functions.js",
-      "import": "./lib/functions.mjs",
       "types": "./lib/functions.d.ts",
+      "import": "./lib/functions.mjs",
+      "require": "./lib/functions.js",
       "default": "./lib/functions.js"
     },
     "./auth": {
-      "require": "./lib/auth.js",
-      "import": "./lib/auth.mjs",
       "types": "./lib/auth.d.ts",
+      "import": "./lib/auth.mjs",
+      "require": "./lib/auth.js",
       "default": "./lib/auth.js"
     },
     "./user_engagement": {
-      "require": "./lib/user_engagement.js",
-      "import": "./lib/user_engagement.mjs",
       "types": "./lib/user_engagement.d.ts",
+      "import": "./lib/user_engagement.mjs",
+      "require": "./lib/user_engagement.js",
       "default": "./lib/user_engagement.js"
     }
   },

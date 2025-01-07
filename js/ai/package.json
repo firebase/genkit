@@ -46,80 +46,80 @@
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "require": "./lib/index.js",
       "import": "./lib/index.mjs",
+      "require": "./lib/index.js",
       "default": "./lib/index.js"
     },
     "./retriever": {
       "types": "./lib/retriever.d.ts",
-      "require": "./lib/retriever.js",
       "import": "./lib/retriever.mjs",
+      "require": "./lib/retriever.js",
       "default": "./lib/retriever.js"
     },
     "./embedder": {
       "types": "./lib/embedder.d.ts",
-      "require": "./lib/embedder.js",
       "import": "./lib/embedder.mjs",
+      "require": "./lib/embedder.js",
       "default": "./lib/embedder.js"
     },
     "./evaluator": {
       "types": "./lib/evaluator.d.ts",
-      "require": "./lib/evaluator.js",
       "import": "./lib/evaluator.mjs",
+      "require": "./lib/evaluator.js",
       "default": "./lib/evaluator.js"
     },
     "./model": {
       "types": "./lib/model.d.ts",
-      "require": "./lib/model.js",
       "import": "./lib/model.mjs",
+      "require": "./lib/model.js",
       "default": "./lib/model.js"
     },
     "./model/middleware": {
       "types": "./lib/model/middleware.d.ts",
-      "require": "./lib/model/middleware.js",
       "import": "./lib/model/middleware.mjs",
+      "require": "./lib/model/middleware.js",
       "default": "./lib/model/middleware.js"
     },
     "./extract": {
       "types": "./lib/extract.d.ts",
-      "require": "./lib/extract.js",
       "import": "./lib/extract.mjs",
+      "require": "./lib/extract.js",
       "default": "./lib/extract.js"
     },
     "./tool": {
       "types": "./lib/tool.d.ts",
-      "require": "./lib/tool.js",
       "import": "./lib/tool.mjs",
+      "require": "./lib/tool.js",
       "default": "./lib/tool.js"
     },
     "./testing": {
       "types": "./lib/testing/index.d.ts",
-      "require": "./lib/testing/index.js",
       "import": "./lib/testing/index.mjs",
+      "require": "./lib/testing/index.js",
       "default": "./lib/testing/index.js"
     },
     "./reranker": {
       "types": "./lib/reranker.d.ts",
-      "require": "./lib/reranker.js",
       "import": "./lib/reranker.mjs",
+      "require": "./lib/reranker.js",
       "default": "./lib/reranker.js"
     },
     "./chat": {
       "types": "./lib/chat.d.ts",
-      "require": "./lib/chat.js",
       "import": "./lib/chat.mjs",
+      "require": "./lib/chat.js",
       "default": "./lib/chat.js"
     },
     "./session": {
       "types": "./lib/session.d.ts",
-      "require": "./lib/session.js",
       "import": "./lib/session.mjs",
+      "require": "./lib/session.js",
       "default": "./lib/session.js"
     },
     "./formats": {
       "types": "./lib/formats/index.d.ts",
-      "require": "./lib/formats/index.js",
       "import": "./lib/formats/index.mjs",
+      "require": "./lib/formats/index.js",
       "default": "./lib/formats/index.js"
     }
   },

@@ -57,32 +57,32 @@
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "require": "./lib/index.js",
       "import": "./lib/index.mjs",
+      "require": "./lib/index.js",
       "default": "./lib/index.js"
     },
     "./registry": {
       "types": "./lib/registry.d.ts",
-      "require": "./lib/registry.js",
       "import": "./lib/registry.mjs",
+      "require": "./lib/registry.js",
       "default": "./lib/registry.js"
     },
     "./tracing": {
       "types": "./lib/tracing.d.ts",
-      "require": "./lib/tracing.js",
       "import": "./lib/tracing.mjs",
+      "require": "./lib/tracing.js",
       "default": "./lib/tracing.js"
     },
     "./logging": {
       "types": "./lib/logging.d.ts",
-      "require": "./lib/logging.js",
       "import": "./lib/logging.mjs",
+      "require": "./lib/logging.js",
       "default": "./lib/logging.js"
     },
     "./schema": {
       "types": "./lib/schema.d.ts",
-      "require": "./lib/schema.js",
       "import": "./lib/schema.mjs",
+      "require": "./lib/schema.js",
       "default": "./lib/schema.js"
     }
   },
