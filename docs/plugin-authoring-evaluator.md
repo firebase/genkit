@@ -31,6 +31,7 @@ const DeliciousnessDetectionResponseSchema = z.object({
   reason: z.string(),
   verdict: z.enum(DELICIOUSNESS_VALUES),
 });
+
 type DeliciousnessDetectionResponse = z.infer<typeof DeliciousnessDetectionResponseSchema>;
 
 const DELICIOUSNESS_PROMPT = ai.definePrompt(
