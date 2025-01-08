@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { dotprompt, DotpromptEnvironment } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
@@ -66,6 +67,7 @@ export class Registry {
   private schemasByName: Record<string, Schema> = {};
   private valueByTypeAndName: Record<string, Record<string, any>> = {};
   private allPluginsInitialized = false;
+  readonly dotprompt: DotpromptEnvironment = dotprompt();
 
   readonly asyncStore = new AsyncStore();
 

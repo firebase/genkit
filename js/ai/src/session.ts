@@ -17,13 +17,12 @@
 import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat.js';
+import { AgentAction } from './agent.js';
+import { Chat, ChatOptions, MAIN_THREAD } from './chat.js';
 import {
-  ExecutablePrompt,
   GenerateOptions,
   Message,
   MessageData,
-  isExecutablePrompt,
   tagAsPreamble,
 } from './index.js';
 
@@ -55,7 +54,7 @@ export interface SessionOptions<S = any> {
  */
 export class Session<S = any> {
   readonly id: string;
-  private sessionData?: SessionData<S>;
+  protected sessionData?: SessionData<S>;
   private store: SessionStore<S>;
 
   constructor(
@@ -85,16 +84,22 @@ export class Session<S = any> {
   }
 
   /**
-   * Update session state data.
+   * Update session state data by patching the existing state.
+   * @param data Partial state update that will be merged with existing state
    */
-  async updateState(data: S): Promise<void> {
+  async updateState(data: Partial<S>): Promise<void> {
     let sessionData = this.sessionData;
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
     }
-    sessionData.state = data;
-    this.sessionData = sessionData;
 
+    // Merge the new data with existing state
+    sessionData.state = {
+      ...sessionData.state,
+      ...data,
+    } as S & AgentThreadsSessionState;
+
+    this.sessionData = sessionData;
     await this.store.save(this.id, sessionData);
   }
 
@@ -129,7 +134,7 @@ export class Session<S = any> {
    * response = await chat.send('another one');
    * ```
    */
-  chat<I>(options?: ChatOptions<I, S>): Chat;
+  chat<I extends z.ZodTypeAny>(options?: ChatOptions<z.infer<I>, S>): Chat;
 
   /**
    * Create a chat session with the provided preamble.
@@ -143,7 +148,10 @@ export class Session<S = any> {
    * const { text } = await chat.send('my phone feels hot');
    * ```
    */
-  chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>): Chat;
+  chat<I extends z.ZodTypeAny>(
+    agent: AgentAction<I>,
+    options?: ChatOptions<z.infer<I>, S>
+  ): Chat;
 
   /**
    * Craete a separate chat conversation ("thread") within the given preamble.
@@ -160,10 +168,10 @@ export class Session<S = any> {
    * await pirateChat.send('tell me a joke');
    * ```
    */
-  chat<I>(
+  chat<I extends z.ZodTypeAny>(
     threadName: string,
-    preamble: ExecutablePrompt<I>,
-    options?: ChatOptions<I, S>
+    agent: AgentAction<I>,
+    options?: ChatOptions<z.infer<I>, S>
   ): Chat;
 
   /**
@@ -181,78 +189,84 @@ export class Session<S = any> {
    * await pirateChat.send('tell me a joke');
    * ```
    */
-  chat<I>(threadName: string, options?: ChatOptions<I, S>): Chat;
+  chat<I extends z.ZodTypeAny>(
+    threadName: string,
+    options?: ChatOptions<z.infer<I>, S>
+  ): Chat;
 
-  chat<I>(
-    optionsOrPreambleOrThreadName?:
-      | ChatOptions<I, S>
+  chat<I extends z.ZodTypeAny>(
+    optionsOrAgentOrThreadName?:
+      | ChatOptions<z.infer<I>, S>
       | string
-      | ExecutablePrompt<I>,
-    maybeOptionsOrPreamble?: ChatOptions<I, S> | ExecutablePrompt<I>,
-    maybeOptions?: ChatOptions<I, S>
+      | AgentAction<I>,
+    maybeOptionsOrAgent?: ChatOptions<I, S> | AgentAction<I>,
+    maybeOptions?: ChatOptions<z.infer<I>, S>
   ): Chat {
     return runWithSession(this.registry, this, () => {
-      let options: ChatOptions<S> | undefined;
+      let options: ChatOptions<I, S> | undefined;
       let threadName = MAIN_THREAD;
-      let preamble: ExecutablePrompt<I> | undefined;
+      let agent: AgentAction<I> | undefined;
 
-      if (optionsOrPreambleOrThreadName) {
-        if (typeof optionsOrPreambleOrThreadName === 'string') {
-          threadName = optionsOrPreambleOrThreadName as string;
-        } else if (isExecutablePrompt(optionsOrPreambleOrThreadName)) {
-          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
+      if (optionsOrAgentOrThreadName) {
+        if (typeof optionsOrAgentOrThreadName === 'string') {
+          threadName = optionsOrAgentOrThreadName as string;
+        } else if (
+          (optionsOrAgentOrThreadName as AgentAction<I>).__agentOptions
+        ) {
+          agent = optionsOrAgentOrThreadName as AgentAction<I>;
         } else {
-          options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
+          options = optionsOrAgentOrThreadName as ChatOptions<I, S>;
         }
       }
-      if (maybeOptionsOrPreamble) {
-        if (isExecutablePrompt(maybeOptionsOrPreamble)) {
-          preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
+      if (maybeOptionsOrAgent) {
+        if ((maybeOptionsOrAgent as AgentAction<I>).__agentOptions) {
+          agent = maybeOptionsOrAgent as AgentAction<I>;
         } else {
-          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
+          options = maybeOptionsOrAgent as ChatOptions<I, S>;
         }
       }
       if (maybeOptions) {
         options = maybeOptions as ChatOptions<I, S>;
       }
-
-      let requestBase: Promise<BaseGenerateOptions>;
-      if (preamble) {
-        const renderOptions = options as PromptRenderOptions<I>;
-        requestBase = preamble
-          .render({
-            input: renderOptions?.input,
-            model: (renderOptions as BaseGenerateOptions)?.model,
-            config: (renderOptions as BaseGenerateOptions)?.config,
-            messages: (renderOptions as BaseGenerateOptions)?.messages,
-          })
-          .then((rb) => {
-            return {
-              ...rb,
-              messages: tagAsPreamble(rb?.messages),
-            };
-          });
-      } else {
-        const baseOptions = { ...(options as BaseGenerateOptions) };
-        const messages: MessageData[] = [];
-        if (baseOptions.system) {
-          messages.push({
-            role: 'system',
-            content: Message.parseContent(baseOptions.system),
-          });
-        }
-        delete baseOptions.system;
-        if (baseOptions.messages) {
-          messages.push(...baseOptions.messages);
-        }
-        baseOptions.messages = tagAsPreamble(messages);
-
-        requestBase = Promise.resolve(baseOptions);
+      const baseOptions = { ...(options as BaseGenerateOptions) };
+      const messages: MessageData[] = [];
+      if (baseOptions.system) {
+        messages.push({
+          role: 'system',
+          content: Message.parseContent(baseOptions.system),
+        });
       }
-      return new Chat(this, requestBase, {
+      delete baseOptions.system;
+
+      let historyOverride: MessageData[] | undefined;
+      if (baseOptions.messages) {
+        historyOverride = [...baseOptions.messages];
+        delete baseOptions.messages;
+      }
+
+      baseOptions.messages = tagAsPreamble(messages);
+
+      if (
+        agent &&
+        !this.sessionData?.state?.__agentState?.[threadName]?.currentAgent
+      ) {
+        this.sessionData = updateAgentSessionData(
+          this.id,
+          this.sessionData,
+          threadName,
+          {
+            currentAgent: agent.__agentOptions.name,
+            currentAgentInput: (options as ChatOptions<any>)?.input,
+          }
+        );
+      }
+
+      return new Chat(this, baseOptions, {
         thread: threadName,
         id: this.id,
+        agent,
         messages:
+          historyOverride ??
           (this.sessionData?.threads &&
             this.sessionData?.threads[threadName]) ??
           [],
@@ -273,9 +287,34 @@ export class Session<S = any> {
   }
 }
 
+export function updateAgentSessionData<S>(
+  sessionId: string,
+  sessionData: SessionData | undefined,
+  threadName: string,
+  data: AgentState
+): SessionData<S> {
+  if (!sessionData) {
+    sessionData = {
+      id: sessionId,
+    };
+  }
+  if (!sessionData.state) {
+    sessionData.state = {};
+  }
+  if (!sessionData.state.__agentState) {
+    sessionData.state.__agentState = {};
+  }
+  sessionData.state['__agentState'][threadName] = {
+    ...sessionData.state['__agentState'][threadName],
+    ...data,
+  };
+
+  return sessionData;
+}
+
 export interface SessionData<S = any> {
   id: string;
-  state?: S;
+  state?: S & AgentThreadsSessionState;
   threads?: Record<string, MessageData[]>;
 }
 
@@ -328,3 +367,13 @@ class InMemorySessionStore<S = any> implements SessionStore<S> {
     this.data[sessionId] = sessionData;
   }
 }
+
+export interface AgentState {
+  currentAgent: string;
+  currentAgentInput?: any;
+  interruptedAt?: string;
+}
+
+export type AgentThreadsSessionState = {
+  __agentState?: Record<string, AgentState>;
+};

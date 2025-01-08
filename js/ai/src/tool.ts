@@ -200,3 +200,24 @@ export class ToolInterruptError extends Error {}
 export function interruptTool() {
   throw new ToolInterruptError();
 }
+
+export interface DefineInterruptOptions<I extends z.ZodTypeAny>
+  extends ToolConfig<I, z.ZodVoid> {}
+
+export type InterruptAction<I extends z.ZodTypeAny> = ToolAction<
+  I,
+  z.ZodVoid
+> & {
+  __interruptOptions: DefineInterruptOptions<I>;
+};
+
+export function defineInterrupt<I extends z.ZodTypeAny>(
+  registry: Registry,
+  options: DefineInterruptOptions<I>
+): InterruptAction<I> {
+  const tool = defineTool(registry, options, async () =>
+    interruptTool()
+  ) as InterruptAction<I>;
+  tool.__interruptOptions = options;
+  return tool;
+}

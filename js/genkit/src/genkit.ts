@@ -15,29 +15,24 @@
  */
 
 import {
+  AgentAction,
   BaseDataPointSchema,
-  definePrompt,
-  defineTool,
+  DefineAgentOptions,
   Document,
-  embed,
   EmbedderInfo,
   EmbedderParams,
   Embedding,
   EvalResponses,
-  evaluate,
   EvaluatorParams,
   ExecutablePrompt,
-  generate,
   GenerateOptions,
   GenerateRequest,
   GenerateResponse,
   GenerateResponseData,
-  generateStream,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
-  isExecutablePrompt,
   ModelArgument,
   ModelReference,
   Part,
@@ -45,89 +40,97 @@ import {
   PromptFn,
   PromptGenerateOptions,
   RankedDocument,
-  rerank,
   RerankerParams,
-  retrieve,
   RetrieverAction,
   RetrieverInfo,
   RetrieverParams,
   ToolAction,
   ToolConfig,
+  defineAgent,
+  definePrompt,
+  defineTool,
+  embed,
+  evaluate,
+  generate,
+  generateStream,
+  isExecutablePrompt,
+  rerank,
+  retrieve,
 } from '@genkit-ai/ai';
 import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import {
-  defineEmbedder,
   EmbedderAction,
   EmbedderArgument,
   EmbedderFn,
   EmbeddingBatch,
+  defineEmbedder,
   embedMany,
 } from '@genkit-ai/ai/embedder';
 import {
-  defineEvaluator,
   EvaluatorAction,
   EvaluatorFn,
+  defineEvaluator,
 } from '@genkit-ai/ai/evaluator';
 import {
+  Formatter,
   configureFormats,
   defineFormat,
-  Formatter,
 } from '@genkit-ai/ai/formats';
 import {
-  defineModel,
   DefineModelOptions,
   GenerateResponseChunkData,
   ModelAction,
+  defineModel,
 } from '@genkit-ai/ai/model';
 import {
-  defineReranker,
   RerankerFn,
   RerankerInfo,
+  defineReranker,
 } from '@genkit-ai/ai/reranker';
 import {
-  defineIndexer,
-  defineRetriever,
-  defineSimpleRetriever,
   DocumentData,
-  index,
   IndexerAction,
   IndexerFn,
   RetrieverFn,
   SimpleRetrieverOptions,
+  defineIndexer,
+  defineRetriever,
+  defineSimpleRetriever,
+  index,
 } from '@genkit-ai/ai/retriever';
 import {
-  getCurrentSession,
   Session,
   SessionData,
   SessionError,
   SessionOptions,
+  getCurrentSession,
 } from '@genkit-ai/ai/session';
 import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   CallableFlow,
-  defineFlow,
-  defineJsonSchema,
-  defineSchema,
-  defineStreamingFlow,
   Flow,
   FlowFn,
   FlowServer,
   FlowServerOptions,
-  isDevEnv,
   JSONSchema,
   ReflectionServer,
   StreamableFlow,
   StreamingCallback,
   StreamingFlowConfig,
+  defineFlow,
+  defineJsonSchema,
+  defineSchema,
+  defineStreamingFlow,
+  isDevEnv,
   z,
 } from '@genkit-ai/core';
 import { HasRegistry } from '@genkit-ai/core/registry';
 import {
+  Dotprompt,
+  PromptMetadata as DotpromptPromptMetadata,
   defineDotprompt,
   defineHelper,
   definePartial,
-  Dotprompt,
-  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
   prompt,
   toFrontmatter,
@@ -704,6 +707,7 @@ export class Genkit implements HasRegistry {
    * create a handlebards helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotpormpt templates.
    */
   defineHelper(name: string, fn: Handlebars.HelperDelegate) {
+    this.registry.dotprompt.defineHelper(name, fn);
     return defineHelper(name, fn);
   }
 
@@ -711,6 +715,7 @@ export class Genkit implements HasRegistry {
    * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotpormpt templates.
    */
   definePartial(name: string, source: string) {
+    this.registry.dotprompt.definePartial(name, source);
     return definePartial(name, source);
   }
 
@@ -993,7 +998,7 @@ export class Genkit implements HasRegistry {
    * response = await chat.send('another one')
    * ```
    */
-  chat<I>(options?: ChatOptions<I>): Chat;
+  chat<I extends z.ZodTypeAny>(options?: ChatOptions<z.infer<I>>): Chat;
 
   /**
    * Create a chat session with the provided preabmle.
@@ -1006,7 +1011,7 @@ export class Genkit implements HasRegistry {
    * const { text } = await chat.send('my phone feels hot');
    * ```
    */
-  chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I>): Chat;
+  chat<I extends z.ZodTypeAny>(agent: AgentAction<I>, options?: ChatOptions<z.infer<I>>): Chat;
 
   /**
    * Create a chat session with the provided options.
@@ -1019,26 +1024,26 @@ export class Genkit implements HasRegistry {
    * response = await chat.send('another one')
    * ```
    */
-  chat<I>(
-    preambleOrOptions?: ChatOptions<I> | ExecutablePrompt<I>,
-    maybeOptions?: ChatOptions<I>
+  chat<I extends z.ZodTypeAny>(
+    agentOrOptions?: ChatOptions<z.infer<I>> | AgentAction<I>,
+    maybeOptions?: ChatOptions<z.infer<I>>
   ): Chat {
-    let options: ChatOptions<I> | undefined;
-    let preamble: ExecutablePrompt<I> | undefined;
+    let options: ChatOptions<z.infer<I>> | undefined;
+    let agent: AgentAction<I> | undefined;
     if (maybeOptions) {
       options = maybeOptions;
     }
-    if (preambleOrOptions) {
-      if (isExecutablePrompt(preambleOrOptions)) {
-        preamble = preambleOrOptions as ExecutablePrompt<I>;
+    if (agentOrOptions) {
+      if (isExecutablePrompt(agentOrOptions)) {
+        agent = agentOrOptions as AgentAction<I>;
       } else {
-        options = preambleOrOptions as ChatOptions<I>;
+        options = agentOrOptions as ChatOptions<z.infer<I>>;
       }
     }
 
     const session = this.createSession();
-    if (preamble) {
-      return session.chat(preamble, options);
+    if (agent) {
+      return session.chat(agent, options);
     }
     return session.chat(options);
   }
@@ -1087,6 +1092,12 @@ export class Genkit implements HasRegistry {
       throw new SessionError('not running within a session');
     }
     return currentSession as Session;
+  }
+
+  defineAgent<I extends z.ZodTypeAny>(
+    options: DefineAgentOptions<I>
+  ): AgentAction<I> {
+    return defineAgent(this.registry, options);
   }
 
   /**

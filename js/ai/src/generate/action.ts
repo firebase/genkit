@@ -94,6 +94,7 @@ export async function generateHelper(
   middleware?: ModelMiddleware[],
   currentTurns?: number
 ): Promise<GenerateResponseData> {
+  console.log(' - -generate: ', JSON.stringify(input, undefined, 2));
   currentTurns = currentTurns ?? 0;
   // do tracing
   return await runInNewSpan(
