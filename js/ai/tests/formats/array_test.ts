@@ -68,7 +68,6 @@ describe('arrayFormat', () => {
     it(st.desc, () => {
       const parser = arrayFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastCursor = 0;
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
