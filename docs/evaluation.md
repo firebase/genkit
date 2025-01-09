@@ -33,7 +33,7 @@ is useful when you have data coming from an external source (e.g.: collected
 from your production traces) and you want to have an objective
 measurement of the quality of the collected data.
 
-    For more information, see the [Advanced use](#advanced-use) section of this page.
+    For more information, see the [Advanced use](#advanced_use) section of this page.
 
 This section explains how to perform inference-based evaluation using
 Genkit.
