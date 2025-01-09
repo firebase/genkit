@@ -68,9 +68,11 @@ func New(opts *Options) (*Genkit, error) {
 	if opts == nil {
 		opts = &Options{}
 	}
-	parts := strings.Split(opts.DefaultModel, "/")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid default model format %q, expected provider/name", opts.DefaultModel)
+	if opts.DefaultModel != "" {
+		parts := strings.Split(opts.DefaultModel, "/")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid default model format %q, expected provider/name", opts.DefaultModel)
+		}
 	}
 	return &Genkit{
 		reg:  r,
