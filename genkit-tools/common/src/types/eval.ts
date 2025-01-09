@@ -30,7 +30,7 @@ import { GenerateRequestSchema } from './model';
  */
 
 /**
- * Supported datatype when running eval-inference using models
+ * Supported datatype for model datasets
  */
 export const ModelInferenceInputSchema = z.union([
   z.string(),
@@ -39,6 +39,17 @@ export const ModelInferenceInputSchema = z.union([
 export type ModelInferenceInput = z.infer<typeof ModelInferenceInputSchema>;
 export const ModelInferenceInputJSONSchema = zodToJsonSchema(
   ModelInferenceInputSchema,
+  {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  }
+) as JSONSchema7;
+
+/**
+ * GenerateRequest JSON schema to support eval-inference using models
+ */
+export const GenerateRequestJSONSchema = zodToJsonSchema(
+  GenerateRequestSchema,
   {
     $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',

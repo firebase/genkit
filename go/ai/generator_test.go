@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
 )
@@ -30,7 +31,9 @@ type GameCharacter struct {
 	Backstory string
 }
 
-var echoModel = DefineModel("test", "echo", nil, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+var r, _ = registry.New()
+
+var echoModel = DefineModel(r, "test", "echo", nil, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 	if msc != nil {
 		msc(ctx, &ModelResponseChunk{
 			Content: []*Part{NewTextPart("stream!")},
@@ -49,7 +52,7 @@ var echoModel = DefineModel("test", "echo", nil, func(ctx context.Context, gr *M
 })
 
 // with tools
-var gablorkenTool = DefineTool("gablorken", "use when need to calculate a gablorken",
+var gablorkenTool = DefineTool(r, "gablorken", "use when need to calculate a gablorken",
 	func(ctx context.Context, input struct {
 		Value float64
 		Over  float64
@@ -292,7 +295,8 @@ func TestGenerate(t *testing.T) {
 
 		wantStreamText := "stream!"
 		streamText := ""
-		res, err := Generate(context.Background(), echoModel,
+		res, err := Generate(context.Background(), r,
+			WithModel(echoModel),
 			WithTextPrompt(charJSONmd),
 			WithMessages(NewModelTextMessage("banana again")),
 			WithSystemPrompt("you are"),
@@ -328,12 +332,12 @@ func TestGenerate(t *testing.T) {
 
 func TestIsDefinedModel(t *testing.T) {
 	t.Run("should return true", func(t *testing.T) {
-		if IsDefinedModel("test", "echo") != true {
+		if IsDefinedModel(r, "test", "echo") != true {
 			t.Errorf("IsDefinedModel did not return true")
 		}
 	})
 	t.Run("should return false", func(t *testing.T) {
-		if IsDefinedModel("foo", "bar") != false {
+		if IsDefinedModel(r, "foo", "bar") != false {
 			t.Errorf("IsDefinedModel did not return false")
 		}
 	})
@@ -341,12 +345,12 @@ func TestIsDefinedModel(t *testing.T) {
 
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
-		if LookupModel("test", "echo") == nil {
+		if LookupModel(r, "test", "echo") == nil {
 			t.Errorf("LookupModel did not return model")
 		}
 	})
 	t.Run("should return nil", func(t *testing.T) {
-		if LookupModel("foo", "bar") != nil {
+		if LookupModel(r, "foo", "bar") != nil {
 			t.Errorf("LookupModel did not return nil")
 		}
 	})

@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -32,7 +31,11 @@ func incFlow(_ context.Context, i int, _ noStream) (int, error) {
 }
 
 func TestFlowStart(t *testing.T) {
-	f := DefineStreamingFlow("inc", incFlow)
+	ai, err := New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := DefineStreamingFlow(ai, "inc", incFlow)
 	ss, err := core.NewFileFlowStateStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -58,13 +61,17 @@ func TestFlowStart(t *testing.T) {
 }
 
 func TestFlowRun(t *testing.T) {
+	ai, err := New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	n := 0
 	stepf := func() (int, error) {
 		n++
 		return n, nil
 	}
 
-	flow := DefineFlow("run", func(ctx context.Context, s string) ([]int, error) {
+	flow := DefineFlow(ai, "run", func(ctx context.Context, s string) ([]int, error) {
 		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
@@ -91,11 +98,11 @@ func TestFlowRun(t *testing.T) {
 }
 
 func TestRunFlow(t *testing.T) {
-	reg, err := registry.New()
+	ai, err := New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := defineFlow(reg, "inc", incFlow)
+	f := defineFlow(ai.reg, "inc", incFlow)
 	got, err := f.Run(context.Background(), 2)
 	if err != nil {
 		t.Fatal(err)

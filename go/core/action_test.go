@@ -30,7 +30,11 @@ func inc(_ context.Context, x int, _ noStream) (int, error) {
 }
 
 func TestActionRun(t *testing.T) {
-	a := newAction("inc", atype.Custom, nil, nil, inc)
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := defineAction(r, "test", "inc", atype.Custom, nil, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +45,11 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	a := newAction("inc", atype.Custom, nil, nil, inc)
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := defineAction(r, "test", "inc", atype.Custom, nil, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
 	got, err := a.RunJSON(context.Background(), input, nil)
@@ -67,7 +75,11 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := newAction("count", atype.Custom, nil, nil, count)
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := defineAction(r, "test", "count", atype.Custom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -98,10 +110,14 @@ func TestActionStreaming(t *testing.T) {
 }
 
 func TestActionTracing(t *testing.T) {
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 	tc := tracing.NewTestOnlyTelemetryClient()
-	registry.Global.TracingState().WriteTelemetryImmediate(tc)
+	r.TracingState().WriteTelemetryImmediate(tc)
 	const actionName = "TestTracing-inc"
-	a := newAction(actionName, atype.Custom, nil, nil, inc)
+	a := defineAction(r, "test", actionName, atype.Custom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}

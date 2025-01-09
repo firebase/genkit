@@ -34,11 +34,11 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-func inc(_ context.Context, x int, _ noStream) (int, error) {
+func inc(_ context.Context, x int) (int, error) {
 	return x + 1, nil
 }
 
-func dec(_ context.Context, x int, _ noStream) (int, error) {
+func dec(_ context.Context, x int) (int, error) {
 	return x - 1, nil
 }
 
@@ -50,12 +50,12 @@ func TestDevServer(t *testing.T) {
 	tc := tracing.NewTestOnlyTelemetryClient()
 	r.TracingState().WriteTelemetryImmediate(tc)
 
-	core.DefineActionInRegistry(r, "devServer", "inc", atype.Custom, map[string]any{
+	core.DefineAction(r, "devServer", "inc", atype.Custom, map[string]any{
 		"foo": "bar",
-	}, nil, inc)
-	core.DefineActionInRegistry(r, "devServer", "dec", atype.Custom, map[string]any{
+	}, inc)
+	core.DefineAction(r, "devServer", "dec", atype.Custom, map[string]any{
 		"bar": "baz",
-	}, nil, dec)
+	}, dec)
 	srv := httptest.NewServer(newDevServeMux(&devServer{reg: r}))
 	defer srv.Close()
 

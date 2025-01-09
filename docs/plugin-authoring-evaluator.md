@@ -155,7 +155,7 @@ export function createDeliciousnessEvaluator<
 ): EvaluatorAction {
   return ai.defineEvaluator(
     {
-      name: `deliciousnessEvaluator`,
+      name: `myCustomEvals/deliciousnessEvaluator`,
       displayName: 'Deliciousness',
       definition: 'Determines if output is considered delicous.',
       isBilled: true,
@@ -239,6 +239,7 @@ Just like the LLM-based evaluator, define the scoring function. In this case,
 the scoring function does not need to know about the judge LLM or its config.
 
 ```ts
+import { EvalResponses } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 
 const US_PHONE_REGEX =
@@ -268,8 +269,8 @@ export async function usPhoneRegexScore(
 #### Define the evaluator action
 
 ```ts
-import { EvaluatorAction } from "genkit/evaluator";
-import { Genkit } from "genkit";
+import { Genkit } from 'genkit';
+import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
 
 /**
  * Configures a regex evaluator to match a US phone number.
@@ -277,7 +278,7 @@ import { Genkit } from "genkit";
 export function createUSPhoneRegexEvaluator(ai: Genkit): EvaluatorAction {
   return ai.defineEvaluator(
     {
-      name: `usPhoneRegexEvaluator`,
+      name: `myCustomEvals/usPhoneRegexEvaluator`,
       displayName: "Regex Match for US PHONE NUMBER",
       definition: "Uses Regex to check if output matches a US phone number",
       isBilled: false,
