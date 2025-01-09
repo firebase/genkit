@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 type EmbedOptions struct {
@@ -125,13 +126,13 @@ func concatenateText(doc *ai.Document) string {
 }
 
 // DefineEmbedder defines an embedder with a given server address.
-func DefineEmbedder(serverAddress string, model string) ai.Embedder {
+func DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
-	return ai.DefineEmbedder(provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		if req.Options == nil {
 			req.Options = &EmbedOptions{Model: model}
 		}
@@ -143,13 +144,13 @@ func DefineEmbedder(serverAddress string, model string) ai.Embedder {
 }
 
 // IsDefinedEmbedder reports whether the embedder with the given server address is defined by this plugin.
-func IsDefinedEmbedder(serverAddress string) bool {
-	isDefined := ai.IsDefinedEmbedder(provider, serverAddress)
+func IsDefinedEmbedder(g *genkit.Genkit, serverAddress string) bool {
+	isDefined := genkit.IsDefinedEmbedder(g, provider, serverAddress)
 	return isDefined
 }
 
 // Embedder returns the [ai.Embedder] with the given server address.
 // It returns nil if the embedder was not defined.
-func Embedder(serverAddress string) ai.Embedder {
-	return ai.LookupEmbedder(provider, serverAddress)
+func Embedder(g *genkit.Genkit, serverAddress string) ai.Embedder {
+	return genkit.LookupEmbedder(g, provider, serverAddress)
 }

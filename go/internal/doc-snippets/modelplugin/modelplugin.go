@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 const providerID = "mymodels"
@@ -33,8 +34,13 @@ type MyModelConfig struct {
 // [END cfg]
 
 func Init() error {
+	g, err := genkit.New(nil)
+	if err != nil {
+		return err
+	}
+
 	// [START definemodel]
-	ai.DefineModel(
+	genkit.DefineModel(g,
 		providerID, "my-model",
 		&ai.ModelMetadata{
 			Label: "my-model",

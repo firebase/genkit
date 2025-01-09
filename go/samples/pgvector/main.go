@@ -49,12 +49,16 @@ var (
 
 func main() {
 	flag.Parse()
-	if err := run(); err != nil {
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := run(g); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run() error {
+func run(g *genkit.Genkit) error {
 	if *connString == "" {
 		return errors.New("need -dbconn")
 	}
@@ -62,11 +66,11 @@ func run() error {
 		return errors.New("need -apikey")
 	}
 	ctx := context.Background()
-	if err := googleai.Init(ctx, &googleai.Config{APIKey: *apiKey}); err != nil {
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey}); err != nil {
 		return err
 	}
 	const embedderName = "embedding-001"
-	embedder := googleai.Embedder(embedderName)
+	embedder := googleai.Embedder(g, embedderName)
 	if embedder == nil {
 		return fmt.Errorf("embedder %s is not known to the googleai plugin", embedderName)
 	}
@@ -78,21 +82,21 @@ func run() error {
 	defer db.Close()
 
 	if *index {
-		indexer := defineIndexer(db, embedder)
+		indexer := defineIndexer(g, db, embedder)
 		if err := indexExistingRows(ctx, db, indexer); err != nil {
 			return err
 		}
 	}
 
 	// [START use-retr]
-	retriever := defineRetriever(db, embedder)
+	retriever := defineRetriever(g, db, embedder)
 
 	type input struct {
 		Question string
 		Show     string
 	}
 
-	genkit.DefineFlow("askQuestion", func(ctx context.Context, in input) (string, error) {
+	genkit.DefineFlow(g, "askQuestion", func(ctx context.Context, in input) (string, error) {
 		res, err := ai.Retrieve(ctx, retriever,
 			ai.WithRetrieverOpts(in.Show),
 			ai.WithRetrieverText(in.Question))
@@ -107,13 +111,13 @@ func run() error {
 	})
 	// [END use-retr]
 
-	return genkit.Init(ctx, nil)
+	return g.Start(ctx, nil)
 }
 
 const provider = "pgvector"
 
 // [START retr]
-func defineRetriever(db *sql.DB, embedder ai.Embedder) ai.Retriever {
+func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Document))
 		if err != nil {
@@ -153,12 +157,12 @@ func defineRetriever(db *sql.DB, embedder ai.Embedder) ai.Retriever {
 		}
 		return res, nil
 	}
-	return ai.DefineRetriever(provider, "shows", f)
+	return genkit.DefineRetriever(g, provider, "shows", f)
 }
 
 // [END retr]
 
-func defineIndexer(db *sql.DB, embedder ai.Embedder) ai.Indexer {
+func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexer {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
 	// for the table primary key: show_id, season_number, episode_id.
 	const query = `
@@ -166,7 +170,7 @@ func defineIndexer(db *sql.DB, embedder ai.Embedder) ai.Indexer {
 			SET embedding = $4
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
-	return ai.DefineIndexer(provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
+	return genkit.DefineIndexer(g, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
 		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Documents...))
 		if err != nil {
 			return err
