@@ -17,6 +17,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -124,7 +125,7 @@ func TestActionTracing(t *testing.T) {
 	// The same trace store is used for all tests, so there might be several traces.
 	// Look for this one, which has a unique name.
 	for _, td := range tc.Traces {
-		if td.DisplayName == actionName {
+		if td.DisplayName == actionName || td.DisplayName == fmt.Sprintf("test/%s", actionName) {
 			// Spot check: expect a single span.
 			if g, w := len(td.Spans), 1; g != w {
 				t.Errorf("got %d spans, want %d", g, w)
