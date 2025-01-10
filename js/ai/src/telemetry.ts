@@ -15,7 +15,7 @@
  */
 
 import { MetricHistogram } from '@genkit-ai/core';
-import { SpanMetadata } from '@genkit-ai/core/tracing';
+import { SpanMetadata, getTelemetryConfig } from '@genkit-ai/core/tracing';
 import { AttributeValue, ValueType } from '@opentelemetry/api';
 import { GenerateResponseData } from './model.js';
 import { logger } from '@genkit-ai/core/logging';
@@ -35,13 +35,20 @@ const operationDuration = new MetricHistogram(
   }
 );
 
-export function writeSemConvTelemetry(
+export async function writeSemConvTelemetry(
   output: GenerateResponseData,
   span?: SpanMetadata
-): void {
-  writeMetrics(output);
-  if (span) {
+): Promise<void> {
+  const telemetryConfig = await getTelemetryConfig();
+  console.log(`>>> TelemetryConfig: ${JSON.stringify(telemetryConfig?.semConv)}`);
+
+  if (telemetryConfig?.semConv?.writeMetrics) {
+    writeMetrics(output);
+  }
+  if (span && telemetryConfig?.semConv?.writeSpanAttributes) {
     writeSpanAttributes(output, span);
+  }
+  if (span && telemetryConfig?.semConv?.writeLogEvents) {
     writeEvents(output, span);
   }
 }

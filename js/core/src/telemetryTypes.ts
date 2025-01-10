@@ -21,13 +21,14 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
  * OpenTelemetry Semantic Conventions for Generative AI systems:
  * https://opentelemetry.io/docs/specs/semconv/gen-ai/
  */
-interface SemConvOptions {
+export interface SemConvOptions {
   writeMetrics: boolean;
   writeSpanAttributes: boolean;
+  writeLogEvents: boolean;
 }
 
 /** Global options governing how Genkit will write telemetry data. */
-interface TelemetryOptions {
+export interface TelemetryOptions {
   semConv?: SemConvOptions;
 }
 

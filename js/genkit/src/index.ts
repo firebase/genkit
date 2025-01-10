@@ -139,6 +139,8 @@ export {
   type StreamingCallback,
   type StreamingResponse,
   type TelemetryConfig,
+  type SemConvOptions,
+  type TelemetryOptions,
 } from '@genkit-ai/core';
 export { loadPromptFile } from '@genkit-ai/dotprompt';
 export {

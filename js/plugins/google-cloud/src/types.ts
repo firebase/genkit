@@ -18,6 +18,7 @@ import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-n
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { JWTInput } from 'google-auth-library';
+import { SemConvOptions } from 'genkit';
 
 /** Configuration options for the Google Cloud plugin. */
 export interface GcpTelemetryConfigOptions {
@@ -50,6 +51,9 @@ export interface GcpTelemetryConfigOptions {
 
   /** When true, telemetry data will be exported, even for local runs. Defaults to not exporting development traces. */
   forceDevExport?: boolean;
+
+  /** Options controlling the use of OTel GenAi semantic conventions. */
+  semConvOptions?: SemConvOptions;
 }
 
 /**
@@ -69,6 +73,7 @@ export interface GcpTelemetryConfig {
   disableTraces: boolean;
   exportIO: boolean;
   export: boolean;
+  semConv: SemConvOptions;
 }
 
 export interface GcpPrincipal {

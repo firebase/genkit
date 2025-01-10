@@ -48,7 +48,7 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
-import { GENKIT_VERSION } from 'genkit';
+import { GENKIT_VERSION, TelemetryConfig } from 'genkit';
 import { logger } from 'genkit/logging';
 import { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
@@ -108,12 +108,13 @@ export class GcpOpenTelemetry {
     delete record['trace_flags'];
   };
 
-  async getConfig(): Promise<Partial<NodeSDKConfiguration>> {
+  async getConfig(): Promise<TelemetryConfig> {
     spanProcessor = new BatchSpanProcessor(await this.createSpanExporter());
     return {
       resource: this.resource,
       spanProcessor: spanProcessor,
       sampler: this.config.sampler,
+      semConv: this.config.semConv,
       instrumentations: this.getInstrumentations(),
       metricReader: await this.createMetricReader(),
     };
