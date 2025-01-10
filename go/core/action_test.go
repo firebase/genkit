@@ -124,7 +124,7 @@ func TestActionTracing(t *testing.T) {
 	}
 	// The same trace store is used for all tests, so there might be several traces.
 	// Look for this one, which has a unique name.
-  fullActionName := provider + actionName
+  fullActionName := provider + '/' + actionName
 	for _, td := range tc.Traces {
 		if td.DisplayName == fullActionName {
 			// Spot check: expect a single span.
