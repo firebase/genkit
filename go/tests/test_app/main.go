@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 
@@ -61,21 +60,6 @@ func main() {
 			}
 		}
 		return fmt.Sprintf("done %d, streamed: %d times", count, i), nil
-	})
-
-	genkit.DefineStreamingFlow(g, "streamyThrowy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
-		i := 0
-		if cb != nil {
-			for ; i < count; i++ {
-				if i == 3 {
-					return "", errors.New("boom!")
-				}
-				if err := cb(ctx, chunk{i}); err != nil {
-					return "", err
-				}
-			}
-		}
-		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
 	})
 
 	if err := g.Start(context.Background(), &opts); err != nil {
