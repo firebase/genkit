@@ -215,7 +215,29 @@ output is in English, etc.
 evaluation. A dataset typically consists of `input` and optional `reference`
 fields. The `reference` field does not affect the inference step of evaluation
 but it is passed verbatim to any evaluation metrics. In Genkit, you can create a
-dataset through the Dev UI.
+dataset through the Dev UI. There are two types of datasets in Genkit: _Flow_
+datasets and _Model_ datasets.
+
+### Schema validation
+
+Depending on the type, datasets have schema validation support in the Dev UI:
+
+* Flow datasets allow users to validate the  `input` and `reference` fields of
+the dataset against a flow in their Genkit application. Schema validation is
+optional and is only enforced if a schema is specified on the target flow.
+
+* Model datasets have implicit schema, supporting both `string` and
+  `GenerateRequest` input types. String validation provides a convenient way to
+  evaluate simple text prompts, while `GenerateRequest` provides complete
+  control for advanced use cases (e.g.  providing model parameters, message
+  history, tools, etc). You can find the full schema for `GenerateRequest` in
+  our [API reference
+  docs](https://genkit-js-api.web.app/interfaces/genkit._.GenerateRequest.html).
+<!-- TODO(ssbushi): Update link to API reference once formally published -->
+
+Note: Schema validation is only supported in the Dev UI and does not prohibit
+the user from adding invalid examples to a dataset. It is provided for the
+user's convenience when editing datasets in the Dev UI.
 
 ## Supported evaluators
 
