@@ -16,6 +16,7 @@
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/express": "workspace:*",
     "data-urls": "^5.0.0"
   },
   "devDependencies": {

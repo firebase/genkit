@@ -55,7 +55,9 @@ endpoints.
 When you make the call, specify the flows you want to serve:
 
 ```ts
-ai.startFlowServer({
+import { startFlowServer } from '@genkit-ai/express';
+
+startFlowServer({
   flows: [menuSuggestionFlow],
 });
 ```
