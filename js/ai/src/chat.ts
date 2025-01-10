@@ -14,25 +14,26 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
+import { StreamingCallback, z } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import {
-  generate,
   GenerateOptions,
   GenerateResponse,
-  generateStream,
+  GenerateResponseChunk,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   MessageData,
   Part,
+  generate,
+  generateStream,
 } from './index.js';
 import {
   BaseGenerateOptions,
-  runWithSession,
   Session,
   SessionStore,
-} from './session';
+  runWithSession,
+} from './session.js';
 
 export const MAIN_THREAD = 'main';
 
@@ -133,43 +134,50 @@ export class Chat {
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return runWithSession(this.session, () =>
-      runInNewSpan({ metadata: { name: 'send' } }, async () => {
-        let resolvedOptions;
-        let streamingCallback = undefined;
+    return runWithSession(this.session.registry, this.session, () =>
+      runInNewSpan(
+        this.session.registry,
+        { metadata: { name: 'send' } },
+        async () => {
+          let resolvedOptions: ChatGenerateOptions<O, CustomOptions>;
+          let streamingCallback:
+            | StreamingCallback<GenerateResponseChunk>
+            | undefined = undefined;
 
-        // string
-        if (typeof options === 'string') {
-          resolvedOptions = {
-            prompt: options,
-          } as ChatGenerateOptions<O, CustomOptions>;
-        } else if (Array.isArray(options)) {
-          // Part[]
-          resolvedOptions = {
-            prompt: options,
-          } as ChatGenerateOptions<O, CustomOptions>;
-        } else {
-          resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
-          streamingCallback = resolvedOptions.streamingCallback;
+          // string
+          if (typeof options === 'string') {
+            resolvedOptions = {
+              prompt: options,
+            } as ChatGenerateOptions<O, CustomOptions>;
+          } else if (Array.isArray(options)) {
+            // Part[]
+            resolvedOptions = {
+              prompt: options,
+            } as ChatGenerateOptions<O, CustomOptions>;
+          } else {
+            resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+            streamingCallback =
+              resolvedOptions.onChunk ?? resolvedOptions.streamingCallback;
+          }
+          let request: GenerateOptions = {
+            ...(await this.requestBase),
+            messages: this.messages,
+            ...resolvedOptions,
+          };
+          let response = await generate(this.session.registry, {
+            ...request,
+            onChunk: streamingCallback,
+          });
+          this.requestBase = Promise.resolve({
+            ...(await this.requestBase),
+            // these things may get changed by tools calling within generate.
+            tools: response?.request?.tools,
+            config: response?.request?.config,
+          });
+          await this.updateMessages(response.messages);
+          return response;
         }
-        let request: GenerateOptions = {
-          ...(await this.requestBase),
-          messages: this.messages,
-          ...resolvedOptions,
-        };
-        let response = await generate(this.session.registry, {
-          ...request,
-          streamingCallback,
-        });
-        this.requestBase = Promise.resolve({
-          ...(await this.requestBase),
-          // these things may get changed by tools calling within generate.
-          tools: response?.request?.tools,
-          config: response?.request?.config,
-        });
-        await this.updateMessages(response.messages);
-        return response;
-      })
+      )
     );
   }
 
@@ -179,47 +187,54 @@ export class Chat {
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    return runWithSession(this.session, () =>
-      runInNewSpan({ metadata: { name: 'send' } }, async () => {
-        let resolvedOptions;
+    return runWithSession(this.session.registry, this.session, () =>
+      runInNewSpan(
+        this.session.registry,
+        { metadata: { name: 'send' } },
+        async () => {
+          let resolvedOptions;
 
-        // string
-        if (typeof options === 'string') {
-          resolvedOptions = {
-            prompt: options,
-          } as GenerateStreamOptions<O, CustomOptions>;
-        } else if (Array.isArray(options)) {
-          // Part[]
-          resolvedOptions = {
-            prompt: options,
-          } as GenerateStreamOptions<O, CustomOptions>;
-        } else {
-          resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
-        }
-
-        const { response, stream } = await generateStream(
-          this.session.registry,
-          {
-            ...(await this.requestBase),
-            messages: this.messages,
-            ...resolvedOptions,
+          // string
+          if (typeof options === 'string') {
+            resolvedOptions = {
+              prompt: options,
+            } as GenerateStreamOptions<O, CustomOptions>;
+          } else if (Array.isArray(options)) {
+            // Part[]
+            resolvedOptions = {
+              prompt: options,
+            } as GenerateStreamOptions<O, CustomOptions>;
+          } else {
+            resolvedOptions = options as GenerateStreamOptions<
+              O,
+              CustomOptions
+            >;
           }
-        );
 
-        return {
-          response: response.finally(async () => {
-            const resolvedResponse = await response;
-            this.requestBase = Promise.resolve({
+          const { response, stream } = await generateStream(
+            this.session.registry,
+            {
               ...(await this.requestBase),
-              // these things may get changed by tools calling within generate.
-              tools: resolvedResponse?.request?.tools,
-              config: resolvedResponse?.request?.config,
-            });
-            this.updateMessages(resolvedResponse.messages);
-          }),
-          stream,
-        };
-      })
+              messages: this.messages,
+              ...resolvedOptions,
+            }
+          );
+
+          return {
+            response: response.finally(async () => {
+              const resolvedResponse = await response;
+              this.requestBase = Promise.resolve({
+                ...(await this.requestBase),
+                // these things may get changed by tools calling within generate.
+                tools: resolvedResponse?.request?.tools,
+                config: resolvedResponse?.request?.config,
+              });
+              this.updateMessages(resolvedResponse.messages);
+            }),
+            stream,
+          };
+        }
+      )
     );
   }
 
@@ -227,7 +242,7 @@ export class Chat {
     return this._messages ?? [];
   }
 
-  async updateMessages(messages: MessageData[]): Promise<void> {
+  private async updateMessages(messages: MessageData[]): Promise<void> {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }

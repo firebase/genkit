@@ -72,6 +72,7 @@ export type ToolArgument<
  * Converts an action to a tool action by setting the appropriate metadata.
  */
 export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  registry: Registry,
   action: Action<I, O>
 ): ToolAction<I, O> {
   if (action.__action?.metadata?.type === 'tool') {
@@ -79,7 +80,7 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   }
 
   const fn = ((input) => {
-    setCustomMetadataAttributes({ subtype: 'tool' });
+    setCustomMetadataAttributes(registry, { subtype: 'tool' });
     return action(input);
   }) as ToolAction<I, O>;
   fn.__action = {
@@ -105,11 +106,14 @@ export async function resolveTools<
       if (typeof ref === 'string') {
         return await lookupToolByName(registry, ref);
       } else if ((ref as Action).__action) {
-        return asTool(ref as Action);
+        return asTool(registry, ref as Action);
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
-        return await lookupToolByName(registry, ref.name);
+        return await lookupToolByName(
+          registry,
+          (ref as ToolDefinition).metadata?.originalName || ref.name
+        );
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
     })
@@ -136,8 +140,14 @@ export async function lookupToolByName(
 export function toToolDefinition(
   tool: Action<z.ZodTypeAny, z.ZodTypeAny>
 ): ToolDefinition {
-  return {
-    name: tool.__action.name,
+  const originalName = tool.__action.name;
+  let name = originalName;
+  if (originalName.includes('/')) {
+    name = originalName.substring(originalName.lastIndexOf('/') + 1);
+  }
+
+  const out: ToolDefinition = {
+    name,
     description: tool.__action.description || '',
     outputSchema: toJsonSchema({
       schema: tool.__action.outputSchema ?? z.void(),
@@ -148,6 +158,12 @@ export function toToolDefinition(
       jsonSchema: tool.__action.inputJsonSchema,
     })!,
   };
+
+  if (originalName !== name) {
+    out.metadata = { originalName };
+  }
+
+  return out;
 }
 
 /**

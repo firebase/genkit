@@ -15,8 +15,8 @@
  */
 
 import { JSONSchema7 } from 'json-schema';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
+import { getContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
@@ -34,7 +34,7 @@ export { JSONSchema7 };
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
+  S extends z.ZodTypeAny,
 > {
   actionType?: ActionType;
   name: string;
@@ -43,7 +43,8 @@ export interface ActionMetadata<
   inputJsonSchema?: JSONSchema7;
   outputSchema?: O;
   outputJsonSchema?: JSONSchema7;
-  metadata?: M;
+  streamSchema?: S;
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -58,24 +59,66 @@ export interface ActionResult<O> {
 }
 
 /**
+ * Options (side channel) data to pass to the model.
+ */
+export interface ActionRunOptions<S> {
+  /**
+   * Streaming callback (optional).
+   */
+  onChunk?: StreamingCallback<S>;
+
+  /**
+   * Additional runtime context data (ex. auth context data).
+   */
+  context?: any;
+
+  /**
+   * Additional span attributes to apply to OT spans.
+   */
+  telemetryLabels?: Record<string, string>;
+}
+
+/**
+ * Options (side channel) data to pass to the model.
+ */
+export interface ActionFnArg<S> {
+  /**
+   * Streaming callback (optional).
+   */
+  sendChunk: StreamingCallback<S>;
+
+  /**
+   * Additional runtime context data (ex. auth context data).
+   */
+  context?: any;
+}
+
+/**
  * Self-describing, validating, observable, locally and remotely callable function.
  */
 export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
-> = ((input: z.infer<I>) => Promise<z.infer<O>>) & {
-  __action: ActionMetadata<I, O, M>;
-  run(input: z.infer<I>): Promise<ActionResult<z.infer<O>>>;
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = ((
+  input: z.infer<I>,
+  options?: ActionRunOptions<S>
+) => Promise<z.infer<O>>) & {
+  __action: ActionMetadata<I, O, S>;
+  __registry: Registry;
+  run(
+    input: z.infer<I>,
+    options?: ActionRunOptions<z.infer<S>>
+  ): Promise<ActionResult<z.infer<O>>>;
 };
 
 /**
  * Action factory params.
  */
-type ActionParams<
+export type ActionParams<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
   name:
     | string
@@ -88,16 +131,29 @@ type ActionParams<
   inputJsonSchema?: JSONSchema7;
   outputSchema?: O;
   outputJsonSchema?: JSONSchema7;
-  metadata?: M;
-  use?: Middleware<z.infer<I>, z.infer<O>>[];
+  metadata?: Record<string, any>;
+  use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
+  streamSchema?: S;
+  actionType: ActionType;
 };
+
+export type SimpleMiddleware<I = any, O = any> = (
+  req: I,
+  next: (req?: I) => Promise<O>
+) => Promise<O>;
+
+export type MiddlewareWithOptions<I = any, O = any, S = any> = (
+  req: I,
+  options: ActionRunOptions<S> | undefined,
+  next: (req?: I, options?: ActionRunOptions<S>) => Promise<O>
+) => Promise<O>;
 
 /**
  * Middleware function for actions.
  */
-export interface Middleware<I = any, O = any> {
-  (req: I, next: (req?: I) => Promise<O>): Promise<O>;
-}
+export type Middleware<I = any, O = any, S = any> =
+  | SimpleMiddleware<I, O>
+  | MiddlewareWithOptions<I, O, S>;
 
 /**
  * Creates an action with provided middleware.
@@ -105,32 +161,52 @@ export interface Middleware<I = any, O = any> {
 export function actionWithMiddleware<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  action: Action<I, O, M>,
-  middleware: Middleware<z.infer<I>, z.infer<O>>[]
-): Action<I, O, M> {
+  action: Action<I, O, S>,
+  middleware: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[]
+): Action<I, O, S> {
   const wrapped = (async (req: z.infer<I>) => {
     return (await wrapped.run(req)).result;
-  }) as Action<I, O, M>;
+  }) as Action<I, O, S>;
   wrapped.__action = action.__action;
-  wrapped.run = async (req: z.infer<I>): Promise<ActionResult<z.infer<O>>> => {
+  wrapped.__registry = action.__registry;
+  wrapped.run = async (
+    req: z.infer<I>,
+    options?: ActionRunOptions<z.infer<S>>
+  ): Promise<ActionResult<z.infer<O>>> => {
     let telemetry;
-    const dispatch = async (index: number, req: z.infer<I>) => {
+    const dispatch = async (
+      index: number,
+      req: z.infer<I>,
+      opts?: ActionRunOptions<z.infer<S>>
+    ) => {
       if (index === middleware.length) {
         // end of the chain, call the original model action
-        const result = await action.run(req);
+        const result = await action.run(req, opts);
         telemetry = result.telemetry;
         return result.result;
       }
 
       const currentMiddleware = middleware[index];
-      return currentMiddleware(req, async (modifiedReq) =>
-        dispatch(index + 1, modifiedReq || req)
-      );
+      if (currentMiddleware.length === 3) {
+        return (currentMiddleware as MiddlewareWithOptions<I, O, z.infer<S>>)(
+          req,
+          opts,
+          async (modifiedReq, modifiedOptions) =>
+            dispatch(index + 1, modifiedReq || req, modifiedOptions || opts)
+        );
+      } else if (currentMiddleware.length === 2) {
+        return (currentMiddleware as SimpleMiddleware<I, O>)(
+          req,
+          async (modifiedReq) => dispatch(index + 1, modifiedReq || req, opts)
+        );
+      } else {
+        throw new Error('unspported middleware function shape');
+      }
     };
 
-    return { result: await dispatch(0, req), telemetry };
+    return { result: await dispatch(0, req, options), telemetry };
   };
   return wrapped;
 }
@@ -141,18 +217,23 @@ export function actionWithMiddleware<
 export function action<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: ActionParams<I, O, M>,
-  fn: (input: z.infer<I>) => Promise<z.infer<O>>
-): Action<I, O> {
+  registry: Registry,
+  config: ActionParams<I, O, S>,
+  fn: (
+    input: z.infer<I>,
+    options: ActionFnArg<z.infer<S>>
+  ) => Promise<z.infer<O>>
+): Action<I, O, z.infer<S>> {
   const actionName =
     typeof config.name === 'string'
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
-  const actionFn = async (input: I) => {
-    return (await actionFn.run(input)).result;
+  const actionFn = async (input: I, options?: ActionRunOptions<z.infer<S>>) => {
+    return (await actionFn.run(input, options)).result;
   };
+  actionFn.__registry = registry;
   actionFn.__action = {
     name: actionName,
     description: config.description,
@@ -161,9 +242,10 @@ export function action<
     outputSchema: config.outputSchema,
     outputJsonSchema: config.outputJsonSchema,
     metadata: config.metadata,
-  } as ActionMetadata<I, O, M>;
+  } as ActionMetadata<I, O, S>;
   actionFn.run = async (
-    input: z.infer<I>
+    input: z.infer<I>,
+    options?: ActionRunOptions<z.infer<S>>
   ): Promise<ActionResult<z.infer<O>>> => {
     input = parseSchema(input, {
       schema: config.inputSchema,
@@ -172,22 +254,43 @@ export function action<
     let traceId;
     let spanId;
     let output = await newTrace(
+      registry,
       {
         name: actionName,
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
+          'genkit:metadata:subtype': config.actionType,
+          ...options?.telemetryLabels,
         },
       },
       async (metadata, span) => {
+        setCustomMetadataAttributes(registry, { subtype: config.actionType });
+        if (options?.context) {
+          setCustomMetadataAttributes(registry, {
+            context: JSON.stringify(options.context),
+          });
+        }
+
         traceId = span.spanContext().traceId;
         spanId = span.spanContext().spanId;
         metadata.name = actionName;
         metadata.input = input;
 
-        const output = await fn(input);
+        try {
+          const output = await fn(input, {
+            // Context can either be explicitly set, or inherited from the parent action.
+            context: options?.context ?? getContext(registry),
+            sendChunk: options?.onChunk ?? ((c) => {}),
+          });
 
-        metadata.output = JSON.stringify(output);
-        return output;
+          metadata.output = JSON.stringify(output);
+          return output;
+        } catch (err) {
+          if (typeof err === 'object') {
+            (err as any).traceId = traceId;
+          }
+          throw err;
+        }
       }
     );
     output = parseSchema(output, {
@@ -239,15 +342,16 @@ function validateActionId(actionId: string) {
 export function defineAction<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  config: ActionParams<I, O, M> & {
-    actionType: ActionType;
-  },
-  fn: (input: z.infer<I>) => Promise<z.infer<O>>
-): Action<I, O> {
-  if (isInRuntimeContext()) {
+  config: ActionParams<I, O, S>,
+  fn: (
+    input: z.infer<I>,
+    options: ActionFnArg<z.infer<S>>
+  ) => Promise<z.infer<O>>
+): Action<I, O, S> {
+  if (isInRuntimeContext(registry)) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
@@ -258,11 +362,14 @@ export function defineAction<
   } else {
     validateActionId(config.name.actionId);
   }
-  const act = action(config, async (i: I): Promise<z.infer<O>> => {
-    setCustomMetadataAttributes({ subtype: config.actionType });
-    await registry.initializeAllPlugins();
-    return await runInActionRuntimeContext(() => fn(i));
-  });
+  const act = action(
+    registry,
+    config,
+    async (i: I, options): Promise<z.infer<O>> => {
+      await registry.initializeAllPlugins();
+      return await runInActionRuntimeContext(registry, () => fn(i, options));
+    }
+  );
   act.__action.actionType = config.actionType;
   registry.registerAction(config.actionType, act);
   return act;
@@ -271,43 +378,53 @@ export function defineAction<
 // Streaming callback function.
 export type StreamingCallback<T> = (chunk: T) => void;
 
-const streamingAls = new AsyncLocalStorage<StreamingCallback<any>>();
-const sentinelNoopCallback = () => null;
+const streamingAlsKey = 'core.action.streamingCallback';
+export const sentinelNoopStreamingCallback = () => null;
 
 /**
  * Executes provided function with streaming callback in async local storage which can be retrieved
  * using {@link getStreamingCallback}.
  */
 export function runWithStreamingCallback<S, O>(
+  registry: Registry,
   streamingCallback: StreamingCallback<S> | undefined,
   fn: () => O
 ): O {
-  return streamingAls.run(streamingCallback || sentinelNoopCallback, fn);
+  return registry.asyncStore.run(
+    streamingAlsKey,
+    streamingCallback || sentinelNoopStreamingCallback,
+    fn
+  );
 }
 
 /**
  * Retrieves the {@link StreamingCallback} previously set by {@link runWithStreamingCallback}
+ *
+ * @hidden
  */
-export function getStreamingCallback<S>(): StreamingCallback<S> | undefined {
-  const cb = streamingAls.getStore();
-  if (cb === sentinelNoopCallback) {
+export function getStreamingCallback<S>(
+  registry: Registry
+): StreamingCallback<S> | undefined {
+  const cb =
+    registry.asyncStore.getStore<StreamingCallback<S>>(streamingAlsKey);
+  if (cb === sentinelNoopStreamingCallback) {
     return undefined;
   }
   return cb;
 }
 
-const runtimeCtxAls = new AsyncLocalStorage<any>();
+const runtimeContextAslKey = 'core.action.runtimeContext';
 
 /**
  * Checks whether the caller is currently in the runtime context of an action.
  */
-export function isInRuntimeContext() {
-  return !!runtimeCtxAls.getStore();
+export function isInRuntimeContext(registry: Registry) {
+  return !!registry.asyncStore.getStore(runtimeContextAslKey);
 }
 
 /**
  * Execute the provided function in the action runtime context.
  */
-export function runInActionRuntimeContext<R>(fn: () => R) {
-  return runtimeCtxAls.run('runtime', fn);
+export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
+  return registry.asyncStore.run(runtimeContextAslKey, 'runtime', fn);
 }

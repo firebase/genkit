@@ -37,10 +37,10 @@ func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
 	return s, nil
 }
 
-func setup02(_ context.Context, m ai.Model) error {
-	menuTool := ai.DefineTool("todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
+func setup02(g *genkit.Genkit, m ai.Model) error {
+	menuTool := genkit.DefineTool(g, "todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
-	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
+	dataMenuPrompt, err := dotprompt.Define(g, "s02_dataMenu",
 		`You are acting as a helpful AI assistant named Walt that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 
@@ -51,23 +51,18 @@ func setup02(_ context.Context, m ai.Model) error {
 
 		 Question:
 		 {{question}} ?`,
-		dotprompt.Config{
-			Model:        m,
-			InputSchema:  menuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			Tools:        []ai.Tool{menuTool},
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(menuQuestionInput{}),
+		dotprompt.WithTools(menuTool),
 	)
 	if err != nil {
 		return err
 	}
 
-	genkit.DefineFlow("s02_menuQuestion",
+	genkit.DefineFlow(g, "s02_menuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			resp, err := dataMenuPrompt.Generate(ctx,
-				&dotprompt.PromptRequest{
-					Variables: input,
-				},
+			resp, err := dataMenuPrompt.Generate(ctx, g,
+				dotprompt.WithInput(input),
 				nil,
 			)
 			if err != nil {

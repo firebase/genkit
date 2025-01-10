@@ -15,21 +15,30 @@
  */
 
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { action } from '../src/action.js';
+import { Registry } from '../src/registry.js';
 
 describe('action', () => {
+  var registry: Registry;
+  beforeEach(() => {
+    registry = new Registry();
+  });
+
   it('applies middleware', async () => {
     const act = action(
+      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
         outputSchema: z.number(),
         use: [
           async (input, next) => (await next(input + 'middle1')) + 1,
-          async (input, next) => (await next(input + 'middle2')) + 2,
+          async (input, opts, next) =>
+            (await next(input + 'middle2', opts)) + 2,
         ],
+        actionType: 'util',
       },
       async (input) => {
         return input.length;
@@ -44,14 +53,17 @@ describe('action', () => {
 
   it('returns telemetry info', async () => {
     const act = action(
+      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
         outputSchema: z.number(),
         use: [
           async (input, next) => (await next(input + 'middle1')) + 1,
-          async (input, next) => (await next(input + 'middle2')) + 2,
+          async (input, opts, next) =>
+            (await next(input + 'middle2', opts)) + 2,
         ],
+        actionType: 'util',
       },
       async (input) => {
         return input.length;
@@ -72,5 +84,37 @@ describe('action', () => {
       result.telemetry.spanId !== null && result.telemetry.spanId.length > 0,
       true
     );
+  });
+
+  it('run the action with options', async () => {
+    let passedContext;
+    const act = action(
+      registry,
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+        actionType: 'util',
+      },
+      async (input, { sendChunk, context }) => {
+        passedContext = context;
+        sendChunk(1);
+        sendChunk(2);
+        sendChunk(3);
+        return input.length;
+      }
+    );
+
+    const chunks: any[] = [];
+    await act.run('1234', {
+      context: { foo: 'bar' },
+      onChunk: (c) => chunks.push(c),
+    });
+
+    assert.deepStrictEqual(passedContext, {
+      foo: 'bar',
+    });
+
+    assert.deepStrictEqual(chunks, [1, 2, 3]);
   });
 });

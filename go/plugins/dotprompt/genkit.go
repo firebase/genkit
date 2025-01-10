@@ -24,6 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // PromptRequest is a request to execute a dotprompt template and
@@ -31,17 +32,21 @@ import (
 type PromptRequest struct {
 	// Input fields for the prompt. If not nil this should be a struct
 	// or pointer to a struct that matches the prompt's input schema.
-	Variables any `json:"variables,omitempty"`
-	// Number of candidates to return; if 0, will be taken
-	// from the prompt config; if still 0, will use 1.
-	Candidates int `json:"candidates,omitempty"`
+	Input any `json:"input,omitempty"`
 	// Model configuration. If nil will be taken from the prompt config.
 	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
 	// Context to pass to model, if any.
 	Context []any `json:"context,omitempty"`
 	// The model to use. This overrides any model specified by the prompt.
-	Model string `json:"model,omitempty"`
+	Model ai.Model `json:"model,omitempty"`
+	// The name of the model to use. This overrides any model specified by the prompt.
+	ModelName string `json:"modelname,omitempty"`
+	// Streaming callback function
+	Stream ai.ModelStreamingCallback
 }
+
+// GenerateOption configures params for Generate function
+type GenerateOption func(p *PromptRequest) error
 
 // buildVariables returns a map holding prompt field values based
 // on a struct or a pointer to a struct. The struct value should have
@@ -98,10 +103,10 @@ fieldLoop:
 	return m, nil
 }
 
-// buildRequest prepares an [ai.GenerateRequest] based on the prompt,
+// buildRequest prepares an [ai.ModelRequest] based on the prompt,
 // using the input variables and other information in the [ai.PromptRequest].
-func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateRequest, error) {
-	req := &ai.GenerateRequest{}
+func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest, error) {
+	req := &ai.ModelRequest{}
 
 	m, err := p.buildVariables(input)
 	if err != nil {
@@ -109,11 +114,6 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 	}
 	if req.Messages, err = p.RenderMessages(m); err != nil {
 		return nil, err
-	}
-
-	req.Candidates = p.Candidates
-	if req.Candidates == 0 {
-		req.Candidates = 1
 	}
 
 	req.Config = p.GenerationConfig
@@ -130,7 +130,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 		}
 	}
 
-	req.Output = &ai.GenerateRequestOutput{
+	req.Output = &ai.ModelRequestOutput{
 		Format: p.OutputFormat,
 		Schema: outputSchema,
 	}
@@ -145,7 +145,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 }
 
 // Register registers an action to render a prompt.
-func (p *Prompt) Register() error {
+func (p *Prompt) Register(g *genkit.Genkit) error {
 	if p.prompt != nil {
 		return nil
 	}
@@ -159,7 +159,9 @@ func (p *Prompt) Register() error {
 	}
 
 	// TODO: Undo clearing of the Version once Monaco Editor supports newer than JSON schema draft-07.
-	p.InputSchema.Version = ""
+	if p.InputSchema != nil {
+		p.InputSchema.Version = ""
+	}
 
 	metadata := map[string]any{
 		"prompt": map[string]any{
@@ -169,7 +171,7 @@ func (p *Prompt) Register() error {
 			"template": p.TemplateText,
 		},
 	}
-	p.prompt = ai.DefinePrompt("dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
+	p.prompt = genkit.DefinePrompt(g, "dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
 
 	return nil
 }
@@ -179,36 +181,49 @@ func (p *Prompt) Register() error {
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...GenerateOption) (*ai.ModelResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
+	var pr PromptRequest
 
-	var genReq *ai.GenerateRequest
+	for _, with := range opts {
+		err := with(&pr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var mr *ai.ModelRequest
 	var err error
 	if p.prompt != nil {
-		genReq, err = p.prompt.Render(ctx, pr.Variables)
+		mr, err = p.prompt.Render(ctx, pr.Input)
 	} else {
-		genReq, err = p.buildRequest(ctx, pr.Variables)
+		mr, err = p.buildRequest(ctx, pr.Input)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	// Let some fields in pr override those in the prompt config.
-	if pr.Candidates != 0 {
-		genReq.Candidates = pr.Candidates
-	}
 	if pr.Config != nil {
-		genReq.Config = pr.Config
+		mr.Config = pr.Config
 	}
 	if len(pr.Context) > 0 {
-		genReq.Context = pr.Context
+		mr.Context = pr.Context
 	}
 
-	model := p.Model
+	// Setting the model on generate, overrides the model defined on the prompt
+	var model ai.Model
+	if p.Model != nil {
+		model = p.Model
+	}
+	if pr.Model != nil {
+		model = pr.Model
+	}
+
 	if model == nil {
 		modelName := p.ModelName
-		if pr.Model != "" {
-			modelName = pr.Model
+		if pr.ModelName != "" {
+			modelName = pr.ModelName
 		}
 		if modelName == "" {
 			return nil, errors.New("dotprompt execution: model not specified")
@@ -218,16 +233,112 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		model = ai.LookupModel(provider, name)
+		model = genkit.LookupModel(g, provider, name)
 		if model == nil {
 			return nil, fmt.Errorf("no model named %q for provider %q", name, provider)
 		}
 	}
 
-	resp, err := model.Generate(ctx, genReq, cb)
+	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
 
 	return resp, nil
+}
+
+// GenerateText runs generate request for this prompt. Returns generated text only.
+func (p *Prompt) GenerateText(ctx context.Context, g *genkit.Genkit, opts ...GenerateOption) (string, error) {
+	res, err := p.Generate(ctx, g, opts...)
+	if err != nil {
+		return "", err
+	}
+
+	return res.Text(), nil
+}
+
+// GenerateData runs generate request for this prompt. Returns ModelResponse struct.
+// TODO: Stream GenerateData with partial JSON
+func (p *Prompt) GenerateData(ctx context.Context, g *genkit.Genkit, value any, opts ...GenerateOption) (*ai.ModelResponse, error) {
+	with := WithOutputType(value)
+	err := with(p)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := p.Generate(ctx, g, opts...)
+	if err != nil {
+		return nil, err
+	}
+	err = resp.UnmarshalOutput(value)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// WithInput adds input to pass to the model.
+func WithInput(input any) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.Input != nil {
+			return errors.New("dotprompt.WithInput: cannot set Input more than once")
+		}
+		p.Input = input
+		return nil
+	}
+}
+
+// WithConfig adds model configuration. If nil will be taken from the prompt config.
+func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.Config != nil {
+			return errors.New("dotprompt.WithConfig: cannot set Config more than once")
+		}
+		p.Config = config
+		return nil
+	}
+}
+
+// WithContext add context to pass to model, if any.
+func WithContext(context []any) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.Context != nil {
+			return errors.New("dotprompt.WithContext: cannot set Context more than once")
+		}
+		p.Context = context
+		return nil
+	}
+}
+
+// WithModel adds the Model to use. This overrides any model specified by the prompt.
+func WithModel(model ai.Model) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.ModelName != "" || p.Model != nil {
+			return errors.New("dotprompt.WithModel: Model must be specified exactly once, either ModelName or Model")
+		}
+		p.Model = model
+		return nil
+	}
+}
+
+// WithModelName adds the name of the Model to use. This overrides any model specified by the prompt.
+func WithModelName(model string) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.ModelName != "" || p.Model != nil {
+			return errors.New("dotprompt.WithModelName: Model must be specified exactly once, either ModelName or Model")
+		}
+		p.ModelName = model
+		return nil
+	}
+}
+
+// WithStreaming adds a streaming callback to the generate request.
+func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
+	return func(g *PromptRequest) error {
+		if g.Stream != nil {
+			return errors.New("dotprompt.WithStreaming: cannot set Stream more than once")
+		}
+		g.Stream = cb
+		return nil
+	}
 }

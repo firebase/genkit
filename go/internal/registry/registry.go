@@ -16,7 +16,6 @@ package registry
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"slices"
@@ -30,19 +29,6 @@ import (
 )
 
 // This file implements registries of actions and other values.
-
-// The global registry, used in non-test code.
-// A test may create their own registries to avoid conflicting with other tests.
-var Global *Registry
-
-func init() {
-	// Initialize the global registry, along with a dev tracer, at program startup.
-	var err error
-	Global, err = New()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 type Registry struct {
 	tstate  *tracing.State
@@ -77,7 +63,7 @@ func (r *Registry) RegisterAction(typ atype.ActionType, a action.Action) {
 	}
 	a.SetTracingState(r.tstate)
 	r.actions[key] = a
-	slog.Info("RegisterAction",
+	slog.Debug("RegisterAction",
 		"type", typ,
 		"name", a.Name())
 }

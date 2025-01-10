@@ -1,0 +1,25 @@
+{
+  "name": "@genkit-ai/mcp-examples-client-stdio",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "genkit start -- tsx --watch index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/googleai": "file:../../../googleai",
+    "@modelcontextprotocol/server-filesystem": "^0.5.1",
+    "@modelcontextprotocol/server-github": "^0.5.1",
+    "genkit": "file:../../../../genkit",
+    "genkitx-mcp": "file:../../"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/server-puppeteer": "^0.5.1",
+    "tsx": "^4.19.2"
+  }
+}

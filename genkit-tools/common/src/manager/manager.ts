@@ -25,6 +25,7 @@ import {
   RunActionResponseSchema,
 } from '../types/action';
 import * as apis from '../types/apis';
+import { GenkitErrorData } from '../types/error';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
@@ -42,6 +43,7 @@ import {
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
+export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 interface RuntimeManagerOptions {
   /** URL of the telemetry server. */
@@ -197,9 +199,24 @@ export class RuntimeManager {
         rejecter = reject;
       });
       stream.on('end', () => {
-        const actionResponse = RunActionResponseSchema.parse(
-          JSON.parse(buffer)
-        );
+        const parsedBuffer = JSON.parse(buffer);
+        if (parsedBuffer.error) {
+          const err = new GenkitToolsError(
+            `Error running action key='${input.key}'.`
+          );
+          // massage the error into a shape dev ui expects
+          err.data = {
+            ...parsedBuffer.error,
+            stack: (parsedBuffer.error?.details as any).stack,
+            data: {
+              genkitErrorMessage: parsedBuffer.error?.message,
+              genkitErrorDetails: parsedBuffer.error?.details,
+            },
+          };
+          rejecter(err);
+          return;
+        }
+        const actionResponse = RunActionResponseSchema.parse(parsedBuffer);
         if (genkitVersion) {
           actionResponse.genkitVersion = genkitVersion;
         }
@@ -278,6 +295,7 @@ export class RuntimeManager {
     try {
       await axios.post(`${runtime.reflectionServerUrl}/api/notify`, {
         telemetryServerUrl: this.telemetryServerUrl,
+        reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
       });
     } catch (error) {
       logger.error(`Failed to notify runtime ${runtime.id}: ${error}`);
@@ -326,6 +344,27 @@ export class RuntimeManager {
       if (isValidRuntimeInfo(runtimeInfo)) {
         const fileName = path.basename(filePath);
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
+          if (
+            runtimeInfo.reflectionApiSpecVersion !=
+            GENKIT_REFLECTION_API_SPEC_VERSION
+          ) {
+            if (
+              !runtimeInfo.reflectionApiSpecVersion ||
+              runtimeInfo.reflectionApiSpecVersion <
+                GENKIT_REFLECTION_API_SPEC_VERSION
+            ) {
+              logger.warn(
+                'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
+                  'Consider upgrading your runtime library version (debug info: expected ' +
+                  `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${runtimeInfo.reflectionApiSpecVersion}).`
+              );
+            } else {
+              logger.error(
+                'Genkit CLI version is outdated. Please update `genkit-cli` to the latest version.'
+              );
+              process.exit(1);
+            }
+          }
           this.filenameToRuntimeMap[fileName] = runtimeInfo;
           this.idToFileMap[runtimeInfo.id] = fileName;
           this.eventEmitter.emit(RuntimeEvent.ADD, runtimeInfo);
@@ -369,7 +408,7 @@ export class RuntimeManager {
         newError.message = (error.response?.data as any).message;
       }
       // we got a non-200 response; copy the payload and rethrow
-      newError.data = error.response.data as Record<string, unknown>;
+      newError.data = error.response.data as GenkitErrorData;
       throw newError;
     }
 

@@ -24,8 +24,8 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
-	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
+func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
+	ragDataMenuPrompt, err := dotprompt.Define(g, "s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
 		  You can answer questions about the food on the menu or any other questions
@@ -40,14 +40,12 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 
 		  Answer this customer's question:
 		  {{question}}?`,
-		dotprompt.Config{
-			Model:        model,
-			InputSchema:  dataMenuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.3,
-			},
-		},
+		dotprompt.WithDefaultModel(model),
+		dotprompt.WithInputType(dataMenuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err
@@ -57,7 +55,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 		Rows int `json:"rows"`
 	}
 
-	genkit.DefineFlow("s04_indexMenuItems",
+	genkit.DefineFlow(g, "s04_indexMenuItems",
 		func(ctx context.Context, input []*menuItem) (*flowOutput, error) {
 			var docs []*ai.Document
 			for _, m := range input {
@@ -78,7 +76,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 		},
 	)
 
-	genkit.DefineFlow("s04_ragMenuQuestion",
+	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := ai.Retrieve(ctx, retriever,
 				ai.WithRetrieverText(input.Question),
@@ -98,16 +96,16 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 				Question: input.Question,
 			}
 
-			preq := &dotprompt.PromptRequest{
-				Variables: questionInput,
-			}
-			presp, err := ragDataMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := ragDataMenuPrompt.Generate(
+				ctx, g,
+				dotprompt.WithInput(questionInput),
+				nil)
 			if err != nil {
 				return nil, err
 			}
 
 			ret := &answerOutput{
-				Answer: presp.Candidates[0].Message.Content[0].Text,
+				Answer: presp.Message.Content[0].Text,
 			}
 			return ret, nil
 		},

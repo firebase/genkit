@@ -839,6 +839,11 @@
           "type": "object",
           "additionalProperties": {},
           "description": "Valid JSON Schema describing the output of the tool."
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {},
+          "description": "additional metadata for this tool definition"
         }
       },
       "required": [
@@ -925,168 +930,6 @@
       },
       "required": [
         "toolResponse"
-      ],
-      "additionalProperties": false
-    },
-    "FlowActionInput": {
-      "type": "object",
-      "properties": {
-        "start": {
-          "type": "object",
-          "properties": {
-            "input": {},
-            "labels": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "string"
-              }
-            }
-          },
-          "additionalProperties": false
-        },
-        "schedule": {
-          "type": "object",
-          "properties": {
-            "input": {},
-            "delay": {
-              "type": "number"
-            }
-          },
-          "additionalProperties": false
-        },
-        "runScheduled": {
-          "type": "object",
-          "properties": {
-            "flowId": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "flowId"
-          ],
-          "additionalProperties": false
-        },
-        "retry": {
-          "type": "object",
-          "properties": {
-            "flowId": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "flowId"
-          ],
-          "additionalProperties": false
-        },
-        "resume": {
-          "type": "object",
-          "properties": {
-            "flowId": {
-              "type": "string"
-            },
-            "payload": {}
-          },
-          "required": [
-            "flowId"
-          ],
-          "additionalProperties": false
-        },
-        "state": {
-          "type": "object",
-          "properties": {
-            "flowId": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "flowId"
-          ],
-          "additionalProperties": false
-        },
-        "auth": {}
-      },
-      "additionalProperties": false
-    },
-    "FlowError": {
-      "type": "object",
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "stacktrace": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "FlowInvokeEnvelopeMessage": {
-      "type": "object",
-      "properties": {
-        "start": {
-          "$ref": "#/$defs/FlowActionInput/properties/start"
-        },
-        "schedule": {
-          "$ref": "#/$defs/FlowActionInput/properties/schedule"
-        },
-        "runScheduled": {
-          "$ref": "#/$defs/FlowActionInput/properties/runScheduled"
-        },
-        "retry": {
-          "$ref": "#/$defs/FlowActionInput/properties/retry"
-        },
-        "resume": {
-          "$ref": "#/$defs/FlowActionInput/properties/resume"
-        },
-        "state": {
-          "$ref": "#/$defs/FlowActionInput/properties/state"
-        }
-      },
-      "additionalProperties": false
-    },
-    "FlowResponse": {
-      "type": "object",
-      "properties": {
-        "response": {
-          "anyOf": [
-            {},
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "FlowResult": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/FlowResponse"
-        },
-        {
-          "$ref": "#/$defs/FlowError"
-        }
-      ]
-    },
-    "FlowStateExecution": {
-      "type": "object",
-      "properties": {
-        "startTime": {
-          "type": "number",
-          "description": "start time in milliseconds since the epoch"
-        },
-        "endTime": {
-          "type": "number",
-          "description": "end time in milliseconds since the epoch"
-        },
-        "traceIds": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "traceIds"
       ],
       "additionalProperties": false
     }

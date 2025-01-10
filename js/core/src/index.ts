@@ -16,12 +16,20 @@
 
 import { version } from './__codegen/version.js';
 
+/**
+ * Genkit library version.
+ */
 export const GENKIT_VERSION = version;
+
+/**
+ * Genkit client header for API calls.
+ */
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
+export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 export { z } from 'zod';
 export * from './action.js';
-export { getFlowAuth } from './auth.js';
+export { getFlowAuth } from './context.js';
 export { GenkitError } from './error.js';
 export {
   Flow,
@@ -38,7 +46,6 @@ export {
   type StreamingFlowConfig,
   type __RequestWithAuth,
 } from './flow.js';
-export * from './flowTypes.js';
 export * from './plugin.js';
 export * from './reflection.js';
 export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';

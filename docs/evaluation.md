@@ -34,7 +34,7 @@ const ai = genkit({
 ```
 
 **Note:** The configuration above requires installing the `genkit`,
-`@genkit-ai/google-ai`, `@genkit-ai/evaluator` and `@genkit-ai/vertexai`
+`@genkit-ai/googleai`, `@genkit-ai/evaluator` and `@genkit-ai/vertexai`
 packages.
 
 ```posix-terminal
@@ -46,14 +46,45 @@ called `testInputs.json`. This input dataset represents the test cases you will
 use to generate output for evaluation.
 
 ```json
-["Cheese", "Broccoli", "Spinach and Kale"]
+[
+  {
+    "input": "What is the French word for Cheese?"
+  },
+  {
+    "input": "What green vegetable looks like cauliflower?"
+  }
+]
 ```
+
+If the evaluator requires a reference output for evaluating a flow, you can pass both 
+input and reference output using this format instead:
+
+```json
+[
+  {
+    "input": "What is the French word for Cheese?",
+    "reference": "Fromage"
+  },
+  {
+    "input": "What green vegetable looks like cauliflower?",
+    "reference": "Broccoli"
+  }
+]
+```
+
+Note that you can use any JSON data type in the input JSON file. Genkit will pass them along with the same data type to your flow.
 
 You can then use the `eval:flow` command to evaluate your flow against the test
 cases provided in `testInputs.json`.
 
 ```posix-terminal
 genkit eval:flow menuSuggestionFlow --input testInputs.json
+```
+
+If your flow requires auth, you may specify it using the `--auth` argument:
+
+```posix-terminal
+genkit eval:flow menuSuggestionFlow --input testInputs.json --auth "{\"email_verified\": true}"
 ```
 
 You can then see evaluation results in the Developer UI by running:
@@ -87,7 +118,7 @@ you get started:
 
 ### Evaluator plugins
 
-Genkit supports additional evaluators through plugins like the VertexAI Rapid Evaluators via the [VertexAI Plugin](./plugins/vertex-ai#evaluation).
+Genkit supports additional evaluators through plugins like the VertexAI Rapid Evaluators via the [VertexAI Plugin](./plugins/vertex-ai#evaluators).
 
 ## Advanced use
 
@@ -222,8 +253,17 @@ might be asking about it.
 import { genkit, run, z } from "genkit";
 import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
 import { chunk } from "llm-chunk";
+import path from 'path';
 
 const ai = genkit({ plugins: [googleAI()] });
+
+const chunkingConfig = {
+  minLength: 1000, // number of minimum characters into chunk
+  maxLength: 2000, // number of maximum characters into chunk
+  splitter: 'sentence', // paragraph | sentence
+  overlap: 100, // number of overlap chracters
+  delimiters: '', // regex for base split method
+} as any;
 
 export const synthesizeQuestions = ai.defineFlow(
   {
@@ -233,6 +273,8 @@ export const synthesizeQuestions = ai.defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
+    // `extractText` loads the PDF and extracts its contents as text.
+    // See our RAG documentation for more details. 
     const pdfTxt = await run("extract-text", () => extractText(filePath));
 
     const chunks = await run("chunk-it", async () =>

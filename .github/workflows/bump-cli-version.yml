@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Bump CLI Version
+name: Bump and Tag CLI Version
 
 on:
   workflow_dispatch:

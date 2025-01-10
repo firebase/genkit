@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
@@ -35,6 +36,11 @@ func TestGenkit(t *testing.T) {
 	namespace := *testNamespace + "TestGenkit"
 
 	ctx := context.Background()
+
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Get information about the index.
 
@@ -77,13 +83,13 @@ func TestGenkit(t *testing.T) {
 	}
 	cfg := Config{
 		IndexID:  *testIndex,
-		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
 	}
-	indexer, err := DefineIndexer(ctx, cfg)
+	indexer, err := DefineIndexer(ctx, g, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	retriever, err := DefineRetriever(ctx, cfg)
+	retriever, err := DefineRetriever(ctx, g, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

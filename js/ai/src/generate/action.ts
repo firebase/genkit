@@ -15,15 +15,15 @@
  */
 
 import {
+  GenkitError,
   getStreamingCallback,
-  Middleware,
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
 import { resolveFormat } from '../formats/index.js';
@@ -31,6 +31,7 @@ import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
+  GenerationResponseError,
   tagAsPreamble,
 } from '../generate.js';
 import {
@@ -40,13 +41,14 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
+  ModelMiddleware,
   Part,
-  resolveModel,
   Role,
   ToolDefinitionSchema,
   ToolResponsePart,
+  resolveModel,
 } from '../model.js';
-import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -70,6 +72,8 @@ export const GenerateUtilParamSchema = z.object({
     .optional(),
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests: z.boolean().optional(),
+  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
+  maxTurns: z.number().optional(),
 });
 
 /**
@@ -78,10 +82,13 @@ export const GenerateUtilParamSchema = z.object({
 export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: Middleware[]
+  middleware?: ModelMiddleware[],
+  currentTurns?: number
 ): Promise<GenerateResponseData> {
+  currentTurns = currentTurns ?? 0;
   // do tracing
   return await runInNewSpan(
+    registry,
     {
       metadata: {
         name: 'generate',
@@ -93,7 +100,7 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(registry, input, middleware);
+      const output = await generate(registry, input, middleware, currentTurns!);
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -103,7 +110,8 @@ export async function generateHelper(
 async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: Middleware[]
+  middleware: ModelMiddleware[] | undefined,
+  currentTurn: number
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -116,6 +124,19 @@ async function generate(
   const tools = await resolveTools(registry, rawRequest.tools);
 
   const resolvedFormat = await resolveFormat(registry, rawRequest.output);
+  // Create a lookup of tool names with namespaces stripped to original names
+  const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
+    const name = tool.__action.name;
+    const shortName = name.substring(name.lastIndexOf('/') + 1);
+    if (acc[shortName]) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Cannot provide two tools with the same name: '${name}' and '${acc[shortName]}'`,
+      });
+    }
+    acc[shortName] = tool;
+    return acc;
+  }, {});
 
   const request = await actionToGenerateRequest(
     rawRequest,
@@ -125,8 +146,9 @@ async function generate(
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
-  const streamingCallback = getStreamingCallback();
+  const streamingCallback = getStreamingCallback(registry);
   const response = await runWithStreamingCallback(
+    registry,
     streamingCallback
       ? (chunk: GenerateResponseChunkData) => {
           // Store accumulated chunk data
@@ -175,6 +197,16 @@ async function generate(
   if (rawRequest.returnToolRequests || toolCalls.length === 0) {
     return response.toJSON();
   }
+  const maxIterations = rawRequest.maxTurns ?? 5;
+  if (currentTurn + 1 > maxIterations) {
+    throw new GenerationResponseError(
+      response,
+      `Exceeded maximum tool call iterations (${maxIterations})`,
+      'ABORTED',
+      { request }
+    );
+  }
+
   const toolResponses: ToolResponsePart[] = [];
   let messages: MessageData[] = [...request.messages, message];
   let newTools = rawRequest.tools;
@@ -184,9 +216,7 @@ async function generate(
         'Tool request expected but not provided in tool request part'
       );
     }
-    const tool = tools?.find(
-      (tool) => tool.__action.name === part.toolRequest?.name
-    );
+    const tool = toolMap[part.toolRequest?.name];
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
@@ -226,7 +256,12 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
-  return await generateHelper(registry, nextRequest, middleware);
+  return await generateHelper(
+    registry,
+    nextRequest,
+    middleware,
+    currentTurn + 1
+  );
 }
 
 async function actionToGenerateRequest(
@@ -238,7 +273,7 @@ async function actionToGenerateRequest(
     messages: options.messages,
     config: options.config,
     docs: options.docs,
-    tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: resolvedTools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: toJsonSchema({

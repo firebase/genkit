@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -69,7 +70,7 @@ type Config struct {
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, cfg *Config) (err error) {
+func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 	if cfg == nil {
 		cfg = &Config{}
 	}
@@ -108,10 +109,10 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 	state.pclient = client
 	state.initted = true
 	for model, caps := range knownCaps {
-		defineModel(model, caps)
+		defineModel(g, model, caps)
 	}
 	for _, e := range knownEmbedders {
-		defineEmbedder(e)
+		defineEmbedder(g, e)
 	}
 	return nil
 }
@@ -122,7 +123,7 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
+func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -138,27 +139,27 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	} else {
 		mc = *caps
 	}
-	return defineModel(name, mc), nil
+	return defineModel(g, name, mc), nil
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
+func defineModel(g *genkit.Genkit, name string, caps ai.ModelCapabilities) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
 	}
-	return ai.DefineModel(provider, name, meta, func(
+	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
-		input *ai.GenerateRequest,
-		cb func(context.Context, *ai.GenerateResponseChunk) error,
-	) (*ai.GenerateResponse, error) {
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
 		return generate(ctx, state.gclient, name, input, cb)
 	})
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
-func IsDefinedModel(name string) bool {
-	return ai.IsDefinedModel(provider, name)
+func IsDefinedModel(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedModel(g, provider, name)
 }
 
 //copy:stop
@@ -166,25 +167,25 @@ func IsDefinedModel(name string) bool {
 //copy:start vertexai.go defineEmbedder
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) ai.Embedder {
+func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	return defineEmbedder(name)
+	return defineEmbedder(g, name)
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
-func IsDefinedEmbedder(name string) bool {
-	return ai.IsDefinedEmbedder(provider, name)
+func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedEmbedder(g, provider, name)
 }
 
 //copy:stop
 
 // requires state.mu
-func defineEmbedder(name string) ai.Embedder {
-	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+func defineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		em := state.pclient.EmbeddingModel(name)
 		// TODO: set em.TaskType from EmbedRequest.Options?
 		batch := em.NewBatch()
@@ -211,14 +212,14 @@ func defineEmbedder(name string) ai.Embedder {
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
-func Model(name string) ai.Model {
-	return ai.LookupModel(provider, name)
+func Model(g *genkit.Genkit, name string) ai.Model {
+	return genkit.LookupModel(g, provider, name)
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(name string) ai.Embedder {
-	return ai.LookupEmbedder(provider, name)
+func Embedder(g *genkit.Genkit, name string) ai.Embedder {
+	return genkit.LookupEmbedder(g, provider, name)
 }
 
 //copy:stop
@@ -229,9 +230,9 @@ func generate(
 	ctx context.Context,
 	client *genai.Client,
 	model string,
-	input *ai.GenerateRequest,
-	cb func(context.Context, *ai.GenerateResponseChunk) error,
-) (*ai.GenerateResponse, error) {
+	input *ai.ModelRequest,
+	cb func(context.Context, *ai.ModelResponseChunk) error,
+) (*ai.ModelResponse, error) {
 	gm, err := newModel(client, model, input)
 	if err != nil {
 		return nil, err
@@ -272,7 +273,7 @@ func generate(
 
 	// Streaming version.
 	iter := cs.SendMessageStream(ctx, parts...)
-	var r *ai.GenerateResponse
+	var r *ai.ModelResponse
 	for {
 		chunk, err := iter.Next()
 		if err == iterator.Done {
@@ -285,9 +286,8 @@ func generate(
 		// Send candidates to the callback.
 		for _, c := range chunk.Candidates {
 			tc := translateCandidate(c)
-			err := cb(ctx, &ai.GenerateResponseChunk{
+			err := cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
-				Index:   tc.Index,
 			})
 			if err != nil {
 				return nil, err
@@ -297,15 +297,15 @@ func generate(
 	if r == nil {
 		// No candidates were returned. Probably rare, but it might avoid a NPE
 		// to return an empty instead of nil result.
-		r = &ai.GenerateResponse{}
+		r = &ai.ModelResponse{}
 	}
 	r.Request = input
 	return r, nil
 }
 
-func newModel(client *genai.Client, model string, input *ai.GenerateRequest) (*genai.GenerativeModel, error) {
+func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
 	gm := client.GenerativeModel(model)
-	gm.SetCandidateCount(int32(input.Candidates))
+	gm.SetCandidateCount(1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
 			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
@@ -341,7 +341,7 @@ func newModel(client *genai.Client, model string, input *ai.GenerateRequest) (*g
 }
 
 // startChat starts a chat session and configures it with the input messages.
-func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.ChatSession, error) {
+func startChat(gm *genai.GenerativeModel, input *ai.ModelRequest) (*genai.ChatSession, error) {
 	cs := gm.StartChat()
 
 	// All but the last message goes in the history field.
@@ -470,26 +470,25 @@ func castToStringArray(i []any) []string {
 
 //copy:start vertexai.go translateCandidate
 
-// translateCandidate translates from a genai.GenerateContentResponse to an ai.GenerateResponse.
-func translateCandidate(cand *genai.Candidate) *ai.Candidate {
-	c := &ai.Candidate{}
-	c.Index = int(cand.Index)
+// translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
+func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
+	m := &ai.ModelResponse{}
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
-		c.FinishReason = ai.FinishReasonStop
+		m.FinishReason = ai.FinishReasonStop
 	case genai.FinishReasonMaxTokens:
-		c.FinishReason = ai.FinishReasonLength
+		m.FinishReason = ai.FinishReasonLength
 	case genai.FinishReasonSafety:
-		c.FinishReason = ai.FinishReasonBlocked
+		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonRecitation:
-		c.FinishReason = ai.FinishReasonBlocked
+		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonOther:
-		c.FinishReason = ai.FinishReasonOther
+		m.FinishReason = ai.FinishReasonOther
 	default: // Unspecified
-		c.FinishReason = ai.FinishReasonUnknown
+		m.FinishReason = ai.FinishReasonUnknown
 	}
-	m := &ai.Message{}
-	m.Role = ai.Role(cand.Content.Role)
+	msg := &ai.Message{}
+	msg.Role = ai.Role(cand.Content.Role)
 	for _, part := range cand.Content.Parts {
 		var p *ai.Part
 		switch part := part.(type) {
@@ -505,22 +504,20 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		default:
 			panic(fmt.Sprintf("unknown part %#v", part))
 		}
-		m.Content = append(m.Content, p)
+		msg.Content = append(msg.Content, p)
 	}
-	c.Message = m
-	return c
+	m.Message = msg
+	return m
 }
 
 //copy:stop
 
 //copy:start vertexai.go translateResponse
 
-// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
-func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
-	r := &ai.GenerateResponse{}
-	for _, c := range resp.Candidates {
-		r.Candidates = append(r.Candidates, translateCandidate(c))
-	}
+// Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
+func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
+	r := translateCandidate(resp.Candidates[0])
+
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)

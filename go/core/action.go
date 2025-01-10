@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -66,12 +67,13 @@ type noStream = func(context.Context, struct{}) error
 
 // DefineAction creates a new non-streaming Action and registers it.
 func DefineAction[In, Out any](
+	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	fn func(context.Context, In) (Out, error),
 ) *Action[In, Out, struct{}] {
-	return DefineActionInRegistry(registry.Global, provider, name, atype, metadata, nil,
+	return defineAction(r, provider, name, atype, metadata, nil,
 		func(ctx context.Context, in In, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
@@ -79,17 +81,23 @@ func DefineAction[In, Out any](
 
 // DefineStreamingAction creates a new streaming action and registers it.
 func DefineStreamingAction[In, Out, Stream any](
+	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	fn Func[In, Out, Stream],
 ) *Action[In, Out, Stream] {
-	return DefineActionInRegistry(registry.Global, provider, name, atype, metadata, nil, fn)
+	return defineAction(r, provider, name, atype, metadata, nil, fn)
 }
 
 // DefineCustomAction defines a streaming action with type Custom.
-func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return DefineStreamingAction(provider, name, atype.Custom, metadata, fn)
+func DefineCustomAction[In, Out, Stream any](
+	r *registry.Registry,
+	provider, name string,
+	metadata map[string]any,
+	fn Func[In, Out, Stream],
+) *Action[In, Out, Stream] {
+	return DefineStreamingAction(r, provider, name, atype.Custom, metadata, fn)
 }
 
 // DefineActionWithInputSchema creates a new Action and registers it.
@@ -97,21 +105,21 @@ func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map
 // defined dynamically; the static input type is "any".
 // This is used for prompts.
 func DefineActionWithInputSchema[Out any](
+	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
 	fn func(context.Context, any) (Out, error),
 ) *Action[any, Out, struct{}] {
-	return DefineActionInRegistry(registry.Global, provider, name, atype, metadata, inputSchema,
+	return defineAction(r, provider, name, atype, metadata, inputSchema,
 		func(ctx context.Context, in any, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
 
-// DefineActionInRegistry creates an action and registers it with the given Registry.
-// For use by the Genkit module only.
-func DefineActionInRegistry[In, Out, Stream any](
+// defineAction creates an action and registers it with the given Registry.
+func defineAction[In, Out, Stream any](
 	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
@@ -140,7 +148,9 @@ func newAction[In, Out, Stream any](
 	var i In
 	var o Out
 	if inputSchema == nil {
-		inputSchema = base.InferJSONSchema(i)
+		if reflect.ValueOf(i).Kind() != reflect.Invalid {
+			inputSchema = base.InferJSONSchema(i)
+		}
 	}
 	return &Action[In, Out, Stream]{
 		name:  name,
@@ -172,12 +182,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
-	tstate := a.tstate
-	if tstate == nil {
-		// This action has probably not been registered.
-		tstate = registry.Global.TracingState()
-	}
-	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, a.tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error
@@ -256,11 +261,28 @@ func (a *Action[I, O, S]) Desc() action.Desc {
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.
-func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
+func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
 	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
-	a := registry.Global.LookupAction(key)
+	a := r.LookupAction(key)
 	if a == nil {
 		return nil
 	}
 	return a.(*Action[In, Out, Stream])
+}
+
+var actionContextKey = base.NewContextKey[int]()
+
+// WithActionContext returns a new context with action runtime context (side channel data)
+// value set.
+func WithActionContext(ctx context.Context, actionContext map[string]any) context.Context {
+	return context.WithValue(ctx, actionContextKey, actionContext)
+}
+
+// ActionContext returns the action runtime context (side channel data) from ctx.
+func ActionContext(ctx context.Context) map[string]any {
+	val := ctx.Value(actionContextKey)
+	if val == nil {
+		return nil
+	}
+	return val.(map[string]any)
 }

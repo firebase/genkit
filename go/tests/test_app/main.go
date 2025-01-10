@@ -26,33 +26,34 @@ import (
 )
 
 func main() {
-	model := ai.DefineModel("", "customReflector", nil, echo)
-	genkit.DefineFlow("testFlow", func(ctx context.Context, in string) (string, error) {
-		res, err := ai.Generate(ctx, model, ai.WithTextPrompt(in))
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	model := genkit.DefineModel(g, "", "customReflector", nil, echo)
+	genkit.DefineFlow(g, "testFlow", func(ctx context.Context, in string) (string, error) {
+		res, err := genkit.Generate(ctx, g, ai.WithModel(model), ai.WithTextPrompt(in))
 		if err != nil {
 			return "", err
 		}
 		_ = res
 		return "TBD", nil
 	})
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := g.Start(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func echo(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
+func echo(ctx context.Context, req *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
-	return &ai.GenerateResponse{
-		Candidates: []*ai.Candidate{{
-			Index:        0,
-			FinishReason: "stop",
-			Message: &ai.Message{
-				Role:    "model",
-				Content: []*ai.Part{ai.NewTextPart(string(jsonBytes))},
-			},
-		}},
+	return &ai.ModelResponse{
+		FinishReason: "stop",
+		Message: &ai.Message{
+			Role:    "model",
+			Content: []*ai.Part{ai.NewTextPart(string(jsonBytes))},
+		},
 	}, nil
 }

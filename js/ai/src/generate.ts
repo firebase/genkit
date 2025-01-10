@@ -17,8 +17,9 @@
 import {
   Action,
   GenkitError,
-  runWithStreamingCallback,
   StreamingCallback,
+  runWithStreamingCallback,
+  sentinelNoopStreamingCallback,
   z,
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
@@ -29,7 +30,7 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { generateHelper, GenerateUtilParamSchema } from './generate/action.js';
+import { GenerateUtilParamSchema, generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
@@ -43,7 +44,7 @@ import {
   resolveModel,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
-import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
+import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
 
 export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -76,7 +77,15 @@ export interface GenerateOptions<
   output?: OutputOptions<O>;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
+  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
+  maxTurns?: number;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
+  onChunk?: StreamingCallback<GenerateResponseChunk>;
+  /**
+   * When provided, models supporting streaming will call the provided callback with chunks as generation progresses.
+   *
+   * @deprecated use {@link onChunk} instead.
+   */
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
@@ -129,7 +138,7 @@ export async function toGenerateRequest(
     messages: injectInstructions(messages, instructions),
     config: options.config,
     docs: options.docs,
-    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: tools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       schema: resolvedSchema,
@@ -275,10 +284,12 @@ export async function generate<
       jsonSchema: resolvedSchema,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
+    maxTurns: resolvedOptions.maxTurns,
   };
 
   return await runWithStreamingCallback(
-    resolvedOptions.streamingCallback,
+    registry,
+    stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
       const response = await generateHelper(
         registry,
@@ -295,6 +306,19 @@ export async function generate<
       });
     }
   );
+}
+
+/**
+ * Check if the callback is a noop callback and return undefined -- downstream models
+ * expect undefined if no streaming is requested.
+ */
+function stripNoop<T>(
+  callback: StreamingCallback<T> | undefined
+): StreamingCallback<T> | undefined {
+  if (callback === sentinelNoopStreamingCallback) {
+    return undefined;
+  }
+  return callback;
 }
 
 function stripUndefinedOptions(input?: any): any {
@@ -373,7 +397,7 @@ export async function generateStream<
       try {
         generate<O, CustomOptions>(registry, {
           ...options,
-          streamingCallback: (chunk) => {
+          onChunk: (chunk) => {
             firstChunkSent = true;
             provideNextChunk(chunk);
             ({ resolve: provideNextChunk, promise: nextChunk } =

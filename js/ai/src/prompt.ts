@@ -25,24 +25,34 @@ import {
 import {
   GenerateRequest,
   GenerateRequestSchema,
+  GenerateResponseChunkSchema,
   ModelArgument,
+  ModelMiddleware,
 } from './model.js';
 import { ToolAction } from './tool.js';
 
+/**
+ * Prompt implementation function signature.
+ */
 export type PromptFn<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 > = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
 
+/**
+ * Prompt action.
+ */
 export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   I,
-  typeof GenerateRequestSchema
+  typeof GenerateRequestSchema,
+  typeof GenerateResponseChunkSchema
 > & {
   __action: {
     metadata: {
       type: 'prompt';
     };
   };
+  __config: PromptConfig;
 };
 
 /**
@@ -54,8 +64,12 @@ export interface PromptConfig<I extends z.ZodTypeAny = z.ZodTypeAny> {
   inputSchema?: I;
   inputJsonSchema?: JSONSchema7;
   metadata?: Record<string, any>;
+  use?: ModelMiddleware[];
 }
 
+/**
+ * Checks whether provided object is a prompt.
+ */
 export function isPrompt(arg: any): boolean {
   return (
     typeof arg === 'function' &&
@@ -63,6 +77,9 @@ export function isPrompt(arg: any): boolean {
   );
 }
 
+/**
+ * Generate options of a prompt.
+ */
 export type PromptGenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -133,12 +150,16 @@ export function definePrompt<I extends z.ZodTypeAny>(
   const a = defineAction(
     registry,
     {
-      ...config,
+      name: config.name,
+      inputJsonSchema: config.inputJsonSchema,
+      inputSchema: config.inputSchema,
+      description: config.description,
       actionType: 'prompt',
       metadata: { ...(config.metadata || { prompt: {} }), type: 'prompt' },
     },
     fn
   );
+  (a as PromptAction<I>).__config = config;
   return a as PromptAction<I>;
 }
 
@@ -188,6 +209,9 @@ export async function renderPrompt<
   } as GenerateOptions<O, CustomOptions>;
 }
 
+/**
+ * Checks whether the provided object is an executable prompt.
+ */
 export function isExecutablePrompt(obj: any): boolean {
   return (
     !!(obj as ExecutablePrompt)?.render &&

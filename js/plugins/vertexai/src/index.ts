@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +16,10 @@
  * limitations under the License.
  */
 
+/**
+ * @module /
+ */
+
 import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { getDerivedParams } from './common/index.js';
@@ -22,6 +28,7 @@ import {
   SUPPORTED_EMBEDDER_MODELS,
   defineVertexAIEmbedder,
   textEmbedding004,
+  textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
@@ -32,6 +39,8 @@ import {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
+  gemini20FlashExp,
+  type GeminiConfig,
 } from './gemini.js';
 import {
   SUPPORTED_IMAGEN_MODELS,
@@ -45,13 +54,16 @@ export {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
+  gemini20FlashExp,
   imagen2,
   imagen3,
   imagen3Fast,
   textEmbedding004,
+  textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
+  type GeminiConfig,
 };
 
 /**

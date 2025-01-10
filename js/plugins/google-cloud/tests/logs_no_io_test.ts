@@ -219,7 +219,7 @@ function createFlowWithInput(
     {
       name,
       inputSchema: z.string(),
-      outputSchema: z.string(),
+      outputSchema: z.any(),
     },
     fn
   );

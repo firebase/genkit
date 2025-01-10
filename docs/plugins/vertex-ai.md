@@ -4,7 +4,7 @@ The Vertex AI plugin provides interfaces to several AI services:
 
 *   [Google generative AI models](https://cloud.google.com/vertex-ai/generative-ai/docs/):
     *   Gemini text generation
-    *   Imagen2 image generation
+    *   Imagen2 and Imagen3 image generation
     *   Text embedding generation
 *   A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
     *   [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
@@ -257,6 +257,70 @@ const llmResponse = await ai.generate({
 });
 ```
 
+#### Mistral Models on Vertex AI Model Garden
+
+If you have access to Mistral models ([Mistral Large](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-large), [Mistral Nemo](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-nemo), or [Codestral](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/codestral)) in Vertex AI Model Garden, you can use them with Genkit.
+
+Here's sample configuration for enabling Vertex AI Model Garden models:
+
+```ts
+import { genkit } from 'genkit';
+import {
+  mistralLarge,
+  mistralNemo,
+  codestral,
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
+
+const ai = genkit({
+  plugins: [
+    vertexAIModelGarden({
+      location: 'us-central1',
+      models: [mistralLarge, mistralNemo, codestral],
+    }),
+  ],
+});
+```
+
+Then use them as regular models:
+
+```ts
+const llmResponse = await ai.generate({
+  model: mistralLarge,
+  prompt: 'Write a function that adds two numbers together',
+  config: {
+    version: 'mistral-large-2411', // Optional: specify model version
+    temperature: 0.7,              // Optional: control randomness (0-1)
+    maxOutputTokens: 1024,         // Optional: limit response length
+    topP: 0.9,                     // Optional: nucleus sampling parameter
+    stopSequences: ['###'],        // Optional: stop generation at sequences
+  }
+});
+```
+
+The models support:
+- `mistralLarge`: Latest Mistral large model with function calling capabilities
+- `mistralNemo`: Optimized for efficiency and speed
+- `codestral`: Specialized for code generation tasks
+
+Each model supports streaming responses and function calling:
+
+```ts
+const response = await ai.generateStream({
+  model: mistralLarge,
+  prompt: 'What should I cook tonight?',
+  tools: ['recipe-finder'],
+  config: {
+    version: 'mistral-large-2411',
+    temperature: 1,
+  },
+});
+
+for await (const chunk of response.stream) {
+  console.log(chunk.text);
+}
+```
+
 ### Evaluators
 
 To use the evaluators from Vertex AI Rapid Evaluation, add an `evaluation` block to your `vertexAI` plugin configuration.
@@ -422,3 +486,93 @@ See the code samples for:
 *   [Vertex Vector Search + BigQuery](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-bigquery)
 *   [Vertex Vector Search + Firestore](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-firestore)
 *   [Vertex Vector Search + a custom DB](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-custom)
+
+## Context Caching
+
+The Vertex AI Genkit plugin supports **Context Caching**, which allows models to reuse previously cached content to optimize token usage when dealing with large pieces of content. This feature is especially useful for conversational flows or scenarios where the model references a large piece of content consistently across multiple requests.
+
+### How to Use Context Caching
+
+To enable context caching, ensure your model supports it. For example, `gemini15Flash` and `gemini15Pro` are models that support context caching, and you will have to specify version number `001`.
+
+You can define a caching mechanism in your application like this:
+
+```ts
+const ai = genkit({
+  plugins: [googleAI()],
+});
+
+const llmResponse = await ai.generate({
+  messages: [
+    {
+      role: 'user',
+      content: [{ text: 'Here is the relevant text from War and Peace.' }],
+    },
+    {
+      role: 'model',
+      content: [
+        {
+          text: 'Based on War and Peace, here is some analysis of Pierre Bezukhov’s character.',
+        },
+      ],
+      metadata: {
+        cache: {
+          ttlSeconds: 300, // Cache this message for 5 minutes
+        },
+      },
+    },
+  ],
+  model: gemini15Flash,
+  prompt: 'Describe Pierre’s transformation throughout the novel.',
+});
+```
+
+In this setup:
+- **`messages`**: Allows you to pass conversation history.
+- **`metadata.cache.ttlSeconds`**: Specifies the time-to-live (TTL) for caching a specific response.
+
+### Example: Leveraging Large Texts with Context
+
+For applications referencing long documents, such as *War and Peace* or *Lord of the Rings*, you can structure your queries to reuse cached contexts:
+
+```ts
+
+const textContent = await fs.readFile('path/to/war_and_peace.txt', 'utf-8');
+
+const llmResponse = await ai.generate({
+  messages: [
+    {
+      role: 'user',
+      content: [{ text: textContent }], // Include the large text as context
+    },
+    {
+      role: 'model',
+      content: [
+        {
+          text: 'This analysis is based on the provided text from War and Peace.',
+        },
+      ],
+      metadata: {
+        cache: {
+          ttlSeconds: 300, // Cache the response to avoid reloading the full text
+        },
+      },
+    },
+  ],
+  model: gemini15Flash,
+  prompt: 'Analyze the relationship between Pierre and Natasha.',
+});
+```
+
+### Benefits of Context Caching
+1. **Improved Performance**: Reduces the need for repeated processing of large inputs.
+2. **Cost Efficiency**: Decreases API usage for redundant data, optimizing token consumption.
+3. **Better Latency**: Speeds up response times for repeated or related queries.
+
+### Supported Models for Context Caching
+
+Only specific models, such as `gemini15Flash` and `gemini15Pro`, support context caching, and currently only on version numbers `001`. If an unsupported model is used, an error will be raised, indicating that caching cannot be applied.
+
+### Further Reading 
+
+See more information regarding context caching on Vertex AI in their [documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-overview).

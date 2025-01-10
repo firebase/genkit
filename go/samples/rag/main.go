@@ -44,7 +44,6 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/invopop/jsonschema"
 )
 
 const simpleQaPromptTemplate = `
@@ -67,33 +66,35 @@ type simpleQaPromptInput struct {
 }
 
 func main() {
-	err := googleai.Init(context.Background(), nil)
+	g, err := genkit.New(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.Model("gemini-1.0-pro")
-	embedder := googleai.Embedder("embedding-001")
+	err = googleai.Init(context.Background(), g, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	model := googleai.Model(g, "gemini-1.0-pro")
+	embedder := googleai.Embedder(g, "embedding-001")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever("simpleQa", localvec.Config{Embedder: embedder})
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
+	simpleQaPrompt, err := dotprompt.Define(g, "simpleQaPrompt",
 		simpleQaPromptTemplate,
-		dotprompt.Config{
-			Model:        model,
-			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
+		dotprompt.WithDefaultModel(model),
+		dotprompt.WithInputType(simpleQaPromptInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	genkit.DefineFlow("simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
+	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
@@ -120,10 +121,8 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx,
-			&dotprompt.PromptRequest{
-				Variables: promptInput,
-			},
+		resp, err := simpleQaPrompt.Generate(ctx, g,
+			dotprompt.WithInput(promptInput),
 			nil,
 		)
 		if err != nil {
@@ -132,7 +131,7 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := g.Start(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

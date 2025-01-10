@@ -26,8 +26,10 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, genkit, run, z } from 'genkit';
+import { GenerateResponseData, MessageSchema, genkit, run, z } from 'genkit';
 import { logger } from 'genkit/logging';
+import { ModelMiddleware } from 'genkit/model';
+import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
 
 logger.setLogLevel('debug');
@@ -52,6 +54,32 @@ enableGoogleCloudTelemetry({
 const ai = genkit({
   plugins: [googleAI(), vertexAI()],
 });
+
+const math: PluginProvider = {
+  name: 'math',
+  initializer: async () => {
+    ai.defineTool(
+      {
+        name: 'math/add',
+        description: 'add two numbers',
+        inputSchema: z.object({ a: z.number(), b: z.number() }),
+        outputSchema: z.number(),
+      },
+      async ({ a, b }) => a + b
+    );
+
+    ai.defineTool(
+      {
+        name: 'math/subtract',
+        description: 'subtract two numbers',
+        inputSchema: z.object({ a: z.number(), b: z.number() }),
+        outputSchema: z.number(),
+      },
+      async ({ a, b }) => a - b
+    );
+  },
+};
+ai.registry.registerPluginProvider('math', math);
 
 const app = initializeApp();
 
@@ -538,11 +566,46 @@ export const arrayStreamTester = ai.defineStreamingFlow(
   }
 );
 
-// async function main() {
-//   const { stream, output } = arrayStreamTester();
-//   for await (const chunk of stream) {
-//     console.log(chunk);
-//   }
-//   console.log(await output);
-// }
-// main();
+ai.defineFlow(
+  {
+    name: 'math',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const { text } = await ai.generate({
+      model: gemini15Flash,
+      prompt: query,
+      tools: ['math/add', 'math/subtract'],
+    });
+    return text;
+  }
+);
+
+ai.defineModel(
+  {
+    name: 'hiModel',
+  },
+  async (request, streamingCallback) => {
+    return {
+      finishReason: 'stop',
+      message: { role: 'model', content: [{ text: 'hi' }] },
+    };
+  }
+);
+
+const blockingMiddleware: ModelMiddleware = async (req, next) => {
+  return {
+    finishReason: 'blocked',
+    finishMessage: `Model input violated policies: further processing blocked.`,
+  } as GenerateResponseData;
+};
+
+ai.defineFlow('blockingMiddleware', async () => {
+  const { text } = await ai.generate({
+    prompt: 'hi',
+    model: 'hiModel',
+    use: [blockingMiddleware],
+  });
+  return text;
+});

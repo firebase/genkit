@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
@@ -39,8 +40,13 @@ func TestLive(t *testing.T) {
 
 	ctx := context.Background()
 
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Initialize the Ollama plugin
-	err := ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
+	err = ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
 		ServerAddress: *serverAddress,
 	})
 	if err != nil {
@@ -48,17 +54,17 @@ func TestLive(t *testing.T) {
 	}
 
 	// Define the model
-	ollamaPlugin.DefineModel(ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	ollamaPlugin.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
 
 	// Use the Ollama model
-	m := ollamaPlugin.Model(*modelName)
+	m := ollamaPlugin.Model(g, *modelName)
 	if m == nil {
 		t.Fatalf(`failed to find model: %s`, *modelName)
 	}
 
 	// Generate a response from the model
-	resp, err := m.Generate(ctx,
-		ai.NewGenerateRequest(
+	resp, err := genkit.GenerateWithRequest(ctx, g, m,
+		ai.NewModelRequest(
 			&ai.GenerationCommonConfig{Temperature: 1},
 			ai.NewUserTextMessage("I'm hungry, what should I eat?")),
 		nil)

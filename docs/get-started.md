@@ -85,5 +85,5 @@ with additional Genkit capabilities, see the following guides:
 *   [Creating flows](/docs/genkit/flows): Learn how to use special Genkit
     functions, called flows, that provide end-to-end observability for workflows
     and rich debugging from Genkit tooling.
-*   [Managing prompts](/docs/genkit/dotprompt)): Learn how Genkit helps you manage
-*   your prompts and configuration together as code.
+*   [Managing prompts](/docs/genkit/dotprompt): Learn how Genkit helps you manage
+    your prompts and configuration together as code.
