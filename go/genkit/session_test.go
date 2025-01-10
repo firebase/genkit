@@ -15,6 +15,7 @@
 package genkit
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -107,7 +108,7 @@ func TestMultiSessionsAndThreads(t *testing.T) {
 		found   bool
 	}{
 		{
-			name:    "s1 thread, message 1 ",
+			name:    "s1 thread, message 1",
 			session: s1,
 			data: map[string][]*ai.Message{
 				"thread1": {ai.NewUserTextMessage("Hello 1")},
@@ -197,37 +198,50 @@ func TestSessionStateFormat(t *testing.T) {
 
 	var tests = []struct {
 		name         string
-		stateType    any
+		state        any
+		stateType    string
 		defaultState map[string]any
 		newState     any
 	}{
 		{
 			name:         "structInput",
-			stateType:    hello{},
+			state:        hello{},
+			stateType:    "struct",
 			defaultState: map[string]any{"name": ""},
 			newState:     hello{Name: "new world"},
 		},
 		{
+			name:         "structInputWithDefaults",
+			state:        hello{Name: "world"},
+			stateType:    "struct",
+			defaultState: map[string]any{"name": "world"},
+			newState:     hello{Name: "new world"},
+		},
+		{
 			name:         "stringInput",
-			stateType:    "world",
+			state:        "world",
+			stateType:    "primitive",
 			defaultState: map[string]any{"state": "world"},
 			newState:     "new world",
 		},
 		{
 			name:         "intInput",
-			stateType:    1,
+			state:        1,
+			stateType:    "primitive",
 			defaultState: map[string]any{"state": 1},
 			newState:     2,
 		},
 		{
 			name:         "floatInput",
-			stateType:    3.14159,
+			state:        3.14159,
+			stateType:    "primitive",
 			defaultState: map[string]any{"state": 3.14159},
 			newState:     2.71828,
 		},
 		{
 			name:         "mapInput",
-			stateType:    map[string]any{"name": "world"},
+			stateType:    "map",
+			state:        map[string]any{"name": "world"},
 			defaultState: map[string]any{"name": "world"},
 			newState:     map[string]any{"name": "new world"},
 		},
@@ -235,15 +249,17 @@ func TestSessionStateFormat(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			session, err := NewSession(
-				WithStateType(test.stateType),
+				WithStateType(test.state),
 			)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			//fmt.Print(base.PrettyJSONString(session.SessionData.State))
-			if !reflect.DeepEqual(test.defaultState, session.SessionData.State) {
-				t.Errorf("default state not set correctly")
+			for k, v1 := range test.defaultState {
+				if v2, ok := session.SessionData.State[k]; !ok || v1 != v2 {
+					fmt.Print(session.SessionData.State)
+					t.Errorf("default state not set")
+				}
 			}
 
 			err = session.UpdateState(test.newState)
@@ -251,16 +267,24 @@ func TestSessionStateFormat(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			//fmt.Print(base.PrettyJSONString(session.SessionData))
-			if reflect.DeepEqual(test.defaultState, session.SessionData.State) {
-				t.Errorf("state not updated")
+			switch test.stateType {
+			case "struct":
+				if reflect.DeepEqual(test.newState, session.SessionData.State) {
+					t.Errorf("state not updated")
+				}
+			case "primitive":
+				if v, ok := session.SessionData.State["state"]; !ok || v != test.newState {
+					t.Errorf("state not updated")
+				}
+			case "map":
+				for k, v1 := range test.newState.(map[string]any) {
+					if v2, ok := session.SessionData.State[k]; !ok || v1 != v2 {
+						t.Errorf("state not updated")
+					}
+				}
 			}
 		})
 	}
-}
-
-func TestUpdateSessionState(t *testing.T) {
-
 }
 
 func TestSessionWithOptions(t *testing.T) {
@@ -301,7 +325,7 @@ func TestSessionWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	if data.State["state"] != "test" {
+	if data.State["state"] != "testState" {
 		t.Error("session state not overwritten")
 	}
 

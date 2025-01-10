@@ -15,9 +15,8 @@
 package genkit
 
 import (
+	"encoding/json"
 	"errors"
-	"fmt"
-	"strconv"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
@@ -79,7 +78,10 @@ func NewSession(opts ...SessionOption) (session *Session, err error) {
 		s.SessionData.Threads = make(map[string][]*ai.Message)
 	}
 
-	s.UpdateState(s.SessionData.DefaultState)
+	// Only update state with defaults if not already set, eg. via WithSessionData
+	if s.SessionData.State == nil {
+		s.UpdateState(s.SessionData.DefaultState)
+	}
 
 	// Initialize session in store
 	s.Store.Save(s.ID, s.SessionData)
@@ -103,42 +105,13 @@ func LoadSession(sessionId string, store SessionStore) (session *Session, err er
 	return session, nil
 }
 
-// TODO: Session from context? How does that work? From genkit registry when that is done?
-
 // UpdateState takes any data and sets it as state in the store.
 func (s *Session) UpdateState(state any) error {
-	// Handle primitives, default to "state" as key
-	// Default to empty map
-	switch v := state.(type) {
-	case int:
-		s.SessionData.State = map[string]any{"state": strconv.Itoa(v)}
-	case float32:
-	case float64:
-		s.SessionData.State = map[string]any{"state": fmt.Sprintf("%f", v)}
-	case string:
-		s.SessionData.State = map[string]any{"state": v}
-	// Pass map directly
-	case map[string]any:
-		s.SessionData.State = v
+	var err error
+	s.SessionData.StateSchema, s.SessionData.State, err = getSchemaAndDefaults(state)
+	if err != nil {
+		return err
 	}
-
-	// TODO: Check if schema matches originally set schema?
-	s.SessionData.StateSchema = base.InferJSONSchemaNonReferencing(s.SessionData.State)
-	// newState := base.SchemaAsMap(s.SessionData.StateSchema)
-	// data, err := json.Marshal(state)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = json.Unmarshal(data, &newState)
-	// if err != nil {
-	// 	return err
-	// }
-
-	//fmt.Print(base.PrettyJSONString(s.SessionData.State))
-	//fmt.Print(base.PrettyJSONString(s.SessionData.StateSchema))
-
-	//s.SessionData.State = newState
 
 	return s.Store.Save(s.ID, s.SessionData)
 }
@@ -186,14 +159,62 @@ func WithSessionStore(store SessionStore) SessionOption {
 // If passing eg. a struct with values, the struct definition will serve as the schema, the values will serve as defaults.
 func WithStateType(state any) SessionOption {
 	return func(s *Session) error {
-		// TODO: Wrong check?
 		if s.SessionData.StateSchema != nil {
 			return errors.New("cannot set state type (WithStateType) more than once")
 		}
 
-		s.SessionData.DefaultState = state
+		var err error
+		s.SessionData.StateSchema, s.SessionData.DefaultState, err = getSchemaAndDefaults(state)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
+}
+
+// TODO: SessionFromContext(ctx, g) function when Genkit Registry is per instance.
+
+// Helper function to derive schema and defaults from state.
+func getSchemaAndDefaults(state any) (schema *jsonschema.Schema, defaults map[string]any, err error) {
+	var defaultState map[string]any
+
+	// Handle primitives, default to "state" as key
+	switch v := state.(type) {
+	case int:
+		defaultState = map[string]any{"state": v}
+	case float32:
+	case float64:
+		defaultState = map[string]any{"state": v}
+	case string:
+		defaultState = map[string]any{"state": v}
+	// Pass map directly
+	case map[string]any:
+		defaultState = v
+	case nil:
+		state = map[string]any{}
+	}
+
+	schema = base.InferJSONSchemaNonReferencing(state)
+
+	// Handle structs
+	if defaultState == nil {
+		// Set values as default state
+		structMap := base.SchemaAsMap(schema)
+		data, err := json.Marshal(state)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		err = json.Unmarshal(data, &structMap)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		defaultState = structMap
+	}
+
+	return schema, defaultState, nil
 }
 
 // Default in-memory session store.

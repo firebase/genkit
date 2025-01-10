@@ -17,12 +17,21 @@ package genkit
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
+)
+
+var nameTool = ai.DefineTool("updateName", "use this tool to update the name of the user",
+	func(ctx context.Context, input struct {
+		Name string
+	}) (string, error) {
+		// TODO: set name in state when Genkit registry is per instance
+		// SessionFromContext(ctx, g).UpdateState(input.Name)
+		return input.Name, nil
+	},
 )
 
 var chatModel = ai.DefineModel("test", "chat", nil, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
@@ -52,6 +61,7 @@ var chatModel = ai.DefineModel("test", "chat", nil, func(ctx context.Context, gr
 
 	textResponse += strings.Join(contentTexts, "; ")
 	textResponse += "; config: " + base.PrettyJSONString(gr.Config)
+	textResponse += "; context: " + base.PrettyJSONString(gr.Context)
 
 	return &ai.ModelResponse{
 		Request: gr,
@@ -72,7 +82,7 @@ func TestChat(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want := "Echo: Tell me a joke; config: null"
+	want := "Echo: Tell me a joke; config: null; context: null"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
@@ -82,7 +92,7 @@ func TestChat(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want = "Echo: Tell me a joke; Echo: Tell me a joke; config: null; Bye; config: null"
+	want = "Echo: Tell me a joke; Echo: Tell me a joke; config: null; context: null; Bye; config: null; context: null"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
@@ -114,7 +124,7 @@ func TestChatWithStreaming(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want := "Echo: Hello; config: null"
+	want := "Echo: Hello; config: null; context: null"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
@@ -141,6 +151,9 @@ func TestChatWithOptions(t *testing.T) {
 		WithSystemText("you are a helpful assistant"),
 		WithConfig(ai.GenerationCommonConfig{Temperature: 1}),
 		WithContext("foo", "bar"),
+		WithTools(nameTool),
+		WithOutputSchema("hello world"),
+		WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -149,8 +162,21 @@ func TestChatWithOptions(t *testing.T) {
 	if chat.Session == nil || chat.Session.ID != session.ID {
 		t.Errorf("session is not set")
 	}
+
 	if chat.ThreadName != "test" {
 		t.Errorf("thread name is not set")
+	}
+
+	if !strings.Contains(chat.SystemText, "you are a helpful assistant") {
+		t.Errorf("system text is not set")
+	}
+
+	if chat.Request.Schema == nil {
+		t.Errorf("output schema not set")
+	}
+
+	if chat.Request.Format != ai.OutputFormatText {
+		t.Errorf("output format is not set")
 	}
 
 	resp, err := chat.Send(ctx, "Hello")
@@ -158,7 +184,7 @@ func TestChatWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want := "Echo: system: you are a helpful assistant; Hello; config: {\n  \"temperature\": 1\n}"
+	want := "Echo: system: you are a helpful assistant; Hello; config: {\n  \"temperature\": 1\n}; context: [\n  \"foo\",\n  \"bar\"\n]"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
@@ -195,6 +221,22 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 		{
 			name: "WithConfig",
 			with: WithConfig(ai.GenerationCommonConfig{}),
+		},
+		{
+			name: "WithContext",
+			with: WithContext("foo", "bar"),
+		},
+		{
+			name: "WithTools",
+			with: WithTools(nameTool),
+		},
+		{
+			name: "WithOutputSchema",
+			with: WithOutputSchema(map[string]any{"name": "world"}),
+		},
+		{
+			name: "WithOutputFormat",
+			with: WithOutputFormat(ai.OutputFormatJSON),
 		},
 	}
 
@@ -238,7 +280,7 @@ func TestMultiChatSession(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want := "Echo: system: talk like a lawyer; Hello lawyer; config: null"
+	want := "Echo: system: talk like a lawyer; Hello lawyer; config: null; context: null"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
@@ -259,7 +301,7 @@ func TestMultiChatSession(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want = "Echo: system: talk like a pirate; Hello pirate; config: null"
+	want = "Echo: system: talk like a pirate; Hello pirate; config: null; context: null"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
@@ -267,24 +309,4 @@ func TestMultiChatSession(t *testing.T) {
 	if len(session.SessionData.Threads) != 2 {
 		t.Errorf("session should have 2 threads")
 	}
-}
-
-func TestChatWithTools(t *testing.T) {
-}
-
-func TestChatSendWithPrompt(t *testing.T) {
-}
-
-func TestToolWithDefaultState(t *testing.T) {
-	// Set
-	// Update
-
-	var _ = ai.DefineTool("updateState", "use to update state",
-		func(ctx context.Context, input struct {
-			Value float64
-			Over  float64
-		}) (float64, error) {
-			return math.Pow(input.Value, input.Over), nil
-		},
-	)
 }
