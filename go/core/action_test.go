@@ -17,6 +17,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -114,7 +115,7 @@ func TestActionTracing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-  provider := "test"
+	provider := "test"
 	tc := tracing.NewTestOnlyTelemetryClient()
 	r.TracingState().WriteTelemetryImmediate(tc)
 	const actionName = "TestTracing-inc"
@@ -124,7 +125,7 @@ func TestActionTracing(t *testing.T) {
 	}
 	// The same trace store is used for all tests, so there might be several traces.
 	// Look for this one, which has a unique name.
-  fullActionName := provider + '/' + actionName
+	fullActionName := fmt.Sprintf("%s/%s", provider, actionName)
 	for _, td := range tc.Traces {
 		if td.DisplayName == fullActionName {
 			// Spot check: expect a single span.
