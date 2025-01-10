@@ -116,7 +116,7 @@ func TestActionTracing(t *testing.T) {
 	}
 	tc := tracing.NewTestOnlyTelemetryClient()
 	r.TracingState().WriteTelemetryImmediate(tc)
-	const actionName = "TestTracing-inc"
+	const actionName = "test/TestTracing-inc"
 	a := defineAction(r, "test", actionName, atype.Custom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
