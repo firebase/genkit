@@ -22,8 +22,10 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
+var sessionGenkit, _ = New(nil)
+
 func TestSession(t *testing.T) {
-	session, err := NewSession()
+	session, err := NewSession(sessionGenkit)
 
 	if err != nil {
 		t.Fatal(err.Error())
@@ -176,7 +178,7 @@ func TestMultiSessionsAndThreads(t *testing.T) {
 }
 
 func TestLoadSessionFromStore(t *testing.T) {
-	session, err := NewSession()
+	session, err := NewSession(sessionGenkit)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -249,6 +251,7 @@ func TestSessionStateFormat(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			session, err := NewSession(
+				sessionGenkit,
 				WithStateType(test.state),
 			)
 			if err != nil {
@@ -289,6 +292,7 @@ func TestSessionStateFormat(t *testing.T) {
 
 func TestSessionWithOptions(t *testing.T) {
 	session, err := NewSession(
+		sessionGenkit,
 		WithSessionStore(&TestInMemSessionStore{
 			SessionData: make(map[string]SessionData),
 		}),
@@ -367,6 +371,7 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewSession(
+				sessionGenkit,
 				test.with,
 				test.with,
 			)
@@ -379,7 +384,7 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 }
 
 func _helper_session_with_stored_messages(threads map[string][]*ai.Message) (*Session, error) {
-	session, err := NewSession()
+	session, err := NewSession(sessionGenkit)
 	if err != nil {
 		return nil, err
 	}

@@ -43,6 +43,8 @@ type SessionData struct {
 }
 
 type Session struct {
+	// Genkit
+	Genkit *Genkit
 	// The session id
 	ID string
 	// The data for the session
@@ -56,8 +58,10 @@ type SessionOption func(s *Session) error
 
 // NewSession creates a new session with the provided options.
 // If no store is provided, it defaults to in-memory storage.
-func NewSession(opts ...SessionOption) (session *Session, err error) {
-	s := &Session{}
+func NewSession(g *Genkit, opts ...SessionOption) (session *Session, err error) {
+	s := &Session{
+		Genkit: g,
+	}
 
 	for _, with := range opts {
 		err := with(s)

@@ -22,21 +22,18 @@ import (
 )
 
 type Chat struct {
+	// Genkit
+	Genkit *Genkit
 	// The model to query
 	Model ai.Model
-
 	// The chats threadname
 	ThreadName string
-
 	// The chats session
 	Session *Session
-
 	// Message sent to the model as system instructions
 	SystemText string
-
 	// Optional prompt
-	Prompt *ai.Prompt
-
+	Prompt  *ai.Prompt
 	Request *ChatRequest
 	Stream  ai.ModelStreamingCallback
 }
@@ -59,9 +56,9 @@ type ChatOption func(c *Chat) error
 
 // NewChat creates a new chat instance with the provided AI model and options.
 // If no session or thread name is provided, it adds a new session and default thread.
-func NewChat(ctx context.Context, m ai.Model, opts ...ChatOption) (chat *Chat, err error) {
+func NewChat(ctx context.Context, g *Genkit, opts ...ChatOption) (chat *Chat, err error) {
 	chat = &Chat{
-		Model:   m,
+		Genkit:  g,
 		Request: &ChatRequest{},
 	}
 
@@ -73,7 +70,7 @@ func NewChat(ctx context.Context, m ai.Model, opts ...ChatOption) (chat *Chat, e
 	}
 
 	if chat.Session == nil {
-		s, err := NewSession()
+		s, err := NewSession(g)
 		if err != nil {
 			return nil, err
 		}
@@ -111,6 +108,7 @@ func (c *Chat) Send(ctx context.Context, msg string) (resp *ai.ModelResponse, er
 
 	// Assemble options
 	var generateOptions []ai.GenerateOption
+	generateOptions = append(generateOptions, ai.WithModel(c.Model))
 	generateOptions = append(generateOptions, ai.WithMessages(messages...))
 	generateOptions = append(generateOptions, ai.WithConfig(c.Request.Config))
 	generateOptions = append(generateOptions, ai.WithStreaming(c.Stream))
@@ -126,7 +124,7 @@ func (c *Chat) Send(ctx context.Context, msg string) (resp *ai.ModelResponse, er
 
 	// Call generate
 	resp, err = ai.Generate(ctx,
-		c.Model,
+		c.Genkit.reg,
 		generateOptions...,
 	)
 	if err != nil {
@@ -147,6 +145,17 @@ func (c *Chat) Send(ctx context.Context, msg string) (resp *ai.ModelResponse, er
 func (c *Chat) UpdateMessages(ThreadName string, messages []*ai.Message) error {
 	c.Request.Messages = messages
 	return c.Session.UpdateMessages(ThreadName, messages)
+}
+
+// WithModel sets the model for the chat.
+func WithModel(model ai.Model) ChatOption {
+	return func(c *Chat) error {
+		if c.Model != nil {
+			return errors.New("cannot set model (WithModel) more than once")
+		}
+		c.Model = model
+		return nil
+	}
 }
 
 // WithSession sets a session for the chat.

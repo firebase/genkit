@@ -24,55 +24,63 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-var nameTool = ai.DefineTool("updateName", "use this tool to update the name of the user",
-	func(ctx context.Context, input struct {
-		Name string
-	}) (string, error) {
-		// TODO: set name in state when Genkit registry is per instance
-		// SessionFromContext(ctx, g).UpdateState(input.Name)
-		return input.Name, nil
-	},
-)
+var chatGenkit, _ = New(nil)
+var chatModel = getChatModel(chatGenkit)
+var chatTool = getNameTool(chatGenkit)
 
-var chatModel = ai.DefineModel("test", "chat", nil, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
-	if msc != nil {
-		msc(ctx, &ai.ModelResponseChunk{
-			Content: []*ai.Part{ai.NewTextPart("3!")},
-		})
-		msc(ctx, &ai.ModelResponseChunk{
-			Content: []*ai.Part{ai.NewTextPart("2!")},
-		})
-		msc(ctx, &ai.ModelResponseChunk{
-			Content: []*ai.Part{ai.NewTextPart("1!")},
-		})
-	}
+func getNameTool(g *Genkit) *ai.ToolDef[struct{ Name string }, string] {
+	return DefineTool(g, "updateName", "use this tool to update the name of the user",
+		func(ctx context.Context, input struct {
+			Name string
+		}) (string, error) {
+			// TODO: set name in state when Genkit registry is per instance
+			// SessionFromContext(ctx, g).UpdateState(input.Name)
+			return input.Name, nil
+		},
+	)
+}
 
-	textResponse := ""
-	var contentTexts []string
-	for _, m := range gr.Messages {
-		if m.Role != ai.RoleUser && m.Role != ai.RoleModel {
-			textResponse += fmt.Sprintf("%s: ", m.Role)
+func getChatModel(g *Genkit) ai.Model {
+	return ai.DefineModel(g.reg, "test", "chat", nil, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+		if msc != nil {
+			msc(ctx, &ai.ModelResponseChunk{
+				Content: []*ai.Part{ai.NewTextPart("3!")},
+			})
+			msc(ctx, &ai.ModelResponseChunk{
+				Content: []*ai.Part{ai.NewTextPart("2!")},
+			})
+			msc(ctx, &ai.ModelResponseChunk{
+				Content: []*ai.Part{ai.NewTextPart("1!")},
+			})
 		}
 
-		for _, c := range m.Content {
-			contentTexts = append(contentTexts, c.Text)
+		textResponse := ""
+		var contentTexts []string
+		for _, m := range gr.Messages {
+			if m.Role != ai.RoleUser && m.Role != ai.RoleModel {
+				textResponse += fmt.Sprintf("%s: ", m.Role)
+			}
+
+			for _, c := range m.Content {
+				contentTexts = append(contentTexts, c.Text)
+			}
 		}
-	}
 
-	textResponse += strings.Join(contentTexts, "; ")
-	textResponse += "; config: " + base.PrettyJSONString(gr.Config)
-	textResponse += "; context: " + base.PrettyJSONString(gr.Context)
+		textResponse += strings.Join(contentTexts, "; ")
+		textResponse += "; config: " + base.PrettyJSONString(gr.Config)
+		textResponse += "; context: " + base.PrettyJSONString(gr.Context)
 
-	return &ai.ModelResponse{
-		Request: gr,
-		Message: ai.NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
-	}, nil
-})
+		return &ai.ModelResponse{
+			Request: gr,
+			Message: ai.NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
+		}, nil
+	})
+}
 
 func TestChat(t *testing.T) {
 	ctx := context.Background()
 
-	chat, err := NewChat(ctx, chatModel)
+	chat, err := NewChat(ctx, chatGenkit, WithModel(chatModel))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -109,7 +117,8 @@ func TestChatWithStreaming(t *testing.T) {
 	streamText := ""
 	chat, err := NewChat(
 		ctx,
-		chatModel,
+		chatGenkit,
+		WithModel(chatModel),
 		WithStreaming(func(ctx context.Context, grc *ai.ModelResponseChunk) error {
 			streamText += grc.Text()
 			return nil
@@ -138,20 +147,21 @@ func TestChatWithStreaming(t *testing.T) {
 func TestChatWithOptions(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession()
+	session, err := NewSession(chatGenkit)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
 	chat, err := NewChat(
 		ctx,
-		chatModel,
+		chatGenkit,
+		WithModel(chatModel),
 		WithSession(session),
 		WithThreadName("test"),
 		WithSystemText("you are a helpful assistant"),
 		WithConfig(ai.GenerationCommonConfig{Temperature: 1}),
 		WithContext("foo", "bar"),
-		WithTools(nameTool),
+		WithTools(chatTool),
 		WithOutputSchema("hello world"),
 		WithOutputFormat(ai.OutputFormatText),
 	)
@@ -191,7 +201,7 @@ func TestChatWithOptions(t *testing.T) {
 }
 
 func TestChatWithOptionsErrorHandling(t *testing.T) {
-	session, err := NewSession()
+	session, err := NewSession(chatGenkit)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -228,7 +238,7 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 		},
 		{
 			name: "WithTools",
-			with: WithTools(nameTool),
+			with: WithTools(chatTool),
 		},
 		{
 			name: "WithOutputSchema",
@@ -244,7 +254,8 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewChat(
 				context.Background(),
-				chatModel,
+				chatGenkit,
+				WithModel(chatModel),
 				test.with,
 				test.with,
 			)
@@ -259,14 +270,15 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 func TestMultiChatSession(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession()
+	session, err := NewSession(chatGenkit)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
 	lawyerChat, err := NewChat(
 		ctx,
-		chatModel,
+		chatGenkit,
+		WithModel(chatModel),
 		WithThreadName("lawyer thread"),
 		WithSystemText("talk like a lawyer"),
 		WithSession(session),
@@ -287,7 +299,8 @@ func TestMultiChatSession(t *testing.T) {
 
 	pirateChat, err := NewChat(
 		ctx,
-		chatModel,
+		chatGenkit,
+		WithModel(chatModel),
 		WithThreadName("pirate thread"),
 		WithSystemText("talk like a pirate"),
 		WithSession(session),
