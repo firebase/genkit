@@ -160,7 +160,7 @@ export const flowMultiStepCaughtError = ai.defineFlow(
         }
         return `${result1} ${i++},`;
       });
-    } catch (e) {}
+    } catch (e) { }
 
     return await ai.run('step3', async () => {
       return `${result2} ${i++}`;
@@ -223,7 +223,3 @@ function generateString(length: number) {
   }
   return str.substring(0, length);
 }
-
-ai.startFlowServer({
-  flows: [basic, streamy, streamyThrowy, throwy],
-});
