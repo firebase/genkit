@@ -136,6 +136,9 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       '@types/node':
         specifier: ^20.11.30
         version: 20.11.30
@@ -3607,6 +3610,9 @@ packages:
 
   '@types/jest@29.5.13':
     resolution: {integrity: sha512-wd+MVEZCHt23V0/L642O5APvspWply/rGY5BcW4SUETo2UzPU3Z26qr8jC2qxpimI2jjx9h7+2cj2FwIr01bXg==}
+
+  '@types/json-schema@7.0.15':
+    resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
   '@types/jsonwebtoken@9.0.6':
     resolution: {integrity: sha512-/5hndP5dCjloafCXns6SZyESp3Ldq7YjH3zwzwczYnjxIT0Fqzk5ROSYVGfFyczIue7IUEj8hkvLbPoLQ18vQw==}
@@ -8871,6 +8877,8 @@ snapshots:
     dependencies:
       expect: 29.7.0
       pretty-format: 29.7.0
+
+  '@types/json-schema@7.0.15': {}
 
   '@types/jsonwebtoken@9.0.6':
     dependencies:

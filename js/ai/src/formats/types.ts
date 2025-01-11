@@ -19,7 +19,7 @@ import { GenerateResponseChunk } from '../generate.js';
 import { Message } from '../message.js';
 import { ModelRequest } from '../model.js';
 
-type OutputContentTypes = 'application/json' | 'text/plain';
+export type OutputContentTypes = 'application/json' | 'text/plain';
 
 export interface Formatter<O = unknown, CO = unknown> {
   name: string;
