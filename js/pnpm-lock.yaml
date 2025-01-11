@@ -102,6 +102,9 @@ importers:
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.25.0
         version: 1.25.1(@opentelemetry/api@1.9.0)
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
       ajv:
         specifier: ^8.12.0
         version: 8.12.0
@@ -136,9 +139,6 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
-      '@types/json-schema':
-        specifier: ^7.0.15
-        version: 7.0.15
       '@types/node':
         specifier: ^20.11.30
         version: 20.11.30
@@ -719,6 +719,9 @@ importers:
       genkit:
         specifier: workspace:*
         version: link:../../genkit
+      ollama:
+        specifier: ^0.5.9
+        version: 0.5.9
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -726,9 +729,6 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
-      ollama:
-        specifier: ^0.5.9
-        version: 0.5.9
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
