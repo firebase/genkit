@@ -434,7 +434,7 @@ export function generateStream<
     try {
       const generated = await generate<O, CustomOptions>(registry, {
         ...options,
-        onChunk: channel.send,
+        onChunk: channel.send.bind(channel),
       });
 
       channel.close();
