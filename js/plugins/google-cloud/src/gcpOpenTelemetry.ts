@@ -52,6 +52,7 @@ import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
 import { PathMetadata } from 'genkit/tracing';
 import { GcpMediaStorage } from './gcpMediaStorage.js';
+import { MediaResizer } from './mediaResizer.js';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
@@ -246,6 +247,7 @@ class MetricExporterWrapper extends MetricExporter {
  */
 class AdjustingTraceExporter implements SpanExporter {
   private readonly gcpMediaStorage: GcpMediaStorage;
+  private readonly mediaResizer: MediaResizer;
 
   constructor(
     private exporter: SpanExporter,
@@ -258,23 +260,30 @@ class AdjustingTraceExporter implements SpanExporter {
       mediaConfig.bucketName,
       projectId
     );
+    this.mediaResizer = new MediaResizer(128, 128);
   }
 
   export(
     spans: ReadableSpan[],
     resultCallback: (result: ExportResult) => void
   ): void {
-    if (this.logIO && this.mediaConfig.exportMedia) {
+    if (this.logIO && this.mediaConfig.resizeImages) {
+      this.resizeImagesAndExport(spans, resultCallback);
+    } else if (this.logIO && this.mediaConfig.exportMedia) {
       this.persistMediaPartsAndExport(spans, resultCallback);
     } else {
       const adjustedSpans = this.adjust(spans);
-      this.exporter.export(adjustedSpans, (result) => {
-        if (this.errorHandler && result.error) {
-          this.errorHandler(result.error);
-        }
-        resultCallback(result);
-      });
+      this.doExport(adjustedSpans, resultCallback);
     }
+  }
+
+  async resizeImagesAndExport(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): Promise<void> {
+    const spansWithExportedMedia = await this.mediaResizer.resizeImages(spans);
+    const adjustedSpans = this.adjust(spansWithExportedMedia);
+    this.doExport(adjustedSpans, resultCallback);
   }
 
   async persistMediaPartsAndExport(
@@ -284,6 +293,13 @@ class AdjustingTraceExporter implements SpanExporter {
     const spansWithExportedMedia =
       await this.gcpMediaStorage.uploadMedia(spans);
     const adjustedSpans = this.adjust(spansWithExportedMedia);
+    this.doExport(adjustedSpans, resultCallback);
+  }
+
+  doExport(
+    adjustedSpans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): void {
     this.exporter.export(adjustedSpans, (result) => {
       if (this.errorHandler && result.error) {
         this.errorHandler(result.error);

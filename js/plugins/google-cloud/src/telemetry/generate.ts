@@ -349,7 +349,6 @@ class GenerateTelemetry implements Telemetry {
       return this.toPartLogText(JSON.stringify(part.data));
     }
     if (part.media) {
-      console.log(this.toPartLogMedia(part));
       return this.toPartLogMedia(part);
     }
     if (part.toolRequest) {
@@ -369,7 +368,7 @@ class GenerateTelemetry implements Telemetry {
   }
 
   private toPartLogMedia(part: MediaPart): string {
-    if (part.media.url.startsWith('data:')) {
+    if (part.media.url.startsWith('data:') && part.media.url.length > 16384) {
       const splitIdx = part.media.url.indexOf('base64,');
       if (splitIdx < 0) {
         return '<unknown media format>';

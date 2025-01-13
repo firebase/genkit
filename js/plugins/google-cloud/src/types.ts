@@ -21,6 +21,7 @@ import { JWTInput } from 'google-auth-library';
 
 export interface GcpTelemetryMediaConfig {
   exportMedia: boolean;
+  resizeImages: boolean;
   bucketName: string;
 }
 

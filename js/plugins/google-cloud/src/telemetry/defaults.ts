@@ -45,6 +45,7 @@ export const TelemetryConfigs = {
       export: !!overrides.forceDevExport, // false
       media: {
         exportMedia: false,
+        resizeImages: false,
         bucketName: '',
       },
     };
@@ -70,6 +71,7 @@ export const TelemetryConfigs = {
       export: true,
       media: {
         exportMedia: false,
+        resizeImages: false,
         bucketName: '',
       },
     };
