@@ -26,6 +26,12 @@ export const METER_NAME = 'genkit';
  * API after the NodeSDK library has been initialized. To prevent race
  * conditions we defer the instantiation of the metric to when it is first
  * ticked.
+ *
+ * Note: This metric should only be used for writing metrics adhering to the
+ * OpenTelemetry Generative AI Semantic Conventions. Any other metric should
+ * be written by an appropriate plugin, eg. google-cloud plugin.
+ *
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/
  */
 export class Metric<T> {
   readonly createFn: MetricCreateFn<T>;
@@ -54,6 +60,12 @@ export class Metric<T> {
  * By using this wrapper, we defer initialization of the counter until it is
  * need, which ensures that the OpenTelemetry SDK has been initialized before
  * the metric has been defined.
+ *
+ * Note: This counter should only be used for writing metrics adhering to the
+ * OpenTelemetry Generative AI Semantic Conventions. Any other metric should
+ * be written by an appropriate plugin, eg. google-cloud plugin.
+ *
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/
  */
 export class MetricCounter extends Metric<Counter> {
   constructor(name: string, options: any) {
@@ -73,6 +85,12 @@ export class MetricCounter extends Metric<Counter> {
  * By using this wrapper, we defer initialization of the counter until it is
  * need, which ensures that the OpenTelemetry SDK has been initialized before
  * the metric has been defined.
+ *
+ * Note: This histogram should only be used for writing metrics adhering to the
+ * OpenTelemetry Generative AI Semantic Conventions. Any other metric should
+ * be written by an appropriate plugin, eg. google-cloud plugin.
+ *
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/
  */
 export class MetricHistogram extends Metric<Histogram> {
   constructor(name: string, options: any) {

@@ -19,12 +19,20 @@ import { SpanMetadata, getTelemetryConfig } from '@genkit-ai/core/tracing';
 import { AttributeValue, ValueType } from '@opentelemetry/api';
 import { GenerateResponseData } from './model.js';
 
+/**
+ * This metric is defined by the Generative AI semantic convention:
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/#metric-gen_aiclienttokenusage
+ */
 const tokenUsage = new MetricHistogram('gen_ai.client.token.usage', {
   description: 'Usage of GenAI tokens.',
   valueType: ValueType.INT,
   unit: 'token',
 });
 
+/**
+ * This metric is defined by the Generative AI semantic convention:
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/#metric-gen_aiclientoperationduration
+ */
 const operationDuration = new MetricHistogram(
   'gen_ai.client.operation.duration',
   {
