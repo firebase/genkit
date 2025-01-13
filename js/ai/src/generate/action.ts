@@ -190,7 +190,12 @@ async function generate(
   );
 
   // Throw an error if the response is not usable.
-  response.assertValid(request);
+  response.assertValid(
+    request,
+    // Skip schema validation if there are tools requests
+    (response.message?.content.filter((part) => !!part.toolRequest).length ??
+      0) > 0
+  );
   const message = response.message!; // would have thrown if no message
 
   const toolCalls = message.content.filter((part) => !!part.toolRequest);
