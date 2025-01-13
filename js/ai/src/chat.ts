@@ -175,6 +175,7 @@ export class Chat {
             currentChat,
             req.toolRequest.input
           );
+          console.log('transferred .. . . . . . . . . . . . new chat', currentChat.threadName);
           return currentChat.send(`transferred to ${req.toolRequest.name}`);
         } else if ((tool as InterruptAction<any>).__interruptOptions) {
           this.session.updateState({
@@ -223,23 +224,21 @@ export class Chat {
     // chat agents are "exited" on each transfer -- only one chat agent at a time
     if (oldAgent.__agentType === 'chat') {
       this.exitAgent(sessionData, oldAgent, oldChat);
+      this.agentState = {
+        agentName: nextAgent.__agentOptions.name,
+        agentInput: input,
+        parentThreadName: this.threadName,
+      } as AgentState;
       this.session.updateState({
         ...this.session.state,
         __agentState: {
           ...this.session.state.__agentState,
-          [this.threadName]: {
-            agentName: nextAgent.__agentOptions.name,
-            agentInput: input,
-          } as AgentState,
-          [`${this.threadName}__${nextAgent.__agentOptions.name}`]: {
-            agentName: nextAgent.__agentOptions.name,
-            agentInput: input,
-            parentThreadName: this.threadName,
-          } as AgentState,
+          [this.threadName]: this.agentState,
+          [`${this.threadName}__${nextAgent.__agentOptions.name}`]: this.agentState,
         },
       } as AgentThreadsSessionState & any);
       return this.session.chat(
-        this.currentAgentThread(),
+        `${this.threadName}__${nextAgent.__agentOptions.name}`,
         await this.renderChatOptions(
           nextAgent,
           input,
@@ -282,6 +281,9 @@ export class Chat {
       sessionData.threads?.[this.agentState?.parentThreadName].push(
         ...this.transformExit(oldChat, oldAgent)
       );
+      console.log(' - - = =  -== - =- =- =- = -= -= - =- =- =- =- =- =- = delete', oldChat.threadName);
+      // delete the exited chat thread history.
+      delete sessionData.threads?.[oldChat.threadName];
     }
   }
 

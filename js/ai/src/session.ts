@@ -251,6 +251,7 @@ export class Session<S = any> {
       if (agent) {
         agentState = {
           threadName,
+          parentThreadName: threadName,
           agentName: agent.__agentOptions.name,
           agentInput: (options as ChatOptions<any>)?.input,
         };

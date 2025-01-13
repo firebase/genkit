@@ -80,7 +80,7 @@ describe.only('agents', () => {
         message: {
           role: 'model',
           content: [
-            reqCounter++ === 2
+            reqCounter++ === 1
               ? {
                   toolRequest: {
                     name: 'testAgent',
@@ -97,8 +97,115 @@ describe.only('agents', () => {
     let response = await chat.send('a');
     assert.strictEqual(response.text, 'a');
     response = await chat.send('b');
-    assert.strictEqual(response.text, 'b');
-    response = await chat.send('c');
     assert.strictEqual(response.text, 'transferred to testAgent');
+    response = await chat.send('c');
+    assert.strictEqual(response.text, 'c');
+
+    const sessionState = { ...session.toJSON() } as any;
+    delete sessionState.id;
+
+    assert.deepStrictEqual(sessionState, {
+      state: {
+        __agentState: {
+          main: {
+            agentInput: {},
+            agentName: 'testAgent',
+            parentThreadName: 'main',
+          },
+          main__rootAgent: {
+            agentInput: undefined,
+            agentName: 'rootAgent',
+            parentThreadName: 'main',
+            threadName: 'main',
+          },
+          main__testAgent: {
+            agentInput: {},
+            agentName: 'testAgent',
+            parentThreadName: 'main',
+          },
+        },
+      },
+      threads: {
+        main: [
+          {
+            content: [{ text: 'a' }],
+            role: 'user',
+          },
+          {
+            content: [{ text: 'a' }],
+            role: 'model',
+          },
+          {
+            content: [{ text: 'b' }],
+            role: 'user',
+          },
+          {
+            content: [
+              {
+                toolRequest: {
+                  input: {},
+                  name: 'testAgent',
+                  ref: 'ref123',
+                },
+              },
+            ],
+            role: 'model',
+          },
+        ],
+        main__testAgent: [
+          {
+            content: [
+              {
+                text: 'do test things',
+              },
+            ],
+            metadata: {
+              preamble: true,
+            },
+            role: 'system',
+          },
+          {
+            content: [{ text: 'a' }],
+            role: 'user',
+          },
+          {
+            content: [{ text: 'a' }],
+            role: 'model',
+          },
+          {
+            content: [{ text: 'b' }],
+            role: 'user',
+          },
+          {
+            content: [
+              {
+                toolRequest: {
+                  input: {},
+                  name: 'testAgent',
+                  ref: 'ref123',
+                },
+              },
+            ],
+            role: 'model',
+          },
+          {
+            content: [{ text: 'transferred to testAgent' }],
+            role: 'user',
+          },
+          {
+            content: [{ text: 'transferred to testAgent' }],
+            role: 'model',
+          },
+          {
+            content: [{ text: 'c' }],
+            role: 'user',
+          },
+          {
+            content: [{ text: 'c' }],
+            role: 'model',
+          },
+        ],
+      },
+    });
   });
 });
