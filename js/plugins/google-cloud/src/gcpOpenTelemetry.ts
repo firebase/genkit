@@ -41,7 +41,6 @@ import {
   PushMetricExporter,
   ResourceMetrics,
 } from '@opentelemetry/sdk-metrics';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
   InMemorySpanExporter,

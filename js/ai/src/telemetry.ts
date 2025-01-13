@@ -39,7 +39,6 @@ export async function writeSemConvTelemetry(
   span?: SpanMetadata
 ): Promise<void> {
   const telemetryConfig = await getTelemetryConfig();
-  console.log(`>>> TelemetryConfig: ${JSON.stringify(telemetryConfig?.semConv)}`);
 
   if (telemetryConfig?.semConv?.writeMetrics) {
     writeMetrics(output);

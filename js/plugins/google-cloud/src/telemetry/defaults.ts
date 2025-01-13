@@ -46,7 +46,7 @@ export const TelemetryConfigs = {
       semConv: {
         writeMetrics: true,
         writeSpanAttributes: true,
-      }
+      },
     };
     return { ...defaults, ...overrides };
   },
@@ -71,7 +71,7 @@ export const TelemetryConfigs = {
       semConv: {
         writeMetrics: true,
         writeSpanAttributes: true,
-      }
+      },
     };
     return { ...defaults, ...overrides };
   },

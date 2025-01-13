@@ -17,8 +17,8 @@
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { JWTInput } from 'google-auth-library';
 import { SemConvOptions } from 'genkit';
+import { JWTInput } from 'google-auth-library';
 
 /** Configuration options for the Google Cloud plugin. */
 export interface GcpTelemetryConfigOptions {

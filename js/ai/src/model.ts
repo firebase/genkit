@@ -514,16 +514,18 @@ export function defineModel<
     (input) => {
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback(registry)).then(async (response) => {
-        const timedResponse = {
-          ...response,
-          latencyMs: performance.now() - startTimeMs,
-        };
-        const span =
-          registry.asyncStore.getStore<SpanMetadata>(spanMetadataAlsKey);
-        await writeSemConvTelemetry(timedResponse, span);
-        return timedResponse;
-      });
+      return runner(input, getStreamingCallback(registry)).then(
+        async (response) => {
+          const timedResponse = {
+            ...response,
+            latencyMs: performance.now() - startTimeMs,
+          };
+          const span =
+            registry.asyncStore.getStore<SpanMetadata>(spanMetadataAlsKey);
+          await writeSemConvTelemetry(timedResponse, span);
+          return timedResponse;
+        }
+      );
     }
   );
   Object.assign(act, {
