@@ -427,26 +427,19 @@ export function generateStream<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): GenerateStreamResponse<O> {
-  let fetch = createTask<GenerateResponse<O>>();
   let channel = new Channel<GenerateResponseChunk>();
 
-  (async () => {
-    try {
-      const generated = await generate<O, CustomOptions>(registry, {
-        ...options,
-        onChunk: channel.send.bind(channel),
-      });
-
-      channel.close();
-      fetch.resolve(generated);
-    } catch (err) {
-      channel.error(err);
-      fetch.reject(err);
-    }
-  })();
+  const generated = generate<O, CustomOptions>(registry, {
+    ...options,
+    onChunk: (chunk) => channel.send(chunk),
+  });
+  generated.then(
+    () => channel.close(),
+    (err) => channel.error(err)
+  );
 
   return {
-    response: fetch.promise,
+    response: generated,
     stream: channel,
   };
 }
