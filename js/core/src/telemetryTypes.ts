@@ -24,7 +24,6 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 export interface SemConvOptions {
   writeMetrics: boolean;
   writeSpanAttributes: boolean;
-  writeLogEvents: boolean;
 }
 
 /** Global options governing how Genkit will write telemetry data. */

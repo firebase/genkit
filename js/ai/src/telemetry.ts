@@ -18,7 +18,6 @@ import { MetricHistogram } from '@genkit-ai/core';
 import { SpanMetadata, getTelemetryConfig } from '@genkit-ai/core/tracing';
 import { AttributeValue, ValueType } from '@opentelemetry/api';
 import { GenerateResponseData } from './model.js';
-import { logger } from '@genkit-ai/core/logging';
 
 const tokenUsage = new MetricHistogram('gen_ai.client.token.usage', {
   description: 'Usage of GenAI tokens.',
@@ -47,9 +46,6 @@ export async function writeSemConvTelemetry(
   }
   if (span && telemetryConfig?.semConv?.writeSpanAttributes) {
     writeSpanAttributes(output, span);
-  }
-  if (span && telemetryConfig?.semConv?.writeLogEvents) {
-    writeEvents(output, span);
   }
 }
 
@@ -113,39 +109,5 @@ function setAttribute(
 ) {
   if (attribute) {
     attrs[key] = attribute!;
-  }
-}
-
-function writeEvents(output: GenerateResponseData, span: SpanMetadata) {
-  const baseMsg = {
-    gen_ai: {
-      system: output.clientTelemetry?.system
-    }
-  }
-  output.request?.messages.forEach((msg) => {
-    const role = msg.role.replace('model', 'assistant');
-    logger.logStructured(`gen_ai.${role}.message`, {
-      ...baseMsg,
-      role,
-      content: msg.content,
-    });
-  });
-  if (output.clientTelemetry?.operationName === "chat") {
-    logger.logStructured('gen_ai.choice', {
-      ...baseMsg,
-      finish_reason: output.finishReason,
-      index: 0,
-      message: {
-        role: output.message?.role,
-        content: output.message?.content,
-      }
-    });
-  } else if (output.message) {
-    const role = output.message?.role.replace('model', 'assistant');
-    logger.logStructured(`gen_ai.${role}.message`, {
-      ...baseMsg,
-      role,
-      content: output.message?.content,
-    });
   }
 }
