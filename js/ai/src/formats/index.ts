@@ -72,7 +72,7 @@ export function resolveInstructions(
 
 export function injectInstructions(
   messages: MessageData[],
-  instructions: string | boolean | undefined
+  instructions: string | false | undefined
 ): MessageData[] {
   if (!instructions) return messages;
 
@@ -88,7 +88,7 @@ export function injectInstructions(
   }
 
   const newPart: TextPart = {
-    text: instructions as string,
+    text: instructions,
     metadata: { purpose: 'output' },
   };
 

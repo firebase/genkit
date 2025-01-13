@@ -355,17 +355,70 @@ export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
   get response(): Promise<GenerateResponse<O>>;
 }
 
-function createPromise<T>(): {
-  resolve: (result: T) => unknown;
-  reject: (err: unknown) => unknown;
+// A Task is a common pattern for creating a handle to both an awaitable and the ability to trigger it.
+// first popularized by C#.
+interface Task<T> {
+  resolve: (result: T) => void;
+  reject: (err: unknown) => void;
   promise: Promise<T>;
-} {
-  let resolve, reject;
-  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
-  return { resolve, reject, promise };
 }
 
-export async function generateStream<
+function createTask<T>(): Task<T> {
+  let resolve: unknown, reject: unknown;
+  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
+  return {
+    resolve: resolve as Task<T>['resolve'],
+    reject: reject as Task<T>['reject'],
+    promise,
+  };
+}
+
+class Channel<T> implements AsyncIterable<T> {
+  private ready: Task<void> = createTask<void>();
+  private buffer: (T | null)[] = [];
+  private err: unknown = null;
+
+  send(value: T): void {
+    this.buffer.push(value);
+    this.ready.resolve();
+  }
+
+  close(): void {
+    this.buffer.push(null);
+    this.ready.resolve();
+  }
+
+  error(err: unknown): void {
+    // Note: we cannot use this.ready.reject because it will be ignored
+    // if ready.resolved has already been called.
+    this.err = err;
+  }
+
+  [Symbol.asyncIterator](): AsyncIterator<T> {
+    return {
+      next: async (): Promise<IteratorResult<T>> => {
+        if (this.err) {
+          throw this.err;
+        }
+
+        if (!this.buffer.length) {
+          await this.ready.promise;
+        }
+        const value = this.buffer.shift()!;
+        if (!this.buffer.length) {
+          this.ready = createTask<void>();
+        }
+
+        return {
+          value,
+          done: !value,
+        };
+      },
+    };
+  }
+}
+
+export function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
@@ -373,68 +426,35 @@ export async function generateStream<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<GenerateStreamResponse<O>> {
-  let firstChunkSent = false;
-  return new Promise<GenerateStreamResponse<O>>(
-    (initialResolve, initialReject) => {
-      const {
-        resolve: finalResolve,
-        reject: finalReject,
-        promise: finalPromise,
-      } = createPromise<GenerateResponse<O>>();
+): GenerateStreamResponse<O> {
+  let fetch = createTask<GenerateResponse<O>>();
+  let channel = new Channel<GenerateResponseChunk>();
 
-      let provideNextChunk, nextChunk;
-      ({ resolve: provideNextChunk, promise: nextChunk } =
-        createPromise<GenerateResponseChunk | null>());
-      async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
-        while (true) {
-          const next = await nextChunk;
-          if (!next) break;
-          yield next;
-        }
-      }
-
-      try {
-        generate<O, CustomOptions>(registry, {
-          ...options,
-          onChunk: (chunk) => {
-            firstChunkSent = true;
-            provideNextChunk(chunk);
-            ({ resolve: provideNextChunk, promise: nextChunk } =
-              createPromise<GenerateResponseChunk | null>());
-          },
-        })
-          .then((result) => {
-            provideNextChunk(null);
-            finalResolve(result);
-          })
-          .catch((e) => {
-            if (!firstChunkSent) {
-              initialReject(e);
-              return;
-            }
-            provideNextChunk(null);
-            finalReject(e);
-          });
-      } catch (e) {
-        if (!firstChunkSent) {
-          initialReject(e);
-          return;
-        }
-        provideNextChunk(null);
-        finalReject(e);
-      }
-
-      initialResolve({
-        get response() {
-          return finalPromise;
-        },
-        get stream() {
-          return chunkStream();
+  (async () => {
+    let firstChunkSent = false;
+    try {
+      const generated = await generate<O, CustomOptions>(registry, {
+        ...options,
+        onChunk: (chunk) => {
+          firstChunkSent = true;
+          channel.send(chunk);
         },
       });
+
+      channel.close();
+      fetch.resolve(generated);
+    } catch (err) {
+      if (firstChunkSent) {
+        channel.error(err);
+        fetch.reject(err);
+      }
     }
-  );
+  })();
+
+  return {
+    response: fetch.promise,
+    stream: channel,
+  };
 }
 
 export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
