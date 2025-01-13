@@ -46,7 +46,7 @@ import {
   RetrieverParams,
   ToolAction,
   ToolConfig,
-  defineAgent,
+  defineChatAgent,
   definePrompt,
   defineTool,
   embed,
@@ -1094,10 +1094,10 @@ export class Genkit implements HasRegistry {
     return currentSession as Session;
   }
 
-  defineAgent<I extends z.ZodTypeAny>(
+  defineChatAgent<I extends z.ZodTypeAny>(
     options: DefineAgentOptions<I>
   ): AgentAction<I> {
-    return defineAgent(this.registry, options);
+    return defineChatAgent(this.registry, options);
   }
 
   /**

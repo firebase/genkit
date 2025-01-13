@@ -23,6 +23,7 @@ export type AgentAction<
   I extends z.ZodTypeAny,
 > = ToolAction<I, z.ZodVoid> & {
   __agentOptions: DefineAgentOptions<I>;
+  __agentType: 'tool' | 'chat';
 };
 
 export function defineAgent<I extends z.ZodTypeAny>(
@@ -39,6 +40,25 @@ export function defineAgent<I extends z.ZodTypeAny>(
     async () => interruptTool()
   ) as AgentAction<I>;
   tool.__agentOptions = options;
+  tool.__agentType = 'tool';
+  return tool;
+}
+
+export function defineChatAgent<I extends z.ZodTypeAny>(
+  registry: Registry,
+  options: DefineAgentOptions<I>
+): AgentAction<I> {
+  const tool = defineTool(
+    registry,
+    {
+      name: options.name,
+      description: options.description,
+      metadata: agentMetadata(options),
+    },
+    async () => interruptTool()
+  ) as AgentAction<I>;
+  tool.__agentOptions = options;
+  tool.__agentType = 'chat';
   return tool;
 }
 

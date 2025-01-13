@@ -231,6 +231,7 @@ async function generate(
       );
     }
     const tool = toolMap[part.toolRequest?.name];
+    console.log('toolMap', toolMap);
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }

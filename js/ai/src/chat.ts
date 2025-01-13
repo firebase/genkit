@@ -16,7 +16,6 @@
 
 import { StreamingCallback, z } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
-import { dotprompt } from 'dotprompt';
 import { AgentAction } from './agent.js';
 import {
   GenerateOptions,
@@ -74,6 +73,7 @@ export class Chat {
   readonly sessionId: string;
   private _messages?: MessageData[];
   private threadName: string;
+  private agentState?: AgentState;
 
   constructor(
     readonly session: Session,
@@ -82,29 +82,29 @@ export class Chat {
       id: string;
       thread: string;
       messages?: MessageData[];
-      agent?: AgentAction<any>;
+      agentState?: AgentState;
     }
   ) {
     this.sessionId = options.id;
     this.threadName = options.thread;
     this.requestBase = requestBase;
-    this._messages = options.messages;
+    this._messages = (options.messages ?? []).concat(
+      requestBase.messages ?? []
+    );
+    this.agentState = options.agentState;
   }
 
   private async lookupCurrentAgent(): Promise<AgentAction<any> | undefined> {
-    if (
-      !this.session.toJSON()?.state?.__agentState?.[this.threadName]
-        ?.currentAgent
-    ) {
+    if (!this.agentState?.agentName) {
       return undefined;
     }
     return (await this.session.registry.lookupAction(
-      `/tool/${this.session.toJSON()?.state?.__agentState?.[this.threadName]?.currentAgent}`
+      `/tool/${this.agentState.agentName}`
     )) as AgentAction<any>;
   }
 
-  private currentAgentThread(agent: AgentAction<any>): string {
-    return `${this.threadName}_${agent.__agentOptions.name}`;
+  private currentAgentThread(): string {
+    return `${this.threadName}__${this.agentState!.agentName}`;
   }
 
   async send<
@@ -113,13 +113,32 @@ export class Chat {
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    const currentAgent = await this.lookupCurrentAgent();
     console.log(
-      '--- - - - - - -currentAgent',
-      currentAgent?.__agentOptions?.name
+      ' - - - -  - - - -  - - - -  - - - -  - - - -  - - - -  - - - -  - - - -  send',
+      JSON.stringify(options)
     );
-    if (!currentAgent) {
+    const resp = await this._send(options);
+    await this.session.flushState();
+    console.log(
+      'post flush state: ',
+      JSON.stringify(this.session.toJSON(), undefined, 2)
+    );
+    return resp;
+  }
+
+  private async _send<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<O>>> {
+    if (!this.agentState) {
       return this.rawSend(options);
+    }
+
+    const currentAgent = await this.lookupCurrentAgent();
+    if (!currentAgent) {
+      throw new Error(`Unable to resolve ${this.agentState!.agentName}`);
     }
 
     let resolveOptions: ChatGenerateOptions<O, CustomOptions>;
@@ -131,14 +150,11 @@ export class Chat {
       resolveOptions = options;
     }
     let currentChat = this.session.chat(
-      this.currentAgentThread(currentAgent),
+      this.currentAgentThread(),
       await this.renderChatOptions(
         currentAgent!,
-        (this.session.toJSON()?.state as AgentThreadsSessionState)
-          ?.__agentState?.[this.threadName]?.currentAgentInput,
-        this.session?.toJSON()?.threads?.[
-          this.currentAgentThread(currentAgent)
-        ] ?? []
+        this.agentState?.agentInput,
+        this.session?.toJSON()?.threads?.[this.currentAgentThread()] ?? []
       )
     );
 
@@ -147,6 +163,7 @@ export class Chat {
       returnToolRequests: true,
     });
     if (response.toolRequests) {
+      // TODO: first process tool calls, then chat agent transfers.
       for (const req of response.toolRequests) {
         const tool = await this.session.registry.lookupAction(
           `/tool/${req.toolRequest.name}`
@@ -160,7 +177,7 @@ export class Chat {
           );
           return currentChat.send(`transferred to ${req.toolRequest.name}`);
         } else if ((tool as InterruptAction<any>).__interruptOptions) {
-          await this.session.updateState({
+          this.session.updateState({
             ...this.session.state,
             __interrupted_at: req,
           } as any);
@@ -203,27 +220,69 @@ export class Chat {
     if (!sessionData.threads[this.threadName]) {
       sessionData.threads[this.threadName] = [];
     }
-    sessionData.threads[this.threadName].push(
-      ...this.transformExit(oldChat, oldAgent)
-    );
-    const newChat = this.session.chat(
-      this.currentAgentThread(nextAgent),
-      await this.renderChatOptions(
-        nextAgent,
-        input,
-        this.session?.toJSON()?.threads?.[this.currentAgentThread(oldAgent)]
-      )
-    );
-    await this.session.updateState({
+    // chat agents are "exited" on each transfer -- only one chat agent at a time
+    if (oldAgent.__agentType === 'chat') {
+      this.exitAgent(sessionData, oldAgent, oldChat);
+      this.session.updateState({
+        ...this.session.state,
+        __agentState: {
+          ...this.session.state.__agentState,
+          [this.threadName]: {
+            agentName: nextAgent.__agentOptions.name,
+            agentInput: input,
+          } as AgentState,
+          [`${this.threadName}__${nextAgent.__agentOptions.name}`]: {
+            agentName: nextAgent.__agentOptions.name,
+            agentInput: input,
+            parentThreadName: this.threadName,
+          } as AgentState,
+        },
+      } as AgentThreadsSessionState & any);
+      return this.session.chat(
+        this.currentAgentThread(),
+        await this.renderChatOptions(
+          nextAgent,
+          input,
+          this.session?.toJSON()?.threads?.[this.threadName]
+        )
+      );
+    }
+    const toolAgentThreadName = `${this.currentAgentThread()}__${nextAgent.__agentOptions.name}`;
+    this.session.updateState({
       ...this.session.state,
       __agentState: {
-        [this.threadName]: {
-          currentAgent: nextAgent.__agentOptions.name,
-          currentAgentInput: input,
+        ...this.session.state.__agentState,
+        [toolAgentThreadName]: {
+          agentName: nextAgent.__agentOptions.name,
+          agentInput: input,
+          parentThreadName: this.currentAgentThread(),
         } as AgentState,
       },
     } as AgentThreadsSessionState & any);
-    return newChat;
+    return this.session.chat(
+      toolAgentThreadName,
+      await this.renderChatOptions(
+        nextAgent,
+        input,
+        this.session?.toJSON()?.threads?.[this.currentAgentThread()]
+      )
+    );
+  }
+
+  private exitAgent(
+    sessionData: SessionData<any>,
+    oldAgent: AgentAction<any>,
+    oldChat: Chat
+  ) {
+    console.log(
+      '## # # ## # ## #  # # # exit agent to',
+      this.agentState?.parentThreadName
+    );
+    if (this.agentState?.parentThreadName) {
+      sessionData.threads?.[this.agentState?.parentThreadName].push(
+        ...this.transformExit(oldChat, oldAgent)
+      );
+    }
   }
 
   private transformExit(
@@ -245,16 +304,23 @@ export class Chat {
     const preamble: MessageData[] = [];
     if (typeof agent.__agentOptions.instructions === 'string') {
       console.log('context: ', this.session.toJSON()?.state);
-      const dp = await this.session.registry.dotprompt.render(agent.__agentOptions.instructions, {
-        input,
-        context: { state: this.session.toJSON()?.state },
-      });
-      if (!dp.messages || dp.messages.length === 0 || dp.messages.length > 1) {
+      const prompt = await this.session.registry.dotprompt.render(
+        agent.__agentOptions.instructions,
+        {
+          input,
+          context: { state: this.session.toJSON()?.state },
+        }
+      );
+      if (
+        !prompt.messages ||
+        prompt.messages.length === 0 ||
+        prompt.messages.length > 1
+      ) {
         throw new Error('instructions must only be a single message.');
       }
       preamble.push({
         role: 'system',
-        content: dp.messages[0].content,
+        content: prompt.messages[0].content,
       });
     } else {
       preamble.push({
@@ -265,9 +331,11 @@ export class Chat {
       });
     }
     const opts: ChatOptions = {
-      config: agent.__agentOptions.config,
+      ...this.requestBase,
+      config: { ...this.requestBase?.config, ...agent.__agentOptions.config },
       tools: agent.__agentOptions.tools,
-      toolChoice: agent.__agentOptions.toolChoice,
+      toolChoice:
+        agent.__agentOptions.toolChoice ?? this.requestBase?.toolChoice,
       messages: tagAsPreamble(preamble)!.concat(stripPreamble(history) ?? []),
     };
     console.log('= = = = rendered options', JSON.stringify(opts, undefined, 2));
@@ -317,11 +385,28 @@ export class Chat {
             ...request,
             onChunk: streamingCallback,
           });
-          await this.updateMessages(response.messages);
+          this.updateMessages(this.maybeTagWithCurrentAgent(response.messages));
           return response;
         }
       )
     );
+  }
+
+  private maybeTagWithCurrentAgent(msgs: MessageData[]): MessageData[] {
+    console.log(
+      'maybeTagWithCurrentAgent currentAgent',
+      this.agentState?.agentName
+    );
+    if (this.agentState?.agentName) {
+      return msgs.map((m) => ({
+        ...m,
+        metadata: {
+          ...m.metadata,
+          fromAgent: this.agentState?.agentName,
+        },
+      }));
+    }
+    return msgs;
   }
 
   sendStream<
@@ -367,7 +452,7 @@ export class Chat {
             response: response.finally(async () => {
               const resolvedResponse = await response;
               this.requestBase = {
-                ...(await this.requestBase),
+                ...this.requestBase,
                 // these things may get changed by tools calling within generate.
                 tools: resolvedResponse?.request?.tools,
                 toolChoice: resolvedResponse?.request?.toolChoice,
@@ -386,9 +471,9 @@ export class Chat {
     return this._messages ?? [];
   }
 
-  private async updateMessages(messages: MessageData[]): Promise<void> {
+  private updateMessages(messages: MessageData[]): void {
     this._messages = messages;
-    await this.session.updateMessages(this.threadName, messages);
+    this.session.updateMessages(this.threadName, messages);
   }
 }
 

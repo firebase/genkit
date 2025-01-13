@@ -38,7 +38,7 @@ ai.defineHelper(
 ${state?.students.map((s) => ` - ${s.name}, student id: ${s.id} grade: ${s.grade}, activities: \n${s.activities.map((a) => `   - ${a}`).join('\n')}`).join('\n\n')}`
 );
 
-export const gradesAgent = ai.defineAgent({
+export const gradesAgent = ai.defineChatAgent({
   name: `gradesAgent`,
   description: `Transfer to this agent when the user asks about attendance. Do not mention that you are transferring, just do it.`,
   tools: [getRecentGrades, 'infoAgent'],
@@ -58,7 +58,7 @@ Guidelines:
   `,
 });
 
-export const attendanceAgent = ai.defineAgent({
+export const attendanceAgent = ai.defineChatAgent({
   name: `attendanceAgent`,
   description: 'transfer to this agent when the user asks questions about attendance-related concerns like tardies or absences. do not mention that you are transferring, just do it',
   tools: [reportAbsence, reportTardy, 'infoAgent'],
@@ -75,7 +75,7 @@ Use the tools available to you to assist the parent.
   `,
 });
 
-const infoAgent = ai.defineAgent({
+const infoAgent = ai.defineChatAgent({
   name: 'infoAgent',
   description: `This agent helps with answering inquiries and requests.`,
   instructions: `You are Bell, the friendly AI office receptionist at Sparkyville High School.

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export { AgentAction, DefineAgentOptions, defineAgent } from './agent.js';
+export { AgentAction, DefineAgentOptions, defineChatAgent } from './agent.js';
 export { Document, DocumentDataSchema, type DocumentData } from './document.js';
 export {
   embed,

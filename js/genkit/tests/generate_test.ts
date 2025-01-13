@@ -88,7 +88,7 @@ describe('generate', () => {
         prompt: 'hi',
         toolChoice: 'required',
       });
-      assert.strictEqual(response.text, 'Echo: hi; config: {}');
+      assert.strictEqual(response.text,  'Echo: hi [toolChoice: required]; config: {}');
       assert.deepStrictEqual(response.request, {
         config: {
           version: undefined,

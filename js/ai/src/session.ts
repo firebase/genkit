@@ -54,7 +54,7 @@ export interface SessionOptions<S = any> {
  */
 export class Session<S = any> {
   readonly id: string;
-  protected sessionData?: SessionData<S>;
+  protected sessionData: SessionData<S>;
   private store: SessionStore<S>;
 
   constructor(
@@ -74,25 +74,21 @@ export class Session<S = any> {
       this.sessionData = { id: this.id };
     }
     if (!this.sessionData.threads) {
-      this.sessionData!.threads = {};
+      this.sessionData.threads = {};
     }
     this.store = options?.store ?? new InMemorySessionStore<S>();
   }
 
   get state(): S | undefined {
-    return this.sessionData!.state;
+    return this.sessionData.state;
   }
 
   /**
    * Update session state data by patching the existing state.
    * @param data Partial state update that will be merged with existing state
    */
-  async updateState(data: Partial<S>): Promise<void> {
-    let sessionData = this.sessionData;
-    if (!sessionData) {
-      sessionData = {} as SessionData<S>;
-    }
-
+  updateState(data: Partial<S>): void {
+    const sessionData = this.sessionData;
     // Merge the new data with existing state
     sessionData.state = {
       ...sessionData.state,
@@ -100,17 +96,17 @@ export class Session<S = any> {
     } as S & AgentThreadsSessionState;
 
     this.sessionData = sessionData;
-    await this.store.save(this.id, sessionData);
+  }
+
+  async flushState() {
+    await this.store.save(this.id, this.sessionData);
   }
 
   /**
    * Update messages for a given thread.
    */
-  async updateMessages(thread: string, messages: MessageData[]): Promise<void> {
-    let sessionData = this.sessionData;
-    if (!sessionData) {
-      sessionData = {} as SessionData<S>;
-    }
+  updateMessages(thread: string, messages: MessageData[]): void {
+    const sessionData = this.sessionData;
     if (!sessionData.threads) {
       sessionData.threads = {};
     }
@@ -118,8 +114,6 @@ export class Session<S = any> {
       m.toJSON ? m.toJSON() : m
     );
     this.sessionData = sessionData;
-
-    await this.store.save(this.id, sessionData);
   }
 
   /**
@@ -228,15 +222,22 @@ export class Session<S = any> {
       if (maybeOptions) {
         options = maybeOptions as ChatOptions<I, S>;
       }
-      const baseOptions = { ...(options as BaseGenerateOptions) };
+      const baseOptions = { ...(options as GenerateOptions) };
       const messages: MessageData[] = [];
       if (baseOptions.system) {
         messages.push({
           role: 'system',
           content: Message.parseContent(baseOptions.system),
         });
+        delete baseOptions.system;
       }
-      delete baseOptions.system;
+      if (baseOptions.prompt) {
+        messages.push({
+          role: 'user',
+          content: Message.parseContent(baseOptions.prompt),
+        });
+        delete baseOptions.prompt;
+      }
 
       let historyOverride: MessageData[] | undefined;
       if (baseOptions.messages) {
@@ -246,25 +247,34 @@ export class Session<S = any> {
 
       baseOptions.messages = tagAsPreamble(messages);
 
-      if (
-        agent &&
-        !this.sessionData?.state?.__agentState?.[threadName]?.currentAgent
-      ) {
+      let agentState: AgentState | undefined;
+      if (agent) {
+        agentState = {
+          threadName,
+          agentName: agent.__agentOptions.name,
+          agentInput: (options as ChatOptions<any>)?.input,
+        };
+        // update root thread state, set current agent
         this.sessionData = updateAgentSessionData(
           this.id,
           this.sessionData,
           threadName,
-          {
-            currentAgent: agent.__agentOptions.name,
-            currentAgentInput: (options as ChatOptions<any>)?.input,
-          }
+          agentState
+        );
+        this.sessionData = updateAgentSessionData(
+          this.id,
+          this.sessionData,
+          `${threadName}__${agent.__agentOptions.name}`,
+          agentState
         );
       }
+
+      console.log('baseOptions', JSON.stringify(baseOptions));
 
       return new Chat(this, baseOptions, {
         thread: threadName,
         id: this.id,
-        agent,
+        agentState,
         messages:
           historyOverride ??
           (this.sessionData?.threads &&
@@ -349,7 +359,10 @@ export class SessionError extends Error {
 export interface SessionStore<S = any> {
   get(sessionId: string): Promise<SessionData<S> | undefined>;
 
-  save(sessionId: string, data: Omit<SessionData<S>, 'id'>): Promise<void>;
+  save(
+    sessionId: string,
+    data: Omit<SessionData<S>, 'id'> & { id?: string }
+  ): Promise<void>;
 }
 
 export function inMemorySessionStore() {
@@ -369,11 +382,33 @@ class InMemorySessionStore<S = any> implements SessionStore<S> {
 }
 
 export interface AgentState {
-  currentAgent: string;
-  currentAgentInput?: any;
+  threadName: string;
+  agentName: string;
+  agentInput?: any;
   interruptedAt?: string;
+  parentThreadName?: string;
+  children?: AgentState[];
 }
 
 export type AgentThreadsSessionState = {
   __agentState?: Record<string, AgentState>;
 };
+
+/*
+
+{
+  main__agentA: agentA
+  main__agentA_agentB : agentB
+  main__agentA_agentB_agentC: agentC
+  main__agentA_agentB_agentD: agentD
+
+}
+
+main
+  - agentA (main__agentA)
+    - agentB (main__agentA_agentB)
+      - agentC (main__agentA_agentB_agentC)
+      - agentD (main__agentA_agentB_agentD)
+
+
+*/

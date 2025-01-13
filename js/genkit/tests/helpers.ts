@@ -77,7 +77,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
                         ? ''
                         : `${m.role}: `) + m.content.map((c) => c.text).join()
                   )
-                  .join(),
+                  .join() + (request.toolChoice ? ` [toolChoice: ${request.toolChoice}]` : ''),
             },
             {
               text: '; config: ' + JSON.stringify(request.config),
