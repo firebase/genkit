@@ -84,7 +84,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   /**
    * Throws an error if the response does not contain valid output.
    */
-  assertValid(request?: GenerateRequest, skipSchemaValidation?: boolean): void {
+  assertValid(): void {
     if (this.finishReason === 'blocked') {
       throw new GenerationBlockedError(
         this,
@@ -98,11 +98,13 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         `Model did not generate a message. Finish reason: '${this.finishReason}': ${this.finishMessage}`
       );
     }
+  }
 
-    if (
-      !skipSchemaValidation &&
-      (request?.output?.schema || this.request?.output?.schema)
-    ) {
+  /**
+   * Throws an error if the response does not conform to expected schema.
+   */
+  assertValidSchema(request?: GenerateRequest): void {
+    if (request?.output?.schema || this.request?.output?.schema) {
       const o = this.output;
       parseSchema(o, {
         jsonSchema: request?.output?.schema || this.request?.output?.schema,
@@ -112,7 +114,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
 
   isValid(request?: GenerateRequest): boolean {
     try {
-      this.assertValid(request);
+      this.assertValid();
+      this.assertValidSchema(request);
       return true;
     } catch (e) {
       return false;
