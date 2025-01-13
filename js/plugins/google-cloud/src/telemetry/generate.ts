@@ -389,16 +389,17 @@ class GenerateTelemetry implements Telemetry {
   }
 
   private toPartLogMedia(part: MediaPart): string {
-    if (part.media.url.startsWith('data:')) {
+    if (part.media.url.startsWith('data:') && part.media.url.length > 16384) {
+      // Replace data urls longer than 16k with a digest of contents
       const splitIdx = part.media.url.indexOf('base64,');
       if (splitIdx < 0) {
         return '<unknown media format>';
       }
-      const prefix = part.media.url.substring(0, splitIdx + 7);
+      const prefix = part.media.url.substring(0, splitIdx);
       const hashedContent = createHash('sha256')
         .update(part.media.url.substring(splitIdx + 7))
         .digest('hex');
-      return `${prefix}<sha256(${hashedContent})>`;
+      return `${prefix}sha256,${hashedContent}`;
     }
     return this.toPartLogText(part.media.url);
   }

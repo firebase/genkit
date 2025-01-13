@@ -51,12 +51,13 @@ import {
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
 import { PathMetadata } from 'genkit/tracing';
+import { MediaResizer } from './mediaResizer.js';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { pathsTelemetry } from './telemetry/path.js';
-import { GcpTelemetryConfig } from './types.js';
+import { GcpTelemetryConfig, GcpTelemetryMediaConfig } from './types.js';
 import {
   extractErrorName,
   metricsDenied,
@@ -129,6 +130,7 @@ export class GcpOpenTelemetry {
           })
         : new InMemorySpanExporter(),
       this.config.exportIO,
+      this.config.media,
       this.config.projectId,
       getErrorHandler(
         (err) => {
@@ -243,18 +245,44 @@ class MetricExporterWrapper extends MetricExporter {
  * and output content, and augments span attributes before sending to GCP.
  */
 class AdjustingTraceExporter implements SpanExporter {
+  private readonly mediaResizer: MediaResizer;
+
   constructor(
     private exporter: SpanExporter,
     private logIO: boolean,
+    private mediaConfig: GcpTelemetryMediaConfig = { resizeImages: false },
     private projectId?: string,
     private errorHandler?: (error: Error) => void
-  ) {}
+  ) {
+    this.mediaResizer = new MediaResizer(128, 128);
+  }
 
   export(
     spans: ReadableSpan[],
     resultCallback: (result: ExportResult) => void
   ): void {
-    this.exporter?.export(this.adjust(spans), (result) => {
+    if (this.logIO && this.mediaConfig.resizeImages) {
+      this.resizeImagesAndExport(spans, resultCallback);
+    } else {
+      const adjustedSpans = this.adjust(spans);
+      this.doExport(adjustedSpans, resultCallback);
+    }
+  }
+
+  async resizeImagesAndExport(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): Promise<void> {
+    const spansWithExportedMedia = await this.mediaResizer.resizeImages(spans);
+    const adjustedSpans = this.adjust(spansWithExportedMedia);
+    this.doExport(adjustedSpans, resultCallback);
+  }
+
+  doExport(
+    adjustedSpans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): void {
+    this.exporter.export(adjustedSpans, (result) => {
       if (this.errorHandler && result.error) {
         this.errorHandler(result.error);
       }
