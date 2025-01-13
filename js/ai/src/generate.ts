@@ -431,23 +431,17 @@ export function generateStream<
   let channel = new Channel<GenerateResponseChunk>();
 
   (async () => {
-    let firstChunkSent = false;
     try {
       const generated = await generate<O, CustomOptions>(registry, {
         ...options,
-        onChunk: (chunk) => {
-          firstChunkSent = true;
-          channel.send(chunk);
-        },
+        onChunk: channel.send,
       });
 
       channel.close();
       fetch.resolve(generated);
     } catch (err) {
-      if (firstChunkSent) {
-        channel.error(err);
-        fetch.reject(err);
-      }
+      channel.error(err);
+      fetch.reject(err);
     }
   })();
 
