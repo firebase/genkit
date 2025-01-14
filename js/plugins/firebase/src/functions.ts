@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { expressHandler } from '@genkit-ai/express';
 import * as express from 'express';
 import { getAppCheck } from 'firebase-admin/app-check';
 import {
@@ -21,28 +22,34 @@ import {
   HttpsOptions,
   onRequest,
 } from 'firebase-functions/v2/https';
-import {
-  CallableFlow,
-  Flow,
-  FlowAuthPolicy,
-  FlowFn,
-  Genkit,
-  StreamableFlow,
-  z,
-} from 'genkit';
+import { Flow, FlowFn, Genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { initializeAppIfNecessary } from './helpers.js';
+
+/**
+ * Flow Auth policy. Consumes the authorization context of the flow and
+ * performs checks before the flow runs. If this throws, the flow will not
+ * be executed.
+ */
+export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> {
+  (auth: any | undefined, input: z.infer<I>): void | Promise<void>;
+}
+
+/**
+ * For express-based flows, req.auth should contain the value to bepassed into
+ * the flow context.
+ *
+ * @hidden
+ */
+export interface RequestWithAuth extends express.Request {
+  auth?: unknown;
+}
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-> = HttpsFunction & CallableFlow<I, O>;
-
-export type StreamingFunctionFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,
-> = HttpsFunction & StreamableFlow<I, O, S>;
+> = HttpsFunction & { flow: Flow<I, O, S> };
 
 export interface FunctionFlowAuth<I extends z.ZodTypeAny> {
   provider: express.RequestHandler;
@@ -75,20 +82,18 @@ export function onFlow<
   genkit: Genkit,
   config: FunctionFlowConfig<I, O, S>,
   steps: FlowFn<I, O, S>
-): StreamingFunctionFlow<I, O, S> {
-  const f = genkit.defineStreamingFlow(
+): FunctionFlow<I, O, S> {
+  const flow = genkit.defineFlow(
     {
       ...config,
-      authPolicy: config.authPolicy.policy,
     },
     steps
-  ).flow;
+  );
 
-  const wrapped = wrapHttpsFlow(genkit, f, config);
+  const wrapped = wrapHttpsFlow(genkit, flow, config);
 
-  const funcFlow = wrapped as StreamingFunctionFlow<I, O, S>;
-  funcFlow.flow = f;
-
+  const funcFlow = wrapped as FunctionFlow<I, O, S>;
+  funcFlow.flow = flow;
   return funcFlow;
 }
 
@@ -131,7 +136,10 @@ function wrapHttpsFlow<
       }
 
       await config.authPolicy.provider(req, res, () =>
-        flow.expressHandler(req, res)
+        expressHandler(flow, {
+          authPolicy: (context) =>
+            config.authPolicy.policy(context.auth, context.input),
+        })(req, res, () => {})
       );
     }
   );

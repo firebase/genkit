@@ -21,7 +21,7 @@ import {
   claude35SonnetV2,
   vertexAIModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
-import { CallableFlow, GenerateOptions, genkit, z } from 'genkit';
+import { Flow, GenerateOptions, genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 
 logger.setLogLevel('debug');
@@ -142,7 +142,7 @@ const prompts: Record<string, GenerateOptions> = {
   },
 };
 
-const flows: CallableFlow<z.ZodString, z.ZodTypeAny>[] = [];
+const flows: Flow<z.ZodString, z.ZodTypeAny>[] = [];
 for (const format in prompts) {
   flows.push(formatFlow(format, prompts[format]));
 }
@@ -165,7 +165,7 @@ async function main() {
         await flow(model);
       } catch (e: any) {
         console.error('ERROR:', e.stack);
-        fails.push({ model, flow: flow.flow.name, error: e.message });
+        fails.push({ model, flow: flow.__action.name, error: e.message });
       }
     }
   }

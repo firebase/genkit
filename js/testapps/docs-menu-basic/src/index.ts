@@ -16,6 +16,7 @@
 
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
+import { startFlowServer } from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit, z } from 'genkit';
 
@@ -42,6 +43,6 @@ export const menuSuggestionFlow = ai.defineFlow(
   }
 );
 
-ai.startFlowServer({
+startFlowServer({
   flows: [menuSuggestionFlow],
 });

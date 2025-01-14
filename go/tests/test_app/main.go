@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
@@ -26,6 +27,15 @@ import (
 )
 
 func main() {
+	opts := genkit.StartOptions{
+		FlowAddr: "127.0.0.1:3400",
+	}
+
+	// used for streamed flows
+	type chunk struct {
+		Count int `json:"count"`
+	}
+
 	g, err := genkit.New(nil)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +49,20 @@ func main() {
 		_ = res
 		return "TBD", nil
 	})
-	if err := g.Start(context.Background(), nil); err != nil {
+
+	genkit.DefineStreamingFlow(g, "streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
+		i := 0
+		if cb != nil {
+			for ; i < count; i++ {
+				if err := cb(ctx, chunk{i}); err != nil {
+					return "", err
+				}
+			}
+		}
+		return fmt.Sprintf("done %d, streamed: %d times", count, i), nil
+	})
+
+	if err := g.Start(context.Background(), &opts); err != nil {
 		log.Fatal(err)
 	}
 }
