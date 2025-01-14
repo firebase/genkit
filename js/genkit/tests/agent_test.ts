@@ -57,7 +57,7 @@ describe.only('agents', () => {
     );
   });
 
-  it('maintains chat historu and session state for chat agents', async () => {
+  it('maintains chat history and session state for chat agents', async () => {
     const testAgent = ai.defineChatAgent({
       name: 'testAgent',
       description: 'does test things',
@@ -211,6 +211,7 @@ describe.only('agents', () => {
         },
       },
       threads: {
+        // Main thread.
         main: [
           { role: 'user', content: [{ text: 'a' }] },
           { role: 'model', content: [{ text: 'a' }] },
