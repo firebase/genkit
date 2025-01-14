@@ -88,6 +88,7 @@ export class Session<S = any> {
    * @param data Partial state update that will be merged with existing state
    */
   updateState(data: Partial<S>): void {
+    console.log(' ( ( ( ( ( ( ( (  (( ( ( ( (updateState', JSON.stringify(data, undefined, 2));
     const sessionData = this.sessionData;
     // Merge the new data with existing state
     sessionData.state = {

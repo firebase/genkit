@@ -175,7 +175,10 @@ export class Chat {
             currentChat,
             req.toolRequest.input
           );
-          console.log('transferred .. . . . . . . . . . . . new chat', currentChat.threadName);
+          console.log(
+            'transferred .. . . . . . . . . . . . new chat',
+            currentChat.threadName
+          );
           return currentChat.send(`transferred to ${req.toolRequest.name}`);
         } else if ((tool as InterruptAction<any>).__interruptOptions) {
           this.session.updateState({
@@ -214,6 +217,11 @@ export class Chat {
     oldChat: Chat,
     input: any
   ): Promise<Chat> {
+    console.log(
+      ' ^ ^^ ^ ^^ ^  ^^ ^ ^^ ^ ^ transferToAgent',
+      nextAgent.__agentOptions.name,
+      this.agentState!.parentThreadName!
+    );
     const sessionData = this.session.toJSON() ?? ({} as SessionData<any>);
     if (!sessionData.threads) {
       sessionData.threads = {};
@@ -232,9 +240,10 @@ export class Chat {
       this.session.updateState({
         ...this.session.state,
         __agentState: {
-          ...this.session.state.__agentState,
-          [this.threadName]: this.agentState,
-          [`${this.threadName}__${nextAgent.__agentOptions.name}`]: this.agentState,
+          //...this.session.state.__agentState,
+          [this.agentState!.parentThreadName!]: this.agentState,
+          [`${this.agentState!.parentThreadName!}__${nextAgent.__agentOptions.name}`]:
+            this.agentState,
         },
       } as AgentThreadsSessionState & any);
       return this.session.chat(
@@ -281,7 +290,10 @@ export class Chat {
       sessionData.threads?.[this.agentState?.parentThreadName].push(
         ...this.transformExit(oldChat, oldAgent)
       );
-      console.log(' - - = =  -== - =- =- =- = -= -= - =- =- =- =- =- =- = delete', oldChat.threadName);
+      console.log(
+        ' - - = =  -== - =- =- =- = -= -= - =- =- =- =- =- =- = delete',
+        oldChat.threadName
+      );
       // delete the exited chat thread history.
       delete sessionData.threads?.[oldChat.threadName];
     }
@@ -395,9 +407,13 @@ export class Chat {
   }
 
   private maybeTagWithCurrentAgent(msgs: MessageData[]): MessageData[] {
+    const sessionData = this.session.toJSON() ?? ({} as SessionData<any>);
+
     console.log(
       'maybeTagWithCurrentAgent currentAgent',
-      this.agentState?.agentName
+      (sessionData.state as AgentThreadsSessionState)?.__agentState?.[
+        this.threadName
+      ].agentName
     );
     if (this.agentState?.agentName) {
       return msgs.map((m) => ({
