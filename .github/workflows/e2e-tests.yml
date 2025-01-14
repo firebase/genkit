@@ -19,6 +19,9 @@ on:
     branches:
       - main
 
+  # FIXME: remove me before merge
+  workflow_dispatch:
+
 jobs:
   build:
     name: Run e2e tests
