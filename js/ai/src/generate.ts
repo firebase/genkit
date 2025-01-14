@@ -365,7 +365,7 @@ function createPromise<T>(): {
   return { resolve, reject, promise };
 }
 
-export async function generateStream<
+export function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
@@ -373,68 +373,59 @@ export async function generateStream<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<GenerateStreamResponse<O>> {
-  let firstChunkSent = false;
-  return new Promise<GenerateStreamResponse<O>>(
-    (initialResolve, initialReject) => {
-      const {
-        resolve: finalResolve,
-        reject: finalReject,
-        promise: finalPromise,
-      } = createPromise<GenerateResponse<O>>();
-
-      let provideNextChunk, nextChunk;
-      ({ resolve: provideNextChunk, promise: nextChunk } =
-        createPromise<GenerateResponseChunk | null>());
-      async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
-        while (true) {
-          const next = await nextChunk;
-          if (!next) break;
-          yield next;
-        }
-      }
-
-      try {
-        generate<O, CustomOptions>(registry, {
-          ...options,
-          onChunk: (chunk) => {
-            firstChunkSent = true;
-            provideNextChunk(chunk);
-            ({ resolve: provideNextChunk, promise: nextChunk } =
-              createPromise<GenerateResponseChunk | null>());
-          },
-        })
-          .then((result) => {
-            provideNextChunk(null);
-            finalResolve(result);
-          })
-          .catch((e) => {
-            if (!firstChunkSent) {
-              initialReject(e);
-              return;
-            }
-            provideNextChunk(null);
-            finalReject(e);
-          });
-      } catch (e) {
-        if (!firstChunkSent) {
-          initialReject(e);
-          return;
-        }
-        provideNextChunk(null);
-        finalReject(e);
-      }
-
-      initialResolve({
-        get response() {
-          return finalPromise;
-        },
-        get stream() {
-          return chunkStream();
-        },
-      });
+): GenerateStreamResponse<O> {
+  let finalResolve, finalReject, finalPromise;
+  let provideNextChunk, rejectNextChunk, nextChunk;
+  async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
+    while (true) {
+      const next = await nextChunk;
+      if (next === null) break;
+      yield next;
     }
-  );
+  }
+
+  generate<O, CustomOptions>(registry, {
+    ...options,
+    onChunk: (chunk) => {
+      provideNextChunk?.(chunk);
+      if (provideNextChunk) {
+        ({
+          resolve: provideNextChunk,
+          reject: rejectNextChunk,
+          promise: nextChunk,
+        } = createPromise<GenerateResponseChunk | null>());
+      }
+    },
+  })
+    .then((result) => {
+      provideNextChunk?.(null);
+      finalResolve?.(result);
+    })
+    .catch((e) => {
+      rejectNextChunk?.(e);
+      finalReject?.(e);
+    });
+  return {
+    get response() {
+      if (!finalPromise) {
+        ({
+          resolve: finalResolve,
+          reject: finalReject,
+          promise: finalPromise,
+        } = createPromise<GenerateResponse<O>>());
+      }
+      return finalPromise;
+    },
+    get stream() {
+      ({
+        resolve: provideNextChunk,
+        reject: rejectNextChunk,
+        promise: nextChunk,
+      } = createPromise<GenerateResponseChunk | null>());
+
+      return chunkStream();
+    },
+  };
 }
 
 export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
