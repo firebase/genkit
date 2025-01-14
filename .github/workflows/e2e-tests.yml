@@ -20,7 +20,7 @@ on:
       - main
 
   # FIXME: remove me before merge
-  workflow_dispatch:
+  pull_request:
 
 jobs:
   build:
