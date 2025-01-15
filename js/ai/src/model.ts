@@ -475,7 +475,6 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  if (!options?.supports?.systemRole) middleware.push(simulateSystemPrompt());
   if (!options?.supports?.constrained)
     middleware.push(simulateConstrainedGeneration());
   const act = defineAction(
