@@ -15,7 +15,7 @@
  */
 
 import { StreamingCallback, z } from '@genkit-ai/core';
-import { runInNewSpan } from '@genkit-ai/core/tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
   GenerateOptions,
   GenerateResponse,
@@ -137,8 +137,17 @@ export class Chat {
     return runWithSession(this.session.registry, this.session, () =>
       runInNewSpan(
         this.session.registry,
-        { metadata: { name: 'send' } },
-        async () => {
+        {
+          metadata: {
+            name: 'send',
+          },
+          labels: {
+            [SPAN_TYPE_ATTR]: 'helper',
+            sessionId: this.session.id,
+            threadName: this.threadName,
+          },
+        },
+        async (metadata) => {
           let resolvedOptions: ChatGenerateOptions<O, CustomOptions>;
           let streamingCallback:
             | StreamingCallback<GenerateResponseChunk>
@@ -164,6 +173,7 @@ export class Chat {
             messages: this.messages,
             ...resolvedOptions,
           };
+          metadata.input = resolvedOptions;
           let response = await generate(this.session.registry, {
             ...request,
             onChunk: streamingCallback,
@@ -175,6 +185,7 @@ export class Chat {
             config: response?.request?.config,
           });
           await this.updateMessages(response.messages);
+          metadata.output = JSON.stringify(response);
           return response;
         }
       )
@@ -190,8 +201,15 @@ export class Chat {
     return runWithSession(this.session.registry, this.session, () =>
       runInNewSpan(
         this.session.registry,
-        { metadata: { name: 'send' } },
-        async () => {
+        {
+          metadata: { name: 'send' },
+          labels: {
+            [SPAN_TYPE_ATTR]: 'helper',
+            sessionId: this.session.id,
+            threadName: this.threadName,
+          },
+        },
+        async (metadata) => {
           let resolvedOptions;
 
           // string
@@ -210,6 +228,7 @@ export class Chat {
               CustomOptions
             >;
           }
+          metadata.input = resolvedOptions;
 
           const { response, stream } = await generateStream(
             this.session.registry,
@@ -230,6 +249,7 @@ export class Chat {
                 config: resolvedResponse?.request?.config,
               });
               this.updateMessages(resolvedResponse.messages);
+              metadata.output = JSON.stringify(resolvedResponse);
             }),
             stream,
           };
