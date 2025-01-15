@@ -22,6 +22,7 @@ import {
   sentinelNoopStreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { Channel } from '@genkit-ai/core/async';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
@@ -353,69 +354,6 @@ export type GenerateStreamOptions<
 export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
   get stream(): AsyncIterable<GenerateResponseChunk>;
   get response(): Promise<GenerateResponse<O>>;
-}
-
-// A Task is a common pattern for creating a handle to both an awaitable and the ability to trigger it.
-// first popularized by C#.
-interface Task<T> {
-  resolve: (result: T) => void;
-  reject: (err: unknown) => void;
-  promise: Promise<T>;
-}
-
-function createTask<T>(): Task<T> {
-  let resolve: unknown, reject: unknown;
-  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
-  return {
-    resolve: resolve as Task<T>['resolve'],
-    reject: reject as Task<T>['reject'],
-    promise,
-  };
-}
-
-class Channel<T> implements AsyncIterable<T> {
-  private ready: Task<void> = createTask<void>();
-  private buffer: (T | null)[] = [];
-  private err: unknown = null;
-
-  send(value: T): void {
-    this.buffer.push(value);
-    this.ready.resolve();
-  }
-
-  close(): void {
-    this.buffer.push(null);
-    this.ready.resolve();
-  }
-
-  error(err: unknown): void {
-    // Note: we cannot use this.ready.reject because it will be ignored
-    // if ready.resolved has already been called.
-    this.err = err;
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<T> {
-    return {
-      next: async (): Promise<IteratorResult<T>> => {
-        if (this.err) {
-          throw this.err;
-        }
-
-        if (!this.buffer.length) {
-          await this.ready.promise;
-        }
-        const value = this.buffer.shift()!;
-        if (!this.buffer.length) {
-          this.ready = createTask<void>();
-        }
-
-        return {
-          value,
-          done: !value,
-        };
-      },
-    };
-  }
 }
 
 export function generateStream<
