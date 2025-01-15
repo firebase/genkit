@@ -27,9 +27,9 @@ quality.
 
 * **Raw evaluation**: This type of evaluation directly assesses the quality of
 inputs without any inference. This approach typically is used with automated
-evaluation using metrics. All required fields for evaluation (E.g.: `input`,
+evaluation using metrics. All required fields for evaluation (e.g., `input`,
 `context`, `output` and `reference`) must be present in the input dataset. This
-is useful when you have data coming from an external source (e.g.: collected
+is useful when you have data coming from an external source (e.g., collected
 from your production traces) and you want to have an objective
 measurement of the quality of the collected data.
 
@@ -222,8 +222,8 @@ datasets and _Model_ datasets.
 
 Depending on the type, datasets have schema validation support in the Dev UI:
 
-* Flow datasets allow users to validate the  `input` and `reference` fields of
-the dataset against a flow in their Genkit application. Schema validation is
+* Flow datasets support validation of the  `input` and `reference` fields of the
+dataset against a flow in the Genkit application. Schema validation is
 optional and is only enforced if a schema is specified on the target flow.
 
 * Model datasets have implicit schema, supporting both `string` and
@@ -235,9 +235,9 @@ optional and is only enforced if a schema is specified on the target flow.
   docs](https://genkit-js-api.web.app/interfaces/genkit._.GenerateRequest.html).
 <!-- TODO(ssbushi): Update link to API reference once formally published -->
 
-Note: Schema validation is only supported in the Dev UI and does not prohibit
-the user from adding invalid examples to a dataset. It is provided for the
-user's convenience when editing datasets in the Dev UI.
+Note: Schema validation is a helper tool for editing examples, but it is
+possible to save an example with invalid schema. These examples may fail when
+the running an evaluation.
 
 ## Supported evaluators
 
@@ -466,15 +466,15 @@ Evaluation extractors are specified as follows:
         inputOf: 'foo-step' }` would extract the input of step `foo-step` for
         this key.
     *   `(trace) => string;` - For further flexibility, you can provide a
-        function that accepts a Genkit trace and returns an `any`-type, and specify
-        the extraction logic inside this function. Refer to
+        function that accepts a Genkit trace and returns an `any`-type value,
+        and specify the extraction logic inside this function. Refer to
         `genkit/genkit-tools/common/src/types/trace.ts` for the exact TraceData
         schema.
 
 **Note:** The extracted data for all these extractors is the type corresponding
 to the extractor. For example, if you use context: `{ outputOf: 'foo-step' }`,
 and `foo-step` returns an array of objects, the extracted context is also an
-array of objects.. 
+array of objects.
 
 ### Synthesizing test data using an LLM
 
