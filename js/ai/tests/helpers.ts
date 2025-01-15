@@ -40,7 +40,10 @@ export type ProgrammableModel = ModelAction & {
   lastRequest?: GenerateRequest;
 };
 
-export function defineProgrammableModel(registry: Registry, info?: ModelInfo): ProgrammableModel {
+export function defineProgrammableModel(
+  registry: Registry,
+  info?: ModelInfo
+): ProgrammableModel {
   const pm = defineModel(
     registry,
     {

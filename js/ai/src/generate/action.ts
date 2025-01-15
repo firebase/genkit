@@ -145,9 +145,9 @@ async function generate(
     rawRequest.messages = injectInstructions(rawRequest.messages, instructions);
     rawRequest.output = {
       // use output config from the format
-      ...resolvedFormat.config, 
+      ...resolvedFormat.config,
       // if anything is set explicitly, use that
-      ...rawRequest.output 
+      ...rawRequest.output,
     };
   }
 
