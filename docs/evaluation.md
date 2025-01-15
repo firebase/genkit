@@ -244,7 +244,7 @@ provide a comma-separated list of evaluators by name:
 genkit eval:run customLabel_dataset.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
 ```
 
-### Downloading datasets from Genkit monitoring
+### Downloading datasets from Genkit Monitoring
 
 If you have already deployed your app with [monitoring enabled](./monitoring.md), you can download a set of representative examples directly from the Firebase console.
 
