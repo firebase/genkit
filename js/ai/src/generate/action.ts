@@ -26,7 +26,11 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
-import { resolveFormat } from '../formats/index.js';
+import {
+  injectInstructions,
+  resolveFormat,
+  resolveInstructions,
+} from '../formats/index.js';
 import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
@@ -123,7 +127,30 @@ async function generate(
 
   const tools = await resolveTools(registry, rawRequest.tools);
 
+  const resolvedSchema = toJsonSchema({
+    jsonSchema: rawRequest.output?.jsonSchema,
+  });
+
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (rawRequest.output?.jsonSchema && !rawRequest.output?.format) {
+    rawRequest.output.format = 'json';
+  }
   const resolvedFormat = await resolveFormat(registry, rawRequest.output);
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    rawRequest?.output?.instructions
+  );
+  if (resolvedFormat) {
+    rawRequest.messages = injectInstructions(rawRequest.messages, instructions);
+    rawRequest.output = {
+      // use output config from the format
+      ...resolvedFormat.config, 
+      // if anything is set explicitly, use that
+      ...rawRequest.output 
+    };
+  }
+
   // Create a lookup of tool names with namespaces stripped to original names
   const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
     const name = tool.__action.name;

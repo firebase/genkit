@@ -115,9 +115,13 @@ export const ModelInfoSchema = z.object({
       /** Model can accept messages with role "system". */
       systemRole: z.boolean().optional(),
       /** Model can output this type of data. */
-      output: z.array(OutputFormatSchema).optional(),
+      output: z.array(z.string()).optional(),
+      /** Model supports output in these content types. */
+      contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
+      /** Model can natively support constrained generation. */
+      constrained: z.boolean().optional(),
     })
     .optional(),
 });
