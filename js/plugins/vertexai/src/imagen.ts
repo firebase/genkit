@@ -277,7 +277,7 @@ export function imagenModel(
       const predictClient = predictClientFactory(request);
       const response = await predictClient([instance], toParameters(request));
 
-      const candidates: CandidateData[] = response.predictions.map((p, i) => {
+      const candidates: CandidateData[] = response.predictions?.map((p, i) => {
         const b64data = p.bytesBase64Encoded;
         const mimeType = p.mimeType;
         return {
@@ -295,7 +295,7 @@ export function imagenModel(
             ],
           },
         };
-      });
+      }) || [];
       return {
         candidates,
         usage: {
