@@ -89,7 +89,7 @@ export const codeDefinedPromptVariant = ai.definePrompt(
   template
 );
 
-ai.defineStreamingFlow(
+ai.defineFlow(
   {
     name: 'flowCodeDefinedPrompt',
     inputSchema: HelloSchema,

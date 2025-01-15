@@ -131,7 +131,10 @@ export const UpdateDatasetRequestSchema = z.object({
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
 
 export const RunNewEvaluationRequestSchema = z.object({
-  datasetId: z.string(),
+  dataSource: z.object({
+    datasetId: z.string().optional(),
+    data: EvalInferenceInputSchema.optional(),
+  }),
   actionRef: z.string(),
   evaluators: z.array(z.string()).optional(),
   options: z

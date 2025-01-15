@@ -61,6 +61,12 @@
       "import": "./lib/index.mjs",
       "default": "./lib/index.js"
     },
+    "./async": {
+      "types": "./lib/async.ts",
+      "require": "./lib/async.js",
+      "import": "./lib/async.mjs",
+      "default": "./lib/async.js"
+    },
     "./registry": {
       "types": "./lib/registry.d.ts",
       "require": "./lib/registry.js",

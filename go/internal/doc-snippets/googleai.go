@@ -16,33 +16,38 @@ package snippets
 
 import (
 	"context"
+	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googleai"
 )
 
 func googleaiEx(ctx context.Context) error {
-	var err error
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// [START init]
-	if err := googleai.Init(ctx, nil); err != nil {
+	if err := googleai.Init(ctx, g, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourKey := ""
 	// [START initkey]
-	if err := googleai.Init(ctx, &googleai.Config{APIKey: yourKey}); err != nil {
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: yourKey}); err != nil {
 		return err
 	}
 	// [END initkey]
 
 	// [START model]
-	model := googleai.Model("gemini-1.5-flash")
+	model := googleai.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
-	text, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
+	text, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -53,7 +58,7 @@ func googleaiEx(ctx context.Context) error {
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := googleai.Embedder("text-embedding-004")
+	embeddingModel := googleai.Embedder(g, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]

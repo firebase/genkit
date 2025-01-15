@@ -63,10 +63,10 @@ type devServer struct {
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
 // or ":3100" if it is empty.
-func startReflectionServer(ctx context.Context, errCh chan<- error) *http.Server {
+func startReflectionServer(ctx context.Context, r *registry.Registry, errCh chan<- error) *http.Server {
 	slog.Debug("starting reflection server")
 	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
-	s := &devServer{reg: registry.Global}
+	s := &devServer{reg: r}
 	if err := s.writeRuntimeFile(addr); err != nil {
 		slog.Error("failed to write runtime file", "error", err)
 	}
@@ -162,10 +162,10 @@ func findProjectRoot() (string, error) {
 // for the port, and if that is empty it uses ":3400".
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
-func startFlowServer(addr string, flows []string, errCh chan<- error) *http.Server {
+func startFlowServer(g *Genkit, addr string, flows []string, errCh chan<- error) *http.Server {
 	slog.Debug("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
-	mux := NewFlowServeMux(flows)
+	mux := NewFlowServeMux(g, flows)
 	return startServer(addr, mux, errCh)
 }
 
@@ -366,8 +366,8 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux(flows []string) *http.ServeMux {
-	return newFlowServeMux(registry.Global, flows)
+func NewFlowServeMux(g *Genkit, flows []string) *http.ServeMux {
+	return newFlowServeMux(g.reg, flows)
 }
 
 func newFlowServeMux(r *registry.Registry, flows []string) *http.ServeMux {
@@ -399,12 +399,13 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 			return err
 		}
 		var callback streamingCallback[json.RawMessage]
-		if stream {
+		if r.Header.Get("Accept") == "text/event-stream" || stream {
 			w.Header().Set("Content-Type", "text/plain")
 			w.Header().Set("Transfer-Encoding", "chunked")
-			// Stream results are newline-separated JSON.
+			// Event Stream results are in JSON format separated by two newline escape sequences
+			// including the `data` and `message` labels
 			callback = func(ctx context.Context, msg json.RawMessage) error {
-				_, err := fmt.Fprintf(w, "%s\n", msg)
+				_, err := fmt.Fprintf(w, "data: {\"message\": %s}\n\n", msg)
 				if err != nil {
 					return err
 				}
@@ -417,8 +418,19 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		// TODO: telemetry
 		out, err := f.runJSON(r.Context(), r.Header.Get("Authorization"), body.Data, callback)
 		if err != nil {
+			if r.Header.Get("Accept") == "text/event-stream" || stream {
+				_, err = fmt.Fprintf(w, "data: {\"error\": {\"status\": \"INTERNAL\", \"message\": \"stream flow error\", \"details\": \"%v\"}}\n\n", err)
+				return err
+			}
 			return err
 		}
+		// Responses for streaming, non-durable flows should be prefixed
+		// with "data"
+		if r.Header.Get("Accept") == "text/event-stream" || stream {
+			_, err = fmt.Fprintf(w, "data: {\"result\": %s}\n\n", out)
+			return err
+		}
+
 		// Responses for non-streaming, non-durable flows are passed back
 		// with the flow result stored in a field called "result."
 		_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)

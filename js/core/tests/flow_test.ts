@@ -17,7 +17,7 @@
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { defineFlow, defineStreamingFlow, run } from '../src/flow.js';
+import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getFlowAuth, z } from '../src/index.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
@@ -38,26 +38,6 @@ function createTestFlow(registry: Registry) {
     },
     async (input) => {
       return `bar ${input}`;
-    }
-  );
-}
-
-function createTestStreamingFlow(registry: Registry) {
-  return defineStreamingFlow(
-    registry,
-    {
-      name: 'testFlow',
-      inputSchema: z.number(),
-      outputSchema: z.string(),
-      streamSchema: z.object({ count: z.number() }),
-    },
-    async (input, streamingCallback) => {
-      if (streamingCallback) {
-        for (let i = 0; i < input; i++) {
-          streamingCallback({ count: i });
-        }
-      }
-      return `bar ${input} ${!!streamingCallback}`;
     }
   );
 }
@@ -125,49 +105,12 @@ describe('flow', () => {
       await assert.rejects(
         async () => await testFlow({ foo: 'foo', bar: 'bar' } as any),
         (err: Error) => {
-          assert.strictEqual(err.name, 'ZodError');
-          assert.equal(
-            err.message.includes('Expected number, received string'),
-            true
+          return (
+            err.name === 'Error' &&
+            err.message.includes('Schema validation failed')
           );
-          return true;
         }
       );
-    });
-  });
-
-  describe('streamFlow', () => {
-    it('should run the flow', async () => {
-      const testFlow = createTestStreamingFlow(registry);
-
-      const response = testFlow(3);
-
-      const gotChunks: any[] = [];
-      for await (const chunk of response.stream) {
-        gotChunks.push(chunk);
-      }
-
-      assert.equal(await response.output, 'bar 3 true');
-      assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
-    });
-
-    it('should rethrow the error', async () => {
-      const testFlow = defineStreamingFlow(
-        registry,
-        {
-          name: 'throwing',
-          inputSchema: z.string(),
-        },
-        async (input) => {
-          throw new Error(`stream bad happened: ${input}`);
-        }
-      );
-
-      const response = testFlow('foo');
-      await assert.rejects(() => response.output, {
-        name: 'Error',
-        message: 'stream bad happened: foo',
-      });
     });
   });
 
@@ -186,14 +129,14 @@ describe('flow', () => {
       );
 
       const response = await testFlow('foo', {
-        withLocalAuthContext: { user: 'test-user' },
+        context: { user: 'test-user' },
       });
 
       assert.equal(response, 'bar foo {"user":"test-user"}');
     });
 
     it('should streams the flow', async () => {
-      const testFlow = defineStreamingFlow(
+      const testFlow = defineFlow(
         registry,
         {
           name: 'testFlow',
@@ -211,8 +154,8 @@ describe('flow', () => {
         }
       );
 
-      const response = testFlow(3, {
-        withLocalAuthContext: { user: 'test-user' },
+      const response = testFlow.stream(3, {
+        context: { user: 'test-user' },
       });
 
       const gotChunks: any[] = [];
@@ -298,40 +241,8 @@ describe('flow', () => {
       assert.equal(response, 'bar foo {"user":"test-user"}');
     });
 
-    it('should streams the flow with context (old way)', async () => {
-      const testFlow = defineStreamingFlow(
-        registry,
-        {
-          name: 'testFlow',
-          inputSchema: z.number(),
-          outputSchema: z.string(),
-          streamSchema: z.object({ count: z.number() }),
-        },
-        async (input, streamingCallback) => {
-          if (streamingCallback) {
-            for (let i = 0; i < input; i++) {
-              streamingCallback({ count: i });
-            }
-          }
-          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getFlowAuth())}`;
-        }
-      );
-
-      const response = testFlow(3, {
-        context: { user: 'test-user' },
-      });
-
-      const gotChunks: any[] = [];
-      for await (const chunk of response.stream) {
-        gotChunks.push(chunk);
-      }
-
-      assert.equal(await response.output, 'bar 3 true {"user":"test-user"}');
-      assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
-    });
-
-    it('should streams the flow with context (new way)', async () => {
-      const testFlow = defineStreamingFlow(
+    it('should streams the flow with context', async () => {
+      const testFlow = defineFlow(
         registry,
         {
           name: 'testFlow',
@@ -347,7 +258,7 @@ describe('flow', () => {
         }
       );
 
-      const response = testFlow(3, {
+      const response = testFlow.stream(3, {
         context: { user: 'test-user' },
       });
 
@@ -407,9 +318,13 @@ describe('flow', () => {
           outputSchema: z.string(),
         },
         async (input) => {
-          return run('custom', async () => {
-            return 'foo ' + (await testAction(undefined));
-          });
+          return run(
+            'custom',
+            async () => {
+              return 'foo ' + (await testAction(undefined));
+            },
+            registry
+          );
         }
       );
       const result = await testFlow('foo', { context: { user: 'pavel' } });

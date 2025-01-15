@@ -15,7 +15,7 @@
  */
 
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { genkit, run, z } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -84,7 +84,7 @@ export const menuSuggestionFlowMarkdown = ai.defineFlow(
 // [END ex03]
 
 // [START ex06]
-export const menuSuggestionStreamingFlow = ai.defineStreamingFlow(
+export const menuSuggestionStreamingFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
@@ -159,22 +159,25 @@ export const menuQuestionFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input: string): Promise<string> => {
-    const menu = await run('retrieve-daily-menu', async (): Promise<string> => {
-      // Retrieve today's menu. (This could be a database access or simply
-      // fetching the menu from your website.)
+    const menu = await ai.run(
+      'retrieve-daily-menu',
+      async (): Promise<string> => {
+        // Retrieve today's menu. (This could be a database access or simply
+        // fetching the menu from your website.)
 
-      // [START_EXCLUDE]
-      const menu = `
+        // [START_EXCLUDE]
+        const menu = `
 Today's menu
 
 - Breakfast: spam and eggs
 - Lunch: spam sandwich with a cup of spam soup
 - Dinner: spam roast with a side of spammed potatoes
       `;
-      // [END_EXCLUDE]
+        // [END_EXCLUDE]
 
-      return menu;
-    });
+        return menu;
+      }
+    );
     const { text } = await ai.generate({
       model: gemini15Flash,
       system: "Help the user answer questions about today's menu.",
@@ -197,7 +200,7 @@ async function fn() {
   // [END ex05]
 
   // [START ex07]
-  const response = menuSuggestionStreamingFlow('Danube');
+  const response = menuSuggestionStreamingFlow.stream('Danube');
   // [END ex07]
   // [START ex08]
   for await (const chunk of response.stream) {

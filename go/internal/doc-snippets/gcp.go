@@ -16,15 +16,22 @@ package snippets
 
 import (
 	"context"
+	"log"
 	"log/slog"
 
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlecloud"
 )
 
 func gcpEx(ctx context.Context) error {
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// [START init]
 	if err := googlecloud.Init(
 		ctx,
+		g,
 		googlecloud.Config{ProjectID: "your-google-cloud-project"},
 	); err != nil {
 		return err

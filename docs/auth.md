@@ -250,11 +250,12 @@ alongside the native flows. You have two options:
 1.  Use whatever server framework you like, and pass the auth context through via
     the flow call as noted above.
 
-1.  Use the built-in `startFlowsServer()` and provide Express middleware in the
-    flow config:
+1.  Use  `startFlowsServer()` available via `@genkit-ai/express` plugin and provide
+    Express auth middleware in the flow server config:
 
     ```ts
     import { genkit, z } from 'genkit';
+    import { startFlowServer, withAuth } from '@genkit-ai/express';
 
     const ai = genkit({ ... });;
 
@@ -263,32 +264,32 @@ alongside the native flows. You have two options:
         name: 'selfSummaryFlow',
         inputSchema: z.object({ uid: z.string() }),
         outputSchema: z.string(),
-        middleware: [
-          (req, res, next) => {
-            const token = req.headers['authorization'];
-            const user = yourVerificationLibrary(token);
-
-            // Pass auth information to the flow
-            req.auth = user;
-            next();
-          }
-        ],
-        authPolicy: (auth, input) => {
-          if (!auth) {
-            throw new Error('Authorization required.');
-          }
-          if (input.uid !== auth.uid) {
-            throw new Error('You may only summarize your own profile data.');
-          }
-        }
       },
       async (input) => {
         // Flow logic here...
       }
     );
 
-    ai.startFlowServer({
-      flows: [selfSummaryFlow],
+    const authProvider = (req, res, next) => {
+      const token = req.headers['authorization'];
+      const user = yourVerificationLibrary(token);
+
+      // Pass auth information to the flow
+      req.auth = user;
+      next();
+    };
+
+    startFlowServer({
+      flows: [
+        withAuth(selfSummaryFlow, authProvider, ({ auth, action, input, request }) => {
+          if (!auth) {
+            throw new Error('Authorization required.');
+          }
+          if (input.uid !== auth.uid) {
+            throw new Error('You may only summarize your own profile data.');
+          }
+        })
+      ],
     });  // Registers the middleware
     ```
 

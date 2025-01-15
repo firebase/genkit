@@ -172,7 +172,7 @@ describe('generate', () => {
       );
 
       assert.rejects(async () => {
-        const { response, stream } = await ai.generateStream({
+        const { response, stream } = ai.generateStream({
           prompt: 'hi',
           model: 'blockingModel',
         });

@@ -20,7 +20,7 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { gemini15Flash } from '@genkit-ai/vertexai';
 import fs from 'fs';
-import { Document, run, z } from 'genkit';
+import { Document, z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
@@ -74,9 +74,9 @@ export const indexPdf = ai.defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () => extractText(filePath));
+    const pdfTxt = await ai.run('extract-text', () => extractText(filePath));
 
-    const chunks = await run('chunk-it', async () =>
+    const chunks = await ai.run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
@@ -108,9 +108,9 @@ export const synthesizeQuestions = ai.defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () => extractText(filePath));
+    const pdfTxt = await ai.run('extract-text', () => extractText(filePath));
 
-    const chunks = await run('chunk-it', async () =>
+    const chunks = await ai.run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
@@ -127,7 +127,3 @@ export const synthesizeQuestions = ai.defineFlow(
     return questions;
   }
 );
-
-ai.startFlowServer({
-  flows: [pdfQA],
-});
