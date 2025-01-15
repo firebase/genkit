@@ -203,7 +203,7 @@ input, extracted context and metrics (if any).
 In Genkit, such a system is usually a Genkit primitive, such as a flow or a
 model. An evaluation can be automated or manual (human evaluation).
 
-- **Bulk inference** Inference is simply the act of running an input on a flow
+- **Bulk inference** Inference is the act of running an input on a flow
 or model to get the corresponding output. Bulk inference involves performing
 inference on multiple inputs simultaneously.
 
@@ -380,7 +380,7 @@ find that you need more control over the extraction logic for these fields.
 Genkit supports customs extractors to achieve this. You can provide custom
 extractors to be used in `eval:extractData` and `eval:flow` commands.
 
-First, as a preparatory step, first introduce an auxilary step in our `qaFlow`
+First, as a preparatory step, introduce an auxilary step in our `qaFlow`
 example:
 
 ```js
