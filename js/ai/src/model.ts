@@ -30,7 +30,6 @@ import { DocumentDataSchema } from './document.js';
 import {
   augmentWithContext,
   simulateConstrainedGeneration,
-  simulateSystemPrompt,
   validateSupport,
 } from './model/middleware.js';
 export { simulateConstrainedGeneration };
