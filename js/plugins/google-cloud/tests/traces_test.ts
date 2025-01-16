@@ -171,6 +171,27 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[1].attributes['genkit/rootState'], 'success');
   });
 
+  it('marks the root feature failed when it is the failure', async () => {
+    const testFlow = createFlow(ai, 'failingFlow', async () => {
+      await ai.run('good step', async () => {});
+      throw new Error('oops!');
+    });
+    try {
+      await testFlow();
+    } catch (e) {}
+
+    const spans = await getExportedSpans();
+    assert.equal(spans.length, 2);
+    assert.equal(spans[1].name, 'failingFlow');
+    assert.equal(spans[1].attributes['genkit/failedSpan'], 'failingFlow');
+    assert.equal(
+      spans[1].attributes['genkit/failedPath'],
+      '/{failingFlow,t:flow}'
+    );
+    assert.equal(spans[1].attributes['genkit/isRoot'], true);
+    assert.equal(spans[1].attributes['genkit/rootState'], 'error');
+  });
+
   it('adds the genkit/model label for model actions', async () => {
     const echoModel = ai.defineModel(
       {
