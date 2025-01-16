@@ -83,9 +83,11 @@ export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: ModelMiddleware[],
-  currentTurns?: number
+  currentTurns?: number,
+  messageIndex?: number
 ): Promise<GenerateResponseData> {
   currentTurns = currentTurns ?? 0;
+  messageIndex = messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -100,7 +102,13 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(registry, input, middleware, currentTurns!);
+      const output = await generate(
+        registry,
+        input,
+        middleware,
+        currentTurns!,
+        messageIndex!
+      );
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -111,7 +119,8 @@ async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware: ModelMiddleware[] | undefined,
-  currentTurn: number
+  currentTurn: number,
+  messageIndex: number
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -152,15 +161,17 @@ async function generate(
     streamingCallback
       ? (chunk: GenerateResponseChunkData) => {
           // Store accumulated chunk data
-          streamingCallback(
-            new GenerateResponseChunk(chunk, {
-              index: 0,
-              role: 'model',
-              previousChunks: accumulatedChunks,
-              parser: resolvedFormat?.handler(request.output?.schema)
-                .parseChunk,
-            })
-          );
+          if (streamingCallback) {
+            streamingCallback!(
+              new GenerateResponseChunk(chunk, {
+                index: messageIndex,
+                role: 'model',
+                previousChunks: accumulatedChunks,
+                parser: resolvedFormat?.handler(request.output?.schema)
+                  .parseChunk,
+              })
+            );
+          }
           accumulatedChunks.push(chunk);
         }
       : undefined,
@@ -246,6 +257,7 @@ async function generate(
       });
     }
   }
+  messageIndex++;
   const nextRequest = {
     ...rawRequest,
     messages: [
@@ -257,11 +269,26 @@ async function generate(
     ] as MessageData[],
     tools: newTools,
   };
+  // stream out the tool responses
+  streamingCallback?.(
+    new GenerateResponseChunk(
+      {
+        content: toolResponses,
+      },
+      {
+        index: messageIndex,
+        role: 'model',
+        previousChunks: accumulatedChunks,
+        parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
+      }
+    )
+  );
   return await generateHelper(
     registry,
     nextRequest,
     middleware,
-    currentTurn + 1
+    currentTurn + 1,
+    messageIndex + 1
   );
 }
 
