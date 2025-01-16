@@ -1,7 +1,7 @@
 # Evaluation
 
-Evaluation is a form of testing that helps you validate your LLM's responses
-and ensure they meet your quality bar.
+Evaluation is a form of testing that helps you validate your LLM's responses and
+ensure they meet your quality bar.
 
 Firebase Genkit supports third-party evaluation tools through plugins, paired
 with powerful observability features that provide insight into the runtime state
@@ -30,20 +30,21 @@ inputs without any inference. This approach typically is used with automated
 evaluation using metrics. All required fields for evaluation (e.g., `input`,
 `context`, `output` and `reference`) must be present in the input dataset. This
 is useful when you have data coming from an external source (e.g., collected
-from your production traces) and you want to have an objective
-measurement of the quality of the collected data.
+from your production traces) and you want to have an objective measurement of
+the quality of the collected data.
 
-    For more information, see the [Advanced use](#advanced_use) section of this page.
+    For more information, see the [Advanced use](#advanced_use) section of this
+    page.
 
-This section explains how to perform inference-based evaluation using
-Genkit.
+This section explains how to perform inference-based evaluation using Genkit.
 
 ## Quick start
 
 ### Setup
-1. Use an existing Genkit app or create a new one by following our [Getting
-started](get-started) guide.
-2. Add the following code to define a simple RAG application to evaluate. For
+<ol>
+<li>Use an existing Genkit app or create a new one by following our [Getting
+started](get-started) guide.</li>
+<li>Add the following code to define a simple RAG application to evaluate. For
 this guide, we use a dummy retriever that always returns the same documents.
 
 ```js
@@ -98,8 +99,8 @@ export const qaFlow = ai.defineFlow({
   }
 );
 ```
-
-3. (Optional) Add evaluation metrics to your application to use while
+</li>
+<li>(Optional) Add evaluation metrics to your application to use while
 evaluating. This guide uses the `MALICIOUSNESS` metric from the
 `genkitEval` plugin.
 
@@ -126,17 +127,18 @@ package.
 ```posix-terminal
   npm install @genkit-ai/evaluator
 ```
-
-4. Start your Genkit application
+</li>
+<li>Start your Genkit application
 
 ```posix-terminal
 genkit start -- <command to start your app>
 ```
+</li>
+</ol>
 
 ### Create a dataset
 
-Create a dataset to define the examples we want to use for evaluating our
-flow. 
+Create a dataset to define the examples we want to use for evaluating our flow. 
 
 1. Go to the Dev UI at `http://localhost:4000` and click the **Datasets** button
 to open the Datasets page.
@@ -167,8 +169,8 @@ to open the Datasets page.
     "From which animals did dogs evolve?"
     ```
 
-    By the end of this step, your dataset should have 3 examples in it, with
-    the values mentioned above.
+    By the end of this step, your dataset should have 3 examples in it, with the
+    values mentioned above.
 
 ### Run evaluation and view results
 
@@ -189,8 +191,8 @@ metrics.
 
 5. Finally, click **Run evaluation** to start evaluation. Depending on the flow
 you're testing, this may take a while. Once the evaluation is complete, a
-success message appears with a link to view the results. Click on the link
-to go to the _Evaluation details_ page.
+success message appears with a link to view the results. Click on the link to go
+to the _Evaluation details_ page.
 
 You can see the details of your evaluation on this page, including original
 input, extracted context and metrics (if any). 
@@ -203,9 +205,9 @@ input, extracted context and metrics (if any).
 In Genkit, such a system is usually a Genkit primitive, such as a flow or a
 model. An evaluation can be automated or manual (human evaluation).
 
-- **Bulk inference** Inference is the act of running an input on a flow
-or model to get the corresponding output. Bulk inference involves performing
-inference on multiple inputs simultaneously.
+- **Bulk inference** Inference is the act of running an input on a flow or model
+to get the corresponding output. Bulk inference involves performing inference on
+multiple inputs simultaneously.
 
 - **Metric** An evaluation metric is a criterion on which an inference is
 scored. Examples include accuracy, faithfulness, maliciousness, whether the
@@ -223,8 +225,8 @@ datasets and _Model_ datasets.
 Depending on the type, datasets have schema validation support in the Dev UI:
 
 * Flow datasets support validation of the  `input` and `reference` fields of the
-dataset against a flow in the Genkit application. Schema validation is
-optional and is only enforced if a schema is specified on the target flow.
+dataset against a flow in the Genkit application. Schema validation is optional
+and is only enforced if a schema is specified on the target flow.
 
 * Model datasets have implicit schema, supporting both `string` and
   `GenerateRequest` input types. String validation provides a convenient way to
@@ -233,7 +235,7 @@ optional and is only enforced if a schema is specified on the target flow.
   history, tools, etc). You can find the full schema for `GenerateRequest` in
   our [API reference
   docs](https://genkit-js-api.web.app/interfaces/genkit._.GenerateRequest.html).
-<!-- TODO(ssbushi): Update link to API reference once formally published -->
+<!-- TODO(thedmail): Update link to API reference once formally published -->
 
 Note: Schema validation is a helper tool for editing examples, but it is
 possible to save an example with invalid schema. These examples may fail when
@@ -256,8 +258,8 @@ harm, or exploit
 ### Evaluator plugins
 
 Genkit supports additional evaluators through plugins, like the Vertex Rapid
-Evaluators, which you access via the 
-[VertexAI Plugin](./plugins/vertex-ai#evaluators).
+Evaluators, which you access via the [VertexAI
+Plugin](./plugins/vertex-ai#evaluators).
 
 ## Advanced use
 
@@ -324,8 +326,8 @@ You can view the results of your evaluation run in the Dev UI at
 #### `eval:extractData` and `eval:run` commands
 
 To support *raw evaluation*, Genkit provides tools to extract data from traces
-and run evaluation metrics on extracted data. This is useful, for example, if you
-are using a different framework for evaluation or if you are collecting
+and run evaluation metrics on extracted data. This is useful, for example, if
+you are using a different framework for evaluation or if you are collecting
 inferences from a different environment to test locally for output quality. 
 
 You can batch run your Genkit flow and add a unique label to the run which then
@@ -360,9 +362,9 @@ Array<{
 }>;
 ```
 
-The data extractor automatically locates retrievers and adds the produced
-docs to the context array. You can run evaluation metrics on this extracted
-dataset using the `eval:run` command.
+The data extractor automatically locates retrievers and adds the produced docs
+to the context array. You can run evaluation metrics on this extracted dataset
+using the `eval:run` command.
 
 ```posix-terminal
 genkit eval:run factsEvalDataset.json
@@ -415,8 +417,8 @@ export const qaFlow = ai.defineFlow({
 );
 ```
 
-Next, configure a custom extractor to use the output of the `factModified`
-step when evaluating this flow.
+Next, configure a custom extractor to use the output of the `factModified` step
+when evaluating this flow.
 
 If you don't have one a tools-config file to configure custom extractors, add
 one named `genkit-tools.conf.js` to your project root.
@@ -445,8 +447,8 @@ module.exports = {
 This config overrides the default extractors of Genkit's tooling, specifically
 changing what is considered as `context` when evaluating this flow.
 
-Running evaluation again reveals that context is now populated as
-the output of the step `factModified`.
+Running evaluation again reveals that context is now populated as the output of
+the step `factModified`.
 
 ```posix-terminal
 genkit eval:flow qaFlow --input testInputs.json
