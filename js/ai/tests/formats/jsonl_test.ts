@@ -80,11 +80,17 @@ describe('jsonlFormat', () => {
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
+          index: 0,
+          role: 'model',
           content: [{ text: chunk.text }],
         };
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
+          new GenerateResponseChunk(newChunk, {
+            index: 0,
+            role: 'model',
+            previousChunks: chunks,
+          })
         );
         chunks.push(newChunk);
 

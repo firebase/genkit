@@ -369,7 +369,7 @@ describe('generate', () => {
   });
 
   describe('generateStream', () => {
-    it('should pass a smoke test', async () => {
+    it('should stream out chunks', async () => {
       let registry = new Registry();
 
       defineModel(
@@ -390,11 +390,22 @@ describe('generate', () => {
         prompt: 'Testing streaming',
       });
 
-      let streamed: string[] = [];
+      let streamed: any[] = [];
       for await (const chunk of stream) {
-        streamed.push(chunk.text);
+        streamed.push(chunk.toJSON());
       }
-      assert.deepEqual(streamed, ['hello, ', 'world!']);
+      assert.deepStrictEqual(streamed, [
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'hello, ' }],
+        },
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'world!' }],
+        },
+      ]);
       assert.deepEqual(
         (await response).messages.map((m) => m.content[0].text),
         ['Testing streaming', 'Testing streaming']
