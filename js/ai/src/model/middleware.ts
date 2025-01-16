@@ -15,7 +15,7 @@
  */
 
 import { Document } from '../document.js';
-import {
+import type {
   MediaPart,
   MessageData,
   ModelInfo,
@@ -129,12 +129,15 @@ export function validateSupport(options: {
   };
 }
 
+// N.B. Figure out why array.findLast isn't available despite setting target
+// to ES2022 (Node 16.14.0)
 function lastUserMessage(messages: MessageData[]) {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') {
       return messages[i];
     }
   }
+  return undefined;
 }
 
 /**

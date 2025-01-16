@@ -39,8 +39,7 @@ export {
  */
 export function vertexAIVectorSearch(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('vertexAIVectorSearch', async (ai: Genkit) => {
-    const { projectId, location, vertexClientFactory, authClient } =
-      await getDerivedParams(options);
+    const { authClient } = await getDerivedParams(options);
 
     if (
       options?.vectorSearchOptions &&

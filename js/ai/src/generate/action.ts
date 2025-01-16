@@ -152,17 +152,15 @@ async function generate(
     streamingCallback
       ? (chunk: GenerateResponseChunkData) => {
           // Store accumulated chunk data
-          if (streamingCallback) {
-            streamingCallback!(
-              new GenerateResponseChunk(chunk, {
-                index: 0,
-                role: 'model',
-                previousChunks: accumulatedChunks,
-                parser: resolvedFormat?.handler(request.output?.schema)
-                  .parseChunk,
-              })
-            );
-          }
+          streamingCallback(
+            new GenerateResponseChunk(chunk, {
+              index: 0,
+              role: 'model',
+              previousChunks: accumulatedChunks,
+              parser: resolvedFormat?.handler(request.output?.schema)
+                .parseChunk,
+            })
+          );
           accumulatedChunks.push(chunk);
         }
       : undefined,

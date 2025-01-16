@@ -64,7 +64,6 @@ describe('jsonFormat', () => {
     it(st.desc, () => {
       const parser = jsonFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastCursor = '';
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
@@ -72,8 +71,7 @@ describe('jsonFormat', () => {
         };
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, { previousChunks: [...chunks] }),
-          lastCursor
+          new GenerateResponseChunk(newChunk, { previousChunks: [...chunks] })
         );
         chunks.push(newChunk);
 

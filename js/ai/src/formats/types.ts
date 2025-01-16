@@ -19,14 +19,14 @@ import { GenerateResponseChunk } from '../generate.js';
 import { Message } from '../message.js';
 import { ModelRequest } from '../model.js';
 
-type OutputContentTypes = 'application/json' | 'text/plain';
+export type OutputContentTypes = 'application/json' | 'text/plain';
 
 export interface Formatter<O = unknown, CO = unknown> {
   name: string;
   config: ModelRequest['output'];
   handler: (schema?: JSONSchema) => {
     parseMessage(message: Message): O;
-    parseChunk?: (chunk: GenerateResponseChunk, cursor?: CC) => CO;
+    parseChunk?: (chunk: GenerateResponseChunk) => CO;
     instructions?: string;
   };
 }

@@ -53,9 +53,9 @@ const tests: Record<string, TestCase> = {
       ],
     });
 
-    const want = '';
+    const want = /plus/i;
     const got = response.text.trim();
-    assert.match(got, /plus/i);
+    assert.match(got, want);
   },
   history: async (registry: Registry, model: string) => {
     const resolvedModel = (await registry.lookupAction(
@@ -155,7 +155,7 @@ export async function testModels(
   registry: Registry,
   models: string[]
 ): Promise<TestReport> {
-  const gablorkenTool = defineTool(
+  defineTool(
     registry,
     {
       name: 'gablorkenTool',

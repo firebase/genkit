@@ -56,7 +56,7 @@ function registerTool(
     {
       name: `${params.name}/${tool.name}`,
       description: tool.description || '',
-      inputJsonSchema: tool.inputSchema,
+      inputJsonSchema: tool.inputSchema.properties,
       outputSchema: z.any(),
     },
     async (args) => {

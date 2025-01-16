@@ -219,7 +219,7 @@ export class GcpOpenTelemetry {
  */
 class MetricExporterWrapper extends MetricExporter {
   constructor(
-    private options?: ExporterOptions,
+    options?: ExporterOptions,
     private errorHandler?: (error: Error) => void
   ) {
     super(options);
