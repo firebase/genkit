@@ -188,11 +188,14 @@ async function generate(
   );
 
   // Throw an error if the response is not usable.
-  response.assertValid(request);
+  response.assertValid();
   const message = response.message!; // would have thrown if no message
 
   const toolCalls = message.content.filter((part) => !!part.toolRequest);
   if (rawRequest.returnToolRequests || toolCalls.length === 0) {
+    if (toolCalls.length === 0) {
+      response.assertValidSchema(request);
+    }
     return response.toJSON();
   }
   const maxIterations = rawRequest.maxTurns ?? 5;

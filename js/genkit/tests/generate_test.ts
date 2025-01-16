@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
@@ -357,6 +358,60 @@ describe('generate', () => {
           ],
         }
       );
+    });
+
+    it('call the tool with output schema', async () => {
+      const schema = z.object({
+        foo: z.string(),
+      });
+
+      ai.defineTool(
+        {
+          name: 'testTool',
+          description: 'description',
+          inputSchema: schema,
+          outputSchema: schema,
+        },
+        async () => {
+          return {
+            foo: 'bar',
+          };
+        }
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: { foo: 'fromTool' },
+                      ref: 'ref123',
+                    },
+                  }
+                : {
+                    text: "```\n{foo: 'fromModel'}\n```",
+                  },
+            ],
+          },
+        };
+      };
+
+      const { text, output } = await ai.generate({
+        output: { schema },
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      assert.strictEqual(text, "```\n{foo: 'fromModel'}\n```");
+      assert.deepStrictEqual(output, {
+        foo: 'fromModel',
+      });
     });
 
     it('throws when exceeding max tool call iterations', async () => {
