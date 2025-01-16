@@ -257,8 +257,7 @@ export const ModelResponseChunkSchema = z.object({
 });
 export type ModelResponseChunkData = z.infer<typeof ModelResponseChunkSchema>;
 
-export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({
-});
+export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({});
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
 >;
