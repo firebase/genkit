@@ -77,7 +77,7 @@ describe('jsonFormat', () => {
             index: 0,
             role: 'model',
             previousChunks: [...chunks],
-          }),
+          })
         );
         chunks.push(newChunk);
 
