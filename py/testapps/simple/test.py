@@ -38,15 +38,14 @@ def hi_fn(input) -> GenerateRequest:
         ])
 
 
-hi = ai.define_prompt(
-    name="hi",
-    fn=hi_fn,
-    model=gemini("gemini-1.5-flash"))
-
-
-@ai.flow()
-def hiPrompt():
-    return hi("Pavel")
+# hi = ai.define_prompt(
+#     name="hi",
+#     fn=hi_fn,
+#     model=gemini("gemini-1.5-flash"))
+#
+# @ai.flow()
+# def hiPrompt():
+#     return hi("Pavel")
 
 
 @ai.flow()
@@ -60,4 +59,3 @@ def sum_two_numbers2(input: MyInput):
 
 
 print(sum_two_numbers2(MyInput(a=1, b=3)))
-print(hiPrompt())
