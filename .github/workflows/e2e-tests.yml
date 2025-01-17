@@ -35,7 +35,7 @@ jobs:
           node-version: 21.x
           cache: "pnpm"
       - name: Install Genkit client
-        run: npm install genkit @genkit-ai/googleai
+        run: npm install genkit
       - name: Install dependencies
         run: pnpm install
       - name: Run build script
