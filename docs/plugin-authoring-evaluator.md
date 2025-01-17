@@ -1,24 +1,27 @@
 # Writing a Genkit Evaluator
 
-Firebase Genkit can be extended to support custom evaluation, using either an
+You can extend Firebase Genkit to support custom evaluation, using either an
 LLM as a judge, or by programmatic (heuristic) evaluation.
 
 ## Evaluator definition
 
 Evaluators are functions that assess an LLM's response. There are two main
 approaches to automated evaluation: heuristic evaluation and LLM-based
-evaluation. In the heuristic approach, you define a deterministic function,
-whereas in an LLM-based assessment, the content is fed back to an LLM and the
-LLM is asked to score the output according to criteria set in a prompt.
+evaluation. In the heuristic approach, you define a deterministic function.
+By contrast, in an LLM-based assessment, the content is fed back to an LLM,
+and the LLM is asked to score the output according to criteria set in a
+prompt.
 
-Both approaches are supported by the `ai.defineEvaluator` method to define an
-evaluator action in Genkit. This document explores a couple of examples on how
-to use this method for heuristic and LLM-based evaluations. 
+The `ai.defineEvaluator` method, which you use to define an
+evaluator action in Genkit, supports either approach. This
+document explores a couple of examples of how to use this
+method for heuristic and LLM-based evaluations. 
 
-### LLM based Evaluators
+### LLM-based Evaluators
 
-An LLM-based evaluator leverages an LLM to evaluate the `input`, `context`, and
-`output` of your generative AI feature.
+An LLM-based evaluator leverages an LLM to evaluate
+the `input`, `context`, and `output` of your generative AI
+feature.
 
 LLM-based evaluators in Genkit are made up of 3 components:
 
@@ -28,14 +31,14 @@ LLM-based evaluators in Genkit are made up of 3 components:
 
 #### Define the prompt
 
-For this example, the evaluator leverages an LLM to determine whether an
-`output` is delicious or not. First, provide context to the LLM, then describe
-what you want it to do, and finally, give it a few examples to base its response
-on.
+For this example, the evaluator leverages an LLM to determine whether a
+food (the `output`) is delicious or not. First, provide context to the LLM,
+then describe what you want it to do, and finally, give it a few examples
+to base its response on.
 
 Genkit’s `definePrompt` utility provides an easy way to define prompts with
-input and output validation. You can set up an evaluation prompt with
-`definePrompt` as follows:
+input and output validation. The following code is an example of
+setting up an evaluation prompt with `definePrompt`.
 
 ```ts
 import { z } from "genkit";
@@ -83,7 +86,7 @@ function getDeliciousnessPrompt(ai: Genkit) {
 
 #### Define the scoring function
 
-Define a function that takes an example which includes `output` as it is
+Define a function that takes an example that includes `output` as
 required by the prompt, and scores the result. Genkit testcases include `input` as
 a required field, with `output` and `context` as optional fields. It is the
 responsibility of the evaluator to validate that all fields required for
@@ -172,13 +175,17 @@ export function createDeliciousnessEvaluator<
 ```
 
 The `defineEvaluator` method is similar to other Genkit constructors like
-`defineFlow`, `defineRetriever`, etc. This method requires an `EvaluatorFn` to
-be provided as a callback method. The `EvaluatorFn` accepts a
-`BaseEvalDataPoint` which corresponds to a single entry in a dataset under
-evaluation, along with an optional custom options parameter if specified. The
-function processes the datapoint and returns an `EvalResponse` object. 
+`defineFlow` and `defineRetriever`. This method requires an `EvaluatorFn`
+to be provided as a callback. The `EvaluatorFn` method accepts a
+`BaseEvalDataPoint` object, which corresponds to a single entry in a
+dataset under evaluation, along with an optional custom-options
+parameter if specified. The function processes the datapoint and
+returns an `EvalResponse` object. 
 
-Here are the Zod Schemas for `BaseEvalDataPoint` and `EvalResponse`:
+The Zod Schemas for `BaseEvalDataPoint` and `EvalResponse` are
+as follows.
+
+##### `BaseEvalDataPoint`
 
 ```ts
 export const BaseEvalDataPoint = z.object({
@@ -199,7 +206,7 @@ export const EvalResponse = z.object({
   evaluation: z.union([ScoreSchema, z.array(ScoreSchema)]),
 });
 ```
-where `ScoreSchema` is defined as:
+##### `ScoreSchema`
 
 ```ts
 const ScoreSchema = z.object({
@@ -215,12 +222,13 @@ const ScoreSchema = z.object({
 });
 ```
 
-`defineEvaluator` lets the user provide a name, a user-readable display name,
-and a definition for the evaluator. The display name and definiton are displayed
-along with evaluation results in the Dev UI. It also has an optional `isBilled`
-option which marks whether this evaluator may result in billing (e.g.: it uses
-a billed LLM or API). If an evaluator is billed, the user is prompted for a
-confirmation in the CLI before they can run an evaluation, to help guard from
+The `defineEvaluator` object lets the user provide a name, a user-readable
+display name, and a definition for the evaluator. The display name and
+definiton are displayed along with evaluation results in the Dev UI.
+It also has an optional `isBilled` field that marks whether this evaluator
+can result in billing (e.g., it uses a billed LLM or API). If an evaluator is
+billed, the UI prompts the user for a confirmation in the CLI before
+allowing them to run an evaluation. This step helps guard against
 unintended expenses.
 
 ### Heuristic Evaluators
@@ -235,7 +243,7 @@ Heuristic evaluators in Genkit are made up of 2 components:
 
 #### Define the scoring function
 
-Similar to the LLM-based evaluator, define the scoring function. In this case,
+As with the LLM-based evaluator, define the scoring function. In this case,
 the scoring function does not need a judge LLM.
 
 ```ts
@@ -302,9 +310,9 @@ Plugins are registered with the framework by installing them at the time of
 initializing  Genkit. To define a new plugin, use the `genkitPlugin` helper
 method to instantiate all Genkit actions within the plugin context.
 
-Here we have two evaluators,the LLM-based deliciousness evaluator and the
-regex-based US phone number evaluator. Instatiating these evaluators within the
-plugin context registeres them with the plugin.
+This code sample shows two evaluators: the LLM-based deliciousness evaluator,
+and the regex-based US phone number evaluator. Instatiating these
+evaluators within the plugin context registers them with the plugin.
 
 ```ts
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
@@ -354,10 +362,11 @@ const ai = genkit({
 ## Using your custom evaluators
 
 Once you instantiate your custom evaluators within the Genkit app context (either
-through a plugin or directly), they are ready to be used. Let us try out the
-deliciousness evaluator with a few sample inputs and outputs. 
+through a plugin or directly), they are ready to be used. The following example
+illustrates how to try out the deliciousness evaluator with a few sample
+inputs and outputs. 
 
-Create a json file `deliciousness_dataset.json` with the following content:
+1. Create a json file `deliciousness_dataset.json` with the following content:
 
 ```json
 [
@@ -374,7 +383,7 @@ Create a json file `deliciousness_dataset.json` with the following content:
 ]
 ```
 
-Use the Genkit CLI to run the evaluator against these test cases.
+2. Use the Genkit CLI to run the evaluator against these test cases.
 
 ```posix-terminal
 # Start your genkit runtime
@@ -387,5 +396,5 @@ Navigate to `localhost:4000/evaluate` to view your results in the Genkit UI.
 
 It is important to note that confidence in custom evaluators increases as
 you benchmark them with standard datasets or approaches. Iterate on the results
-of such benchmarks to improve your evaluators' performance till it reaches the
+of such benchmarks to improve your evaluators' performance until it reaches the
 desired quality.
