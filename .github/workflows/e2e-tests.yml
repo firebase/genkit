@@ -37,7 +37,7 @@ jobs:
       - name: Install Genkit client
         run: npm install genkit
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
       - name: Run build script
         run: pnpm build
       - name: Run pack:all script
