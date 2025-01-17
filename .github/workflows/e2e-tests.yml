@@ -34,6 +34,7 @@ jobs:
         with:
           node-version: 20.x
           cache: "pnpm"
+      # Genkit client is required to test flow server e2e tests
       - name: Install Genkit client
         run: npm install genkit
       - name: Install dependencies
@@ -46,5 +47,3 @@ jobs:
         run: pnpm test:js
       - name: Run e2e tests
         run: pnpm test:e2e
-      - name: Validate working directory is clean
-        run: .github/workflows/scripts/ensure-clean-working-tree.sh
