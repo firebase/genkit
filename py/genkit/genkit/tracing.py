@@ -30,8 +30,9 @@ from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
 from opentelemetry.util._once import Once
 import requests
 import sys
+import os
 
-class ConsoleSpanExporter(SpanExporter):
+class TelemetryServerSpanExporter(SpanExporter):
     """Implementation of :class:`SpanExporter` that prints spans to the
     console.
 
@@ -79,7 +80,7 @@ class ConsoleSpanExporter(SpanExporter):
                 spanData["startTime"] = span.start_time
                 spanData["endTime"] = span.end_time
 
-            #print(json.dumps(spanData, indent=2))
+            # TODO: telemetry server URL must be dynamic, whatever tools notification says
             requests.post(f"http://localhost:4033/api/traces", data=json.dumps(spanData), headers={
                           'Content-Type': 'application/json', 'Accept': 'application/json'})
 
@@ -97,11 +98,12 @@ def convert_attributes(attributes):
     return attrs
 
 
-provider = TracerProvider()
-# processor = SimpleSpanProcessor(TelemetryServerSpanExporter('http://localhost:4033'))
-processor = SimpleSpanProcessor(ConsoleSpanExporter())
-provider.add_span_processor(processor)
-# Sets the global default tracer provider
-trace.set_tracer_provider(provider)
-
-tracer = trace.get_tracer("genkit-tracer", "v1", provider)
+if "GENKIT_ENV" in os.environ and os.environ["GENKIT_ENV"] == "dev":
+    provider = TracerProvider()
+    processor = SimpleSpanProcessor(TelemetryServerSpanExporter())
+    provider.add_span_processor(processor)
+    # Sets the global default tracer provider
+    trace.set_tracer_provider(provider)
+    tracer = trace.get_tracer("genkit-tracer", "v1", provider)
+else:
+    tracer = trace.get_tracer("genkit-tracer", "v1")
