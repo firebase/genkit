@@ -79,24 +79,17 @@ export async function enableTelemetry(
 }
 
 export async function cleanUpTracing(): Promise<void> {
-  return new Promise((resolve) => {
-    if (telemetrySDK) {
-      // Metrics are not flushed as part of the shutdown operation. If metrics
-      // are enabled, we need to manually flush them *before* the reader
-      // receives shutdown order.
-      const metricFlush = maybeFlushMetrics();
+  if (!telemetrySDK) {
+    return;
+  }
 
-      return metricFlush.then(() => {
-        return telemetrySDK!.shutdown().then(() => {
-          logger.debug('OpenTelemetry SDK shut down.');
-          telemetrySDK = null;
-          resolve();
-        });
-      });
-    } else {
-      resolve();
-    }
-  });
+  // Metrics are not flushed as part of the shutdown operation. If metrics
+  // are enabled, we need to manually flush them *before* the reader
+  // receives shutdown order.
+  await maybeFlushMetrics();
+  await telemetrySDK.shutdown();
+  logger.debug('OpenTelemetry SDK shut down.');
+  telemetrySDK = null;
 }
 
 /**

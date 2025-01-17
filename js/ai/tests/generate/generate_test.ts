@@ -21,6 +21,7 @@ import { beforeEach, describe, it } from 'node:test';
 import {
   GenerateOptions,
   generate,
+  generateStream,
   toGenerateRequest,
 } from '../../src/generate.js';
 import { ModelAction, ModelMiddleware, defineModel } from '../../src/model.js';
@@ -355,6 +356,7 @@ describe('generate', () => {
       })
     );
   });
+
   it('should preserve the request in the returned response, enabling .messages', async () => {
     const response = await generate(registry, {
       model: 'echo',
@@ -364,5 +366,50 @@ describe('generate', () => {
       response.messages.map((m) => m.content[0].text),
       ['Testing messages', 'Testing messages']
     );
+  });
+
+  describe('generateStream', () => {
+    it('should stream out chunks', async () => {
+      let registry = new Registry();
+
+      defineModel(
+        registry,
+        { name: 'echo-streaming', supports: { tools: true } },
+        async (input, streamingCallback) => {
+          streamingCallback!({ content: [{ text: 'hello, ' }] });
+          streamingCallback!({ content: [{ text: 'world!' }] });
+          return {
+            message: input.messages[0],
+            finishReason: 'stop',
+          };
+        }
+      );
+
+      const { response, stream } = generateStream(registry, {
+        model: 'echo-streaming',
+        prompt: 'Testing streaming',
+      });
+
+      let streamed: any[] = [];
+      for await (const chunk of stream) {
+        streamed.push(chunk.toJSON());
+      }
+      assert.deepStrictEqual(streamed, [
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'hello, ' }],
+        },
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'world!' }],
+        },
+      ]);
+      assert.deepEqual(
+        (await response).messages.map((m) => m.content[0].text),
+        ['Testing streaming', 'Testing streaming']
+      );
+    });
   });
 });

@@ -288,9 +288,9 @@ describe('expressHandler', async () => {
       }
 
       assert.deepStrictEqual(gotChunks, [
-        { content: [{ text: '3' }] },
-        { content: [{ text: '2' }] },
-        { content: [{ text: '1' }] },
+        { index: 0, role: 'model', content: [{ text: '3' }] },
+        { index: 0, role: 'model', content: [{ text: '2' }] },
+        { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
       assert.strictEqual(await result.output(), 'Echo: olleh');
@@ -507,9 +507,9 @@ describe('startFlowServer', async () => {
       }
 
       assert.deepStrictEqual(gotChunks, [
-        { content: [{ text: '3' }] },
-        { content: [{ text: '2' }] },
-        { content: [{ text: '1' }] },
+        { index: 0, role: 'model', content: [{ text: '3' }] },
+        { index: 0, role: 'model', content: [{ text: '2' }] },
+        { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
       assert.strictEqual(await result.output(), 'Echo: olleh');

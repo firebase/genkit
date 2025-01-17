@@ -845,7 +845,7 @@ export class Genkit implements HasRegistry {
    *   model: gemini15Flash, // default model
    * })
    *
-   * const { response, stream } = await ai.generateStream('hi');
+   * const { response, stream } = ai.generateStream('hi');
    * for await (const chunk of stream) {
    *   console.log(chunk.text);
    * }
@@ -854,7 +854,7 @@ export class Genkit implements HasRegistry {
    */
   generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
     strPrompt: string
-  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+  ): GenerateStreamResponse<z.infer<O>>;
 
   /**
    * Make a streaming generate call to the default model with a multipart request.
@@ -865,7 +865,7 @@ export class Genkit implements HasRegistry {
    *   model: gemini15Flash, // default model
    * })
    *
-   * const { response, stream } = await ai.generateStream([
+   * const { response, stream } = ai.generateStream([
    *   { media: {url: 'http://....'} },
    *   { text: 'describe this image' }
    * ]);
@@ -877,7 +877,7 @@ export class Genkit implements HasRegistry {
    */
   generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
     parts: Part[]
-  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+  ): GenerateStreamResponse<z.infer<O>>;
 
   /**
    * Streaming generate calls a generative model based on the provided prompt and configuration. If
@@ -892,7 +892,7 @@ export class Genkit implements HasRegistry {
    *   plugins: [googleAI()],
    * })
    *
-   * const { response, stream } = await ai.generateStream({
+   * const { response, stream } = ai.generateStream({
    *   system: 'talk like a pirate',
    *   prompt: [
    *     { media: { url: 'http://....' } },
@@ -915,9 +915,9 @@ export class Genkit implements HasRegistry {
     parts:
       | GenerateOptions<O, CustomOptions>
       | PromiseLike<GenerateOptions<O, CustomOptions>>
-  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+  ): GenerateStreamResponse<z.infer<O>>;
 
-  async generateStream<
+  generateStream<
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
@@ -926,18 +926,11 @@ export class Genkit implements HasRegistry {
       | Part[]
       | GenerateStreamOptions<O, CustomOptions>
       | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
-  ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    let resolvedOptions: GenerateOptions<O, CustomOptions>;
-    if (options instanceof Promise) {
-      resolvedOptions = await options;
-    } else if (typeof options === 'string' || Array.isArray(options)) {
-      resolvedOptions = {
-        prompt: options,
-      };
-    } else {
-      resolvedOptions = options as GenerateOptions<O, CustomOptions>;
+  ): GenerateStreamResponse<z.infer<O>> {
+    if (typeof options === 'string' || Array.isArray(options)) {
+      options = { prompt: options };
     }
-    return generateStream(this.registry, resolvedOptions);
+    return generateStream(this.registry, options);
   }
 
   /**
