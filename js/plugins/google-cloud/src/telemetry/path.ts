@@ -59,13 +59,25 @@ class PathsTelemetry implements Telemetry {
     const attributes = span.attributes;
     const name = attributes['genkit:name'] as string;
     const path = attributes['genkit:path'] as string;
+    const sessionId = attributes['genkit:sessionId'] as string;
+    const threadName = attributes['genkit:threadName'] as string;
+
     const latencyMs = hrTimeToMilliseconds(
       hrTimeDuration(span.startTime, span.endTime)
     );
     const state = attributes['genkit:state'] as string;
 
     if (state === 'success') {
-      this.writePathSuccess(span, paths!, name, path, latencyMs, projectId);
+      this.writePathSuccess(
+        span,
+        paths!,
+        name,
+        path,
+        latencyMs,
+        projectId,
+        sessionId,
+        threadName
+      );
       return;
     }
 
@@ -81,7 +93,9 @@ class PathsTelemetry implements Telemetry {
         path,
         latencyMs,
         errorName,
-        projectId
+        projectId,
+        sessionId,
+        threadName
       );
       this.recordError(
         span,
@@ -89,7 +103,9 @@ class PathsTelemetry implements Telemetry {
         errorName,
         errorMessage,
         errorStack,
-        projectId
+        projectId,
+        sessionId,
+        threadName
       );
       return;
     }
@@ -103,7 +119,9 @@ class PathsTelemetry implements Telemetry {
     errorName: string,
     errorMessage: string,
     errorStack: string,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     const displayPath = toDisplayPath(path);
     logger.logStructuredError(`Error[${displayPath}, ${errorName}]`, {
@@ -115,6 +133,8 @@ class PathsTelemetry implements Telemetry {
       stack: errorStack,
       source: 'ts',
       sourceVersion: GENKIT_VERSION,
+      sessionId,
+      threadName,
     });
   }
 
@@ -124,7 +144,9 @@ class PathsTelemetry implements Telemetry {
     featureName: string,
     path: string,
     latencyMs: number,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     this.writePathMetrics(
       span,
@@ -133,7 +155,9 @@ class PathsTelemetry implements Telemetry {
       featureName,
       latencyMs,
       undefined,
-      projectId
+      projectId,
+      sessionId,
+      threadName
     );
   }
 
@@ -144,7 +168,9 @@ class PathsTelemetry implements Telemetry {
     path: string,
     latencyMs: number,
     errorName: string,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     this.writePathMetrics(
       span,
@@ -153,7 +179,9 @@ class PathsTelemetry implements Telemetry {
       featureName,
       latencyMs,
       errorName,
-      projectId
+      projectId,
+      sessionId,
+      threadName
     );
   }
 
@@ -165,7 +193,9 @@ class PathsTelemetry implements Telemetry {
     featureName: string,
     latencyMs: number,
     err?: string,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     const flowPaths = Array.from(paths).filter((meta) =>
       meta.path.includes(featureName)
@@ -175,6 +205,8 @@ class PathsTelemetry implements Telemetry {
       logger.logStructured(`Paths[${featureName}]`, {
         ...createCommonLogAttributes(span, projectId),
         flowName: featureName,
+        sessionId,
+        threadName,
         paths: flowPaths.map((p) => toDisplayPath(p.path)),
       });
 

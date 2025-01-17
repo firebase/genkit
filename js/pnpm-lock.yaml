@@ -12279,6 +12279,7 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.25.7)
+      esbuild: 0.24.0
 
   ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)))(typescript@5.6.3):
     dependencies:
