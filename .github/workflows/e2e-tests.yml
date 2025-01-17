@@ -29,11 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: pnpm/action-setup@v3
-      - name: Set up node v20
+      - name: Set up node v21
         uses: actions/setup-node@v4
         with:
           node-version: 21.x
           cache: "pnpm"
+      - name: Install Genkit client
+        run: npm install genkit @genkit-ai/googleai
       - name: Install dependencies
         run: pnpm install
       - name: Run build script
