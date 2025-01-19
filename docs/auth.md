@@ -81,7 +81,7 @@ import { genkit, z } from 'genkit';
 const ai = genkit({ ... });;
 
 async function readDatabase(uid: string) {
-  const auth = ai.getAuthContext();
+  const auth = getFlowAuth();
   if (auth?.admin) {
     // Do something special if the user is an admin
   } else {
