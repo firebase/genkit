@@ -24,7 +24,7 @@ import {
   DatasetMetadata,
   DatasetSchema,
   DatasetStore,
-  EvalInferenceInput,
+  InferenceDataset,
 } from '../types/eval';
 import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
@@ -242,7 +242,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     );
   }
 
-  private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
+  private getDatasetFromInferenceInput(data: InferenceDataset): Dataset {
     return data.map((d) => ({
       testCaseId: d.testCaseId ?? generateTestCaseId(),
       ...d,

@@ -24,7 +24,6 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  generateTestCaseId,
   loadEvalInputDataset,
   logger,
 } from '@genkit-ai/tools-common/utils';
@@ -92,13 +91,7 @@ export const evalRun = new Command('eval:run')
         }
       }
 
-      const evalDataset: EvalInputDataset = (
-        await loadEvalInputDataset(dataset)
-      ).map((testCase: any) => ({
-        ...testCase,
-        testCaseId: testCase.testCaseId || generateTestCaseId(),
-        traceIds: testCase.traceIds || [],
-      }));
+      const evalDataset: EvalInputDataset = await loadEvalInputDataset(dataset);
       const evalRun = await runEvaluation({
         manager,
         evaluatorActions,

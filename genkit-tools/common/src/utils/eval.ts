@@ -29,12 +29,14 @@ import {
   isEvalField,
 } from '../plugin';
 import {
-  EvalInferenceInput,
-  EvalInferenceInputSchema,
-  EvalInferenceSampleSchema,
   EvalInputDataset,
   EvalInputDatasetSchema,
-  EvalInputSchema,
+  EvaluationDatasetSchema,
+  EvaluationSample,
+  EvaluationSampleSchema,
+  InferenceDataset,
+  InferenceDatasetSchema,
+  InferenceSampleSchema,
 } from '../types';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
@@ -234,21 +236,21 @@ export function generateTestCaseId() {
   return randomUUID();
 }
 
-/** Load a {@link EvalInferenceInput} file. Supports JSON / JSONL */
+/** Load a {@link InferenceDataset} file. Supports JSON / JSONL */
 export async function loadEvalInference(
   fileName: string
-): Promise<EvalInferenceInput> {
+): Promise<InferenceDataset> {
   const isJsonl = fileName.endsWith('.jsonl');
 
   if (isJsonl) {
     return await readJsonlForInference(fileName);
   } else {
     const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
-    return EvalInferenceInputSchema.parse(parsedData);
+    return InferenceDatasetSchema.parse(parsedData);
   }
 }
 
-/** Load a {@link Eval} file. Supports JSON / JSONL */
+/** Load a {@link EvalInputDataset} file. Supports JSON / JSONL */
 export async function loadEvalInputDataset(
   fileName: string
 ): Promise<EvalInputDataset> {
@@ -258,17 +260,23 @@ export async function loadEvalInputDataset(
     return await readJsonlForEvaluation(fileName);
   } else {
     const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
-    return EvalInputDatasetSchema.parse(parsedData);
+    let evaluationInput = EvaluationDatasetSchema.parse(parsedData);
+    evaluationInput = evaluationInput.map((evalSample: EvaluationSample) => ({
+      ...evalSample,
+      testCaseId: evalSample.testCaseId ?? generateTestCaseId(),
+      traceIds: evalSample.traceIds ?? [],
+    }));
+    return EvalInputDatasetSchema.parse(evaluationInput);
   }
 }
 
 async function readJsonlForInference(
   fileName: string
-): Promise<EvalInferenceInput> {
+): Promise<InferenceDataset> {
   const lines = await readLines(fileName);
-  const samples: EvalInferenceInput = [];
+  const samples: InferenceDataset = [];
   for (const line of lines) {
-    const parsedSample = EvalInferenceSampleSchema.parse(JSON.parse(line));
+    const parsedSample = InferenceSampleSchema.parse(JSON.parse(line));
     samples.push(parsedSample);
   }
   return samples;
@@ -280,8 +288,12 @@ async function readJsonlForEvaluation(
   const lines = await readLines(fileName);
   const inputs: EvalInputDataset = [];
   for (const line of lines) {
-    const parsedSample = EvalInputSchema.parse(JSON.parse(line));
-    inputs.push(parsedSample);
+    const parsedSample = EvaluationSampleSchema.parse(JSON.parse(line));
+    inputs.push({
+      ...parsedSample,
+      testCaseId: parsedSample.testCaseId ?? generateTestCaseId(),
+      traceIds: parsedSample.traceIds ?? [],
+    });
   }
   return inputs;
 }

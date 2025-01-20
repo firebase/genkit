@@ -15,12 +15,11 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalInferenceInput, getDatasetStore, getEvalStore } from '.';
+import { getDatasetStore, getEvalStore } from '.';
 import { RuntimeManager } from '../manager/manager';
 import {
   Action,
   CandidateData,
-  EvalInferenceInputSchema,
   EvalInput,
   EvalKeyAugments,
   EvalRun,
@@ -28,6 +27,8 @@ import {
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseSchema,
+  InferenceDataset,
+  InferenceDatasetSchema,
   MessageData,
   RunNewEvaluationRequest,
   SpanData,
@@ -72,7 +73,7 @@ export async function runNewEvaluation(
     throw new Error(`Either 'data' or 'datasetId' must be provided`);
   }
 
-  let evalInferenceInput: EvalInferenceInput;
+  let inferenceDataset: InferenceDataset;
   let metadata = {};
   if (datasetId) {
     const datasetStore = await getDatasetStore();
@@ -81,7 +82,7 @@ export async function runNewEvaluation(
     if (dataset.length === 0) {
       throw new Error(`Dataset ${datasetId} is empty`);
     }
-    evalInferenceInput = EvalInferenceInputSchema.parse(dataset);
+    inferenceDataset = InferenceDatasetSchema.parse(dataset);
 
     const datasetMetadatas = await datasetStore.listDatasets();
     const targetDatasetMetadata = datasetMetadatas.find(
@@ -90,14 +91,14 @@ export async function runNewEvaluation(
     const datasetVersion = targetDatasetMetadata?.version;
     metadata = { datasetId, datasetVersion };
   } else {
-    evalInferenceInput = data!;
+    inferenceDataset = data!;
   }
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalInferenceInput,
+    inferenceDataset,
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -123,11 +124,11 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalInferenceInput: EvalInferenceInput;
+  inferenceDataset: InferenceDataset;
   auth?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
+  const { manager, actionRef, inferenceDataset, auth, actionConfig } = params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
@@ -135,7 +136,7 @@ export async function runInference(params: {
   const evalDataset: EvalInput[] = await bulkRunAction({
     manager,
     actionRef,
-    evalInferenceInput,
+    inferenceDataset,
     auth,
     actionConfig,
   });
@@ -222,13 +223,13 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalInferenceInput: EvalInferenceInput;
+  inferenceDataset: InferenceDataset;
   auth?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
+  const { manager, actionRef, inferenceDataset, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = evalInferenceInput.map((c) => ({
+  let testCases: TestCase[] = inferenceDataset.map((c) => ({
     input: c.input,
     reference: c.reference,
     testCaseId: c.testCaseId ?? generateTestCaseId(),
