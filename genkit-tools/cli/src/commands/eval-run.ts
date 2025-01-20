@@ -24,7 +24,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  loadEvalInputDatasetFile,
+  loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -92,7 +92,7 @@ export const evalRun = new Command('eval:run')
       }
 
       const evalDataset: EvalInputDataset =
-        await loadEvalInputDatasetFile(dataset);
+        await loadEvaluationDatasetFile(dataset);
       const evalRun = await runEvaluation({
         manager,
         evaluatorActions,

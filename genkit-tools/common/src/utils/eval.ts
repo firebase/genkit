@@ -239,7 +239,9 @@ export function generateTestCaseId() {
 }
 
 /** Load a {@link Dataset} file. Supports JSON / JSONL */
-export async function loadDatasetFile(fileName: string): Promise<Dataset> {
+export async function loadInferenceDatasetFile(
+  fileName: string
+): Promise<Dataset> {
   const isJsonl = fileName.endsWith('.jsonl');
 
   if (isJsonl) {
@@ -256,7 +258,7 @@ export async function loadDatasetFile(fileName: string): Promise<Dataset> {
 }
 
 /** Load a {@link EvalInputDataset} file. Supports JSON / JSONL */
-export async function loadEvalInputDatasetFile(
+export async function loadEvaluationDatasetFile(
   fileName: string
 ): Promise<EvalInputDataset> {
   const isJsonl = fileName.endsWith('.jsonl');

@@ -31,7 +31,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  loadDatasetFile,
+  loadInferenceDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -181,7 +181,7 @@ async function readInputs(
       break;
     case SourceType.FILE:
       try {
-        return await loadDatasetFile(input!);
+        return await loadInferenceDatasetFile(input!);
       } catch (e) {
         throw new Error(`Error parsing the input from file. Error: ${e}`);
       }
