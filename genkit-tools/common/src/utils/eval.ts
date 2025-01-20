@@ -29,13 +29,15 @@ import {
   isEvalField,
 } from '../plugin';
 import {
+  Dataset,
+  DatasetSchema,
   EvalInputDataset,
   EvalInputDatasetSchema,
   EvaluationDatasetSchema,
   EvaluationSample,
   EvaluationSampleSchema,
-  InferenceDataset,
   InferenceDatasetSchema,
+  InferenceSample,
   InferenceSampleSchema,
 } from '../types';
 import { Action } from '../types/action';
@@ -236,22 +238,25 @@ export function generateTestCaseId() {
   return randomUUID();
 }
 
-/** Load a {@link InferenceDataset} file. Supports JSON / JSONL */
-export async function loadEvalInference(
-  fileName: string
-): Promise<InferenceDataset> {
+/** Load a {@link Dataset} file. Supports JSON / JSONL */
+export async function loadDatasetFile(fileName: string): Promise<Dataset> {
   const isJsonl = fileName.endsWith('.jsonl');
 
   if (isJsonl) {
     return await readJsonlForInference(fileName);
   } else {
     const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
-    return InferenceDatasetSchema.parse(parsedData);
+    let dataset = InferenceDatasetSchema.parse(parsedData);
+    dataset = dataset.map((sample: InferenceSample) => ({
+      ...sample,
+      testCaseId: sample.testCaseId ?? generateTestCaseId(),
+    }));
+    return DatasetSchema.parse(dataset);
   }
 }
 
 /** Load a {@link EvalInputDataset} file. Supports JSON / JSONL */
-export async function loadEvalInputDataset(
+export async function loadEvalInputDatasetFile(
   fileName: string
 ): Promise<EvalInputDataset> {
   const isJsonl = fileName.endsWith('.jsonl');
@@ -270,14 +275,15 @@ export async function loadEvalInputDataset(
   }
 }
 
-async function readJsonlForInference(
-  fileName: string
-): Promise<InferenceDataset> {
+async function readJsonlForInference(fileName: string): Promise<Dataset> {
   const lines = await readLines(fileName);
-  const samples: InferenceDataset = [];
+  const samples: Dataset = [];
   for (const line of lines) {
     const parsedSample = InferenceSampleSchema.parse(JSON.parse(line));
-    samples.push(parsedSample);
+    samples.push({
+      ...parsedSample,
+      testCaseId: parsedSample.testCaseId ?? generateTestCaseId(),
+    });
   }
   return samples;
 }

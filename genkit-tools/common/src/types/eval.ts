@@ -64,6 +64,7 @@ export const InferenceSampleSchema = z.object({
   input: z.any(),
   reference: z.any().optional(),
 });
+export type InferenceSample = z.infer<typeof InferenceSampleSchema>;
 
 /**
  * A set of samples that is ready for inference.

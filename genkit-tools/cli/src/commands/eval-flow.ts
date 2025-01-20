@@ -16,9 +16,9 @@
 
 import {
   Action,
+  Dataset,
   DatasetMetadata,
-  InferenceDataset,
-  InferenceDatasetSchema,
+  DatasetSchema,
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
@@ -31,7 +31,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  loadEvalInference,
+  loadDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -173,7 +173,7 @@ async function readInputs(
   sourceType: SourceType,
   dataField?: string,
   input?: string
-): Promise<InferenceDataset> {
+): Promise<Dataset> {
   let parsedData;
   switch (sourceType) {
     case SourceType.DATA:
@@ -181,7 +181,7 @@ async function readInputs(
       break;
     case SourceType.FILE:
       try {
-        return await loadEvalInference(input!);
+        return await loadDatasetFile(input!);
       } catch (e) {
         throw new Error(`Error parsing the input from file. Error: ${e}`);
       }
@@ -193,7 +193,7 @@ async function readInputs(
   }
 
   try {
-    return InferenceDatasetSchema.parse(parsedData);
+    return DatasetSchema.parse(parsedData);
   } catch (e) {
     throw new Error(
       `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
