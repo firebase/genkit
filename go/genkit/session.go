@@ -15,8 +15,10 @@
 package genkit
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
@@ -36,8 +38,6 @@ type SessionData struct {
 	State map[string]any
 	// Schema for state variables
 	StateSchema *jsonschema.Schema
-	// Default state variable values
-	DefaultState any
 	// The messages for each thread
 	Threads map[string][]*ai.Message
 }
@@ -49,6 +49,8 @@ type Session struct {
 	ID string
 	// The data for the session
 	SessionData SessionData
+	// Default state variable values
+	DefaultState map[string]any
 	// The store for the session, defaults to in-memory storage
 	Store SessionStore
 }
@@ -56,12 +58,18 @@ type Session struct {
 // SessionOption configures params for the session
 type SessionOption func(s *Session) error
 
+// A session key
+type sessionKey string
+
+const (
+	currentSessionID    sessionKey = "currentSessionID"
+	currentSessionStore sessionKey = "currentSessionStore"
+)
+
 // NewSession creates a new session with the provided options.
 // If no store is provided, it defaults to in-memory storage.
-func NewSession(g *Genkit, opts ...SessionOption) (session *Session, err error) {
-	s := &Session{
-		Genkit: g,
-	}
+func NewSession(ctx context.Context, opts ...SessionOption) (session *Session, err error) {
+	s := &Session{}
 
 	for _, with := range opts {
 		err := with(s)
@@ -84,7 +92,7 @@ func NewSession(g *Genkit, opts ...SessionOption) (session *Session, err error) 
 
 	// Only update state with defaults if not already set, eg. via WithSessionData
 	if s.SessionData.State == nil {
-		s.UpdateState(s.SessionData.DefaultState)
+		s.SessionData.State = s.DefaultState
 	}
 
 	// Initialize session in store
@@ -94,7 +102,7 @@ func NewSession(g *Genkit, opts ...SessionOption) (session *Session, err error) 
 }
 
 // LoadSession loads sessiondata from store, and returns a session.
-func LoadSession(sessionId string, store SessionStore) (session *Session, err error) {
+func LoadSession(ctx context.Context, sessionId string, store SessionStore) (session *Session, err error) {
 	sessionData, err := store.Get(sessionId)
 	if err != nil {
 		return nil, err
@@ -112,6 +120,14 @@ func LoadSession(sessionId string, store SessionStore) (session *Session, err er
 // UpdateState takes any data and sets it as state in the store.
 func (s *Session) UpdateState(state any) error {
 	var err error
+
+	// Ensure sessionData is up to date
+	sessionData, err := s.Store.Get(s.ID)
+	if err != nil {
+		return err
+	}
+	s.SessionData = sessionData
+
 	s.SessionData.StateSchema, s.SessionData.State, err = getSchemaAndDefaults(state)
 	if err != nil {
 		return err
@@ -122,8 +138,43 @@ func (s *Session) UpdateState(state any) error {
 
 // UpdateMessages takes a threadName and a slice of messages.
 func (s *Session) UpdateMessages(threadName string, messages []*ai.Message) error {
+	// Ensure sessionData is up to date
+	sessionData, err := s.Store.Get(s.ID)
+	if err != nil {
+		return err
+	}
+	s.SessionData = sessionData
+
 	s.SessionData.Threads[threadName] = messages
 	return s.Store.Save(s.ID, s.SessionData)
+}
+
+// Set current session ID in context.
+func (s *Session) SetContext(ctx context.Context) context.Context {
+	ctx = context.WithValue(ctx, currentSessionID, s.ID)
+	ctx = context.WithValue(ctx, currentSessionStore, s.Store)
+
+	return ctx
+}
+
+// Find current session ID in context, returns session if found.
+func SessionFromContext(ctx context.Context) (session *Session, err error) {
+	sessionID, ok := ctx.Value(currentSessionID).(string)
+	if !ok {
+		return nil, errors.New("no session ID found in context")
+	}
+
+	store, ok := ctx.Value(currentSessionStore).(SessionStore)
+	if !ok {
+		return nil, errors.New("no session store found in context")
+	}
+
+	session, err = LoadSession(ctx, sessionID, store)
+	if err != nil {
+		return nil, err
+	}
+
+	return session, nil
 }
 
 // WithSessionID sets the session id.
@@ -168,7 +219,7 @@ func WithStateType(state any) SessionOption {
 		}
 
 		var err error
-		s.SessionData.StateSchema, s.SessionData.DefaultState, err = getSchemaAndDefaults(state)
+		s.SessionData.StateSchema, s.DefaultState, err = getSchemaAndDefaults(state)
 		if err != nil {
 			return err
 		}
@@ -176,8 +227,6 @@ func WithStateType(state any) SessionOption {
 		return nil
 	}
 }
-
-// TODO: SessionFromContext(ctx, g) function when Genkit Registry is per instance.
 
 // Helper function to derive schema and defaults from state.
 func getSchemaAndDefaults(state any) (schema *jsonschema.Schema, defaults map[string]any, err error) {
@@ -224,9 +273,13 @@ func getSchemaAndDefaults(state any) (schema *jsonschema.Schema, defaults map[st
 // Default in-memory session store.
 type InMemSessionStore struct {
 	SessionData map[string]SessionData
+	mu          sync.RWMutex
 }
 
 func (s *InMemSessionStore) Get(sessionId string) (data SessionData, err error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if _, ok := s.SessionData[sessionId]; !ok {
 		return data, errors.New("session not found")
 	}
@@ -234,6 +287,9 @@ func (s *InMemSessionStore) Get(sessionId string) (data SessionData, err error) 
 }
 
 func (s *InMemSessionStore) Save(sessionId string, data SessionData) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if _, ok := s.SessionData[sessionId]; !ok {
 		s.SessionData = make(map[string]SessionData)
 	}

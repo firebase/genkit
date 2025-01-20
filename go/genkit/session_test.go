@@ -15,6 +15,7 @@
 package genkit
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -22,10 +23,9 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-var sessionGenkit, _ = New(nil)
-
 func TestSession(t *testing.T) {
-	session, err := NewSession(sessionGenkit)
+	ctx := context.Background()
+	session, err := NewSession(ctx)
 
 	if err != nil {
 		t.Fatal(err.Error())
@@ -178,14 +178,15 @@ func TestMultiSessionsAndThreads(t *testing.T) {
 }
 
 func TestLoadSessionFromStore(t *testing.T) {
-	session, err := NewSession(sessionGenkit)
+	ctx := context.Background()
+	session, err := NewSession(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
 	_helper_check_stored_messages(t, session, "hello")
 
-	loadS, err := LoadSession(session.ID, session.Store)
+	loadS, err := LoadSession(ctx, session.ID, session.Store)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -251,7 +252,7 @@ func TestSessionStateFormat(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			session, err := NewSession(
-				sessionGenkit,
+				context.Background(),
 				WithStateType(test.state),
 			)
 			if err != nil {
@@ -292,7 +293,7 @@ func TestSessionStateFormat(t *testing.T) {
 
 func TestSessionWithOptions(t *testing.T) {
 	session, err := NewSession(
-		sessionGenkit,
+		context.Background(),
 		WithSessionStore(&TestInMemSessionStore{
 			SessionData: make(map[string]SessionData),
 		}),
@@ -371,7 +372,7 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewSession(
-				sessionGenkit,
+				context.Background(),
 				test.with,
 				test.with,
 			)
@@ -383,8 +384,29 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 	}
 }
 
+func TestSessionFromContext(t *testing.T) {
+	ctx := context.Background()
+	session, err := NewSession(ctx)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	ctx = session.SetContext(ctx)
+
+	sCtx, err := SessionFromContext(ctx)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if sCtx.ID != session.ID {
+		t.Error("session id not found in context")
+	}
+}
+
 func _helper_session_with_stored_messages(threads map[string][]*ai.Message) (*Session, error) {
-	session, err := NewSession(sessionGenkit)
+	ctx := context.Background()
+	session, err := NewSession(ctx)
 	if err != nil {
 		return nil, err
 	}

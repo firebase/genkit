@@ -33,15 +33,46 @@ func getNameTool(g *Genkit) *ai.ToolDef[struct{ Name string }, string] {
 		func(ctx context.Context, input struct {
 			Name string
 		}) (string, error) {
-			// TODO: set name in state when Genkit registry is per instance
-			// SessionFromContext(ctx, g).UpdateState(input.Name)
-			return input.Name, nil
+			// Set name in state
+			session, err := SessionFromContext(ctx)
+			if err != nil {
+				return "", err
+			}
+
+			err = session.UpdateState(input.Name)
+			if err != nil {
+				return "", err
+			}
+
+			return "Hello, my name is " + input.Name, nil
 		},
 	)
 }
 
 func getChatModel(g *Genkit) ai.Model {
 	return ai.DefineModel(g.reg, "test", "chat", nil, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+		toolCalled := false
+		for _, msg := range gr.Messages {
+			if msg.Content[0].IsToolResponse() {
+				toolCalled = true
+			}
+		}
+
+		if !toolCalled && len(gr.Tools) == 1 {
+			part := ai.NewToolRequestPart(&ai.ToolRequest{
+				Name:  "updateName",
+				Input: map[string]any{"Name": "Earl"},
+			})
+
+			return &ai.ModelResponse{
+				Request: gr,
+				Message: &ai.Message{
+					Role:    ai.RoleModel,
+					Content: []*ai.Part{part},
+				},
+			}, nil
+		}
+
 		if msc != nil {
 			msc(ctx, &ai.ModelResponseChunk{
 				Content: []*ai.Part{ai.NewTextPart("3!")},
@@ -59,6 +90,10 @@ func getChatModel(g *Genkit) ai.Model {
 		for _, m := range gr.Messages {
 			if m.Role != ai.RoleUser && m.Role != ai.RoleModel {
 				textResponse += fmt.Sprintf("%s: ", m.Role)
+			}
+
+			if m.Role == ai.RoleTool {
+				contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output["response"].(string))
 			}
 
 			for _, c := range m.Content {
@@ -147,7 +182,7 @@ func TestChatWithStreaming(t *testing.T) {
 func TestChatWithOptions(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession(chatGenkit)
+	session, err := NewSession(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -194,14 +229,16 @@ func TestChatWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want := "Echo: system: you are a helpful assistant; Hello; config: {\n  \"temperature\": 1\n}; context: [\n  \"foo\",\n  \"bar\"\n]"
+	want := "Echo: system: tool: you are a helpful assistant; Hello; ; Hello, my name is Earl; ; config: {\n  \"temperature\": 1\n}; context: [\n  \"foo\",\n  \"bar\"\n]"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
 }
 
 func TestChatWithOptionsErrorHandling(t *testing.T) {
-	session, err := NewSession(chatGenkit)
+	ctx := context.Background()
+
+	session, err := NewSession(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -210,6 +247,10 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 		name string
 		with ChatOption
 	}{
+		{
+			name: "WithModel",
+			with: WithModel(chatModel),
+		},
 		{
 			name: "WithSession",
 			with: WithSession(session),
@@ -255,7 +296,6 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 			_, err := NewChat(
 				context.Background(),
 				chatGenkit,
-				WithModel(chatModel),
 				test.with,
 				test.with,
 			)
@@ -270,7 +310,7 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 func TestMultiChatSession(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession(chatGenkit)
+	session, err := NewSession(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -321,5 +361,42 @@ func TestMultiChatSession(t *testing.T) {
 
 	if len(session.SessionData.Threads) != 2 {
 		t.Errorf("session should have 2 threads")
+	}
+}
+
+func TestStateUpdate(t *testing.T) {
+	ctx := context.Background()
+
+	session, err := NewSession(ctx,
+		WithStateType("no name"),
+	)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	chat, err := NewChat(
+		ctx,
+		chatGenkit,
+		WithModel(chatModel),
+		WithSystemText("update state"),
+		WithTools(chatTool),
+		WithSession(session),
+	)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	resp, err := chat.Send(ctx, "What's your name?")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	want := "Hello, my name is Earl"
+	if !strings.Contains(resp.Text(), want) {
+		t.Errorf("got %q want %q", resp.Text(), want)
+	}
+
+	if session.SessionData.State["state"] != "Earl" {
+		t.Error("session state not set")
 	}
 }

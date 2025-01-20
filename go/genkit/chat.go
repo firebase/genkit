@@ -70,7 +70,7 @@ func NewChat(ctx context.Context, g *Genkit, opts ...ChatOption) (chat *Chat, er
 	}
 
 	if chat.Session == nil {
-		s, err := NewSession(g)
+		s, err := NewSession(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -95,6 +95,9 @@ func (c *Chat) Send(ctx context.Context, msg string) (resp *ai.ModelResponse, er
 	if err != nil {
 		return nil, err
 	}
+
+	// Set session details in context
+	ctx = c.Session.SetContext(ctx)
 
 	var messages []*ai.Message
 	if c.SystemText != "" {
