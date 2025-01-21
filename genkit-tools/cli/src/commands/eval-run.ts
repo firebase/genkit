@@ -83,7 +83,7 @@ export const evalRun = new Command('eval:run')
         throw new Error(
           options.evaluators
             ? `No matching evaluators found for '${options.evaluators}'`
-            : `No evaluators found`
+            : `No evaluators found in your app`
         );
       }
       logger.info(

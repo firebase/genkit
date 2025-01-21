@@ -115,7 +115,7 @@ export const evalFlow = new Command('eval:flow')
           throw new Error(
             options.evaluators
               ? `No matching evaluators found for '${options.evaluators}'`
-              : `No evaluators found`
+              : `No evaluators found in your app`
           );
         }
         logger.debug(
