@@ -16,7 +16,7 @@
 
 import { MessageData } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { compile } from '../src/template';
 

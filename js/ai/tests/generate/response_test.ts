@@ -16,7 +16,7 @@
 
 import { z } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import {
   GenerateResponse,

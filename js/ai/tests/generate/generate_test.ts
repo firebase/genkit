@@ -16,7 +16,7 @@
 
 import { PluginProvider, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
   GenerateOptions,

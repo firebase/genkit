@@ -24,9 +24,9 @@ import {
   jest,
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import * as assert from 'assert';
 import { Genkit, genkit, z } from 'genkit';
 import { appendSpan } from 'genkit/tracing';
-import assert from 'node:assert';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,

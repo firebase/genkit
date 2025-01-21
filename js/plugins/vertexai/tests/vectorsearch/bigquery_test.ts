@@ -15,8 +15,8 @@
  */
 
 import { BigQuery } from '@google-cloud/bigquery';
+import * as assert from 'assert';
 import { Document } from 'genkit/retriever';
-import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { getBigQueryDocumentRetriever } from '../../src/vectorsearch';
 
