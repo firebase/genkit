@@ -63,17 +63,19 @@ To provide Firebase credentials, you also need to set up Google Cloud Applicatio
 
 ### Telemetry
 
-The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export call `enableFirebaseTelemetry()`:
+To enable telemetry export to Google Cloud's operations suite call `enableFirebaseTelemetry()`:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
-enableFirebaseTelemetry();
+enableFirebaseTelemetry({
+  forceDevExport: false, // Set this to true to export telemetry for local runs
+});
 ```
 
-Refer to the [Google Cloud plugin](google-cloud.md) documentation for all configuration options and the necessary APIs that need to be enabled on the project.
+This plugin shares [configuration options](google-cloud.md#plugin-configuration) with the [Google Cloud plugin](google-cloud.md).
 
 ### Cloud Firestore vector search
 

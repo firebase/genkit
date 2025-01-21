@@ -26,7 +26,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, MessageSchema, genkit, run, z } from 'genkit';
+import { GenerateResponseData, MessageSchema, genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
@@ -94,7 +94,7 @@ export const jokeFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: input.modelName,
         config: { version: input.modelVersion },
@@ -112,7 +112,7 @@ export const drawPictureFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: input.modelName,
         prompt: `Draw a picture of a ${input.object}.`,
@@ -122,7 +122,7 @@ export const drawPictureFlow = ai.defineFlow(
   }
 );
 
-export const streamFlow = ai.defineStreamingFlow(
+export const streamFlow = ai.defineFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
@@ -160,7 +160,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = ai.defineStreamingFlow(
+export const streamJsonFlow = ai.defineFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
@@ -269,7 +269,7 @@ export const vertexStreamer = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input, streamingCallback) => {
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: gemini15Flash,
         prompt: `Tell me a very long joke about ${input}.`,
@@ -386,7 +386,7 @@ const jokeSubjectGenerator = ai.defineTool(
   }
 );
 
-export const toolCaller = ai.defineStreamingFlow(
+export const toolCaller = ai.defineFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
@@ -508,7 +508,7 @@ export const toolTester = ai.defineFlow(
   }
 );
 
-export const arrayStreamTester = ai.defineStreamingFlow(
+export const arrayStreamTester = ai.defineFlow(
   {
     name: 'arrayStreamTester',
     inputSchema: z.string().nullish(),
@@ -572,11 +572,12 @@ ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query) => {
+  async (query, { sendChunk }) => {
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: query,
       tools: ['math/add', 'math/subtract'],
+      onChunk: sendChunk,
     });
     return text;
   }

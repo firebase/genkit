@@ -22,9 +22,15 @@ import getPort from 'get-port';
 import * as http from 'http';
 import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { RequestWithAuth, handler } from '../src/index.js';
+import {
+  FlowServer,
+  RequestWithAuth,
+  expressHandler,
+  startFlowServer,
+  withAuth,
+} from '../src/index.js';
 
-describe('telemetry', async () => {
+describe('expressHandler', async () => {
   let server: http.Server;
   let port;
 
@@ -70,9 +76,9 @@ describe('telemetry', async () => {
       }
     );
 
-    const flowWithContext = ai.defineFlow(
+    const flowWithAuth = ai.defineFlow(
       {
-        name: 'flowWithContext',
+        name: 'flowWithAuth',
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
@@ -84,10 +90,10 @@ describe('telemetry', async () => {
     app.use(express.json());
     port = await getPort();
 
-    app.post('/voidInput', handler(voidInput));
-    app.post('/stringInput', handler(stringInput));
-    app.post('/objectInput', handler(objectInput));
-    app.post('/streamingFlow', handler(streamingFlow));
+    app.post('/voidInput', expressHandler(voidInput));
+    app.post('/stringInput', expressHandler(stringInput));
+    app.post('/objectInput', expressHandler(objectInput));
+    app.post('/streamingFlow', expressHandler(streamingFlow));
     app.post(
       '/flowWithAuth',
       async (req, resp, next) => {
@@ -99,7 +105,7 @@ describe('telemetry', async () => {
         };
         next();
       },
-      handler(flowWithContext, {
+      expressHandler(flowWithAuth, {
         authPolicy: ({ auth, action, input, request }) => {
           assert.ok(auth, 'auth must be set');
           assert.ok(action, 'flow must be set');
@@ -114,7 +120,7 @@ describe('telemetry', async () => {
     );
 
     // Can also expose any action.
-    app.post('/echoModel', handler(echoModel));
+    app.post('/echoModel', expressHandler(echoModel));
     app.post(
       '/echoModelWithAuth',
       async (req, resp, next) => {
@@ -126,7 +132,7 @@ describe('telemetry', async () => {
         };
         next();
       },
-      handler(echoModel, {
+      expressHandler(echoModel, {
         authPolicy: ({ auth, action, input, request }) => {
           assert.ok(auth, 'auth must be set');
           assert.ok(action, 'flow must be set');
@@ -282,9 +288,9 @@ describe('telemetry', async () => {
       }
 
       assert.deepStrictEqual(gotChunks, [
-        { content: [{ text: '3' }] },
-        { content: [{ text: '2' }] },
-        { content: [{ text: '1' }] },
+        { index: 0, role: 'model', content: [{ text: '3' }] },
+        { index: 0, role: 'model', content: [{ text: '2' }] },
+        { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
       assert.strictEqual(await result.output(), 'Echo: olleh');
@@ -320,6 +326,193 @@ describe('telemetry', async () => {
         { content: [{ text: '2' }] },
         { content: [{ text: '1' }] },
       ]);
+    });
+  });
+});
+
+describe('startFlowServer', async () => {
+  let server: FlowServer;
+  let port;
+
+  beforeEach(async () => {
+    const ai = genkit({});
+    const echoModel = defineEchoModel(ai);
+
+    const voidInput = ai.defineFlow('voidInput', async () => {
+      return 'banana';
+    });
+
+    const stringInput = ai.defineFlow('stringInput', async (input) => {
+      const { text } = await ai.generate({
+        model: 'echoModel',
+        prompt: input,
+      });
+      return text;
+    });
+
+    const objectInput = ai.defineFlow(
+      { name: 'objectInput', inputSchema: z.object({ question: z.string() }) },
+      async (input) => {
+        const { text } = await ai.generate({
+          model: 'echoModel',
+          prompt: input.question,
+        });
+        return text;
+      }
+    );
+
+    const streamingFlow = ai.defineFlow(
+      {
+        name: 'streamingFlow',
+        inputSchema: z.object({ question: z.string() }),
+      },
+      async (input, sendChunk) => {
+        const { text } = await ai.generate({
+          model: 'echoModel',
+          prompt: input.question,
+          onChunk: sendChunk,
+        });
+        return text;
+      }
+    );
+
+    const flowWithAuth = ai.defineFlow(
+      {
+        name: 'flowWithAuth',
+        inputSchema: z.object({ question: z.string() }),
+      },
+      async (input, { context }) => {
+        return `${input.question} - ${JSON.stringify(context)}`;
+      }
+    );
+
+    port = await getPort();
+
+    server = startFlowServer({
+      flows: [
+        voidInput,
+        stringInput,
+        objectInput,
+        streamingFlow,
+        withAuth(
+          flowWithAuth,
+          async (req, resp, next) => {
+            (req as RequestWithAuth).auth = {
+              user:
+                req.header('authorization') === 'open sesame'
+                  ? 'Ali Baba'
+                  : '40 thieves',
+            };
+            return next();
+          },
+          ({ auth, action, input, request }) => {
+            assert.ok(auth, 'auth must be set');
+            assert.ok(action, 'flow must be set');
+            assert.ok(input, 'input must be set');
+            assert.ok(request, 'request must be set');
+
+            if (auth.user !== 'Ali Baba') {
+              throw new Error('not authorized');
+            }
+          }
+        ),
+      ],
+      port,
+    });
+  });
+
+  afterEach(() => {
+    server.stop();
+  });
+
+  describe('runFlow', () => {
+    it('should call a void input flow', async () => {
+      const result = await runFlow({
+        url: `http://localhost:${port}/voidInput`,
+      });
+      assert.strictEqual(result, 'banana');
+    });
+
+    it('should run a flow with string input', async () => {
+      const result = await runFlow({
+        url: `http://localhost:${port}/stringInput`,
+        input: 'hello',
+      });
+      assert.strictEqual(result, 'Echo: hello');
+    });
+
+    it('should run a flow with object input', async () => {
+      const result = await runFlow({
+        url: `http://localhost:${port}/objectInput`,
+        input: {
+          question: 'olleh',
+        },
+      });
+      assert.strictEqual(result, 'Echo: olleh');
+    });
+
+    it('should fail a bad input', async () => {
+      const result = runFlow({
+        url: `http://localhost:${port}/objectInput`,
+        input: {
+          badField: 'hello',
+        },
+      });
+      await assert.rejects(result, (err: Error) => {
+        return err.message.includes('INVALID_ARGUMENT');
+      });
+    });
+
+    it('should call a flow with auth', async () => {
+      const result = await runFlow<string>({
+        url: `http://localhost:${port}/flowWithAuth`,
+        input: {
+          question: 'hello',
+        },
+        headers: {
+          Authorization: 'open sesame',
+        },
+      });
+      assert.strictEqual(result, 'hello - {"user":"Ali Baba"}');
+    });
+
+    it('should fail a flow with auth', async () => {
+      const result = runFlow({
+        url: `http://localhost:${port}/flowWithAuth`,
+        input: {
+          question: 'hello',
+        },
+        headers: {
+          Authorization: 'thieve #24',
+        },
+      });
+      await assert.rejects(result, (err) => {
+        return (err as Error).message.includes('not authorized');
+      });
+    });
+  });
+
+  describe('streamFlow', () => {
+    it('stream a flow', async () => {
+      const result = streamFlow<string, GenerateResponseChunkData>({
+        url: `http://localhost:${port}/streamingFlow`,
+        input: {
+          question: 'olleh',
+        },
+      });
+
+      const gotChunks: GenerateResponseChunkData[] = [];
+      for await (const chunk of result.stream()) {
+        gotChunks.push(chunk);
+      }
+
+      assert.deepStrictEqual(gotChunks, [
+        { index: 0, role: 'model', content: [{ text: '3' }] },
+        { index: 0, role: 'model', content: [{ text: '2' }] },
+        { index: 0, role: 'model', content: [{ text: '1' }] },
+      ]);
+
+      assert.strictEqual(await result.output(), 'Echo: olleh');
     });
   });
 });

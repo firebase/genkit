@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -32,6 +32,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/google-cloud": "workspace:*",
+    "@genkit-ai/express": "workspace:*",
     "express": "^4.21.0",
     "google-auth-library": "^9.6.3"
   },
@@ -51,7 +52,10 @@
     "@types/jest": "^29.5.12",
     "@jest/globals": "^29.7.0",
     "jest": "^29.7.0",
-    "ts-jest": "^29.1.2"
+    "ts-jest": "^29.1.2",
+    "express": "^4.21.1",
+    "get-port": "^5.1.0",
+    "firebase": "^11.1.0"
   },
   "types": "./lib/index.d.ts",
   "exports": {

@@ -156,7 +156,7 @@ describe('GenerateResponse', () => {
 
       assert.throws(
         () => {
-          response.assertValid(request);
+          response.assertValidSchema(request);
         },
         (err: unknown) => {
           return err instanceof Error && err.message.includes('must be number');
@@ -186,7 +186,7 @@ describe('GenerateResponse', () => {
       };
 
       assert.doesNotThrow(() => {
-        response.assertValid(request);
+        response.assertValidSchema(request);
       });
     });
   });

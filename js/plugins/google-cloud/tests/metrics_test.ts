@@ -30,7 +30,7 @@ import {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { GenerateResponseData, Genkit, genkit, run, z } from 'genkit';
+import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
 import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import {
@@ -243,7 +243,7 @@ describe('GoogleCloudMetrics', () => {
     await ai.generate({ model: testModel, prompt: 'Hi' });
     await ai.generate({ model: testModel, prompt: 'Yo' });
 
-    const spans = await getExportedSpans();
+    await getExportedSpans();
 
     const requestCounter = await getCounterMetric('genkit/feature/requests');
     const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
@@ -499,12 +499,12 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes path metrics for a successful flow', async () => {
     const flow = createFlow(ai, 'pathTestFlow', async () => {
-      await run('step1', async () => {
-        return await run('substep_a', async () => {
-          return await run('substep_b', async () => 'res1');
+      await ai.run('step1', async () => {
+        return await ai.run('substep_a', async () => {
+          return await ai.run('substep_b', async () => 'res1');
         });
       });
-      await run('step2', async () => 'res2');
+      await ai.run('step2', async () => 'res2');
       return;
     });
 
@@ -544,7 +544,7 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes path metrics for a failing flow with exception in root', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
-      const subPath = await run('sub-action', async () => {
+      await ai.run('sub-action', async () => {
         return 'done';
       });
       return Promise.reject(new Error('failed'));
@@ -582,8 +582,8 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes path metrics for a failing flow with exception in subaction', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
-      const subPath1 = await run('sub-action-1', async () => {
-        const subPath2 = await run('sub-action-2', async () => {
+      await ai.run('sub-action-1', async () => {
+        await ai.run('sub-action-2', async () => {
           return Promise.reject(new Error('failed'));
         });
         return 'done';
@@ -627,8 +627,8 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes path metrics for a flow with exception in action', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
-      const subPath1 = await run('sub-action-1', async () => {
-        const subPath2 = await run('sub-action-2', async () => {
+      await ai.run('sub-action-1', async () => {
+        await ai.run('sub-action-2', async () => {
           return 'done';
         });
         return Promise.reject(new Error('failed'));
@@ -674,10 +674,10 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes path metrics for a flow with an exception in a serial action', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
-      const subPath1 = await run('sub-action-1', async () => {
+      await ai.run('sub-action-1', async () => {
         return 'done';
       });
-      const subPath2 = await run('sub-action-2', async () => {
+      await ai.run('sub-action-2', async () => {
         return Promise.reject(new Error('failed'));
       });
       return 'done';

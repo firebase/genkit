@@ -94,6 +94,19 @@ export interface ActionFnArg<S> {
 }
 
 /**
+ * Streaming response from an action.
+ */
+export interface StreamingResponse<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /** Iterator over the streaming chunks. */
+  stream: AsyncGenerator<z.infer<S>>;
+  /** Final output of the action. */
+  output: Promise<z.infer<O>>;
+}
+
+/**
  * Self-describing, validating, observable, locally and remotely callable function.
  */
 export type Action<
@@ -101,7 +114,7 @@ export type Action<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = ((
-  input: z.infer<I>,
+  input?: z.infer<I>,
   options?: ActionRunOptions<S>
 ) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
@@ -110,6 +123,11 @@ export type Action<
     input: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
   ): Promise<ActionResult<z.infer<O>>>;
+
+  stream(
+    input?: z.infer<I>,
+    opts?: ActionRunOptions<z.infer<S>>
+  ): StreamingResponse<O, S>;
 };
 
 /**
@@ -205,6 +223,7 @@ export function actionWithMiddleware<
         throw new Error('unspported middleware function shape');
       }
     };
+    wrapped.stream = action.stream;
 
     return { result: await dispatch(0, req, options), telemetry };
   };
@@ -230,7 +249,10 @@ export function action<
     typeof config.name === 'string'
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
-  const actionFn = async (input: I, options?: ActionRunOptions<z.infer<S>>) => {
+  const actionFn = async (
+    input?: I,
+    options?: ActionRunOptions<z.infer<S>>
+  ) => {
     return (await actionFn.run(input, options)).result;
   };
   actionFn.__registry = registry;
@@ -280,7 +302,7 @@ export function action<
           const output = await fn(input, {
             // Context can either be explicitly set, or inherited from the parent action.
             context: options?.context ?? getContext(registry),
-            sendChunk: options?.onChunk ?? ((c) => {}),
+            sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
           });
 
           metadata.output = JSON.stringify(output);
@@ -303,6 +325,49 @@ export function action<
         traceId,
         spanId,
       },
+    };
+  };
+
+  actionFn.stream = (
+    input?: z.infer<I>,
+    opts?: ActionRunOptions<z.infer<S>>
+  ): StreamingResponse<O, S> => {
+    let chunkStreamController: ReadableStreamController<z.infer<S>>;
+    const chunkStream = new ReadableStream<z.infer<S>>({
+      start(controller) {
+        chunkStreamController = controller;
+      },
+      pull() {},
+      cancel() {},
+    });
+
+    const invocationPromise = actionFn
+      .run(config.inputSchema ? config.inputSchema.parse(input) : input, {
+        onChunk: ((chunk: z.infer<S>) => {
+          chunkStreamController.enqueue(chunk);
+        }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
+        context: opts?.context,
+      })
+      .then((s) => s.result)
+      .finally(() => {
+        chunkStreamController.close();
+      });
+
+    return {
+      output: invocationPromise,
+      stream: (async function* () {
+        const reader = chunkStream.getReader();
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.value) {
+            yield chunk.value;
+          }
+          if (chunk.done) {
+            break;
+          }
+        }
+        return await invocationPromise;
+      })(),
     };
   };
 

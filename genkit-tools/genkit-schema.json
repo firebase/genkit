@@ -452,6 +452,12 @@
     "GenerateResponseChunk": {
       "type": "object",
       "properties": {
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
+        "index": {
+          "type": "number"
+        },
         "content": {
           "type": "array",
           "items": {
@@ -461,14 +467,10 @@
         "custom": {},
         "aggregated": {
           "type": "boolean"
-        },
-        "index": {
-          "type": "number"
         }
       },
       "required": [
-        "content",
-        "index"
+        "content"
       ],
       "additionalProperties": false
     },
@@ -714,6 +716,12 @@
     "ModelResponseChunk": {
       "type": "object",
       "properties": {
+        "role": {
+          "$ref": "#/$defs/GenerateResponseChunk/properties/role"
+        },
+        "index": {
+          "$ref": "#/$defs/GenerateResponseChunk/properties/index"
+        },
         "content": {
           "$ref": "#/$defs/GenerateResponseChunk/properties/content"
         },

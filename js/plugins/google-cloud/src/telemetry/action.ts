@@ -81,11 +81,32 @@ class ActionTelemetry implements Telemetry {
     if (subtype === 'tool' && logIO) {
       const input = attributes['genkit:input'] as string;
       const output = attributes['genkit:output'] as string;
+      const sessionId = attributes['genkit:sessionId'] as string;
+      const threadName = attributes['genkit:threadName'] as string;
+
       if (input) {
-        this.recordIO(span, 'Input', featureName, path, input, projectId);
+        this.recordIO(
+          span,
+          'Input',
+          featureName,
+          path,
+          input,
+          projectId,
+          sessionId,
+          threadName
+        );
       }
       if (output) {
-        this.recordIO(span, 'Output', featureName, path, output, projectId);
+        this.recordIO(
+          span,
+          'Output',
+          featureName,
+          path,
+          output,
+          projectId,
+          sessionId,
+          threadName
+        );
       }
     }
   }
@@ -134,7 +155,9 @@ class ActionTelemetry implements Telemetry {
     featureName: string,
     qualifiedPath: string,
     input: string,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
     const sharedMetadata = {
@@ -142,6 +165,8 @@ class ActionTelemetry implements Telemetry {
       path,
       qualifiedPath,
       featureName,
+      sessionId,
+      threadName,
     };
     logger.logStructured(`${tag}[${path}, ${featureName}]`, {
       ...sharedMetadata,

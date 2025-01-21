@@ -64,16 +64,20 @@ describe('jsonFormat', () => {
     it(st.desc, () => {
       const parser = jsonFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastCursor = '';
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
+          index: 0,
+          role: 'model',
           content: [{ text: chunk.text }],
         };
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, { previousChunks: [...chunks] }),
-          lastCursor
+          new GenerateResponseChunk(newChunk, {
+            index: 0,
+            role: 'model',
+            previousChunks: [...chunks],
+          })
         );
         chunks.push(newChunk);
 

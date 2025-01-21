@@ -17,9 +17,11 @@ package dotprompt
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -49,13 +51,17 @@ func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Con
 }
 
 func TestExecute(t *testing.T) {
-	testModel := ai.DefineModel("test", "test", nil, testGenerate)
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testModel := genkit.DefineModel(g, "test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background())
+		resp, err := p.Generate(context.Background(), g)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -66,7 +72,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.Generate(context.Background())
+		resp, err := p.Generate(context.Background(), g)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,7 +83,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.GenerateText(context.Background())
+		resp, err := p.GenerateText(context.Background(), g)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,7 +96,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := p.GenerateData(context.Background(), InputOutput{})
+		resp, err := p.GenerateData(context.Background(), g, InputOutput{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,10 +106,14 @@ func TestExecute(t *testing.T) {
 }
 
 func TestOptionsPatternGenerate(t *testing.T) {
-	testModel := ai.DefineModel("options", "test", nil, testGenerate)
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testModel := genkit.DefineModel(g, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := Define("TestExecute", "TestExecute", WithInputType(InputOutput{}))
+		p, err := Define(g, "TestExecute", "TestExecute", WithInputType(InputOutput{}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,6 +121,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 		streamText := ""
 		resp, err := p.Generate(
 			context.Background(),
+			g,
 			WithInput(InputOutput{
 				Text: "testing",
 			}),
@@ -132,13 +143,14 @@ func TestOptionsPatternGenerate(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := Define("TestModelname", "TestModelname", WithInputType(InputOutput{}))
+		p, err := Define(g, "TestModelname", "TestModelname", WithInputType(InputOutput{}))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		resp, err := p.Generate(
 			context.Background(),
+			g,
 			WithInput(InputOutput{
 				Text: "testing",
 			}),
@@ -153,7 +165,11 @@ func TestOptionsPatternGenerate(t *testing.T) {
 }
 
 func TestGenerateOptions(t *testing.T) {
-	p, err := Define("TestWithGenerate", "TestWithGenerate", WithInputType(InputOutput{}))
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p, err := Define(g, "TestWithGenerate", "TestWithGenerate", WithInputType(InputOutput{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +204,7 @@ func TestGenerateOptions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			_, err = p.Generate(
 				context.Background(),
-				test.with,
+				g,
 				test.with,
 			)
 
