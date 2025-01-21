@@ -10,4 +10,5 @@ python3.11 -m pip install -e ".[dev]"
 Regen model objects
 
 ```bash
-datamodel-codegen  --input ../../genkit-tools/genkit-schema.json --input-file-type jsonschema --output genkit/types.py --collapse-root-models```
+datamodel-codegen  --input ../../genkit-tools/genkit-schema.json --input-file-type jsonschema --output genkit/types.py --collapse-root-models
+```
