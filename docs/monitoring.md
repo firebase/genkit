@@ -5,16 +5,14 @@ Firebase Genkit is fully instrumented with
 
 ## Telemetry Configuration
 
-Genkit automatically manages tracing and metrics without requiring explicit configuration. You can enable telemetry exports for Firebase or Google Cloud using their respective plugins and helper functions. Using either plugin powers the [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring) that has an AI-centric view of telemetry data.
-
-### For Firebase:
+Genkit automatically manages tracing and metrics without requiring explicit configuration. You can enable telemetry exports to Firebase using the respective plugin and helper function. Using the Firebase plugin powers the [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring) that has an AI-centric view of telemetry data.
 
 ```ts
 import { genkit } from 'genkit';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
 enableFirebaseTelemetry({
-  // Firebase-specific configuration options
+  // Configuration options
 });
 
 const ai = genkit({
@@ -22,22 +20,6 @@ const ai = genkit({
 });
 ```
 More details are outlined in the [Firebase plugin docs](./plugins/firebase.md).
-
-### For Google Cloud:
-
-```ts
-import { genkit } from 'genkit';
-import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-
-enableGoogleCloudTelemetry({
-  // Google Cloud-specific configuration options
-});
-
-const ai = genkit({
-  plugins: [ ... ]
-});
-```
-More details are outlined in the [Google Cloud plugin docs](./plugins/google-cloud.md).
 
 ## Logging
 Genkit provides a centralized logging system that can be configured using the logging module. Logs will be exported Google Cloud operations suite if telemetry export is enabled.
