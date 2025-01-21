@@ -36,6 +36,7 @@ import {
   evaluatorName,
   generateTestCaseId,
   getEvalExtractors,
+  hasAction,
   isEvaluator,
   logger,
   stackTraceSpans,
@@ -70,6 +71,11 @@ export async function runNewEvaluation(
   const { datasetId, data } = dataSource;
   if (!datasetId && !data) {
     throw new Error(`Either 'data' or 'datasetId' must be provided`);
+  }
+
+  const hasTargetAction = await hasAction({ manager, actionRef });
+  if (!hasTargetAction) {
+    throw new Error(`Cannot find action ${actionRef}.`);
   }
 
   let evalInferenceInput: EvalInferenceInput;

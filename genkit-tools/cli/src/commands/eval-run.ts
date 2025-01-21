@@ -79,6 +79,13 @@ export const evalRun = new Command('eval:run')
           evalActionKeys
         );
       }
+      if (!evaluatorActions.length) {
+        throw new Error(
+          options.evaluators
+            ? `No matching evaluators found for '${options.evaluators}'`
+            : `No evaluators found`
+        );
+      }
       logger.info(
         `Using evaluators: ${evaluatorActions.map((action) => action.name).join(',')}`
       );
