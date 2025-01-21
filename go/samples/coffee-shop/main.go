@@ -21,7 +21,7 @@
 //
 // Tell it to run a flow:
 //
-//	curl -d '{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}' http://localhost:3100/api/runAction
+//	curl -d '{"data":{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}}' http://localhost:3100/api/runAction
 //
 // In production mode (GENKIT_ENV missing or set to "prod"):
 // Start the server listening on port 3400:
@@ -30,7 +30,7 @@
 //
 // Tell it to run a flow:
 //
-//  curl -d '{"customerName": "Stimpy"}' http://localhost:3400/simpleGreeting
+//  curl -d '{"data":{"customerName": "Stimpy"}}' http://localhost:3400/simpleGreeting
 
 package main
 

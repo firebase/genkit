@@ -23,7 +23,7 @@
 //
 // Ask a question:
 //
-//	curl -d '{"Show": "Best Friends", "Question": "Who does Alice love?"}' http://localhost:3400/askQuestion
+//	curl -d '{"data":{"Show": "Best Friends", "Question": "Who does Alice love?"}}' http://localhost:3400/askQuestion
 package main
 
 import (

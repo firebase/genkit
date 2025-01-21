@@ -21,7 +21,7 @@
 //
 // Tell it to run a flow:
 //
-//	curl -d '{"key":"/flow/simpleQaFlow/simpleQaFlow", "input":{"start": {"input":{"question": "What is the capital of UK?"}}}}' http://localhost:3100/api/runAction
+//	curl -d '{"data":{"key":"/flow/simpleQaFlow/simpleQaFlow", "input":{"start": {"input":{"question": "What is the capital of UK?"}}}}}' http://localhost:3100/api/runAction
 //
 // In production mode (GENKIT_ENV missing or set to "prod"):
 // Start the server listening on port 3400:
@@ -30,7 +30,7 @@
 //
 // Tell it to run a flow:
 //
-//   curl -d '{"question": "What is the capital of UK?"}' http://localhost:3400/simpleQaFlow
+//   curl -d '{"data":{"question": "What is the capital of UK?"}}' http://localhost:3400/simpleQaFlow
 
 package main
 
@@ -123,7 +123,6 @@ func main() {
 
 		resp, err := simpleQaPrompt.Generate(ctx, g,
 			dotprompt.WithInput(promptInput),
-			nil,
 		)
 		if err != nil {
 			return "", err
