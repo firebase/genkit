@@ -19,6 +19,7 @@ import {
   beforeAll,
   beforeEach,
   describe,
+  expect,
   it,
   jest,
 } from '@jest/globals';
@@ -252,6 +253,51 @@ describe('GoogleCloudTracing', () => {
       span?.attributes['genkit/metadata/metadata_key'],
       'metadata_value'
     );
+  });
+
+  it('writes sessionId and threadName for chats', async () => {
+    const testModel = ai.defineModel({ name: 'testModel' }, async () => {
+      return {
+        message: {
+          role: 'user',
+          content: [
+            {
+              text: 'response',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
+
+    const chat = ai.chat();
+
+    await chat.send({ model: testModel, prompt: 'Sending test prompt' });
+
+    const spans = await getExportedSpans();
+    // We should get 3 spans from this chat -- "send" which delegates to "generate" which delegates to our "testModel"
+    // Only the top level span will have the sessionId and threadName until we make sessionId more ubiquitous
+    expect(spans).toHaveLength(3);
+
+    spans.forEach((span) => {
+      if (span.name === 'send') {
+        expect(span?.attributes['genkit/sessionId']).not.toBeUndefined();
+        expect(span?.attributes['genkit/threadName']).not.toBeUndefined();
+        return;
+      }
+
+      // Once we make the change to have sessionId on all relevant spans, then these should verify they are populated.
+      expect(span?.attributes['genkit/sessionId']).toBeUndefined();
+      expect(span?.attributes['genkit/threadName']).toBeUndefined();
+    });
   });
 
   /** Helper to create a flow with no inputs or outputs */
