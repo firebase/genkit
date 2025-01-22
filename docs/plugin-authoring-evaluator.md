@@ -1,7 +1,7 @@
 # Writing a Genkit Evaluator
 
-You can extend Firebase Genkit to support custom evaluation, using either an
-LLM as a judge, or by programmatic (heuristic) evaluation.
+You can extend Firebase Genkit to support custom evaluation, using either
+an LLM as a judge, or by programmatic (heuristic) evaluation.
 
 ## Evaluator definition
 
@@ -74,10 +74,7 @@ function getDeliciousnessPrompt(ai: Genkit) {
     Output: A juicy piece of gossip
     Response: { "reason": "Metaphorically 'tasty' but not food.", "verdict": "maybe" }
 
-    New Output:
-    {% verbatim %}
-    {{ responseToTest }}
-    {% endverbatim %}
+    New Output: {% verbatim %}{{ responseToTest }} {% endverbatim %}
     Response:
     `
   );
@@ -87,7 +84,8 @@ function getDeliciousnessPrompt(ai: Genkit) {
 #### Define the scoring function
 
 Define a function that takes an example that includes `output` as
-required by the prompt, and scores the result. Genkit testcases include `input` as
+required by the prompt, and scores the result. Genkit testcases include
+`input` as
 a required field, with `output` and `context` as optional fields. It is the
 responsibility of the evaluator to validate that all fields required for
 evaluation are present.
@@ -226,8 +224,8 @@ The `defineEvaluator` object lets the user provide a name, a user-readable
 display name, and a definition for the evaluator. The display name and
 definiton are displayed along with evaluation results in the Dev UI.
 It also has an optional `isBilled` field that marks whether this evaluator
-can result in billing (e.g., it uses a billed LLM or API). If an evaluator is
-billed, the UI prompts the user for a confirmation in the CLI before
+can result in billing (e.g., it uses a billed LLM or API). If an evaluator
+is billed, the UI prompts the user for a confirmation in the CLI before
 allowing them to run an evaluation. This step helps guard against
 unintended expenses.
 
@@ -311,7 +309,7 @@ initializing  Genkit. To define a new plugin, use the `genkitPlugin` helper
 method to instantiate all Genkit actions within the plugin context.
 
 This code sample shows two evaluators: the LLM-based deliciousness evaluator,
-and the regex-based US phone number evaluator. Instatiating these
+and the regex-based US phone number evaluator. Instantiating these
 evaluators within the plugin context registers them with the plugin.
 
 ```ts
@@ -361,12 +359,15 @@ const ai = genkit({
 
 ## Using your custom evaluators
 
-Once you instantiate your custom evaluators within the Genkit app context (either
-through a plugin or directly), they are ready to be used. The following example
-illustrates how to try out the deliciousness evaluator with a few sample
-inputs and outputs. 
+Once you instantiate your custom evaluators within the Genkit app context
+(either through a plugin or directly), they are ready to be used. The following
+example illustrates how to try out the deliciousness evaluator with a few sample
+inputs and outputs.
 
-1. Create a json file `deliciousness_dataset.json` with the following content:
+<ul style="list-style-type:none;">
+  <li>1. Create a json file `deliciousness_dataset.json` with the following
+  content:</li>
+</ul>
 
 ```json
 [
@@ -382,8 +383,9 @@ inputs and outputs.
   }
 ]
 ```
-
-2. Use the Genkit CLI to run the evaluator against these test cases.
+<ul style="list-style-type:none;">
+  <li>2. Use the Genkit CLI to run the evaluator against these test cases.</li>
+  </ul>
 
 ```posix-terminal
 # Start your genkit runtime
@@ -391,10 +393,12 @@ genkit start -- <command to start your app>
 
 genkit eval:run deliciousness_dataset.json --evaluators=myCustomEvals/deliciousnessEvaluator
 ```
-
-Navigate to `localhost:4000/evaluate` to view your results in the Genkit UI.
+<ul style="list-style-type:none;">
+  <li>3. Navigate to `localhost:4000/evaluate` to view your results in the
+  Genkit UI.</li>
+</ul>
 
 It is important to note that confidence in custom evaluators increases as
-you benchmark them with standard datasets or approaches. Iterate on the results
-of such benchmarks to improve your evaluators' performance until it reaches the
-desired quality.
+you benchmark them with standard datasets or approaches. Iterate on the
+results of such benchmarks to improve your evaluators' performance until it
+reaches the targeted level of quality.
