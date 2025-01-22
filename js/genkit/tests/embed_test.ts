@@ -15,7 +15,7 @@
  */
 
 import { Document, EmbedderAction, embedderRef } from '@genkit-ai/ai';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 

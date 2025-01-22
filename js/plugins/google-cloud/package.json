@@ -21,7 +21,7 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest --runInBand --verbose"
+    "test": "node node_modules/jest/bin/jest --runInBand --verbose"
   },
   "repository": {
     "type": "git",

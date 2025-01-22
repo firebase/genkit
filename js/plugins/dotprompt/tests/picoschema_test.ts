@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import * as assert from 'assert';
 import { readFileSync } from 'fs';
-import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { parse } from 'yaml';
 import { picoschema } from '../src/picoschema';
