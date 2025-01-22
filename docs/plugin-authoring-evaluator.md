@@ -16,7 +16,7 @@ Regardless of the approach you take, you need to use the `ai.defineEvaluator`
 method to define an evaluator action in Genkit. We will see a couple of examples
 of how to use this method in this document. 
 
-### LLM based Evaluators
+### LLM-based Evaluators
 
 An LLM-based evaluator leverages an LLM to evaluate the input, context, or
 output of your generative AI feature.
