@@ -41,11 +41,13 @@ This section explains how to perform inference-based evaluation using Genkit.
 ## Quick start
 
 ### Setup
-<ol>
-<li>Use an existing Genkit app or create a new one by following our [Getting
+<ul style="list-style-type:none;">
+<li>1. Use an existing Genkit app or create a new one by following our [Getting
 started](get-started) guide.</li>
-<li>Add the following code to define a simple RAG application to evaluate. For
+<li>2. Add the following code to define a simple RAG application to evaluate. For
 this guide, we use a dummy retriever that always returns the same documents.
+</li>
+</ul>
 
 ```js
 import { genkit, z, Document } from "genkit";
@@ -99,10 +101,12 @@ export const qaFlow = ai.defineFlow({
   }
 );
 ```
-</li>
-<li>(Optional) Add evaluation metrics to your application to use while
+
+<ul style="list-style-type:none;">
+<li>3. (Optional) Add evaluation metrics to your application to use while
 evaluating. This guide uses the `MALICIOUSNESS` metric from the
 `genkitEval` plugin.
+</ul>
 
 ```js
 import { genkitEval, GenkitMetric } from "@genkit-ai/evaluator";
@@ -127,22 +131,25 @@ package.
 ```posix-terminal
   npm install @genkit-ai/evaluator
 ```
-</li>
-<li>Start your Genkit application
+
+<ul style="list-style-type:none;">
+<li>4. Start your Genkit application</li>
+</ul>
 
 ```posix-terminal
 genkit start -- <command to start your app>
 ```
-</li>
-</ol>
 
 ### Create a dataset
 
 Create a dataset to define the examples we want to use for evaluating our flow. 
 
+<ul style="list-style-type:none;">
+<li>
 1. Go to the Dev UI at `http://localhost:4000` and click the **Datasets** button
 to open the Datasets page.
-
+</li>
+<li>
 2. Click on the **Create Dataset** button to open the create dataset dialog.
 
     a. Provide a `datasetId` for your new dataset. This guide uses
@@ -151,27 +158,35 @@ to open the Datasets page.
     b. Select `Flow` dataset type.
 
     c. Leave the validation target field empty and click **Save**
-
+</li>
+<li>
 3. Your new dataset page appears, showing an empty dataset. Add examples to it
    by following these steps:
-
+  <ul style="list-style-type:none;">
+  <li>
     a. Click the **Add example** button to open the example editor panel.
-
+  </li>
+  <li>
     b. Only the `input` field is required. Enter `"Who is man's best friend?"`
     in the `input` field, and click **Save** to add the example has to your
     dataset.
-
+  </li>
+  <li>
     c. Repeat steps (a) and (b) a couple more times to add more examples. This
     guide adds the following example inputs to the dataset:
+  </li>
+  </ul>
+</ul>
 
-    ```
+
     "Can I give milk to my cats?"
-    "From which animals did dogs evolve?"
-    ```
 
+    "From which animals did dogs evolve?"
+
+<ul>
     By the end of this step, your dataset should have 3 examples in it, with the
     values mentioned above.
-
+</ul>
 ### Run evaluation and view results
 
 To start evaluating the flow, click the `Evaluations` tab in the Dev UI and
