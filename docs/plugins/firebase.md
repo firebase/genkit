@@ -8,7 +8,7 @@ The Firebase plugin provides integrations with Firebase services, allowing you t
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.  
 - **Cloud Functions**: Deploy flows as HTTPS-triggered functions.  
 - **Firebase Authentication**: Implement authorization policies.  
-- **Telemetry**: Export telemetry to [Google Cloud’s operations suite](https://cloud.google.com/products/operations) and see specialized views in the Firebase console
+- **Telemetry**: Export telemetry to [Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit Monitoring console.
 
 ## Installation
 
@@ -63,7 +63,9 @@ To provide Firebase credentials, you also need to set up Google Cloud Applicatio
 
 ### Telemetry
 
-To enable telemetry export to Google Cloud's operations suite call `enableFirebaseTelemetry()`:
+Firebase Genkit Monitoring is powered by Google's Cloud operation suite. This requires telemetry related API's to be enabled for your project. Please refer to the [Google Cloud plugin](google-cloud.md#set-up-a-google-cloud-account) documentation for more details.
+
+To enable telemetry export call `enableFirebaseTelemetry()`:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
