@@ -62,7 +62,7 @@ export const GenerateUtilParamSchema = z.object({
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
-  /** Tool calling mode. */
+  /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   /** Configuration for the generation request. */
   config: z.any().optional(),
