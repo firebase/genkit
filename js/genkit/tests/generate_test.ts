@@ -560,5 +560,154 @@ describe('generate', () => {
         }
       );
     });
+
+    it('interrupts tool execution', async () => {
+      ai.defineTool(
+        { name: 'simpleTool', description: 'description' },
+        async (input) => `response: ${input.name}`
+      );
+      ai.defineTool(
+        { name: 'interruptingTool', description: 'description' },
+        async (input, { interrupt }) =>
+          interrupt({ confirm: 'is it a banana?' })
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content:
+              reqCounter++ === 0
+                ? [
+                    {
+                      text: 'reasoning',
+                    },
+                    {
+                      toolRequest: {
+                        name: 'interruptingTool',
+                        input: {},
+                        ref: 'ref123',
+                      },
+                    },
+                    {
+                      toolRequest: {
+                        name: 'simpleTool',
+                        input: { name: 'foo' },
+                        ref: 'ref123',
+                      },
+                    },
+                  ]
+                : [{ text: 'done' }],
+          },
+        };
+      };
+
+      const response = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['interruptingTool', 'simpleTool'],
+      });
+
+      assert.strictEqual(reqCounter, 1);
+      assert.deepStrictEqual(response.toolRequests, [
+        {
+          metadata: {
+            pendingToolResponse: {
+              name: 'simpleTool',
+              output: 'response: foo',
+              ref: 'ref123',
+            },
+          },
+          toolRequest: {
+            input: {
+              name: 'foo',
+            },
+            name: 'simpleTool',
+            ref: 'ref123',
+          },
+        },
+        {
+          toolRequest: {
+            input: {},
+            name: 'interruptingTool',
+            ref: 'ref123',
+          },
+          metadata: {
+            interrupt: {
+              confirm: 'is it a banana?',
+            },
+          },
+        },
+      ]);
+      assert.deepStrictEqual(response.message?.toJSON(), {
+        role: 'model',
+        content: [
+          {
+            text: 'reasoning',
+          },
+          {
+            metadata: {
+              pendingToolResponse: {
+                name: 'simpleTool',
+                output: 'response: foo',
+                ref: 'ref123',
+              },
+            },
+            toolRequest: {
+              input: {
+                name: 'foo',
+              },
+              name: 'simpleTool',
+              ref: 'ref123',
+            },
+          },
+          {
+            metadata: {
+              interrupt: {
+                confirm: 'is it a banana?',
+              },
+            },
+            toolRequest: {
+              input: {},
+              name: 'interruptingTool',
+              ref: 'ref123',
+            },
+          },
+        ],
+      });
+      assert.deepStrictEqual(pm.lastRequest, {
+        config: {},
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: 'call the tool' }],
+          },
+        ],
+        output: {},
+        tools: [
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'interruptingTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'simpleTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+        ],
+      });
+    });
   });
 });

@@ -108,6 +108,7 @@ export {
   type RetrieverReference,
 } from './retriever.js';
 export {
+  ToolInterruptError,
   asTool,
   defineTool,
   type ToolAction,
