@@ -102,7 +102,7 @@ import {
   SessionError,
   SessionOptions,
 } from '@genkit-ai/ai/session';
-import { resolveTools, ToolFn } from '@genkit-ai/ai/tool';
+import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   Action,
   defineFlow,
