@@ -72,8 +72,12 @@ export {
   type ToolResponsePart,
 } from './model.js';
 export {
+  defineHelper,
+  definePartial,
   definePrompt,
   isExecutablePrompt,
+  loadPromptFolder,
+  prompt,
   renderPrompt,
   type ExecutablePrompt,
   type PromptAction,

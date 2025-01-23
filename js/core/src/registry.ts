@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
@@ -35,6 +36,7 @@ export type ActionType =
   | 'flow'
   | 'model'
   | 'prompt'
+  | 'executable-prompt'
   | 'util'
   | 'tool'
   | 'reranker';
@@ -68,6 +70,7 @@ export class Registry {
   private allPluginsInitialized = false;
 
   readonly asyncStore = new AsyncStore();
+  readonly dotpromptEnv = dotprompt();
 
   constructor(public parent?: Registry) {}
 

@@ -140,10 +140,4 @@ export {
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
-export { loadPromptFile } from '@genkit-ai/dotprompt';
-export {
-  Genkit,
-  genkit,
-  type GenkitOptions,
-  type PromptMetadata,
-} from './genkit.js';
+export { Genkit, genkit, type GenkitOptions } from './genkit.js';

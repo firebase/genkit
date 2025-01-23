@@ -14,7 +14,28 @@
  * limitations under the License.
  */
 
+import { dotprompt, PromptFunction } from 'dotprompt';
+import { readFileSync } from 'fs';
+
 /** Helper function to get current directory, isolated in a separate file to work with ESM */
 export function getDirName() {
   return __dirname;
+}
+
+const dp = dotprompt();
+
+export function loadPromptFile(path: string): Promise<PromptFunction> {
+  return dp.compile(dp.parse(readFileSync(path, 'utf8')));
+}
+
+export async function renderText(
+  prompt: PromptFunction,
+  input
+): Promise<string> {
+  const renderred = await prompt({
+    input,
+  });
+  return renderred.messages
+    .map((m) => m.content.map((c) => c.text).join())
+    .join();
 }

@@ -72,26 +72,22 @@ describe('definePrompt - functional', () => {
   });
 
   it('should apply middleware to a prompt call', async () => {
-    const prompt = ai.definePrompt(
-      {
-        name: 'hi',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
+    const prompt = ai.definePrompt({
+      name: 'hi',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [
-            {
-              role: 'user',
-              content: [{ text: `hi ${input.name}` }],
-            },
-          ],
-        };
-      }
-    );
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
 
     const response = await prompt(
       { name: 'Genkit' },
@@ -100,55 +96,47 @@ describe('definePrompt - functional', () => {
     assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
   });
 
-  it.only('should apply middleware configured on a prompt', async () => {
-    const prompt = ai.definePrompt(
-      {
-        name: 'hi',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
-        use: [wrapRequest, wrapResponse],
+  it('should apply middleware configured on a prompt', async () => {
+    const prompt = ai.definePrompt({
+      name: 'hi',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [
-            {
-              role: 'user',
-              content: [{ text: `hi ${input.name}` }],
-            },
-          ],
-        };
-      }
-    );
+      use: [wrapRequest, wrapResponse],
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
 
     const response = await prompt({ name: 'Genkit' });
     assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
   });
 
-  it.only('should apply middleware to a prompt call on a looked up prompt', async () => {
-    ai.definePrompt(
-      {
-        name: 'hi',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
-        use: [wrapRequest, wrapResponse],
+  it('should apply middleware to a prompt call on a looked up prompt', async () => {
+    ai.definePrompt({
+      name: 'hi',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [
-            {
-              role: 'user',
-              content: [{ text: `hi ${input.name}` }],
-            },
-          ],
-        };
-      }
-    );
+      use: [wrapRequest, wrapResponse],
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
 
     const prompt = ai.prompt('hi');
 
@@ -157,26 +145,22 @@ describe('definePrompt - functional', () => {
   });
 
   it('should apply middleware configured on a prompt on a looked up prompt', async () => {
-    ai.definePrompt(
-      {
-        name: 'hi',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
+    ai.definePrompt({
+      name: 'hi',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [
-            {
-              role: 'user',
-              content: [{ text: `hi ${input.name}` }],
-            },
-          ],
-        };
-      }
-    );
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
 
     const prompt = ai.prompt('hi');
 
@@ -200,37 +184,33 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('calls dotprompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls dotprompt with default model with config', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        config: {
+          temperature: 11,
+        },
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
@@ -240,17 +220,15 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('calls dotprompt with default model via retrieved prompt', async () => {
-      ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const hi = ai.prompt('hi');
 
@@ -259,17 +237,15 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('should apply middleware to a prompt call', async () => {
-      const prompt = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const prompt = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await prompt(
         { name: 'Genkit' },
@@ -279,36 +255,32 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('should apply middleware configured on a prompt', async () => {
-      const prompt = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          use: [wrapRequest, wrapResponse],
+      const prompt = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        use: [wrapRequest, wrapResponse],
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await prompt({ name: 'Genkit' });
       assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
     });
 
-    it.only('should apply middleware to a prompt call on a looked up prompt', async () => {
-      ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          use: [wrapRequest, wrapResponse],
+    it('should apply middleware to a prompt call on a looked up prompt', async () => {
+      ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        use: [wrapRequest, wrapResponse],
+        prompt: 'hi {{ name }}',
+      });
 
       const prompt = ai.prompt('hi');
 
@@ -316,18 +288,16 @@ describe('definePrompt - dotprompt', () => {
       assert.strictEqual(response.text, '[Echo: (hi Genkit),; config: {}]');
     });
 
-    it.only('should apply middleware configured on a prompt on a looked up prompt', async () => {
-      ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+    it('should apply middleware configured on a prompt on a looked up prompt', async () => {
+      ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const prompt = ai.prompt('hi');
 
@@ -352,17 +322,15 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('calls dotprompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
@@ -380,25 +348,23 @@ describe('definePrompt - dotprompt', () => {
           },
         ],
       });
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model,
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          output: {
-            format: 'json',
-            schema: Foo,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model,
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        output: {
+          format: 'json',
+          schema: Foo,
+        },
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
-      const foo: z.infer<typeof Foo> = response.output;
+      const foo = response.output;
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
@@ -414,45 +380,41 @@ describe('definePrompt - dotprompt', () => {
           },
         ],
       });
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model,
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          output: {
-            // no format specified
-            schema: Foo,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model,
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        output: {
+          // no format specified
+          schema: Foo,
+        },
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
-      const foo: z.infer<typeof Foo> = response.output;
+      const foo = response.output;
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
     it('streams dotprompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        config: {
+          temperature: 11,
+        },
+        prompt: 'hi {{ name }}',
+      });
 
-      const { response, stream } = await hi.stream({ name: 'Genkit' });
+      const { response, stream } = hi.stream({ name: 'Genkit' });
       const chunks: string[] = [];
       for await (const chunk of stream) {
         chunks.push(chunk.text);
@@ -467,22 +429,27 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('calls dotprompt with default model via retrieved prompt', async () => {
-      ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const hi = ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
+
+      const { stream } = hi.stream({ name: 'Genkit' });
+      const chunks: string[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk.text);
+      }
+      assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
   });
 
@@ -495,88 +462,32 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('calls dotprompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
-    it('calls dotprompt with history and places it at {{ history }}', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-        },
-        '{{ role "system"}} talk like a pirate {{ history}} hi {{ name }}'
-      );
-
-      const response = await hi(
-        { name: 'Genkit' },
-        {
-          messages: [
-            { role: 'user', content: [{ text: 'hi' }] },
-            { role: 'model', content: [{ text: 'bye' }] },
-          ],
-        }
-      );
-      assert.deepStrictEqual(response.messages, [
-        {
-          role: 'system',
-          content: [{ text: ' talk like a pirate ' }],
-        },
-        {
-          role: 'user',
-          content: [{ text: 'hi' }],
-          metadata: { purpose: 'history' },
-        },
-        {
-          role: 'model',
-          content: [{ text: 'bye' }],
-          metadata: { purpose: 'history' },
-        },
-        {
-          role: 'model',
-          content: [{ text: ' hi Genkit' }],
-        },
-        {
-          role: 'model',
-          content: [
-            { text: 'Echo: system:  talk like a pirate ,hi,bye, hi Genkit' },
-            { text: '; config: {}' },
-          ],
-        },
-      ]);
-    });
-
     it('calls dotprompt with history and places it before user message', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi(
         { name: 'Genkit' },
@@ -611,18 +522,16 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('streams dotprompt with history and places it before user message', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi.stream(
         { name: 'Genkit' },
@@ -657,21 +566,19 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('calls dotprompt with default model with config', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        config: {
+          temperature: 11,
+        },
+        prompt: 'hi {{ name }}',
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
@@ -681,22 +588,20 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('rejects on invalid model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'modelThatDoesNotExist',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'modelThatDoesNotExist',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
       const response = hi({ name: 'Genkit' });
       await assert.rejects(response, {
-        message: 'Model modelThatDoesNotExist not found',
+        message: 'NOT_FOUND: Model modelThatDoesNotExist not found',
       });
     });
   });
@@ -710,31 +615,27 @@ describe('definePrompt - dotprompt', () => {
     });
 
     it('renderes dotprompt messages', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        'hi {{ name }}'
-      );
+        prompt: 'hi {{ name }}',
+      });
 
-      const response = await hi.render({ input: { name: 'Genkit' } });
+      const response = await hi.render({ name: 'Genkit' });
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
         docs: undefined,
-        prompt: [
-          {
-            text: 'hi Genkit',
-          },
-        ],
-        messages: [],
+        maxTurns: undefined,
+        messages: [{ content: [{ text: 'hi Genkit' }], role: 'user' }],
         output: undefined,
-        tools: [],
+        tools: undefined,
+        returnToolRequests: undefined,
+        use: undefined,
       });
     });
   });
@@ -752,49 +653,37 @@ describe('definePrompt', () => {
     });
 
     it('calls prompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls prompt with default model with config', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        config: {
+          temperature: 11,
+        },
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
@@ -804,23 +693,17 @@ describe('definePrompt', () => {
     });
 
     it('calls prompt with default model via retrieved prompt', async () => {
-      ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const hi = ai.prompt('hi');
 
@@ -842,49 +725,37 @@ describe('definePrompt', () => {
     });
 
     it('calls prompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('streams prompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        config: {
+          temperature: 11,
+        },
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const { response, stream } = await hi.stream({ name: 'Genkit' });
       const chunks: string[] = [];
@@ -910,51 +781,39 @@ describe('definePrompt', () => {
     });
 
     it('calls prompt with default model', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls prompt with default model with config', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        config: {
+          temperature: 11,
+        },
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
@@ -964,27 +823,21 @@ describe('definePrompt', () => {
     });
 
     it('calls prompt with default model with call site config', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
-          config: {
-            temperature: 11,
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        config: {
+          temperature: 11,
+        },
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
       const response = await hi(
         { name: 'Genkit' },
@@ -1010,26 +863,20 @@ describe('definePrompt', () => {
     });
 
     it('renders prompt', async () => {
-      const hi = ai.definePrompt(
-        {
-          name: 'hi',
-          model: 'echoModel',
-          input: {
-            schema: z.object({
-              name: z.string(),
-            }),
-          },
+      const hi = ai.definePrompt({
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
         },
-        async (input) => {
-          return {
-            messages: [
-              { role: 'user', content: [{ text: `hi ${input.name}` }] },
-            ],
-          };
-        }
-      );
+        messages: async (input) => {
+          return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+        },
+      });
 
-      const response = await hi.render({ input: { name: 'Genkit' } });
+      const response = await hi.render({ name: 'Genkit' });
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
@@ -1046,6 +893,9 @@ describe('definePrompt', () => {
         ],
         output: undefined,
         tools: undefined,
+        maxTurns: undefined,
+        returnToolRequests: undefined,
+        use: undefined,
       });
     });
   });
@@ -1082,30 +932,26 @@ describe('prompt', () => {
 
     assert.strictEqual(
       text,
-      'Echo: Hello from a variant of the hello prompt\n; config: {"temperature":13}'
+      'Echo: Hello from a variant of the hello prompt; config: {"temperature":13}'
     );
   });
 
   it('returns a ref to functional prompts', async () => {
-    ai.definePrompt(
-      {
-        name: 'hi',
-        model: 'echoModel',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
+    ai.definePrompt({
+      name: 'hi',
+      model: 'echoModel',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [{ role: 'user', content: [{ text: `hi ${input.name}` }] }],
-          config: {
-            temperature: 11,
-          },
-        };
-      }
-    );
+      config: {
+        temperature: 11,
+      },
+      messages: async (input) => {
+        return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+      },
+    });
     const testPrompt = ai.prompt('hi');
     const { text } = await testPrompt({ name: 'banana' });
 
@@ -1113,28 +959,19 @@ describe('prompt', () => {
   });
 
   it('includes metadata for functional prompts', async () => {
-    ai.definePrompt(
-      {
-        name: 'hi',
-        model: 'echoModel',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
-        config: {
-          temperature: 0.13,
-        },
+    ai.definePrompt({
+      name: 'hi',
+      model: 'echoModel',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [],
-          config: {
-            temperature: 11,
-          },
-        };
-      }
-    );
+      config: {
+        temperature: 0.13,
+      },
+      messages: async (input) => [],
+    });
     const testPrompt: PromptAction =
       await ai.registry.lookupAction('/prompt/hi');
 
@@ -1164,31 +1001,27 @@ describe('prompt', () => {
   });
 
   it('passes in output options to the model', async () => {
-    const hi = ai.definePrompt(
-      {
-        name: 'hi',
-        model: 'programmableModel',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
-        output: {
-          schema: z.object({
-            message: z.string(),
-          }),
-          format: 'json',
-        },
+    const hi = ai.definePrompt({
+      name: 'hi',
+      model: 'programmableModel',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      async (input) => {
-        return {
-          messages: [{ role: 'user', content: [{ text: `hi ${input.name}` }] }],
-          config: {
-            temperature: 11,
-          },
-        };
-      }
-    );
+      output: {
+        schema: z.object({
+          message: z.string(),
+        }),
+        format: 'json',
+      },
+      config: {
+        temperature: 11,
+      },
+      messages: async (input) => {
+        return [{ role: 'user', content: [{ text: `hi ${input.name}` }] }];
+      },
+    });
 
     pm.handleResponse = async (req, sc) => {
       return {
@@ -1221,24 +1054,20 @@ describe('asTool', () => {
 
   it('swaps out preamble on .prompt file tool invocation', async () => {
     const session = ai.createSession({ initialState: { name: 'Genkit' } });
-    const agentA = ai.definePrompt(
-      {
-        name: 'agentA',
-        config: { temperature: 2 },
-        description: 'Agent A description',
-        tools: ['toolPrompt'], // <--- defined in a .prompt file
+    const agentA = ai.definePrompt({
+      name: 'agentA',
+      config: { temperature: 2 },
+      description: 'Agent A description',
+      tools: ['toolPrompt'], // <--- defined in a .prompt file
+      messages: async () => {
+        return [
+          {
+            role: 'system',
+            content: [{ text: ' agent a' }],
+          },
+        ];
       },
-      async () => {
-        return {
-          messages: [
-            {
-              role: 'system',
-              content: [{ text: ' agent a' }],
-            },
-          ],
-        };
-      }
-    );
+    });
 
     // simple hi, nothing interesting...
     pm.handleResponse = async (req, sc) => {
@@ -1277,6 +1106,9 @@ describe('asTool', () => {
           },
           outputSchema: {
             $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          metadata: {
+            originalName: 'dotprompt/toolPrompt',
           },
         },
       ],
@@ -1486,6 +1318,9 @@ describe('asTool', () => {
           name: 'toolPrompt',
           outputSchema: {
             $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          metadata: {
+            originalName: 'dotprompt/toolPrompt',
           },
         },
       ],

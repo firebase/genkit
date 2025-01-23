@@ -341,6 +341,8 @@ async function resolveFullToolName(
     return `/tool/${name}`;
   } else if (await registry.lookupAction(`/prompt/${name}`)) {
     return `/prompt/${name}`;
+  } else if (await registry.lookupAction(`/prompt/dotprompt/${name}`)) {
+    return `/prompt/dotprompt/${name}`;
   } else {
     throw new Error(`Unable to determine type of of tool: ${name}`);
   }
@@ -367,10 +369,12 @@ export function generateStream<
 ): GenerateStreamResponse<O> {
   let channel = new Channel<GenerateResponseChunk>();
 
-  const generated = generate<O, CustomOptions>(registry, {
-    ...options,
-    onChunk: (chunk) => channel.send(chunk),
-  });
+  const generated = Promise.resolve(options).then((resolvedOptions) =>
+    generate<O, CustomOptions>(registry, {
+      ...resolvedOptions,
+      onChunk: (chunk) => channel.send(chunk),
+    })
+  );
   generated.then(
     () => channel.close(),
     (err) => channel.error(err)

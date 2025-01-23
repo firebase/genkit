@@ -17,7 +17,6 @@
   "license": "ISC",
   "dependencies": {
     "genkit": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
