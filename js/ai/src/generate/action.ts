@@ -41,6 +41,7 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
+  ModelAction,
   ModelInfo,
   ModelMiddleware,
   ModelRequest,
@@ -164,7 +165,7 @@ async function generate(
     options.rawRequest,
     tools,
     resolvedFormat,
-    model.__action.metadata?.model as ModelInfo
+    model
   );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
@@ -310,19 +311,28 @@ async function generate(
 
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[],
-  resolvedFormat?: Formatter,
-  modelInfo?: ModelInfo
+  resolvedTools: ToolAction[] | undefined,
+  resolvedFormat: Formatter | undefined,
+  model: ModelAction
 ): Promise<GenerateRequest> {
-  if ((options.tools?.length ?? 0) > 0 && !modelInfo?.supports?.tools) {
+  const modelInfo = model.__action.metadata?.model as ModelInfo;
+  if (
+    (options.tools?.length ?? 0) > 0 &&
+    modelInfo?.supports &&
+    !modelInfo?.supports?.tools
+  ) {
     logger.warn(
-      `The model does not support tools (you set: ${options.tools?.length} tools). ` +
+      `The model ${model.__action.name} does not support tools (you set: ${options.tools?.length} tools). ` +
         'The model may not behave the way you expect.'
     );
   }
-  if (options.toolChoice && !modelInfo?.supports?.toolChoice) {
+  if (
+    options.toolChoice &&
+    modelInfo?.supports &&
+    !modelInfo?.supports?.toolChoice
+  ) {
     logger.warn(
-      `The model does not support toolChoice option (you set: ${options.toolChoice}). ` +
+      `The model ${model.__action.name} does not support toolChoice option (you set: ${options.toolChoice}). ` +
         'The model may not behave the way you expect.'
     );
   }
