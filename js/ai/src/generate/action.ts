@@ -274,9 +274,7 @@ async function generate(
       } catch (e) {
         if (e instanceof ToolInterruptError) {
           logger.debug(`interrupted tool ${part.toolRequest?.name}`);
-          if (e.metadata) {
-            part.metadata = { ...part.metadata, interrupt: e.metadata };
-          }
+          part.metadata = { ...part.metadata, interrupt: e.metadata || true };
           interruptedParts.push(part);
         } else {
           throw e;
@@ -294,9 +292,7 @@ async function generate(
       } catch (e) {
         if (e instanceof ToolInterruptError) {
           logger.debug(`interrupted tool ${part.toolRequest?.name}`);
-          if (e.metadata) {
-            part.metadata = { ...part.metadata, interrupt: e.metadata };
-          }
+          part.metadata = { ...part.metadata, interrupt: e.metadata || true };
           interruptedParts.push(part);
         } else {
           throw e;
@@ -337,7 +333,12 @@ async function generate(
       finishReason: 'interrupted',
       message: {
         role: 'model',
-        content: interruptedParts,
+        content: (
+          (response.message?.content.filter((c) => !c.toolRequest) as Part[]) ||
+          []
+        )
+          .concat(toolResponses)
+          .concat(interruptedParts),
       },
     };
   }

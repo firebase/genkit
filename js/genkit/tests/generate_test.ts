@@ -563,7 +563,11 @@ describe('generate', () => {
 
     it('interrupts tool execution', async () => {
       ai.defineTool(
-        { name: 'testTool', description: 'description' },
+        { name: 'simpleTool', description: 'description' },
+        async (input) => `response: ${input.name}`
+      );
+      ai.defineTool(
+        { name: 'interruptingTool', description: 'description' },
         async (input, { interrupt }) =>
           interrupt({ confirm: 'is it a banana?' })
       );
@@ -574,24 +578,35 @@ describe('generate', () => {
         return {
           message: {
             role: 'model',
-            content: [
+            content:
               reqCounter++ === 0
-                ? {
-                    toolRequest: {
-                      name: 'testTool',
-                      input: {},
-                      ref: 'ref123',
+                ? [
+                    {
+                      text: 'reasoning',
                     },
-                  }
-                : { text: 'done' },
-            ],
+                    {
+                      toolRequest: {
+                        name: 'interruptingTool',
+                        input: {},
+                        ref: 'ref123',
+                      },
+                    },
+                    {
+                      toolRequest: {
+                        name: 'simpleTool',
+                        input: { name: 'foo' },
+                        ref: 'ref123',
+                      },
+                    },
+                  ]
+                : [{ text: 'done' }],
           },
         };
       };
 
       const response = await ai.generate({
         prompt: 'call the tool',
-        tools: ['testTool'],
+        tools: ['interruptingTool', 'simpleTool'],
       });
 
       assert.strictEqual(reqCounter, 1);
@@ -599,7 +614,7 @@ describe('generate', () => {
         {
           toolRequest: {
             input: {},
-            name: 'testTool',
+            name: 'interruptingTool',
             ref: 'ref123',
           },
           metadata: {
@@ -609,6 +624,33 @@ describe('generate', () => {
           },
         },
       ]);
+      assert.deepStrictEqual(response.message?.toJSON(), {
+        role: 'model',
+        content: [
+          {
+            text: 'reasoning',
+          },
+          {
+            toolResponse: {
+              name: 'simpleTool',
+              output: 'response: foo',
+              ref: 'ref123',
+            },
+          },
+          {
+            metadata: {
+              interrupt: {
+                confirm: 'is it a banana?',
+              },
+            },
+            toolRequest: {
+              input: {},
+              name: 'interruptingTool',
+              ref: 'ref123',
+            },
+          },
+        ],
+      });
       assert.deepStrictEqual(pm.lastRequest, {
         config: {},
         messages: [
@@ -624,7 +666,17 @@ describe('generate', () => {
             inputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
-            name: 'testTool',
+            name: 'interruptingTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'simpleTool',
             outputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
