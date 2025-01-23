@@ -218,7 +218,7 @@ export class Genkit implements HasRegistry {
    */
   defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: ToolConfig<I, O>,
-    fn: ToolFn<I, O>
+    fn: (input: z.infer<I>) => Promise<z.infer<O>>
   ): ToolAction<I, O> {
     return defineTool(this.registry, config, fn);
   }
