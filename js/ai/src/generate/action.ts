@@ -322,7 +322,7 @@ async function actionToGenerateRequest(
     !modelInfo?.supports?.tools
   ) {
     logger.warn(
-      `The model ${model.__action.name} does not support tools (you set: ${options.tools?.length} tools). ` +
+      `The model '${model.__action.name}' does not support tools (you set: ${options.tools?.length} tools). ` +
         'The model may not behave the way you expect.'
     );
   }
@@ -332,7 +332,7 @@ async function actionToGenerateRequest(
     !modelInfo?.supports?.toolChoice
   ) {
     logger.warn(
-      `The model ${model.__action.name} does not support toolChoice option (you set: ${options.toolChoice}). ` +
+      `The model '${model.__action.name}' does not support the 'toolChoice' option (you set: ${options.toolChoice}). ` +
         'The model may not behave the way you expect.'
     );
   }
