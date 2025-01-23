@@ -329,7 +329,8 @@ async function generate(
         previousChunks: accumulatedChunks,
         parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
       }
-    ));
+    )
+  );
   if (interruptedParts.length > 0) {
     return {
       ...response.toJSON(),
