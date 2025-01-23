@@ -612,6 +612,22 @@ describe('generate', () => {
       assert.strictEqual(reqCounter, 1);
       assert.deepStrictEqual(response.toolRequests, [
         {
+          metadata: {
+            pendingToolResponse: {
+              name: 'simpleTool',
+              output: 'response: foo',
+              ref: 'ref123',
+            },
+          },
+          toolRequest: {
+            input: {
+              name: 'foo',
+            },
+            name: 'simpleTool',
+            ref: 'ref123',
+          },
+        },
+        {
           toolRequest: {
             input: {},
             name: 'interruptingTool',
@@ -631,9 +647,18 @@ describe('generate', () => {
             text: 'reasoning',
           },
           {
-            toolResponse: {
+            metadata: {
+              pendingToolResponse: {
+                name: 'simpleTool',
+                output: 'response: foo',
+                ref: 'ref123',
+              },
+            },
+            toolRequest: {
+              input: {
+                name: 'foo',
+              },
               name: 'simpleTool',
-              output: 'response: foo',
               ref: 'ref123',
             },
           },

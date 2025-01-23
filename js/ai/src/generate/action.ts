@@ -244,6 +244,7 @@ async function generate(
   let newTools = options.rawRequest.tools;
   let newToolChoice = options.rawRequest.toolChoice;
   let interruptedParts: Part[] = [];
+  let pendingToolRequests: Part[] = [];
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -282,11 +283,22 @@ async function generate(
       }
     } else {
       try {
+        const toolOutput = await tool(part.toolRequest?.input);
+        const requestPart = { ...part } as Part;
+        requestPart.metadata = {
+          ...part.metadata,
+          pendingToolResponse: {
+            name: part.toolRequest.name,
+            ref: part.toolRequest.ref,
+            output: toolOutput,
+          },
+        };
+        pendingToolRequests.push(requestPart);
         toolResponses.push({
           toolResponse: {
             name: part.toolRequest.name,
             ref: part.toolRequest.ref,
-            output: await tool(part.toolRequest?.input),
+            output: toolOutput,
           },
         });
       } catch (e) {
@@ -328,16 +340,15 @@ async function generate(
     )
   );
   if (interruptedParts.length > 0) {
+    const nonToolParts =
+      (response.message?.content.filter((c) => !c.toolRequest) as Part[]) || [];
     return {
       ...response.toJSON(),
       finishReason: 'interrupted',
       message: {
         role: 'model',
-        content: (
-          (response.message?.content.filter((c) => !c.toolRequest) as Part[]) ||
-          []
-        )
-          .concat(toolResponses)
+        content: nonToolParts
+          .concat(pendingToolRequests)
           .concat(interruptedParts),
       },
     };
