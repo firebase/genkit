@@ -85,13 +85,15 @@ export const GenerateUtilParamSchema = z.object({
  */
 export async function generateHelper(
   registry: Registry,
-  input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: ModelMiddleware[],
-  currentTurns?: number,
-  messageIndex?: number
+  options: {
+    rawRequest: z.infer<typeof GenerateUtilParamSchema>;
+    middleware?: ModelMiddleware[];
+    currentTurn?: number;
+    messageIndex?: number;
+  }
 ): Promise<GenerateResponseData> {
-  currentTurns = currentTurns ?? 0;
-  messageIndex = messageIndex ?? 0;
+  let currentTurn = options.currentTurn ?? 0;
+  let messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -105,14 +107,13 @@ export async function generateHelper(
     },
     async (metadata) => {
       metadata.name = 'generate';
-      metadata.input = input;
-      const output = await generate(
-        registry,
-        input,
-        middleware,
-        currentTurns!,
-        messageIndex!
-      );
+      metadata.input = options.rawRequest;
+      const output = await generate(registry, {
+        rawRequest: options.rawRequest,
+        middleware: options.middleware,
+        currentTurn,
+        messageIndex,
+      });
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -121,12 +122,17 @@ export async function generateHelper(
 
 async function generate(
   registry: Registry,
-  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware: ModelMiddleware[] | undefined,
-  currentTurn: number,
-  messageIndex: number
+  options: {
+    rawRequest: z.infer<typeof GenerateUtilParamSchema>;
+    middleware: ModelMiddleware[] | undefined;
+    currentTurn: number;
+    messageIndex: number;
+  }
 ): Promise<GenerateResponseData> {
-  const { modelAction: model } = await resolveModel(registry, rawRequest.model);
+  const { modelAction: model } = await resolveModel(
+    registry,
+    options.rawRequest.model
+  );
   if (model.__action.metadata?.model.stage === 'deprecated') {
     logger.warn(
       `${clc.bold(clc.yellow('Warning:'))} ` +
@@ -134,9 +140,12 @@ async function generate(
     );
   }
 
-  const tools = await resolveTools(registry, rawRequest.tools);
+  const tools = await resolveTools(registry, options.rawRequest.tools);
 
-  const resolvedFormat = await resolveFormat(registry, rawRequest.output);
+  const resolvedFormat = await resolveFormat(
+    registry,
+    options.rawRequest.output
+  );
   // Create a lookup of tool names with namespaces stripped to original names
   const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
     const name = tool.__action.name;
@@ -152,7 +161,7 @@ async function generate(
   }, {});
 
   const request = await actionToGenerateRequest(
-    rawRequest,
+    options.rawRequest,
     tools,
     resolvedFormat,
     model.__action.metadata?.model as ModelInfo
@@ -169,7 +178,7 @@ async function generate(
           if (streamingCallback) {
             streamingCallback!(
               new GenerateResponseChunk(chunk, {
-                index: messageIndex,
+                index: options.messageIndex,
                 role: 'model',
                 previousChunks: accumulatedChunks,
                 parser: resolvedFormat?.handler(request.output?.schema)
@@ -185,12 +194,12 @@ async function generate(
         index: number,
         req: z.infer<typeof GenerateRequestSchema>
       ) => {
-        if (!middleware || index === middleware.length) {
+        if (!options.middleware || index === options.middleware.length) {
           // end of the chain, call the original model action
           return await model(req);
         }
 
-        const currentMiddleware = middleware[index];
+        const currentMiddleware = options.middleware[index];
         return currentMiddleware(req, async (modifiedReq) =>
           dispatch(index + 1, modifiedReq || req)
         );
@@ -208,14 +217,14 @@ async function generate(
   const message = response.message!; // would have thrown if no message
 
   const toolCalls = message.content.filter((part) => !!part.toolRequest);
-  if (rawRequest.returnToolRequests || toolCalls.length === 0) {
+  if (options.rawRequest.returnToolRequests || toolCalls.length === 0) {
     if (toolCalls.length === 0) {
       response.assertValidSchema(request);
     }
     return response.toJSON();
   }
-  const maxIterations = rawRequest.maxTurns ?? 5;
-  if (currentTurn + 1 > maxIterations) {
+  const maxIterations = options.rawRequest.maxTurns ?? 5;
+  if (options.currentTurn + 1 > maxIterations) {
     throw new GenerationResponseError(
       response,
       `Exceeded maximum tool call iterations (${maxIterations})`,
@@ -226,8 +235,8 @@ async function generate(
 
   const toolResponses: ToolResponsePart[] = [];
   let messages: MessageData[] = [...request.messages, message];
-  let newTools = rawRequest.tools;
-  let newToolChoice = rawRequest.toolChoice;
+  let newTools = options.rawRequest.tools;
+  let newToolChoice = options.rawRequest.toolChoice;
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -264,9 +273,9 @@ async function generate(
       });
     }
   }
-  messageIndex++;
+  options.messageIndex++;
   const nextRequest = {
-    ...rawRequest,
+    ...options.rawRequest,
     messages: [
       ...messages,
       {
@@ -284,20 +293,19 @@ async function generate(
         content: toolResponses,
       },
       {
-        index: messageIndex,
+        index: options.messageIndex,
         role: 'model',
         previousChunks: accumulatedChunks,
         parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
       }
     )
   );
-  return await generateHelper(
-    registry,
-    nextRequest,
-    middleware,
-    currentTurn + 1,
-    messageIndex + 1
-  );
+  return await generateHelper(registry, {
+    rawRequest: nextRequest,
+    middleware: options.middleware,
+    currentTurn: options.currentTurn + 1,
+    messageIndex: options.messageIndex + 1,
+  });
 }
 
 async function actionToGenerateRequest(

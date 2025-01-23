@@ -298,11 +298,10 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
-      const response = await generateHelper(
-        registry,
-        params,
-        resolvedOptions.use
-      );
+      const response = await generateHelper(registry, {
+        rawRequest: params,
+        middleware: resolvedOptions.use,
+      });
       const request = await toGenerateRequest(registry, {
         ...resolvedOptions,
         tools,
