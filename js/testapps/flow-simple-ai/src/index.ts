@@ -386,6 +386,19 @@ const jokeSubjectGenerator = ai.defineTool(
   }
 );
 
+const gablorkenTool = ai.defineTool(
+  {
+    name: 'gablorkenTool',
+    inputSchema: z.object({
+      value: z.number(),
+    }),
+    description: 'can be used to calculate gablorken value',
+  },
+  async (input) => {
+    return input.value * 3 - 4;
+  }
+);
+
 export const toolCaller = ai.defineFlow(
   {
     name: 'toolCaller',
@@ -404,6 +417,49 @@ export const toolCaller = ai.defineFlow(
       },
       tools: [jokeSubjectGenerator],
       prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream) {
+      streamingCallback(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+const exitTool = ai.defineTool(
+  {
+    name: 'exitTool',
+    inputSchema: z.object({
+      answer: z.number(),
+    }),
+    description: 'call this tool when you have the final answer',
+  },
+  async (input) => {
+    throw new Error(`Answer: ${input.answer}`);
+  }
+);
+
+export const forcedToolCaller = ai.defineFlow(
+  {
+    name: 'forcedToolCaller',
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (input, streamingCallback) => {
+    if (!streamingCallback) {
+      throw new Error('this flow only works in streaming mode');
+    }
+
+    const { response, stream } = await ai.generateStream({
+      model: gemini15Flash,
+      config: {
+        temperature: 1,
+      },
+      tools: [gablorkenTool, exitTool],
+      toolChoice: 'required',
+      prompt: `what is a gablorken of ${input}`,
     });
 
     for await (const chunk of stream) {
@@ -572,11 +628,12 @@ ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query) => {
+  async (query, { sendChunk }) => {
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: query,
       tools: ['math/add', 'math/subtract'],
+      onChunk: sendChunk,
     });
     return text;
   }

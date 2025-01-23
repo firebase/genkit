@@ -36,6 +36,7 @@ import {
   GenerateStreamResponse,
   OutputOptions,
   toGenerateRequest,
+  ToolChoice,
 } from './generate.js';
 import { Message } from './message.js';
 import {
@@ -116,10 +117,11 @@ export interface PromptConfig<
   messages?: string | MessageData[] | MessageGenerator<z.infer<I>>;
   docs?: DocumentData[] | DocumentGenerator<z.infer<I>>;
   output?: OutputOptions<O>;
-  tools?: ToolArgument[];
   maxTurns?: number;
   returnToolRequests?: boolean;
   metadata?: Record<string, any>;
+  tools?: ToolArgument[];
+  toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
 }
 

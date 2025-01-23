@@ -16,7 +16,7 @@
 
 import { z } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import {
   GenerateResponse,
@@ -156,7 +156,7 @@ describe('GenerateResponse', () => {
 
       assert.throws(
         () => {
-          response.assertValid(request);
+          response.assertValidSchema(request);
         },
         (err: unknown) => {
           return err instanceof Error && err.message.includes('must be number');
@@ -186,7 +186,7 @@ describe('GenerateResponse', () => {
       };
 
       assert.doesNotThrow(() => {
-        response.assertValid(request);
+        response.assertValidSchema(request);
       });
     });
   });

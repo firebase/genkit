@@ -62,7 +62,7 @@ export const testFlow = ai.defineFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamy = ai.defineStreamingFlow(
+export const streamy = ai.defineFlow(
   {
     name: 'streamy',
     inputSchema: z.number(),

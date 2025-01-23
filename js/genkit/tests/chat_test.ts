@@ -16,7 +16,7 @@
 
 import { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 import {
@@ -196,6 +196,7 @@ describe('preamble', () => {
       config: { temperature: 1 },
       description: 'Agent B description',
       tools: ['agentA'],
+      toolChoice: 'required',
       system: 'agent b',
     });
 
@@ -204,6 +205,7 @@ describe('preamble', () => {
       config: { temperature: 2 },
       description: 'Agent A description',
       tools: [agentB],
+      toolChoice: 'required',
       messages: async () => {
         return [
           {
@@ -219,14 +221,16 @@ describe('preamble', () => {
       return {
         message: {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [
+            { text: `hi from agent a (toolChoice: ${req.toolChoice})` },
+          ],
         },
       };
     };
 
     const session = ai.chat(agentA);
     let { text } = await session.send('hi');
-    assert.strictEqual(text, 'hi from agent a');
+    assert.strictEqual(text, 'hi from agent a (toolChoice: required)');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         temperature: 2,
@@ -255,6 +259,7 @@ describe('preamble', () => {
           },
         },
       ],
+      toolChoice: 'required',
     });
 
     // transfer to agent B...
@@ -274,7 +279,7 @@ describe('preamble', () => {
                     ref: 'ref123',
                   },
                 }
-              : { text: 'hi from agent b' },
+              : { text: `hi from agent b (toolChoice: ${req.toolChoice})` },
           ],
         },
       };
@@ -282,7 +287,7 @@ describe('preamble', () => {
 
     ({ text } = await session.send('pls transfer to b'));
 
-    assert.deepStrictEqual(text, 'hi from agent b');
+    assert.deepStrictEqual(text, 'hi from agent b (toolChoice: required)');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         // TODO: figure out if config should be swapped out as well...
@@ -300,7 +305,7 @@ describe('preamble', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: 'hi from agent a (toolChoice: required)' }],
         },
         {
           role: 'user',
@@ -344,6 +349,7 @@ describe('preamble', () => {
           },
         },
       ],
+      toolChoice: 'required',
     });
 
     // transfer back to to agent A...
@@ -388,7 +394,7 @@ describe('preamble', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: 'hi from agent a (toolChoice: required)' }],
         },
         {
           role: 'user',
@@ -420,7 +426,7 @@ describe('preamble', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent b' }],
+          content: [{ text: 'hi from agent b (toolChoice: required)' }],
         },
         {
           role: 'user',
@@ -464,6 +470,7 @@ describe('preamble', () => {
           },
         },
       ],
+      toolChoice: 'required',
     });
   });
 

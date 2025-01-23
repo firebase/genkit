@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { textFormatter } from '../../src/formats/text.js';
 import { GenerateResponseChunk } from '../../src/generate.js';
@@ -54,11 +54,17 @@ describe('textFormat', () => {
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
+          index: 0,
+          role: 'model',
           content: [{ text: chunk.text }],
         };
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, { previousChunks: chunks })
+          new GenerateResponseChunk(newChunk, {
+            index: 0,
+            role: 'model',
+            previousChunks: chunks,
+          })
         );
         chunks.push(newChunk);
 

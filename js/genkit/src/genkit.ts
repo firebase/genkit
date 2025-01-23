@@ -105,6 +105,7 @@ import {
   SessionOptions,
   getCurrentSession,
 } from '@genkit-ai/ai/session';
+import { ToolFn } from '@genkit-ai/ai/tool';
 import {
   Action,
   FlowConfig,
@@ -196,7 +197,7 @@ export class Genkit implements HasRegistry {
    */
   defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: ToolConfig<I, O>,
-    fn: (input: z.infer<I>) => Promise<z.infer<O>>
+    fn: ToolFn<I, O>
   ): ToolAction<I, O> {
     return defineTool(this.registry, config, fn);
   }

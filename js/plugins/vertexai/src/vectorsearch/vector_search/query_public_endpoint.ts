@@ -88,5 +88,5 @@ export async function queryPublicEndpoint(
   if (!response.ok) {
     logger.error('Error querying index: ', response.statusText);
   }
-  return response.json();
+  return response.json() as FindNeighborsResponse;
 }

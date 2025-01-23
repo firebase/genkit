@@ -167,6 +167,19 @@ export function toToolDefinition(
   return out;
 }
 
+export interface ToolFnOptions {
+  /**
+   * A function that can be called during tool execution that will result in the tool
+   * getting interrupted (immediately) and tool request returned to the upstream caller.
+   */
+  interrupt: (metadata?: Record<string, any>) => void;
+}
+
+export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
+  input: z.infer<I>,
+  ctx: ToolFnOptions
+) => Promise<z.infer<O>>;
+
 /**
  * Defines a tool.
  *
@@ -175,7 +188,7 @@ export function toToolDefinition(
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   registry: Registry,
   config: ToolConfig<I, O>,
-  fn: (input: z.infer<I>) => Promise<z.infer<O>>
+  fn: ToolFn<I, O>
 ): ToolAction<I, O> {
   const a = defineAction(
     registry,
@@ -184,7 +197,27 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       actionType: 'tool',
       metadata: { ...(config.metadata || {}), type: 'tool' },
     },
-    (i) => fn(i)
+    (i) =>
+      fn(i, {
+        interrupt: interruptTool,
+      })
   );
   return a as ToolAction<I, O>;
+}
+
+/**
+ * Thrown when tools execution is interrupted. It's meant to be caugh by the framework, not public API.
+ */
+export class ToolInterruptError extends Error {
+  constructor(readonly metadata?: Record<string, any>) {
+    super();
+  }
+}
+
+/**
+ * Interrupts current tool execution causing tool request to be returned in the generation response.
+ * Should only be called within a tool.
+ */
+function interruptTool(metadata?: Record<string, any>) {
+  throw new ToolInterruptError(metadata);
 }

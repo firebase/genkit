@@ -210,6 +210,7 @@ export const gemini10Pro = modelRef({
       media: false,
       tools: true,
       systemRole: true,
+      toolChoice: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -224,6 +225,7 @@ export const gemini15Pro = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
   },
@@ -239,6 +241,7 @@ export const gemini15Flash = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
   },
@@ -254,6 +257,7 @@ export const gemini20FlashExp = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
   },
@@ -624,19 +628,18 @@ export function defineGeminiModel(
         : [];
 
       let toolConfig: ToolConfig | undefined;
-      if (
-        request?.config?.functionCallingConfig &&
-        // This is a workround for issue: https://github.com/firebase/genkit/issues/1520
-        // TODO: remove this when the issue is resolved upstream in the Gemini API
-        !messages.at(-1)?.content.find((c) => c.toolResponse)
-      ) {
+      if (request?.config?.functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
             allowedFunctionNames:
               request.config.functionCallingConfig.allowedFunctionNames,
-            mode: toGeminiFunctionMode(
-              request.config.functionCallingConfig.mode
-            ),
+            mode: toFunctionModeEnum(request.config.functionCallingConfig.mode),
+          },
+        };
+      } else if (request.toolChoice) {
+        toolConfig = {
+          functionCallingConfig: {
+            mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
       }
@@ -798,13 +801,14 @@ export function defineGeminiModel(
   );
 }
 
-function toGeminiFunctionMode(
-  genkitMode: string | undefined
+/** Converts mode from the config, which follows Gemini naming convention. */
+function toFunctionModeEnum(
+  enumMode: string | undefined
 ): FunctionCallingMode | undefined {
-  if (genkitMode === undefined) {
+  if (enumMode === undefined) {
     return undefined;
   }
-  switch (genkitMode) {
+  switch (enumMode) {
     case 'MODE_UNSPECIFIED': {
       return FunctionCallingMode.MODE_UNSPECIFIED;
     }
@@ -815,6 +819,28 @@ function toGeminiFunctionMode(
       return FunctionCallingMode.AUTO;
     }
     case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${enumMode}`);
+  }
+}
+
+/** Converts mode from genkit tool choice. */
+function toGeminiFunctionModeEnum(
+  genkitMode: 'auto' | 'required' | 'none'
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'required': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'auto': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'none': {
       return FunctionCallingMode.NONE;
     }
     default:

@@ -19,7 +19,7 @@ import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import path from 'path';
-import z from 'zod';
+import * as z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';

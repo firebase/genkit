@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+import * as assert from 'assert';
 import express from 'express';
 import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
 import { runFlow, streamFlow } from 'genkit/client';
 import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import * as http from 'http';
-import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
   FlowServer,
@@ -288,9 +288,9 @@ describe('expressHandler', async () => {
       }
 
       assert.deepStrictEqual(gotChunks, [
-        { content: [{ text: '3' }] },
-        { content: [{ text: '2' }] },
-        { content: [{ text: '1' }] },
+        { index: 0, role: 'model', content: [{ text: '3' }] },
+        { index: 0, role: 'model', content: [{ text: '2' }] },
+        { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
       assert.strictEqual(await result.output(), 'Echo: olleh');
@@ -507,9 +507,9 @@ describe('startFlowServer', async () => {
       }
 
       assert.deepStrictEqual(gotChunks, [
-        { content: [{ text: '3' }] },
-        { content: [{ text: '2' }] },
-        { content: [{ text: '1' }] },
+        { index: 0, role: 'model', content: [{ text: '3' }] },
+        { index: 0, role: 'model', content: [{ text: '2' }] },
+        { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
       assert.strictEqual(await result.output(), 'Echo: olleh');
