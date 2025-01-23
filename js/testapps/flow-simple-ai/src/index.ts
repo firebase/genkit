@@ -628,11 +628,12 @@ ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query) => {
+  async (query, { sendChunk }) => {
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: query,
       tools: ['math/add', 'math/subtract'],
+      onChunk: sendChunk,
     });
     return text;
   }

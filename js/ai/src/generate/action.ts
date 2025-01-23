@@ -87,9 +87,11 @@ export async function generateHelper(
   registry: Registry,
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: ModelMiddleware[],
-  currentTurns?: number
+  currentTurns?: number,
+  messageIndex?: number
 ): Promise<GenerateResponseData> {
   currentTurns = currentTurns ?? 0;
+  messageIndex = messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -104,7 +106,13 @@ export async function generateHelper(
     async (metadata) => {
       metadata.name = 'generate';
       metadata.input = input;
-      const output = await generate(registry, input, middleware, currentTurns!);
+      const output = await generate(
+        registry,
+        input,
+        middleware,
+        currentTurns!,
+        messageIndex!
+      );
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -115,7 +123,8 @@ async function generate(
   registry: Registry,
   rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware: ModelMiddleware[] | undefined,
-  currentTurn: number
+  currentTurn: number,
+  messageIndex: number
 ): Promise<GenerateResponseData> {
   const { modelAction: model } = await resolveModel(registry, rawRequest.model);
   if (model.__action.metadata?.model.stage === 'deprecated') {
@@ -160,7 +169,7 @@ async function generate(
           if (streamingCallback) {
             streamingCallback!(
               new GenerateResponseChunk(chunk, {
-                index: 0,
+                index: messageIndex,
                 role: 'model',
                 previousChunks: accumulatedChunks,
                 parser: resolvedFormat?.handler(request.output?.schema)
@@ -195,11 +204,14 @@ async function generate(
   );
 
   // Throw an error if the response is not usable.
-  response.assertValid(request);
+  response.assertValid();
   const message = response.message!; // would have thrown if no message
 
   const toolCalls = message.content.filter((part) => !!part.toolRequest);
   if (rawRequest.returnToolRequests || toolCalls.length === 0) {
+    if (toolCalls.length === 0) {
+      response.assertValidSchema(request);
+    }
     return response.toJSON();
   }
   const maxIterations = rawRequest.maxTurns ?? 5;
@@ -252,6 +264,7 @@ async function generate(
       });
     }
   }
+  messageIndex++;
   const nextRequest = {
     ...rawRequest,
     messages: [
@@ -264,11 +277,26 @@ async function generate(
     tools: newTools,
     toolCoice: newToolChoice,
   };
+  // stream out the tool responses
+  streamingCallback?.(
+    new GenerateResponseChunk(
+      {
+        content: toolResponses,
+      },
+      {
+        index: messageIndex,
+        role: 'model',
+        previousChunks: accumulatedChunks,
+        parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
+      }
+    )
+  );
   return await generateHelper(
     registry,
     nextRequest,
     middleware,
-    currentTurn + 1
+    currentTurn + 1,
+    messageIndex + 1
   );
 }
 

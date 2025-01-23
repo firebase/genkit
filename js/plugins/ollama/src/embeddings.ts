@@ -98,7 +98,7 @@ export function defineOllamaEmbedder(
         );
       }
 
-      const payload: EmbedResponse = await response.json();
+      const payload = (await response.json()) as EmbedResponse;
 
       const embeddings: { embedding: number[] }[] = [];
 

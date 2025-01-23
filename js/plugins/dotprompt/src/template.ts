@@ -16,7 +16,7 @@
 
 import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
-import Handlebars from 'handlebars';
+import * as Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
 
 const Promptbars: typeof Handlebars =

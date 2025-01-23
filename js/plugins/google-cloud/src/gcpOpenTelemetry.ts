@@ -219,7 +219,7 @@ export class GcpOpenTelemetry {
  */
 class MetricExporterWrapper extends MetricExporter {
   constructor(
-    private options?: ExporterOptions,
+    options?: ExporterOptions,
     private errorHandler?: (error: Error) => void
   ) {
     super(options);
@@ -307,6 +307,26 @@ class AdjustingTraceExporter implements SpanExporter {
       )
     );
 
+    // Check if we have a failure in the root span that requires special handling
+    const rootSpan = spans.find((s) =>
+      Object.keys(s.attributes).includes('genkit:isRoot')
+    );
+    if (rootSpan) {
+      const rootSpanFailed =
+        (rootSpan.attributes['genkit:state'] as string) === 'error';
+      const anotherFailedSpan = spans.find(
+        (s) =>
+          !Object.keys(s.attributes).includes('genkit:isRoot') &&
+          s.attributes['genkit:state'] === 'error'
+      );
+      if (rootSpanFailed && !anotherFailedSpan) {
+        rootSpan.attributes['genkit:failedSpan'] =
+          rootSpan.attributes['genkit:name'];
+        rootSpan.attributes['genkit:failedPath'] =
+          rootSpan.attributes['genkit:path'];
+      }
+    }
+
     return spans.map((span) => {
       this.tickTelemetry(span, allLeafPaths);
 
@@ -389,8 +409,6 @@ class AdjustingTraceExporter implements SpanExporter {
         };
   }
 
-  // This is a workaround for GCP Trace to mark a span with a red
-  // exclamation mark indicating that it is an error.
   private normalizeLabels(span: ReadableSpan): ReadableSpan {
     const normalized = {} as Record<string, any>;
     for (const [key, value] of Object.entries(span.attributes)) {
@@ -406,9 +424,7 @@ class AdjustingTraceExporter implements SpanExporter {
   private markFailedSpan(span: ReadableSpan): ReadableSpan {
     if (
       span.attributes['genkit:state'] === 'error' &&
-      (span.attributes['genkit:type'] === 'action' ||
-        span.attributes['genkit:type'] === 'flowStep' ||
-        span.attributes['genkit:type'] === 'helper')
+      !span.attributes['genkit:isRoot']
     ) {
       if (!!span.attributes['genkit:name']) {
         span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];

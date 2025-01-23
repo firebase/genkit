@@ -23,7 +23,7 @@ import {
   toJsonSchema,
   ValidationError,
 } from '@genkit-ai/core/schema';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';

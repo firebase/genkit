@@ -31,9 +31,9 @@ export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData
 {
   /** The index of the message this chunk corresponds to, starting with `0` for the first model response of the generation. */
-  index?: number;
+  index: number;
   /** The role of the message this chunk corresponds to. Will always be `model` or `tool`. */
-  role?: Role;
+  role: Role;
   /** The content generated in this chunk. */
   content: Part[];
   /** Custom model-specific data for this chunk. */
@@ -45,21 +45,21 @@ export class GenerateResponseChunk<T = unknown>
 
   constructor(
     data: GenerateResponseChunkData,
-    options?: {
+    options: {
       previousChunks?: GenerateResponseChunkData[];
-      role?: Role;
-      index?: number;
+      role: Role;
+      index: number;
       parser?: ChunkParser<T>;
     }
   ) {
     this.content = data.content || [];
     this.custom = data.custom;
-    this.previousChunks = options?.previousChunks
+    this.previousChunks = options.previousChunks
       ? [...options.previousChunks]
       : undefined;
-    this.index = options?.index;
-    this.role = options?.role;
-    this.parser = options?.parser;
+    this.index = options.index;
+    this.role = options.role;
+    this.parser = options.parser;
   }
 
   /**
@@ -130,6 +130,14 @@ export class GenerateResponseChunk<T = unknown>
   }
 
   toJSON(): GenerateResponseChunkData {
-    return { content: this.content, custom: this.custom };
+    const data = {
+      role: this.role,
+      index: this.index,
+      content: this.content,
+    } as GenerateResponseChunkData;
+    if (this.custom) {
+      data.custom = this.custom;
+    }
+    return data;
   }
 }

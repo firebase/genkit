@@ -16,7 +16,7 @@
 
 import { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 import {

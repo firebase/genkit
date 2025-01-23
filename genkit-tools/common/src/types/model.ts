@@ -246,6 +246,9 @@ export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
 
 /** ModelResponseChunkSchema represents a chunk of content to stream to the client. */
 export const ModelResponseChunkSchema = z.object({
+  role: RoleSchema.optional(),
+  /** index of the message this chunk belongs to. */
+  index: z.number().optional(),
   /** The chunk of content to stream right now. */
   content: z.array(PartSchema),
   /** Model-specific extra information attached to this chunk. */
@@ -255,10 +258,7 @@ export const ModelResponseChunkSchema = z.object({
 });
 export type ModelResponseChunkData = z.infer<typeof ModelResponseChunkSchema>;
 
-export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({
-  /** @deprecated The index of the candidate this chunk belongs to. Always 0. */
-  index: z.number(),
-});
+export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({});
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
 >;

@@ -22,6 +22,7 @@ import {
   sentinelNoopStreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { Channel } from '@genkit-ai/core/async';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
@@ -361,17 +362,7 @@ export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
   get response(): Promise<GenerateResponse<O>>;
 }
 
-function createPromise<T>(): {
-  resolve: (result: T) => unknown;
-  reject: (err: unknown) => unknown;
-  promise: Promise<T>;
-} {
-  let resolve, reject;
-  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
-  return { resolve, reject, promise };
-}
-
-export async function generateStream<
+export function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
@@ -379,68 +370,22 @@ export async function generateStream<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<GenerateStreamResponse<O>> {
-  let firstChunkSent = false;
-  return new Promise<GenerateStreamResponse<O>>(
-    (initialResolve, initialReject) => {
-      const {
-        resolve: finalResolve,
-        reject: finalReject,
-        promise: finalPromise,
-      } = createPromise<GenerateResponse<O>>();
+): GenerateStreamResponse<O> {
+  let channel = new Channel<GenerateResponseChunk>();
 
-      let provideNextChunk, nextChunk;
-      ({ resolve: provideNextChunk, promise: nextChunk } =
-        createPromise<GenerateResponseChunk | null>());
-      async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
-        while (true) {
-          const next = await nextChunk;
-          if (!next) break;
-          yield next;
-        }
-      }
-
-      try {
-        generate<O, CustomOptions>(registry, {
-          ...options,
-          onChunk: (chunk) => {
-            firstChunkSent = true;
-            provideNextChunk(chunk);
-            ({ resolve: provideNextChunk, promise: nextChunk } =
-              createPromise<GenerateResponseChunk | null>());
-          },
-        })
-          .then((result) => {
-            provideNextChunk(null);
-            finalResolve(result);
-          })
-          .catch((e) => {
-            if (!firstChunkSent) {
-              initialReject(e);
-              return;
-            }
-            provideNextChunk(null);
-            finalReject(e);
-          });
-      } catch (e) {
-        if (!firstChunkSent) {
-          initialReject(e);
-          return;
-        }
-        provideNextChunk(null);
-        finalReject(e);
-      }
-
-      initialResolve({
-        get response() {
-          return finalPromise;
-        },
-        get stream() {
-          return chunkStream();
-        },
-      });
-    }
+  const generated = generate<O, CustomOptions>(registry, {
+    ...options,
+    onChunk: (chunk) => channel.send(chunk),
+  });
+  generated.then(
+    () => channel.close(),
+    (err) => channel.error(err)
   );
+
+  return {
+    response: generated,
+    stream: channel,
+  };
 }
 
 export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {

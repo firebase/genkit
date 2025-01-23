@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import { z } from '@genkit-ai/core';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
 import { Genkit, genkit } from '../src/genkit';
@@ -195,7 +196,7 @@ describe('generate', () => {
       );
 
       assert.rejects(async () => {
-        const { response, stream } = await ai.generateStream({
+        const { response, stream } = ai.generateStream({
           prompt: 'hi',
           model: 'blockingModel',
         });
@@ -380,6 +381,146 @@ describe('generate', () => {
           ],
         }
       );
+    });
+
+    it('call the tool with output schema', async () => {
+      const schema = z.object({
+        foo: z.string(),
+      });
+
+      ai.defineTool(
+        {
+          name: 'testTool',
+          description: 'description',
+          inputSchema: schema,
+          outputSchema: schema,
+        },
+        async () => {
+          return {
+            foo: 'bar',
+          };
+        }
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: { foo: 'fromTool' },
+                      ref: 'ref123',
+                    },
+                  }
+                : {
+                    text: "```\n{foo: 'fromModel'}\n```",
+                  },
+            ],
+          },
+        };
+      };
+      const { text, output } = await ai.generate({
+        output: { schema },
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+      assert.strictEqual(text, "```\n{foo: 'fromModel'}\n```");
+      assert.deepStrictEqual(output, {
+        foo: 'fromModel',
+      });
+    });
+
+    it('streams the tool responses', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        if (sc) {
+          sc({
+            content: [
+              reqCounter === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          });
+        }
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { stream, response } = await ai.generateStream({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      const chunks: any[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk.toJSON());
+      }
+
+      assert.strictEqual((await response).text, 'done');
+      assert.deepStrictEqual(chunks, [
+        {
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'testTool',
+                ref: 'ref123',
+              },
+            },
+          ],
+          index: 0,
+          role: 'model',
+        },
+        {
+          content: [
+            {
+              toolResponse: {
+                name: 'testTool',
+                output: 'tool called',
+                ref: 'ref123',
+              },
+            },
+          ],
+          index: 1,
+          role: 'model',
+        },
+        {
+          content: [{ text: 'done' }],
+          index: 2,
+          role: 'model',
+        },
+      ]);
     });
 
     it('throws when exceeding max tool call iterations', async () => {
