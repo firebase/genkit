@@ -111,7 +111,6 @@ export {
   ToolInterruptError,
   asTool,
   defineTool,
-  interruptTool,
   type ToolAction,
   type ToolArgument,
   type ToolConfig,

@@ -45,7 +45,6 @@ export {
   embedderRef,
   evaluatorRef,
   indexerRef,
-  interruptTool,
   rerankerRef,
   retrieverRef,
   type DocumentData,

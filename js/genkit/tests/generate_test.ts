@@ -19,7 +19,6 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
 import { Genkit, genkit } from '../src/genkit';
-import { interruptTool } from '../src/index';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -565,7 +564,8 @@ describe('generate', () => {
     it('interrupts tool execution', async () => {
       ai.defineTool(
         { name: 'testTool', description: 'description' },
-        async () => interruptTool()
+        async (input, { interrupt }) =>
+          interrupt({ confirm: 'is it a banana?' })
       );
 
       // first response be tools call, the subsequent just text response from agent b.
@@ -601,6 +601,11 @@ describe('generate', () => {
             input: {},
             name: 'testTool',
             ref: 'ref123',
+          },
+          metadata: {
+            interrupt: {
+              confirm: 'is it a banana?',
+            },
           },
         },
       ]);
