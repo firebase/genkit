@@ -284,21 +284,23 @@ async function generate(
     } else {
       try {
         const toolOutput = await tool(part.toolRequest?.input);
-        const requestPart = { ...part } as Part;
-        requestPart.metadata = {
-          ...part.metadata,
-          pendingToolResponse: {
-            name: part.toolRequest.name,
-            ref: part.toolRequest.ref,
-            output: toolOutput,
-          },
-        };
-        pendingToolRequests.push(requestPart);
         toolResponses.push({
           toolResponse: {
             name: part.toolRequest.name,
             ref: part.toolRequest.ref,
             output: toolOutput,
+          },
+        });
+        // we prep these in case any other tool gets interrupted.
+        pendingToolRequests.push({
+          ...part,
+          metadata: {
+            ...part.metadata,
+            pendingToolResponse: {
+              name: part.toolRequest.name,
+              ref: part.toolRequest.ref,
+              output: toolOutput,
+            },
           },
         });
       } catch (e) {
