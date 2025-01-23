@@ -17,25 +17,31 @@ package genkit
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/firebase/genkit/go/ai"
 )
 
 type Chat struct {
 	// Genkit
-	Genkit *Genkit
+	Genkit *Genkit `json:"genkit,omitempty"`
 	// The model to query
-	Model ai.Model
+	Model ai.Model `json:"model,omitempty"`
 	// The chats threadname
-	ThreadName string
+	ThreadName string `json:"threadName,omitempty"`
 	// The chats session
-	Session *Session
+	Session *Session `json:"session,omitempty"`
 	// Message sent to the model as system instructions
-	SystemText string
+	SystemText string `json:"systemtext,omitempty"`
 	// Optional prompt
-	Prompt  *ai.Prompt
-	Request *ChatRequest
-	Stream  ai.ModelStreamingCallback
+	Prompt *ai.Prompt `json:"prompt,omitempty"`
+	// Optional input fields for the chat. This should be a struct,
+	// a pointer to a struct that matches the input schema, or a string.
+	Input any `json:"input,omitempty"`
+
+	Request *ChatRequest              `json:"request,omitempty"`
+	Stream  ai.ModelStreamingCallback `json:"stream,omitempty"`
 }
 
 type ChatRequest struct {
@@ -89,7 +95,7 @@ func NewChat(ctx context.Context, g *Genkit, opts ...ChatOption) (chat *Chat, er
 // to the history, and sends the entire conversation to the AI model for
 // generating a response. If a system message is set for the chat, it is
 // included in the conversation before the history.
-func (c *Chat) Send(ctx context.Context, msg string) (resp *ai.ModelResponse, err error) {
+func (c *Chat) Send(ctx context.Context, msg any) (resp *ai.ModelResponse, err error) {
 	// Load history
 	data, err := c.Session.Store.Get(c.Session.ID)
 	if err != nil {
@@ -105,9 +111,24 @@ func (c *Chat) Send(ctx context.Context, msg string) (resp *ai.ModelResponse, er
 		messages = append(messages, ai.NewSystemTextMessage(c.SystemText))
 	}
 
-	// Add new message after history
+	// Handle prompt if set
+	if c.Prompt != nil {
+		mr, err := c.Prompt.Render(ctx, c.Input)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, mr.Messages...)
+	}
+
+	// Add history
 	messages = append(messages, data.Threads[c.ThreadName]...)
-	messages = append(messages, ai.NewUserTextMessage(msg))
+
+	// Add new message after history
+	aiMsgs, err := getChatMessages(msg)
+	if err != nil {
+		return nil, err
+	}
+	messages = append(messages, aiMsgs...)
 
 	// Assemble options
 	var generateOptions []ai.GenerateOption
@@ -262,4 +283,53 @@ func WithOutputFormat(format ai.OutputFormat) ChatOption {
 		c.Request.Format = format
 		return nil
 	}
+}
+
+// WithPrompt sets a prompt for the chat.
+func WithPrompt(prompt *ai.Prompt) ChatOption {
+	return func(c *Chat) error {
+		if c.Prompt != nil {
+			return errors.New("cannot set prompt (WithPrompt) more than once")
+		}
+		c.Prompt = prompt
+		return nil
+	}
+}
+
+// WithInput adds input to pass to the model.
+func WithInput(input any) ChatOption {
+	return func(c *Chat) error {
+		if c.Input != nil {
+			return errors.New("WithInput: cannot set Input more than once")
+		}
+		c.Input = input
+		return nil
+	}
+}
+
+// getChatMessages takes a msg and returns a slice of messages.
+func getChatMessages(msg any) (messages []*ai.Message, err error) {
+	switch v := msg.(type) {
+	case int:
+		messages = append(messages, ai.NewUserTextMessage(strconv.Itoa(v)))
+	case float32:
+	case float64:
+		messages = append(messages, ai.NewUserTextMessage(fmt.Sprintf("%f", v)))
+	case string:
+		messages = append(messages, ai.NewUserTextMessage(v))
+	case ai.Message:
+		messages = append(messages, &v)
+	case *ai.Message:
+		messages = append(messages, v)
+	case []ai.Message:
+		for _, m := range v {
+			messages = append(messages, &m)
+		}
+	case []*ai.Message:
+		messages = append(messages, v...)
+	default:
+		return messages, fmt.Errorf("getChatMessages: unknown message type %T", v)
+	}
+
+	return messages, nil
 }

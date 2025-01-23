@@ -16,17 +16,24 @@ package genkit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/invopop/jsonschema"
 )
+
+type HelloPromptInput struct {
+	UserName string
+}
 
 var chatGenkit, _ = New(nil)
 var chatModel = getChatModel(chatGenkit)
 var chatTool = getNameTool(chatGenkit)
+var chatPrompt = getChatPrompt(chatGenkit)
 
 func getNameTool(g *Genkit) *ai.ToolDef[struct{ Name string }, string] {
 	return DefineTool(g, "updateName", "use this tool to update the name of the user",
@@ -110,6 +117,28 @@ func getChatModel(g *Genkit) ai.Model {
 			Message: ai.NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
 		}, nil
 	})
+}
+
+func getChatPrompt(g *Genkit) *ai.Prompt {
+	return DefinePrompt(
+		g,
+		"prompts",
+		"helloPrompt",
+		nil, // Additional model config
+		jsonschema.Reflect(&HelloPromptInput{}),
+		func(ctx context.Context, input any) (*ai.ModelRequest, error) {
+			params, ok := input.(HelloPromptInput)
+			if !ok {
+				return nil, errors.New("input doesn't satisfy schema")
+			}
+			prompt := fmt.Sprintf(
+				"Say hello to %s",
+				params.UserName)
+			return &ai.ModelRequest{Messages: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
+			}}, nil
+		},
+	)
 }
 
 func TestChat(t *testing.T) {
@@ -289,6 +318,14 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 			name: "WithOutputFormat",
 			with: WithOutputFormat(ai.OutputFormatJSON),
 		},
+		{
+			name: "WithInput",
+			with: WithInput("Hello"),
+		},
+		{
+			name: "WithPrompt",
+			with: WithPrompt(chatPrompt),
+		},
 	}
 
 	for _, test := range tests {
@@ -302,6 +339,95 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 
 			if err == nil {
 				t.Errorf("%s could be set twice", test.name)
+			}
+		})
+	}
+}
+
+func TestGetChatMessages(t *testing.T) {
+	var tests = []struct {
+		name   string
+		input  any
+		output []*ai.Message
+	}{
+		{
+			name:  "string",
+			input: "hello",
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+			},
+		},
+		{
+			name:  "integer",
+			input: 1,
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("1")}},
+			},
+		},
+		{
+			name:  "float",
+			input: 3.14,
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("3.140000")}},
+			},
+		},
+		{
+			name: "ai.message",
+			input: ai.Message{
+				Content: []*ai.Part{ai.NewTextPart("hello")},
+			},
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+			},
+		},
+		{
+			name: "&ai.message",
+			input: &ai.Message{
+				Content: []*ai.Part{ai.NewTextPart("hello")},
+			},
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+			},
+		},
+		{
+			name: "ai.messages",
+			input: []ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+				{Content: []*ai.Part{ai.NewTextPart("world")}},
+			},
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+				{Content: []*ai.Part{ai.NewTextPart("world")}},
+			},
+		},
+		{
+			name: "&ai.messages",
+			input: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+				{Content: []*ai.Part{ai.NewTextPart("world")}},
+			},
+			output: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart("hello")}},
+				{Content: []*ai.Part{ai.NewTextPart("world")}},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			messages, err := getChatMessages(test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(messages) != len(test.output) {
+				t.Errorf("got %d messages want %d", len(messages), len(test.output))
+			}
+
+			for i, msg := range messages {
+				if msg.Content[0].Text != test.output[i].Content[0].Text {
+					t.Errorf("got %q want %q", msg.Content[0].Text, test.output[i].Content[0].Text)
+				}
 			}
 		})
 	}
@@ -398,5 +524,47 @@ func TestStateUpdate(t *testing.T) {
 
 	if session.SessionData.State["state"] != "Earl" {
 		t.Error("session state not set")
+	}
+}
+
+func TestChatWithPrompt(t *testing.T) {
+	ctx := context.Background()
+
+	// Chat from prompt with input
+	chat, err := NewChat(
+		ctx,
+		chatGenkit,
+		WithModel(chatModel),
+		WithPrompt(chatPrompt),
+		WithInput(HelloPromptInput{UserName: "Earl"}),
+	)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	resp, err := chat.Send(ctx, "Send prompt")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	want := "Say hello to Earl"
+	if !strings.Contains(resp.Text(), want) {
+		t.Errorf("got %q want %q", resp.Text(), want)
+	}
+
+	// Rendered prompt to chat
+	mr, err := chatPrompt.Render(ctx, HelloPromptInput{UserName: "someone else"})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	resp, err = chat.Send(ctx, mr.Messages)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	want = "Say hello to someone else"
+	if !strings.Contains(resp.Text(), want) {
+		t.Errorf("got %q want %q", resp.Text(), want)
 	}
 }
