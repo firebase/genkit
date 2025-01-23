@@ -28,9 +28,6 @@ import {
   definePrompt,
 } from '../../src/prompt.ts';
 import { defineTool } from '../../src/tool.ts';
-import * as assert from 'assert';
-import { describe, it } from 'node:test';
-import { definePrompt, renderPrompt } from '../../src/prompt.ts';
 
 describe('prompt', () => {
   let registry;
