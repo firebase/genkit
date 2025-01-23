@@ -30,9 +30,9 @@ import {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import * as assert from 'assert';
 import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
 import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
-import assert from 'node:assert';
 import {
   GcpOpenTelemetry,
   __forceFlushSpansForTesting,

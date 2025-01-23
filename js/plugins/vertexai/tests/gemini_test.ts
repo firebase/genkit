@@ -15,8 +15,8 @@
  */
 
 import { GenerateContentCandidate } from '@google-cloud/vertexai';
+import * as assert from 'assert';
 import { MessageData } from 'genkit';
-import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
   cleanSchema,

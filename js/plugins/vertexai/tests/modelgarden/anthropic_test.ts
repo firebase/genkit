@@ -18,8 +18,8 @@ import {
   Message,
   MessageCreateParamsBase,
 } from '@anthropic-ai/sdk/resources/messages.mjs';
+import * as assert from 'assert';
 import { GenerateRequest, GenerateResponseData } from 'genkit';
-import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
   AnthropicConfigSchema,

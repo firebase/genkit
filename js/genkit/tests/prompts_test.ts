@@ -15,7 +15,7 @@
  */
 
 import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 import { PromptAction, z } from '../src/index';

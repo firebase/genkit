@@ -15,7 +15,11 @@
  */
 
 import { StreamingCallback, z } from '@genkit-ai/core';
-import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
+import {
+  ATTR_PREFIX,
+  SPAN_TYPE_ATTR,
+  runInNewSpan,
+} from '@genkit-ai/core/tracing';
 import {
   GenerateOptions,
   GenerateResponse,
@@ -36,6 +40,8 @@ import {
 } from './session.js';
 
 export const MAIN_THREAD = 'main';
+export const SESSION_ID_ATTR = `${ATTR_PREFIX}:sessionId`;
+export const THREAD_NAME_ATTR = `${ATTR_PREFIX}:threadName`;
 
 export type ChatGenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -143,8 +149,8 @@ export class Chat {
           },
           labels: {
             [SPAN_TYPE_ATTR]: 'helper',
-            sessionId: this.session.id,
-            threadName: this.threadName,
+            [SESSION_ID_ATTR]: this.session.id,
+            [THREAD_NAME_ATTR]: this.threadName,
           },
         },
         async (metadata) => {
@@ -205,8 +211,8 @@ export class Chat {
           metadata: { name: 'send' },
           labels: {
             [SPAN_TYPE_ATTR]: 'helper',
-            sessionId: this.session.id,
-            threadName: this.threadName,
+            [SESSION_ID_ATTR]: this.session.id,
+            [THREAD_NAME_ATTR]: this.threadName,
           },
         },
         async (metadata) => {

@@ -19,17 +19,20 @@ import {
   beforeAll,
   beforeEach,
   describe,
+  expect,
   it,
   jest,
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
 import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
+import { ModelAction } from 'genkit/model';
 import { Writable } from 'stream';
 import {
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
+  __useJsonFormatForTesting,
   enableGoogleCloudTelemetry,
 } from '../src/index.js';
 
@@ -55,7 +58,7 @@ jest.mock('../src/auth.js', () => {
   };
 });
 
-describe('GoogleCloudLogs no I/O', () => {
+describe('GoogleCloudLogs for sessions', () => {
   let logLines = '';
   const logStream = new Writable();
   logStream._write = (chunk, encoding, next) => {
@@ -64,65 +67,27 @@ describe('GoogleCloudLogs no I/O', () => {
   };
 
   let ai: Genkit;
+  let testModel: ModelAction;
 
   beforeAll(async () => {
     process.env.GCLOUD_PROJECT = 'test';
     process.env.GENKIT_ENV = 'dev';
+    __useJsonFormatForTesting();
     __addTransportStreamForTesting(logStream);
+
     await enableGoogleCloudTelemetry({
       projectId: 'test',
       forceDevExport: false,
       metricExportIntervalMillis: 100,
       metricExportTimeoutMillis: 100,
-      disableLoggingIO: true,
-    });
-    ai = genkit({});
-    // Wait for the telemetry plugin to be initialized
-    await waitForLogsInit(ai, logLines);
-  });
-  beforeEach(async () => {
-    logLines = '';
-    __getSpanExporterForTesting().reset();
-  });
-  afterAll(async () => {
-    await ai.stopServers();
-  });
-
-  it('writes path logs', async () => {
-    const testFlow = createFlow(ai, 'testFlow');
-
-    await testFlow();
-
-    await getExportedSpans();
-
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(logMessages.includes('[info] Paths[testFlow]'), true);
-  });
-
-  it('writes error logs', async () => {
-    const testFlow = createFlow(ai, 'testFlow', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
     });
 
-    assert.rejects(async () => {
-      await testFlow();
+    ai = genkit({
+      // Force GCP Plugin to use in-memory metrics exporter
+      plugins: [],
     });
 
-    await getExportedSpans();
-
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(
-      logMessages.includes(
-        "[error] Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
-      ),
-      true
-    );
-  }, 10000); //timeout
-
-  it('writes generate logs', async () => {
-    const testModel = createModel(ai, 'testModel', async () => {
+    testModel = createModel(ai, 'testModel', async () => {
       return {
         message: {
           role: 'user',
@@ -143,54 +108,44 @@ describe('GoogleCloudLogs no I/O', () => {
         },
       };
     });
-    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
-      return await ai.run('sub1', async () => {
-        return await ai.run('sub2', async () => {
-          return await ai.generate({
-            model: testModel,
-            prompt: `${input} prompt`,
-            config: {
-              temperature: 1.0,
-              topK: 3,
-              topP: 5,
-              maxOutputTokens: 7,
-            },
-          });
-        });
-      });
-    });
 
-    await testFlow('test');
+    await waitForLogsInit(ai, logLines);
+  });
+
+  beforeEach(async () => {
+    logLines = '';
+    __getSpanExporterForTesting().reset();
+  });
+  afterAll(async () => {
+    await ai.stopServers();
+  });
+
+  it('writes logs with sessionId', async () => {
+    const chat = ai.chat();
+
+    await chat.send({ model: testModel, prompt: 'Test message' });
 
     await getExportedSpans();
 
     const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(
-      logMessages.includes(
-        '[info] Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
-      ),
-      true
-    );
-    assert.equal(
-      logMessages.includes(
-        '[info] Input[testFlow > sub1 > sub2 > generate > testModel, testModel]'
-      ),
-      false
-    );
-    assert.equal(
-      logMessages.includes(
-        '[info] Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
-      ),
-      false
-    );
-    assert.equal(
-      logMessages.includes('[info] Input[testFlow, testModel]'),
-      false
-    );
-    assert.equal(
-      logMessages.includes('[info] Output[testFlow, testModel]'),
-      false
-    );
+    const logObjects = logMessages.map((l) => JSON.parse(l as string));
+
+    // Right now sessionId is applied only at the top level send.
+    // We intend to eventually make the session id available on all relevant spans.
+    logObjects.forEach((logBlob) => {
+      if (
+        logBlob.message === 'Input[send, send]' ||
+        logBlob.message === 'Output[send, send]' ||
+        logBlob.message === 'Paths[send]'
+      ) {
+        expect(logBlob.sessionId).not.toBeUndefined();
+        expect(logBlob.threadName).not.toBeUndefined();
+        return;
+      }
+
+      expect(logBlob.sessionId).toBeUndefined();
+      expect(logBlob.threadName).toBeUndefined();
+    });
   });
 });
 
@@ -205,21 +160,6 @@ function createFlow(
       name,
       inputSchema: z.void(),
       outputSchema: z.void(),
-    },
-    fn
-  );
-}
-
-function createFlowWithInput(
-  ai: Genkit,
-  name: string,
-  fn: (input: string) => Promise<any>
-) {
-  return ai.defineFlow(
-    {
-      name,
-      inputSchema: z.string(),
-      outputSchema: z.any(),
     },
     fn
   );
@@ -257,7 +197,7 @@ async function getLogs(
       .split('\n')
       .map((l) => l.trim());
     if (found.length >= logCount) {
-      return found;
+      return found.filter((l) => l !== undefined && l !== '');
     }
   }
   assert.fail(`Waiting for logs, but none have been written.`);
