@@ -1,0 +1,73 @@
+site_name: Firebase Genkit
+repo_url: https://github.com/firebase/genkit
+docs_dir: engdoc
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/lightbulb
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to light mode
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  font:
+    text: Fira Sans
+    code: Fira Code
+  features:
+    - navigation.tabs
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid
+plugins:
+  - autorefs
+  - d2
+  - tags
+  - mermaid2
+  - search
+  - mkdocstrings
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+      cache_safe: true
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/firebase/genkit
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/qXt5zzQKpc
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/user/Firebase
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/Firebase

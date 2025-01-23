@@ -1,0 +1,3 @@
+# API
+
+TODO: with mkdocstrings
