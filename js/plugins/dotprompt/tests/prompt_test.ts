@@ -138,11 +138,13 @@ describe('Prompt', () => {
         input: { name: 'Michael' },
         onChunk: streamingCallback,
         returnToolRequests: true,
+        toolChoice: 'required',
         maxTurns: 17,
         use: middleware,
       });
       assert.strictEqual(rendered.onChunk, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
+      assert.strictEqual(rendered.toolChoice, 'required');
       assert.strictEqual(rendered.maxTurns, 17);
       assert.deepStrictEqual(rendered.use, middleware);
     });
@@ -504,5 +506,22 @@ describe('DotpromptRef', () => {
         role: 'system',
       },
     ]);
+  });
+
+  it('should render system prompt', () => {
+    const model = defineModel(
+      registry,
+      { name: 'echo', supports: { tools: true } },
+      async (input) => ({
+        message: input.messages[0],
+        finishReason: 'stop',
+      })
+    );
+    const prompt = testPrompt(registry, model, `hi`, {
+      toolChoice: 'required',
+    });
+
+    const rendered = prompt.render({ input: {} });
+    assert.deepStrictEqual(rendered.toolChoice, 'required');
   });
 });

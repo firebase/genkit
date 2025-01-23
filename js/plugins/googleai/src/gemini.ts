@@ -103,6 +103,7 @@ export const gemini10Pro = modelRef({
       multiturn: true,
       media: false,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
   },
@@ -117,6 +118,7 @@ export const gemini15Pro = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
     versions: [
@@ -136,6 +138,7 @@ export const gemini15Flash = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
       // @ts-ignore
       contextCache: true,
@@ -157,6 +160,7 @@ export const gemini15Flash8b = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
@@ -173,6 +177,7 @@ export const gemini20FlashExp = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
   },
@@ -199,6 +204,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
     },
   },
@@ -680,19 +686,18 @@ export function defineGoogleAIModel(
       }
 
       let toolConfig: ToolConfig | undefined;
-      if (
-        requestConfig.functionCallingConfig &&
-        // This is a workround for issue: https://github.com/firebase/genkit/issues/1520
-        // TODO: remove this when the issue is resolved upstream in the Gemini API
-        !messages.at(-1)?.content.find((c) => c.toolResponse)
-      ) {
+      if (requestConfig.functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
             allowedFunctionNames:
               requestConfig.functionCallingConfig.allowedFunctionNames,
-            mode: toGeminiFunctionMode(
-              requestConfig.functionCallingConfig.mode
-            ),
+            mode: toFunctionModeEnum(requestConfig.functionCallingConfig.mode),
+          },
+        };
+      } else if (request.toolChoice) {
+        toolConfig = {
+          functionCallingConfig: {
+            mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
       }
@@ -821,13 +826,14 @@ export function defineGoogleAIModel(
   );
 }
 
-function toGeminiFunctionMode(
-  genkitMode: string | undefined
+/** Converts mode from the config, which follows Gemini naming convention. */
+function toFunctionModeEnum(
+  configEnum: string | undefined
 ): FunctionCallingMode | undefined {
-  if (genkitMode === undefined) {
+  if (configEnum === undefined) {
     return undefined;
   }
-  switch (genkitMode) {
+  switch (configEnum) {
     case 'MODE_UNSPECIFIED': {
       return FunctionCallingMode.MODE_UNSPECIFIED;
     }
@@ -838,6 +844,28 @@ function toGeminiFunctionMode(
       return FunctionCallingMode.AUTO;
     }
     case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${configEnum}`);
+  }
+}
+
+/** Converts mode from genkit tool choice. */
+function toGeminiFunctionModeEnum(
+  genkitMode: 'auto' | 'required' | 'none'
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'required': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'auto': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'none': {
       return FunctionCallingMode.NONE;
     }
     default:

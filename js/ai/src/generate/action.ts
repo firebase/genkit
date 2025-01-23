@@ -41,7 +41,10 @@ import {
   GenerateResponseData,
   MessageData,
   MessageSchema,
+  ModelAction,
+  ModelInfo,
   ModelMiddleware,
+  ModelRequest,
   Part,
   Role,
   ToolDefinitionSchema,
@@ -59,6 +62,8 @@ export const GenerateUtilParamSchema = z.object({
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
+  /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   /** Configuration for the generation request. */
   config: z.any().optional(),
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
@@ -81,13 +86,15 @@ export const GenerateUtilParamSchema = z.object({
  */
 export async function generateHelper(
   registry: Registry,
-  input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: ModelMiddleware[],
-  currentTurns?: number,
-  messageIndex?: number
+  options: {
+    rawRequest: z.infer<typeof GenerateUtilParamSchema>;
+    middleware?: ModelMiddleware[];
+    currentTurn?: number;
+    messageIndex?: number;
+  }
 ): Promise<GenerateResponseData> {
-  currentTurns = currentTurns ?? 0;
-  messageIndex = messageIndex ?? 0;
+  let currentTurn = options.currentTurn ?? 0;
+  let messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -101,14 +108,13 @@ export async function generateHelper(
     },
     async (metadata) => {
       metadata.name = 'generate';
-      metadata.input = input;
-      const output = await generate(
-        registry,
-        input,
-        middleware,
-        currentTurns!,
-        messageIndex!
-      );
+      metadata.input = options.rawRequest;
+      const output = await generate(registry, {
+        rawRequest: options.rawRequest,
+        middleware: options.middleware,
+        currentTurn,
+        messageIndex,
+      });
       metadata.output = JSON.stringify(output);
       return output;
     }
@@ -117,12 +123,17 @@ export async function generateHelper(
 
 async function generate(
   registry: Registry,
-  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware: ModelMiddleware[] | undefined,
-  currentTurn: number,
-  messageIndex: number
+  options: {
+    rawRequest: z.infer<typeof GenerateUtilParamSchema>;
+    middleware: ModelMiddleware[] | undefined;
+    currentTurn: number;
+    messageIndex: number;
+  }
 ): Promise<GenerateResponseData> {
-  const { modelAction: model } = await resolveModel(registry, rawRequest.model);
+  const { modelAction: model } = await resolveModel(
+    registry,
+    options.rawRequest.model
+  );
   if (model.__action.metadata?.model.stage === 'deprecated') {
     logger.warn(
       `${clc.bold(clc.yellow('Warning:'))} ` +
@@ -130,9 +141,12 @@ async function generate(
     );
   }
 
-  const tools = await resolveTools(registry, rawRequest.tools);
+  const tools = await resolveTools(registry, options.rawRequest.tools);
 
-  const resolvedFormat = await resolveFormat(registry, rawRequest.output);
+  const resolvedFormat = await resolveFormat(
+    registry,
+    options.rawRequest.output
+  );
   // Create a lookup of tool names with namespaces stripped to original names
   const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
     const name = tool.__action.name;
@@ -148,9 +162,10 @@ async function generate(
   }, {});
 
   const request = await actionToGenerateRequest(
-    rawRequest,
+    options.rawRequest,
     tools,
-    resolvedFormat
+    resolvedFormat,
+    model
   );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
@@ -164,7 +179,7 @@ async function generate(
           if (streamingCallback) {
             streamingCallback!(
               new GenerateResponseChunk(chunk, {
-                index: messageIndex,
+                index: options.messageIndex,
                 role: 'model',
                 previousChunks: accumulatedChunks,
                 parser: resolvedFormat?.handler(request.output?.schema)
@@ -180,12 +195,12 @@ async function generate(
         index: number,
         req: z.infer<typeof GenerateRequestSchema>
       ) => {
-        if (!middleware || index === middleware.length) {
+        if (!options.middleware || index === options.middleware.length) {
           // end of the chain, call the original model action
           return await model(req);
         }
 
-        const currentMiddleware = middleware[index];
+        const currentMiddleware = options.middleware[index];
         return currentMiddleware(req, async (modifiedReq) =>
           dispatch(index + 1, modifiedReq || req)
         );
@@ -203,14 +218,14 @@ async function generate(
   const message = response.message!; // would have thrown if no message
 
   const toolCalls = message.content.filter((part) => !!part.toolRequest);
-  if (rawRequest.returnToolRequests || toolCalls.length === 0) {
+  if (options.rawRequest.returnToolRequests || toolCalls.length === 0) {
     if (toolCalls.length === 0) {
       response.assertValidSchema(request);
     }
     return response.toJSON();
   }
-  const maxIterations = rawRequest.maxTurns ?? 5;
-  if (currentTurn + 1 > maxIterations) {
+  const maxIterations = options.rawRequest.maxTurns ?? 5;
+  if (options.currentTurn + 1 > maxIterations) {
     throw new GenerationResponseError(
       response,
       `Exceeded maximum tool call iterations (${maxIterations})`,
@@ -221,7 +236,8 @@ async function generate(
 
   const toolResponses: ToolResponsePart[] = [];
   let messages: MessageData[] = [...request.messages, message];
-  let newTools = rawRequest.tools;
+  let newTools = options.rawRequest.tools;
+  let newToolChoice = options.rawRequest.toolChoice;
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -247,6 +263,7 @@ async function generate(
         ...messages.filter((m) => !m?.metadata?.preamble),
       ];
       newTools = newPreamble.tools;
+      newToolChoice = newPreamble.toolChoice;
     } else {
       toolResponses.push({
         toolResponse: {
@@ -257,9 +274,9 @@ async function generate(
       });
     }
   }
-  messageIndex++;
+  options.messageIndex++;
   const nextRequest = {
-    ...rawRequest,
+    ...options.rawRequest,
     messages: [
       ...messages,
       {
@@ -268,6 +285,7 @@ async function generate(
       },
     ] as MessageData[],
     tools: newTools,
+    toolCoice: newToolChoice,
   };
   // stream out the tool responses
   streamingCallback?.(
@@ -276,28 +294,49 @@ async function generate(
         content: toolResponses,
       },
       {
-        index: messageIndex,
+        index: options.messageIndex,
         role: 'model',
         previousChunks: accumulatedChunks,
         parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
       }
     )
   );
-  return await generateHelper(
-    registry,
-    nextRequest,
-    middleware,
-    currentTurn + 1,
-    messageIndex + 1
-  );
+  return await generateHelper(registry, {
+    rawRequest: nextRequest,
+    middleware: options.middleware,
+    currentTurn: options.currentTurn + 1,
+    messageIndex: options.messageIndex + 1,
+  });
 }
 
 async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[],
-  resolvedFormat?: Formatter
+  resolvedTools: ToolAction[] | undefined,
+  resolvedFormat: Formatter | undefined,
+  model: ModelAction
 ): Promise<GenerateRequest> {
-  const out = {
+  const modelInfo = model.__action.metadata?.model as ModelInfo;
+  if (
+    (options.tools?.length ?? 0) > 0 &&
+    modelInfo?.supports &&
+    !modelInfo?.supports?.tools
+  ) {
+    logger.warn(
+      `The model '${model.__action.name}' does not support tools (you set: ${options.tools?.length} tools). ` +
+        'The model may not behave the way you expect.'
+    );
+  }
+  if (
+    options.toolChoice &&
+    modelInfo?.supports &&
+    !modelInfo?.supports?.toolChoice
+  ) {
+    logger.warn(
+      `The model '${model.__action.name}' does not support the 'toolChoice' option (you set: ${options.toolChoice}). ` +
+        'The model may not behave the way you expect.'
+    );
+  }
+  const out: ModelRequest = {
     messages: options.messages,
     config: options.config,
     docs: options.docs,
@@ -309,7 +348,10 @@ async function actionToGenerateRequest(
       }),
     },
   };
-  if (!out.output.schema) delete out.output.schema;
+  if (options.toolChoice) {
+    out.toolChoice = options.toolChoice;
+  }
+  if (out.output && !out.output.schema) delete out.output.schema;
   return out;
 }
 

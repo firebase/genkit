@@ -357,6 +357,14 @@
             "$ref": "#/$defs/ToolDefinition"
           }
         },
+        "toolChoice": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "required",
+            "none"
+          ]
+        },
         "output": {
           "type": "object",
           "properties": {
@@ -697,6 +705,9 @@
         },
         "tools": {
           "$ref": "#/$defs/GenerateRequest/properties/tools"
+        },
+        "toolChoice": {
+          "$ref": "#/$defs/GenerateRequest/properties/toolChoice"
         },
         "output": {
           "$ref": "#/$defs/GenerateRequest/properties/output"

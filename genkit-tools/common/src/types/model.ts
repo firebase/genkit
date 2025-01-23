@@ -162,6 +162,7 @@ export const ModelRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   context: z.array(DocumentDataSchema).optional(),
 });
