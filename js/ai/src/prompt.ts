@@ -656,7 +656,10 @@ async function loadPrompt(
     metadata: {
       ...promptMetadata.metadata,
       type: 'prompt',
-      prompt: promptMetadata,
+      prompt: {
+        ...promptMetadata,
+        template: source
+      },
     },
     maxTurns: promptMetadata.raw?.['maxTurns'],
     toolChoice: promptMetadata.raw?.['toolChoice'],
