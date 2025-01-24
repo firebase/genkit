@@ -105,10 +105,10 @@ export interface PromptConfig<
     schema?: I;
     jsonSchema?: JSONSchema7;
   };
-  system?: string | Part | Part[] | PartsGenerator<z.infer<I>>;
-  prompt?: string | Part | Part[] | PartsGenerator<z.infer<I>>;
-  messages?: string | MessageData[] | MessageGenerator<z.infer<I>>;
-  docs?: DocumentData[] | DocumentGenerator<z.infer<I>>;
+  system?: string | Part | Part[] | PartsResolver<z.infer<I>>;
+  prompt?: string | Part | Part[] | PartsResolver<z.infer<I>>;
+  messages?: string | MessageData[] | MessagesResolver<z.infer<I>>;
+  docs?: DocumentData[] | DocsResolver<z.infer<I>>;
   output?: OutputOptions<O>;
   maxTurns?: number;
   returnToolRequests?: boolean;
@@ -174,14 +174,14 @@ export interface ExecutablePrompt<
   asTool(): Promise<ToolAction>;
 }
 
-export type PartsGenerator<I, S = any> = (
+export type PartsResolver<I, S = any> = (
   input: I,
   options: {
     state?: S;
   }
 ) => Part[] | Promise<string | Part | Part[]>;
 
-export type MessageGenerator<I, S = any> = (
+export type MessagesResolver<I, S = any> = (
   input: I,
   options: {
     history?: MessageData[];
@@ -189,7 +189,7 @@ export type MessageGenerator<I, S = any> = (
   }
 ) => MessageData[] | Promise<MessageData[]>;
 
-export type DocumentGenerator<I, S = any> = (
+export type DocsResolver<I, S = any> = (
   input: I,
   options: {
     state?: S;
