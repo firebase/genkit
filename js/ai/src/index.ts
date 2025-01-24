@@ -110,7 +110,9 @@ export {
 export {
   ToolInterruptError,
   asTool,
+  defineInterrupt,
   defineTool,
+  type InterruptConfig,
   type ToolAction,
   type ToolArgument,
   type ToolConfig,

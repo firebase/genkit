@@ -18,7 +18,7 @@ import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { describe, it } from 'node:test';
-import { definePrompt, renderPrompt } from '../../src/prompt.ts';
+import { definePrompt, renderPrompt } from '../../src/prompt.js';
 
 describe('prompt', () => {
   let registry = new Registry();
