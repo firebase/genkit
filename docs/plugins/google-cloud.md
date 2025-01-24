@@ -62,7 +62,7 @@ automatically via
 
 You will need to apply the following roles to the service account that is 
 running your code (i.e. 'attached service account') via the 
-[IAM Console](https://pantheon.corp.google.com/iam-admin/iam):
+[IAM Console](https://console.cloud.google.com/iam-admin/iam):
 
 - `roles/monitoring.metricWriter`
 - `roles/cloudtrace.agent`
