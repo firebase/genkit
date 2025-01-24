@@ -226,7 +226,14 @@ export function definePrompt<
     const session = getCurrentSession(registry);
 
     // order of these matters:
-    await renderSystemPrompt(registry, session, input, messages, options, promptCache);
+    await renderSystemPrompt(
+      registry,
+      session,
+      input,
+      messages,
+      options,
+      promptCache
+    );
     await renderMessages(
       registry,
       session,
@@ -236,7 +243,14 @@ export function definePrompt<
       renderOptions,
       promptCache
     );
-    await renderUserPrompt(registry, session, input, messages, options, promptCache);
+    await renderUserPrompt(
+      registry,
+      session,
+      input,
+      messages,
+      options,
+      promptCache
+    );
 
     let docs: DocumentData[] | undefined;
     if (typeof options.docs === 'function') {
