@@ -658,7 +658,7 @@ async function loadPrompt(
       type: 'prompt',
       prompt: {
         ...promptMetadata,
-        template: source
+        template: source,
       },
     },
     maxTurns: promptMetadata.raw?.['maxTurns'],
