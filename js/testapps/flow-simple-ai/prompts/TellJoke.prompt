@@ -1,5 +1,7 @@
 ---
-modelProvider: google-vertex
-modelName: gemini-pro
+model: googleai/gemini-1.5-flash
+input:
+  schema:
+    subject: string
 ---
 Tell a joke about {subject}
