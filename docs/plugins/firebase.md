@@ -65,7 +65,7 @@ To provide Firebase credentials, you also need to set up Google Cloud Applicatio
 
 Firebase Genkit Monitoring is powered by Google's Cloud operation suite. This requires telemetry related API's to be enabled for your project. Please refer to the [Google Cloud plugin](google-cloud.md#set-up-a-google-cloud-account) documentation for more details.
 
-Grant the following roles to the **"Default compute service account"** within the [Google Cloud IAM Console](https://console.cloud.google.com/iam-admin/iam-admin/iam?authuser=0):
+Grant the following roles to the **"Default compute service account"** within the [Google Cloud IAM Console](https://console.cloud.google.com/iam-admin/iam-admin/iam):
 
 - **Monitoring Metric Writer** (roles/monitoring.metricWriter)
 - **Cloud Trace Agent** (roles/cloudtrace.agent)
