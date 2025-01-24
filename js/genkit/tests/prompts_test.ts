@@ -629,13 +629,7 @@ describe('definePrompt - dotprompt', () => {
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
-        docs: undefined,
-        maxTurns: undefined,
         messages: [{ content: [{ text: 'hi Genkit' }], role: 'user' }],
-        output: undefined,
-        tools: undefined,
-        returnToolRequests: undefined,
-        use: undefined,
       });
     });
   });
@@ -880,7 +874,6 @@ describe('definePrompt', () => {
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
-        docs: undefined,
         messages: [
           {
             content: [
@@ -891,17 +884,12 @@ describe('definePrompt', () => {
             role: 'user',
           },
         ],
-        output: undefined,
-        tools: undefined,
-        maxTurns: undefined,
-        returnToolRequests: undefined,
-        use: undefined,
       });
     });
   });
 });
 
-describe('prompt', () => {
+describe.only('prompt', () => {
   let ai: Genkit;
   let pm: ProgrammableModel;
 
@@ -923,6 +911,75 @@ describe('prompt', () => {
       text,
       'Echo: Hello from the prompt file; config: {"temperature":11}'
     );
+  });
+
+  it.only('loads from from the folder with all the options', async () => {
+    const testPrompt = ai.prompt('kitchensink'); // see tests/prompts folder
+
+    const request = await testPrompt.render({ subject: 'banana' });
+
+    assert.deepStrictEqual(request, {
+      model: 'googleai/gemini-5.0-ultimate-pro-plus',
+      config: {
+        temperature: 11,
+      },
+      output: {
+        format: 'csv',
+        jsonSchema: {
+          additionalProperties: false,
+          properties: {
+            arr: {
+              description: 'array of objects',
+              items: {
+                additionalProperties: false,
+                properties: {
+                  nest2: {
+                    type: ['boolean', 'null'],
+                  },
+                },
+                type: 'object',
+              },
+              type: 'array',
+            },
+            obj: {
+              additionalProperties: false,
+              description: 'a nested object',
+              properties: {
+                nest1: {
+                  type: ['string', 'null'],
+                },
+              },
+              type: ['object', 'null'],
+            },
+          },
+          required: ['arr'],
+          type: 'object',
+        },
+      },
+      maxTurns: 77,
+      messages: [
+        {
+          content: [
+            {
+              text: ' Hello ',
+            },
+          ],
+          role: 'system',
+        },
+        {
+          content: [
+            {
+              text: ' from the prompt file ',
+            },
+          ],
+          role: 'model',
+        },
+      ],
+      returnToolRequests: true,
+      toolChoice: 'required',
+      subject: 'banana',
+      tools: ['toolA', 'toolB'],
+    });
   });
 
   it('loads a varaint from from the folder', async () => {

@@ -32,7 +32,6 @@ import {
   GenerationCommonConfigSchema,
   IndexerParams,
   ModelArgument,
-  ModelReference,
   Part,
   PromptConfig,
   PromptGenerateOptions,
@@ -907,7 +906,7 @@ export class Genkit implements HasRegistry {
     }
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {
-        loadPromptFolder(
+        await loadPromptFolder(
           this.registry,
           this.options.promptDir ?? './prompts',
           'dotprompt'
@@ -934,29 +933,6 @@ export class Genkit implements HasRegistry {
   async stopServers() {
     await this.reflectionServer?.stop();
     this.reflectionServer = null;
-  }
-
-  private async resolveModel(
-    modelArg: ModelArgument<any> | undefined
-  ): Promise<ModelAction> {
-    if (!modelArg) {
-      if (!this.options.model) {
-        throw new Error('Unable to resolve model.');
-      }
-      return this.resolveModel(this.options.model);
-    }
-    if (typeof modelArg === 'string') {
-      return (await this.registry.lookupAction(
-        `/model/${modelArg}`
-      )) as ModelAction;
-    } else if ((modelArg as ModelAction).__action) {
-      return modelArg as ModelAction;
-    } else {
-      const ref = modelArg as ModelReference<any>;
-      return (await this.registry.lookupAction(
-        `/model/${ref.name}`
-      )) as ModelAction;
-    }
   }
 }
 

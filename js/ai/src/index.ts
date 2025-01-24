@@ -78,11 +78,9 @@ export {
   isExecutablePrompt,
   loadPromptFolder,
   prompt,
-  renderPrompt,
   type ExecutablePrompt,
   type PromptAction,
   type PromptConfig,
-  type PromptFn,
   type PromptGenerateOptions,
 } from './prompt.js';
 export {

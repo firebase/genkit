@@ -83,7 +83,6 @@ export {
   type Part,
   type PromptAction,
   type PromptConfig,
-  type PromptFn,
   type RankedDocument,
   type RerankerAction,
   type RerankerArgument,

@@ -19,13 +19,14 @@ import {
   defineAction,
   GenkitError,
   JSONSchema7,
+  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { Message as DpMessage, PromptFunction } from 'dotprompt';
-import { existsSync, readdir, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { DocumentData } from './document.js';
 import {
@@ -53,14 +54,6 @@ import {
 } from './model.js';
 import { getCurrentSession, Session } from './session.js';
 import { ToolAction, ToolArgument } from './tool.js';
-
-/**
- * Prompt implementation function signature.
- */
-export type PromptFn<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
-> = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
 
 /**
  * Prompt action.
@@ -123,16 +116,6 @@ export interface PromptConfig<
   tools?: ToolArgument[];
   toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
-}
-
-/**
- * Checks whether provided object is a prompt.
- */
-export function isPrompt(arg: any): boolean {
-  return (
-    typeof arg === 'function' &&
-    (arg as any).__action?.metadata?.type === 'prompt'
-  );
 }
 
 /**
@@ -213,13 +196,16 @@ export type DocumentGenerator<I, S = any> = (
   }
 ) => DocumentData[] | Promise<DocumentData[]>;
 
+interface PromptCache {
+  userPrompt?: PromptFunction;
+  system?: PromptFunction;
+  messages?: PromptFunction;
+}
+
 /**
- * Defines and registers a prompt action. The action can be called to obtain
- * a `GenerateRequest` which can be passed to a model action. The given
- * `PromptFn` can perform any action needed to create the request such as rendering
- * a template or fetching a prompt from a database.
+ * Defines a prompt which can be used to generate content or render a request.
  *
- * @returns The new `PromptAction`.
+ * @returns The new `ExecutablePrompt`.
  */
 export function definePrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -229,121 +215,54 @@ export function definePrompt<
   registry: Registry,
   options: PromptConfig<I, O, CustomOptions>
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
-  let compiledPrompt: PromptFunction;
-  let compiledSystem: PromptFunction;
-  let compiledMessages: PromptFunction;
-  const renderOptions = async (
+  const promptCache = {} as PromptCache;
+
+  const renderOptionsFn = async (
     input: z.infer<I>,
-    opts: PromptGenerateOptions<O, CustomOptions> | undefined
+    renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ): Promise<GenerateOptions> => {
+    const messages: MessageData[] = [];
+    renderOptions = { ...renderOptions }; // make a copy, we will be trimming
     const session = getCurrentSession(registry);
-    let messages: MessageData[] = [];
-    opts = { ...opts }; // make a copy, we will be trimming
 
-    if (typeof options.system === 'function') {
-      messages.push({
-        role: 'system',
-        content: normalizeParts(
-          await options.system(input, { state: session?.state })
-        ),
-      });
-    } else if (typeof options.system === 'string') {
-      // memoize compiled prompt
-      if (!compiledSystem) {
-        compiledSystem = await registry.dotpromptEnv.compile(options.system);
-      }
-      messages.push({
-        role: 'system',
-        content: await renderDotpromptToParts(compiledSystem, input, session),
-      });
-    } else if (options.system) {
-      messages.push({
-        role: 'system',
-        content: normalizeParts(options.system),
-      });
-    }
-
-    if (options.messages) {
-      if (typeof options.messages === 'function') {
-        messages.push(
-          ...(await options.messages(input, {
-            state: session?.state,
-            history: opts?.messages,
-          }))
-        );
-      } else if (typeof options.messages === 'string') {
-        // memoize compiled prompt
-        if (!compiledMessages) {
-          compiledMessages = await registry.dotpromptEnv.compile(
-            options.messages
-          );
-        }
-        const rendered = await compiledMessages({
-          input,
-          context: { state: session?.state },
-          messages: opts?.messages?.map((m) =>
-            Message.parseData(m)
-          ) as DpMessage[],
-        });
-        messages.push(...rendered.messages);
-      } else {
-        messages.push(...options.messages);
-      }
-    } else {
-      if (opts.messages) {
-        messages.push(...opts.messages);
-      }
-    }
-    if (opts?.messages) {
-      // delete messages from opts so that we don't override messages
-      delete opts.messages;
-    }
-
-    if (typeof options.prompt === 'function') {
-      messages.push({
-        role: 'user',
-        content: normalizeParts(
-          await options.prompt(input, { state: session?.state })
-        ),
-      });
-    } else if (typeof options.prompt === 'string') {
-      // memoize compiled prompt
-      if (!compiledPrompt) {
-        compiledPrompt = await registry.dotpromptEnv.compile(options.prompt);
-      }
-      messages.push({
-        role: 'user',
-        content: await renderDotpromptToParts(compiledPrompt, input, session),
-      });
-    } else if (options.prompt) {
-      messages.push({
-        role: 'user',
-        content: normalizeParts(options.prompt),
-      });
-    }
+    // order of these matters:
+    await renderSystemPrompt(registry, session, input, messages, options, promptCache);
+    await renderMessages(
+      registry,
+      session,
+      input,
+      messages,
+      options,
+      renderOptions,
+      promptCache
+    );
+    await renderUserPrompt(registry, session, input, messages, options, promptCache);
 
     let docs: DocumentData[] | undefined;
     if (typeof options.docs === 'function') {
-      docs = await options.docs(input, { state: session?.state });
+      docs = await options.docs(input, {
+        state: session?.state,
+      });
     } else {
       docs = options.docs;
     }
 
-    return {
+    return stripUndefinedProps({
       model: options.model,
-      tools: options.tools,
       maxTurns: options.maxTurns,
-      docs,
       messages,
+      docs,
+      tools: options.tools,
       returnToolRequests: options.returnToolRequests,
+      toolChoice: options.toolChoice,
       output: options.output,
       use: options.use,
-      ...stripUndefined(opts),
+      ...stripUndefinedProps(renderOptions),
       config: {
         ...options?.config,
-        ...opts?.config,
+        ...renderOptions?.config,
       },
-    };
+    });
   };
   const rendererAction = defineAction(
     registry,
@@ -365,10 +284,12 @@ export function definePrompt<
         ...options.metadata,
         type: 'prompt',
       },
-      //outputSchema: GenerateRequestSchema,
     },
     async (input: z.infer<I>): Promise<GenerateRequest<z.ZodTypeAny>> => {
-      return toGenerateRequest(registry, await renderOptions(input, undefined));
+      return toGenerateRequest(
+        registry,
+        await renderOptionsFn(input, undefined)
+      );
     }
   ) as PromptAction<I>;
   const executablePromptAction = defineAction(
@@ -378,47 +299,22 @@ export function definePrompt<
       inputJsonSchema: options.input?.jsonSchema,
       inputSchema: options.input?.schema,
       description: options.description,
-      //outputSchema: GenerateResponseSchema,
       actionType: 'executable-prompt',
       metadata: { ...(options.metadata || { prompt: {} }), type: 'prompt' },
     },
     async (input: z.infer<I>, { sendChunk }): Promise<GenerateResponse> => {
       return await generate(registry, {
-        ...(await renderOptions(input, undefined)),
+        ...(await renderOptionsFn(input, undefined)),
         onChunk: sendChunk,
       });
     }
   ) as ExecutablePromptAction<I>;
 
-  const executablePrompt = (async (
-    input?: I,
-    opts?: PromptGenerateOptions<O, CustomOptions>
-  ): Promise<GenerateResponse<z.infer<O>>> => {
-    return generate(registry, {
-      ...(await renderOptions(input, opts)),
-    });
-  }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
-
-  executablePrompt.render = async (
-    input?: I,
-    opts?: PromptGenerateOptions<O, CustomOptions>
-  ): Promise<GenerateOptions<O, CustomOptions>> => {
-    const rendered = await renderOptions(input, opts);
-    return {
-      ...(await renderOptions(input, opts)),
-    } as GenerateOptions<O, CustomOptions>;
-  };
-
-  executablePrompt.stream = (
-    input?: I,
-    opts?: PromptGenerateOptions<O, CustomOptions>
-  ): GenerateStreamResponse<z.infer<O>> => {
-    return generateStream(registry, renderOptions(input, opts));
-  };
-
-  executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-    return rendererAction as unknown as ToolAction<I, O>;
-  };
+  const executablePrompt = wrapInExecutablePrompt(
+    registry,
+    renderOptionsFn,
+    rendererAction
+  );
 
   executablePromptAction.__executablePrompt =
     executablePrompt as never as ExecutablePrompt<z.infer<I>>;
@@ -426,6 +322,177 @@ export function definePrompt<
     executablePrompt as never as ExecutablePrompt<z.infer<I>>;
 
   return executablePrompt;
+}
+
+function wrapInExecutablePrompt<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  renderOptionsFn: (
+    input: z.infer<I>,
+    renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
+  ) => Promise<GenerateOptions>,
+  rendererAction: PromptAction<I>
+) {
+  const executablePrompt = (async (
+    input?: I,
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<O>>> => {
+    return generate(registry, {
+      ...(await renderOptionsFn(input, opts)),
+    });
+  }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+
+  executablePrompt.render = async (
+    input?: I,
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<GenerateOptions<O, CustomOptions>> => {
+    return {
+      ...(await renderOptionsFn(input, opts)),
+    } as GenerateOptions<O, CustomOptions>;
+  };
+
+  executablePrompt.stream = (
+    input?: I,
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): GenerateStreamResponse<z.infer<O>> => {
+    return generateStream(registry, renderOptionsFn(input, opts));
+  };
+
+  executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
+    return rendererAction as unknown as ToolAction<I, O>;
+  };
+  return executablePrompt;
+}
+
+async function renderSystemPrompt<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  session: Session | undefined,
+  input: z.infer<I>,
+  messages: MessageData[],
+  options: PromptConfig<I, O, CustomOptions>,
+  promptCache: PromptCache
+) {
+  if (typeof options.system === 'function') {
+    messages.push({
+      role: 'system',
+      content: normalizeParts(
+        await options.system(input, { state: session?.state })
+      ),
+    });
+  } else if (typeof options.system === 'string') {
+    // memoize compiled prompt
+    if (!promptCache.system) {
+      promptCache.system = await registry.dotpromptEnv.compile(options.system);
+    }
+    messages.push({
+      role: 'system',
+      content: await renderDotpromptToParts(promptCache.system, input, session),
+    });
+  } else if (options.system) {
+    messages.push({
+      role: 'system',
+      content: normalizeParts(options.system),
+    });
+  }
+}
+
+async function renderMessages<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  session: Session | undefined,
+  input: z.infer<I>,
+  messages: MessageData[],
+  options: PromptConfig<I, O, CustomOptions>,
+  renderOptions: PromptGenerateOptions<O, CustomOptions>,
+  promptCache: PromptCache
+) {
+  if (options.messages) {
+    if (typeof options.messages === 'function') {
+      messages.push(
+        ...(await options.messages(input, {
+          state: session?.state,
+          history: renderOptions?.messages,
+        }))
+      );
+    } else if (typeof options.messages === 'string') {
+      // memoize compiled prompt
+      if (!promptCache.messages) {
+        promptCache.messages = await registry.dotpromptEnv.compile(
+          options.messages
+        );
+      }
+      const rendered = await promptCache.messages({
+        input,
+        context: { state: session?.state },
+        messages: renderOptions?.messages?.map((m) =>
+          Message.parseData(m)
+        ) as DpMessage[],
+      });
+      messages.push(...rendered.messages);
+    } else {
+      messages.push(...options.messages);
+    }
+  } else {
+    if (renderOptions.messages) {
+      messages.push(...renderOptions.messages);
+    }
+  }
+  if (renderOptions?.messages) {
+    // delete messages from opts so that we don't override messages downstream
+    delete renderOptions.messages;
+  }
+}
+
+async function renderUserPrompt<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  session: Session | undefined,
+  input: z.infer<I>,
+  messages: MessageData[],
+  options: PromptConfig<I, O, CustomOptions>,
+  promptCache: PromptCache
+) {
+  if (typeof options.prompt === 'function') {
+    messages.push({
+      role: 'user',
+      content: normalizeParts(
+        await options.prompt(input, { state: session?.state })
+      ),
+    });
+  } else if (typeof options.prompt === 'string') {
+    // memoize compiled prompt
+    if (!promptCache.userPrompt) {
+      promptCache.userPrompt = await registry.dotpromptEnv.compile(
+        options.prompt
+      );
+    }
+    messages.push({
+      role: 'user',
+      content: await renderDotpromptToParts(
+        promptCache.userPrompt,
+        input,
+        session
+      ),
+    });
+  } else if (options.prompt) {
+    messages.push({
+      role: 'user',
+      content: normalizeParts(options.prompt),
+    });
+  }
 }
 
 function modelName(
@@ -470,52 +537,6 @@ async function renderDotpromptToParts(
   return renderred.messages[0].content;
 }
 
-export type PromptArgument<I extends z.ZodTypeAny = z.ZodTypeAny> =
-  | string
-  | PromptAction<I>;
-
-/**
- * This veneer renders a `PromptAction` into a `GenerateOptions` object.
- *
- * @returns A promise of an options object for use with the `generate()` function.
- */
-export async function renderPrompt<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  registry: Registry,
-  params: {
-    prompt: PromptArgument<I>;
-    input: z.infer<I>;
-    docs?: DocumentData[];
-    model: ModelArgument<CustomOptions>;
-    config?: z.infer<CustomOptions>;
-  }
-): Promise<GenerateOptions<O, CustomOptions>> {
-  let prompt: PromptAction<I>;
-  if (typeof params.prompt === 'string') {
-    prompt = await registry.lookupAction(`/prompt/${params.prompt}`);
-  } else {
-    prompt = params.prompt as PromptAction<I>;
-  }
-  const rendered = (await prompt(
-    params.input
-  )) as GenerateRequest<CustomOptions>;
-  return {
-    model: params.model,
-    config: { ...(rendered.config || {}), ...params.config },
-    messages: rendered.messages.slice(0, rendered.messages.length - 1),
-    prompt: rendered.messages[rendered.messages.length - 1].content,
-    docs: params.docs,
-    output: {
-      format: rendered.output?.format,
-      schema: rendered.output?.schema,
-    },
-    tools: rendered.tools || [],
-  } as GenerateOptions<O, CustomOptions>;
-}
-
 /**
  * Checks whether the provided object is an executable prompt.
  */
@@ -527,79 +548,45 @@ export function isExecutablePrompt(obj: any): boolean {
   );
 }
 
-function stripUndefined(input: any) {
-  if (
-    input === undefined ||
-    Array.isArray(input) ||
-    typeof input !== 'object'
-  ) {
-    return input;
-  }
-  const out = {};
-  for (const key in input) {
-    if (input[key] !== undefined) {
-      out[key] = stripUndefined(input[key]);
-    }
-  }
-  return out;
-}
-
 export async function loadPromptFolder(
   registry: Registry,
   dir: string = './prompts',
   ns: string
 ): Promise<void> {
   const promptsPath = resolve(dir);
-  return new Promise<void>((resolve, reject) => {
-    if (existsSync(promptsPath)) {
-      readdir(
-        promptsPath,
-        {
-          withFileTypes: true,
-          recursive: true,
-        },
-        (err, dirEnts) => {
-          if (err) {
-            reject(err);
-          } else {
-            dirEnts.forEach(async (dirEnt) => {
-              if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
-                if (dirEnt.name.startsWith('_')) {
-                  const partialName = dirEnt.name.substring(
-                    1,
-                    dirEnt.name.length - 7
-                  );
-                  definePartial(
-                    registry,
-                    partialName,
-                    readFileSync(join(dirEnt.path, dirEnt.name), {
-                      encoding: 'utf8',
-                    })
-                  );
-                  logger.debug(
-                    `Registered Dotprompt partial "${partialName}" from "${join(dirEnt.path, dirEnt.name)}"`
-                  );
-                } else {
-                  // If this prompt is in a subdirectory, we need to include that
-                  // in the namespace to prevent naming conflicts.
-                  let prefix = '';
-                  if (promptsPath !== dirEnt.path) {
-                    prefix = dirEnt.path
-                      .replace(`${promptsPath}/`, '')
-                      .replace(/\//g, '-');
-                  }
-                  loadPrompt(registry, dirEnt.path, dirEnt.name, prefix, ns);
-                }
-              }
-            });
-            resolve();
+  if (existsSync(promptsPath)) {
+    const dirEnts = readdirSync(promptsPath, {
+      withFileTypes: true,
+      recursive: true,
+    });
+    for (const dirEnt of dirEnts) {
+      if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
+        if (dirEnt.name.startsWith('_')) {
+          const partialName = dirEnt.name.substring(1, dirEnt.name.length - 7);
+          definePartial(
+            registry,
+            partialName,
+            readFileSync(join(dirEnt.path, dirEnt.name), {
+              encoding: 'utf8',
+            })
+          );
+          logger.debug(
+            `Registered Dotprompt partial "${partialName}" from "${join(dirEnt.path, dirEnt.name)}"`
+          );
+        } else {
+          // If this prompt is in a subdirectory, we need to include that
+          // in the namespace to prevent naming conflicts.
+          let prefix = '';
+          if (promptsPath !== dirEnt.path) {
+            prefix = dirEnt.path
+              .replace(`${promptsPath}/`, '')
+              .replace(/\//g, '-');
           }
+          await loadPrompt(registry, dirEnt.path, dirEnt.name, prefix, ns);
         }
-      );
-    } else {
-      resolve();
+      }
     }
-  });
+  }
 }
 
 export function definePartial(
@@ -618,13 +605,13 @@ export function defineHelper(
   registry.dotpromptEnv.defineHelper(name, fn);
 }
 
-function loadPrompt(
+async function loadPrompt(
   registry: Registry,
   path: string,
   filename: string,
   prefix = '',
   ns = 'dotprompt'
-): void {
+): Promise<void> {
   let name = `${prefix ? `${prefix}-` : ''}${basename(filename, '.prompt')}`;
   let variant: string | null = null;
   if (name.includes('.')) {
@@ -633,23 +620,34 @@ function loadPrompt(
     variant = parts[1];
   }
   const source = readFileSync(join(path, filename), 'utf8');
-  const prompt = registry.dotpromptEnv.parse(source);
+  const parsedPrompt = registry.dotpromptEnv.parse(source);
+  const promptMetadata =
+    await registry.dotpromptEnv.renderMetadata(parsedPrompt);
   if (variant) {
-    prompt.variant = variant;
+    promptMetadata.variant = variant;
   }
   definePrompt(registry, {
     name: registryDefinitionKey(name, variant ?? undefined, ns),
-    config: prompt.config,
-    tools: prompt.tools,
-    description: prompt.description,
+    model: promptMetadata.model,
+    config: promptMetadata.config,
+    tools: promptMetadata.tools,
+    description: promptMetadata.description,
+    output: {
+      jsonSchema: promptMetadata.output?.schema,
+      format: promptMetadata.output?.format,
+    },
     input: {
-      jsonSchema: prompt.input?.schema,
+      jsonSchema: promptMetadata.input?.schema,
     },
     metadata: {
+      ...promptMetadata.metadata,
       type: 'prompt',
-      prompt: prompt,
+      prompt: promptMetadata,
     },
-    messages: prompt.template,
+    maxTurns: promptMetadata.raw?.['maxTurns'],
+    toolChoice: promptMetadata.raw?.['toolChoice'],
+    returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
+    messages: parsedPrompt.template,
   });
 }
 
