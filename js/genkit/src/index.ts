@@ -72,6 +72,7 @@ export {
   type IndexerInfo,
   type IndexerParams,
   type IndexerReference,
+  type InterruptConfig,
   type LlmResponse,
   type LlmStats,
   type MediaPart,
