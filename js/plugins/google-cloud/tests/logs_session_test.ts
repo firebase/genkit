@@ -25,7 +25,8 @@ import {
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
-import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
+import { GenerateResponseData, Genkit, z } from 'genkit';
+import { GenkitBeta, genkit } from 'genkit/beta';
 import { ModelAction } from 'genkit/model';
 import { Writable } from 'stream';
 import {
@@ -66,7 +67,7 @@ describe('GoogleCloudLogs for sessions', () => {
     next();
   };
 
-  let ai: Genkit;
+  let ai: GenkitBeta;
   let testModel: ModelAction;
 
   beforeAll(async () => {
