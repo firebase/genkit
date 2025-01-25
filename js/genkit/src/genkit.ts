@@ -31,6 +31,7 @@ import {
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
+  InterruptConfig,
   ModelArgument,
   Part,
   PromptConfig,
@@ -43,6 +44,7 @@ import {
   ToolAction,
   ToolConfig,
   defineHelper,
+  defineInterrupt,
   definePartial,
   definePrompt,
   defineTool,
@@ -199,6 +201,18 @@ export class Genkit implements HasRegistry {
     fn: ToolFn<I, O>
   ): ToolAction<I, O> {
     return defineTool(this.registry, config, fn);
+  }
+
+  /**
+   * Defines and registers an interrupt.
+   *
+   * Interrupts are special tools that halt model processing and return control back to the caller. Interrupts make it simpler to implement
+   * "human-in-the-loop" and out-of-band processing patterns that require waiting on external actions to complete.
+   */
+  defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: InterruptConfig<I, O>
+  ): ToolAction<I, O> {
+    return defineInterrupt(this.registry, config);
   }
 
   /**
