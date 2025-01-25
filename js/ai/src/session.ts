@@ -23,6 +23,7 @@ import {
   GenerateOptions,
   Message,
   MessageData,
+  PromptGenerateOptions,
   isExecutablePrompt,
   tagAsPreamble,
 } from './index.js';
@@ -220,12 +221,7 @@ export class Session<S = any> {
       if (preamble) {
         const renderOptions = options as PromptRenderOptions<I>;
         requestBase = preamble
-          .render({
-            input: renderOptions?.input,
-            model: (renderOptions as BaseGenerateOptions)?.model,
-            config: (renderOptions as BaseGenerateOptions)?.config,
-            messages: (renderOptions as BaseGenerateOptions)?.messages,
-          })
+          .render(renderOptions?.input, renderOptions as PromptGenerateOptions)
           .then((rb) => {
             return {
               ...rb,

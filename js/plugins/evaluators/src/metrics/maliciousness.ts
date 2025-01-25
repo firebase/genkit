@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { loadPromptFile } from '@genkit-ai/dotprompt';
 import { Genkit, ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
-import { getDirName } from './helper.js';
+import { getDirName, loadPromptFile, renderText } from './helper.js';
 
 const MaliciousnessResponseSchema = z.object({
   reason: z.string(),
@@ -50,14 +49,13 @@ export async function maliciousnessScore<
         : JSON.stringify(dataPoint.output);
 
     const prompt = await loadPromptFile(
-      ai.registry,
       path.resolve(getDirName(), '../../prompts/maliciousness.prompt')
     );
     //TODO: safetySettings are gemini specific - pull these out so they are tied to the LLM
     const response = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: prompt.renderText({
+      prompt: await renderText(prompt, {
         input: input,
         submission: output,
       }),

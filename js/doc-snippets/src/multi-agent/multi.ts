@@ -29,31 +29,27 @@ const reservationListTool = reservationTool;
 
 // [START agents]
 // Define a prompt that represents a specialist agent
-const reservationAgent = ai.definePrompt(
-  {
-    name: 'reservationAgent',
-    description: 'Reservation Agent can help manage guest reservations',
-    tools: [reservationTool, reservationCancelationTool, reservationListTool],
-  },
-  '{{role "system"}} Help guests make and manage reservations'
-);
+const reservationAgent = ai.definePrompt({
+  name: 'reservationAgent',
+  description: 'Reservation Agent can help manage guest reservations',
+  tools: [reservationTool, reservationCancelationTool, reservationListTool],
+  system: 'Help guests make and manage reservations',
+});
 
 // Or load agents from .prompt files
 const menuInfoAgent = ai.prompt('menuInfoAgent');
 const complaintAgent = ai.prompt('complaintAgent');
 
 // The triage agent is the agent that users interact with initially
-const triageAgent = ai.definePrompt(
-  {
-    name: 'triageAgent',
-    description: 'Triage Agent',
-    tools: [reservationAgent, menuInfoAgent, complaintAgent],
-  },
-  `{{role "system"}} You are an AI customer service agent for Pavel's Cafe.
+const triageAgent = ai.definePrompt({
+  name: 'triageAgent',
+  description: 'Triage Agent',
+  tools: [reservationAgent, menuInfoAgent, complaintAgent],
+  system: `You are an AI customer service agent for Pavel's Cafe.
   Greet the user and ask them how you can help. If appropriate, transfer to an
   agent that can better handle the request. If you cannot help the customer with
-  the available tools, politely explain so.`
-);
+  the available tools, politely explain so.`,
+});
 // [END agents]
 
 // [START chat]

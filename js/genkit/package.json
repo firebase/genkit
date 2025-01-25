@@ -29,7 +29,6 @@
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

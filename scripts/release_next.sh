@@ -37,10 +37,6 @@ cd js/genkit
 pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd js/plugins/dotprompt
-pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
-cd $CURRENT
-
 cd js/plugins/chroma
 pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT

@@ -15,46 +15,39 @@
  */
 
 import { gemini15Flash } from '@genkit-ai/vertexai';
-import { GenerateRequest } from 'genkit';
 import { ai } from '../genkit.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
 // Define a prompt to handle a customer question about the menu.
 // This prompt uses definePrompt directly.
 
-export const s01_vanillaPrompt = ai.definePrompt(
-  {
-    name: 's01_vanillaPrompt',
-    input: {
-      schema: MenuQuestionInputSchema,
-    },
+export const s01_vanillaPrompt = ai.definePrompt({
+  name: 's01_vanillaPrompt',
+  input: {
+    schema: MenuQuestionInputSchema,
   },
-  async (input: MenuQuestionInput): Promise<GenerateRequest> => {
+  config: { temperature: 0.3 },
+  messages: async (input: MenuQuestionInput) => {
     const promptText = `
-    You are acting as a helpful AI assistant named "Walt" that can answer 
-    questions about the food available on the menu at Walt's Burgers.
-    Customer says: ${input.question}
-    `;
+      You are acting as a helpful AI assistant named "Walt" that can answer 
+      questions about the food available on the menu at Walt's Burgers.
+      Customer says: ${input.question}
+      `;
 
-    return {
-      messages: [{ role: 'user', content: [{ text: promptText }] }],
-      config: { temperature: 0.3 },
-    };
-  }
-);
+    return [{ role: 'user', content: [{ text: promptText }] }];
+  },
+});
 
 // Define another prompt which uses the Dotprompt library
 // that also gives us a type-safe handlebars template system,
 // and well-defined output schemas.
 
-export const s01_staticMenuDotPrompt = ai.definePrompt(
-  {
-    name: 's01_staticMenuDotPrompt',
-    model: gemini15Flash,
-    input: { schema: MenuQuestionInputSchema },
-    output: { format: 'text' },
-  },
-  `
+export const s01_staticMenuDotPrompt = ai.definePrompt({
+  name: 's01_staticMenuDotPrompt',
+  model: gemini15Flash,
+  input: { schema: MenuQuestionInputSchema },
+  output: { format: 'text' },
+  messages: `
 You are acting as a helpful AI assistant named "Walt" that can answer 
 questions about the food available on the menu at Walt's Burgers. 
 Here is today's menu:
@@ -85,5 +78,5 @@ as long as it is about food.
 
 Question:
 {{question}} ?
-`
-);
+`,
+});

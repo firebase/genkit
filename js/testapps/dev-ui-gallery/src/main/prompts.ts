@@ -26,68 +26,58 @@ import { ai } from '../genkit.js';
 const promptName = 'codeDefinedPrompt';
 const template = 'Say hello to {{name}} in the voice of a {{persona}}.';
 
-export const codeDefinedPrompt = ai.definePrompt(
-  {
-    name: promptName,
-    model: gemini15Flash,
-    input: {
-      schema: HelloSchema,
-      default: {
-        persona: 'Space Pirate',
-      },
-    },
-    output: {
-      format: 'text',
-    },
-    config: {
-      maxOutputTokens: 2048,
-      temperature: 0.6,
-      topK: 16,
-      topP: 0.95,
-      stopSequences: ['STAWP!'],
-      safetySettings: [
-        {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-      ],
-    },
+export const codeDefinedPrompt = ai.definePrompt({
+  name: promptName,
+  model: gemini15Flash,
+  input: {
+    schema: HelloSchema,
   },
-  template
-);
+  output: {
+    format: 'text',
+  },
+  config: {
+    maxOutputTokens: 2048,
+    temperature: 0.6,
+    topK: 16,
+    topP: 0.95,
+    stopSequences: ['STAWP!'],
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+    ],
+  },
+  prompt: template,
+});
 
-export const codeDefinedPromptVariant = ai.definePrompt(
-  {
-    name: promptName,
-    variant: 'jsonOutput',
-    model: gemini15Flash,
-    input: {
-      schema: HelloSchema,
-      default: {
-        persona: 'Sportscaster',
-      },
-    },
-    output: {
-      schema: z.object({
-        greeting: z.string(),
-      }),
-      format: 'json',
-    },
+export const codeDefinedPromptVariant = ai.definePrompt({
+  name: promptName,
+  variant: 'jsonOutput',
+  model: gemini15Flash,
+  input: {
+    schema: HelloSchema,
   },
-  template
-);
+  output: {
+    schema: z.object({
+      greeting: z.string(),
+    }),
+    format: 'json',
+  },
+  prompt: template,
+});
 
 ai.defineFlow(
   {
@@ -105,30 +95,23 @@ ai.defineFlow(
 // Function(al) prompts
 //
 
-export const promptFn = ai.definePrompt(
-  {
-    name: 'functionalPrompt',
-    input: {
-      schema: HelloSchema,
-      default: {
-        persona: 'Space Pirate',
-      },
-    },
-    model: gemini15Flash,
+export const promptFn = ai.definePrompt({
+  name: 'functionalPrompt',
+  input: {
+    schema: HelloSchema,
   },
-  async (input) => ({
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            text: `say hello to ${input.name} in the voice of ${input.persona}`,
-          },
-        ],
-      },
-    ],
-  })
-);
+  model: gemini15Flash,
+  messages: async (input) => [
+    {
+      role: 'user',
+      content: [
+        {
+          text: `say hello to ${input.name} in the voice of ${input.persona}`,
+        },
+      ],
+    },
+  ],
+});
 
 ai.defineFlow(
   {
