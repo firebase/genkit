@@ -223,12 +223,7 @@ export function definePrompt<
   );
 }
 
-/**
- * Defines a prompt which can be used to generate content or render a request.
- *
- * @returns The new `ExecutablePrompt`.
- */
-export function definePromptAsync<
+function definePromptAsync<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
