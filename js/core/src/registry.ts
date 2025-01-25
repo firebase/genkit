@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { dotprompt } from 'dotprompt';
+import { DotpromptEnvironment } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
@@ -71,7 +71,7 @@ export class Registry {
   private allPluginsInitialized = false;
 
   readonly asyncStore = new AsyncStore();
-  readonly dotpromptEnv = dotprompt({
+  readonly dotprompt = new DotpromptEnvironment({
     schemaResolver: async (name) => {
       const resolvedSchema = await this.lookupSchema(name);
       if (!resolvedSchema) {

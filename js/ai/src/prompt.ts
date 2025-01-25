@@ -403,7 +403,7 @@ async function renderSystemPrompt<
   } else if (typeof options.system === 'string') {
     // memoize compiled prompt
     if (!promptCache.system) {
-      promptCache.system = await registry.dotpromptEnv.compile(options.system);
+      promptCache.system = await registry.dotprompt.compile(options.system);
     }
     messages.push({
       role: 'system',
@@ -441,7 +441,7 @@ async function renderMessages<
     } else if (typeof options.messages === 'string') {
       // memoize compiled prompt
       if (!promptCache.messages) {
-        promptCache.messages = await registry.dotpromptEnv.compile(
+        promptCache.messages = await registry.dotprompt.compile(
           options.messages
         );
       }
@@ -489,7 +489,7 @@ async function renderUserPrompt<
   } else if (typeof options.prompt === 'string') {
     // memoize compiled prompt
     if (!promptCache.userPrompt) {
-      promptCache.userPrompt = await registry.dotpromptEnv.compile(
+      promptCache.userPrompt = await registry.dotprompt.compile(
         options.prompt
       );
     }
@@ -608,7 +608,7 @@ export function definePartial(
   name: string,
   source: string
 ) {
-  registry.dotpromptEnv.definePartial(name, source);
+  registry.dotprompt.definePartial(name, source);
 }
 
 export function defineHelper(
@@ -616,7 +616,7 @@ export function defineHelper(
   name: string,
   fn: Handlebars.HelperDelegate
 ) {
-  registry.dotpromptEnv.defineHelper(name, fn);
+  registry.dotprompt.defineHelper(name, fn);
 }
 
 async function loadPrompt(
@@ -634,9 +634,9 @@ async function loadPrompt(
     variant = parts[1];
   }
   const source = readFileSync(join(path, filename), 'utf8');
-  const parsedPrompt = registry.dotpromptEnv.parse(source);
+  const parsedPrompt = registry.dotprompt.parse(source);
   const promptMetadata =
-    await registry.dotpromptEnv.renderMetadata(parsedPrompt);
+    await registry.dotprompt.renderMetadata(parsedPrompt);
   if (variant) {
     promptMetadata.variant = variant;
   }
