@@ -127,8 +127,7 @@ export async function lookupToolByName(
   let tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||
-    (await registry.lookupAction(`/prompt/${name}`)) ||
-    (await registry.lookupAction(`/prompt/dotprompt/${name}`));
+    (await registry.lookupAction(`/prompt/${name}`));
   if (!tool) {
     throw new Error(`Tool ${name} not found`);
   }

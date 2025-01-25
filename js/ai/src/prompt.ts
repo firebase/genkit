@@ -16,7 +16,8 @@
 
 import {
   Action,
-  defineAction,
+  ActionAsyncParams,
+  defineActionAsync,
   GenkitError,
   JSONSchema7,
   stripUndefinedProps,
@@ -215,6 +216,27 @@ export function definePrompt<
   registry: Registry,
   options: PromptConfig<I, O, CustomOptions>
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+  return definePromptAsync(
+    registry,
+    `${options.name}${options.variant ? `.${options.variant}` : ''}`,
+    Promise.resolve(options)
+  );
+}
+
+/**
+ * Defines a prompt which can be used to generate content or render a request.
+ *
+ * @returns The new `ExecutablePrompt`.
+ */
+export function definePromptAsync<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  name: string,
+  optionsPromise: Promise<PromptConfig<I, O, CustomOptions>>
+): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
   const promptCache = {} as PromptCache;
 
   const renderOptionsFn = async (
@@ -224,6 +246,7 @@ export function definePrompt<
     const messages: MessageData[] = [];
     renderOptions = { ...renderOptions }; // make a copy, we will be trimming
     const session = getCurrentSession(registry);
+    const resolvedOptions = await optionsPromise;
 
     // order of these matters:
     await renderSystemPrompt(
@@ -231,7 +254,7 @@ export function definePrompt<
       session,
       input,
       messages,
-      options,
+      resolvedOptions,
       promptCache
     );
     await renderMessages(
@@ -239,7 +262,7 @@ export function definePrompt<
       session,
       input,
       messages,
-      options,
+      resolvedOptions,
       renderOptions,
       promptCache
     );
@@ -248,81 +271,93 @@ export function definePrompt<
       session,
       input,
       messages,
-      options,
+      resolvedOptions,
       promptCache
     );
 
     let docs: DocumentData[] | undefined;
-    if (typeof options.docs === 'function') {
-      docs = await options.docs(input, {
+    if (typeof resolvedOptions.docs === 'function') {
+      docs = await resolvedOptions.docs(input, {
         state: session?.state,
       });
     } else {
-      docs = options.docs;
+      docs = resolvedOptions.docs;
     }
 
     return stripUndefinedProps({
-      model: options.model,
-      maxTurns: options.maxTurns,
+      model: resolvedOptions.model,
+      maxTurns: resolvedOptions.maxTurns,
       messages,
       docs,
-      tools: options.tools,
-      returnToolRequests: options.returnToolRequests,
-      toolChoice: options.toolChoice,
-      output: options.output,
-      use: options.use,
+      tools: resolvedOptions.tools,
+      returnToolRequests: resolvedOptions.returnToolRequests,
+      toolChoice: resolvedOptions.toolChoice,
+      output: resolvedOptions.output,
+      use: resolvedOptions.use,
       ...stripUndefinedProps(renderOptions),
       config: {
-        ...options?.config,
+        ...resolvedOptions?.config,
         ...renderOptions?.config,
       },
     });
   };
-  const rendererAction = defineAction(
-    registry,
-    {
-      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
-      inputJsonSchema: options.input?.jsonSchema,
-      inputSchema: options.input?.schema,
-      description: options.description,
-      actionType: 'prompt',
-      metadata: {
-        prompt: {
-          config: options.config,
-          input: {
-            schema: options.input ? toJsonSchema(options.input) : undefined,
-          },
-          name: options.name,
-          model: modelName(options.model),
+  const rendererActionConfig = optionsPromise.then(
+    (options: PromptConfig<I, O, CustomOptions>) => {
+      const metadata = promptMetadata(options);
+      return {
+        name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
+        inputJsonSchema: options.input?.jsonSchema,
+        inputSchema: options.input?.schema,
+        description: options.description,
+        actionType: 'prompt',
+        metadata,
+        fn: async (
+          input: z.infer<I>
+        ): Promise<GenerateRequest<z.ZodTypeAny>> => {
+          return toGenerateRequest(
+            registry,
+            await renderOptionsFn(input, undefined)
+          );
         },
-        ...options.metadata,
-        type: 'prompt',
-      },
-    },
-    async (input: z.infer<I>): Promise<GenerateRequest<z.ZodTypeAny>> => {
-      return toGenerateRequest(
-        registry,
-        await renderOptionsFn(input, undefined)
-      );
+      } as ActionAsyncParams<any, any, any>;
     }
-  ) as PromptAction<I>;
-  const executablePromptAction = defineAction(
+  );
+  const rendererAction = defineActionAsync(
     registry,
-    {
-      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
-      inputJsonSchema: options.input?.jsonSchema,
-      inputSchema: options.input?.schema,
-      description: options.description,
-      actionType: 'executable-prompt',
-      metadata: { ...(options.metadata || { prompt: {} }), type: 'prompt' },
-    },
-    async (input: z.infer<I>, { sendChunk }): Promise<GenerateResponse> => {
-      return await generate(registry, {
-        ...(await renderOptionsFn(input, undefined)),
-        onChunk: sendChunk,
-      });
+    'prompt',
+    name,
+    rendererActionConfig
+  ) as Promise<PromptAction<I>>;
+
+  const executablePromptActionConfig = optionsPromise.then(
+    (options: PromptConfig<I, O, CustomOptions>) => {
+      const metadata = promptMetadata(options);
+      return {
+        name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
+        inputJsonSchema: options.input?.jsonSchema,
+        inputSchema: options.input?.schema,
+        description: options.description,
+        actionType: 'executable-prompt',
+        metadata,
+        fn: async (
+          input: z.infer<I>,
+          { sendChunk }
+        ): Promise<GenerateResponse> => {
+          return await generate(registry, {
+            ...(await renderOptionsFn(input, undefined)),
+            onChunk: sendChunk,
+          });
+        },
+      } as ActionAsyncParams<any, any, any>;
     }
-  ) as ExecutablePromptAction<I>;
+  );
+
+  const executablePromptAction = defineActionAsync(
+    registry,
+    'executable-prompt',
+    name,
+    executablePromptActionConfig
+  ) as Promise<ExecutablePromptAction<I>>;
 
   const executablePrompt = wrapInExecutablePrompt(
     registry,
@@ -330,12 +365,33 @@ export function definePrompt<
     rendererAction
   );
 
-  executablePromptAction.__executablePrompt =
-    executablePrompt as never as ExecutablePrompt<z.infer<I>>;
-  rendererAction.__executablePrompt =
-    executablePrompt as never as ExecutablePrompt<z.infer<I>>;
+  executablePromptAction.then((action) => {
+    action.__executablePrompt = executablePrompt as never as ExecutablePrompt<
+      z.infer<I>
+    >;
+  });
+  rendererAction.then((action) => {
+    action.__executablePrompt = executablePrompt as never as ExecutablePrompt<
+      z.infer<I>
+    >;
+  });
 
   return executablePrompt;
+}
+
+function promptMetadata(options: PromptConfig<any, any, any>) {
+  return {
+    ...options.metadata,
+    prompt: {
+      config: options.config,
+      input: {
+        schema: options.input ? toJsonSchema(options.input) : undefined,
+      },
+      name: options.name,
+      model: modelName(options.model),
+    },
+    type: 'prompt',
+  };
 }
 
 function wrapInExecutablePrompt<
@@ -348,7 +404,7 @@ function wrapInExecutablePrompt<
     input: z.infer<I>,
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ) => Promise<GenerateOptions>,
-  rendererAction: PromptAction<I>
+  rendererAction: Promise<PromptAction<I>>
 ) {
   const executablePrompt = (async (
     input?: I,
@@ -376,7 +432,7 @@ function wrapInExecutablePrompt<
   };
 
   executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-    return rendererAction as unknown as ToolAction<I, O>;
+    return (await rendererAction) as unknown as ToolAction<I, O>;
   };
   return executablePrompt;
 }
@@ -560,11 +616,11 @@ export function isExecutablePrompt(obj: any): boolean {
   );
 }
 
-export async function loadPromptFolder(
+export function loadPromptFolder(
   registry: Registry,
   dir: string = './prompts',
   ns: string
-): Promise<void> {
+): void {
   const promptsPath = resolve(dir);
   if (existsSync(promptsPath)) {
     const dirEnts = readdirSync(promptsPath, {
@@ -583,18 +639,17 @@ export async function loadPromptFolder(
             })
           );
           logger.debug(
-            `Registered Dotprompt partial "${partialName}" from "${join(dirEnt.path, dirEnt.name)}"`
+            `Registered Dotprompt partial "${partialName}" from "${join(dirEnt.parentPath, dirEnt.name)}"`
           );
         } else {
           // If this prompt is in a subdirectory, we need to include that
           // in the namespace to prevent naming conflicts.
           let prefix = '';
-          if (promptsPath !== dirEnt.path) {
-            prefix = dirEnt.path
-              .replace(`${promptsPath}/`, '')
-              .replace(/\//g, '-');
+          let name = dirEnt.name;
+          if (promptsPath !== dirEnt.parentPath) {
+            prefix = dirEnt.parentPath.replace(`${promptsPath}/`, '') + '/';
           }
-          await loadPrompt(registry, dirEnt.path, dirEnt.name, prefix, ns);
+          loadPrompt(registry, promptsPath, name, prefix, ns);
         }
       }
     }
@@ -617,52 +672,57 @@ export function defineHelper(
   registry.dotprompt.defineHelper(name, fn);
 }
 
-async function loadPrompt(
+function loadPrompt(
   registry: Registry,
   path: string,
   filename: string,
   prefix = '',
   ns = 'dotprompt'
-): Promise<void> {
-  let name = `${prefix ? `${prefix}-` : ''}${basename(filename, '.prompt')}`;
+): void {
+  let name = `${prefix ?? ''}${basename(filename, '.prompt')}`;
   let variant: string | null = null;
   if (name.includes('.')) {
     const parts = name.split('.');
     name = parts[0];
     variant = parts[1];
   }
-  const source = readFileSync(join(path, filename), 'utf8');
+  const source = readFileSync(join(path, (prefix ?? '') + filename), 'utf8');
   const parsedPrompt = registry.dotprompt.parse(source);
-  const promptMetadata = await registry.dotprompt.renderMetadata(parsedPrompt);
-  if (variant) {
-    promptMetadata.variant = variant;
-  }
-  definePrompt(registry, {
-    name: registryDefinitionKey(name, variant ?? undefined, ns),
-    model: promptMetadata.model,
-    config: promptMetadata.config,
-    tools: promptMetadata.tools,
-    description: promptMetadata.description,
-    output: {
-      jsonSchema: promptMetadata.output?.schema,
-      format: promptMetadata.output?.format,
-    },
-    input: {
-      jsonSchema: promptMetadata.input?.schema,
-    },
-    metadata: {
-      ...promptMetadata.metadata,
-      type: 'prompt',
-      prompt: {
-        ...promptMetadata,
-        template: source,
-      },
-    },
-    maxTurns: promptMetadata.raw?.['maxTurns'],
-    toolChoice: promptMetadata.raw?.['toolChoice'],
-    returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
-    messages: parsedPrompt.template,
-  });
+  definePromptAsync(
+    registry,
+    registryDefinitionKey(name, variant ?? undefined, ns),
+    registry.dotprompt.renderMetadata(parsedPrompt).then((promptMetadata) => {
+      if (variant) {
+        promptMetadata.variant = variant;
+      }
+      return {
+        name: registryDefinitionKey(name, variant ?? undefined, ns),
+        model: promptMetadata.model,
+        config: promptMetadata.config,
+        tools: promptMetadata.tools,
+        description: promptMetadata.description,
+        output: {
+          jsonSchema: promptMetadata.output?.schema,
+          format: promptMetadata.output?.format,
+        },
+        input: {
+          jsonSchema: promptMetadata.input?.schema,
+        },
+        metadata: {
+          ...promptMetadata.metadata,
+          type: 'prompt',
+          prompt: {
+            ...promptMetadata,
+            template: source,
+          },
+        },
+        maxTurns: promptMetadata.raw?.['maxTurns'],
+        toolChoice: promptMetadata.raw?.['toolChoice'],
+        returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
+        messages: parsedPrompt.template,
+      };
+    })
+  );
 }
 
 export async function prompt<
@@ -694,11 +754,9 @@ async function lookupPrompt<
   name: string,
   variant?: string
 ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
-  let registryPrompt =
-    (await registry.lookupAction(registryLookupKey(name, variant))) ||
-    (await registry.lookupAction(
-      registryLookupKey(name, variant, 'dotprompt')
-    ));
+  let registryPrompt = await registry.lookupAction(
+    registryLookupKey(name, variant)
+  );
   if (registryPrompt) {
     return (registryPrompt as PromptAction)
       .__executablePrompt as never as ExecutablePrompt<I, O, CustomOptions>;

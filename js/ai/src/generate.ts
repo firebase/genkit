@@ -346,8 +346,6 @@ async function resolveFullToolName(
     return `/tool/${name}`;
   } else if (await registry.lookupAction(`/prompt/${name}`)) {
     return `/prompt/${name}`;
-  } else if (await registry.lookupAction(`/prompt/dotprompt/${name}`)) {
-    return `/prompt/dotprompt/${name}`;
   } else {
     throw new Error(`Unable to determine type of of tool: ${name}`);
   }
