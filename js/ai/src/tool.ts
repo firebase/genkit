@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, JSONSchema7, z } from '@genkit-ai/core';
+import {
+  Action,
+  defineAction,
+  JSONSchema7,
+  stripUndefinedProps,
+  z,
+} from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { toJsonSchema } from '@genkit-ai/core/schema';
+import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import { ToolDefinition } from './model.js';
+import { ToolDefinition, ToolRequestPart, ToolResponsePart } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 
 /**
@@ -33,6 +39,16 @@ export type ToolAction<
       type: 'tool';
     };
   };
+  /**
+   * reply constructs a tool response corresponding to the provided interrupt tool request
+   * using the provided reply data, validating it against the output schema of the tool if
+   * it exists.
+   */
+  reply(
+    interrupt: ToolRequestPart,
+    replyData: z.infer<O>,
+    options?: { metadata?: Record<string, any> }
+  ): ToolResponsePart;
 };
 
 /**
@@ -202,6 +218,22 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         interrupt: interruptTool,
       })
   );
+  (a as ToolAction<I, O>).reply = (interrupt, replyData, options) => {
+    parseSchema(replyData, {
+      jsonSchema: config.outputJsonSchema,
+      schema: config.outputSchema,
+    });
+    return {
+      toolResponse: stripUndefinedProps({
+        name: interrupt.toolRequest.name,
+        ref: interrupt.toolRequest.ref,
+        output: replyData,
+      }),
+      metadata: {
+        reply: options?.metadata || true,
+      },
+    };
+  };
   return a as ToolAction<I, O>;
 }
 

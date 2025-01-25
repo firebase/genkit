@@ -47,6 +47,7 @@ export {
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
+  type ResumeOptions,
 } from './generate.js';
 export { Message } from './message.js';
 export {

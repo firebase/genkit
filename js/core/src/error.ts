@@ -38,6 +38,7 @@ export class GenkitError extends Error {
     super(`${source ? `${source}: ` : ''}${status}: ${message}`);
     this.status = status;
     this.detail = detail;
+    this.name = 'GenkitError';
   }
 }
 
