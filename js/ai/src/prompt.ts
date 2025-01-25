@@ -489,9 +489,7 @@ async function renderUserPrompt<
   } else if (typeof options.prompt === 'string') {
     // memoize compiled prompt
     if (!promptCache.userPrompt) {
-      promptCache.userPrompt = await registry.dotprompt.compile(
-        options.prompt
-      );
+      promptCache.userPrompt = await registry.dotprompt.compile(options.prompt);
     }
     messages.push({
       role: 'user',
@@ -635,8 +633,7 @@ async function loadPrompt(
   }
   const source = readFileSync(join(path, filename), 'utf8');
   const parsedPrompt = registry.dotprompt.parse(source);
-  const promptMetadata =
-    await registry.dotprompt.renderMetadata(parsedPrompt);
+  const promptMetadata = await registry.dotprompt.renderMetadata(parsedPrompt);
   if (variant) {
     promptMetadata.variant = variant;
   }
