@@ -157,8 +157,6 @@ function applyResumeOption(
       toolResponse: t.metadata!.pendingToolResponse,
     })) as ToolResponsePart[];
 
-  console.log('PENDING:', pendingResponses);
-
   const reply = Array.isArray(options.resume.reply)
     ? options.resume.reply
     : [options.resume.reply];
