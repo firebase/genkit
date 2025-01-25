@@ -18,7 +18,7 @@ import { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { GenkitBeta, genkit } from '../src/beta';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -26,7 +26,7 @@ import {
 } from './helpers';
 
 describe('chat', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeEach(() => {
     ai = genkit({
@@ -179,7 +179,7 @@ describe('chat', () => {
 });
 
 describe('preamble', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
   beforeEach(() => {

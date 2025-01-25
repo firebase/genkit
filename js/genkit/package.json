@@ -61,6 +61,12 @@
       "import": "./lib/registry.mjs",
       "default": "./lib/registry.js"
     },
+    "./beta": {
+      "types": "./lib/beta.d.ts",
+      "require": "./lib/beta.js",
+      "import": "./lib/beta.mjs",
+      "default": "./lib/beta.js"
+    },
     "./tracing": {
       "types": "./lib/tracing.d.ts",
       "require": "./lib/tracing.js",
@@ -156,6 +162,9 @@
     "*": {
       "metrics": [
         "lib/metrics"
+      ],
+      "beta": [
+        "lib/beta"
       ],
       "registry": [
         "lib/registry"

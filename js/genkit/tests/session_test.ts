@@ -18,11 +18,11 @@ import { Message } from '@genkit-ai/ai';
 import { SessionStore } from '@genkit-ai/ai/session';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { GenkitBeta, genkit } from '../src/beta';
 import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('session', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeEach(() => {
     ai = genkit({

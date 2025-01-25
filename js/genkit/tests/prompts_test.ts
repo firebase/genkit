@@ -17,7 +17,7 @@
 import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { GenkitBeta, genkit } from '../src/beta';
 import { PromptAction, z } from '../src/index';
 import {
   ProgrammableModel,
@@ -62,7 +62,7 @@ const wrapResponse: ModelMiddleware = async (req, next) => {
 };
 
 describe('definePrompt - functional', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeEach(() => {
     ai = genkit({
@@ -174,7 +174,7 @@ describe('definePrompt - functional', () => {
 
 describe('definePrompt - dotprompt', () => {
   describe('default model', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({
@@ -310,7 +310,7 @@ describe('definePrompt - dotprompt', () => {
   });
 
   describe('default model ref', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({
@@ -454,7 +454,7 @@ describe('definePrompt - dotprompt', () => {
   });
 
   describe('explicit model', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({});
@@ -607,7 +607,7 @@ describe('definePrompt - dotprompt', () => {
   });
 
   describe('render', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({});
@@ -637,7 +637,7 @@ describe('definePrompt - dotprompt', () => {
 
 describe('definePrompt', () => {
   describe('default model', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({
@@ -707,7 +707,7 @@ describe('definePrompt', () => {
   });
 
   describe('default model ref', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({
@@ -767,7 +767,7 @@ describe('definePrompt', () => {
   });
 
   describe('explicit model', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({});
@@ -849,7 +849,7 @@ describe('definePrompt', () => {
   });
 
   describe('render', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({});
@@ -890,7 +890,7 @@ describe('definePrompt', () => {
 });
 
 describe.only('prompt', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
   beforeEach(() => {
@@ -1098,7 +1098,7 @@ describe.only('prompt', () => {
 });
 
 describe('asTool', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
   beforeEach(() => {

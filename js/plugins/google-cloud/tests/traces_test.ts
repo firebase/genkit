@@ -25,7 +25,8 @@ import {
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
-import { Genkit, genkit, z } from 'genkit';
+import { Genkit, z } from 'genkit';
+import { GenkitBeta, genkit } from 'genkit/beta';
 import { appendSpan } from 'genkit/tracing';
 import {
   __forceFlushSpansForTesting,
@@ -56,7 +57,7 @@ jest.mock('../src/auth.js', () => {
 });
 
 describe('GoogleCloudTracing', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeAll(async () => {
     process.env.GCLOUD_PROJECT = 'test';
