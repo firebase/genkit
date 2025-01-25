@@ -340,48 +340,6 @@ export class Genkit implements HasRegistry {
 
     return executablePrompt;
   }
-
-  private wrapExecutablePromptPromise<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>) {
-    const executablePrompt = (async (
-      input?: I,
-      opts?: PromptGenerateOptions<O, CustomOptions>
-    ): Promise<GenerateResponse<z.infer<O>>> => {
-      return (await promise)(input, opts);
-    }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
-
-    executablePrompt.render = async (
-      opt: PromptGenerateOptions<O, CustomOptions> & {
-        input?: I;
-      }
-    ): Promise<GenerateOptions<O, CustomOptions>> => {
-      return (await promise).render(opt.input, opt) as Promise<
-        GenerateOptions<O, CustomOptions>
-      >;
-    };
-
-    executablePrompt.stream = (
-      input?: I,
-      opts?: PromptGenerateOptions<O, CustomOptions>
-    ): GenerateStreamResponse<O> => {
-      return this.generateStream(
-        promise.then((action) =>
-          action.render(input, {
-            ...opts,
-          })
-        )
-      );
-    };
-
-    executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-      return (await promise).asTool() as Promise<ToolAction<I, O>>;
-    };
-
-    return executablePrompt;
-  }
   /**
    * Defines and registers a prompt based on a function.
    *
