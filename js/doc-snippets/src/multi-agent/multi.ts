@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkit } from 'genkit';
+import { genkit } from 'genkit/beta';
 
 const ai = genkit({});
 const reservationTool = ai.defineTool(
