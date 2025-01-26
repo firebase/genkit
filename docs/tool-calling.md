@@ -196,10 +196,22 @@ Include defined tools in your prompts to generate content.
 Genkit will automatically handle the tool call if the LLM needs to use the
 `getWeather` tool to answer the prompt.
 
-### Explicitly handling tool calls
+### Pausing the tool loop with interrupts
 
 By default, Genkit repeatedly calls the LLM until every tool call has been
-resolved. If you want more control over this tool calling loop, for example to
+resolved. In some situations you may wish to conditionally pause execution to:
+
+- ask the user a question or display UI
+- confirm a potentially risky action with the user
+- request out-of-band approval for an action
+
+**Interrupts** are special tools that can halt the loop and return control
+to your code so that you can handle more advanced scenarios. Visit the
+[interrupts guide](interrupts) to learn how to use them.
+
+### Explicitly handling tool calls
+
+If you want full control over this tool calling loop, for example to
 apply more complicated logic, set the `returnToolRequests` parameter to `true`.
 Now it's your responsibility to ensure all of the tool requests are fulfilled:
 
