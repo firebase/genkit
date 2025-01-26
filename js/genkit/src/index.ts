@@ -90,6 +90,7 @@ export {
   type RerankerInfo,
   type RerankerParams,
   type RerankerReference,
+  type ResumeOptions,
   type RetrieverAction,
   type RetrieverArgument,
   type RetrieverInfo,
