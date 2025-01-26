@@ -148,7 +148,7 @@ export class Registry {
     action: Promise<Action<I, O>>
   ) {
     const key = `/${type}/${name}`;
-    logger.debug(`registering ${key}`);
+    logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {
       // TODO: Make this an error!
       logger.warn(
