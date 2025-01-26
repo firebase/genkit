@@ -165,9 +165,9 @@ export class Registry {
   async listActions(): Promise<ActionsRecord> {
     await this.initializeAllPlugins();
     const actions: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
-    for (let [key, action] of Object.entries(this.actionsById)) {
+    await Promise.all(Object.entries(this.actionsById).map(async ([key,action]) => {
       actions[key] = await action;
-    }
+    });
     return {
       ...(await this.parent?.listActions()),
       ...actions,
