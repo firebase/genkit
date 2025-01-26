@@ -81,7 +81,7 @@ describe('function', () => {
         authPolicy: authPolicy,
       },
       async (input, { context }) => {
-        return `hi ${input} - ${JSON.stringify(context)}`;
+        return `hi ${input} - ${JSON.stringify(context.auth)}`;
       }
     );
 
@@ -96,7 +96,7 @@ describe('function', () => {
         sendChunk({ chubk: 2 });
         sendChunk({ chubk: 3 });
 
-        return `hi ${input} - ${JSON.stringify(context)}`;
+        return `hi ${input} - ${JSON.stringify(context.auth)}`;
       }
     );
     const app = express();

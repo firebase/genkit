@@ -286,6 +286,41 @@ describe('prompt', () => {
       },
     },
     {
+      name: 'renders user prompt from function with context as render option',
+      prompt: {
+        model: 'echoModel',
+        name: 'prompt1',
+        config: { banana: 'ripe' },
+        input: { schema: z.object({ name: z.string() }) },
+        prompt: async (input, { state, context }) => {
+          return `hello ${input.name} (${state.name}, ${context.auth.email})`;
+        },
+      },
+      input: { name: 'foo' },
+      state: { name: 'bar' },
+      inputOptions: {
+        config: { temperature: 11 },
+        context: { auth: { email: 'a@b.c' } },
+      },
+      wantTextOutput:
+        'Echo: hello foo (bar, a@b.c); config: {"banana":"ripe","temperature":11}',
+      wantRendered: {
+        config: {
+          banana: 'ripe',
+          temperature: 11,
+        },
+        context: {
+          auth: {
+            email: 'a@b.c',
+          },
+        },
+        messages: [
+          { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'user' },
+        ],
+        model: 'echoModel',
+      },
+    },
+    {
       name: 'renders system prompt',
       prompt: {
         model: 'echoModel',
@@ -328,6 +363,35 @@ describe('prompt', () => {
           banana: 'ripe',
           temperature: 11,
         },
+        messages: [
+          { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' },
+        ],
+        model: 'echoModel',
+      },
+    },
+    {
+      name: 'renders system prompt with context as render option',
+      prompt: {
+        model: 'echoModel',
+        name: 'prompt1',
+        config: { banana: 'ripe' },
+        input: { schema: z.object({ name: z.string() }) },
+        system: 'hello {{name}} ({{@state.name}}, {{@auth.email}})',
+      },
+      input: { name: 'foo' },
+      state: { name: 'bar' },
+      inputOptions: {
+        config: { temperature: 11 },
+        context: { auth: { email: 'a@b.c' } },
+      },
+      wantTextOutput:
+        'Echo: system: hello foo (bar, a@b.c); config: {"banana":"ripe","temperature":11}',
+      wantRendered: {
+        config: {
+          banana: 'ripe',
+          temperature: 11,
+        },
+        context: { auth: { email: 'a@b.c' } },
         messages: [
           { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' },
         ],
@@ -381,6 +445,37 @@ describe('prompt', () => {
           banana: 'ripe',
           temperature: 11,
         },
+        messages: [
+          { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' },
+        ],
+        model: 'echoModel',
+      },
+    },
+    {
+      name: 'renders system prompt from a function with context as render option',
+      prompt: {
+        model: 'echoModel',
+        name: 'prompt1',
+        config: { banana: 'ripe' },
+        input: { schema: z.object({ name: z.string() }) },
+        system: async (input, { state, context }) => {
+          return `hello ${input.name} (${state.name}, ${context.auth.email})`;
+        },
+      },
+      input: { name: 'foo' },
+      state: { name: 'bar' },
+      inputOptions: {
+        config: { temperature: 11 },
+        context: { auth: { email: 'a@b.c' } },
+      },
+      wantTextOutput:
+        'Echo: system: hello foo (bar, a@b.c); config: {"banana":"ripe","temperature":11}',
+      wantRendered: {
+        config: {
+          banana: 'ripe',
+          temperature: 11,
+        },
+        context: { auth: { email: 'a@b.c' } },
         messages: [
           { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' },
         ],

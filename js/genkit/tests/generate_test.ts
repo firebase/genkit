@@ -435,6 +435,65 @@ describe('generate', () => {
       });
     });
 
+    it('should propagate context to the tool', async () => {
+      const schema = z.object({
+        foo: z.string(),
+      });
+
+      ai.defineTool(
+        {
+          name: 'testTool',
+          description: 'description',
+          inputSchema: schema,
+          outputSchema: schema,
+        },
+        async (_, { context }) => {
+          return {
+            foo: `bar ${context.auth.email}`,
+          };
+        }
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: { foo: 'fromTool' },
+                      ref: 'ref123',
+                    },
+                  }
+                : {
+                    text: req.messages
+                      .splice(-1)
+                      .map((m) =>
+                        m.content
+                          .map(
+                            (c) =>
+                              c.text || JSON.stringify(c.toolResponse?.output)
+                          )
+                          .join()
+                      )
+                      .join(),
+                  },
+            ],
+          },
+        };
+      };
+      const { text } = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+        context: { auth: { email: 'a@b.c' } },
+      });
+      assert.strictEqual(text, '{"foo":"bar a@b.c"}');
+    });
+
     it('streams the tool responses', async () => {
       ai.defineTool(
         { name: 'testTool', description: 'description' },

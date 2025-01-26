@@ -188,6 +188,8 @@ export interface ToolFnOptions {
    * getting interrupted (immediately) and tool request returned to the upstream caller.
    */
   interrupt: (metadata?: Record<string, any>) => never;
+
+  context: Record<string, any>;
 }
 
 export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
@@ -212,9 +214,12 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       actionType: 'tool',
       metadata: { ...(config.metadata || {}), type: 'tool' },
     },
-    (i) =>
+    (i, { context }) =>
       fn(i, {
         interrupt: interruptTool,
+        context: {
+          ...context,
+        },
       })
   );
   (a as ToolAction<I, O>).reply = (interrupt, replyData, options) => {
