@@ -15,7 +15,7 @@
  */
 
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getFlowAuth, z } from '../src/index.js';
@@ -106,7 +106,7 @@ describe('flow', () => {
         async () => await testFlow({ foo: 'foo', bar: 'bar' } as any),
         (err: Error) => {
           return (
-            err.name === 'Error' &&
+            err.name === 'GenkitError' &&
             err.message.includes('Schema validation failed')
           );
         }

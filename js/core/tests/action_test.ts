@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { action, defineAction } from '../src/action.js';

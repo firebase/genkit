@@ -72,6 +72,7 @@ export {
   type IndexerInfo,
   type IndexerParams,
   type IndexerReference,
+  type InterruptConfig,
   type LlmResponse,
   type LlmStats,
   type MediaPart,
@@ -83,13 +84,13 @@ export {
   type Part,
   type PromptAction,
   type PromptConfig,
-  type PromptFn,
   type RankedDocument,
   type RerankerAction,
   type RerankerArgument,
   type RerankerInfo,
   type RerankerParams,
   type RerankerReference,
+  type ResumeOptions,
   type RetrieverAction,
   type RetrieverArgument,
   type RetrieverInfo,
@@ -140,10 +141,4 @@ export {
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
-export { loadPromptFile } from '@genkit-ai/dotprompt';
-export {
-  Genkit,
-  genkit,
-  type GenkitOptions,
-  type PromptMetadata,
-} from './genkit.js';
+export { Genkit, genkit, type GenkitOptions } from './genkit.js';

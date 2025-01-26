@@ -8,7 +8,7 @@ The Firebase plugin provides integrations with Firebase services, allowing you t
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.  
 - **Cloud Functions**: Deploy flows as HTTPS-triggered functions.  
 - **Firebase Authentication**: Implement authorization policies.  
-- **Telemetry**: Export telemetry to [Google Cloud’s operations suite](https://cloud.google.com/products/operations) and see specialized views in the Firebase console
+- **Telemetry**: Export telemetry to [Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit Monitoring console.
 
 ## Installation
 
@@ -63,17 +63,27 @@ To provide Firebase credentials, you also need to set up Google Cloud Applicatio
 
 ### Telemetry
 
-The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export call `enableFirebaseTelemetry()`:
+Firebase Genkit Monitoring is powered by Google's Cloud operation suite. This requires telemetry related API's to be enabled for your project. Please refer to the [Google Cloud plugin](google-cloud.md#set-up-a-google-cloud-account) documentation for more details.
+
+Grant the following roles to the **"Default compute service account"** within the [Google Cloud IAM Console](https://console.cloud.google.com/iam-admin/iam-admin/iam):
+
+- **Monitoring Metric Writer** (roles/monitoring.metricWriter)
+- **Cloud Trace Agent** (roles/cloudtrace.agent)
+- **Logs Writer** (roles/logging.logWriter)
+
+To enable telemetry export call `enableFirebaseTelemetry()`:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
-enableFirebaseTelemetry();
+enableFirebaseTelemetry({
+  forceDevExport: false, // Set this to true to export telemetry for local runs
+});
 ```
 
-Refer to the [Google Cloud plugin](google-cloud.md) documentation for all configuration options and the necessary APIs that need to be enabled on the project.
+This plugin shares [configuration options](google-cloud.md#plugin-configuration) with the [Google Cloud plugin](google-cloud.md).
 
 ### Cloud Firestore vector search
 

@@ -73,18 +73,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     this.request = options?.request;
   }
 
-  private get assertMessage(): Message<O> {
-    if (!this.message)
-      throw new Error(
-        'Operation could not be completed because the response does not contain a generated message.'
-      );
-    return this.message;
-  }
-
   /**
    * Throws an error if the response does not contain valid output.
    */
-  assertValid(request?: GenerateRequest): void {
+  assertValid(): void {
     if (this.finishReason === 'blocked') {
       throw new GenerationBlockedError(
         this,
@@ -98,7 +90,12 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         `Model did not generate a message. Finish reason: '${this.finishReason}': ${this.finishMessage}`
       );
     }
+  }
 
+  /**
+   * Throws an error if the response does not conform to expected schema.
+   */
+  assertValidSchema(request?: GenerateRequest): void {
     if (request?.output?.schema || this.request?.output?.schema) {
       const o = this.output;
       parseSchema(o, {
@@ -109,7 +106,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
 
   isValid(request?: GenerateRequest): boolean {
     try {
-      this.assertValid(request);
+      this.assertValid();
+      this.assertValidSchema(request);
       return true;
     } catch (e) {
       return false;
@@ -117,11 +115,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
-   * If the selected candidate's message contains a `data` part, it is returned. Otherwise,
+   * If the generated message contains a `data` part, it is returned. Otherwise,
    * the `output()` method extracts the first valid JSON object or array from the text
    * contained in the selected candidate's message and returns it.
    *
-   * @param index The candidate index from which to extract output. If not provided, finds first candidate that conforms to output schema.
    * @returns The structured output contained in the selected candidate.
    */
   get output(): O | null {
@@ -129,8 +126,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
-   * Concatenates all `text` parts present in the candidate's message with no delimiter.
-   * @param index The candidate index from which to extract text, defaults to first candidate.
+   * Concatenates all `text` parts present in the generated message with no delimiter.
    * @returns A string of all concatenated text parts.
    */
   get text(): string {
@@ -138,9 +134,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
-   * Returns the first detected media part in the selected candidate's message. Useful for
+   * Returns the first detected media part in the generated message. Useful for
    * extracting (for example) an image from a generation expected to create one.
-   * @param index The candidate index from which to extract media, defaults to first candidate.
    * @returns The first detected `media` part in the candidate.
    */
   get media(): { url: string; contentType?: string } | null {
@@ -148,8 +143,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
-   * Returns the first detected `data` part of the selected candidate's message.
-   * @param index The candidate index from which to extract data, defaults to first candidate.
+   * Returns the first detected `data` part of the generated message.
    * @returns The first `data` part detected in the candidate (if any).
    */
   get data(): O | null {
@@ -157,12 +151,19 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
-   * Returns all tool request found in the candidate.
-   * @param index The candidate index from which to extract tool requests, defaults to first candidate.
+   * Returns all tool request found in the generated message.
    * @returns Array of all tool request found in the candidate.
    */
   get toolRequests(): ToolRequestPart[] {
     return this.message?.toolRequests || [];
+  }
+
+  /**
+   * Returns all tool requests annotated as interrupts found in the generated message.
+   * @returns A list of ToolRequestParts.
+   */
+  get interrupts(): ToolRequestPart[] {
+    return this.message?.interrupts || [];
   }
 
   /**

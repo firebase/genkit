@@ -16,7 +16,7 @@
 
 import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
 import { configureFormats } from '../../src/formats/index.js';
@@ -94,7 +94,7 @@ describe('validateSupport', () => {
     for (const example of Object.values(examples)) {
       runner(example, noopNext);
     }
-    assert(nextCalled, "next() wasn't called");
+    assert.ok(nextCalled, "next() wasn't called");
   });
 
   it('throws when media is supplied but not supported', async () => {

@@ -166,6 +166,7 @@ export const ModelRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   context: z.array(DocumentDataSchema).optional(),
 });
@@ -206,12 +207,22 @@ export const GenerationUsageSchema = z.object({
 });
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
 
+/** Model response finish reason enum. */
+export const FinishReasonSchema = z.enum([
+  'stop',
+  'length',
+  'blocked',
+  'interrupted',
+  'other',
+  'unknown',
+]);
+
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateSchema = z.object({
   index: z.number(),
   message: MessageSchema,
   usage: GenerationUsageSchema.optional(),
-  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
   custom: z.unknown(),
 });
@@ -229,7 +240,7 @@ export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
 export const ModelResponseSchema = z.object({
   message: MessageSchema.optional(),
-  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
@@ -241,14 +252,15 @@ export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
 export const GenerateResponseSchema = ModelResponseSchema.extend({
   /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finishReason`, and `finishMessage` instead. */
   candidates: z.array(CandidateSchema).optional(),
-  finishReason: z
-    .enum(['stop', 'length', 'blocked', 'other', 'unknown'])
-    .optional(),
+  finishReason: FinishReasonSchema.optional(),
 });
 export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
 
 /** ModelResponseChunkSchema represents a chunk of content to stream to the client. */
 export const ModelResponseChunkSchema = z.object({
+  role: RoleSchema.optional(),
+  /** index of the message this chunk belongs to. */
+  index: z.number().optional(),
   /** The chunk of content to stream right now. */
   content: z.array(PartSchema),
   /** Model-specific extra information attached to this chunk. */
@@ -258,10 +270,7 @@ export const ModelResponseChunkSchema = z.object({
 });
 export type ModelResponseChunkData = z.infer<typeof ModelResponseChunkSchema>;
 
-export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({
-  /** @deprecated The index of the candidate this chunk belongs to. Always 0. */
-  index: z.number(),
-});
+export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({});
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
 >;

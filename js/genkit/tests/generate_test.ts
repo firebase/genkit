@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import { z } from '@genkit-ai/core';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
 import { Genkit, genkit } from '../src/genkit';
@@ -79,6 +80,29 @@ describe('generate', () => {
         ],
         output: {},
         tools: [],
+      });
+    });
+
+    it('calls the default model with tool choice', async () => {
+      const response = await ai.generate({
+        prompt: 'hi',
+        toolChoice: 'required',
+      });
+      assert.strictEqual(response.text, 'Echo: hi; config: {}');
+      assert.deepStrictEqual(response.request, {
+        config: {
+          version: undefined,
+        },
+        docs: undefined,
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: 'hi' }],
+          },
+        ],
+        output: {},
+        tools: [],
+        toolChoice: 'required',
       });
     });
 
@@ -359,6 +383,146 @@ describe('generate', () => {
       );
     });
 
+    it('call the tool with output schema', async () => {
+      const schema = z.object({
+        foo: z.string(),
+      });
+
+      ai.defineTool(
+        {
+          name: 'testTool',
+          description: 'description',
+          inputSchema: schema,
+          outputSchema: schema,
+        },
+        async () => {
+          return {
+            foo: 'bar',
+          };
+        }
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: { foo: 'fromTool' },
+                      ref: 'ref123',
+                    },
+                  }
+                : {
+                    text: "```\n{foo: 'fromModel'}\n```",
+                  },
+            ],
+          },
+        };
+      };
+      const { text, output } = await ai.generate({
+        output: { schema },
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+      assert.strictEqual(text, "```\n{foo: 'fromModel'}\n```");
+      assert.deepStrictEqual(output, {
+        foo: 'fromModel',
+      });
+    });
+
+    it('streams the tool responses', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        if (sc) {
+          sc({
+            content: [
+              reqCounter === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          });
+        }
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { stream, response } = await ai.generateStream({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      const chunks: any[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk.toJSON());
+      }
+
+      assert.strictEqual((await response).text, 'done');
+      assert.deepStrictEqual(chunks, [
+        {
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'testTool',
+                ref: 'ref123',
+              },
+            },
+          ],
+          index: 0,
+          role: 'model',
+        },
+        {
+          content: [
+            {
+              toolResponse: {
+                name: 'testTool',
+                output: 'tool called',
+                ref: 'ref123',
+              },
+            },
+          ],
+          index: 1,
+          role: 'model',
+        },
+        {
+          content: [{ text: 'done' }],
+          index: 2,
+          role: 'model',
+        },
+      ]);
+    });
+
     it('throws when exceeding max tool call iterations', async () => {
       ai.defineTool(
         { name: 'testTool', description: 'description' },
@@ -395,6 +559,155 @@ describe('generate', () => {
           );
         }
       );
+    });
+
+    it('interrupts tool execution', async () => {
+      ai.defineTool(
+        { name: 'simpleTool', description: 'description' },
+        async (input) => `response: ${input.name}`
+      );
+      ai.defineTool(
+        { name: 'interruptingTool', description: 'description' },
+        async (input, { interrupt }) =>
+          interrupt({ confirm: 'is it a banana?' })
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content:
+              reqCounter++ === 0
+                ? [
+                    {
+                      text: 'reasoning',
+                    },
+                    {
+                      toolRequest: {
+                        name: 'interruptingTool',
+                        input: {},
+                        ref: 'ref123',
+                      },
+                    },
+                    {
+                      toolRequest: {
+                        name: 'simpleTool',
+                        input: { name: 'foo' },
+                        ref: 'ref123',
+                      },
+                    },
+                  ]
+                : [{ text: 'done' }],
+          },
+        };
+      };
+
+      const response = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['interruptingTool', 'simpleTool'],
+      });
+
+      assert.strictEqual(reqCounter, 1);
+      assert.deepStrictEqual(response.toolRequests, [
+        {
+          metadata: {
+            pendingToolResponse: {
+              name: 'simpleTool',
+              output: 'response: foo',
+              ref: 'ref123',
+            },
+          },
+          toolRequest: {
+            input: {
+              name: 'foo',
+            },
+            name: 'simpleTool',
+            ref: 'ref123',
+          },
+        },
+        {
+          toolRequest: {
+            input: {},
+            name: 'interruptingTool',
+            ref: 'ref123',
+          },
+          metadata: {
+            interrupt: {
+              confirm: 'is it a banana?',
+            },
+          },
+        },
+      ]);
+      assert.deepStrictEqual(response.message?.toJSON(), {
+        role: 'model',
+        content: [
+          {
+            text: 'reasoning',
+          },
+          {
+            metadata: {
+              pendingToolResponse: {
+                name: 'simpleTool',
+                output: 'response: foo',
+                ref: 'ref123',
+              },
+            },
+            toolRequest: {
+              input: {
+                name: 'foo',
+              },
+              name: 'simpleTool',
+              ref: 'ref123',
+            },
+          },
+          {
+            metadata: {
+              interrupt: {
+                confirm: 'is it a banana?',
+              },
+            },
+            toolRequest: {
+              input: {},
+              name: 'interruptingTool',
+              ref: 'ref123',
+            },
+          },
+        ],
+      });
+      assert.deepStrictEqual(pm.lastRequest, {
+        config: {},
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: 'call the tool' }],
+          },
+        ],
+        output: {},
+        tools: [
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'interruptingTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'simpleTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+        ],
+      });
     });
   });
 });

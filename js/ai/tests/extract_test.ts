@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { extractItems, extractJson, parsePartialJson } from '../src/extract';
 

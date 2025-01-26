@@ -194,6 +194,19 @@ export async function runFlow<O = any>({
       `Server returned: ${response.status}: ${await response.text()}`
     );
   }
-  const wrappedDesult = await response.json();
-  return wrappedDesult.result;
+  const wrappedResult = (await response.json()) as
+    | { result: O }
+    | { error: unknown };
+  if ('error' in wrappedResult) {
+    if (typeof wrappedResult.error === 'string') {
+      throw new Error(wrappedResult.error);
+    }
+    // TODO: The callable protocol defines an HttpError that has a JSON format of
+    // details?: string
+    // httpErrorCode: { canonicalName: string }
+    // message: string
+    // Should we create a new error class that parses this and exposes it as fields?
+    throw new Error(JSON.stringify(wrappedResult.error));
+  }
+  return wrappedResult.result;
 }

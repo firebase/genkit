@@ -62,29 +62,24 @@ const template = `
   I want to be outside as much as possible. Here are the cities I am
   considering:\n\n{{#each cities}}{{this}}\n{{/each}}`;
 
-export const weatherPrompt = ai.definePrompt(
-  {
-    name: 'weatherPrompt',
-    model: gemini15Flash,
-    input: {
-      schema: WeatherSchema,
-      default: {
-        persona: 'Space Pirate',
-      },
-    },
-    output: {
-      format: 'text',
-    },
-    config: {
-      maxOutputTokens: 2048,
-      temperature: 0.6,
-      topK: 16,
-      topP: 0.95,
-    },
-    tools: ['getWeather'],
+export const weatherPrompt = ai.definePrompt({
+  name: 'weatherPrompt',
+  model: gemini15Flash,
+  input: {
+    schema: WeatherSchema,
   },
-  template
-);
+  output: {
+    format: 'text',
+  },
+  config: {
+    maxOutputTokens: 2048,
+    temperature: 0.6,
+    topK: 16,
+    topP: 0.95,
+  },
+  tools: ['getWeather'],
+  messages: template,
+});
 
 ai.defineFlow(
   {

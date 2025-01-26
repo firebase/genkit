@@ -16,8 +16,9 @@
 
 import {
   Action,
-  EvalInferenceInput,
-  EvalInferenceInputSchema,
+  Dataset,
+  DatasetMetadata,
+  DatasetSchema,
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
@@ -30,7 +31,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  loadEvalInference,
+  loadInferenceDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -121,16 +122,20 @@ export const evalFlow = new Command('eval:flow')
           const datasetStore = await getDatasetStore();
           const datasetMetadatas = await datasetStore.listDatasets();
           targetDatasetMetadata = datasetMetadatas.find(
-            (d) => d.datasetId === options.input
+            (d: DatasetMetadata) => d.datasetId === options.input
           );
         }
 
         const actionRef = `/flow/${flowName}`;
-        const evalFlowInput = await readInputs(sourceType, data, options.input);
+        const inferenceDataset = await readInputs(
+          sourceType,
+          data,
+          options.input
+        );
         const evalDataset = await runInference({
           manager,
           actionRef,
-          evalInferenceInput: evalFlowInput,
+          inferenceDataset,
           auth: options.auth,
         });
 
@@ -168,7 +173,7 @@ async function readInputs(
   sourceType: SourceType,
   dataField?: string,
   input?: string
-): Promise<EvalInferenceInput> {
+): Promise<Dataset> {
   let parsedData;
   switch (sourceType) {
     case SourceType.DATA:
@@ -176,7 +181,7 @@ async function readInputs(
       break;
     case SourceType.FILE:
       try {
-        return await loadEvalInference(input!);
+        return await loadInferenceDatasetFile(input!);
       } catch (e) {
         throw new Error(`Error parsing the input from file. Error: ${e}`);
       }
@@ -188,7 +193,7 @@ async function readInputs(
   }
 
   try {
-    return EvalInferenceInputSchema.parse(parsedData);
+    return DatasetSchema.parse(parsedData);
   } catch (e) {
     throw new Error(
       `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
@@ -201,7 +206,9 @@ function getSourceType(data?: string, input?: string): SourceType {
     if (data) {
       logger.warn('Both [data] and input provided, ignoring [data]...');
     }
-    return input.endsWith('.json') ? SourceType.FILE : SourceType.DATASET;
+    return input.endsWith('.json') || input.endsWith('.jsonl')
+      ? SourceType.FILE
+      : SourceType.DATASET;
   } else if (data) {
     return SourceType.DATA;
   }

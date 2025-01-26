@@ -158,6 +158,9 @@ class GenerateTelemetry implements Telemetry {
       featureName = 'generate';
     }
 
+    const sessionId = attributes['genkit:sessionId'] as string;
+    const threadName = attributes['genkit:threadName'] as string;
+
     if (input) {
       this.recordGenerateActionMetrics(modelName, featureName, path, input, {
         response: output,
@@ -169,7 +172,9 @@ class GenerateTelemetry implements Telemetry {
         featureName,
         path,
         input,
-        projectId
+        projectId,
+        sessionId,
+        threadName
       );
 
       if (logIO) {
@@ -179,7 +184,9 @@ class GenerateTelemetry implements Telemetry {
           featureName,
           path,
           input,
-          projectId
+          projectId,
+          sessionId,
+          threadName
         );
       }
     }
@@ -191,7 +198,9 @@ class GenerateTelemetry implements Telemetry {
         featureName,
         path,
         output,
-        projectId
+        projectId,
+        sessionId,
+        threadName
       );
     }
   }
@@ -222,7 +231,9 @@ class GenerateTelemetry implements Telemetry {
     featureName: string,
     qualifiedPath: string,
     input: GenerateRequestData,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
     const sharedMetadata = {
@@ -231,6 +242,8 @@ class GenerateTelemetry implements Telemetry {
       path,
       qualifiedPath,
       featureName,
+      sessionId,
+      threadName,
     };
     logger.logStructured(`Config[${path}, ${model}]`, {
       ...sharedMetadata,
@@ -250,7 +263,9 @@ class GenerateTelemetry implements Telemetry {
     featureName: string,
     qualifiedPath: string,
     input: GenerateRequestData,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
     const sharedMetadata = {
@@ -259,6 +274,8 @@ class GenerateTelemetry implements Telemetry {
       path,
       qualifiedPath,
       featureName,
+      sessionId,
+      threadName,
     };
 
     const messages = input.messages.length;
@@ -284,7 +301,9 @@ class GenerateTelemetry implements Telemetry {
     featureName: string,
     qualifiedPath: string,
     output: GenerateResponseData,
-    projectId?: string
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
     const sharedMetadata = {
@@ -293,6 +312,8 @@ class GenerateTelemetry implements Telemetry {
       path,
       qualifiedPath,
       featureName,
+      sessionId,
+      threadName,
     };
     const message = output.message || output.candidates?.[0]?.message!;
 
