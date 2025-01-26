@@ -282,11 +282,7 @@ function definePromptAsync<
     if (typeof resolvedOptions.docs === 'function') {
       docs = await resolvedOptions.docs(input, {
         state: session?.state,
-        context: {
-          ...getContext(registry),
-          ...resolvedOptions.context,
-          ...renderOptions?.context,
-        },
+        context: renderOptions?.context || getContext(registry) || {},
       });
     } else {
       docs = resolvedOptions.docs;
@@ -465,11 +461,7 @@ async function renderSystemPrompt<
       content: normalizeParts(
         await options.system(input, {
           state: session?.state,
-          context: {
-            ...getContext(registry),
-            ...options.context,
-            ...renderOptions?.context,
-          },
+          context: renderOptions?.context || getContext(registry) || {},
         })
       ),
     });
@@ -515,11 +507,7 @@ async function renderMessages<
       messages.push(
         ...(await options.messages(input, {
           state: session?.state,
-          context: {
-            ...getContext(registry),
-            ...options.context,
-            ...renderOptions?.context,
-          },
+          context: renderOptions?.context || getContext(registry) || {},
           history: renderOptions?.messages,
         }))
       );
@@ -533,9 +521,7 @@ async function renderMessages<
       const rendered = await promptCache.messages({
         input,
         context: {
-          ...getContext(registry),
-          ...options.context,
-          ...renderOptions?.context,
+          ...(renderOptions?.context || getContext(registry)),
           state: session?.state,
         },
         messages: renderOptions?.messages?.map((m) =>
@@ -576,11 +562,7 @@ async function renderUserPrompt<
       content: normalizeParts(
         await options.prompt(input, {
           state: session?.state,
-          context: {
-            ...getContext(registry),
-            ...options.context,
-            ...renderOptions?.context,
-          },
+          context: renderOptions?.context || getContext(registry) || {},
         })
       ),
     });
@@ -650,9 +632,7 @@ async function renderDotpromptToParts<
   const renderred = await promptFn({
     input,
     context: {
-      ...getContext(registry),
-      ...options.context,
-      ...renderOptions?.context,
+      ...(renderOptions?.context || getContext(registry)),
       state: session?.state,
     },
   });
