@@ -155,6 +155,17 @@ export type ActionParams<
   actionType: ActionType;
 };
 
+export type ActionAsyncParams<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = ActionParams<I, O, S> & {
+  fn: (
+    input: z.infer<I>,
+    options: ActionFnArg<z.infer<S>>
+  ) => Promise<z.infer<O>>;
+};
+
 export type SimpleMiddleware<I = any, O = any> = (
   req: I,
   next: (req?: I) => Promise<O>
@@ -377,30 +388,6 @@ export function action<
   return actionFn;
 }
 
-function validateActionName(registry: Registry, name: string) {
-  if (name.includes('/')) {
-    validatePluginName(registry, name.split('/', 1)[0]);
-    validateActionId(name.substring(name.indexOf('/') + 1));
-  }
-  return name;
-}
-
-function validatePluginName(registry: Registry, pluginId: string) {
-  if (!registry.lookupPlugin(pluginId)) {
-    throw new Error(
-      `Unable to find plugin name used in the action name: ${pluginId}`
-    );
-  }
-  return pluginId;
-}
-
-function validateActionId(actionId: string) {
-  if (actionId.includes('/')) {
-    throw new Error(`Action name must not include slashes (/): ${actionId}`);
-  }
-  return actionId;
-}
-
 /**
  * Defines an action with the given config and registers it in the registry.
  */
@@ -422,11 +409,6 @@ export function defineAction<
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
-  if (typeof config.name === 'string') {
-    validateActionName(registry, config.name);
-  } else {
-    validateActionId(config.name.actionId);
-  }
   const act = action(
     registry,
     config,
@@ -438,6 +420,44 @@ export function defineAction<
   act.__action.actionType = config.actionType;
   registry.registerAction(config.actionType, act);
   return act;
+}
+
+/**
+ * Defines an action with the given config promise and registers it in the registry.
+ */
+export function defineActionAsync<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  actionType: ActionType,
+  name:
+    | string
+    | {
+        pluginId: string;
+        actionId: string;
+      },
+  config: Promise<ActionAsyncParams<I, O, S>>
+): Promise<Action<I, O, S>> {
+  const actionName =
+    typeof name === 'string' ? name : `${name.pluginId}/${name.actionId}`;
+  const actionPromise = config.then((resolvedConfig) => {
+    const act = action(
+      registry,
+      resolvedConfig,
+      async (i: I, options): Promise<z.infer<O>> => {
+        await registry.initializeAllPlugins();
+        return await runInActionRuntimeContext(registry, () =>
+          resolvedConfig.fn(i, options)
+        );
+      }
+    );
+    act.__action.actionType = actionType;
+    return act;
+  });
+  registry.registerActionAsync(actionType, actionName, actionPromise);
+  return actionPromise;
 }
 
 // Streaming callback function.
