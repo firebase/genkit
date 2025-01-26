@@ -116,7 +116,7 @@ export function expressHandler<
           () =>
             action.run(input, {
               onChunk,
-              context: auth,
+              context: { auth },
             })
         );
         response.write(
@@ -140,7 +140,7 @@ export function expressHandler<
       }
     } else {
       try {
-        const result = await action.run(input, { context: auth });
+        const result = await action.run(input, { context: { auth } });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."

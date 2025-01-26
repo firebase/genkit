@@ -16,7 +16,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
-import { getContext } from './context.js';
+import { getContext, runWithContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
@@ -310,11 +310,17 @@ export function action<
         metadata.input = input;
 
         try {
-          const output = await fn(input, {
-            // Context can either be explicitly set, or inherited from the parent action.
-            context: options?.context ?? getContext(registry),
-            sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
-          });
+          const actionFn = () =>
+            fn(input, {
+              // Context can either be explicitly set, or inherited from the parent action.
+              context: options?.context ?? getContext(registry),
+              sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
+            });
+          // if context is explicitly passed in, we run action with the provided context,
+          // otherwise we let upstream context carry through.
+          const output = options?.context
+            ? await runWithContext(registry, options.context, actionFn)
+            : await actionFn();
 
           metadata.output = JSON.stringify(output);
           return output;

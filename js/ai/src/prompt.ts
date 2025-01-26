@@ -19,6 +19,7 @@ import {
   ActionAsyncParams,
   defineActionAsync,
   GenkitError,
+  getContext,
   JSONSchema7,
   stripUndefinedProps,
   z,
@@ -179,6 +180,7 @@ export type PartsResolver<I, S = any> = (
   input: I,
   options: {
     state?: S;
+    context?: any;
   }
 ) => Part[] | Promise<string | Part | Part[]>;
 
@@ -187,12 +189,14 @@ export type MessagesResolver<I, S = any> = (
   options: {
     history?: MessageData[];
     state?: S;
+    context?: any;
   }
 ) => MessageData[] | Promise<MessageData[]>;
 
 export type DocsResolver<I, S = any> = (
   input: I,
   options: {
+    context?: any;
     state?: S;
   }
 ) => DocumentData[] | Promise<DocumentData[]>;
@@ -274,6 +278,7 @@ function definePromptAsync<
     if (typeof resolvedOptions.docs === 'function') {
       docs = await resolvedOptions.docs(input, {
         state: session?.state,
+        context: getContext(registry),
       });
     } else {
       docs = resolvedOptions.docs;
@@ -448,7 +453,10 @@ async function renderSystemPrompt<
     messages.push({
       role: 'system',
       content: normalizeParts(
-        await options.system(input, { state: session?.state })
+        await options.system(input, {
+          state: session?.state,
+          context: getContext(registry),
+        })
       ),
     });
   } else if (typeof options.system === 'string') {
@@ -458,7 +466,12 @@ async function renderSystemPrompt<
     }
     messages.push({
       role: 'system',
-      content: await renderDotpromptToParts(promptCache.system, input, session),
+      content: await renderDotpromptToParts(
+        registry,
+        promptCache.system,
+        input,
+        session
+      ),
     });
   } else if (options.system) {
     messages.push({
@@ -486,6 +499,7 @@ async function renderMessages<
       messages.push(
         ...(await options.messages(input, {
           state: session?.state,
+          context: getContext(registry),
           history: renderOptions?.messages,
         }))
       );
@@ -498,7 +512,7 @@ async function renderMessages<
       }
       const rendered = await promptCache.messages({
         input,
-        context: { state: session?.state },
+        context: { ...getContext(registry), state: session?.state },
         messages: renderOptions?.messages?.map((m) =>
           Message.parseData(m)
         ) as DpMessage[],
@@ -534,7 +548,10 @@ async function renderUserPrompt<
     messages.push({
       role: 'user',
       content: normalizeParts(
-        await options.prompt(input, { state: session?.state })
+        await options.prompt(input, {
+          state: session?.state,
+          context: getContext(registry),
+        })
       ),
     });
   } else if (typeof options.prompt === 'string') {
@@ -545,6 +562,7 @@ async function renderUserPrompt<
     messages.push({
       role: 'user',
       content: await renderDotpromptToParts(
+        registry,
         promptCache.userPrompt,
         input,
         session
@@ -586,13 +604,14 @@ function normalizeParts(parts: string | Part | Part[]): Part[] {
 }
 
 async function renderDotpromptToParts(
+  registry: Registry,
   promptFn: PromptFunction,
   input: any,
   session?: Session
 ): Promise<Part[]> {
   const renderred = await promptFn({
     input,
-    context: { state: session?.state },
+    context: { ...getContext(registry), state: session?.state },
   });
   if (renderred.messages.length !== 1) {
     throw new Error('parts tempate must produce only one message');
