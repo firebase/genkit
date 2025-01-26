@@ -21,13 +21,19 @@ import { HasRegistry, Registry } from './registry.js';
 const contextAlsKey = 'core.auth.context';
 const legacyContextAsyncLocalStorage = new AsyncLocalStorage<any>();
 
+export interface ActionContext {
+  /** Information about the currently authenticated user if provided. */
+  auth?: Record<string, any>;
+  [additionalContext: string]: any;
+}
+
 /**
  * Execute the provided function in the runtime context. Call {@link getFlowContext()} anywhere
  * within the async call stack to retrieve the context.
  */
 export function runWithContext<R>(
   registry: Registry,
-  context: any,
+  context: ActionContext,
   fn: () => R
 ) {
   return legacyContextAsyncLocalStorage.run(context, () =>
@@ -52,10 +58,12 @@ export function getFlowAuth(registry?: Registry | HasRegistry): any {
 /**
  * Gets the runtime context of the current flow.
  */
-export function getContext(registry: Registry | HasRegistry): any {
+export function getContext(
+  registry: Registry | HasRegistry
+): ActionContext | undefined {
   if ((registry as HasRegistry).registry) {
     registry = (registry as HasRegistry).registry;
   }
   registry = registry as Registry;
-  return registry.asyncStore.getStore(contextAlsKey);
+  return registry.asyncStore.getStore<ActionContext>(contextAlsKey);
 }

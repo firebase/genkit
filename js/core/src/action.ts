@@ -16,7 +16,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
-import { getContext, runWithContext } from './context.js';
+import { ActionContext, getContext, runWithContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
@@ -70,7 +70,7 @@ export interface ActionRunOptions<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: any;
+  context?: ActionContext;
 
   /**
    * Additional span attributes to apply to OT spans.
@@ -90,7 +90,7 @@ export interface ActionFnArg<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: any;
+  context?: ActionContext;
 }
 
 /**

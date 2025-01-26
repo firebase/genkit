@@ -17,6 +17,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { Action, defineAction, StreamingCallback } from './action.js';
+import { ActionContext } from './context.js';
 import { HasRegistry, Registry } from './registry.js';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
@@ -63,7 +64,7 @@ export interface FlowSideChannel<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: any;
+  context?: ActionContext;
 }
 
 /**

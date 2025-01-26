@@ -34,7 +34,7 @@ export interface AuthPolicyContext<
 > {
   action?: Action<I, O, S>;
   input: z.infer<I>;
-  auth: any | undefined;
+  auth?: Record<string, any>;
   request: RequestWithAuth;
 }
 
@@ -56,7 +56,7 @@ export interface AuthPolicy<
  * the flow context.
  */
 export interface RequestWithAuth extends express.Request {
-  auth?: unknown;
+  auth?: Record<string, any>;
 }
 
 /**

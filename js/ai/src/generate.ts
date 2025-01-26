@@ -16,6 +16,7 @@
 
 import {
   Action,
+  ActionContext,
   GenkitError,
   StreamingCallback,
   runWithContext,
@@ -135,7 +136,7 @@ export interface GenerateOptions<
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
   /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
-  context?: Record<string, any>;
+  context?: ActionContext;
 }
 
 function applyResumeOption(

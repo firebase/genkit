@@ -79,7 +79,7 @@ app.use(express.json());
 
 const authPolicies: Record<string, AuthPolicy> = {
   jokeFlow: ({ auth }) => {
-    if (auth.username != 'Ali Baba') {
+    if (auth?.username != 'Ali Baba') {
       throw new Error('unauthorized: ' + JSON.stringify(auth));
     }
   },

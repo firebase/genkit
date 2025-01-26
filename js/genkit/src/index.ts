@@ -127,6 +127,7 @@ export {
   runWithStreamingCallback,
   z,
   type Action,
+  type ActionContext,
   type ActionMetadata,
   type Flow,
   type FlowConfig,

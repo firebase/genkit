@@ -16,6 +16,7 @@
 
 import {
   Action,
+  ActionContext,
   defineAction,
   JSONSchema7,
   stripUndefinedProps,
@@ -189,7 +190,7 @@ export interface ToolFnOptions {
    */
   interrupt: (metadata?: Record<string, any>) => never;
 
-  context: Record<string, any>;
+  context: ActionContext;
 }
 
 export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (

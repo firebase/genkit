@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { runWithContext, z } from '@genkit-ai/core';
+import { ActionContext, runWithContext, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -56,7 +56,7 @@ describe('prompt', () => {
     wantRendered?: GenerateOptions;
     state?: any;
     only?: boolean;
-    context?: any;
+    context?: ActionContext;
   }[] = [
     {
       name: 'renders user prompt',

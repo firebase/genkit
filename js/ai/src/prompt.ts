@@ -17,6 +17,7 @@
 import {
   Action,
   ActionAsyncParams,
+  ActionContext,
   defineActionAsync,
   GenkitError,
   getContext,
@@ -118,7 +119,7 @@ export interface PromptConfig<
   tools?: ToolArgument[];
   toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
-  context?: Record<string, any>;
+  context?: ActionContext;
 }
 
 /**
@@ -181,7 +182,7 @@ export type PartsResolver<I, S = any> = (
   input: I,
   options: {
     state?: S;
-    context: Record<string, any>;
+    context: ActionContext;
   }
 ) => Part[] | Promise<string | Part | Part[]>;
 
@@ -190,14 +191,14 @@ export type MessagesResolver<I, S = any> = (
   options: {
     history?: MessageData[];
     state?: S;
-    context: Record<string, any>;
+    context: ActionContext;
   }
 ) => MessageData[] | Promise<MessageData[]>;
 
 export type DocsResolver<I, S = any> = (
   input: I,
   options: {
-    context: Record<string, any>;
+    context: ActionContext;
     state?: S;
   }
 ) => DocumentData[] | Promise<DocumentData[]>;
