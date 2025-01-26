@@ -254,13 +254,148 @@ describe('toGenerateRequest', () => {
         output: {},
       },
     },
+    {
+      should:
+        'throw a PRECONDITION_FAILED error if trying to resume without a model message',
+      prompt: {
+        messages: [{ role: 'system', content: [{ text: 'sys' }] }],
+        resume: {
+          reply: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+        },
+      },
+      throws: 'FAILED_PRECONDITION',
+    },
+    {
+      should:
+        'throw a PRECONDITION_FAILED error if trying to resume a model message without toolRequests',
+      prompt: {
+        messages: [
+          { role: 'user', content: [{ text: 'hi' }] },
+          { role: 'model', content: [{ text: 'there' }] },
+        ],
+        resume: {
+          reply: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+        },
+      },
+      throws: 'FAILED_PRECONDITION',
+    },
+    {
+      should: 'add pending responses and interrupt replies to a tool message',
+      prompt: {
+        messages: [
+          { role: 'user', content: [{ text: 'hey' }] },
+          {
+            role: 'model',
+            content: [
+              {
+                toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
+                metadata: {
+                  pendingToolResponse: { name: 'p1', ref: '1', output: 'done' },
+                },
+              },
+              {
+                toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
+                metadata: {
+                  pendingToolResponse: {
+                    name: 'p2',
+                    ref: '2',
+                    output: 'done2',
+                  },
+                },
+              },
+              {
+                toolRequest: { name: 'i1', ref: '3', input: { one: '1' } },
+                metadata: {
+                  interrupt: true,
+                },
+              },
+              {
+                toolRequest: { name: 'i2', ref: '4', input: { one: '1' } },
+                metadata: {
+                  interrupt: { sky: 'blue' },
+                },
+              },
+            ],
+          },
+        ],
+        resume: {
+          reply: [
+            { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
+            { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
+          ],
+        },
+      },
+      expectedOutput: {
+        config: undefined,
+        docs: undefined,
+        output: {},
+        tools: [],
+        messages: [
+          { role: 'user', content: [{ text: 'hey' }] },
+          {
+            role: 'model',
+            content: [
+              {
+                toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
+                metadata: {
+                  pendingToolResponse: { name: 'p1', ref: '1', output: 'done' },
+                },
+              },
+              {
+                toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
+                metadata: {
+                  pendingToolResponse: {
+                    name: 'p2',
+                    ref: '2',
+                    output: 'done2',
+                  },
+                },
+              },
+              {
+                toolRequest: { name: 'i1', ref: '3', input: { one: '1' } },
+                metadata: {
+                  interrupt: true,
+                },
+              },
+              {
+                toolRequest: { name: 'i2', ref: '4', input: { one: '1' } },
+                metadata: {
+                  interrupt: { sky: 'blue' },
+                },
+              },
+            ],
+          },
+          {
+            role: 'tool',
+            metadata: {
+              resume: true,
+            },
+            content: [
+              { toolResponse: { name: 'p1', ref: '1', output: 'done' } },
+              { toolResponse: { name: 'p2', ref: '2', output: 'done2' } },
+              { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
+              { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
+            ],
+          },
+        ],
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, async () => {
-      assert.deepStrictEqual(
-        await toGenerateRequest(registry, test.prompt as GenerateOptions),
-        test.expectedOutput
-      );
+      if (test.throws) {
+        await assert.rejects(
+          async () => {
+            await toGenerateRequest(registry, test.prompt as GenerateOptions);
+          },
+          { name: 'GenkitError', status: test.throws }
+        );
+      } else {
+        assert.deepStrictEqual(
+          await toGenerateRequest(registry, test.prompt as GenerateOptions),
+          test.expectedOutput
+        );
+      }
     });
   }
 });

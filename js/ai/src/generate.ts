@@ -42,6 +42,7 @@ import {
   ModelArgument,
   ModelMiddleware,
   Part,
+  ToolResponsePart,
   resolveModel,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
@@ -57,6 +58,22 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   instructions?: boolean | string;
   schema?: O;
   jsonSchema?: any;
+}
+
+/** ResumeOptions configure how to resume generation after an interrupt. */
+export interface ResumeOptions {
+  /**
+   * reply should contain a single or list of `toolResponse` parts corresponding
+   * to interrupt `toolRequest` parts from the most recent model message. Each
+   * entry must have a matching `name` and `ref` (if supplied) for its `toolRequest`
+   * counterpart.
+   *
+   * Tools have a `.reply` helper method to construct a reply ToolResponse and validate
+   * the data against its schema. Call `myTool.reply(interruptToolRequest, yourReplyData)`.
+   */
+  reply: ToolResponsePart | ToolResponsePart[];
+  /** Additional metadata to annotate the created tool message with in the "resume" key. */
+  metadata?: Record<string, any>;
 }
 
 export interface GenerateOptions<
@@ -81,6 +98,27 @@ export interface GenerateOptions<
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: OutputOptions<O>;
+  /**
+   * resume provides convenient capabilities for continuing generation
+   * after an interrupt is triggered. Example:
+   *
+   * ```ts
+   * const myInterrupt = ai.defineInterrupt({...});
+   *
+   * const response = await ai.generate({
+   *   tools: [myInterrupt],
+   *   prompt: "Call myInterrupt",
+   * });
+   *
+   * const interrupt = response.interrupts[0];
+   *
+   * const resumedResponse = await ai.generate({
+   *  messages: response.messages,
+   *  resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
+   * });
+   * ```
+   */
+  resume?: ResumeOptions;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
@@ -97,6 +135,44 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
 }
 
+function applyResumeOption(
+  options: GenerateOptions,
+  messages: MessageData[]
+): MessageData[] {
+  if (!options.resume) return [];
+  if (
+    messages.at(-1)?.role !== 'model' ||
+    !messages
+      .at(-1)
+      ?.content.find((p) => p.toolRequest && p.metadata?.interrupt)
+  ) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
+    });
+  }
+  const lastModelMessage = messages.at(-1)!;
+  const toolRequests = lastModelMessage.content.filter((p) => !!p.toolRequest);
+
+  const pendingResponses: ToolResponsePart[] = toolRequests
+    .filter((t) => !!t.metadata?.pendingToolResponse)
+    .map((t) => ({
+      toolResponse: t.metadata!.pendingToolResponse,
+    })) as ToolResponsePart[];
+
+  const reply = Array.isArray(options.resume.reply)
+    ? options.resume.reply
+    : [options.resume.reply];
+  const message: MessageData = {
+    role: 'tool',
+    content: [...pendingResponses, ...reply],
+    metadata: {
+      resume: options.resume.metadata || true,
+    },
+  };
+  return [message];
+}
+
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
@@ -111,6 +187,8 @@ export async function toGenerateRequest(
   if (options.messages) {
     messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
+  // resuming from interrupts occurs after message history but before user prompt
+  messages.push(...applyResumeOption(options, messages));
   if (options.prompt) {
     messages.push({
       role: 'user',

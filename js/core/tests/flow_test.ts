@@ -106,7 +106,7 @@ describe('flow', () => {
         async () => await testFlow({ foo: 'foo', bar: 'bar' } as any),
         (err: Error) => {
           return (
-            err.name === 'Error' &&
+            err.name === 'GenkitError' &&
             err.message.includes('Schema validation failed')
           );
         }

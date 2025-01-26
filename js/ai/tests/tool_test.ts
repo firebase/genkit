@@ -18,7 +18,7 @@ import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { afterEach, describe, it } from 'node:test';
-import { defineInterrupt } from '../src/tool.js';
+import { defineInterrupt, defineTool } from '../src/tool.js';
 
 describe('defineInterrupt', () => {
   let registry = new Registry();
@@ -100,6 +100,87 @@ describe('defineInterrupt', () => {
     });
     assert.deepStrictEqual(simple2.__action.outputJsonSchema, {
       type: 'string',
+    });
+  });
+});
+
+describe('defineTool', () => {
+  let registry = new Registry();
+  afterEach(() => {
+    registry = new Registry();
+  });
+
+  describe('.reply()', () => {
+    it('constructs a ToolResponsePart', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test' },
+        async () => {}
+      );
+      assert.deepStrictEqual(
+        t.reply({ toolRequest: { name: 'test', input: {} } }, 'output'),
+        {
+          toolResponse: {
+            name: 'test',
+            output: 'output',
+          },
+          metadata: {
+            reply: true,
+          },
+        }
+      );
+    });
+
+    it('includes metadata', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test' },
+        async () => {}
+      );
+      assert.deepStrictEqual(
+        t.reply({ toolRequest: { name: 'test', input: {} } }, 'output', {
+          metadata: { extra: 'data' },
+        }),
+        {
+          toolResponse: {
+            name: 'test',
+            output: 'output',
+          },
+          metadata: {
+            reply: { extra: 'data' },
+          },
+        }
+      );
+    });
+
+    it('validates schema', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', outputSchema: z.number() },
+        async (input, { interrupt }) => interrupt()
+      );
+      assert.throws(
+        () => {
+          t.reply(
+            { toolRequest: { name: 'test', input: {} } },
+            'not_a_number' as any
+          );
+        },
+        { name: 'GenkitError', status: 'INVALID_ARGUMENT' }
+      );
+
+      assert.deepStrictEqual(
+        t.reply({ toolRequest: { name: 'test', input: {} } }, 55),
+        {
+          toolResponse: {
+            name: 'test',
+            output: 55,
+          },
+          metadata: {
+            reply: true,
+          },
+        }
+      );
     });
   });
 });
