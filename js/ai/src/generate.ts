@@ -140,17 +140,20 @@ function applyResumeOption(
   messages: MessageData[]
 ): MessageData[] {
   if (!options.resume) return [];
-  const lastModelMessage =
-    messages[messages.map((m) => m.role).lastIndexOf('model')];
   if (
-    !lastModelMessage ||
-    !lastModelMessage.content.find((p) => !!p.toolRequest)
-  )
+    messages.at(-1)?.role !== 'model' ||
+    !messages
+      .at(-1)
+      ?.content.find((p) => p.toolRequest && p.metadata?.interrupt)
+  ) {
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
-      message: `Cannot 'resume' generation when there is no prior model message with toolRequests.`,
+      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
     });
+  }
+  const lastModelMessage = messages.at(-1)!;
   const toolRequests = lastModelMessage.content.filter((p) => !!p.toolRequest);
+
   const pendingResponses: ToolResponsePart[] = toolRequests
     .filter((t) => !!t.metadata?.pendingToolResponse)
     .map((t) => ({
