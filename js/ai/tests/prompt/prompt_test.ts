@@ -270,7 +270,7 @@ describe('prompt', () => {
       },
       input: { name: 'foo' },
       state: { name: 'bar' },
-      context: {auth: {email: 'a@b.c'}},
+      context: { auth: { email: 'a@b.c' } },
       inputOptions: { config: { temperature: 11 } },
       wantTextOutput:
         'Echo: hello foo (bar, a@b.c); config: {"banana":"ripe","temperature":11}',
@@ -279,7 +279,9 @@ describe('prompt', () => {
           banana: 'ripe',
           temperature: 11,
         },
-        messages: [{ content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'user' }],
+        messages: [
+          { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'user' },
+        ],
         model: 'echoModel',
       },
     },
@@ -317,7 +319,7 @@ describe('prompt', () => {
       },
       input: { name: 'foo' },
       state: { name: 'bar' },
-      context: {auth: {email: 'a@b.c'}},
+      context: { auth: { email: 'a@b.c' } },
       inputOptions: { config: { temperature: 11 } },
       wantTextOutput:
         'Echo: system: hello foo (bar, a@b.c); config: {"banana":"ripe","temperature":11}',
@@ -326,7 +328,9 @@ describe('prompt', () => {
           banana: 'ripe',
           temperature: 11,
         },
-        messages: [{ content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' }],
+        messages: [
+          { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' },
+        ],
         model: 'echoModel',
       },
     },
@@ -368,7 +372,7 @@ describe('prompt', () => {
       },
       input: { name: 'foo' },
       state: { name: 'bar' },
-      context: {auth: {email: 'a@b.c'}},
+      context: { auth: { email: 'a@b.c' } },
       inputOptions: { config: { temperature: 11 } },
       wantTextOutput:
         'Echo: system: hello foo (bar, a@b.c); config: {"banana":"ripe","temperature":11}',
@@ -377,7 +381,9 @@ describe('prompt', () => {
           banana: 'ripe',
           temperature: 11,
         },
-        messages: [{ content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' }],
+        messages: [
+          { content: [{ text: 'hello foo (bar, a@b.c)' }], role: 'system' },
+        ],
         model: 'echoModel',
       },
     },
@@ -420,7 +426,7 @@ describe('prompt', () => {
       },
       input: { name: 'foo' },
       state: { name: 'bar' },
-      context: {auth: {email: 'a@b.c'}},
+      context: { auth: { email: 'a@b.c' } },
       inputOptions: { config: { temperature: 11 } },
       wantTextOutput:
         'Echo: system: system foo,user bar, a@b.c; config: {"banana":"ripe","temperature":11}',
@@ -503,12 +509,15 @@ describe('prompt', () => {
         input: { schema: z.object({ name: z.string() }) },
         messages: async (input, { state, context }) => [
           { role: 'system', content: [{ text: `system ${input.name}` }] },
-          { role: 'user', content: [{ text: `user ${state.name}, ${context.auth.email}` }] },
+          {
+            role: 'user',
+            content: [{ text: `user ${state.name}, ${context.auth.email}` }],
+          },
         ],
       },
       input: { name: 'foo' },
       state: { name: 'bar' },
-      context: {auth: {email: 'a@b.c'}},
+      context: { auth: { email: 'a@b.c' } },
       inputOptions: { config: { temperature: 11 } },
       wantTextOutput:
         'Echo: system: system foo,user bar, a@b.c; config: {"banana":"ripe","temperature":11}',
