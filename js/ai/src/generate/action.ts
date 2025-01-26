@@ -157,17 +157,26 @@ async function generate(
   });
 
   // If is schema is set but format is not explicitly set, default to `json` format.
-  if (options.rawRequest.output?.jsonSchema && !options.rawRequest.output?.format) {
+  if (
+    options.rawRequest.output?.jsonSchema &&
+    !options.rawRequest.output?.format
+  ) {
     options.rawRequest.output.format = 'json';
   }
-  const resolvedFormat = await resolveFormat(registry, options.rawRequest.output);
+  const resolvedFormat = await resolveFormat(
+    registry,
+    options.rawRequest.output
+  );
   const instructions = resolveInstructions(
     resolvedFormat,
     resolvedSchema,
     options.rawRequest?.output?.instructions
   );
   if (resolvedFormat) {
-    options.rawRequest.messages = injectInstructions(options.rawRequest.messages, instructions);
+    options.rawRequest.messages = injectInstructions(
+      options.rawRequest.messages,
+      instructions
+    );
     options.rawRequest.output = {
       // use output config from the format
       ...resolvedFormat.config,
