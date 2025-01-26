@@ -46,6 +46,14 @@ export async function ensureBasicTelemetryInstrumentation() {
 }
 
 /**
+ * Gets the global telemetry configuration object.
+ */
+export async function getTelemetryConfig(): Promise<TelemetryConfig> {
+  await ensureBasicTelemetryInstrumentation();
+  return await global[instrumentationKey];
+}
+
+/**
  * Enables tracing and metrics open telemetry configuration.
  */
 export async function enableTelemetry(

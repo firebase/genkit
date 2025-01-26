@@ -25,9 +25,11 @@ import {
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import { SpanMetadata, spanMetadataAlsKey } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
 import { augmentWithContext, validateSupport } from './model/middleware.js';
+import { writeSemConvTelemetry } from './telemetry.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -376,6 +378,26 @@ export const CandidateErrorSchema = z.object({
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
 /**
+ * Additional telemetry information associated with a Generate request.
+ * See
+ * https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/#generative-ai-client-metrics
+ * for details.
+ */
+export const GenerateClientTelemetrySchema = z.object({
+  system: z.string().optional(),
+  requestModel: z.string().optional(),
+  responseModel: z.string().optional(),
+  operationName: z.string().optional(),
+  serverPort: z.number().optional(),
+  serverAddress: z.string().optional(),
+  encodingFormats: z.array(z.string()).optional(),
+  responseId: z.string().optional(),
+});
+export type GenerateClientTelemetry = z.infer<
+  typeof GenerateClientTelemetrySchema
+>;
+
+/**
  * Zod schema of a model response.
  */
 export const ModelResponseSchema = z.object({
@@ -388,6 +410,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  clientTelemetry: GenerateClientTelemetrySchema.optional(),
 });
 
 /**
@@ -502,13 +525,18 @@ export function defineModel<
     (input) => {
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback(registry)).then((response) => {
-        const timedResponse = {
-          ...response,
-          latencyMs: performance.now() - startTimeMs,
-        };
-        return timedResponse;
-      });
+      return runner(input, getStreamingCallback(registry)).then(
+        async (response) => {
+          const timedResponse = {
+            ...response,
+            latencyMs: performance.now() - startTimeMs,
+          };
+          const span =
+            registry.asyncStore.getStore<SpanMetadata>(spanMetadataAlsKey);
+          await writeSemConvTelemetry(timedResponse, span);
+          return timedResponse;
+        }
+      );
     }
   );
   Object.assign(act, {

@@ -35,6 +35,15 @@ export const TraceMetadataSchema = z.object({
 });
 export type TraceMetadata = z.infer<typeof TraceMetadataSchema>;
 
+export const AttributeValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.union([z.null(), z.undefined(), z.string()])),
+  z.array(z.union([z.null(), z.undefined(), z.number()])),
+  z.array(z.union([z.null(), z.undefined(), z.boolean()])),
+]);
+
 export const SpanMetadataSchema = z.object({
   name: z.string(),
   state: z.enum(['success', 'error']).optional(),
@@ -42,6 +51,7 @@ export const SpanMetadataSchema = z.object({
   output: z.any().optional(),
   isRoot: z.boolean().optional(),
   metadata: z.record(z.string(), z.string()).optional(),
+  telemetry: z.record(z.string(), AttributeValueSchema).optional(),
   path: z.string().optional(),
 });
 export type SpanMetadata = z.infer<typeof SpanMetadataSchema>;

@@ -43,6 +43,10 @@ export const TelemetryConfigs = {
       disableTraces: false,
       exportIO: !overrides.disableLoggingIO,
       export: !!overrides.forceDevExport, // false
+      semConv: {
+        writeMetrics: true,
+        writeSpanAttributes: true,
+      },
     };
     return { ...defaults, ...overrides };
   },
@@ -64,6 +68,10 @@ export const TelemetryConfigs = {
       disableLoggingIO: false,
       exportIO: !overrides.disableLoggingIO,
       export: true,
+      semConv: {
+        writeMetrics: true,
+        writeSpanAttributes: true,
+      },
     };
     return { ...defaults, ...overrides };
   },

@@ -136,9 +136,11 @@ export {
   type Middleware,
   type ReflectionServerOptions,
   type RunActionResponse,
+  type SemConvOptions,
   type Status,
   type StreamingCallback,
   type StreamingResponse,
   type TelemetryConfig,
+  type TelemetryOptions,
 } from '@genkit-ai/core';
 export { Genkit, genkit, type GenkitOptions } from './genkit.js';

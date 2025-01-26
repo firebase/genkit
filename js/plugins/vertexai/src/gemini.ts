@@ -35,6 +35,8 @@ import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
+  GenerateRequestData,
+  GenerateResponseData,
   GenerationCommonConfigSchema,
   MediaPart,
   MessageData,
@@ -766,13 +768,16 @@ export function defineGeminiModel(
         if (!response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
-
-        return {
-          candidates: response.candidates.map((c) =>
-            fromGeminiCandidate(c, jsonMode)
-          ),
-          custom: response,
-        };
+        const candidates = response.candidates.map((c) =>
+          fromGeminiCandidate(c, jsonMode)
+        );
+        return toModelResponseData(
+          modelVersion,
+          chatRequest,
+          request,
+          response,
+          candidates
+        );
       } else {
         const result = await genModel
           .startChat(updatedChatRequest)
@@ -781,21 +786,17 @@ export function defineGeminiModel(
         if (!result?.response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
-
-        const responseCandidates = result.response.candidates.map((c) =>
-          fromGeminiCandidate(c, jsonMode)
+        const candidates =
+          result.response.candidates.map((c) =>
+            fromGeminiCandidate(c, jsonMode)
+          ) || [];
+        return toModelResponseData(
+          modelVersion,
+          chatRequest,
+          request,
+          result.response,
+          candidates
         );
-
-        return {
-          candidates: responseCandidates,
-          custom: result.response,
-          usage: {
-            ...getBasicUsageStats(request.messages, responseCandidates),
-            inputTokens: result.response.usageMetadata?.promptTokenCount,
-            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-            totalTokens: result.response.usageMetadata?.totalTokenCount,
-          },
-        };
       }
     }
   );
@@ -846,4 +847,31 @@ function toGeminiFunctionModeEnum(
     default:
       throw new Error(`unsupported function calling mode: ${genkitMode}`);
   }
+}
+
+function toModelResponseData(
+  modelName: string,
+  chatRequest: StartChatParams,
+  requestData: GenerateRequestData,
+  response: GenerateContentResponse,
+  candidates: CandidateData[]
+): GenerateResponseData {
+  return {
+    candidates,
+    custom: response,
+    usage: {
+      ...getBasicUsageStats(requestData.messages, candidates),
+      inputTokens: response.usageMetadata?.promptTokenCount,
+      outputTokens: response.usageMetadata?.candidatesTokenCount,
+      totalTokens: response.usageMetadata?.totalTokenCount,
+    },
+    clientTelemetry: {
+      system: 'vertex_ai',
+      requestModel: modelName,
+      responseModel: response['modelVersion'],
+      operationName: 'chat',
+      serverAddress: chatRequest.apiEndpoint || undefined,
+      serverPort: chatRequest.apiEndpoint ? 80 : undefined,
+    },
+  };
 }
