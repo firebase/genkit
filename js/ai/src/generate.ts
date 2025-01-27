@@ -139,11 +139,12 @@ export interface GenerateOptions<
   context?: ActionContext;
 }
 
-function applyResumeOption(
+/** Amends message history to handle `resume` arguments. Returns the amended history. */
+async function applyResumeOption(
   options: GenerateOptions,
   messages: MessageData[]
-): MessageData[] {
-  if (!options.resume) return [];
+): Promise<MessageData[]> {
+  if (!options.resume) return messages;
   if (
     messages.at(-1)?.role !== 'model' ||
     !messages
@@ -167,6 +168,7 @@ function applyResumeOption(
   const reply = Array.isArray(options.resume.reply)
     ? options.resume.reply
     : [options.resume.reply];
+
   const message: MessageData = {
     role: 'tool',
     content: [...pendingResponses, ...reply],
@@ -174,14 +176,14 @@ function applyResumeOption(
       resume: options.resume.metadata || true,
     },
   };
-  return [message];
+  return [...messages, message];
 }
 
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [];
+  let messages: MessageData[] = [];
   if (options.system) {
     messages.push({
       role: 'system',
@@ -192,7 +194,7 @@ export async function toGenerateRequest(
     messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
   // resuming from interrupts occurs after message history but before user prompt
-  messages.push(...applyResumeOption(options, messages));
+  messages = await applyResumeOption(options, messages);
   if (options.prompt) {
     messages.push({
       role: 'user',
@@ -346,12 +348,21 @@ export async function generate<
     jsonSchema: resolvedOptions.output?.jsonSchema,
   });
 
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
+    resolvedOptions.output.format = 'json';
+  }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    resolvedSchema,
+    resolvedOptions?.output?.instructions
+  );
 
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages: messages,
+    messages: injectInstructions(messages, instructions),
     tools,
     toolChoice: resolvedOptions.toolChoice,
     config: {
@@ -371,15 +382,14 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
-      const generateFn = () =>
-        generateHelper(registry, {
-          rawRequest: params,
-          middleware: resolvedOptions.use,
-        });
       const response = await runWithContext(
         registry,
         resolvedOptions.context,
-        generateFn
+        () =>
+          generateHelper(registry, {
+            rawRequest: params,
+            middleware: resolvedOptions.use,
+          })
       );
       const request = await toGenerateRequest(registry, {
         ...resolvedOptions,

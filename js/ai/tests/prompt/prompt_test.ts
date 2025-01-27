@@ -16,19 +16,19 @@
 
 import { ActionContext, runWithContext, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { toJsonSchema } from '../../../core/src/schema';
-import { Document } from '../../lib/document';
-import { GenerateOptions } from '../../lib/index';
-import { Session } from '../../lib/session';
+import { Document } from '../../src/document.js';
+import { GenerateOptions } from '../../src/index.js';
 import { ModelAction, defineModel } from '../../src/model';
 import {
   PromptConfig,
   PromptGenerateOptions,
   definePrompt,
-} from '../../src/prompt';
-import { defineTool } from '../../src/tool';
+} from '../../src/prompt.js';
+import { Session } from '../../src/session.js';
+import { defineTool } from '../../src/tool.js';
 
 describe('prompt', () => {
   let registry;

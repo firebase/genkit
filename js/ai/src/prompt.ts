@@ -74,6 +74,10 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   __executablePrompt: ExecutablePrompt<I>;
 };
 
+export function isPromptAction(action: Action): action is PromptAction {
+  return action.__action.metadata?.type === 'prompt';
+}
+
 /**
  * Prompt action.
  */

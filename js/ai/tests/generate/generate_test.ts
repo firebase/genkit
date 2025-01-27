@@ -391,10 +391,11 @@ describe('toGenerateRequest', () => {
           { name: 'GenkitError', status: test.throws }
         );
       } else {
-        assert.deepStrictEqual(
-          await toGenerateRequest(registry, test.prompt as GenerateOptions),
-          test.expectedOutput
+        const actualOutput = await toGenerateRequest(
+          registry,
+          test.prompt as GenerateOptions
         );
+        assert.deepStrictEqual(actualOutput, test.expectedOutput);
       }
     });
   }

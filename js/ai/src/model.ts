@@ -23,6 +23,7 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
@@ -633,7 +634,8 @@ export interface ResolvedModel<
 
 export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
-  model: ModelArgument<C> | undefined
+  model: ModelArgument<C> | undefined,
+  options?: { warnDeprecated?: boolean }
 ): Promise<ResolvedModel<C>> {
   let out: ResolvedModel<C>;
   let modelId: string;
@@ -670,8 +672,17 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   if (!out.modelAction) {
     throw new GenkitError({
       status: 'NOT_FOUND',
-      message: `Model ${modelId} not found`,
+      message: `Model '${modelId}' not found`,
     });
+  }
+
+  if (
+    options?.warnDeprecated &&
+    out.modelAction.__action.metadata?.model?.stage === 'deprecated'
+  ) {
+    logger.warn(
+      `Model '${out.modelAction.__action.name}' is deprecated and may be removed in a future release.`
+    );
   }
 
   return out;

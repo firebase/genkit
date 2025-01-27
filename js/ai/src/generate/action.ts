@@ -15,16 +15,15 @@
  */
 
 import {
-  GenkitError,
   getStreamingCallback,
   runWithStreamingCallback,
+  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
-import * as clc from 'colorette';
 import { DocumentDataSchema } from '../document.js';
 import {
   injectInstructions,
@@ -43,7 +42,6 @@ import {
   GenerateRequestSchema,
   GenerateResponseChunkData,
   GenerateResponseData,
-  MessageData,
   MessageSchema,
   ModelAction,
   ModelInfo,
@@ -52,15 +50,10 @@ import {
   Part,
   Role,
   ToolDefinitionSchema,
-  ToolResponsePart,
   resolveModel,
 } from '../model.js';
-import {
-  ToolAction,
-  ToolInterruptError,
-  resolveTools,
-  toToolDefinition,
-} from '../tool.js';
+import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
+import { assertValidToolNames, resolveToolRequests } from './tool-loop.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -130,115 +123,138 @@ export async function generateHelper(
   );
 }
 
+/** Take the raw request and resolve tools, model, and format into their registry action counterparts. */
+async function resolveParameters(
+  registry: Registry,
+  request: z.infer<typeof GenerateUtilParamSchema>
+) {
+  const [model, tools, format] = await Promise.all([
+    resolveModel(registry, request.model).then((r) => r.modelAction),
+    resolveTools(registry, request.tools),
+    resolveFormat(registry, request.output),
+  ]);
+  return { model, tools, format };
+}
+
+/** Given a raw request and a formatter, apply the formatter's logic and instructions to the request. */
+function applyFormat(
+  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
+  resolvedFormat?: Formatter
+) {
+  const outRequest = { ...rawRequest };
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (rawRequest.output?.jsonSchema && !rawRequest.output?.format) {
+    outRequest.output = { ...rawRequest.output, format: 'json' };
+  }
+
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    outRequest.output?.jsonSchema,
+    outRequest?.output?.instructions
+  );
+
+  if (resolvedFormat) {
+    outRequest.messages = injectInstructions(outRequest.messages, instructions);
+    outRequest.output = {
+      // use output config from the format
+      ...resolvedFormat.config,
+      // if anything is set explicitly, use that
+      ...outRequest.output,
+    };
+  }
+
+  return outRequest;
+}
+
+function applyTransferPreamble(
+  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
+  transferPreamble?: z.infer<typeof GenerateUtilParamSchema>
+): z.infer<typeof GenerateUtilParamSchema> {
+  if (!transferPreamble) {
+    return rawRequest;
+  }
+
+  return stripUndefinedProps({
+    ...rawRequest,
+    messages: [
+      ...tagAsPreamble(transferPreamble.messages!)!,
+      ...rawRequest.messages.filter((m) => !m.metadata?.preamble),
+    ],
+    toolChoice: transferPreamble.toolChoice,
+    tools: transferPreamble.tools,
+  });
+}
+
 async function generate(
   registry: Registry,
-  options: {
+  {
+    rawRequest,
+    middleware,
+    currentTurn,
+    messageIndex,
+  }: {
     rawRequest: z.infer<typeof GenerateUtilParamSchema>;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
   }
 ): Promise<GenerateResponseData> {
-  const { modelAction: model } = await resolveModel(
+  const { model, tools, format } = await resolveParameters(
     registry,
-    options.rawRequest.model
+    rawRequest
   );
-  if (model.__action.metadata?.model.stage === 'deprecated') {
-    logger.warn(
-      `${clc.bold(clc.yellow('Warning:'))} ` +
-        `Model '${model.__action.name}' is deprecated and may be removed in a future release.`
-    );
-  }
+  rawRequest = applyFormat(rawRequest, format);
 
-  const tools = await resolveTools(registry, options.rawRequest.tools);
-
-  const resolvedSchema = toJsonSchema({
-    jsonSchema: options.rawRequest.output?.jsonSchema,
-  });
-
-  // If is schema is set but format is not explicitly set, default to `json` format.
-  if (
-    options.rawRequest.output?.jsonSchema &&
-    !options.rawRequest.output?.format
-  ) {
-    options.rawRequest.output.format = 'json';
-  }
-  const resolvedFormat = await resolveFormat(
-    registry,
-    options.rawRequest.output
-  );
-  const instructions = resolveInstructions(
-    resolvedFormat,
-    resolvedSchema,
-    options.rawRequest?.output?.instructions
-  );
-  if (resolvedFormat) {
-    options.rawRequest.messages = injectInstructions(
-      options.rawRequest.messages,
-      instructions
-    );
-    options.rawRequest.output = {
-      // use output config from the format
-      ...resolvedFormat.config,
-      // if anything is set explicitly, use that
-      ...options.rawRequest.output,
-    };
-  }
-
-  // Create a lookup of tool names with namespaces stripped to original names
-  const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
-    const name = tool.__action.name;
-    const shortName = name.substring(name.lastIndexOf('/') + 1);
-    if (acc[shortName]) {
-      throw new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message: `Cannot provide two tools with the same name: '${name}' and '${acc[shortName]}'`,
-      });
-    }
-    acc[shortName] = tool;
-    return acc;
-  }, {});
+  // check to make sure we don't have overlapping tool names *before* generation
+  await assertValidToolNames(tools);
 
   const request = await actionToGenerateRequest(
-    options.rawRequest,
+    rawRequest,
     tools,
-    resolvedFormat,
+    format,
     model
   );
 
-  const accumulatedChunks: GenerateResponseChunkData[] = [];
+  const previousChunks: GenerateResponseChunkData[] = [];
+
+  let chunkRole: Role = 'model';
+  // convenience method to create a full chunk from role and data, append the chunk
+  // to the previousChunks array, and increment the message index as needed
+  const makeChunk = (
+    role: Role,
+    chunk: GenerateResponseChunkData
+  ): GenerateResponseChunk => {
+    if (role !== chunkRole) messageIndex++;
+    chunkRole = role;
+
+    const prevToSend = [...previousChunks];
+    previousChunks.push(chunk);
+
+    return new GenerateResponseChunk(chunk, {
+      index: messageIndex,
+      role,
+      previousChunks: prevToSend,
+      parser: format?.handler(request.output?.schema).parseChunk,
+    });
+  };
 
   const streamingCallback = getStreamingCallback(registry);
   const response = await runWithStreamingCallback(
     registry,
-    streamingCallback
-      ? (chunk: GenerateResponseChunkData) => {
-          // Store accumulated chunk data
-          if (streamingCallback) {
-            streamingCallback!(
-              new GenerateResponseChunk(chunk, {
-                index: options.messageIndex,
-                role: 'model',
-                previousChunks: accumulatedChunks,
-                parser: resolvedFormat?.handler(request.output?.schema)
-                  .parseChunk,
-              })
-            );
-          }
-          accumulatedChunks.push(chunk);
-        }
-      : undefined,
+    streamingCallback &&
+      ((chunk: GenerateResponseChunkData) =>
+        streamingCallback(makeChunk('model', chunk))),
     async () => {
       const dispatch = async (
         index: number,
         req: z.infer<typeof GenerateRequestSchema>
       ) => {
-        if (!options.middleware || index === options.middleware.length) {
+        if (!middleware || index === middleware.length) {
           // end of the chain, call the original model action
           return await model(req);
         }
 
-        const currentMiddleware = options.middleware[index];
+        const currentMiddleware = middleware[index];
         return currentMiddleware(req, async (modifiedReq) =>
           dispatch(index + 1, modifiedReq || req)
         );
@@ -246,24 +262,26 @@ async function generate(
 
       return new GenerateResponse(await dispatch(0, request), {
         request,
-        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+        parser: format?.handler(request.output?.schema).parseMessage,
       });
     }
   );
 
   // Throw an error if the response is not usable.
   response.assertValid();
-  const message = response.message!; // would have thrown if no message
+  const generatedMessage = response.message!; // would have thrown if no message
 
-  const toolCalls = message.content.filter((part) => !!part.toolRequest);
-  if (options.rawRequest.returnToolRequests || toolCalls.length === 0) {
-    if (toolCalls.length === 0) {
-      response.assertValidSchema(request);
-    }
+  const toolRequests = generatedMessage.content.filter(
+    (part) => !!part.toolRequest
+  );
+
+  if (rawRequest.returnToolRequests || toolRequests.length === 0) {
+    if (toolRequests.length === 0) response.assertValidSchema(request);
     return response.toJSON();
   }
-  const maxIterations = options.rawRequest.maxTurns ?? 5;
-  if (options.currentTurn + 1 > maxIterations) {
+
+  const maxIterations = rawRequest.maxTurns ?? 5;
+  if (currentTurn + 1 > maxIterations) {
     throw new GenerationResponseError(
       response,
       `Exceeded maximum tool call iterations (${maxIterations})`,
@@ -272,127 +290,34 @@ async function generate(
     );
   }
 
-  const toolResponses: ToolResponsePart[] = [];
-  let messages: MessageData[] = [...request.messages, message];
-  let newTools = options.rawRequest.tools;
-  let newToolChoice = options.rawRequest.toolChoice;
-  let interruptedParts: Part[] = [];
-  let pendingToolRequests: Part[] = [];
-  for (const part of toolCalls) {
-    if (!part.toolRequest) {
-      throw Error(
-        'Tool request expected but not provided in tool request part'
-      );
-    }
-    const tool = toolMap[part.toolRequest?.name];
-    if (!tool) {
-      throw Error(`Tool ${part.toolRequest?.name} not found`);
-    }
-    if ((tool.__action.metadata.type as string) === 'prompt') {
-      try {
-        const newPreamble = await tool(part.toolRequest?.input);
-        toolResponses.push({
-          toolResponse: {
-            name: part.toolRequest.name,
-            ref: part.toolRequest.ref,
-            output: `transferred to ${part.toolRequest.name}`,
-          },
-        });
-        // swap out the preamble
-        messages = [
-          ...tagAsPreamble(newPreamble.messages)!,
-          ...messages.filter((m) => !m?.metadata?.preamble),
-        ];
-        newTools = newPreamble.tools;
-        newToolChoice = newPreamble.toolChoice;
-      } catch (e) {
-        if (e instanceof ToolInterruptError) {
-          logger.debug(`interrupted tool ${part.toolRequest?.name}`);
-          part.metadata = { ...part.metadata, interrupt: e.metadata || true };
-          interruptedParts.push(part);
-        } else {
-          throw e;
-        }
-      }
-    } else {
-      try {
-        const toolOutput = await tool(part.toolRequest?.input);
-        toolResponses.push({
-          toolResponse: {
-            name: part.toolRequest.name,
-            ref: part.toolRequest.ref,
-            output: toolOutput,
-          },
-        });
-        // we prep these in case any other tool gets interrupted.
-        pendingToolRequests.push({
-          ...part,
-          metadata: {
-            ...part.metadata,
-            pendingToolResponse: {
-              name: part.toolRequest.name,
-              ref: part.toolRequest.ref,
-              output: toolOutput,
-            },
-          },
-        });
-      } catch (e) {
-        if (e instanceof ToolInterruptError) {
-          logger.debug(`interrupted tool ${part.toolRequest?.name}`);
-          part.metadata = { ...part.metadata, interrupt: e.metadata || true };
-          interruptedParts.push(part);
-        } else {
-          throw e;
-        }
-      }
-    }
-  }
-  options.messageIndex++;
-  const nextRequest = {
-    ...options.rawRequest,
-    messages: [
-      ...messages,
-      {
-        role: 'tool',
-        content: toolResponses,
-      },
-    ] as MessageData[],
-    tools: newTools,
-    toolCoice: newToolChoice,
-  };
-  // stream out the tool responses
-  streamingCallback?.(
-    new GenerateResponseChunk(
-      {
-        content: toolResponses,
-      },
-      {
-        index: options.messageIndex,
-        role: 'model',
-        previousChunks: accumulatedChunks,
-        parser: resolvedFormat?.handler(request.output?.schema).parseChunk,
-      }
-    )
-  );
-  if (interruptedParts.length > 0) {
-    const nonToolParts =
-      (response.message?.content.filter((c) => !c.toolRequest) as Part[]) || [];
+  const { revisedModelMessage, toolMessage, transferPreamble } =
+    await resolveToolRequests(registry, rawRequest, generatedMessage);
+
+  // if an interrupt message is returned, stop the tool loop and return a response
+  if (revisedModelMessage) {
     return {
       ...response.toJSON(),
       finishReason: 'interrupted',
-      message: {
-        role: 'model',
-        content: nonToolParts
-          .concat(pendingToolRequests)
-          .concat(interruptedParts),
-      },
+      finishMessage: 'One or more tool calls resulted in interrupts.',
+      message: revisedModelMessage,
     };
   }
+
+  // if the loop will continue, stream out the tool response message...
+  streamingCallback?.(
+    makeChunk('tool', {
+      content: toolMessage!.content,
+    })
+  );
+
+  let nextRequest = applyTransferPreamble(rawRequest, transferPreamble);
+
+  // then recursively call for another loop
   return await generateHelper(registry, {
     rawRequest: nextRequest,
-    middleware: options.middleware,
-    currentTurn: options.currentTurn + 1,
-    messageIndex: options.messageIndex + 1,
+    middleware: middleware,
+    currentTurn: currentTurn + 1,
+    messageIndex: messageIndex + 1,
   });
 }
 

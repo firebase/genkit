@@ -46,10 +46,37 @@ export type ToolAction<
    * it exists.
    */
   reply(
+    /** The interrupt tool request to which you want to respond. */
     interrupt: ToolRequestPart,
+    /**
+     * The data with which you want to respond. Must conform to a tool's output schema or an
+     * interrupt's input schema.
+     **/
     replyData: z.infer<O>,
     options?: { metadata?: Record<string, any> }
   ): ToolResponsePart;
+  /**
+   * restart constructs a tool request corresponding to the provided interrupt tool request
+   * that will then re-trigger the tool after e.g. a user confirms. The `resumedMetadata`
+   * supplied to this method will be passed to the tool to allow for custom handling of
+   * restart logic.
+   *
+   * @param interrupt The interrupt tool request you want to restart.
+   * @param resumedMetadata The metadata you want to provide to the tool to aide in reprocessing. Defaults to `true` if none is supplied.
+   * @param options Additional options for restarting the tool.
+   */
+  restart(
+    interrupt: ToolRequestPart,
+    resumedMetadata?: any,
+    options?: {
+      /**
+       * Replace the existing input arguments to the tool with different ones, for example
+       * if the user revised an action before confirming. When input is replaced, the existing
+       * tool request will be amended in the message history.
+       **/
+      replaceInput?: z.infer<I>;
+    }
+  ): ToolRequestPart;
 };
 
 /**
