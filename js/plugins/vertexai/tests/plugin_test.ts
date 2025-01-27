@@ -18,10 +18,16 @@ import * as assert from 'assert';
 import { genkit } from 'genkit';
 import { ModelInfo } from 'genkit/model';
 import { describe, it } from 'node:test';
+import { __setFakeDerivedParams } from '../src/common/index.js';
 import { GENERIC_GEMINI_MODEL, gemini } from '../src/gemini.js';
 import vertexAI, { gemini15Flash, gemini15Pro } from '../src/index.js';
 
 describe('plugin', () => {
+  __setFakeDerivedParams({
+    projectId: 'test',
+    location: 'us-central1',
+  });
+
   it('should init the plugin without requiring the api key', async () => {
     const ai = genkit({
       plugins: [vertexAI()],

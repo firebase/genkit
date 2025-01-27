@@ -40,9 +40,18 @@ function parseFirebaseProjectId(): string | undefined {
   }
 }
 
+export function __setFakeDerivedParams(params: any) {
+  __fake_getDerivedParams = params;
+}
+let __fake_getDerivedParams: any;
+
 export async function getDerivedParams(
   options?: PluginOptions
 ): Promise<DerivedParams> {
+  if (__fake_getDerivedParams) {
+    return __fake_getDerivedParams;
+  }
+
   let authOptions = options?.googleAuth;
   let authClient: GoogleAuth;
   const providedProjectId =
