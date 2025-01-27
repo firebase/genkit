@@ -100,6 +100,7 @@ import {
 import { ToolFn } from '@genkit-ai/ai/tool';
 import {
   Action,
+  ActionContext,
   FlowConfig,
   FlowFn,
   JSONSchema,
@@ -108,6 +109,7 @@ import {
   defineFlow,
   defineJsonSchema,
   defineSchema,
+  getContext,
   isDevEnv,
   run,
   z,
@@ -115,7 +117,7 @@ import {
 import { HasRegistry } from '@genkit-ai/core/registry';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import { GenkitPlugin, genkitPlugin } from './plugin.js';
+import { GenkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
 
 /**
@@ -786,6 +788,15 @@ export class Genkit implements HasRegistry {
   }
 
   /**
+   * Returns current action (or flow) invocation context. Can be used to access things like auth
+   * data set by HTTP server frameworks. If invoked outside of an action (e.g. flow or tool) will
+   * return `undefined`.
+   */
+  currentContext(): ActionContext | undefined {
+    return getContext(this);
+  }
+
+  /**
    * Configures the Genkit instance.
    */
   private configure() {
@@ -801,14 +812,11 @@ export class Genkit implements HasRegistry {
       );
     }
     if (this.options.promptDir !== null) {
-      const dotprompt = genkitPlugin('dotprompt', async (ai) => {
-        await loadPromptFolder(
-          this.registry,
-          this.options.promptDir ?? './prompts',
-          'dotprompt'
-        );
-      });
-      plugins.push(dotprompt);
+      loadPromptFolder(
+        this.registry,
+        this.options.promptDir ?? './prompts',
+        ''
+      );
     }
     plugins.forEach((plugin) => {
       const loadedPlugin = plugin(this);

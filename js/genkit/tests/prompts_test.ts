@@ -911,9 +911,41 @@ describe.only('prompt', () => {
       text,
       'Echo: Hello from the prompt file; config: {"temperature":11}'
     );
+    assert.deepStrictEqual(await testPrompt.render({}), {
+      config: {
+        temperature: 11,
+      },
+      messages: [
+        { content: [{ text: 'Hello from the prompt file' }], role: 'user' },
+      ],
+      output: {},
+    });
   });
 
-  it.only('loads from from the folder with all the options', async () => {
+  it.only('loads from from the sub folder', async () => {
+    const testPrompt = ai.prompt('sub/test'); // see tests/prompts/sub folder
+
+    const { text } = await testPrompt();
+
+    assert.strictEqual(
+      text,
+      'Echo: Hello from the sub folder prompt file; config: {"temperature":12}'
+    );
+    assert.deepStrictEqual(await testPrompt.render({}), {
+      config: {
+        temperature: 12,
+      },
+      messages: [
+        {
+          content: [{ text: 'Hello from the sub folder prompt file' }],
+          role: 'user',
+        },
+      ],
+      output: {},
+    });
+  });
+
+  it('loads from from the folder with all the options', async () => {
     const testPrompt = ai.prompt('kitchensink'); // see tests/prompts folder
 
     const request = await testPrompt.render({ subject: 'banana' });
@@ -1164,9 +1196,6 @@ describe('asTool', () => {
           outputSchema: {
             $schema: 'http://json-schema.org/draft-07/schema#',
           },
-          metadata: {
-            originalName: 'dotprompt/toolPrompt',
-          },
         },
       ],
     });
@@ -1375,9 +1404,6 @@ describe('asTool', () => {
           name: 'toolPrompt',
           outputSchema: {
             $schema: 'http://json-schema.org/draft-07/schema#',
-          },
-          metadata: {
-            originalName: 'dotprompt/toolPrompt',
           },
         },
       ],

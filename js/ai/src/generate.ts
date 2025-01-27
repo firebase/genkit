@@ -16,8 +16,10 @@
 
 import {
   Action,
+  ActionContext,
   GenkitError,
   StreamingCallback,
+  runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
   z,
@@ -113,8 +115,8 @@ export interface GenerateOptions<
    * const interrupt = response.interrupts[0];
    *
    * const resumedResponse = await ai.generate({
-   *  messages: response.messages,
-   *  resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
+   *   messages: response.messages,
+   *   resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
    * });
    * ```
    */
@@ -133,6 +135,8 @@ export interface GenerateOptions<
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
+  /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
+  context?: ActionContext;
 }
 
 function applyResumeOption(
@@ -367,10 +371,16 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
-      const response = await generateHelper(registry, {
-        rawRequest: params,
-        middleware: resolvedOptions.use,
-      });
+      const generateFn = () =>
+        generateHelper(registry, {
+          rawRequest: params,
+          middleware: resolvedOptions.use,
+        });
+      const response = await runWithContext(
+        registry,
+        resolvedOptions.context,
+        generateFn
+      );
       const request = await toGenerateRequest(registry, {
         ...resolvedOptions,
         tools,
@@ -415,8 +425,6 @@ async function resolveFullToolName(
     return `/tool/${name}`;
   } else if (await registry.lookupAction(`/prompt/${name}`)) {
     return `/prompt/${name}`;
-  } else if (await registry.lookupAction(`/prompt/dotprompt/${name}`)) {
-    return `/prompt/dotprompt/${name}`;
   } else {
     throw new Error(`Unable to determine type of of tool: ${name}`);
   }

@@ -16,6 +16,7 @@
 
 import {
   Action,
+  ActionContext,
   defineAction,
   JSONSchema7,
   stripUndefinedProps,
@@ -143,8 +144,7 @@ export async function lookupToolByName(
   let tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||
-    (await registry.lookupAction(`/prompt/${name}`)) ||
-    (await registry.lookupAction(`/prompt/dotprompt/${name}`));
+    (await registry.lookupAction(`/prompt/${name}`));
   if (!tool) {
     throw new Error(`Tool ${name} not found`);
   }
@@ -189,6 +189,8 @@ export interface ToolFnOptions {
    * getting interrupted (immediately) and tool request returned to the upstream caller.
    */
   interrupt: (metadata?: Record<string, any>) => never;
+
+  context: ActionContext;
 }
 
 export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
@@ -213,9 +215,12 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       actionType: 'tool',
       metadata: { ...(config.metadata || {}), type: 'tool' },
     },
-    (i) =>
+    (i, { context }) =>
       fn(i, {
         interrupt: interruptTool,
+        context: {
+          ...context,
+        },
       })
   );
   (a as ToolAction<I, O>).reply = (interrupt, replyData, options) => {

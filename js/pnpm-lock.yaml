@@ -51,8 +51,8 @@ importers:
         specifier: ^2.0.20
         version: 2.0.20
       dotprompt:
-        specifier: ^1.0.0-dev || ^1
-        version: 1.0.0-dev.2
+        specifier: ^1.0.0-dev.3 || ^1
+        version: 1.0.0-dev.3
       json5:
         specifier: ^2.2.3
         version: 2.2.3
@@ -121,8 +121,8 @@ importers:
         specifier: ^2.8.5
         version: 2.8.5
       dotprompt:
-        specifier: ^1.0.0-dev || ^1
-        version: 1.0.0-dev.2
+        specifier: ^1.0.0-dev.3 || ^1
+        version: 1.0.0-dev.3
       express:
         specifier: ^4.21.0
         version: 4.21.0
@@ -337,8 +337,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       dotprompt:
-        specifier: ^1.0.0-dev || ^1
-        version: 1.0.0-dev.2
+        specifier: ^1.0.0-dev.3 || ^1
+        version: 1.0.0-dev.3
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -4209,8 +4209,8 @@ packages:
     resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
     engines: {node: '>=12'}
 
-  dotprompt@1.0.0-dev.2:
-    resolution: {integrity: sha512-RcpdKpKd1XemHpb6Lti/ekLGs+9or+11n/aUSZ9e8QM1qTNFUloa9bdqg4OJDvpAlihv34uCt8yUlV2h4MglqA==}
+  dotprompt@1.0.0-dev.3:
+    resolution: {integrity: sha512-gAcIhG+vzZlrZcBN/lO8gEMUtXHKMLbs1+snJuZrPkZnNgnWrzz1hYN4vYotpng/5fHsYSPUEckECy6qUNSrsQ==}
 
   duplexify@4.1.3:
     resolution: {integrity: sha512-M3BmBhwJRZsSx38lZyhE53Csddgzl5R7xGJNk7CVddZD6CcmwMCH8J+7AprIrQKH7TonKxaCjcv27Qmf+sQ+oA==}
@@ -9514,7 +9514,7 @@ snapshots:
 
   dotenv@16.4.5: {}
 
-  dotprompt@1.0.0-dev.2:
+  dotprompt@1.0.0-dev.3:
     dependencies:
       handlebars: 4.7.8
       yaml: 2.6.1
