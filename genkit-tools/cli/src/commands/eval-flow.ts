@@ -31,6 +31,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
+  hasAction,
   loadInferenceDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
@@ -87,10 +88,16 @@ export const evalFlow = new Command('eval:flow')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
       await runWithManager(async (manager) => {
+        const actionRef = `/flow/${flowName}`;
         if (!data && !options.input) {
           throw new Error(
             'No input data passed. Specify input data using [data] argument or --input <filename> option'
           );
+        }
+
+        const hasTargetAction = await hasAction({ manager, actionRef });
+        if (!hasTargetAction) {
+          throw new Error(`Cannot find action ${actionRef}.`);
         }
 
         let evaluatorActions: Action[];
@@ -103,6 +110,13 @@ export const evalFlow = new Command('eval:flow')
           evaluatorActions = await getMatchingEvaluatorActions(
             manager,
             evalActionKeys
+          );
+        }
+        if (!evaluatorActions.length) {
+          throw new Error(
+            options.evaluators
+              ? `No matching evaluators found for '${options.evaluators}'`
+              : `No evaluators found in your app`
           );
         }
         logger.debug(
@@ -126,7 +140,6 @@ export const evalFlow = new Command('eval:flow')
           );
         }
 
-        const actionRef = `/flow/${flowName}`;
         const inferenceDataset = await readInputs(
           sourceType,
           data,

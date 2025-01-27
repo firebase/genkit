@@ -19,6 +19,7 @@ import { createReadStream } from 'fs';
 import { readFile } from 'fs/promises';
 import * as inquirer from 'inquirer';
 import { createInterface } from 'readline';
+import { RuntimeManager } from '../manager';
 import {
   EvalField,
   EvaluationExtractor,
@@ -318,4 +319,14 @@ async function readLines(fileName: string): Promise<string[]> {
     lines.push(line);
   }
   return lines;
+}
+
+export async function hasAction(params: {
+  manager: RuntimeManager;
+  actionRef: string;
+}): Promise<boolean> {
+  const { manager, actionRef } = { ...params };
+  const actionsRecord = await manager.listActions();
+
+  return actionsRecord.hasOwnProperty(actionRef);
 }

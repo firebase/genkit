@@ -15,7 +15,7 @@
     "esModuleInterop": false,
     "strict": true,
     "target": "es2022",
-    "lib": ["es2022"],
+    "lib": ["es2022", "DOM"],
     "noEmit": true
   },
   "compileOnSave": true
