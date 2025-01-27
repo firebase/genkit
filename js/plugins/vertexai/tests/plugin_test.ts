@@ -71,7 +71,7 @@ describe('plugin', () => {
     assert.strictEqual(pro002Ref.name, 'vertexai/gemini-1.5-pro-002');
     assertEqualModelInfo(
       pro002Ref.info!,
-      'Google AI - gemini-1.5-pro-002',
+      'Vertex AI - gemini-1.5-pro-002',
       gemini15Pro.info!
     );
     const pro002 = await ai.registry.lookupAction(`/model/${pro002Ref.name}`);
@@ -79,14 +79,14 @@ describe('plugin', () => {
     assert.strictEqual(pro002.__action.name, 'vertexai/gemini-1.5-pro-002');
     assertEqualModelInfo(
       pro002.__action.metadata?.model,
-      'Google AI - gemini-1.5-pro-002',
+      'Vertex AI - gemini-1.5-pro-002',
       gemini15Pro.info!
     );
 
     assert.strictEqual(flash002Ref.name, 'vertexai/gemini-1.5-flash-002');
     assertEqualModelInfo(
       flash002Ref.info!,
-      'Google AI - gemini-1.5-flash-002',
+      'Vertex AI - gemini-1.5-flash-002',
       gemini15Flash.info!
     );
     const flash002 = await ai.registry.lookupAction(
@@ -96,7 +96,7 @@ describe('plugin', () => {
     assert.strictEqual(flash002.__action.name, 'vertexai/gemini-1.5-flash-002');
     assertEqualModelInfo(
       flash002.__action.metadata?.model,
-      'Google AI - gemini-1.5-flash-002',
+      'Vertex AI - gemini-1.5-flash-002',
       gemini15Flash.info!
     );
 
@@ -104,7 +104,7 @@ describe('plugin', () => {
     assert.strictEqual(bananaRef.name, 'vertexai/gemini-4.0-banana');
     assertEqualModelInfo(
       bananaRef.info!,
-      'Google AI - gemini-4.0-banana',
+      'Vertex AI - gemini-4.0-banana',
       GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
     );
     const banana = await ai.registry.lookupAction(`/model/${bananaRef.name}`);
@@ -112,7 +112,7 @@ describe('plugin', () => {
     assert.strictEqual(banana.__action.name, 'vertexai/gemini-4.0-banana');
     assertEqualModelInfo(
       banana.__action.metadata?.model,
-      'Google AI - gemini-4.0-banana',
+      'Vertex AI - gemini-4.0-banana',
       GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
     );
 
