@@ -217,7 +217,8 @@ describe('generate', () => {
           for await (const chunk of stream) {
             // nothing
           }
-        })(), (e: Error) => {
+        })(),
+        (e: Error) => {
           return e.message.includes('Model modelNotFound not found');
         }
       );
