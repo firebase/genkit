@@ -169,7 +169,7 @@ export type ErrorDetail = z.infer<typeof ErrorDetailSchema>;
 export const ValidateDataResponseSchema = z.object({
   valid: z.boolean(),
   errors: z
-    .record(z.string(), z.array(ErrorDetailSchema).optional())
+    .record(z.string(), z.array(ErrorDetailSchema))
     .describe(
       'Errors mapping, if any. The key is testCaseId if source is a dataset, otherewise it is the index number (stringified)'
     )

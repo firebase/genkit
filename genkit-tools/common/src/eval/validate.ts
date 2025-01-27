@@ -53,7 +53,7 @@ export async function validateSchema(
     return { valid: true };
   }
 
-  const errorsMap: Record<string, ErrorDetail[] | undefined> = {};
+  const errorsMap: Record<string, ErrorDetail[]> = {};
 
   if (datasetId) {
     const datasetStore = await getDatasetStore();
@@ -64,7 +64,7 @@ export async function validateSchema(
     dataset.forEach((sample, index) => {
       const response = validate(targetSchema, sample.input);
       if (!response.valid) {
-        errorsMap[sample.testCaseId] = response.errors;
+        errorsMap[sample.testCaseId] = response.errors ?? [];
       }
     });
 
@@ -76,7 +76,7 @@ export async function validateSchema(
     dataset.forEach((sample, index) => {
       const response = validate(targetSchema, sample.input);
       if (!response.valid) {
-        errorsMap[index.toString()] = response.errors;
+        errorsMap[index.toString()] = response.errors ?? [];
       }
     });
     return Object.keys(errorsMap).length === 0
