@@ -20,6 +20,7 @@ import { getDatasetStore } from '.';
 import { RuntimeManager } from '../manager';
 import {
   Action,
+  ErrorDetail,
   InferenceDatasetSchema,
   ValidateDataRequest,
   ValidateDataResponse,
@@ -52,7 +53,7 @@ export async function validateSchema(
     return { valid: true };
   }
 
-  const errorsMap: Record<string, any> = {};
+  const errorsMap: Record<string, ErrorDetail[] | undefined> = {};
 
   if (datasetId) {
     const datasetStore = await getDatasetStore();
@@ -87,14 +88,14 @@ export async function validateSchema(
 function validate(
   jsonSchema: JSONSchema,
   data: unknown
-): { valid: boolean; errors?: Record<string, any> } {
+): { valid: boolean; errors?: ErrorDetail[] } {
   const validator = ajv.compile(jsonSchema);
   const valid = validator(data) as boolean;
   const errors = validator.errors?.map((e) => e);
   return { valid, errors: errors?.map(toErrorDetail) };
 }
 
-function toErrorDetail(error: ErrorObject) {
+function toErrorDetail(error: ErrorObject): ErrorDetail {
   return {
     path: error.instancePath.substring(1).replace(/\//g, '.') || '(root)',
     message: error.message!,

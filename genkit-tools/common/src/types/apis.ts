@@ -160,10 +160,16 @@ export const ValidateDataRequestSchema = z.object({
 });
 export type ValidateDataRequest = z.infer<typeof ValidateDataRequestSchema>;
 
+export const ErrorDetailSchema = z.object({
+  path: z.string(),
+  message: z.string(),
+});
+export type ErrorDetail = z.infer<typeof ErrorDetailSchema>;
+
 export const ValidateDataResponseSchema = z.object({
   valid: z.boolean(),
   errors: z
-    .record(z.string(), z.any())
+    .record(z.string(), z.array(ErrorDetailSchema).optional())
     .describe(
       'Errors mapping, if any. The key is testCaseId if source is a dataset, otherewise it is the index number (stringified)'
     )
