@@ -29,7 +29,7 @@ export type EmbeddingBatch = { embedding: number[] }[];
  */
 export const EmbeddingSchema = z.object({
   embedding: z.array(z.number()),
-  embedMetadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type Embedding = z.infer<typeof EmbeddingSchema>;
 

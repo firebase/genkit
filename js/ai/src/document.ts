@@ -60,9 +60,9 @@ export class Document implements DocumentData {
   embedMetadata?: Record<string, unknown>;
 
   constructor(data: DocumentData) {
-    this.content = data.content as Part[];
-    this.metadata = data.metadata as Record<string, any>;
-    this.embedMetadata = data.embedMetadata as Record<string, unknown>;
+    this.content = data.content;
+    this.metadata = data.metadata;
+    this.embedMetadata = data.embedMetadata;
   }
 
   static fromText(
@@ -182,7 +182,7 @@ export class Document implements DocumentData {
     let documents: Document[] = [];
     for (const embedding of embeddings) {
       let jsonDoc = this.toJSON();
-      jsonDoc.embedMetadata = embedding.embedMetadata;
+      jsonDoc.embedMetadata = embedding.metadata;
       documents.push(new Document(jsonDoc));
     }
     checkUniqueDocuments(documents);

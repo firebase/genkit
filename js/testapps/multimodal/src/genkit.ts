@@ -21,18 +21,6 @@ import {
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
-import { GoogleAuth, IdTokenClient } from 'google-auth-library';
-
-const auth = new GoogleAuth();
-let authClient: IdTokenClient | undefined = undefined;
-
-/** Helper method to cache {@link IdTokenClient} instance */
-// async function getCloudRunAuthClient(aud: string) {
-//   if (!authClient) {
-//     authClient = await auth.getIdTokenClient(aud);
-//   }
-//   return authClient;
-// }
 
 export const ai = genkit({
   plugins: [

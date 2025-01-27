@@ -238,7 +238,7 @@ function checkValidDocument(
 
 type EmbeddingResult = {
   embedding: number[];
-  embedMetadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 };
 
 export function defineVertexAIEmbedder(
@@ -362,26 +362,26 @@ export function defineVertexAIEmbedder(
               if (p.imageEmbedding?.length) {
                 const imageResult: EmbeddingResult = {
                   embedding: p.imageEmbedding,
-                  embedMetadata: { embedType: 'imageEmbedding' },
+                  metadata: { embedType: 'imageEmbedding' },
                 };
                 eArray.push(imageResult);
               }
               if (p.textEmbedding?.length) {
                 const textResult: EmbeddingResult = {
                   embedding: p.textEmbedding,
-                  embedMetadata: { embedType: 'textEmbedding' },
+                  metadata: { embedType: 'textEmbedding' },
                 };
                 eArray.push(textResult);
               }
               if (p.videoEmbeddings?.length) {
                 for (const ve of p.videoEmbeddings) {
                   if (ve.embedding?.length) {
-                    const { embedding, ...embedMetadata } = ve;
-                    (embedMetadata as Record<string, unknown>).embedType =
+                    const { embedding, ...metadata } = ve;
+                    (metadata as Record<string, unknown>).embedType =
                       'videoEmbedding';
                     const videoResult: EmbeddingResult = {
                       embedding,
-                      embedMetadata,
+                      metadata,
                     };
                     eArray.push(videoResult);
                   }
