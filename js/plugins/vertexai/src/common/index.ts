@@ -39,7 +39,7 @@ function parseFirebaseProjectId(): string | undefined {
     return undefined;
   }
 }
-
+/** @hidden */
 export function __setFakeDerivedParams(params: any) {
   __fake_getDerivedParams = params;
 }
