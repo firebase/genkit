@@ -17,7 +17,7 @@
 import * as clc from 'colorette';
 import * as winston from 'winston';
 
-export const logger = winston.createLogger({
+export const logger: winston.Logger = winston.createLogger({
   level: process.env.DEBUG ? 'debug' : 'info',
   format: winston.format.printf((log) => {
     // Anything logged at 'info' level will show as just the plain message

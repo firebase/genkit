@@ -266,6 +266,28 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       },
     };
   };
+  (a as ToolAction<I, O>).restart = (interrupt, resumedMetadata, options) => {
+    let replaceInput = options?.replaceInput;
+    if (replaceInput) {
+      replaceInput = parseSchema(replaceInput, {
+        schema: config.inputSchema,
+        jsonSchema: config.inputJsonSchema,
+      });
+    }
+    return {
+      toolRequest: stripUndefinedProps({
+        name: interrupt.toolRequest.name,
+        ref: interrupt.toolRequest.ref,
+        input: replaceInput || interrupt.toolRequest.input,
+      }),
+      metadata: stripUndefinedProps({
+        ...interrupt.metadata,
+        resumed: resumedMetadata,
+        // annotate the original input if replacing it
+        originalInput: replaceInput ? interrupt.toolRequest.input : undefined,
+      }),
+    };
+  };
   return a as ToolAction<I, O>;
 }
 

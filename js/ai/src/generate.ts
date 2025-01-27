@@ -44,6 +44,7 @@ import {
   ModelArgument,
   ModelMiddleware,
   Part,
+  ToolRequestPart,
   ToolResponsePart,
   resolveModel,
 } from './model.js';
@@ -74,6 +75,15 @@ export interface ResumeOptions {
    * the data against its schema. Call `myTool.reply(interruptToolRequest, yourReplyData)`.
    */
   reply: ToolResponsePart | ToolResponsePart[];
+  /**
+   * restart will run a tool again with additionally supplied metadata passed through as
+   * a `resumed` option in the second argument. This allows for scenarios like conditionally
+   * requesting confirmation of an LLM's tool request.
+   *
+   * Tools have a `.restart` helper method to construct a restart ToolRequest. Call
+   * `myTool.restart(interruptToolRequest, resumeMetadata)`.
+   */
+  restart: ToolRequestPart | ToolRequestPart[];
   /** Additional metadata to annotate the created tool message with in the "resume" key. */
   metadata?: Record<string, any>;
 }
@@ -164,6 +174,10 @@ async function applyResumeOption(
     .map((t) => ({
       toolResponse: t.metadata!.pendingToolResponse,
     })) as ToolResponsePart[];
+
+  const restarts = Array.isArray(options.resume.restart)
+    ? options.resume.restart
+    : [options.resume.restart];
 
   const reply = Array.isArray(options.resume.reply)
     ? options.resume.reply
