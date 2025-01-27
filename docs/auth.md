@@ -73,7 +73,7 @@ When running with the Genkit Development UI, you can pass the Auth object by
 entering JSON in the "Auth JSON" tab: `{"uid": "abc-def"}`.
 
 You can also retrieve the auth context for the flow at any time within the flow
-by calling `getFlowAuth()`, including in functions invoked by the flow:
+by calling `ai.currentContext()`, including in functions invoked by the flow:
 
 ```ts
 import { genkit, z } from 'genkit';
@@ -81,7 +81,7 @@ import { genkit, z } from 'genkit';
 const ai = genkit({ ... });;
 
 async function readDatabase(uid: string) {
-  const auth = ai.getAuthContext();
+  const auth = ai.currentContext()?.auth;
   if (auth?.admin) {
     // Do something special if the user is an admin
   } else {
@@ -153,7 +153,7 @@ export const selfSummaryFlow = onFlow(
 
 When using the Firebase Auth plugin, `user` will be returned as a
 [DecodedIdToken](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken).
-You can always retrieve this object at any time via `getFlowAuth()` as noted
+You can always retrieve this object at any time via `ai.currentContext()` as noted
 above. When running this flow during development, you would pass the user object
 in the same way:
 

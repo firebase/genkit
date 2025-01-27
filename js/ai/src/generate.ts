@@ -385,9 +385,11 @@ export async function generate<
           rawRequest: params,
           middleware: resolvedOptions.use,
         });
-      const response = await (resolvedOptions.context
-        ? runWithContext(registry, resolvedOptions.context, generateFn)
-        : generateFn());
+      const response = await runWithContext(
+        registry,
+        resolvedOptions.context,
+        generateFn
+      );
       const request = await toGenerateRequest(registry, {
         ...resolvedOptions,
         tools,

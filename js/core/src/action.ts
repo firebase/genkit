@@ -318,9 +318,11 @@ export function action<
             });
           // if context is explicitly passed in, we run action with the provided context,
           // otherwise we let upstream context carry through.
-          const output = options?.context
-            ? await runWithContext(registry, options.context, actionFn)
-            : await actionFn();
+          const output = await runWithContext(
+            registry,
+            options?.context,
+            actionFn
+          );
 
           metadata.output = JSON.stringify(output);
           return output;

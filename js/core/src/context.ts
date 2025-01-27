@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { runInActionRuntimeContext } from './action.js';
 import { HasRegistry, Registry } from './registry.js';
 
 const contextAlsKey = 'core.auth.context';
-const legacyContextAsyncLocalStorage = new AsyncLocalStorage<any>();
 
 export interface ActionContext {
   /** Information about the currently authenticated user if provided. */
@@ -29,30 +27,20 @@ export interface ActionContext {
 
 /**
  * Execute the provided function in the runtime context. Call {@link getFlowContext()} anywhere
- * within the async call stack to retrieve the context.
+ * within the async call stack to retrieve the context. If context object is undefined, this function
+ * is a no op passthrough, the function will be invoked as is.
  */
 export function runWithContext<R>(
   registry: Registry,
-  context: ActionContext,
+  context: ActionContext | undefined,
   fn: () => R
-) {
-  return legacyContextAsyncLocalStorage.run(context, () =>
-    registry.asyncStore.run(contextAlsKey, context, () =>
-      runInActionRuntimeContext(registry, fn)
-    )
-  );
-}
-
-/**
- * Gets the auth object from the current context.
- *
- * @deprecated use {@link getFlowContext}
- */
-export function getFlowAuth(registry?: Registry | HasRegistry): any {
-  if (!registry) {
-    return legacyContextAsyncLocalStorage.getStore();
+): R {
+  if (context === undefined) {
+    return fn();
   }
-  return getContext(registry);
+  return registry.asyncStore.run(contextAlsKey, context, () =>
+    runInActionRuntimeContext(registry, fn)
+  );
 }
 
 /**

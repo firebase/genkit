@@ -121,7 +121,6 @@ export {
   defineJsonSchema,
   defineSchema,
   getCurrentEnv,
-  getFlowAuth,
   getStreamingCallback,
   isDevEnv,
   runWithStreamingCallback,

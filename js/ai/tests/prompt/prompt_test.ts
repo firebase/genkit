@@ -265,7 +265,7 @@ describe('prompt', () => {
         config: { banana: 'ripe' },
         input: { schema: z.object({ name: z.string() }) },
         prompt: async (input, { state, context }) => {
-          return `hello ${input.name} (${state.name}, ${context.auth.email})`;
+          return `hello ${input.name} (${state.name}, ${context.auth?.email})`;
         },
       },
       input: { name: 'foo' },
@@ -293,7 +293,7 @@ describe('prompt', () => {
         config: { banana: 'ripe' },
         input: { schema: z.object({ name: z.string() }) },
         prompt: async (input, { state, context }) => {
-          return `hello ${input.name} (${state.name}, ${context.auth.email})`;
+          return `hello ${input.name} (${state.name}, ${context.auth?.email})`;
         },
       },
       input: { name: 'foo' },
@@ -431,7 +431,7 @@ describe('prompt', () => {
         config: { banana: 'ripe' },
         input: { schema: z.object({ name: z.string() }) },
         system: async (input, { state, context }) => {
-          return `hello ${input.name} (${state.name}, ${context.auth.email})`;
+          return `hello ${input.name} (${state.name}, ${context.auth?.email})`;
         },
       },
       input: { name: 'foo' },
@@ -459,7 +459,7 @@ describe('prompt', () => {
         config: { banana: 'ripe' },
         input: { schema: z.object({ name: z.string() }) },
         system: async (input, { state, context }) => {
-          return `hello ${input.name} (${state.name}, ${context.auth.email})`;
+          return `hello ${input.name} (${state.name}, ${context.auth?.email})`;
         },
       },
       input: { name: 'foo' },
@@ -606,7 +606,7 @@ describe('prompt', () => {
           { role: 'system', content: [{ text: `system ${input.name}` }] },
           {
             role: 'user',
-            content: [{ text: `user ${state.name}, ${context.auth.email}` }],
+            content: [{ text: `user ${state.name}, ${context.auth?.email}` }],
           },
         ],
       },
@@ -774,12 +774,8 @@ describe('prompt', () => {
         session
           ? session.run(() => p(test.input, test.inputOptions))
           : p(test.input, test.inputOptions);
-      const contextFn = () =>
-        test.context
-          ? runWithContext(registry, test.context, sessionFn)
-          : sessionFn();
 
-      const { text } = await contextFn();
+      const { text } = await runWithContext(registry, test.context, sessionFn);
 
       assert.strictEqual(text, test.wantTextOutput);
 
@@ -787,13 +783,11 @@ describe('prompt', () => {
         session
           ? session.run(() => p.render(test.input, test.inputOptions))
           : p.render(test.input, test.inputOptions);
-      const contextRenderFn = () =>
-        test.context
-          ? runWithContext(registry, test.context, sessionRenderFn)
-          : sessionRenderFn();
 
       assert.deepStrictEqual(
-        stripUndefined(await contextRenderFn()),
+        stripUndefined(
+          await runWithContext(registry, test.context, sessionRenderFn)
+        ),
         test.wantRendered
       );
     });
