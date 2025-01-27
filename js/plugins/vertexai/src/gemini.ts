@@ -721,7 +721,7 @@ export function defineGeminiModel(
 
       // Handle system instructions separately
       let systemInstruction: Content | undefined = undefined;
-      if (modelInfo?.supports?.systemRole) {
+      if (!SUPPORTED_V1_MODELS[version]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
