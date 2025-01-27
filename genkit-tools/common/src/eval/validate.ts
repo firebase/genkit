@@ -75,7 +75,7 @@ export async function validateSchema(
     dataset.forEach((sample, index) => {
       const response = validate(targetSchema, sample.input);
       if (!response.valid) {
-        errorsMap[index] = response.errors;
+        errorsMap[index.toString()] = response.errors;
       }
     });
     return Object.keys(errorsMap).length === 0
