@@ -282,7 +282,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       }),
       metadata: stripUndefinedProps({
         ...interrupt.metadata,
-        resumed: resumedMetadata,
+        resumed: resumedMetadata || true,
         // annotate the original input if replacing it
         originalInput: replaceInput ? interrupt.toolRequest.input : undefined,
       }),

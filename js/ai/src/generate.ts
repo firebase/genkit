@@ -125,8 +125,8 @@ export interface GenerateOptions<
    * const interrupt = response.interrupts[0];
    *
    * const resumedResponse = await ai.generate({
-   *   messages: response.messages,
-   *   resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
+   *  messages: response.messages,
+   *  resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
    * });
    * ```
    */
@@ -175,9 +175,9 @@ async function applyResumeOption(
       toolResponse: t.metadata!.pendingToolResponse,
     })) as ToolResponsePart[];
 
-  const restarts = Array.isArray(options.resume.restart)
-    ? options.resume.restart
-    : [options.resume.restart];
+  // const restarts = Array.isArray(options.resume.restart)
+  //   ? options.resume.restart
+  //   : [options.resume.restart];
 
   const reply = Array.isArray(options.resume.reply)
     ? options.resume.reply
