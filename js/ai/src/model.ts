@@ -27,7 +27,12 @@ import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
-import { augmentWithContext, validateSupport } from './model/middleware.js';
+import {
+  augmentWithContext,
+  simulateConstrainedGeneration,
+  validateSupport,
+} from './model/middleware.js';
+export { simulateConstrainedGeneration };
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -204,6 +209,8 @@ export const ModelInfoSchema = z.object({
       contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
+      /** Model can natively support constrained generation. */
+      constrained: z.boolean().optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
     })
@@ -478,7 +485,8 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  // middleware.push(conformOutput(registry));
+  if (!options?.supports?.constrained)
+    middleware.push(simulateConstrainedGeneration());
   const act = defineAction(
     registry,
     {

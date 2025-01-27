@@ -105,6 +105,7 @@ export const gemini10Pro = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -120,6 +121,7 @@ export const gemini15Pro = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
     versions: [
       'gemini-1.5-pro-latest',
@@ -140,6 +142,7 @@ export const gemini15Flash = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      constrained: true,
       // @ts-ignore
       contextCache: true,
     },
@@ -162,6 +165,7 @@ export const gemini15Flash8b = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
   },
@@ -179,6 +183,7 @@ export const gemini20FlashExp = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -206,6 +211,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
 });

@@ -42,7 +42,7 @@ import {
   ToolRequestPart,
   z,
 } from 'genkit';
-import { modelRef } from 'genkit/model';
+import { ModelAction, modelRef } from 'genkit/model';
 
 export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
@@ -323,7 +323,7 @@ export function mistralModel(
   modelName: string,
   projectId: string,
   region: string
-) {
+): ModelAction {
   const getClient = createClientFactory(projectId);
 
   const model = SUPPORTED_MISTRAL_MODELS[modelName];

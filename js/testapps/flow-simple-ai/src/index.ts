@@ -28,7 +28,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { GenerateResponseData, MessageSchema, genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import { ModelMiddleware } from 'genkit/model';
+import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
 
@@ -249,14 +249,16 @@ export const jokeWithOutputFlow = ai.defineFlow(
     }),
     outputSchema,
   },
-  async (input) => {
+  async (input, { sendChunk }) => {
     const llmResponse = await ai.generate({
       model: input.modelName,
       output: {
         format: 'json',
         schema: outputSchema,
       },
-      prompt: `Tell a joke about ${input.subject}.`,
+      prompt: `Tell a long joke about ${input.subject}.`,
+      use: [simulateConstrainedGeneration()],
+      onChunk: (c) => sendChunk(c.output),
     });
     return { ...llmResponse.output! };
   }

@@ -346,21 +346,12 @@ export async function generate<
     jsonSchema: resolvedOptions.output?.jsonSchema,
   });
 
-  // If is schema is set but format is not explicitly set, default to `json` format.
-  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
-    resolvedOptions.output.format = 'json';
-  }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
-  const instructions = resolveInstructions(
-    resolvedFormat,
-    resolvedSchema,
-    resolvedOptions?.output?.instructions
-  );
 
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages: injectInstructions(messages, instructions),
+    messages: messages,
     tools,
     toolChoice: resolvedOptions.toolChoice,
     config: {

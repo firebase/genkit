@@ -679,10 +679,19 @@
             "output": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/GenerateRequest/properties/output/properties/format"
+                "type": "string"
+              }
+            },
+            "contentType": {
+              "type": "array",
+              "items": {
+                "type": "string"
               }
             },
             "context": {
+              "type": "boolean"
+            },
+            "constrained": {
               "type": "boolean"
             }
           },
