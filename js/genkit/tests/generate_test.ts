@@ -209,7 +209,7 @@ describe('generate', () => {
 
     it('rethrows initialization errors', async () => {
       await assert.rejects(
-        (async () => {
+        async () => {
           const { stream } = ai.generateStream({
             prompt: 'hi',
             model: 'modelNotFound',
@@ -217,7 +217,7 @@ describe('generate', () => {
           for await (const chunk of stream) {
             // nothing
           }
-        })(),
+        },
         (e: Error) => {
           return e.message.includes('Model modelNotFound not found');
         }
