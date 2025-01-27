@@ -52,7 +52,7 @@ export async function validateSchema(
     return { valid: true };
   }
 
-  let errorsMap: Record<string, any> = {};
+  const errorsMap: Record<string, any> = {};
 
   if (datasetId) {
     const datasetStore = await getDatasetStore();
@@ -69,7 +69,7 @@ export async function validateSchema(
 
     return Object.keys(errorsMap).length === 0
       ? { valid: true }
-      : { valid: false, datasetErrors: errorsMap };
+      : { valid: false, errors: errorsMap };
   } else {
     const dataset = InferenceDatasetSchema.parse(data);
     dataset.forEach((sample, index) => {
@@ -80,7 +80,7 @@ export async function validateSchema(
     });
     return Object.keys(errorsMap).length === 0
       ? { valid: true }
-      : { valid: false, dataErrors: errorsMap };
+      : { valid: false, errors: errorsMap };
   }
 }
 

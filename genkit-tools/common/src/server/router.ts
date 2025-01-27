@@ -244,14 +244,12 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         return response;
       }),
 
-    /** Start new evaluation run */
-    validateSchema: loggedProcedure
+    /** Validate given data against a target action schema */
+    validateDatasetSchema: loggedProcedure
       .input(apis.ValidateDataRequestSchema)
       .output(apis.ValidateDataResponseSchema)
       .mutation(async ({ input }) => {
-        console.log(input);
         const response = await validateSchema(manager, input);
-        console.log(response);
         return response;
       }),
 

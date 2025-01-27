@@ -162,13 +162,11 @@ export type ValidateDataRequest = z.infer<typeof ValidateDataRequestSchema>;
 
 export const ValidateDataResponseSchema = z.object({
   valid: z.boolean(),
-  datasetErrors: z
+  errors: z
     .record(z.string(), z.any())
-    .describe('Errors mapping when validating dataset')
-    .optional(),
-  dataErrors: z
-    .record(z.string(), z.any())
-    .describe('Errors mapping when validating raw data')
+    .describe(
+      'Errors mapping, if any. The key is testCaseId if source is a dataset, otherewise it is the index number (stringified)'
+    )
     .optional(),
 });
 export type ValidateDataResponse = z.infer<typeof ValidateDataResponseSchema>;
