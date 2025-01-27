@@ -697,7 +697,7 @@ export function defineGeminiModel(
   options: PluginOptions
 ): ModelAction {
   const middlewares: ModelMiddleware[] = [];
-  if (!modelInfo?.supports?.systemRole) {
+  if (SUPPORTED_V1_MODELS[version]) {
     middlewares.push(simulateSystemPrompt());
   }
   if (modelInfo?.supports?.media) {
