@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { logger } from 'genkit/logging';
-import { auth, GoogleAuth } from 'google-auth-library';
+import { auth, CredentialBody, GoogleAuth } from 'google-auth-library';
 import { GcpPrincipal, GcpTelemetryConfig } from './types.js';
 
 /**
@@ -38,6 +38,7 @@ export async function credentialsFromEnvironment(): Promise<
   let options: Partial<GcpTelemetryConfig> = {};
 
   if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+    logger.debug('Retrieving credentials from GCLOUD_SERVICE_ACCOUNT_CREDS');
     const serviceAccountCreds = JSON.parse(
       process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
     );
@@ -69,7 +70,12 @@ export async function credentialsFromEnvironment(): Promise<
  **/
 export async function resolveCurrentPrincipal(): Promise<GcpPrincipal> {
   const envCredentials = await credentialsFromEnvironment();
-  const adcCredentials = await auth.getCredentials();
+  let adcCredentials = {} as CredentialBody;
+  try {
+    adcCredentials = await auth.getCredentials();
+  } catch (e) {
+    logger.debug('Could not retrieve client_email from ADC.');
+  }
 
   // TODO(michaeldoyle): How to look up if the user provided credentials in the
   // plugin config (i.e. GcpTelemetryOptions)
