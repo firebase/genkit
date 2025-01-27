@@ -150,7 +150,7 @@ describe('generate', () => {
       ai = genkit({});
     });
 
-    it('rethrows errors', async () => {
+    it('rethrows response errors', async () => {
       ai.defineModel(
         {
           name: 'blockingModel',
@@ -195,7 +195,7 @@ describe('generate', () => {
         }
       );
 
-      assert.rejects(async () => {
+      await assert.rejects(async () => {
         const { response, stream } = ai.generateStream({
           prompt: 'hi',
           model: 'blockingModel',
@@ -205,6 +205,22 @@ describe('generate', () => {
         }
         await response;
       });
+    });
+
+    it('rethrows initialization errors', async () => {
+      await assert.rejects(
+        (async () => {
+          const { stream } = ai.generateStream({
+            prompt: 'hi',
+            model: 'modelNotFound',
+          });
+          for await (const chunk of stream) {
+            // nothing
+          }
+        })(), (e: Error) => {
+          return e.message.includes('Model modelNotFound not found');
+        }
+      );
     });
 
     it('passes the streaming callback to the model', async () => {
@@ -449,7 +465,7 @@ describe('generate', () => {
         },
         async (_, { context }) => {
           return {
-            foo: `bar ${context.auth.email}`,
+            foo: `bar ${context.auth?.email}`,
           };
         }
       );
