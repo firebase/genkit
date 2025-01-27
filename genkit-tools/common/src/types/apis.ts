@@ -150,3 +150,29 @@ export const RunNewEvaluationRequestSchema = z.object({
 export type RunNewEvaluationRequest = z.infer<
   typeof RunNewEvaluationRequestSchema
 >;
+
+export const ValidateDataRequestSchema = z.object({
+  dataSource: z.object({
+    datasetId: z.string().optional(),
+    data: InferenceDatasetSchema.optional(),
+  }),
+  actionRef: z.string(),
+});
+export type ValidateDataRequest = z.infer<typeof ValidateDataRequestSchema>;
+
+export const ErrorDetailSchema = z.object({
+  path: z.string(),
+  message: z.string(),
+});
+export type ErrorDetail = z.infer<typeof ErrorDetailSchema>;
+
+export const ValidateDataResponseSchema = z.object({
+  valid: z.boolean(),
+  errors: z
+    .record(z.string(), z.array(ErrorDetailSchema))
+    .describe(
+      'Errors mapping, if any. The key is testCaseId if source is a dataset, otherewise it is the index number (stringified)'
+    )
+    .optional(),
+});
+export type ValidateDataResponse = z.infer<typeof ValidateDataResponseSchema>;
