@@ -26,7 +26,12 @@ import {
   Telemetry,
   internalMetricNamespaceWrap,
 } from '../metrics.js';
-import { createCommonLogAttributes, extractErrorName } from '../utils.js';
+import {
+  createCommonLogAttributes,
+  extractErrorName,
+  truncate,
+  truncatePath,
+} from '../utils.js';
 
 class FeaturesTelemetry implements Telemetry {
   /**
@@ -77,8 +82,8 @@ class FeaturesTelemetry implements Telemetry {
     }
 
     if (logInputAndOutput) {
-      const input = attributes['genkit:input'] as string;
-      const output = attributes['genkit:output'] as string;
+      const input = truncate(attributes['genkit:input'] as string);
+      const output = truncate(attributes['genkit:output'] as string);
       const sessionId = attributes['genkit:sessionId'] as string;
       const threadName = attributes['genkit:threadName'] as string;
 
@@ -146,7 +151,7 @@ class FeaturesTelemetry implements Telemetry {
     sessionId?: string,
     threadName?: string
   ) {
-    const path = toDisplayPath(qualifiedPath);
+    const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       path,
