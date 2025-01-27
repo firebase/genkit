@@ -17,7 +17,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { Action, defineAction, StreamingCallback } from './action.js';
-import { runWithContext } from './context.js';
+import { ActionContext } from './context.js';
 import { HasRegistry, Registry } from './registry.js';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
@@ -64,7 +64,7 @@ export interface FlowSideChannel<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: any;
+  context?: ActionContext;
 }
 
 /**
@@ -125,9 +125,7 @@ function defineFlowAction<
         const ctx = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).context = context;
-        return runWithContext(registry, context, () =>
-          fn(input, ctx as FlowSideChannel<z.infer<S>>)
-        );
+        return fn(input, ctx as FlowSideChannel<z.infer<S>>);
       });
     }
   );

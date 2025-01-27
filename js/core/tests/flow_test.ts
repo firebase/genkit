@@ -18,7 +18,7 @@ import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
-import { defineAction, getFlowAuth, z } from '../src/index.js';
+import { defineAction, getContext, z } from '../src/index.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
@@ -114,7 +114,13 @@ describe('flow', () => {
     });
   });
 
-  describe('getFlowAuth', () => {
+  describe('getContext', () => {
+    let registry: Registry;
+
+    beforeEach(() => {
+      registry = new Registry();
+    });
+
     it('should run the flow', async () => {
       const testFlow = defineFlow(
         registry,
@@ -124,7 +130,7 @@ describe('flow', () => {
           outputSchema: z.string(),
         },
         async (input) => {
-          return `bar ${input} ${JSON.stringify(getFlowAuth())}`;
+          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
         }
       );
 
@@ -150,7 +156,7 @@ describe('flow', () => {
               streamingCallback({ count: i });
             }
           }
-          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getFlowAuth())}`;
+          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext(registry))}`;
         }
       );
 
@@ -178,7 +184,7 @@ describe('flow', () => {
           outputSchema: z.string(),
         },
         async (input) => {
-          return `bar ${input} ${JSON.stringify(getFlowAuth())}`;
+          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
         }
       );
 

@@ -100,6 +100,7 @@ import {
 import { ToolFn } from '@genkit-ai/ai/tool';
 import {
   Action,
+  ActionContext,
   FlowConfig,
   FlowFn,
   JSONSchema,
@@ -108,6 +109,7 @@ import {
   defineFlow,
   defineJsonSchema,
   defineSchema,
+  getContext,
   isDevEnv,
   run,
   z,
@@ -783,6 +785,15 @@ export class Genkit implements HasRegistry {
       return run(name, funcOrInput, maybeFunc, this.registry);
     }
     return run(name, funcOrInput, this.registry);
+  }
+
+  /**
+   * Returns current action (or flow) invocation context. Can be used to access things like auth
+   * data set by HTTP server frameworks. If invoked outside of an action (e.g. flow or tool) will
+   * return `undefined`.
+   */
+  currentContext(): ActionContext | undefined {
+    return getContext(this);
   }
 
   /**

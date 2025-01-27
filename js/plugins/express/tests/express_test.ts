@@ -82,7 +82,7 @@ describe('expressHandler', async () => {
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
-        return `${input.question} - ${JSON.stringify(context)}`;
+        return `${input.question} - ${JSON.stringify(context.auth)}`;
       }
     );
 
@@ -382,7 +382,7 @@ describe('startFlowServer', async () => {
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
-        return `${input.question} - ${JSON.stringify(context)}`;
+        return `${input.question} - ${JSON.stringify(context.auth)}`;
       }
     );
 

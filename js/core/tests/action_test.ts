@@ -144,4 +144,27 @@ describe('action', () => {
       { count: 3 },
     ]);
   });
+
+  it('should inherit context from parent action invocation', async () => {
+    const child = defineAction(
+      registry,
+      { name: 'child', actionType: 'custom' },
+      async (_, { context }) => {
+        return `hi ${context.auth.email}`;
+      }
+    );
+    const parent = defineAction(
+      registry,
+      { name: 'parent', actionType: 'custom' },
+      async () => {
+        return child();
+      }
+    );
+
+    const response = await parent(undefined, {
+      context: { auth: { email: 'a@b.c' } },
+    });
+
+    assert.strictEqual(response, 'hi a@b.c');
+  });
 });

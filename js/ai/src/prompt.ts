@@ -17,8 +17,10 @@
 import {
   Action,
   ActionAsyncParams,
+  ActionContext,
   defineActionAsync,
   GenkitError,
+  getContext,
   JSONSchema7,
   stripUndefinedProps,
   z,
@@ -117,6 +119,7 @@ export interface PromptConfig<
   tools?: ToolArgument[];
   toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
+  context?: ActionContext;
 }
 
 /**
@@ -179,6 +182,7 @@ export type PartsResolver<I, S = any> = (
   input: I,
   options: {
     state?: S;
+    context: ActionContext;
   }
 ) => Part[] | Promise<string | Part | Part[]>;
 
@@ -187,12 +191,14 @@ export type MessagesResolver<I, S = any> = (
   options: {
     history?: MessageData[];
     state?: S;
+    context: ActionContext;
   }
 ) => MessageData[] | Promise<MessageData[]>;
 
 export type DocsResolver<I, S = any> = (
   input: I,
   options: {
+    context: ActionContext;
     state?: S;
   }
 ) => DocumentData[] | Promise<DocumentData[]>;
@@ -250,7 +256,8 @@ function definePromptAsync<
       input,
       messages,
       resolvedOptions,
-      promptCache
+      promptCache,
+      renderOptions
     );
     await renderMessages(
       registry,
@@ -267,13 +274,15 @@ function definePromptAsync<
       input,
       messages,
       resolvedOptions,
-      promptCache
+      promptCache,
+      renderOptions
     );
 
     let docs: DocumentData[] | undefined;
     if (typeof resolvedOptions.docs === 'function') {
       docs = await resolvedOptions.docs(input, {
         state: session?.state,
+        context: renderOptions?.context || getContext(registry) || {},
       });
     } else {
       docs = resolvedOptions.docs;
@@ -287,6 +296,7 @@ function definePromptAsync<
       tools: resolvedOptions.tools,
       returnToolRequests: resolvedOptions.returnToolRequests,
       toolChoice: resolvedOptions.toolChoice,
+      context: resolvedOptions.context,
       output: resolvedOptions.output,
       use: resolvedOptions.use,
       ...stripUndefinedProps(renderOptions),
@@ -442,13 +452,17 @@ async function renderSystemPrompt<
   input: z.infer<I>,
   messages: MessageData[],
   options: PromptConfig<I, O, CustomOptions>,
-  promptCache: PromptCache
+  promptCache: PromptCache,
+  renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
 ) {
   if (typeof options.system === 'function') {
     messages.push({
       role: 'system',
       content: normalizeParts(
-        await options.system(input, { state: session?.state })
+        await options.system(input, {
+          state: session?.state,
+          context: renderOptions?.context || getContext(registry) || {},
+        })
       ),
     });
   } else if (typeof options.system === 'string') {
@@ -458,7 +472,14 @@ async function renderSystemPrompt<
     }
     messages.push({
       role: 'system',
-      content: await renderDotpromptToParts(promptCache.system, input, session),
+      content: await renderDotpromptToParts(
+        registry,
+        promptCache.system,
+        input,
+        session,
+        options,
+        renderOptions
+      ),
     });
   } else if (options.system) {
     messages.push({
@@ -486,6 +507,7 @@ async function renderMessages<
       messages.push(
         ...(await options.messages(input, {
           state: session?.state,
+          context: renderOptions?.context || getContext(registry) || {},
           history: renderOptions?.messages,
         }))
       );
@@ -498,7 +520,10 @@ async function renderMessages<
       }
       const rendered = await promptCache.messages({
         input,
-        context: { state: session?.state },
+        context: {
+          ...(renderOptions?.context || getContext(registry)),
+          state: session?.state,
+        },
         messages: renderOptions?.messages?.map((m) =>
           Message.parseData(m)
         ) as DpMessage[],
@@ -528,13 +553,17 @@ async function renderUserPrompt<
   input: z.infer<I>,
   messages: MessageData[],
   options: PromptConfig<I, O, CustomOptions>,
-  promptCache: PromptCache
+  promptCache: PromptCache,
+  renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
 ) {
   if (typeof options.prompt === 'function') {
     messages.push({
       role: 'user',
       content: normalizeParts(
-        await options.prompt(input, { state: session?.state })
+        await options.prompt(input, {
+          state: session?.state,
+          context: renderOptions?.context || getContext(registry) || {},
+        })
       ),
     });
   } else if (typeof options.prompt === 'string') {
@@ -545,9 +574,12 @@ async function renderUserPrompt<
     messages.push({
       role: 'user',
       content: await renderDotpromptToParts(
+        registry,
         promptCache.userPrompt,
         input,
-        session
+        session,
+        options,
+        renderOptions
       ),
     });
   } else if (options.prompt) {
@@ -585,14 +617,24 @@ function normalizeParts(parts: string | Part | Part[]): Part[] {
   return [parts as Part];
 }
 
-async function renderDotpromptToParts(
+async function renderDotpromptToParts<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
   promptFn: PromptFunction,
   input: any,
-  session?: Session
+  session: Session | undefined,
+  options: PromptConfig<I, O, CustomOptions>,
+  renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
 ): Promise<Part[]> {
   const renderred = await promptFn({
     input,
-    context: { state: session?.state },
+    context: {
+      ...(renderOptions?.context || getContext(registry)),
+      state: session?.state,
+    },
   });
   if (renderred.messages.length !== 1) {
     throw new Error('parts tempate must produce only one message');

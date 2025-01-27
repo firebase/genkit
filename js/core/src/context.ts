@@ -14,48 +14,44 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { runInActionRuntimeContext } from './action.js';
 import { HasRegistry, Registry } from './registry.js';
 
 const contextAlsKey = 'core.auth.context';
-const legacyContextAsyncLocalStorage = new AsyncLocalStorage<any>();
 
-/**
- * Execute the provided function in the runtime context. Call {@link getFlowContext()} anywhere
- * within the async call stack to retrieve the context.
- */
-export function runWithContext<R>(
-  registry: Registry,
-  context: any,
-  fn: () => R
-) {
-  return legacyContextAsyncLocalStorage.run(context, () =>
-    registry.asyncStore.run(contextAlsKey, context, () =>
-      runInActionRuntimeContext(registry, fn)
-    )
-  );
+export interface ActionContext {
+  /** Information about the currently authenticated user if provided. */
+  auth?: Record<string, any>;
+  [additionalContext: string]: any;
 }
 
 /**
- * Gets the auth object from the current context.
- *
- * @deprecated use {@link getFlowContext}
+ * Execute the provided function in the runtime context. Call {@link getFlowContext()} anywhere
+ * within the async call stack to retrieve the context. If context object is undefined, this function
+ * is a no op passthrough, the function will be invoked as is.
  */
-export function getFlowAuth(registry?: Registry | HasRegistry): any {
-  if (!registry) {
-    return legacyContextAsyncLocalStorage.getStore();
+export function runWithContext<R>(
+  registry: Registry,
+  context: ActionContext | undefined,
+  fn: () => R
+): R {
+  if (context === undefined) {
+    return fn();
   }
-  return getContext(registry);
+  return registry.asyncStore.run(contextAlsKey, context, () =>
+    runInActionRuntimeContext(registry, fn)
+  );
 }
 
 /**
  * Gets the runtime context of the current flow.
  */
-export function getContext(registry: Registry | HasRegistry): any {
+export function getContext(
+  registry: Registry | HasRegistry
+): ActionContext | undefined {
   if ((registry as HasRegistry).registry) {
     registry = (registry as HasRegistry).registry;
   }
   registry = registry as Registry;
-  return registry.asyncStore.getStore(contextAlsKey);
+  return registry.asyncStore.getStore<ActionContext>(contextAlsKey);
 }
