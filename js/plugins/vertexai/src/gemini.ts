@@ -39,6 +39,7 @@ import {
   MediaPart,
   MessageData,
   ModelAction,
+  ModelInfo,
   ModelMiddleware,
   ModelReference,
   Part,
@@ -167,6 +168,69 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
 });
 
 /**
+ * Known model names, to allow code completion for convenience. Allows other model names.
+ */
+export type GeminiVersionString =
+  | keyof typeof SUPPORTED_GEMINI_MODELS
+  | (string & {});
+
+/**
+ * Returns a reference to a model that can be used in generate calls.
+ *
+ * ```js
+ * await ai.generate({
+ *   prompt: 'hi',
+ *   model: gemini('gemini-1.5-flash')
+ * });
+ * ```
+ */
+export function gemini(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const nearestModel = nearestGeminiModelRef(version);
+  return modelRef({
+    name: `vertexai/${version}`,
+    config: options,
+    configSchema: GeminiConfigSchema,
+    info: {
+      ...nearestModel.info,
+      // If exact suffix match for a known model, use its label, otherwise create a new label
+      label: nearestModel.name.endsWith(version)
+        ? nearestModel.info?.label
+        : `Vertex AI - ${version}`,
+    },
+  });
+}
+
+function nearestGeminiModelRef(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const matchingKey = longestMatchingPrefix(
+    version,
+    Object.keys(SUPPORTED_GEMINI_MODELS)
+  );
+  if (matchingKey) {
+    return SUPPORTED_GEMINI_MODELS[matchingKey].withConfig({
+      ...options,
+      version,
+    });
+  }
+  return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
+}
+
+function longestMatchingPrefix(version: string, potentialMatches: string[]) {
+  return potentialMatches
+    .filter((p) => version.startsWith(p))
+    .reduce(
+      (longest, current) =>
+        current.length > longest.length ? current : longest,
+      ''
+    );
+}
+
+/**
  * Gemini model configuration options.
  *
  * E.g.
@@ -268,6 +332,21 @@ export const gemini20FlashExp = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const GENERIC_GEMINI_MODEL = modelRef({
+  name: 'vertexai/gemini',
+  configSchema: GeminiConfigSchema,
+  info: {
+    label: 'Google Gemini',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+    },
+  },
+});
+
 export const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
@@ -281,11 +360,11 @@ export const SUPPORTED_V15_MODELS = {
 export const SUPPORTED_GEMINI_MODELS = {
   ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
-};
+} as const;
 
 function toGeminiRole(
   role: MessageData['role'],
-  model?: ModelReference<z.ZodTypeAny>
+  modelInfo?: ModelInfo
 ): string {
   switch (role) {
     case 'user':
@@ -293,7 +372,7 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model && SUPPORTED_V15_MODELS[model.name]) {
+      if (modelInfo && modelInfo.supports?.systemRole) {
         // We should have already pulled out the supported system messages,
         // anything remaining is unsupported; throw an error.
         throw new Error(
@@ -387,10 +466,10 @@ export function toGeminiSystemInstruction(message: MessageData): Content {
 
 export function toGeminiMessage(
   message: MessageData,
-  model?: ModelReference<z.ZodTypeAny>
+  modelInfo?: ModelInfo
 ): Content {
   return {
-    role: toGeminiRole(message.role, model),
+    role: toGeminiRole(message.role, modelInfo),
     parts: message.content.map(toGeminiPart),
   };
 }
@@ -581,7 +660,7 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 /**
  * Define a Vertex AI Gemini model.
  */
-export function defineGeminiModel(
+export function defineGeminiKnownModel(
   ai: Genkit,
   name: string,
   vertexClientFactory: (
@@ -594,11 +673,34 @@ export function defineGeminiModel(
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
+  return defineGeminiModel(
+    ai,
+    modelName,
+    name,
+    model?.info,
+    vertexClientFactory,
+    options
+  );
+}
+
+/**
+ * Define a Vertex AI Gemini model.
+ */
+export function defineGeminiModel(
+  ai: Genkit,
+  modelName: string,
+  version: string,
+  modelInfo: ModelInfo | undefined,
+  vertexClientFactory: (
+    request: GenerateRequest<typeof GeminiConfigSchema>
+  ) => VertexAI,
+  options: PluginOptions
+): ModelAction {
   const middlewares: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[version]) {
     middlewares.push(simulateSystemPrompt());
   }
-  if (model?.info?.supports?.media) {
+  if (modelInfo?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
@@ -606,7 +708,7 @@ export function defineGeminiModel(
   return ai.defineModel(
     {
       name: modelName,
-      ...model.info,
+      ...modelInfo,
       configSchema: GeminiConfigSchema,
       use: middlewares,
     },
@@ -619,7 +721,7 @@ export function defineGeminiModel(
 
       // Handle system instructions separately
       let systemInstruction: Content | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (!SUPPORTED_V1_MODELS[version]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -659,7 +761,7 @@ export function defineGeminiModel(
         toolConfig,
         history: messages
           .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
+          .map((message) => toGeminiMessage(message, modelInfo)),
         generationConfig: {
           candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
@@ -673,9 +775,7 @@ export function defineGeminiModel(
       };
 
       // Handle cache
-      const modelVersion = (request.config?.version ||
-        model.version ||
-        name) as string;
+      const modelVersion = (request.config?.version || version) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const apiClient = new ApiClient(
@@ -727,7 +827,7 @@ export function defineGeminiModel(
         });
       }
 
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = toGeminiMessage(messages[messages.length - 1], modelInfo);
 
       if (cache) {
         genModel = vertex.preview.getGenerativeModelFromCachedContent(

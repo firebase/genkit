@@ -124,6 +124,8 @@ function toMistralRole(role: Role): MistralRole {
       return 'tool';
     case 'system':
       return 'system';
+    default:
+      throw new Error(`Unknwon role ${role}`);
   }
 }
 function toMistralToolRequest(toolRequest: Record<string, any>): FunctionCall {
