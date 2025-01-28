@@ -48,7 +48,7 @@ class FeaturesTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
@@ -76,14 +76,14 @@ class FeaturesTelemetry implements Telemetry {
       return;
     }
 
-    if (logIO) {
+    if (logInputAndOutput) {
       const input = attributes['genkit:input'] as string;
       const output = attributes['genkit:output'] as string;
       const sessionId = attributes['genkit:sessionId'] as string;
       const threadName = attributes['genkit:threadName'] as string;
 
       if (input) {
-        this.recordIO(
+        this.writeLog(
           span,
           'Input',
           name,
@@ -95,7 +95,7 @@ class FeaturesTelemetry implements Telemetry {
         );
       }
       if (output) {
-        this.recordIO(
+        this.writeLog(
           span,
           'Output',
           name,
@@ -136,12 +136,12 @@ class FeaturesTelemetry implements Telemetry {
     this.featureLatencies.record(latencyMs, dimensions);
   }
 
-  private recordIO(
+  private writeLog(
     span: ReadableSpan,
     tag: string,
     featureName: string,
     qualifiedPath: string,
-    input: string,
+    content: string,
     projectId?: string,
     sessionId?: string,
     threadName?: string
@@ -157,7 +157,7 @@ class FeaturesTelemetry implements Telemetry {
     };
     logger.logStructured(`${tag}[${path}, ${featureName}]`, {
       ...sharedMetadata,
-      content: input,
+      content,
     });
   }
 }

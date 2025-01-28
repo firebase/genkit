@@ -74,7 +74,7 @@ describe('GoogleCloudLogs no I/O', () => {
       forceDevExport: false,
       metricExportIntervalMillis: 100,
       metricExportTimeoutMillis: 100,
-      disableLoggingIO: true,
+      disableLoggingInputAndOutput: true,
     });
     ai = genkit({});
     // Wait for the telemetry plugin to be initialized

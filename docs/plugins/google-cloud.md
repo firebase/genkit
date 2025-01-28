@@ -197,7 +197,7 @@ and logs.
 Provides an override that disables exporting traces while still exprting metrics
 and logs.
 
-#### disableLoggingIO
+#### disableLoggingInputAndOutput
 
 Provides an override that disables collecting input and output logs.
 

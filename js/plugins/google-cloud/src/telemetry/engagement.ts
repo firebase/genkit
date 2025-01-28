@@ -45,7 +45,7 @@ class EngagementTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const subtype = span.attributes['genkit:metadata:subtype'] as string;
