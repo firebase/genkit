@@ -17,6 +17,8 @@
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GenerateRequestData, GenerateResponseData, Part } from 'genkit';
 import { logger } from 'genkit/logging';
+
+// TODO: This import style causes problems when running tests
 import sharp from 'sharp';
 
 export class MediaResizer {
@@ -46,6 +48,9 @@ export class MediaResizer {
 
   private async resizeSpanImages(span: ReadableSpan): Promise<ReadableSpan> {
     const attributes = span.attributes;
+    console.log(
+      `OUTPUT LENGTH BEFORE: ${(attributes['genkit:output'] as string).length}`
+    );
     let input =
       'genkit:input' in attributes
         ? (JSON.parse(
@@ -58,6 +63,10 @@ export class MediaResizer {
             attributes['genkit:output']! as string
           ) as GenerateResponseData)
         : undefined;
+
+    //TODO: This is causing some issues in reassigning the output to the right place
+    const outputMessage = output?.message || output?.candidates?.[0]?.message!;
+
     if (input && input.messages) {
       await Promise.all(
         input.messages.map(async (msg) => {
@@ -67,13 +76,17 @@ export class MediaResizer {
         })
       );
     }
-    if (output && output.message) {
+
+    if (outputMessage) {
       await Promise.all(
-        output.message.content.map((p) => this.resizeMediaPart(p))
+        outputMessage.content.map((p) => this.resizeMediaPart(p))
       );
     }
+
     attributes['genkit:input'] = JSON.stringify(input);
-    attributes['genkit:output'] = JSON.stringify(output);
+    attributes['genkit:output'] = JSON.stringify(outputMessage);
+
+    console.log(`OUTPUT LENGTH AFTER: ${attributes['genkit:output'].length}`);
     return span;
   }
 
@@ -89,20 +102,24 @@ export class MediaResizer {
           part.media.contentType || part.media.url.substring(5, splitIdx - 1);
 
         if (contentType.startsWith('image')) {
+          console.log(`ORIGINAL IMAGE LENGTH: ${base64Content.length}`);
           const contentBuffer = Buffer.from(base64Content, 'base64');
 
           const resizedBuffer = await sharp(contentBuffer)
             .resize(this.width, this.height, { fit: 'contain' })
+            .png({ quality: 2, compressionLevel: 9 })
             .toBuffer();
 
           const url =
             part.media.url.substring(0, splitIdx + 7) +
             resizedBuffer.toString('base64');
 
+          console.log(`RESIZED IMAGE LENGTH: ${url.length}`);
+
           part.media.url = url;
         }
       } catch (e) {
-        logger.error('Could not resize media');
+        logger.error('Could not resize media: \n', e);
         throw e;
       }
     }

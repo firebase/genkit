@@ -16,6 +16,7 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
@@ -56,6 +57,11 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
     },
   ],
 };
+
+enableFirebaseTelemetry({
+  forceDevExport: true,
+  media: { resizeImages: true },
+});
 
 export const ai = genkit({
   // load at least one plugin representing each action type

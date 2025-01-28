@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { imagen3Fast } from '@genkit-ai/vertexai';
 import { z } from 'genkit';
 import { generateString } from '../common/util';
 import { ai } from '../genkit.js';
@@ -206,6 +207,21 @@ export const largeSteps = ai.defineFlow(
       return generateString(999_000);
     });
     return 'something...';
+  }
+);
+
+//
+// Flow - imageOutput
+
+export const imageOutput = ai.defineFlow(
+  { name: 'flowImageOutput' },
+  async () => {
+    const { media } = await ai.generate({
+      model: imagen3Fast,
+      prompt: 'photo of a meal fit for a pirate',
+      output: { format: 'media' },
+    });
+    return media;
   }
 );
 

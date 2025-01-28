@@ -286,6 +286,8 @@ class GenerateTelemetry implements Telemetry {
         logger.logStructured(`Input[${path}, ${model}] ${partCounts}`, {
           ...sharedMetadata,
           content: this.toPartLogContent(part),
+          contentType: this.toPartContentType(part),
+          role: msg.role,
           partIndex: partIdx,
           totalParts: parts,
           messageIndex: msgIdx,
@@ -327,6 +329,8 @@ class GenerateTelemetry implements Telemetry {
         ...initial,
         ...sharedMetadata,
         content: this.toPartLogContent(part),
+        contentType: this.toPartContentType(part),
+        role: message.role,
         partIndex: partIdx,
         totalParts: parts,
         candidateIndex: 0,
@@ -382,6 +386,22 @@ class GenerateTelemetry implements Telemetry {
       return this.toPartLogText(JSON.stringify(part.custom));
     }
     return '<unknown format>';
+  }
+
+  private toPartContentType(part: Part): string {
+    var contentType;
+
+    if (part.text) {
+      contentType = 'text';
+    }
+    if (part.data) {
+      contentType = 'json';
+    }
+    if (part.media) {
+      contentType = part.media.contentType;
+    }
+
+    return contentType ?? '<unknown content type>';
   }
 
   private toPartLogText(text: string): string {

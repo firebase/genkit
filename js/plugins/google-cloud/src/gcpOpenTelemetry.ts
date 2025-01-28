@@ -254,7 +254,7 @@ class AdjustingTraceExporter implements SpanExporter {
     private projectId?: string,
     private errorHandler?: (error: Error) => void
   ) {
-    this.mediaResizer = new MediaResizer(128, 128);
+    this.mediaResizer = new MediaResizer(64, 64);
   }
 
   export(
