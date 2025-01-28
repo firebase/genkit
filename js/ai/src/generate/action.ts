@@ -15,6 +15,8 @@
  */
 
 import {
+  Action,
+  defineAction,
   getStreamingCallback,
   runWithStreamingCallback,
   stripUndefinedProps,
@@ -24,7 +26,6 @@ import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
-import { DocumentDataSchema } from '../document.js';
 import {
   injectInstructions,
   resolveFormat,
@@ -38,18 +39,20 @@ import {
   tagAsPreamble,
 } from '../generate.js';
 import {
+  GenerateActionOptions,
+  GenerateActionOptionsSchema,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkData,
+  GenerateResponseChunkSchema,
   GenerateResponseData,
-  MessageSchema,
+  GenerateResponseSchema,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
   ModelRequest,
   Part,
   Role,
-  ToolDefinitionSchema,
   resolveModel,
 } from '../model.js';
 import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
@@ -58,34 +61,42 @@ import {
   resolveToolRequests,
 } from './resolve-tool-requests.js';
 
-export const GenerateActionOptionsSchema = z.object({
-  /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
-  /** Retrieved documents to be used as context for this generation. */
-  docs: z.array(DocumentDataSchema).optional(),
-  /** Conversation history for multi-turn prompting when supported by the underlying model. */
-  messages: z.array(MessageSchema),
-  /** List of registered tool names for this generation if supported by the underlying model. */
-  tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
-  /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
-  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
-  /** Configuration for the generation request. */
-  config: z.any().optional(),
-  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
-  output: z
-    .object({
-      format: z.string().optional(),
-      contentType: z.string().optional(),
-      instructions: z.union([z.boolean(), z.string()]).optional(),
-      jsonSchema: z.any().optional(),
-    })
-    .optional(),
-  /** When true, return tool calls for manual processing instead of automatically resolving them. */
-  returnToolRequests: z.boolean().optional(),
-  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
-  maxTurns: z.number().optional(),
-});
-export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;
+export type GenerateAction = Action<
+  typeof GenerateActionOptionsSchema,
+  typeof GenerateResponseSchema,
+  typeof GenerateResponseChunkSchema
+>;
+
+/** Defines (registers) a utilty generate action. */
+export function defineGenerateAction(registry: Registry): GenerateAction {
+  return defineAction(
+    registry,
+    {
+      actionType: 'util',
+      name: 'generate',
+      inputSchema: GenerateActionOptionsSchema,
+      outputSchema: GenerateResponseSchema,
+      streamSchema: GenerateResponseChunkSchema,
+    },
+    async (request, { sendChunk }) => {
+      const generateFn = () =>
+        generate(registry, {
+          rawRequest: request,
+          currentTurn: 0,
+          messageIndex: 0,
+          // Generate util action does not support middleware. Maybe when we add named/registered middleware....
+          middleware: [],
+        });
+      return sendChunk
+        ? runWithStreamingCallback(
+            registry,
+            (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
+            generateFn
+          )
+        : generateFn();
+    }
+  );
+}
 
 /**
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
@@ -109,7 +120,7 @@ export async function generateHelper(
         name: 'generate',
       },
       labels: {
-        [SPAN_TYPE_ATTR]: 'helper',
+        [SPAN_TYPE_ATTR]: 'util',
       },
     },
     async (metadata) => {
@@ -318,7 +329,7 @@ async function generate(
 
   let nextRequest = {
     ...rawRequest,
-    messages: [...rawRequest.messages, generatedMessage, toolMessage!],
+    messages: [...rawRequest.messages, generatedMessage.toJSON(), toolMessage!],
   };
   nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
 
