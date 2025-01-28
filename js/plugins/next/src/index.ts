@@ -15,7 +15,7 @@
  */
 
 import type { Action } from '@genkit-ai/core';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server.js';
 
 const appRoute =
   <A extends Action>(action: A) =>

@@ -15,6 +15,6 @@
  */
 
 import { tellJoke } from '@/genkit/joke';
-import { appRoute } from '@genkit-ai/nextjs';
+import { appRoute } from '@genkit-ai/next';
 
 export const POST = appRoute(tellJoke);
