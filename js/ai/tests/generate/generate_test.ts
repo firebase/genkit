@@ -290,17 +290,13 @@ describe('toGenerateRequest', () => {
               {
                 toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: { name: 'p1', ref: '1', output: 'done' },
+                  pendingOutput: 'done',
                 },
               },
               {
                 toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: {
-                    name: 'p2',
-                    ref: '2',
-                    output: 'done2',
-                  },
+                  pendingOutput: 'done2',
                 },
               },
               {
@@ -338,17 +334,13 @@ describe('toGenerateRequest', () => {
               {
                 toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: { name: 'p1', ref: '1', output: 'done' },
+                  pendingOutput: 'done',
                 },
               },
               {
                 toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: {
-                    name: 'p2',
-                    ref: '2',
-                    output: 'done2',
-                  },
+                  pendingOutput: 'done2',
                 },
               },
               {
@@ -371,8 +363,14 @@ describe('toGenerateRequest', () => {
               resume: true,
             },
             content: [
-              { toolResponse: { name: 'p1', ref: '1', output: 'done' } },
-              { toolResponse: { name: 'p2', ref: '2', output: 'done2' } },
+              {
+                toolResponse: { name: 'p1', ref: '1', output: 'done' },
+                metadata: { source: 'pending' },
+              },
+              {
+                toolResponse: { name: 'p2', ref: '2', output: 'done2' },
+                metadata: { source: 'pending' },
+              },
               { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
               { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
             ],
@@ -391,10 +389,11 @@ describe('toGenerateRequest', () => {
           { name: 'GenkitError', status: test.throws }
         );
       } else {
-        assert.deepStrictEqual(
-          await toGenerateRequest(registry, test.prompt as GenerateOptions),
-          test.expectedOutput
+        const actualOutput = await toGenerateRequest(
+          registry,
+          test.prompt as GenerateOptions
         );
+        assert.deepStrictEqual(actualOutput, test.expectedOutput);
       }
     });
   }

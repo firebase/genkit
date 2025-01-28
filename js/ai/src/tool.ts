@@ -46,7 +46,12 @@ export type ToolAction<
    * it exists.
    */
   reply(
+    /** The interrupt tool request to which you want to respond. */
     interrupt: ToolRequestPart,
+    /**
+     * The data with which you want to respond. Must conform to a tool's output schema or an
+     * interrupt's input schema.
+     **/
     replyData: z.infer<O>,
     options?: { metadata?: Record<string, any> }
   ): ToolResponsePart;
