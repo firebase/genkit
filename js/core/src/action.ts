@@ -523,7 +523,7 @@ export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
 }
 
 /**
- * Execute the provided function in the action runtime context.
+ * Execute the provided function outside the action runtime context.
  */
 export function runOutsideActionRuntimeContext<R>(
   registry: Registry,
