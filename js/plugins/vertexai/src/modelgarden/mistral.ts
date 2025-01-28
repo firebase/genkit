@@ -42,7 +42,7 @@ import {
   ToolRequestPart,
   z,
 } from 'genkit';
-import { modelRef } from 'genkit/model';
+import { ModelAction, modelRef } from 'genkit/model';
 
 export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
@@ -124,6 +124,8 @@ function toMistralRole(role: Role): MistralRole {
       return 'tool';
     case 'system':
       return 'system';
+    default:
+      throw new Error(`Unknwon role ${role}`);
   }
 }
 function toMistralToolRequest(toolRequest: Record<string, any>): FunctionCall {
@@ -323,7 +325,7 @@ export function mistralModel(
   modelName: string,
   projectId: string,
   region: string
-) {
+): ModelAction {
   const getClient = createClientFactory(projectId);
 
   const model = SUPPORTED_MISTRAL_MODELS[modelName];

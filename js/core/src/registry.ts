@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
+import { GenkitError } from './error.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
-import { JSONSchema } from './schema.js';
+import { JSONSchema, toJsonSchema } from './schema.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
@@ -35,6 +37,7 @@ export type ActionType =
   | 'flow'
   | 'model'
   | 'prompt'
+  | 'executable-prompt'
   | 'util'
   | 'tool'
   | 'reranker';
@@ -49,7 +52,7 @@ export interface Schema {
 
 function parsePluginName(registryKey: string) {
   const tokens = registryKey.split('/');
-  if (tokens.length === 4) {
+  if (tokens.length >= 4) {
     return tokens[2];
   }
   return undefined;
@@ -61,13 +64,29 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
  * The registry is used to store and lookup actions, trace stores, flow state stores, plugins, and schemas.
  */
 export class Registry {
-  private actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
+  private actionsById: Record<
+    string,
+    | Action<z.ZodTypeAny, z.ZodTypeAny>
+    | Promise<Action<z.ZodTypeAny, z.ZodTypeAny>>
+  > = {};
   private pluginsByName: Record<string, PluginProvider> = {};
   private schemasByName: Record<string, Schema> = {};
   private valueByTypeAndName: Record<string, Record<string, any>> = {};
   private allPluginsInitialized = false;
 
   readonly asyncStore = new AsyncStore();
+  readonly dotprompt = new Dotprompt({
+    schemaResolver: async (name) => {
+      const resolvedSchema = await this.lookupSchema(name);
+      if (!resolvedSchema) {
+        throw new GenkitError({
+          message: `Schema '${name}' not found`,
+          status: 'NOT_FOUND',
+        });
+      }
+      return toJsonSchema(resolvedSchema);
+    },
+  });
 
   constructor(public parent?: Registry) {}
 
@@ -95,7 +114,9 @@ export class Registry {
     if (!this.actionsById[key] && pluginName) {
       await this.initializePlugin(pluginName);
     }
-    return (this.actionsById[key] as R) || this.parent?.lookupAction(key);
+    return (
+      ((await this.actionsById[key]) as R) || this.parent?.lookupAction(key)
+    );
   }
 
   /**
@@ -119,14 +140,39 @@ export class Registry {
   }
 
   /**
+   * Registers an action promise in the registry.
+   */
+  registerActionAsync<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    type: ActionType,
+    name: string,
+    action: Promise<Action<I, O>>
+  ) {
+    const key = `/${type}/${name}`;
+    logger.debug(`registering ${key} (async)`);
+    if (this.actionsById.hasOwnProperty(key)) {
+      // TODO: Make this an error!
+      logger.warn(
+        `WARNING: ${key} already has an entry in the registry. Overwriting.`
+      );
+    }
+    this.actionsById[key] = action;
+  }
+
+  /**
    * Returns all actions in the registry.
    * @returns All actions in the registry.
    */
   async listActions(): Promise<ActionsRecord> {
     await this.initializeAllPlugins();
+    const actions: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
+    await Promise.all(
+      Object.entries(this.actionsById).map(async ([key, action]) => {
+        actions[key] = await action;
+      })
+    );
     return {
       ...(await this.parent?.listActions()),
-      ...this.actionsById,
+      ...actions,
     };
   }
 

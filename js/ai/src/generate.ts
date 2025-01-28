@@ -16,10 +16,13 @@
 
 import {
   Action,
+  ActionContext,
   GenkitError,
   StreamingCallback,
+  runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
+  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
@@ -31,7 +34,7 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { GenerateUtilParamSchema, generateHelper } from './generate/action.js';
+import { GenerateActionOptions, generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
@@ -42,11 +45,15 @@ import {
   ModelArgument,
   ModelMiddleware,
   Part,
+  ToolResponsePart,
   resolveModel,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
+
+/** Specifies how tools should be called by the model. */
+export type ToolChoice = 'auto' | 'required' | 'none';
 
 export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   format?: string;
@@ -54,6 +61,22 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   instructions?: boolean | string;
   schema?: O;
   jsonSchema?: any;
+}
+
+/** ResumeOptions configure how to resume generation after an interrupt. */
+export interface ResumeOptions {
+  /**
+   * reply should contain a single or list of `toolResponse` parts corresponding
+   * to interrupt `toolRequest` parts from the most recent model message. Each
+   * entry must have a matching `name` and `ref` (if supplied) for its `toolRequest`
+   * counterpart.
+   *
+   * Tools have a `.reply` helper method to construct a reply ToolResponse and validate
+   * the data against its schema. Call `myTool.reply(interruptToolRequest, yourReplyData)`.
+   */
+  reply: ToolResponsePart | ToolResponsePart[];
+  /** Additional metadata to annotate the created tool message with in the "resume" key. */
+  metadata?: Record<string, any>;
 }
 
 export interface GenerateOptions<
@@ -72,10 +95,33 @@ export interface GenerateOptions<
   messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
+  /** Specifies how tools should be called by the model.  */
+  toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: OutputOptions<O>;
+  /**
+   * resume provides convenient capabilities for continuing generation
+   * after an interrupt is triggered. Example:
+   *
+   * ```ts
+   * const myInterrupt = ai.defineInterrupt({...});
+   *
+   * const response = await ai.generate({
+   *   tools: [myInterrupt],
+   *   prompt: "Call myInterrupt",
+   * });
+   *
+   * const interrupt = response.interrupts[0];
+   *
+   * const resumedResponse = await ai.generate({
+   *   messages: response.messages,
+   *   resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
+   * });
+   * ```
+   */
+  resume?: ResumeOptions;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
@@ -90,13 +136,62 @@ export interface GenerateOptions<
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
+  /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
+  context?: ActionContext;
+}
+
+/** Amends message history to handle `resume` arguments. Returns the amended history. */
+async function applyResumeOption(
+  options: GenerateOptions,
+  messages: MessageData[]
+): Promise<MessageData[]> {
+  if (!options.resume) return messages;
+  if (
+    messages.at(-1)?.role !== 'model' ||
+    !messages
+      .at(-1)
+      ?.content.find((p) => p.toolRequest && p.metadata?.interrupt)
+  ) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
+    });
+  }
+  const lastModelMessage = messages.at(-1)!;
+  const toolRequests = lastModelMessage.content.filter((p) => !!p.toolRequest);
+
+  const pendingResponses: ToolResponsePart[] = toolRequests
+    .filter((t) => !!t.metadata?.pendingOutput)
+    .map((t) =>
+      stripUndefinedProps({
+        toolResponse: {
+          name: t.toolRequest!.name,
+          ref: t.toolRequest!.ref,
+          output: t.metadata!.pendingOutput,
+        },
+        metadata: { source: 'pending' },
+      })
+    ) as ToolResponsePart[];
+
+  const reply = Array.isArray(options.resume.reply)
+    ? options.resume.reply
+    : [options.resume.reply];
+
+  const message: MessageData = {
+    role: 'tool',
+    content: [...pendingResponses, ...reply],
+    metadata: {
+      resume: options.resume.metadata || true,
+    },
+  };
+  return [...messages, message];
 }
 
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [];
+  let messages: MessageData[] = [];
   if (options.system) {
     messages.push({
       role: 'system',
@@ -106,6 +201,8 @@ export async function toGenerateRequest(
   if (options.messages) {
     messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
+  // resuming from interrupts occurs after message history but before user prompt
+  messages = await applyResumeOption(options, messages);
   if (options.prompt) {
     messages.push({
       role: 'user',
@@ -270,11 +367,12 @@ export async function generate<
     resolvedOptions?.output?.instructions
   );
 
-  const params: z.infer<typeof GenerateUtilParamSchema> = {
+  const params: GenerateActionOptions = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
     messages: injectInstructions(messages, instructions),
     tools,
+    toolChoice: resolvedOptions.toolChoice,
     config: {
       version: resolvedModel.version,
       ...stripUndefinedOptions(resolvedModel.config),
@@ -292,10 +390,14 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
-      const response = await generateHelper(
+      const response = await runWithContext(
         registry,
-        params,
-        resolvedOptions.use
+        resolvedOptions.context,
+        () =>
+          generateHelper(registry, {
+            rawRequest: params,
+            middleware: resolvedOptions.use,
+          })
       );
       const request = await toGenerateRequest(registry, {
         ...resolvedOptions,
@@ -367,10 +469,12 @@ export function generateStream<
 ): GenerateStreamResponse<O> {
   let channel = new Channel<GenerateResponseChunk>();
 
-  const generated = generate<O, CustomOptions>(registry, {
-    ...options,
-    onChunk: (chunk) => channel.send(chunk),
-  });
+  const generated = Promise.resolve(options).then((resolvedOptions) =>
+    generate<O, CustomOptions>(registry, {
+      ...resolvedOptions,
+      onChunk: (chunk) => channel.send(chunk),
+    })
+  );
   generated.then(
     () => channel.close(),
     (err) => channel.error(err)

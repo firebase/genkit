@@ -14,14 +14,30 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
+import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
+import { configureFormats } from '../../src/formats/index.js';
 import { jsonFormatter } from '../../src/formats/json.js';
-import { GenerateResponseChunk } from '../../src/generate.js';
+import { GenerateResponseChunk, generateStream } from '../../src/generate.js';
 import { Message } from '../../src/message.js';
 import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
+import {
+  ProgrammableModel,
+  defineProgrammableModel,
+  runAsync,
+} from '../helpers.js';
 
 describe('jsonFormat', () => {
+  let registry: Registry;
+  let pm: ProgrammableModel;
+
+  beforeEach(() => {
+    registry = new Registry();
+    pm = defineProgrammableModel(registry);
+  });
+
   const streamingTests = [
     {
       desc: 'parses complete JSON object',
@@ -64,16 +80,20 @@ describe('jsonFormat', () => {
     it(st.desc, () => {
       const parser = jsonFormatter.handler();
       const chunks: GenerateResponseChunkData[] = [];
-      let lastCursor = '';
 
       for (const chunk of st.chunks) {
         const newChunk: GenerateResponseChunkData = {
+          index: 0,
+          role: 'model',
           content: [{ text: chunk.text }],
         };
 
         const result = parser.parseChunk!(
-          new GenerateResponseChunk(newChunk, { previousChunks: [...chunks] }),
-          lastCursor
+          new GenerateResponseChunk(newChunk, {
+            index: 0,
+            role: 'model',
+            previousChunks: [...chunks],
+          })
         );
         chunks.push(newChunk);
 
@@ -118,4 +138,51 @@ describe('jsonFormat', () => {
       );
     });
   }
+});
+
+describe('jsonFormat e2e', () => {
+  let registry: Registry;
+
+  beforeEach(() => {
+    registry = new Registry();
+    configureFormats(registry);
+  });
+
+  it('injects the instructions into the request', async () => {
+    let pm = defineProgrammableModel(registry);
+    pm.handleResponse = async (req, sc) => {
+      await runAsync(() => sc?.({ content: [{ text: '```\n{' }] }));
+      await runAsync(() => sc?.({ content: [{ text: '"foo": "b' }] }));
+      await runAsync(() => sc?.({ content: [{ text: 'ar"' }] }));
+      await runAsync(() => sc?.({ content: [{ text: '}\n```"' }] }));
+      return await runAsync(() => ({
+        message: {
+          role: 'model',
+          content: [{ text: '```\n{"foo": "bar"}\n```' }],
+        },
+      }));
+    };
+
+    const { response, stream } = await generateStream(registry, {
+      model: 'programmableModel',
+      prompt: 'generate json',
+      output: {
+        format: 'json',
+        schema: z.object({
+          foo: z.string(),
+        }),
+      },
+    });
+    const chunks: any = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk.output);
+    }
+    assert.deepEqual((await response).output, { foo: 'bar' });
+    assert.deepStrictEqual(chunks, [
+      {},
+      { foo: 'b' },
+      { foo: 'bar' },
+      { foo: 'bar' },
+    ]);
+  });
 });

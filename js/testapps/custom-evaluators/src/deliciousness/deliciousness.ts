@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { ModelArgument, loadPromptFile, z } from 'genkit';
+import { ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
-import path from 'path';
 import { ai } from '../index.js';
 
 const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
@@ -26,6 +25,8 @@ const DeliciousnessDetectionResponseSchema = z.object({
   reason: z.string(),
   verdict: z.enum(DELICIOUSNESS_VALUES),
 });
+
+const deliciousnessPrompt = ai.prompt('deliciousness');
 
 export async function deliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
@@ -39,15 +40,16 @@ export async function deliciousnessScore<
     if (!d.output) {
       throw new Error('Output is required for Funniness detection');
     }
-    const finalPrompt = await loadPromptFile(
-      ai.registry,
-      path.resolve(__dirname, '../../prompts/deliciousness.prompt')
-    );
+    const finalPrompt = (
+      await deliciousnessPrompt.render({
+        output: d.output as string,
+      })
+    ).messages
+      ?.map((m) => m.content.map((c) => c.text).join())
+      .join();
     const response = await ai.generate({
       model: judgeLlm,
-      prompt: finalPrompt.renderText({
-        output: d.output as string,
-      }),
+      prompt: finalPrompt,
       config: judgeConfig,
       output: {
         schema: DeliciousnessDetectionResponseSchema,

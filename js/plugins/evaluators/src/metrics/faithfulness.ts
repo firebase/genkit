@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { loadPromptFile } from '@genkit-ai/dotprompt';
 import { Genkit, ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
-import { getDirName } from './helper.js';
+import { getDirName, loadPromptFile, renderText } from './helper.js';
 
 const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
 
@@ -64,13 +63,12 @@ export async function faithfulnessScore<
     const context = dataPoint.context.map((i) => JSON.stringify(i));
 
     const longFormPrompt = await loadPromptFile(
-      ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_long_form.prompt')
     );
     const longFormResponse = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: longFormPrompt.renderText({
+      prompt: await renderText(longFormPrompt, {
         question: input,
         answer: output,
       }),
@@ -86,12 +84,11 @@ export async function faithfulnessScore<
     const allStatements = statements.map((s) => `statement: ${s}`).join('\n');
     const allContext = context.join('\n');
     const nliPrompt = await loadPromptFile(
-      ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_nli.prompt')
     );
     const response = await ai.generate({
       model: judgeLlm,
-      prompt: nliPrompt.renderText({
+      prompt: await renderText(nliPrompt, {
         context: allContext,
         statements: allStatements,
       }),

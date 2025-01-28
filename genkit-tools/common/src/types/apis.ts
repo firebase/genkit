@@ -18,8 +18,8 @@ import { z } from 'zod';
 import {
   DatasetSchemaSchema,
   DatasetTypeSchema,
-  EvalInferenceInputSchema,
   EvalRunKeySchema,
+  InferenceDatasetSchema,
 } from './eval';
 import {
   GenerationCommonConfigSchema,
@@ -113,7 +113,7 @@ export const GetEvalRunRequestSchema = z.object({
 export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
 
 export const CreateDatasetRequestSchema = z.object({
-  data: EvalInferenceInputSchema,
+  data: InferenceDatasetSchema,
   datasetId: z.string().optional(),
   datasetType: DatasetTypeSchema,
   schema: DatasetSchemaSchema.optional(),
@@ -124,7 +124,7 @@ export type CreateDatasetRequest = z.infer<typeof CreateDatasetRequestSchema>;
 
 export const UpdateDatasetRequestSchema = z.object({
   datasetId: z.string(),
-  data: EvalInferenceInputSchema.optional(),
+  data: InferenceDatasetSchema.optional(),
   schema: DatasetSchemaSchema.optional(),
   targetAction: z.string().optional(),
 });
@@ -133,7 +133,7 @@ export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
 export const RunNewEvaluationRequestSchema = z.object({
   dataSource: z.object({
     datasetId: z.string().optional(),
-    data: EvalInferenceInputSchema.optional(),
+    data: InferenceDatasetSchema.optional(),
   }),
   actionRef: z.string(),
   evaluators: z.array(z.string()).optional(),
@@ -150,3 +150,29 @@ export const RunNewEvaluationRequestSchema = z.object({
 export type RunNewEvaluationRequest = z.infer<
   typeof RunNewEvaluationRequestSchema
 >;
+
+export const ValidateDataRequestSchema = z.object({
+  dataSource: z.object({
+    datasetId: z.string().optional(),
+    data: InferenceDatasetSchema.optional(),
+  }),
+  actionRef: z.string(),
+});
+export type ValidateDataRequest = z.infer<typeof ValidateDataRequestSchema>;
+
+export const ErrorDetailSchema = z.object({
+  path: z.string(),
+  message: z.string(),
+});
+export type ErrorDetail = z.infer<typeof ErrorDetailSchema>;
+
+export const ValidateDataResponseSchema = z.object({
+  valid: z.boolean(),
+  errors: z
+    .record(z.string(), z.array(ErrorDetailSchema))
+    .describe(
+      'Errors mapping, if any. The key is testCaseId if source is a dataset, otherewise it is the index number (stringified)'
+    )
+    .optional(),
+});
+export type ValidateDataResponse = z.infer<typeof ValidateDataResponseSchema>;

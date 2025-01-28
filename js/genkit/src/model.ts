@@ -37,6 +37,7 @@ export {
   ToolResponsePartSchema,
   getBasicUsageStats,
   modelRef,
+  simulateConstrainedGeneration,
   type CandidateData,
   type CandidateError,
   type CustomPart,

@@ -16,7 +16,7 @@
 
 import { GenkitError, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineReranker, rerank } from '../../src/reranker';
 import { Document } from '../../src/retriever';
@@ -70,8 +70,8 @@ describe('reranker', () => {
       });
       // Validate the reranked results
       assert.equal(rerankedDocuments.length, 2);
-      assert(rerankedDocuments[0].text.includes('a bit longer'));
-      assert(rerankedDocuments[1].text.includes('short'));
+      assert.ok(rerankedDocuments[0].text.includes('a bit longer'));
+      assert.ok(rerankedDocuments[1].text.includes('short'));
     });
 
     it('handles missing options gracefully', async () => {
@@ -109,7 +109,7 @@ describe('reranker', () => {
         options: { k: 2 },
       });
       assert.equal(rerankedDocuments.length, 2);
-      assert(typeof rerankedDocuments[0].metadata.score === 'number');
+      assert.ok(typeof rerankedDocuments[0].metadata.score === 'number');
     });
 
     it('validates config schema and throws error on invalid input', async () => {
@@ -147,7 +147,7 @@ describe('reranker', () => {
         });
         assert.fail('Expected validation error');
       } catch (err) {
-        assert(err instanceof GenkitError);
+        assert.ok(err instanceof GenkitError);
         assert.equal(err.status, 'INVALID_ARGUMENT');
       }
     });
@@ -211,7 +211,7 @@ describe('reranker', () => {
         });
         assert.fail('Expected an error to be thrown');
       } catch (err) {
-        assert(err instanceof GenkitError);
+        assert.ok(err instanceof GenkitError);
         assert.equal(err.status, 'INTERNAL');
         assert.equal(
           err.message,

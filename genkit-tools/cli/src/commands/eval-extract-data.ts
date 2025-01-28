@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { EvalInput, TraceData } from '@genkit-ai/tools-common';
+import {
+  EvalInput,
+  EvalInputDataset,
+  TraceData,
+} from '@genkit-ai/tools-common';
 import {
   generateTestCaseId,
   getEvalExtractors,
@@ -45,7 +49,7 @@ export const evalExtractData = new Command('eval:extractData')
       const extractors = await getEvalExtractors(`/flow/${flowName}`);
 
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
-      let dataset: EvalInput[] = [];
+      let dataset: EvalInputDataset = [];
       let continuationToken = undefined;
       while (dataset.length < parseInt(options.maxRows)) {
         const response = await manager.listTraces({

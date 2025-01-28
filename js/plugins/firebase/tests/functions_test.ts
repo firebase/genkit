@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
-import express from 'express';
+import * as express from 'express';
 import { initializeApp } from 'firebase/app';
 import { getFunctions, httpsCallableFromURL } from 'firebase/functions';
 import { Genkit, genkit } from 'genkit';
 import { runFlow, streamFlow } from 'genkit/client';
-import getPort from 'get-port';
+import * as getPort from 'get-port';
 import * as http from 'http';
 import { RequestWithAuth, noAuth, onFlow } from '../lib/functions.js';
 
@@ -81,7 +81,7 @@ describe('function', () => {
         authPolicy: authPolicy,
       },
       async (input, { context }) => {
-        return `hi ${input} - ${JSON.stringify(context)}`;
+        return `hi ${input} - ${JSON.stringify(context?.auth)}`;
       }
     );
 
@@ -96,7 +96,7 @@ describe('function', () => {
         sendChunk({ chubk: 2 });
         sendChunk({ chubk: 3 });
 
-        return `hi ${input} - ${JSON.stringify(context)}`;
+        return `hi ${input} - ${JSON.stringify(context?.auth)}`;
       }
     );
     const app = express();

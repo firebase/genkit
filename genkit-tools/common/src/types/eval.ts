@@ -59,22 +59,23 @@ export const GenerateRequestJSONSchema = zodToJsonSchema(
 /**
  * A single sample to be used for inference.
  **/
-export const EvalInferenceSampleSchema = z.object({
+export const InferenceSampleSchema = z.object({
   testCaseId: z.string().optional(),
   input: z.any(),
   reference: z.any().optional(),
 });
+export type InferenceSample = z.infer<typeof InferenceSampleSchema>;
 
 /**
  * A set of samples that is ready for inference.
  *
  * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For internal wire-transfer/storage, prefer {@link Dataset}.
  */
-export const EvalInferenceInputSchema = z.array(EvalInferenceSampleSchema);
-export type EvalInferenceInput = z.infer<typeof EvalInferenceInputSchema>;
+export const InferenceDatasetSchema = z.array(InferenceSampleSchema);
+export type InferenceDataset = z.infer<typeof InferenceDatasetSchema>;
 
 /**
- * Represents a Dataset, to be used for bulk-inference / evaluation. This is a more optionated form of EvalInferenceInput, which guarantees testCaseId for each test sample.
+ * Represents a Dataset, to be used for bulk-inference / evaluation. This is a more optionated form of InferenceDataset, which guarantees testCaseId for each test sample.
  */
 export const DatasetSchema = z.array(
   z.object({
@@ -88,7 +89,32 @@ export type Dataset = z.infer<typeof DatasetSchema>;
 /**
  * A record that is ready for evaluation.
  *
- * TODO: consider renaming.
+ * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For use in EvaluatorAction, use {@link EvalInput}.
+ */
+export const EvaluationSampleSchema = z.object({
+  testCaseId: z.string().optional(),
+  input: z.any(),
+  output: z.any(),
+  error: z.string().optional(),
+  context: z.array(z.any()).optional(),
+  reference: z.any().optional(),
+  traceIds: z.array(z.string()).optional(),
+});
+export type EvaluationSample = z.infer<typeof EvaluationSampleSchema>;
+
+/**
+ * A set of samples that is ready for evaluation.
+ *
+ * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For use in EvaluatorAction, use {@link EvalInput}.
+ */
+export const EvaluationDatasetSchema = z.array(EvaluationSampleSchema);
+export type EvaluationDataset = z.infer<typeof EvaluationDatasetSchema>;
+
+/**
+ * A fully-valid record to be used for evaluation.
+ *
+ * This is not user facing. Required fields that are missing from
+ * {@link EvaluationSampleSchema} must be auto-popoulated.
  */
 export const EvalInputSchema = z.object({
   testCaseId: z.string(),

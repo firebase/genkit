@@ -17,6 +17,7 @@
 import { MessageData } from '@genkit-ai/ai';
 import { BaseEvalDataPoint } from '@genkit-ai/ai/evaluator';
 import { ModelAction } from '@genkit-ai/ai/model';
+import { SessionData, SessionStore } from '@genkit-ai/ai/session';
 import { StreamingCallback } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
 import {
@@ -24,7 +25,6 @@ import {
   GenerateResponseChunkData,
   GenerateResponseData,
 } from '../src/model';
-import { SessionData, SessionStore } from '../src/session';
 
 export function defineEchoModel(ai: Genkit): ModelAction {
   const model = ai.defineModel(

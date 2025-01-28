@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { Genkit, GENKIT_CLIENT_HEADER, ModelReference, z } from 'genkit';
 import { GenerateRequest, ModelAction, modelRef } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
@@ -45,7 +45,7 @@ export const llama31 = modelRef({
   },
   configSchema: ModelGardenModelConfigSchema,
   version: 'meta/llama3-405b-instruct-maas',
-});
+}) as ModelReference<typeof ModelGardenModelConfigSchema>;
 
 export const llama32 = modelRef({
   name: 'vertexai/llama-3.2',
@@ -62,7 +62,7 @@ export const llama32 = modelRef({
   },
   configSchema: ModelGardenModelConfigSchema,
   version: 'meta/llama-3.2-90b-vision-instruct-maas',
-});
+}) as ModelReference<typeof ModelGardenModelConfigSchema>;
 
 /**
  * @deprecated use `llama31` instead
@@ -82,7 +82,7 @@ export const llama3 = modelRef({
   },
   configSchema: ModelGardenModelConfigSchema,
   version: 'meta/llama3-405b-instruct-maas',
-});
+}) as ModelReference<typeof ModelGardenModelConfigSchema>;
 
 export const SUPPORTED_OPENAI_FORMAT_MODELS = {
   'llama3-405b': llama3,

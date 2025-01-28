@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { ModelArgument, loadPromptFile, z } from 'genkit';
+import { ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
-import path from 'path';
 import { ai } from '../index.js';
 
 const FUNNINESS_VALUES = [
@@ -25,6 +24,8 @@ const FUNNINESS_VALUES = [
   'OFFENSIVE_JOKE',
   'NOT_A_JOKE',
 ] as const;
+
+const funninessPrompt = ai.prompt('funniness');
 
 const FunninessResponseSchema = z.object({
   reason: z.string(),
@@ -41,16 +42,17 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
     if (!d.output) {
       throw new Error('Output is required for Funniness detection');
     }
-    const finalPrompt = await loadPromptFile(
-      ai.registry,
-      path.resolve(__dirname, '../../prompts/funniness.prompt')
-    );
+    const finalPrompt = (
+      await funninessPrompt.render({
+        output: d.output as string,
+      })
+    ).messages
+      ?.map((m) => m.content.map((c) => c.text).join())
+      .join();
 
     const response = await ai.generate({
       model: judgeLlm,
-      prompt: finalPrompt.renderText({
-        output: d.output as string,
-      }),
+      prompt: finalPrompt,
       config: judgeConfig,
       output: {
         schema: FunninessResponseSchema,
