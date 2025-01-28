@@ -53,7 +53,10 @@ import {
   resolveModel,
 } from '../model.js';
 import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
-import { assertValidToolNames, resolveToolRequests } from './tool-loop.js';
+import {
+  assertValidToolNames,
+  resolveToolRequests,
+} from './resolve-tool-requests.js';
 
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
