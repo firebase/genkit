@@ -31,28 +31,16 @@ type Output<A extends Action> =
 type Stream<A extends Action> =
   A extends Action<any, any, infer S> ? ZodToTS<S> : never;
 
-export interface RequestData {
+export interface RequestData<T> {
   url: string;
   headers?: Record<string, string>;
+  input?: T;
 }
 
 export function runFlow<A extends Action = Action>(
-  url: string,
-  data: Input<A>
-): Promise<Output<A>>;
-export function runFlow<A extends Action = Action>(
-  req: RequestData,
-  data: Input<A>
-): Promise<Output<A>>;
-export function runFlow<A extends Action = Action>(
-  req: string | RequestData,
-  data: Input<A>
+  req: RequestData<Input<A>>
 ): Promise<Output<A>> {
-  if (typeof req === 'string') {
-    return baseRunFlow<Output<A>>({ url: req, input: data });
-  } else {
-    return baseRunFlow<Output<A>>({ ...req, input: data });
-  }
+  return baseRunFlow<Output<A>>(req);
 }
 
 export interface StreamResponse<A extends Action> {
@@ -61,28 +49,11 @@ export interface StreamResponse<A extends Action> {
 }
 
 export function streamFlow<A extends Action = Action>(
-  url: string,
-  data: Input<A>
-): StreamResponse<A>;
-export function streamFlow<A extends Action = Action>(
-  req: RequestData,
-  data: Input<A>
-): StreamResponse<A>;
-export function streamFlow<A extends Action = Action>(
-  req: string | RequestData,
-  data: Input<A>
+  req: RequestData<Input<A>>
 ): StreamResponse<A> {
-  if (typeof req === 'string') {
-    const res = baseStreamFlow<Output<A>, Stream<A>>({ url: req, input: data });
-    return {
-      output: res.output(),
-      stream: res.stream(),
-    };
-  } else {
-    const res = baseStreamFlow<Output<A>, Stream<A>>({ ...req, input: data });
-    return {
-      output: res.output(),
-      stream: res.stream(),
-    };
-  }
+  const res = baseStreamFlow<Output<A>, Stream<A>>(req);
+  return {
+    output: res.output(),
+    stream: res.stream(),
+  };
 }

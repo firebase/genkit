@@ -6,17 +6,20 @@ import { useEffect, useRef, useState } from 'react';
 
 async function run(type: string, setResponse: (response: string) => void) {
   setResponse('...');
-  const resp = await runFlow<typeof tellJoke>('/api/joke', type);
+  const resp = await runFlow<typeof tellJoke>({
+    url: '/api/joke',
+    input: type === '' ? null : type,
+  });
   setResponse(resp);
 }
 
 async function stream(type: string, setResponse: (response: string) => void) {
   let accum = '';
   setResponse('...');
-  const { stream, response } = streamFlow<typeof tellJoke>(
-    '/api/joke',
-    type === '' ? null : type
-  );
+  const { stream, response } = streamFlow<typeof tellJoke>({
+    url: '/api/joke',
+    input: type === '' ? null : type,
+  });
   for await (const chunk of stream) {
     accum = accum + chunk;
     setResponse(accum);

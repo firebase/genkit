@@ -23,7 +23,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "module": "esnext"
   },
