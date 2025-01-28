@@ -34,10 +34,7 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import {
-  GenerateActionOptionsSchema,
-  generateHelper,
-} from './generate/action.js';
+import { GenerateActionOptions, generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
@@ -171,8 +168,8 @@ async function applyResumeOption(
           name: t.toolRequest!.name,
           ref: t.toolRequest!.ref,
           output: t.metadata!.pendingOutput,
-          metadata: { source: 'pending' },
         },
+        metadata: { source: 'pending' },
       })
     ) as ToolResponsePart[];
 
@@ -370,7 +367,7 @@ export async function generate<
     resolvedOptions?.output?.instructions
   );
 
-  const params: z.infer<typeof GenerateActionOptionsSchema> = {
+  const params: GenerateActionOptions = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
     messages: injectInstructions(messages, instructions),

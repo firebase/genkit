@@ -363,8 +363,14 @@ describe('toGenerateRequest', () => {
               resume: true,
             },
             content: [
-              { toolResponse: { name: 'p1', ref: '1', output: 'done' } },
-              { toolResponse: { name: 'p2', ref: '2', output: 'done2' } },
+              {
+                toolResponse: { name: 'p1', ref: '1', output: 'done' },
+                metadata: { source: 'pending' },
+              },
+              {
+                toolResponse: { name: 'p2', ref: '2', output: 'done2' },
+                metadata: { source: 'pending' },
+              },
               { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
               { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
             ],
