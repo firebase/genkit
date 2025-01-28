@@ -1,0 +1,65 @@
+{
+  "name": "@genkit-ai/nextjs",
+  "description": "Next.js plugin for Genkit",
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "google cloud",
+    "google ai",
+    "ai",
+    "genai",
+    "generative-ai",
+    "nextjs",
+    "next.js",
+    "react"
+  ],
+  "version": "0.0.1-dev.1",
+  "type": "commonjs",
+  "scripts": {
+    "check": "tsc",
+    "compile": "tsup-node",
+    "build:clean": "rimraf ./lib",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "js/plugins/checks"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@genkit-ai/core": "workspace:*",
+    "genkit": "workspace:*",
+    "next": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.0.2",
+    "tsx": "^4.7.0",
+    "typescript": "^4.9.0"
+  },
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs",
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "require": "./lib/client.js",
+      "import": "./lib/client.mjs",
+      "types": "./lib/client.d.ts",
+      "default": "./lib/client.js"
+    }
+  },
+  "dependencies": {
+    "@genkit-ai/nextjs": "link:",
+    "nextjs": "^0.0.3",
+    "zod": "^3.24.1"
+  }
+}
