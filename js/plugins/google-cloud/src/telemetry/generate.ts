@@ -132,7 +132,7 @@ class GenerateTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
@@ -177,7 +177,7 @@ class GenerateTelemetry implements Telemetry {
         threadName
       );
 
-      if (logIO) {
+      if (logInputAndOutput) {
         this.recordGenerateActionInputLogs(
           span,
           modelName,
@@ -191,7 +191,7 @@ class GenerateTelemetry implements Telemetry {
       }
     }
 
-    if (output && logIO) {
+    if (output && logInputAndOutput) {
       this.recordGenerateActionOutputLogs(
         span,
         modelName,

@@ -53,7 +53,7 @@ class PathsTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
