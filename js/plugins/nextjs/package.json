@@ -14,7 +14,7 @@
     "react"
   ],
   "version": "0.0.1-dev.1",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
@@ -36,11 +36,15 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.16",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
     "tsup": "^8.0.2",
     "tsx": "^4.7.0",
-    "typescript": "^4.9.0"
+    "typescript": "^4.9.0",
+    "next": "^15.0.0",
+    "zod": "^3.24.1"
   },
   "types": "./lib/index.d.ts",
   "exports": {
@@ -56,10 +60,5 @@
       "types": "./lib/client.d.ts",
       "default": "./lib/client.js"
     }
-  },
-  "dependencies": {
-    "@genkit-ai/nextjs": "link:",
-    "nextjs": "^0.0.3",
-    "zod": "^3.24.1"
   }
 }

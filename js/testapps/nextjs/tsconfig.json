@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "outDir": "lib",
@@ -23,7 +22,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "module": "esnext"
   },
   "compileOnSave": true,
   "include": ["src", ".next/types/**/*.ts"],

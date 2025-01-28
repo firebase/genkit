@@ -716,25 +716,22 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/nextjs':
-        specifier: 'link:'
-        version: 'link:'
       genkit:
         specifier: workspace:*
         version: link:../../genkit
-      next:
-        specifier: ^15.0.0
-        version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      nextjs:
-        specifier: ^0.0.3
-        version: 0.0.3
-      zod:
-        specifier: ^3.24.1
-        version: 3.24.1
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
         version: 20.16.9
+      '@types/react':
+        specifier: ^19
+        version: 19.0.8
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.0.3(@types/react@19.0.8)
+      next:
+        specifier: ^15.0.0
+        version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -750,6 +747,9 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
+      zod:
+        specifier: ^3.24.1
+        version: 3.24.1
 
   plugins/ollama:
     dependencies:
@@ -3892,6 +3892,11 @@ packages:
   '@types/range-parser@1.2.7':
     resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
 
+  '@types/react-dom@19.0.3':
+    resolution: {integrity: sha512-0Knk+HJiMP/qOZgMyNFamlIjw9OFCsyC2ZbigmEEyXXixgre6IQpm/4V+r3qH4GC1JPvRJKInw+on2rV6YZLeA==}
+    peerDependencies:
+      '@types/react': ^19.0.0
+
   '@types/react@19.0.8':
     resolution: {integrity: sha512-9P/o1IGdfmQxrujGbIMDyYaaCykhLKc0NGCtYcECNUr9UAaDe4gwvV9bR6tvd5Br1SG0j+PBpbKr2UYY8CwqSw==}
 
@@ -5851,10 +5856,6 @@ packages:
         optional: true
       sass:
         optional: true
-
-  nextjs@0.0.3:
-    resolution: {integrity: sha512-mYbDUo4/sRAZ8TqK63PCpYnFiLg7BICG/ot9+guOrUKd4/Fo71ZmEQ41IZbH6nqbQvG7SXTBuofJXAIWfNho0w==}
-    engines: {node: '>=0.8.21'}
 
   node-abi@3.71.0:
     resolution: {integrity: sha512-SZ40vRiy/+wRTf21hxkkEjPJZpARzUMVcJoQse2EF8qkUWbbO2z7vd5oA/H6bVH6SZQ5STGcu0KRDS7biNRfxw==}
@@ -9354,6 +9355,10 @@ snapshots:
 
   '@types/range-parser@1.2.7': {}
 
+  '@types/react-dom@19.0.3(@types/react@19.0.8)':
+    dependencies:
+      '@types/react': 19.0.8
+
   '@types/react@19.0.8':
     dependencies:
       csstype: 3.1.3
@@ -11876,8 +11881,6 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
-
-  nextjs@0.0.3: {}
 
   node-abi@3.71.0:
     dependencies:
