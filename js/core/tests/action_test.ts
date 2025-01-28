@@ -150,7 +150,7 @@ describe('action', () => {
       registry,
       { name: 'child', actionType: 'custom' },
       async (_, { context }) => {
-        return `hi ${context.auth.email}`;
+        return `hi ${context?.auth?.email}`;
       }
     );
     const parent = defineAction(
