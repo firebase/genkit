@@ -133,7 +133,9 @@ async function resolveParameters(
   request: GenerateActionOptions
 ) {
   const [model, tools, format] = await Promise.all([
-    resolveModel(registry, request.model).then((r) => r.modelAction),
+    resolveModel(registry, request.model, { warnDeprecated: true }).then(
+      (r) => r.modelAction
+    ),
     resolveTools(registry, request.tools),
     resolveFormat(registry, request.output),
   ]);
