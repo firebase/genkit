@@ -226,12 +226,12 @@ export const indexMenu = ai.defineFlow(
     filePath = path.resolve(filePath);
 
     // Read the pdf.
-    const pdfTxt = await run('extract-text', () =>
+    const pdfTxt = await ai.run('extract-text', () =>
       extractTextFromPdf(filePath)
     );
 
     // Divide the pdf text into segments.
-    const chunks = await run('chunk-it', async () =>
+    const chunks = await ai.run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
@@ -266,12 +266,13 @@ which you should not use in production.
 
 ```ts
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 
 // Define the retriever reference
 export const menuRetriever = devLocalRetrieverRef('menuQA');
 
 export const menuQAFlow = ai.defineFlow(
-  { name: 'menuQA', inputSchema: z.string(), outputSchema: z.string() },
+  { name: "menuQA", inputSchema: z.string(), outputSchema: z.string() },
   async (input: string) => {
     // retrieve relevant documents
     const docs = await ai.retrieve({
@@ -282,6 +283,7 @@ export const menuQAFlow = ai.defineFlow(
 
     // generate a response
    const { text } = await ai.generate({
+      model: gemini15Flash,
       prompt: `
 You are acting as a helpful AI assistant that can answer 
 questions about the food available on the menu at Genkit Grub Pub.
@@ -298,6 +300,15 @@ Question: ${input}`,
   }
 );
 ```
+
+#### Run the retriever flow
+
+```posix-terminal
+genkit flow:run menuQA '"Recommend a dessert from the menu while avoiding dairy and nuts"'
+```
+
+The output for this command should contain a response from the model, grounded
+in the indexed `menu.pdf` file.
 
 ## Write your own indexers and retrievers
 
