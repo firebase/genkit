@@ -218,9 +218,7 @@ describe('generate', () => {
             // nothing
           }
         },
-        (e: Error) => {
-          return e.message.includes('Model modelNotFound not found');
-        }
+        { status: 'NOT_FOUND' }
       );
     });
 
@@ -589,7 +587,7 @@ describe('generate', () => {
             },
           ],
           index: 1,
-          role: 'model',
+          role: 'tool',
         },
         {
           content: [{ text: 'done' }],
@@ -688,22 +686,6 @@ describe('generate', () => {
       assert.strictEqual(reqCounter, 1);
       assert.deepStrictEqual(response.toolRequests, [
         {
-          metadata: {
-            pendingToolResponse: {
-              name: 'simpleTool',
-              output: 'response: foo',
-              ref: 'ref123',
-            },
-          },
-          toolRequest: {
-            input: {
-              name: 'foo',
-            },
-            name: 'simpleTool',
-            ref: 'ref123',
-          },
-        },
-        {
           toolRequest: {
             input: {},
             name: 'interruptingTool',
@@ -715,28 +697,24 @@ describe('generate', () => {
             },
           },
         },
+        {
+          toolRequest: {
+            input: {
+              name: 'foo',
+            },
+            name: 'simpleTool',
+            ref: 'ref123',
+          },
+          metadata: {
+            pendingOutput: 'response: foo',
+          },
+        },
       ]);
       assert.deepStrictEqual(response.message?.toJSON(), {
         role: 'model',
         content: [
           {
             text: 'reasoning',
-          },
-          {
-            metadata: {
-              pendingToolResponse: {
-                name: 'simpleTool',
-                output: 'response: foo',
-                ref: 'ref123',
-              },
-            },
-            toolRequest: {
-              input: {
-                name: 'foo',
-              },
-              name: 'simpleTool',
-              ref: 'ref123',
-            },
           },
           {
             metadata: {
@@ -748,6 +726,18 @@ describe('generate', () => {
               input: {},
               name: 'interruptingTool',
               ref: 'ref123',
+            },
+          },
+          {
+            toolRequest: {
+              input: {
+                name: 'foo',
+              },
+              name: 'simpleTool',
+              ref: 'ref123',
+            },
+            metadata: {
+              pendingOutput: 'response: foo',
             },
           },
         ],

@@ -601,7 +601,7 @@ describe('definePrompt - dotprompt', () => {
 
       const response = hi({ name: 'Genkit' });
       await assert.rejects(response, {
-        message: 'NOT_FOUND: Model modelThatDoesNotExist not found',
+        message: "NOT_FOUND: Model 'modelThatDoesNotExist' not found",
       });
     });
   });
