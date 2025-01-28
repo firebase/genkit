@@ -37,6 +37,7 @@ import {
   evaluatorName,
   generateTestCaseId,
   getEvalExtractors,
+  hasAction,
   isEvaluator,
   logger,
   stackTraceSpans,
@@ -73,8 +74,14 @@ export async function runNewEvaluation(
     throw new Error(`Either 'data' or 'datasetId' must be provided`);
   }
 
+  const hasTargetAction = await hasAction({ manager, actionRef });
+  if (!hasTargetAction) {
+    throw new Error(`Cannot find action ${actionRef}.`);
+  }
+
   let inferenceDataset: Dataset;
   let metadata = {};
+
   if (datasetId) {
     const datasetStore = await getDatasetStore();
     logger.info(`Fetching dataset ${datasetId}...`);

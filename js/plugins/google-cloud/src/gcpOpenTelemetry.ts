@@ -128,7 +128,7 @@ export class GcpOpenTelemetry {
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
-      this.config.exportIO,
+      this.config.exportInputAndOutput,
       this.config.projectId,
       getErrorHandler(
         (err) => {
@@ -245,7 +245,7 @@ class MetricExporterWrapper extends MetricExporter {
 class AdjustingTraceExporter implements SpanExporter {
   constructor(
     private exporter: SpanExporter,
-    private logIO: boolean,
+    private logInputAndOutput: boolean,
     private projectId?: string,
     private errorHandler?: (error: Error) => void
   ) {}
@@ -354,26 +354,46 @@ class AdjustingTraceExporter implements SpanExporter {
     if (isRoot) {
       // Report top level feature request and latency only for root spans
       // Log input to and output from to the feature
-      featuresTelemetry.tick(span, unused, this.logIO, this.projectId);
+      featuresTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
       // Report executions and latency for all flow paths only on the root span
-      pathsTelemetry.tick(span, paths, this.logIO, this.projectId);
+      pathsTelemetry.tick(span, paths, this.logInputAndOutput, this.projectId);
       // Set root status explicitly
       span.attributes['genkit:rootState'] = span.attributes['genkit:state'];
     }
     if (type === 'action' && subtype === 'model') {
       // Report generate metrics () for all model actions
-      generateTelemetry.tick(span, unused, this.logIO, this.projectId);
+      generateTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
     }
     if (type === 'action' && subtype === 'tool') {
       // TODO: Report input and output for tool actions
     }
     if (type === 'action' || type === 'flow' || type == 'flowStep') {
       // Report request and latency metrics for all actions
-      actionTelemetry.tick(span, unused, this.logIO, this.projectId);
+      actionTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
     }
     if (type === 'userEngagement') {
       // Report user acceptance and feedback metrics
-      engagementTelemetry.tick(span, unused, this.logIO, this.projectId);
+      engagementTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
     }
   }
 

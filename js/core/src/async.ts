@@ -54,9 +54,11 @@ export class Channel<T> implements AsyncIterable<T> {
   }
 
   error(err: unknown): void {
-    // Note: we cannot use this.ready.reject because it will be ignored
-    // if ready.resolved has already been called.
     this.err = err;
+    // Note: we must call this.ready.reject here in case we get an error even before the stream is initiated,
+    // however we cannot rely on this.ready.reject because it will be ignored if ready.resolved has already
+    // been called, so this.err will be checked in the iterator as well.
+    this.ready.reject(err);
   }
 
   [Symbol.asyncIterator](): AsyncIterator<T> {

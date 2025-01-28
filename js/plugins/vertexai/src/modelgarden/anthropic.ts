@@ -42,6 +42,7 @@ import {
 } from 'genkit';
 import {
   GenerationCommonConfigSchema,
+  ModelAction,
   getBasicUsageStats,
   modelRef,
 } from 'genkit/model';
@@ -381,7 +382,7 @@ export function anthropicModel(
   modelName: string,
   projectId: string,
   region: string
-) {
+): ModelAction {
   const clients: Record<string, AnthropicVertex> = {};
   const clientFactory = (region: string): AnthropicVertex => {
     if (!clients[region]) {

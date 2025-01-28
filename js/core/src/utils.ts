@@ -31,6 +31,26 @@ export function deleteUndefinedProps(obj: any) {
 }
 
 /**
+ * Strips (non distructively) any properties with `undefined` values in the provided object and returns
+ */
+export function stripUndefinedProps<T>(input: T): T {
+  if (
+    input === undefined ||
+    Array.isArray(input) ||
+    typeof input !== 'object'
+  ) {
+    return input;
+  }
+  const out = {} as T;
+  for (const key in input) {
+    if (input[key] !== undefined) {
+      out[key] = stripUndefinedProps(input[key]);
+    }
+  }
+  return out;
+}
+
+/**
  * Returns the current environment that the app code is running in.
  *
  * @hidden

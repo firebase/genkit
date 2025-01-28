@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-import { ModelArgument, loadPromptFile, z } from 'genkit';
+import { ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
-import path from 'path';
 import { ai } from '../index.js';
 
 const PiiDetectionResponseSchema = z.object({
   reason: z.string(),
   verdict: z.boolean(),
 });
+
+const piiDetectionPrompt = ai.prompt('pii_detection');
 
 export async function piiDetectionScore<
   CustomModelOptions extends z.ZodTypeAny,
@@ -36,16 +37,18 @@ export async function piiDetectionScore<
     if (!d.output) {
       throw new Error('Output is required for PII detection');
     }
-    const finalPrompt = await loadPromptFile(
-      ai.registry,
-      path.resolve(__dirname, '../../prompts/pii_detection.prompt')
-    );
+
+    const finalPrompt = (
+      await piiDetectionPrompt.render({
+        output: d.output as string,
+      })
+    ).messages
+      ?.map((m) => m.content.map((c) => c.text).join())
+      .join();
 
     const response = await ai.generate({
       model: judgeLlm,
-      prompt: finalPrompt.renderText({
-        output: d.output as string,
-      }),
+      prompt: finalPrompt,
       config: judgeConfig,
       output: {
         schema: PiiDetectionResponseSchema,

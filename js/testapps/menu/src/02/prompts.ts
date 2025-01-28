@@ -22,18 +22,16 @@ import { menuTool } from './tools.js';
 // The prompt uses a tool which will load the menu data,
 // if the user asks a reasonable question about the menu.
 
-export const s02_dataMenuPrompt = ai.definePrompt(
-  {
-    name: 's02_dataMenu',
-    model: gemini15Flash,
-    input: { schema: MenuQuestionInputSchema },
-    output: { format: 'text' },
-    tools: [menuTool],
-    config: {
-      temperature: 0.2,
-    },
+export const s02_dataMenuPrompt = ai.definePrompt({
+  name: 's02_dataMenu',
+  model: gemini15Flash,
+  input: { schema: MenuQuestionInputSchema },
+  output: { format: 'text' },
+  tools: [menuTool],
+  config: {
+    temperature: 0.2,
   },
-  `
+  messages: `
 You are acting as a helpful AI assistant named Walt that can answer 
 questions about the food available on the menu at Walt's Burgers. 
 
@@ -44,5 +42,5 @@ DO NOT INVENT ITEMS NOT ON THE MENU. USE THE TOOL.
 
 Question:
 {{question}} ?
-`
-);
+`,
+});

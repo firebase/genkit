@@ -23,11 +23,17 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
-import { augmentWithContext, validateSupport } from './model/middleware.js';
+import {
+  augmentWithContext,
+  simulateConstrainedGeneration,
+  validateSupport,
+} from './model/middleware.js';
+export { simulateConstrainedGeneration };
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -204,6 +210,10 @@ export const ModelInfoSchema = z.object({
       contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
+      /** Model can natively support constrained generation. */
+      constrained: z.boolean().optional(),
+      /** Model supports controlling tool choice, e.g. forced tool calling. */
+      toolChoice: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
@@ -269,7 +279,7 @@ export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 /**
  * Zod schema of output config.
  */
-const OutputConfigSchema = z.object({
+export const OutputConfigSchema = z.object({
   format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
@@ -287,6 +297,7 @@ export const ModelRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   docs: z.array(DocumentDataSchema).optional(),
 });
@@ -341,12 +352,22 @@ export const GenerationUsageSchema = z.object({
  */
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
 
+/** Model response finish reason enum. */
+const FinishReasonSchema = z.enum([
+  'stop',
+  'length',
+  'blocked',
+  'interrupted',
+  'other',
+  'unknown',
+]);
+
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateSchema = z.object({
   index: z.number(),
   message: MessageSchema,
   usage: GenerationUsageSchema.optional(),
-  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
   custom: z.unknown(),
 });
@@ -367,7 +388,7 @@ export type CandidateError = z.infer<typeof CandidateErrorSchema>;
  */
 export const ModelResponseSchema = z.object({
   message: MessageSchema.optional(),
-  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
@@ -388,9 +409,7 @@ export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
 export const GenerateResponseSchema = ModelResponseSchema.extend({
   /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finishReason`, and `finishMessage` instead. */
   candidates: z.array(CandidateSchema).optional(),
-  finishReason: z
-    .enum(['stop', 'length', 'blocked', 'other', 'unknown'])
-    .optional(),
+  finishReason: FinishReasonSchema.optional(),
 });
 
 /**
@@ -467,7 +486,8 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  // middleware.push(conformOutput(registry));
+  if (!options?.supports?.constrained)
+    middleware.push(simulateConstrainedGeneration());
   const act = defineAction(
     registry,
     {
@@ -614,7 +634,8 @@ export interface ResolvedModel<
 
 export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
-  model: ModelArgument<C> | undefined
+  model: ModelArgument<C> | undefined,
+  options?: { warnDeprecated?: boolean }
 ): Promise<ResolvedModel<C>> {
   let out: ResolvedModel<C>;
   let modelId: string;
@@ -651,8 +672,17 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   if (!out.modelAction) {
     throw new GenkitError({
       status: 'NOT_FOUND',
-      message: `Model ${modelId} not found`,
+      message: `Model '${modelId}' not found`,
     });
+  }
+
+  if (
+    options?.warnDeprecated &&
+    out.modelAction.__action.metadata?.model?.stage === 'deprecated'
+  ) {
+    logger.warn(
+      `Model '${out.modelAction.__action.name}' is deprecated and may be removed in a future release.`
+    );
   }
 
   return out;

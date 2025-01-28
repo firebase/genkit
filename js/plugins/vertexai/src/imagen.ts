@@ -19,6 +19,7 @@ import {
   CandidateData,
   GenerateRequest,
   GenerationCommonConfigSchema,
+  ModelAction,
   ModelReference,
   getBasicUsageStats,
   modelRef,
@@ -218,7 +219,7 @@ export function imagenModel(
   name: string,
   client: GoogleAuth,
   options: PluginOptions
-) {
+): ModelAction {
   const modelName = `vertexai/${name}`;
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_IMAGEN_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);

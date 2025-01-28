@@ -41,7 +41,7 @@ export const TelemetryConfigs = {
       metricExportTimeoutMillis: 5_000,
       disableMetrics: false,
       disableTraces: false,
-      exportIO: !overrides.disableLoggingIO,
+      exportInputAndOutput: !overrides.disableLoggingInputAndOutput,
       export: !!overrides.forceDevExport, // false
     };
     return { ...defaults, ...overrides };
@@ -61,8 +61,7 @@ export const TelemetryConfigs = {
       metricExportTimeoutMillis: 300_000,
       disableMetrics: false,
       disableTraces: false,
-      disableLoggingIO: false,
-      exportIO: !overrides.disableLoggingIO,
+      exportInputAndOutput: !overrides.disableLoggingInputAndOutput,
       export: true,
     };
     return { ...defaults, ...overrides };

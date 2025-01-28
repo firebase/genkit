@@ -52,7 +52,7 @@ class ActionTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
@@ -78,14 +78,14 @@ class ActionTelemetry implements Telemetry {
       logger.warn(`Unknown action state; ${state}`);
     }
 
-    if (subtype === 'tool' && logIO) {
+    if (subtype === 'tool' && logInputAndOutput) {
       const input = attributes['genkit:input'] as string;
       const output = attributes['genkit:output'] as string;
       const sessionId = attributes['genkit:sessionId'] as string;
       const threadName = attributes['genkit:threadName'] as string;
 
       if (input) {
-        this.recordIO(
+        this.writeLog(
           span,
           'Input',
           featureName,
@@ -97,7 +97,7 @@ class ActionTelemetry implements Telemetry {
         );
       }
       if (output) {
-        this.recordIO(
+        this.writeLog(
           span,
           'Output',
           featureName,
@@ -149,12 +149,12 @@ class ActionTelemetry implements Telemetry {
     this.actionLatencies.record(latencyMs, dimensions);
   }
 
-  private recordIO(
+  private writeLog(
     span: ReadableSpan,
     tag: string,
     featureName: string,
     qualifiedPath: string,
-    input: string,
+    content: string,
     projectId?: string,
     sessionId?: string,
     threadName?: string
@@ -170,7 +170,7 @@ class ActionTelemetry implements Telemetry {
     };
     logger.logStructured(`${tag}[${path}, ${featureName}]`, {
       ...sharedMetadata,
-      content: input,
+      content,
     });
   }
 }

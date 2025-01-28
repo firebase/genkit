@@ -15,7 +15,12 @@
  */
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { getDatasetStore, getEvalStore, runNewEvaluation } from '../eval';
+import {
+  getDatasetStore,
+  getEvalStore,
+  runNewEvaluation,
+  validateSchema,
+} from '../eval';
 import { RuntimeManager } from '../manager/manager';
 import { GenkitToolsError, RuntimeInfo } from '../manager/types';
 import { Action } from '../types/action';
@@ -236,6 +241,15 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .output(evals.EvalRunKeySchema)
       .mutation(async ({ input }) => {
         const response = await runNewEvaluation(manager, input);
+        return response;
+      }),
+
+    /** Validate given data against a target action schema */
+    validateDatasetSchema: loggedProcedure
+      .input(apis.ValidateDataRequestSchema)
+      .output(apis.ValidateDataResponseSchema)
+      .mutation(async ({ input }) => {
+        const response = await validateSchema(manager, input);
         return response;
       }),
 
