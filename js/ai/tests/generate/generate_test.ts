@@ -290,17 +290,13 @@ describe('toGenerateRequest', () => {
               {
                 toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: { name: 'p1', ref: '1', output: 'done' },
+                  pendingOutput: 'done',
                 },
               },
               {
                 toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: {
-                    name: 'p2',
-                    ref: '2',
-                    output: 'done2',
-                  },
+                  pendingOutput: 'done2',
                 },
               },
               {
@@ -338,17 +334,13 @@ describe('toGenerateRequest', () => {
               {
                 toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: { name: 'p1', ref: '1', output: 'done' },
+                  pendingOutput: 'done',
                 },
               },
               {
                 toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
                 metadata: {
-                  pendingToolResponse: {
-                    name: 'p2',
-                    ref: '2',
-                    output: 'done2',
-                  },
+                  pendingOutput: 'done2',
                 },
               },
               {

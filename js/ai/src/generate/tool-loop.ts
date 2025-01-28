@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { GenkitError, stripUndefinedProps, z } from '@genkit-ai/core';
+import { GenkitError, stripUndefinedProps } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
-import { MessageData, ToolRequestPart, ToolResponsePart } from '../model.js';
+import { MessageData, ToolResponsePart } from '../model.js';
 import { isPromptAction } from '../prompt.js';
 import { ToolAction, ToolInterruptError, resolveTools } from '../tool.js';
-import { GenerateUtilParamSchema } from './action.js';
+import { GenerateActionOptions } from './action.js';
 
 export function toToolMap(tools: ToolAction[]): Record<string, ToolAction> {
   assertValidToolNames(tools);
@@ -56,21 +56,18 @@ export function assertValidToolNames(tools: ToolAction[]) {
  */
 export async function resolveToolRequests(
   registry: Registry,
-  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
+  rawRequest: GenerateActionOptions,
   generatedMessage: MessageData
 ): Promise<{
   revisedModelMessage?: MessageData;
   toolMessage?: MessageData;
-  transferPreamble?: z.infer<typeof GenerateUtilParamSchema>;
+  transferPreamble?: GenerateActionOptions;
 }> {
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
-  const toolRequests = generatedMessage.content.filter(
-    (p) => !!p.toolRequest
-  ) as ToolRequestPart[];
 
   const responseParts: ToolResponsePart[] = [];
   let hasInterrupts: boolean = false;
-  let transferPreamble: z.infer<typeof GenerateUtilParamSchema> | undefined;
+  let transferPreamble: GenerateActionOptions | undefined;
 
   const revisedModelMessage = {
     ...generatedMessage,
@@ -78,7 +75,9 @@ export async function resolveToolRequests(
   };
 
   await Promise.all(
-    toolRequests.map(async (part, i) => {
+    revisedModelMessage.content.map(async (part, i) => {
+      if (!part.toolRequest) return; // skip non-tool-request parts
+
       const tool = toolMap[part.toolRequest.name];
       if (!tool) {
         throw new GenkitError({
@@ -100,7 +99,7 @@ export async function resolveToolRequests(
           toolResponse: {
             name: part.toolRequest.name,
             ref: part.toolRequest.ref,
-            output: `transferring to ${part.toolRequest.name}`,
+            output: `transferred to ${part.toolRequest.name}`,
           },
         });
         return;
@@ -116,9 +115,13 @@ export async function resolveToolRequests(
             output,
           },
         });
+
         revisedModelMessage.content.splice(i, 1, {
           ...part,
-          metadata: { ...part.metadata, pendingToolResponse: responsePart },
+          metadata: {
+            ...part.metadata,
+            pendingOutput: responsePart.toolResponse.output,
+          },
         });
         responseParts.push(responsePart);
       } catch (e) {

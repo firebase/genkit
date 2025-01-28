@@ -55,7 +55,7 @@ import {
 import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
 import { assertValidToolNames, resolveToolRequests } from './tool-loop.js';
 
-export const GenerateUtilParamSchema = z.object({
+export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
   model: z.string(),
   /** Retrieved documents to be used as context for this generation. */
@@ -82,6 +82,7 @@ export const GenerateUtilParamSchema = z.object({
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
   maxTurns: z.number().optional(),
 });
+export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;
 
 /**
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
@@ -89,7 +90,7 @@ export const GenerateUtilParamSchema = z.object({
 export async function generateHelper(
   registry: Registry,
   options: {
-    rawRequest: z.infer<typeof GenerateUtilParamSchema>;
+    rawRequest: GenerateActionOptions;
     middleware?: ModelMiddleware[];
     currentTurn?: number;
     messageIndex?: number;
@@ -126,7 +127,7 @@ export async function generateHelper(
 /** Take the raw request and resolve tools, model, and format into their registry action counterparts. */
 async function resolveParameters(
   registry: Registry,
-  request: z.infer<typeof GenerateUtilParamSchema>
+  request: GenerateActionOptions
 ) {
   const [model, tools, format] = await Promise.all([
     resolveModel(registry, request.model).then((r) => r.modelAction),
@@ -138,7 +139,7 @@ async function resolveParameters(
 
 /** Given a raw request and a formatter, apply the formatter's logic and instructions to the request. */
 function applyFormat(
-  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
+  rawRequest: GenerateActionOptions,
   resolvedFormat?: Formatter
 ) {
   const outRequest = { ...rawRequest };
@@ -167,9 +168,9 @@ function applyFormat(
 }
 
 function applyTransferPreamble(
-  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  transferPreamble?: z.infer<typeof GenerateUtilParamSchema>
-): z.infer<typeof GenerateUtilParamSchema> {
+  rawRequest: GenerateActionOptions,
+  transferPreamble?: GenerateActionOptions
+): GenerateActionOptions {
   if (!transferPreamble) {
     return rawRequest;
   }
@@ -180,8 +181,8 @@ function applyTransferPreamble(
       ...tagAsPreamble(transferPreamble.messages!)!,
       ...rawRequest.messages.filter((m) => !m.metadata?.preamble),
     ],
-    toolChoice: transferPreamble.toolChoice,
-    tools: transferPreamble.tools,
+    toolChoice: transferPreamble.toolChoice || rawRequest.toolChoice,
+    tools: transferPreamble.tools || rawRequest.tools,
   });
 }
 
@@ -193,7 +194,7 @@ async function generate(
     currentTurn,
     messageIndex,
   }: {
-    rawRequest: z.infer<typeof GenerateUtilParamSchema>;
+    rawRequest: GenerateActionOptions;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
@@ -310,7 +311,11 @@ async function generate(
     })
   );
 
-  let nextRequest = applyTransferPreamble(rawRequest, transferPreamble);
+  let nextRequest = {
+    ...rawRequest,
+    messages: [...rawRequest.messages, generatedMessage, toolMessage!],
+  };
+  nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
 
   // then recursively call for another loop
   return await generateHelper(registry, {
@@ -322,7 +327,7 @@ async function generate(
 }
 
 async function actionToGenerateRequest(
-  options: z.infer<typeof GenerateUtilParamSchema>,
+  options: GenerateActionOptions,
   resolvedTools: ToolAction[] | undefined,
   resolvedFormat: Formatter | undefined,
   model: ModelAction

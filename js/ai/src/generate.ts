@@ -22,6 +22,7 @@ import {
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
+  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
@@ -33,7 +34,10 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { GenerateUtilParamSchema, generateHelper } from './generate/action.js';
+import {
+  GenerateActionOptionsSchema,
+  generateHelper,
+} from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
@@ -160,10 +164,17 @@ async function applyResumeOption(
   const toolRequests = lastModelMessage.content.filter((p) => !!p.toolRequest);
 
   const pendingResponses: ToolResponsePart[] = toolRequests
-    .filter((t) => !!t.metadata?.pendingToolResponse)
-    .map((t) => ({
-      toolResponse: t.metadata!.pendingToolResponse,
-    })) as ToolResponsePart[];
+    .filter((t) => !!t.metadata?.pendingOutput)
+    .map((t) =>
+      stripUndefinedProps({
+        toolResponse: {
+          name: t.toolRequest!.name,
+          ref: t.toolRequest!.ref,
+          output: t.metadata!.pendingOutput,
+          metadata: { source: 'pending' },
+        },
+      })
+    ) as ToolResponsePart[];
 
   const reply = Array.isArray(options.resume.reply)
     ? options.resume.reply
@@ -359,7 +370,7 @@ export async function generate<
     resolvedOptions?.output?.instructions
   );
 
-  const params: z.infer<typeof GenerateUtilParamSchema> = {
+  const params: z.infer<typeof GenerateActionOptionsSchema> = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
     messages: injectInstructions(messages, instructions),
