@@ -37,6 +37,8 @@ const appRoute =
     const { readable, writable } = new TransformStream();
 
     // Not using a dangling Promise causes NextResponse to deadlock.
+    // TODO: Add ping comments at regular intervals between streaming responses to mitigate
+    // timeouts.
     (async (): Promise<void> => {
       const writer = writable.getWriter();
       try {
@@ -56,7 +58,9 @@ const appRoute =
         await writer.write('END');
       } catch (err) {
         console.error('Error in streaming output:', err);
-        await writer.write(encoder.encode(`error: INTERNAL` + '\n\n'));
+        await writer.write(
+          encoder.encode(`error: {"error": {"message":"INTERNAL"}}` + '\n\n')
+        );
         await writer.write(encoder.encode('END'));
       }
     })();

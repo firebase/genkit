@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/nextjs",
+  "name": "@genkit-ai/next",
   "description": "Next.js plugin for Genkit",
   "keywords": [
     "genkit",
@@ -9,6 +9,7 @@
     "ai",
     "genai",
     "generative-ai",
+    "next",
     "nextjs",
     "next.js",
     "react"

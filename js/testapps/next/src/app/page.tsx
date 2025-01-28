@@ -1,7 +1,7 @@
 'use client';
 
 import { tellJoke } from '@/genkit/joke';
-import { runFlow, streamFlow } from '@genkit-ai/nextjs/client';
+import { runFlow, streamFlow } from '@genkit-ai/next/client';
 import { useEffect, useRef, useState } from 'react';
 
 async function run(type: string, setResponse: (response: string) => void) {

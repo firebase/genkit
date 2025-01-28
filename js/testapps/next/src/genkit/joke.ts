@@ -15,7 +15,7 @@
  */
 
 import { z } from 'genkit';
-import { ai } from './';
+import { ai } from '.';
 
 export const tellJoke = ai.defineFlow(
   {
