@@ -44,10 +44,10 @@ export class StreamingJSONComponent {
         url,
         input: parseInt(this.count),
       });
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         this.characters = chunk;
       }
-      console.log('streamConsumer done', await response.output());
+      console.log('streamConsumer done', await response.output);
       this.loading = false;
     } catch (e) {
       this.loading = false;

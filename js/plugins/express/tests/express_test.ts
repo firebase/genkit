@@ -283,7 +283,7 @@ describe('expressHandler', async () => {
       });
 
       const gotChunks: GenerateResponseChunkData[] = [];
-      for await (const chunk of result.stream()) {
+      for await (const chunk of result.stream) {
         gotChunks.push(chunk);
       }
 
@@ -293,7 +293,7 @@ describe('expressHandler', async () => {
         { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
-      assert.strictEqual(await result.output(), 'Echo: olleh');
+      assert.strictEqual(await result.output, 'Echo: olleh');
     });
 
     it('stream a model', async () => {
@@ -310,11 +310,11 @@ describe('expressHandler', async () => {
       });
 
       const gotChunks: any[] = [];
-      for await (const chunk of result.stream()) {
+      for await (const chunk of result.stream) {
         gotChunks.push(chunk);
       }
 
-      const output = await result.output();
+      const output = await result.output;
       assert.strictEqual(output.finishReason, 'stop');
       assert.deepStrictEqual(output.message, {
         role: 'model',
@@ -502,7 +502,7 @@ describe('startFlowServer', async () => {
       });
 
       const gotChunks: GenerateResponseChunkData[] = [];
-      for await (const chunk of result.stream()) {
+      for await (const chunk of result.stream) {
         gotChunks.push(chunk);
       }
 
@@ -512,7 +512,7 @@ describe('startFlowServer', async () => {
         { index: 0, role: 'model', content: [{ text: '1' }] },
       ]);
 
-      assert.strictEqual(await result.output(), 'Echo: olleh');
+      assert.strictEqual(await result.output, 'Echo: olleh');
     });
   });
 });
