@@ -446,8 +446,8 @@ export function defineActionAsync<
         pluginId: string;
         actionId: string;
       },
-  config: Promise<ActionAsyncParams<I, O, S>>
-): Promise<Action<I, O, S>> {
+  config: PromiseLike<ActionAsyncParams<I, O, S>>
+): PromiseLike<Action<I, O, S>> {
   const actionName =
     typeof name === 'string' ? name : `${name.pluginId}/${name.actionId}`;
   const actionPromise = config.then((resolvedConfig) => {
