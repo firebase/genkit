@@ -34,7 +34,7 @@
     "chromadb": "1.8.1"
   },
   "peerDependencies": {
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

@@ -31,8 +31,8 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@genkit-ai/google-cloud": "workspace:*",
-    "@genkit-ai/express": "workspace:*",
+    "@genkit-ai/google-cloud": "workspace:^",
+    "@genkit-ai/express": "workspace:^",
     "express": "^4.21.0",
     "google-auth-library": "^9.6.3"
   },
@@ -40,7 +40,7 @@
     "@google-cloud/firestore": "^7.6.0",
     "firebase-admin": ">=12.2",
     "firebase-functions": ">=4.8",
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

@@ -38,8 +38,8 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "genkit": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+    "genkit": "workspace:^",
+    "@genkit-ai/core": "workspace:^"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

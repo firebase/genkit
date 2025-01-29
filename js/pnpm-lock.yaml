@@ -238,13 +238,13 @@ importers:
   plugins/checks:
     dependencies:
       '@genkit-ai/ai':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../ai
       '@googleapis/checks':
         specifier: ^4.0.2
         version: 4.0.2(encoding@0.1.13)
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
@@ -275,7 +275,7 @@ importers:
         specifier: 1.8.1
         version: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
@@ -306,7 +306,7 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
@@ -340,7 +340,7 @@ importers:
         specifier: ^1.0.0-dev.3 || ^1
         version: 1.0.0-dev.3
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       node-fetch:
         specifier: ^3.3.2
@@ -380,7 +380,7 @@ importers:
         specifier: ^4.21.1
         version: 4.21.1
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
     devDependencies:
       '@types/body-parser':
@@ -417,10 +417,10 @@ importers:
   plugins/firebase:
     dependencies:
       '@genkit-ai/express':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../express
       '@genkit-ai/google-cloud':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../google-cloud
       '@google-cloud/firestore':
         specifier: ^7.6.0
@@ -435,7 +435,7 @@ importers:
         specifier: '>=4.8'
         version: 4.8.1(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
@@ -523,7 +523,7 @@ importers:
         specifier: ^1.25.0
         version: 1.25.1(@opentelemetry/api@1.9.0)
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
@@ -569,7 +569,7 @@ importers:
         specifier: ^0.21.0
         version: 0.21.0
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
@@ -609,7 +609,7 @@ importers:
         specifier: ^1.9.0
         version: 1.9.0
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       langchain:
         specifier: ^0.1.36
@@ -637,13 +637,13 @@ importers:
   plugins/mcp:
     dependencies:
       '@genkit-ai/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../core
       '@modelcontextprotocol/sdk':
         specifier: 1.0.0
         version: 1.0.0
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
     devDependencies:
       '@jest/globals':
@@ -677,7 +677,7 @@ importers:
   plugins/ollama:
     dependencies:
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       ollama:
         specifier: ^0.5.9
@@ -708,7 +708,7 @@ importers:
         specifier: ^2.0.1
         version: 2.2.0
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
@@ -751,7 +751,7 @@ importers:
         specifier: ^1.3.5
         version: 1.3.5(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.23.8)
       genkit:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.14.2
@@ -1334,7 +1334,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.5)(@genkit-ai/core@1.0.0-rc.5)
+        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.9)(@genkit-ai/core@1.0.0-rc.9)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2365,11 +2365,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.0.0-rc.5':
-    resolution: {integrity: sha512-bNalrwA5HTNa9lo0dbh6I/fCFMbiqMXo1GYNwWbdYEZFyaK11L1sgoAcRoafZQJublvFKnaTn9llrn7VHQkaBA==}
+  '@genkit-ai/ai@1.0.0-rc.9':
+    resolution: {integrity: sha512-V6Q0Rizr/VtxPo/Ww2ubuyjVlltdqjpBGLofXlnoBUF7y67+ITEw9ziFyz8VH/26M/q0WSS/ohJnVf9d78p3bQ==}
 
-  '@genkit-ai/core@1.0.0-rc.5':
-    resolution: {integrity: sha512-jTu0Flixq27H3dKAwysoUHk5LwX0anMevd2J+0reTK0DCRzVdc0mJjlBw5nX29XszB9zAp+Y/bSOjeCreBW33A==}
+  '@genkit-ai/core@1.0.0-rc.9':
+    resolution: {integrity: sha512-8HCbVPDSEsIMKPFFGBwU+hAX6ynDtXD0YICP7a1K9CnBpm2FofEH15RTc/6DzdXLLaaH0P5K04pCEv9rhD2eHw==}
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -7426,12 +7426,13 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.0.0-rc.5':
+  '@genkit-ai/ai@1.0.0-rc.9':
     dependencies:
-      '@genkit-ai/core': 1.0.0-rc.5
+      '@genkit-ai/core': 1.0.0-rc.9
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
+      dotprompt: 1.0.0-dev.3
       json5: 2.2.3
       node-fetch: 3.3.2
       partial-json: 0.1.7
@@ -7439,7 +7440,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.0.0-rc.5':
+  '@genkit-ai/core@1.0.0-rc.9':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -7453,6 +7454,7 @@ snapshots:
       async-mutex: 0.5.0
       body-parser: 1.20.3
       cors: 2.8.5
+      dotprompt: 1.0.0-dev.3
       express: 4.21.1
       get-port: 5.1.0
       json-schema: 0.4.0
@@ -10041,10 +10043,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.5)(@genkit-ai/core@1.0.0-rc.5):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.9)(@genkit-ai/core@1.0.0-rc.9):
     dependencies:
-      '@genkit-ai/ai': 1.0.0-rc.5
-      '@genkit-ai/core': 1.0.0-rc.5
+      '@genkit-ai/ai': 1.0.0-rc.9
+      '@genkit-ai/core': 1.0.0-rc.9
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:

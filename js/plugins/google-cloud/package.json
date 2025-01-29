@@ -50,7 +50,7 @@
     "winston": "^3.12.0"
   },
   "peerDependencies": {
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
