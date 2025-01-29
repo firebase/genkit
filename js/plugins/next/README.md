@@ -31,25 +31,29 @@ APIs can be called with the generic `genkit/client` library, or `@genkit-ai/next
 import { runFlow, streamFlow } from '@genkit-ai/nextjs/client';
 import { simpleFlow } from '@/genkit/simpleFlow';
 
-const result = await runFlow<typeof simpleFlow>('/api/simpleFlow', 'say hello');
+const result = await runFlow<typeof simpleFlow>({
+  url: '/api/simpleFlow',
+  input: 'say hello',
+});
 
 console.log(result); // hello
 
 // set auth headers (when using auth policies)
-const result = await runFlow<typeof simpleFlow>(
-  {
-    url: `/api/simpleFlow`,
-    headers: {
-      Authorization: 'open sesame',
-    },
+const result = await runFlow<typeof simpleFlow>({
+  url: `/api/simpleFlow`,
+  headers: {
+    Authorization: 'open sesame',
   },
-  'say hello'
-);
+  input: 'say hello',
+});
 
 console.log(result); // hello
 
 // and streamed
-const result = streamFlow < typeof simpleFlow('/api/simpleFlow', 'say hello');
+const result = streamFlow<typeof simpleFlow>({
+  url: '/api/simpleFlow',
+  input: 'say hello',
+});
 for await (const chunk of result.stream()) {
   console.log(chunk.output);
 }
