@@ -3,6 +3,7 @@
 import { tellJoke } from '@/genkit/joke';
 import { runFlow, streamFlow } from '@genkit-ai/next/client';
 import { useEffect, useRef, useState } from 'react';
+import styles from './page.module.css';
 
 async function run(type: string, setResponse: (response: string) => void) {
   setResponse('...');
@@ -29,7 +30,7 @@ async function stream(type: string, setResponse: (response: string) => void) {
 
 export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [getResponse, setResponse] = useState<string>('');
+  const [response, setResponse] = useState<string>('Pick a joke type');
   function focus() {
     if (inputRef.current) {
       inputRef.current.focus();
@@ -38,8 +39,12 @@ export default function Home() {
   useEffect(focus);
   return (
     <>
-      <div>
-        <input type="text" alt="Joke type" ref={inputRef}></input>
+      <div className={styles.title}>
+        <input
+          type="text"
+          alt="Joke type"
+          placeholder="Joke type"
+          ref={inputRef}></input>
         <button
           onClick={() => {
             run(inputRef.current!.value, setResponse);
@@ -55,7 +60,7 @@ export default function Home() {
           Stream
         </button>
       </div>
-      <div>getRespone()</div>
+      <div>{response}</div>
     </>
   );
 }

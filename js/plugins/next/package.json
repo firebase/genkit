@@ -15,7 +15,8 @@
     "react"
   ],
   "version": "0.0.1-dev.1",
-  "type": "module",
+  "type": "commonjs",
+  "main": "lib/index.js",
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",

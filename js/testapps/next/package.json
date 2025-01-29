@@ -5,6 +5,7 @@
   "description": "Sample app to test @genkit-ai/nextjs",
   "main": "lib/index.js",
   "scripts": {
+    "vendor": "cd ../../plugins/next && pnpm pack --pack-destination ../../testapps/next && cd - && pnpm install ./genkit-ai-next*.tgz --filter nextjs-sample",
     "start": "next start",
     "build": "next build",
     "dev": "next dev",
