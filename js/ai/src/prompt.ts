@@ -739,7 +739,10 @@ function loadPrompt(
 
       // dotprompt can set null description on the schema, which can confuse downstream schema consumers
       if (promptMetadata.output?.schema?.description === null) {
-        delete promptMetadata.output?.schema?.description;
+        delete promptMetadata.output.schema.description;
+      }
+      if (promptMetadata.input?.schema?.description === null) {
+        delete promptMetadata.input.schema.description;
       }
 
       return {

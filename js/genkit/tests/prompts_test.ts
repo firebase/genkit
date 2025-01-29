@@ -1016,7 +1016,7 @@ describe.only('prompt', () => {
     });
   });
 
-  it('resolved schema refs', async () => {
+  it.only('resolved schema refs', async () => {
     const prompt = ai.prompt('schemaRef');
 
     const rendered = await prompt.render({ foo: 'bar' });
@@ -1031,6 +1031,16 @@ describe.only('prompt', () => {
       required: ['output'],
       type: 'object',
     });
+
+    assert.deepStrictEqual(
+      (await (await prompt.asTool())({ foo: 'bar' })).messages,
+      [
+        {
+          role: 'user',
+          content: [{ text: 'Write a poem about bar.' }],
+        },
+      ]
+    );
   });
 
   it('loads a varaint from from the folder', async () => {
