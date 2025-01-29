@@ -70,12 +70,13 @@
 6. If you're a Googler, also [associate your `@google.com` email
    address](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/adding-an-email-address-to-your-github-account)
    with your GitHub account and follow any other requirements to complete this
-   process (ask `pavelgj@`).
+   process.
 
 ### GitHub Organization Membership
 
-Please talk to `pavelgj@` to get yourself added to the appropriate groups for
-your GitHub organization membership.
+Please talk to the Genkit Dec team (on [discord](https://discord.gg/qXt5zzQKpc))
+to get yourself added to the appropriate groups for your GitHub organization
+membership.
 
 ### CLA
 

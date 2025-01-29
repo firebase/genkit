@@ -94,13 +94,13 @@ function genkit::install_prerequisites() {
 function genkit::install_google_cloud_sdk() {
   # This depends on Python 3.11 and installs it for the user on some systems.
   if command -v gcloud &>/dev/null; then
-    gcloud config set disable_usage_reporting false
+    gcloud config set disable_usage_reporting true
     gcloud components update
     return 0
   fi
 
   curl https://sdk.cloud.google.com | bash -s -- --disable-prompts
-  gcloud config set disable_usage_reporting false
+  gcloud config set disable_usage_reporting true
 }
 
 # Install all the required tools for CI.
@@ -129,7 +129,7 @@ function genkit::install_go_cli_tools() {
   go install github.com/jesseduffield/lazygit@latest
 }
 
-# Install all the required tools that have beenwritten in Rust.  We're assuming
+# Install all the required tools that have been written in Rust.  We're assuming
 # that the user has already installed rust and cargo.
 function genkit::install_cargo_cli_tools() {
   "$HOME/.cargo/bin/cargo" install --locked \
