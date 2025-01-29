@@ -889,7 +889,7 @@ describe('definePrompt', () => {
   });
 });
 
-describe.only('prompt', () => {
+describe('prompt', () => {
   let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
@@ -1031,6 +1031,16 @@ describe.only('prompt', () => {
       required: ['output'],
       type: 'object',
     });
+
+    assert.deepStrictEqual(
+      (await (await prompt.asTool())({ foo: 'bar' })).messages,
+      [
+        {
+          role: 'user',
+          content: [{ text: 'Write a poem about bar.' }],
+        },
+      ]
+    );
   });
 
   it('loads a varaint from from the folder', async () => {
