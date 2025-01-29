@@ -151,14 +151,16 @@ const ai = genkit({
 });
 
 const embeddings = await ai.embed({
-  embedder:  multimodalEmbedding001,
-  content: [{
-    media: {
-      contentType: 'video/mp4',
-      url: 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'
-    }}]
+  embedder: multimodalEmbedding001,
+  content: {
+    content: [{
+      "media": {
+        "url": "gs://cloud-samples-data/generative-ai/video/pixel8.mp4",
+        "contentType": "video/mp4"
+      }
+    }]
+  }
 });
-
 ```
 
 Imagen3 model allows generating images from user prompt:
