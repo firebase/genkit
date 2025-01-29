@@ -93,7 +93,7 @@ export function extractErrorStack(events: TimedEvent[]): string | undefined {
     .map((event) => {
       const attributes = event.attributes;
       return attributes
-        ? truncate(attributes['exception.stacktrace'] as string, 4096)
+        ? truncate(attributes['exception.stacktrace'] as string, 32_768)
         : '<unknown>';
     })
     .at(0);
