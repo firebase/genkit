@@ -17,10 +17,13 @@
 import { GenkitError, stripUndefinedProps } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
-import { MessageData, ToolResponsePart } from '../model.js';
+import {
+  GenerateActionOptions,
+  MessageData,
+  ToolResponsePart,
+} from '../model.js';
 import { isPromptAction } from '../prompt.js';
 import { ToolAction, ToolInterruptError, resolveTools } from '../tool.js';
-import { GenerateActionOptions } from './action.js';
 
 export function toToolMap(tools: ToolAction[]): Record<string, ToolAction> {
   assertValidToolNames(tools);

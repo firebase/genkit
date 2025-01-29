@@ -21,7 +21,6 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Document } from '../../src/document.js';
 import { GenerateOptions } from '../../src/index.js';
-import { ModelAction, defineModel } from '../../src/model';
 import {
   PromptConfig,
   PromptGenerateOptions,
@@ -29,6 +28,7 @@ import {
 } from '../../src/prompt.js';
 import { Session } from '../../src/session.js';
 import { defineTool } from '../../src/tool.js';
+import { defineEchoModel } from '../helpers.js';
 
 describe('prompt', () => {
   let registry;
@@ -822,66 +822,6 @@ describe('prompt', () => {
     );
   });
 });
-
-export function defineEchoModel(registry: Registry): ModelAction {
-  const model = defineModel(
-    registry,
-    {
-      name: 'echoModel',
-    },
-    async (request, streamingCallback) => {
-      (model as any).__test__lastRequest = request;
-      (model as any).__test__lastStreamingCallback = streamingCallback;
-      if (streamingCallback) {
-        streamingCallback({
-          content: [
-            {
-              text: '3',
-            },
-          ],
-        });
-        streamingCallback({
-          content: [
-            {
-              text: '2',
-            },
-          ],
-        });
-        streamingCallback({
-          content: [
-            {
-              text: '1',
-            },
-          ],
-        });
-      }
-      return {
-        message: {
-          role: 'model',
-          content: [
-            {
-              text:
-                'Echo: ' +
-                request.messages
-                  .map(
-                    (m) =>
-                      (m.role === 'user' || m.role === 'model'
-                        ? ''
-                        : `${m.role}: `) + m.content.map((c) => c.text).join()
-                  )
-                  .join(),
-            },
-            {
-              text: '; config: ' + JSON.stringify(request.config),
-            },
-          ],
-        },
-        finishReason: 'stop',
-      };
-    }
-  );
-  return model;
-}
 
 function stripUndefined(input: any) {
   if (
