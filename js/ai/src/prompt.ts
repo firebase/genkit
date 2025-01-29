@@ -25,6 +25,7 @@ import {
   stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
+import { LazyPromise } from '@genkit-ai/core/async';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
@@ -240,7 +241,7 @@ function definePromptAsync<
 >(
   registry: Registry,
   name: string,
-  optionsPromise: Promise<PromptConfig<I, O, CustomOptions>>
+  optionsPromise: PromiseLike<PromptConfig<I, O, CustomOptions>>
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
   const promptCache = {} as PromptCache;
 
@@ -732,7 +733,12 @@ function loadPrompt(
   definePromptAsync(
     registry,
     registryDefinitionKey(name, variant ?? undefined, ns),
-    registry.dotprompt.renderMetadata(parsedPrompt).then((promptMetadata) => {
+    // We use a lazy promise here because we only want prompt loaded when it's first used.
+    // This is important because otherwise the loading may happen before the user has configured
+    // all the schemas, etc., which will result in dotprompt.renderMetadata errors.
+    new LazyPromise<PromptConfig>(async (resolvePromptConfig) => {
+      const promptMetadata =
+        await registry.dotprompt.renderMetadata(parsedPrompt);
       if (variant) {
         promptMetadata.variant = variant;
       }
@@ -745,7 +751,7 @@ function loadPrompt(
         delete promptMetadata.input.schema.description;
       }
 
-      return {
+      resolvePromptConfig({
         name: registryDefinitionKey(name, variant ?? undefined, ns),
         model: promptMetadata.model,
         config: promptMetadata.config,
@@ -770,7 +776,7 @@ function loadPrompt(
         toolChoice: promptMetadata.raw?.['toolChoice'],
         returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
         messages: parsedPrompt.template,
-      };
+      });
     })
   );
 }
