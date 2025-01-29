@@ -676,9 +676,9 @@ importers:
 
   plugins/next:
     dependencies:
-      '@genkit-ai/core':
+      '@genkit-ai/next':
         specifier: workspace:*
-        version: link:../../core
+        version: 'link:'
       genkit:
         specifier: workspace:*
         version: link:../../genkit

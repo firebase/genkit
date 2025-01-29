@@ -16,7 +16,7 @@ async function run(type: string, setResponse: (response: string) => void) {
 async function stream(type: string, setResponse: (response: string) => void) {
   let accum = '';
   setResponse('...');
-  const { stream, response } = streamFlow<typeof tellJoke>({
+  const { stream, output } = streamFlow<typeof tellJoke>({
     url: '/api/joke',
     input: type === '' ? null : type,
   });
@@ -24,7 +24,7 @@ async function stream(type: string, setResponse: (response: string) => void) {
     accum = accum + chunk;
     setResponse(accum);
   }
-  setResponse(await response);
+  setResponse(await output);
 }
 
 export default function Home() {

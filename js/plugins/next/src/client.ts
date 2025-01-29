@@ -19,17 +19,13 @@ import {
   runFlow as baseRunFlow,
   streamFlow as baseStreamFlow,
 } from 'genkit/client';
-import * as z from 'zod';
-
-// Helper for z.infer that asserts Z is a zod type;
-type ZodToTS<Z> = Z extends z.ZodAny ? z.infer<Z> : never;
 
 type Input<A extends Action> =
-  A extends Action<infer I, any, any> ? ZodToTS<I> : never;
+  A extends Action<infer I, any, any> ? I['_output'] : never;
 type Output<A extends Action> =
-  A extends Action<any, infer O, any> ? ZodToTS<O> : never;
+  A extends Action<any, infer O, any> ? O['_output'] : never;
 type Stream<A extends Action> =
-  A extends Action<any, any, infer S> ? ZodToTS<S> : never;
+  A extends Action<any, any, infer S> ? S['_output'] : never;
 
 export interface RequestData<T> {
   url: string;

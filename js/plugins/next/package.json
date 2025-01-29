@@ -61,5 +61,12 @@
       "types": "./lib/client.d.ts",
       "default": "./lib/client.js"
     }
+  },
+  "typesVersions": {
+    "*": {
+      "client": [
+        "lib/client"
+      ]
+    }
   }
 }
