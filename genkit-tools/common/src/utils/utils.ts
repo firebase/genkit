@@ -26,8 +26,16 @@ export async function findProjectRoot(): Promise<string> {
   while (currentDir !== path.parse(currentDir).root) {
     const packageJsonPath = path.join(currentDir, 'package.json');
     const goModPath = path.join(currentDir, 'go.mod');
+    const pyprojectPath = path.join(currentDir, 'pyproject.toml');
+    const pyproject2Path = path.join(currentDir, 'requirements.txt');
+
     try {
-      const [packageJsonExists, goModExists] = await Promise.all([
+      const [
+        packageJsonExists,
+        goModExists,
+        pyprojectExists,
+        pyproject2Exists,
+      ] = await Promise.all([
         fs
           .access(packageJsonPath)
           .then(() => true)
@@ -36,8 +44,21 @@ export async function findProjectRoot(): Promise<string> {
           .access(goModPath)
           .then(() => true)
           .catch(() => false),
+        fs
+          .access(pyprojectPath)
+          .then(() => true)
+          .catch(() => false),
+        fs
+          .access(pyproject2Path)
+          .then(() => true)
+          .catch(() => false),
       ]);
-      if (packageJsonExists || goModExists) {
+      if (
+        packageJsonExists ||
+        goModExists ||
+        pyprojectExists ||
+        pyproject2Exists
+      ) {
         return currentDir;
       }
     } catch {

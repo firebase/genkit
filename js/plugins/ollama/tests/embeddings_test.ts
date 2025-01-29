@@ -69,7 +69,7 @@ describe('defineOllamaEmbedder', () => {
       embedder,
       content: 'Hello, world!',
     });
-    assert.deepStrictEqual(result, [0.1, 0.2, 0.3]);
+    assert.deepStrictEqual(result, [{ embedding: [0.1, 0.2, 0.3] }]);
   });
 
   it('should handle API errors correctly', async () => {

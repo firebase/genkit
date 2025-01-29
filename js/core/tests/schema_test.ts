@@ -20,6 +20,7 @@ import { describe, it } from 'node:test';
 import {
   ValidationError,
   parseSchema,
+  toJsonSchema,
   validateSchema,
   z,
 } from '../src/schema.js';
@@ -135,6 +136,29 @@ describe('parse()', () => {
         }
       ),
       { foo: true }
+    );
+  });
+});
+
+describe('toJsonSchema', () => {
+  it('converts zod to JSON schema', async () => {
+    assert.deepStrictEqual(
+      toJsonSchema({
+        schema: z.object({
+          output: z.string(),
+        }),
+      }),
+      {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        additionalProperties: true,
+        properties: {
+          output: {
+            type: 'string',
+          },
+        },
+        required: ['output'],
+        type: 'object',
+      }
     );
   });
 });

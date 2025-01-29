@@ -889,7 +889,7 @@ describe('definePrompt', () => {
   });
 });
 
-describe.only('prompt', () => {
+describe('prompt', () => {
   let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
@@ -900,6 +900,8 @@ describe.only('prompt', () => {
     });
     defineEchoModel(ai);
     pm = defineProgrammableModel(ai);
+    ai.defineSchema('myInputSchema', z.object({ foo: z.string() }));
+    ai.defineSchema('myOutputSchema', z.object({ output: z.string() }));
   });
 
   it('loads from from the folder', async () => {
@@ -1012,6 +1014,33 @@ describe.only('prompt', () => {
       subject: 'banana',
       tools: ['toolA', 'toolB'],
     });
+  });
+
+  it('resolved schema refs', async () => {
+    const prompt = ai.prompt('schemaRef');
+
+    const rendered = await prompt.render({ foo: 'bar' });
+    assert.deepStrictEqual(rendered.output?.jsonSchema, {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      additionalProperties: true,
+      properties: {
+        output: {
+          type: 'string',
+        },
+      },
+      required: ['output'],
+      type: 'object',
+    });
+
+    assert.deepStrictEqual(
+      (await (await prompt.asTool())({ foo: 'bar' })).messages,
+      [
+        {
+          role: 'user',
+          content: [{ text: 'Write a poem about bar.' }],
+        },
+      ]
+    );
   });
 
   it('loads a varaint from from the folder', async () => {

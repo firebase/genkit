@@ -79,6 +79,7 @@ import {
   DefineModelOptions,
   GenerateResponseChunkData,
   ModelAction,
+  defineGenerateAction,
   defineModel,
 } from '@genkit-ai/ai/model';
 import {
@@ -498,7 +499,7 @@ export class Genkit implements HasRegistry {
    */
   embed<CustomOptions extends z.ZodTypeAny>(
     params: EmbedderParams<CustomOptions>
-  ): Promise<Embedding> {
+  ): Promise<Embedding[]> {
     return embed(this.registry, params);
   }
 
@@ -801,6 +802,7 @@ export class Genkit implements HasRegistry {
    */
   private configure() {
     const activeRegistry = this.registry;
+    defineGenerateAction(activeRegistry);
     // install the default formats in the registry
     configureFormats(activeRegistry);
     const plugins = [...(this.options.plugins ?? [])];

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Channel } from '@genkit-ai/core/async';
+
 const __flowStreamDelimiter = '\n\n';
 
 /**
@@ -43,49 +45,25 @@ export function streamFlow<O = any, S = any>({
   input?: any;
   headers?: Record<string, string>;
 }): {
-  output(): Promise<O>;
-  stream(): AsyncIterable<S>;
+  readonly output: Promise<O>;
+  readonly stream: AsyncIterable<S>;
 } {
-  let chunkStreamController: ReadableStreamDefaultController | undefined =
-    undefined;
-  const chunkStream = new ReadableStream({
-    start(controller) {
-      chunkStreamController = controller;
-    },
-    pull() {},
-    cancel() {},
-  });
+  const channel = new Channel<S>();
 
   const operationPromise = __flowRunEnvelope({
     url,
     input,
-    streamingCallback: (c) => {
-      chunkStreamController?.enqueue(c);
-    },
+    streamingCallback: (c) => channel.send(c),
     headers,
   });
-  operationPromise.then((o) => {
-    chunkStreamController?.close();
-    return o;
-  });
+  operationPromise.then(
+    () => channel.close(),
+    (err) => channel.error(err)
+  );
 
   return {
-    output() {
-      return operationPromise;
-    },
-    async *stream() {
-      const reader = chunkStream.getReader();
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk?.value !== undefined) {
-          yield chunk.value;
-        }
-        if (chunk.done) {
-          break;
-        }
-      }
-      return await operationPromise;
-    },
+    output: operationPromise,
+    stream: channel,
   };
 }
 

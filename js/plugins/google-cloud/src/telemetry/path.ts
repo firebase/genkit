@@ -31,6 +31,7 @@ import {
   extractErrorMessage,
   extractErrorName,
   extractErrorStack,
+  truncatePath,
 } from '../utils.js';
 
 class PathsTelemetry implements Telemetry {
@@ -123,7 +124,7 @@ class PathsTelemetry implements Telemetry {
     sessionId?: string,
     threadName?: string
   ) {
-    const displayPath = toDisplayPath(path);
+    const displayPath = truncatePath(toDisplayPath(path));
     logger.logStructuredError(`Error[${displayPath}, ${errorName}]`, {
       ...createCommonLogAttributes(span, projectId),
       path: displayPath,
@@ -207,7 +208,7 @@ class PathsTelemetry implements Telemetry {
         flowName: featureName,
         sessionId,
         threadName,
-        paths: flowPaths.map((p) => toDisplayPath(p.path)),
+        paths: flowPaths.map((p) => truncatePath(toDisplayPath(p.path))),
       });
 
       flowPaths.forEach((p) => this.writePathMetric(featureName, p));

@@ -58,3 +58,63 @@ export function defineProgrammableModel(
 
   return pm;
 }
+
+export function defineEchoModel(registry: Registry): ModelAction {
+  const model = defineModel(
+    registry,
+    {
+      name: 'echoModel',
+    },
+    async (request, streamingCallback) => {
+      (model as any).__test__lastRequest = request;
+      (model as any).__test__lastStreamingCallback = streamingCallback;
+      if (streamingCallback) {
+        streamingCallback({
+          content: [
+            {
+              text: '3',
+            },
+          ],
+        });
+        streamingCallback({
+          content: [
+            {
+              text: '2',
+            },
+          ],
+        });
+        streamingCallback({
+          content: [
+            {
+              text: '1',
+            },
+          ],
+        });
+      }
+      return {
+        message: {
+          role: 'model',
+          content: [
+            {
+              text:
+                'Echo: ' +
+                request.messages
+                  .map(
+                    (m) =>
+                      (m.role === 'user' || m.role === 'model'
+                        ? ''
+                        : `${m.role}: `) + m.content.map((c) => c.text).join()
+                  )
+                  .join(),
+            },
+            {
+              text: '; config: ' + JSON.stringify(request.config),
+            },
+          ],
+        },
+        finishReason: 'stop',
+      };
+    }
+  );
+  return model;
+}

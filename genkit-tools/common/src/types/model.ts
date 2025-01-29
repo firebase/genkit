@@ -274,3 +274,32 @@ export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({});
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
 >;
+
+export const GenerateActionOptionsSchema = z.object({
+  /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
+  model: z.string(),
+  /** Retrieved documents to be used as context for this generation. */
+  docs: z.array(DocumentDataSchema).optional(),
+  /** Conversation history for multi-turn prompting when supported by the underlying model. */
+  messages: z.array(MessageSchema),
+  /** List of registered tool names for this generation if supported by the underlying model. */
+  tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
+  /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
+  /** Configuration for the generation request. */
+  config: z.any().optional(),
+  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
+  output: z
+    .object({
+      format: z.string().optional(),
+      contentType: z.string().optional(),
+      instructions: z.union([z.boolean(), z.string()]).optional(),
+      jsonSchema: z.any().optional(),
+    })
+    .optional(),
+  /** When true, return tool calls for manual processing instead of automatically resolving them. */
+  returnToolRequests: z.boolean().optional(),
+  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
+  maxTurns: z.number().optional(),
+});
+export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;

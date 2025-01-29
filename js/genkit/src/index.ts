@@ -63,6 +63,8 @@ export {
   type GenerateRequest,
   type GenerateRequestData,
   type GenerateResponse,
+  type GenerateResponseChunk,
+  type GenerateResponseChunkData,
   type GenerateResponseData,
   type GenerateStreamOptions,
   type GenerateStreamResponse,

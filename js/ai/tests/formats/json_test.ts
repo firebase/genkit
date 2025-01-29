@@ -23,19 +23,13 @@ import { jsonFormatter } from '../../src/formats/json.js';
 import { GenerateResponseChunk, generateStream } from '../../src/generate.js';
 import { Message } from '../../src/message.js';
 import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
-import {
-  ProgrammableModel,
-  defineProgrammableModel,
-  runAsync,
-} from '../helpers.js';
+import { defineProgrammableModel, runAsync } from '../helpers.js';
 
 describe('jsonFormat', () => {
   let registry: Registry;
-  let pm: ProgrammableModel;
 
   beforeEach(() => {
     registry = new Registry();
-    pm = defineProgrammableModel(registry);
   });
 
   const streamingTests = [

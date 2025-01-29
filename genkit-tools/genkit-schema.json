@@ -345,49 +345,13 @@
         "unknown"
       ]
     },
-    "GenerateRequest": {
+    "GenerateActionOptions": {
       "type": "object",
       "properties": {
-        "messages": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Message"
-          }
+        "model": {
+          "type": "string"
         },
-        "config": {},
-        "tools": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ToolDefinition"
-          }
-        },
-        "toolChoice": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "required",
-            "none"
-          ]
-        },
-        "output": {
-          "type": "object",
-          "properties": {
-            "format": {
-              "type": "string",
-              "enum": [
-                "json",
-                "text",
-                "media"
-              ]
-            },
-            "schema": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "additionalProperties": false
-        },
-        "context": {
+        "docs": {
           "type": "array",
           "items": {
             "type": "object",
@@ -450,6 +414,114 @@
               "content"
             ],
             "additionalProperties": false
+          }
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/ToolDefinition"
+              }
+            ]
+          }
+        },
+        "toolChoice": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "required",
+            "none"
+          ]
+        },
+        "config": {},
+        "output": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string"
+            },
+            "contentType": {
+              "type": "string"
+            },
+            "instructions": {
+              "type": [
+                "boolean",
+                "string"
+              ]
+            },
+            "jsonSchema": {}
+          },
+          "additionalProperties": false
+        },
+        "returnToolRequests": {
+          "type": "boolean"
+        },
+        "maxTurns": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "model",
+        "messages"
+      ],
+      "additionalProperties": false
+    },
+    "GenerateRequest": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          }
+        },
+        "config": {},
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ToolDefinition"
+          }
+        },
+        "toolChoice": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "required",
+            "none"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "text",
+                "media"
+              ]
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "additionalProperties": false
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GenerateActionOptions/properties/docs/items"
           }
         },
         "candidates": {
@@ -721,7 +793,7 @@
         "context": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/GenerateRequest/properties/context/items"
+            "$ref": "#/$defs/GenerateActionOptions/properties/docs/items"
           }
         }
       },

@@ -123,7 +123,9 @@ export function defineFirestoreRetriever(
       }),
     },
     async (input, options) => {
-      const embedding = await ai.embed({ embedder, content: input });
+      // Single embedding for text input
+      const embedding = await ai.embed({ embedder, content: input })[0]
+        .embedding;
       if (!options.collection && !collection) {
         throw new Error(
           'Must specify a collection to query in Firestore retriever.'

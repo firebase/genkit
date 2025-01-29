@@ -51,6 +51,7 @@ export {
 } from './generate.js';
 export { Message } from './message.js';
 export {
+  GenerateResponseChunkSchema,
   GenerationCommonConfigSchema,
   MessageSchema,
   ModelRequestSchema,
@@ -59,6 +60,7 @@ export {
   RoleSchema,
   type GenerateRequest,
   type GenerateRequestData,
+  type GenerateResponseChunkData,
   type GenerateResponseData,
   type GenerationUsage,
   type MediaPart,

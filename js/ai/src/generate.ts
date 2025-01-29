@@ -34,11 +34,12 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { GenerateActionOptions, generateHelper } from './generate/action.js';
+import { generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  GenerateActionOptions,
   GenerateRequest,
   GenerationCommonConfigSchema,
   MessageData,

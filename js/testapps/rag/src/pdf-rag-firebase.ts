@@ -134,10 +134,12 @@ export const indexPdfFirebase = ai.defineFlow(
 
 async function indexToFirestore(data: string[]) {
   for (const text of data) {
-    const embedding = await ai.embed({
-      embedder: indexConfig.embedder,
-      content: text,
-    });
+    const embedding = (
+      await ai.embed({
+        embedder: indexConfig.embedder,
+        content: text,
+      })
+    )[0].embedding;
     await firestore.collection(indexConfig.collection).add({
       [indexConfig.vectorField]: FieldValue.vector(embedding),
       [indexConfig.contentField]: text,
