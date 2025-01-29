@@ -1,2 +1,0 @@
--e file:../../genkit
-pydantic

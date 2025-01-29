@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# Build distributions for all projects
+#
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -euo pipefail
+
+if ((EUID == 0)); then
+  echo "Please do not run as root"
+  exit
+fi
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+
+PROJECT_DIRS=(
+  "packages/dotprompt"
+  "packages/genkit"
+  "plugins/chroma"
+  "plugins/firebase"
+  "plugins/google-ai"
+  "plugins/google-cloud"
+  "plugins/ollama"
+  "plugins/pinecone"
+  "plugins/vertex-ai"
+  "samples/hello"
+)
+
+for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do
+  uv \
+    --directory=${TOP_DIR}/py \
+    --project "$PROJECT_DIR" \
+    build
+done
