@@ -283,7 +283,7 @@ export const menuQAFlow = ai.defineFlow(
 
     // generate a response
    const { text } = await ai.generate({
-      model: gemini15Flash,
+      model: gemini('gemini-1.5-flash'),
       prompt: `
 You are acting as a helpful AI assistant that can answer 
 questions about the food available on the menu at Genkit Grub Pub.
