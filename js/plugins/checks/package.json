@@ -13,7 +13,7 @@
     "google checks",
     "guardrails"
   ],
-  "version": "1.0.0-rc.9",
+  "version": "1.0.0-rc.10",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
