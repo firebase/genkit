@@ -20,7 +20,7 @@ set -euo pipefail
 
 GIT_ROOT=$(git rev-parse --show-toplevel)
 
-if command -v parallel >/dev/null 2>&1; then
+if command -v rust-parallel >/dev/null 2>&1; then
   if command -v fd >/dev/null 2>&1; then
     fd -e toml \
       --exclude 'py/**/*.egg-info/**' \

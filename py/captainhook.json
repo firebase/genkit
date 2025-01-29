@@ -31,6 +31,9 @@
           }
         },
         {
+          "run": "pnpm i --frozen-lockfile"
+        },
+        {
           "run": "py/bin/fmt"
         },
         {
@@ -60,6 +63,9 @@
           "options": {
             "regex": "^main|[a-z_][0-9a-z_]+-(build|chore|ci|docs|feat|fix|perf|refactor|revert|release|style|test)-[a-z][0-9a-z_]+-?([A-Za-z0-9a_-])*$"
           }
+        },
+        {
+          "run": "pnpm i --frozen-lockfile"
         },
         {
           "run": "py/bin/fmt"
