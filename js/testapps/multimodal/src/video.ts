@@ -154,13 +154,14 @@ export const VideoQAFlow = ai.defineFlow(
           )
           .map((d) => {
             console.log(
-              `Retriever returned video: ${d.media[0].url} from ${d.embedMetadata?.startOffsetSec}s to ${d.embedMetadata?.endOffsetSec}s`
+              `Retriever returned video: ${d.media[0].url} from ${d.metadata?.embedMetadata?.startOffsetSec}s to ${d.metadata?.embedMetadata?.endOffsetSec}s`
             );
             return {
               gcsUrl: d.media[0]?.url,
               contentType: d.media[0]?.contentType || '',
-              startOffsetSec: d.embedMetadata?.startOffsetSec as number,
-              endOffsetSec: d.embedMetadata?.endOffsetSec as number,
+              startOffsetSec: d.metadata?.embedMetadata
+                ?.startOffsetSec as number,
+              endOffsetSec: d.metadata?.embedMetadata?.endOffsetSec as number,
             };
           })[0],
       },

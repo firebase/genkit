@@ -203,10 +203,6 @@ export function configurePineconeRetriever<
               JSON.parse(metadata.docMetadata as string) as Record<
                 string,
                 unknown
-              >,
-              JSON.parse(metadata.embedMetadata as string) as Record<
-                string,
-                unknown
               >
             );
           }),
@@ -288,7 +284,6 @@ export function configurePineconeIndexer<
             return docEmbeddings.map((docEmbedding, j) => {
               const metadata: RecordMetadata = {
                 docMetadata: JSON.stringify(embeddingDocs[j].metadata),
-                embedMetadata: JSON.stringify(embeddingDocs[j].embedMetadata),
               };
               metadata[contentKey] = embeddingDocs[j].data;
               metadata[CONTENT_TYPE] = embeddingDocs[j].dataType || '';

@@ -46,9 +46,15 @@ export type Part = z.infer<typeof PartSchema>;
 export const DocumentDataSchema = z.object({
   content: z.array(PartSchema),
   metadata: z.record(z.string(), z.any()).optional(),
-  embedMetadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type DocumentData = z.infer<typeof DocumentDataSchema>;
+
+function deepCopy<T>(value: T): T {
+  if (value === undefined) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 /**
  * Document represents document content along with its metadata that can be embedded, indexed or
@@ -57,23 +63,16 @@ export type DocumentData = z.infer<typeof DocumentDataSchema>;
 export class Document implements DocumentData {
   content: Part[];
   metadata?: Record<string, any>;
-  embedMetadata?: Record<string, unknown>;
 
   constructor(data: DocumentData) {
-    this.content = data.content;
-    this.metadata = data.metadata;
-    this.embedMetadata = data.embedMetadata;
+    this.content = deepCopy(data.content);
+    this.metadata = deepCopy(data.metadata);
   }
 
-  static fromText(
-    text: string,
-    metadata?: Record<string, any>,
-    embedMetadata?: Record<string, unknown>
-  ) {
+  static fromText(text: string, metadata?: Record<string, any>) {
     return new Document({
       content: [{ text }],
       metadata,
-      embedMetadata,
     });
   }
 
@@ -81,8 +80,7 @@ export class Document implements DocumentData {
   static fromMedia(
     url: string,
     contentType?: string,
-    metadata?: Record<string, unknown>,
-    embedMetadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>
   ) {
     return new Document({
       content: [
@@ -94,7 +92,6 @@ export class Document implements DocumentData {
         },
       ],
       metadata,
-      embedMetadata,
     });
   }
 
@@ -102,13 +99,12 @@ export class Document implements DocumentData {
   static fromData(
     data: string,
     dataType?: string,
-    metadata?: Record<string, unknown>,
-    embedMetadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>
   ) {
     if (dataType === 'text') {
-      return this.fromText(data, metadata, embedMetadata);
+      return this.fromText(data, metadata);
     }
-    return this.fromMedia(data, dataType, metadata, embedMetadata);
+    return this.fromMedia(data, dataType, metadata);
   }
 
   /**
@@ -157,14 +153,10 @@ export class Document implements DocumentData {
   }
 
   toJSON(): DocumentData {
-    let jsonDoc: DocumentData = {
-      content: this.content,
-      metadata: this.metadata,
-    };
-    if (this.embedMetadata) {
-      jsonDoc.embedMetadata = this.embedMetadata;
-    }
-    return jsonDoc;
+    return {
+      content: deepCopy(this.content),
+      metadata: deepCopy(this.metadata),
+    } as DocumentData;
   }
 
   /**
@@ -175,14 +167,15 @@ export class Document implements DocumentData {
    * @returns an array of documents based on this document and the embeddings.
    */
   getEmbeddingDocuments(embeddings: Embedding[]): Document[] {
-    if (embeddings.length === 1) {
-      // Already 1:1, we don't need to construct anything.
-      return [this];
-    }
     let documents: Document[] = [];
     for (const embedding of embeddings) {
       let jsonDoc = this.toJSON();
-      jsonDoc.embedMetadata = embedding.metadata;
+      if (embedding.metadata) {
+        if (!jsonDoc.metadata) {
+          jsonDoc.metadata = {};
+        }
+        jsonDoc.metadata.embedMetadata = embedding.metadata;
+      }
       documents.push(new Document(jsonDoc));
     }
     checkUniqueDocuments(documents);
@@ -190,15 +183,23 @@ export class Document implements DocumentData {
   }
 }
 
-function checkUniqueDocuments(documents: Document[]) {
+// Unique documents are important because we key
+// our vector storage on the Md5 hash of the JSON.stringify(document)
+// So if we have multiple duplicate documents with
+// different embeddings, we will either skip or overwrite
+// those entries and lose embedding information.
+// Export and boolean return value for testing only.
+export function checkUniqueDocuments(documents: Document[]): boolean {
   const seen = new Set();
   for (const doc of documents) {
     const serialized = JSON.stringify(doc);
     if (seen.has(serialized)) {
       console.warn(
-        'Warning: embeddings are not unique. Are you missing embed metadata?'
+        'Warning: embedding documents are not unique. Are you missing embed metadata?'
       );
+      return false;
     }
     seen.add(serialized);
   }
+  return true;
 }
