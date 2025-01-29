@@ -900,6 +900,8 @@ describe.only('prompt', () => {
     });
     defineEchoModel(ai);
     pm = defineProgrammableModel(ai);
+    ai.defineSchema('myInputSchema', z.object({ foo: z.string() }));
+    ai.defineSchema('myOutputSchema', z.object({ output: z.string() }));
   });
 
   it('loads from from the folder', async () => {
@@ -1011,6 +1013,23 @@ describe.only('prompt', () => {
       toolChoice: 'required',
       subject: 'banana',
       tools: ['toolA', 'toolB'],
+    });
+  });
+
+  it('resolved schema refs', async () => {
+    const prompt = ai.prompt('schemaRef');
+
+    const rendered = await prompt.render({ foo: 'bar' });
+    assert.deepStrictEqual(rendered.output?.jsonSchema, {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      additionalProperties: true,
+      properties: {
+        output: {
+          type: 'string',
+        },
+      },
+      required: ['output'],
+      type: 'object',
     });
   });
 
