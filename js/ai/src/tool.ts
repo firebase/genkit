@@ -26,7 +26,12 @@ import {
 import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import { ToolDefinition, ToolRequestPart, ToolResponsePart } from './model.js';
+import {
+  Part,
+  ToolDefinition,
+  ToolRequestPart,
+  ToolResponsePart,
+} from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 
 /**
@@ -315,6 +320,14 @@ export type InterruptConfig<
         input: z.infer<I>
       ) => Record<string, any> | Promise<Record<string, any>>);
 };
+
+export function isToolRequest(part: Part): part is ToolRequestPart {
+  return !!part.toolRequest;
+}
+
+export function isToolResponse(part: Part): part is ToolResponsePart {
+  return !!part.toolResponse;
+}
 
 export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   registry: Registry,

@@ -20,6 +20,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import {
   GenerateActionOptions,
   MessageData,
+  Part,
   ToolRequestPart,
   ToolResponsePart,
 } from '../model.js';
@@ -28,6 +29,7 @@ import {
   ToolAction,
   ToolInterruptError,
   ToolRunOptions,
+  isToolRequest,
   resolveTools,
 } from '../tool.js';
 
@@ -212,6 +214,188 @@ export async function resolveToolRequests(
   };
 }
 
+function findCorrespondingToolRequest(
+  parts: Part[],
+  part: ToolRequestPart | ToolResponsePart
+): ToolRequestPart | undefined {
+  const name = part.toolRequest?.name || part.toolResponse?.name;
+  const ref = part.toolRequest?.ref || part.toolResponse?.ref;
+
+  return parts.find(
+    (p) => p.toolRequest?.name === name && p.toolRequest?.ref === ref
+  ) as ToolRequestPart | undefined;
+}
+
+function findCorrespondingToolResponse(
+  parts: Part[],
+  part: ToolRequestPart | ToolResponsePart
+): ToolResponsePart | undefined {
+  const name = part.toolRequest?.name || part.toolResponse?.name;
+  const ref = part.toolRequest?.ref || part.toolResponse?.ref;
+
+  return parts.find(
+    (p) => p.toolResponse?.name === name && p.toolResponse?.ref === ref
+  ) as ToolResponsePart | undefined;
+}
+
+async function resolveResumedToolRequest(
+  rawRequest: GenerateActionOptions,
+  part: ToolRequestPart,
+  toolMap: Record<string, ToolAction>
+): Promise<{
+  toolRequest?: ToolRequestPart;
+  toolResponse?: ToolResponsePart;
+  interrupt?: ToolRequestPart;
+}> {
+  if (part.metadata?.pendingOutput) {
+    const { pendingOutput, ...metadata } = part.metadata;
+    const toolResponse = {
+      toolResponse: {
+        name: part.toolRequest.name,
+        ref: part.toolRequest.ref,
+        output: pendingOutput,
+      },
+      metadata: { ...metadata, source: 'pending' },
+    };
+
+    // strip pendingOutput from metadata when returning
+    return stripUndefinedProps({
+      toolResponse,
+      toolRequest: { ...part, metadata },
+    });
+  }
+
+  // if there's a corresponding reply, append it to toolResponses
+  const replyResponse = findCorrespondingToolResponse(
+    rawRequest.resume?.reply || [],
+    part
+  );
+  if (replyResponse) {
+    const toolResponse = replyResponse;
+
+    // remove the 'interrupt' but leave a 'resolvedInterrupt'
+    const { interrupt, ...metadata } = part.metadata || {};
+    return stripUndefinedProps({
+      toolResponse,
+      toolRequest: {
+        ...part,
+        metadata: { ...metadata, resolvedInterrupt: interrupt },
+      },
+    });
+  }
+
+  // if there's a corresponding restart, execute then add to toolResponses
+  const restartRequest = findCorrespondingToolRequest(
+    rawRequest.resume?.restart || [],
+    part
+  );
+  if (restartRequest) {
+    const { response, interrupt, preamble } = await resolveToolRequest(
+      rawRequest,
+      restartRequest,
+      toolMap
+    );
+
+    if (preamble) {
+      throw new GenkitError({
+        status: 'INTERNAL',
+        message: `Prompt tool '${restartRequest.toolRequest.name}' executed inside 'restart' resolution. This should never happen.`,
+      });
+    }
+
+    // if there's a new interrupt, return it
+    if (interrupt) return { interrupt };
+
+    if (response) {
+      const toolResponse = response;
+
+      // remove the 'interrupt' but leave a 'resolvedInterrupt'
+      const { interrupt, ...metadata } = part.metadata || {};
+      return stripUndefinedProps({
+        toolResponse,
+        toolRequest: {
+          ...part,
+          metadata: { ...metadata, resolvedInterrupt: interrupt },
+        },
+      });
+    }
+  }
+
+  throw new GenkitError({
+    status: 'INVALID_ARGUMENT',
+    message: `Unresolved tool request '${part.toolRequest.name}${part.toolRequest.ref ? `#${part.toolRequest.ref}` : ''} was not handled by the 'resume' argument. You must supply replies or restarts for all interrupted tool requests.'`,
+  });
+}
+
+/** Amends message history to handle `resume` arguments. Returns the amended history. */
+export async function resolveResumeOption(
+  registry: Registry,
+  rawRequest: GenerateActionOptions
+): Promise<GenerateActionOptions> {
+  if (!rawRequest.resume) return rawRequest; // no-op if no resume option
+  const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
+
+  const messages = rawRequest.messages;
+  const lastMessage = messages.at(-1);
+
+  if (
+    !lastMessage ||
+    lastMessage.role !== 'model' ||
+    !lastMessage.content.find((p) => p.toolRequest && p.metadata?.interrupt)
+  ) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
+    });
+  }
+
+  const toolResponses: ToolResponsePart[] = [];
+  let interrupted = false;
+
+  lastMessage.content = await Promise.all(
+    lastMessage.content.map(async (part) => {
+      if (!isToolRequest(part)) return part;
+      const resolved = await resolveResumedToolRequest(
+        rawRequest,
+        part,
+        toolMap
+      );
+      if (resolved.interrupt) {
+        interrupted = true;
+        return resolved.interrupt;
+      }
+
+      toolResponses.push(resolved.toolResponse!);
+      return resolved.toolRequest!;
+    })
+  );
+
+  const numToolRequests = lastMessage.content.filter(
+    (p) => !!p.toolRequest
+  ).length;
+  if (toolResponses.length !== numToolRequests) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Expected ${numToolRequests} tool responses but resolved to ${toolResponses.length}.`,
+      detail: { toolResponses, message: lastMessage },
+    });
+  }
+
+  const message: MessageData = {
+    role: 'tool',
+    content: toolResponses,
+    metadata: {
+      resumed: rawRequest.resume.metadata || true,
+    },
+  };
+
+  return stripUndefinedProps({
+    ...rawRequest,
+    resume: undefined,
+    messages: [...messages, message],
+  });
+}
+
 export async function resolveRestartedTools(
   registry: Registry,
   rawRequest: GenerateActionOptions
@@ -226,17 +410,11 @@ export async function resolveRestartedTools(
 
   return await Promise.all(
     restarts.map(async (p) => {
-      const { response, interrupt, preamble } = await resolveToolRequest(
+      const { response, interrupt } = await resolveToolRequest(
         rawRequest,
         p,
         toolMap
       );
-      if (preamble) {
-        throw new GenkitError({
-          status: 'INTERNAL',
-          message: `Prompt tool '${p.toolRequest.name}' executed inside restart resolution. This should never happen.`,
-        });
-      }
 
       // this means that it interrupted *again* after the restart
       if (interrupt) return interrupt;

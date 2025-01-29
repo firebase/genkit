@@ -22,7 +22,6 @@ import {
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
-  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
@@ -76,7 +75,7 @@ export interface ResumeOptions {
    * Tools have a `.reply` helper method to construct a reply ToolResponse and validate
    * the data against its schema. Call `myTool.reply(interruptToolRequest, yourReplyData)`.
    */
-  reply: ToolResponsePart | ToolResponsePart[];
+  reply?: ToolResponsePart | ToolResponsePart[];
   /**
    * restart will run a tool again with additionally supplied metadata passed through as
    * a `resumed` option in the second argument. This allows for scenarios like conditionally
@@ -85,7 +84,7 @@ export interface ResumeOptions {
    * Tools have a `.restart` helper method to construct a restart ToolRequest. Call
    * `myTool.restart(interruptToolRequest, resumeMetadata)`.
    */
-  restart: ToolRequestPart | ToolRequestPart[];
+  restart?: ToolRequestPart | ToolRequestPart[];
   /** Additional metadata to annotate the created tool message with in the "resume" key. */
   metadata?: Record<string, any>;
 }
@@ -151,57 +150,6 @@ export interface GenerateOptions<
   context?: ActionContext;
 }
 
-/** Amends message history to handle `resume` arguments. Returns the amended history. */
-async function applyResumeOption(
-  options: GenerateOptions,
-  messages: MessageData[]
-): Promise<MessageData[]> {
-  if (!options.resume) return messages;
-  if (
-    messages.at(-1)?.role !== 'model' ||
-    !messages
-      .at(-1)
-      ?.content.find((p) => p.toolRequest && p.metadata?.interrupt)
-  ) {
-    throw new GenkitError({
-      status: 'FAILED_PRECONDITION',
-      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
-    });
-  }
-  const lastModelMessage = messages.at(-1)!;
-  const toolRequests = lastModelMessage.content.filter((p) => !!p.toolRequest);
-
-  const pendingResponses: ToolResponsePart[] = toolRequests
-    .filter((t) => !!t.metadata?.pendingOutput)
-    .map((t) =>
-      stripUndefinedProps({
-        toolResponse: {
-          name: t.toolRequest!.name,
-          ref: t.toolRequest!.ref,
-          output: t.metadata!.pendingOutput,
-        },
-        metadata: { source: 'pending' },
-      })
-    ) as ToolResponsePart[];
-
-  const replies = Array.isArray(options.resume.reply)
-    ? options.resume.reply
-    : [options.resume.reply];
-
-  const restarts = Array.isArray(options.resume.restart)
-    ? options.resume.restart
-    : [options.resume.restart];
-
-  const message: MessageData = {
-    role: 'tool',
-    content: [...pendingResponses, ...replies, ...restarts],
-    metadata: {
-      resume: options.resume.metadata || true,
-    },
-  };
-  return [...messages, message];
-}
-
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
@@ -216,8 +164,6 @@ export async function toGenerateRequest(
   if (options.messages) {
     messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
-  // resuming from interrupts occurs after message history but before user prompt
-  messages = await applyResumeOption(options, messages);
   if (options.prompt) {
     messages.push({
       role: 'user',
@@ -396,6 +342,12 @@ export async function generate<
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
       jsonSchema: resolvedSchema,
+    },
+    // coerce reply and restart into arrays for the action schema
+    resume: resolvedOptions.resume && {
+      reply: [resolvedOptions.resume.reply || []].flat(),
+      restart: [resolvedOptions.resume.restart || []].flat(),
+      metadata: resolvedOptions.resume.metadata,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
     maxTurns: resolvedOptions.maxTurns,

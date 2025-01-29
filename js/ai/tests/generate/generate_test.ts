@@ -280,7 +280,8 @@ describe('toGenerateRequest', () => {
       throws: 'FAILED_PRECONDITION',
     },
     {
-      should: 'add pending responses and interrupt replies to a tool message',
+      should:
+        'add pending responses, interrupt replies, and restarts to a tool message',
       prompt: {
         messages: [
           { role: 'user', content: [{ text: 'hey' }] },
@@ -311,6 +312,12 @@ describe('toGenerateRequest', () => {
                   interrupt: { sky: 'blue' },
                 },
               },
+              {
+                toolRequest: { name: 'r1', ref: '5', input: { one: '1' } },
+                metadata: {
+                  interrupt: true,
+                },
+              },
             ],
           },
         ],
@@ -318,6 +325,16 @@ describe('toGenerateRequest', () => {
           reply: [
             { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
             { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
+          ],
+          restart: [
+            {
+              toolRequest: { name: 'r1', ref: '5', input: { one: '1' } },
+              metadata: { resumed: true },
+            },
+            {
+              toolRequest: { name: 'r2', ref: '6', input: { two: '2' } },
+              metadata: { resumed: true, replacedInput: { one: '1' } },
+            },
           ],
         },
       },
@@ -354,6 +371,14 @@ describe('toGenerateRequest', () => {
                 metadata: {
                   interrupt: { sky: 'blue' },
                 },
+              },
+              {
+                toolRequest: { name: 'r1', ref: '5', input: { one: '1' } },
+                metadata: { resumed: true },
+              },
+              {
+                toolRequest: { name: 'r2', ref: '6', input: { two: '2' } },
+                metadata: { resumed: true, replacedInput: { one: '1' } },
               },
             ],
           },

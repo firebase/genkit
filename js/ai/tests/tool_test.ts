@@ -183,4 +183,81 @@ describe('defineTool', () => {
       );
     });
   });
+
+  describe('.restart()', () => {
+    it('constructs a ToolRequestPart', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test' },
+        async () => {}
+      );
+      assert.deepStrictEqual(
+        t.restart({ toolRequest: { name: 'test', input: {} } }),
+        {
+          toolRequest: {
+            name: 'test',
+            input: {},
+          },
+          metadata: {
+            resumed: true,
+          },
+        }
+      );
+    });
+
+    it('includes metadata', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test' },
+        async () => {}
+      );
+      assert.deepStrictEqual(
+        t.restart(
+          { toolRequest: { name: 'test', input: {} } },
+          { extra: 'data' }
+        ),
+        {
+          toolRequest: {
+            name: 'test',
+            input: {},
+          },
+          metadata: {
+            resumed: { extra: 'data' },
+          },
+        }
+      );
+    });
+
+    it('validates schema', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', inputSchema: z.number() },
+        async (input, { interrupt }) => interrupt()
+      );
+      assert.throws(
+        () => {
+          t.restart({ toolRequest: { name: 'test', input: {} } }, undefined, {
+            replaceInput: 'not_a_number' as any,
+          });
+        },
+        { name: 'GenkitError', status: 'INVALID_ARGUMENT' }
+      );
+
+      assert.deepStrictEqual(
+        t.restart({ toolRequest: { name: 'test', input: {} } }, undefined, {
+          replaceInput: 55,
+        }),
+        {
+          toolRequest: {
+            name: 'test',
+            input: 55,
+          },
+          metadata: {
+            resumed: true,
+            replacedInput: {},
+          },
+        }
+      );
+    });
+  });
 });
