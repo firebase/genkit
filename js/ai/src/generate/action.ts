@@ -53,11 +53,13 @@ import {
   ModelRequest,
   Part,
   Role,
+  ToolRequestPart,
   resolveModel,
 } from '../model.js';
 import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
 import {
   assertValidToolNames,
+  resolveRestartedTools,
   resolveToolRequests,
 } from './resolve-tool-requests.js';
 
@@ -202,6 +204,29 @@ function applyTransferPreamble(
   });
 }
 
+function findToolRequestIndex(
+  parts: Part[],
+  toolRequest: ToolRequestPart
+): number {
+  return parts.findIndex(
+    (p) =>
+      p.toolRequest &&
+      p.toolRequest.name === toolRequest.toolRequest.name &&
+      p.toolRequest.ref === toolRequest.toolRequest.ref
+  );
+}
+
+function replaceToolRequests(
+  parts: Part[],
+  replacements: ToolRequestPart[]
+): Part[] {
+  const out = [...parts];
+  for (const replacement of replacements) {
+    out.splice(findToolRequestIndex(out, replacement), 1, replacement);
+  }
+  return out;
+}
+
 async function generate(
   registry: Registry,
   {
@@ -231,6 +256,31 @@ async function generate(
     format,
     model
   );
+
+  const replacementRequests = await resolveRestartedTools(registry, rawRequest);
+
+  if (replacementRequests.length > 0) {
+    // we know this is a model message because there were resolved restarted tools
+    const lastMessage = { ...request.messages.at(-1)! };
+    // we leave the restarted responses as pendingOutput so the normal tool loop can
+    // handle it as if the tool executed fully the first time
+    lastMessage.content = replaceToolRequests(
+      lastMessage.content,
+      replacementRequests
+    );
+  }
+
+  if (replacementRequests.find((p) => !!p.metadata?.interrupt)) {
+    const messages = [...request.messages];
+    const message = messages.pop();
+
+    return {
+      finishReason: 'interrupted',
+      finishMessage:
+        'One or more resumed tool calls resulted in interrupts. The model was not called.',
+      message,
+    };
+  }
 
   const previousChunks: GenerateResponseChunkData[] = [];
 

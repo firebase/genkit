@@ -20,10 +20,16 @@ import { Registry } from '@genkit-ai/core/registry';
 import {
   GenerateActionOptions,
   MessageData,
+  ToolRequestPart,
   ToolResponsePart,
 } from '../model.js';
 import { isPromptAction } from '../prompt.js';
-import { ToolAction, ToolInterruptError, resolveTools } from '../tool.js';
+import {
+  ToolAction,
+  ToolInterruptError,
+  ToolRunOptions,
+  resolveTools,
+} from '../tool.js';
 
 export function toToolMap(tools: ToolAction[]): Record<string, ToolAction> {
   assertValidToolNames(tools);
@@ -49,6 +55,87 @@ export function assertValidToolNames(tools: ToolAction[]) {
       });
     }
     nameMap[shortName] = name;
+  }
+}
+
+function toRunOptions(part: ToolRequestPart): ToolRunOptions {
+  const out: ToolRunOptions = { metadata: part.metadata };
+  if (part.metadata?.resumed) out.resumed = part.metadata.resumed;
+  return out;
+}
+
+export function toPendingOutput(
+  part: ToolRequestPart,
+  response: ToolResponsePart
+): ToolRequestPart {
+  return {
+    ...part,
+    metadata: {
+      ...part.metadata,
+      pendingOutput: response.toolResponse.output,
+    },
+  };
+}
+
+export async function resolveToolRequest(
+  rawRequest: GenerateActionOptions,
+  part: ToolRequestPart,
+  toolMap: Record<string, ToolAction>,
+  runOptions?: ToolRunOptions
+): Promise<{
+  response?: ToolResponsePart;
+  interrupt?: ToolRequestPart;
+  preamble?: GenerateActionOptions;
+}> {
+  const tool = toolMap[part.toolRequest.name];
+  if (!tool) {
+    throw new GenkitError({
+      status: 'NOT_FOUND',
+      message: `Tool ${part.toolRequest.name} not found`,
+      detail: { request: rawRequest },
+    });
+  }
+
+  // if it's a prompt action, go ahead and render the preamble
+  if (isPromptAction(tool)) {
+    const preamble = await tool(part.toolRequest.input);
+    const response = {
+      toolResponse: {
+        name: part.toolRequest.name,
+        ref: part.toolRequest.ref,
+        output: `transferred to ${part.toolRequest.name}`,
+      },
+    };
+
+    return { preamble, response };
+  }
+
+  // otherwise, execute the tool and catch interrupts
+  try {
+    const output = await tool(part.toolRequest.input, toRunOptions(part));
+    const response = stripUndefinedProps({
+      toolResponse: {
+        name: part.toolRequest.name,
+        ref: part.toolRequest.ref,
+        output,
+      },
+    });
+
+    return { response };
+  } catch (e) {
+    if (e instanceof ToolInterruptError) {
+      logger.debug(
+        `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${e.metadata ? `: ${JSON.stringify(e.metadata)}` : ''}`
+      );
+      const interrupt = {
+        toolRequest: part.toolRequest,
+        metadata: { ...part.metadata, interrupt: e.metadata || true },
+      };
+
+      return { interrupt };
+    }
+
+    throw e;
   }
 }
 
@@ -81,66 +168,36 @@ export async function resolveToolRequests(
     revisedModelMessage.content.map(async (part, i) => {
       if (!part.toolRequest) return; // skip non-tool-request parts
 
-      const tool = toolMap[part.toolRequest.name];
-      if (!tool) {
-        throw new GenkitError({
-          status: 'NOT_FOUND',
-          message: `Tool ${part.toolRequest.name} not found`,
-          detail: { request: rawRequest },
-        });
-      }
+      const { preamble, response, interrupt } = await resolveToolRequest(
+        rawRequest,
+        part as ToolRequestPart,
+        toolMap
+      );
 
-      // if it's a prompt action, go ahead and render the preamble
-      if (isPromptAction(tool)) {
-        if (transferPreamble)
+      if (preamble) {
+        if (transferPreamble) {
           throw new GenkitError({
             status: 'INVALID_ARGUMENT',
             message: `Model attempted to transfer to multiple prompt tools.`,
           });
-        transferPreamble = await tool(part.toolRequest.input);
-        responseParts.push({
-          toolResponse: {
-            name: part.toolRequest.name,
-            ref: part.toolRequest.ref,
-            output: `transferred to ${part.toolRequest.name}`,
-          },
-        });
-        return;
-      }
-
-      // otherwise, execute the tool and catch interrupts
-      try {
-        const output = await tool(part.toolRequest.input, {});
-        const responsePart = stripUndefinedProps({
-          toolResponse: {
-            name: part.toolRequest.name,
-            ref: part.toolRequest.ref,
-            output,
-          },
-        });
-
-        revisedModelMessage.content.splice(i, 1, {
-          ...part,
-          metadata: {
-            ...part.metadata,
-            pendingOutput: responsePart.toolResponse.output,
-          },
-        });
-        responseParts.push(responsePart);
-      } catch (e) {
-        if (e instanceof ToolInterruptError) {
-          logger.debug(
-            `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${e.metadata ? `: ${JSON.stringify(e.metadata)}` : ''}`
-          );
-          revisedModelMessage.content.splice(i, 1, {
-            toolRequest: part.toolRequest,
-            metadata: { ...part.metadata, interrupt: e.metadata || true },
-          });
-          hasInterrupts = true;
-          return;
         }
 
-        throw e;
+        transferPreamble = preamble;
+      }
+
+      // this happens for preamble or normal tools
+      if (response) {
+        responseParts.push(response!);
+        revisedModelMessage.content.splice(
+          i,
+          1,
+          toPendingOutput(part, response)
+        );
+      }
+
+      if (interrupt) {
+        revisedModelMessage.content.splice(i, 1, interrupt);
+        hasInterrupts = true;
       }
     })
   );
@@ -153,4 +210,37 @@ export async function resolveToolRequests(
     toolMessage: { role: 'tool', content: responseParts },
     transferPreamble,
   };
+}
+
+export async function resolveRestartedTools(
+  registry: Registry,
+  rawRequest: GenerateActionOptions
+): Promise<ToolRequestPart[]> {
+  const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
+  const lastMessage = rawRequest.messages.at(-1);
+  if (!lastMessage || lastMessage.role !== 'model') return [];
+
+  const restarts = lastMessage.content.filter(
+    (p) => p.toolRequest && p.metadata?.resumed
+  ) as ToolRequestPart[];
+
+  return await Promise.all(
+    restarts.map(async (p) => {
+      const { response, interrupt, preamble } = await resolveToolRequest(
+        rawRequest,
+        p,
+        toolMap
+      );
+      if (preamble) {
+        throw new GenkitError({
+          status: 'INTERNAL',
+          message: `Prompt tool '${p.toolRequest.name}' executed inside restart resolution. This should never happen.`,
+        });
+      }
+
+      // this means that it interrupted *again* after the restart
+      if (interrupt) return interrupt;
+      return toPendingOutput(p, response!);
+    })
+  );
 }
