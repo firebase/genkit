@@ -266,7 +266,7 @@ which you should not use in production.
 
 ```ts
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { gemini } from '@genkit-ai/vertexai';
 
 // Define the retriever reference
 export const menuRetriever = devLocalRetrieverRef('menuQA');
