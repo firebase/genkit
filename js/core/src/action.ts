@@ -512,7 +512,7 @@ const runtimeContextAslKey = 'core.action.runtimeContext';
  * Checks whether the caller is currently in the runtime context of an action.
  */
 export function isInRuntimeContext(registry: Registry) {
-  return !!registry.asyncStore.getStore(runtimeContextAslKey);
+  return registry.asyncStore.getStore(runtimeContextAslKey) === 'runtime';
 }
 
 /**
@@ -520,4 +520,14 @@ export function isInRuntimeContext(registry: Registry) {
  */
 export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
   return registry.asyncStore.run(runtimeContextAslKey, 'runtime', fn);
+}
+
+/**
+ * Execute the provided function outside the action runtime context.
+ */
+export function runOutsideActionRuntimeContext<R>(
+  registry: Registry,
+  fn: () => R
+) {
+  return registry.asyncStore.run(runtimeContextAslKey, 'outside', fn);
 }

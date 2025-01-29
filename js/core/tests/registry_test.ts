@@ -16,7 +16,11 @@
 
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { action } from '../src/action.js';
+import {
+  action,
+  defineAction,
+  runInActionRuntimeContext,
+} from '../src/action.js';
 import { Registry } from '../src/registry.js';
 
 describe('registry class', () => {
@@ -101,6 +105,32 @@ describe('registry class', () => {
         '/model/bar/something': barSomethingAction,
         '/model/bar/sub/something': barSubSomethingAction,
       });
+    });
+
+    it('should allow plugin initialization from runtime context', async () => {
+      let fooInitialized = false;
+      registry.registerPluginProvider('foo', {
+        name: 'foo',
+        async initializer() {
+          defineAction(
+            registry,
+            {
+              actionType: 'model',
+              name: 'foo/something',
+            },
+            async () => null
+          );
+          fooInitialized = true;
+          return {};
+        },
+      });
+
+      const action = await runInActionRuntimeContext(registry, () =>
+        registry.lookupAction('/model/foo/something')
+      );
+
+      assert.ok(action);
+      assert.ok(fooInitialized);
     });
 
     it('returns all registered actions, including parent', async () => {
