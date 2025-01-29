@@ -89,7 +89,7 @@ export class Channel<T> implements AsyncIterable<T> {
 }
 
 /**
- * A lazy promise that does not run its executor function until then, catch or finally is called.
+ * A lazy promise that does not run its executor function until then is called.
  */
 export class LazyPromise<T> implements PromiseLike<T> {
   private executor;
