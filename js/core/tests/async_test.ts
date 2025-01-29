@@ -20,18 +20,17 @@ import { LazyPromise } from '../src/async';
 
 describe('LazyPromise', () => {
   it('call its function lazily', async () => {
-
     let called = false;
     const lazy = new LazyPromise((resolver) => {
       called = true;
       resolver('foo');
     });
 
-    assert.ok(!called)
+    assert.ok(!called);
 
     const result = await lazy;
 
-    assert.ok(called)
+    assert.ok(called);
     assert.equal(result, 'foo');
   });
 });
