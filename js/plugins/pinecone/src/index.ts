@@ -23,7 +23,7 @@ import {
 import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 
-import { EmbedderArgument } from 'genkit/embedder';
+import { EmbedderArgument, Embedding } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
   Document,
@@ -60,6 +60,7 @@ const PineconeIndexerOptionsSchema = z.object({
 });
 
 const CONTENT_KEY = '_content';
+const CONTENT_TYPE = '_contentType';
 
 /**
  * pineconeRetrieverRef function creates a retriever for Pinecone.
@@ -186,7 +187,7 @@ export function configurePineconeRetriever<
         : index;
       const response = await scopedIndex.query({
         topK: options.k,
-        vector: queryEmbeddings,
+        vector: queryEmbeddings[0].embedding,
         includeValues: false,
         includeMetadata: true,
       });
@@ -196,9 +197,14 @@ export function configurePineconeRetriever<
           .filter((m): m is RecordMetadata => !!m)
           .map((m) => {
             const metadata = m;
-            const content = metadata[contentKey] as string;
-            delete metadata[contentKey];
-            return Document.fromText(content, metadata).toJSON();
+            return Document.fromData(
+              metadata[contentKey] as string,
+              metadata[CONTENT_TYPE] as string,
+              JSON.parse(metadata.docMetadata as string) as Record<
+                string,
+                unknown
+              >
+            );
           }),
       };
     }
@@ -264,19 +270,34 @@ export function configurePineconeIndexer<
         )
       );
       await scopedIndex.upsert(
-        embeddings.map((value, i) => {
-          const metadata: RecordMetadata = {
-            ...docs[i].metadata,
-          };
+        embeddings
+          .map((value, i) => {
+            const doc = docs[i];
+            // The array of embeddings for this document
+            const docEmbeddings: Embedding[] = value;
 
-          metadata[contentKey] = docs[i].text;
-          const id = Md5.hashStr(JSON.stringify(docs[i]));
-          return {
-            id,
-            values: value,
-            metadata,
-          };
-        })
+            // Create one doc per docEmbedding so we can store them 1:1.
+            // They should be unique because the embedding metadata is
+            // added to the new docs.
+            const embeddingDocs = doc.getEmbeddingDocuments(docEmbeddings);
+
+            return docEmbeddings.map((docEmbedding, j) => {
+              const metadata: RecordMetadata = {
+                docMetadata: JSON.stringify(embeddingDocs[j].metadata),
+              };
+              metadata[contentKey] = embeddingDocs[j].data;
+              metadata[CONTENT_TYPE] = embeddingDocs[j].dataType || '';
+              const id = Md5.hashStr(JSON.stringify(embeddingDocs[j]));
+              return {
+                id,
+                values: docEmbedding.embedding,
+                metadata,
+              };
+            });
+          })
+          .reduce((acc, val) => {
+            return acc.concat(val);
+          }, [])
       );
     }
   );
@@ -315,7 +336,7 @@ export async function describePineconeIndex(params: {
 }
 
 /**
- * Helper function for deleting Chroma collections.
+ * Helper function for deleting pinecone indices.
  * @param params The params for deleting a Pinecone index.
  * @param params.clientParams The params to initialize Pinecone.
  * @param params.name The name of the Pinecone index to delete.

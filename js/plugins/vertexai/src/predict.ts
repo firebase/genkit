@@ -23,8 +23,11 @@ function endpoint(options: {
   location: string;
   model: string;
 }) {
-  // eslint-disable-next-line max-len
-  return `https://${options.location}-aiplatform.googleapis.com/v1/projects/${options.projectId}/locations/${options.location}/publishers/google/models/${options.model}:predict`;
+  return (
+    `https://${options.location}-aiplatform.googleapis.com/v1/` +
+    `projects/${options.projectId}/locations/${options.location}/` +
+    `publishers/google/models/${options.model}:predict`
+  );
 }
 
 interface PredictionResponse<R> {

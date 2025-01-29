@@ -19,14 +19,19 @@ import { Registry } from '@genkit-ai/core/registry';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 /**
- * Embedding vector.
- */
-export type Embedding = number[];
-
-/**
  * A batch (array) of embeddings.
  */
-export type EmbeddingBatch = { embedding: Embedding }[];
+export type EmbeddingBatch = { embedding: number[] }[];
+
+/**
+ * EmbeddingSchema includes the embedding and also metadata so you know
+ * which of multiple embeddings corresponds to which part of a document.
+ */
+export const EmbeddingSchema = z.object({
+  embedding: z.array(z.number()),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export type Embedding = z.infer<typeof EmbeddingSchema>;
 
 /**
  * A function used for embedder definition, encapsulates embedder implementation.
@@ -48,7 +53,7 @@ const EmbedRequestSchema = z.object({
  * Zod schema of an embed response.
  */
 const EmbedResponseSchema = z.object({
-  embeddings: z.array(z.object({ embedding: z.array(z.number()) })),
+  embeddings: z.array(EmbeddingSchema),
   // TODO: stats, etc.
 });
 type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
@@ -138,7 +143,7 @@ export type EmbedderArgument<
 export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
   params: EmbedderParams<CustomOptions>
-): Promise<Embedding> {
+): Promise<Embedding[]> {
   let embedder = await resolveEmbedder(registry, params);
   if (!embedder.embedderAction) {
     let embedderId: string;
@@ -162,7 +167,7 @@ export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
       ...params.options,
     },
   });
-  return response.embeddings[0].embedding;
+  return response.embeddings;
 }
 
 interface ResolvedEmbedder<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -248,7 +253,7 @@ export const EmbedderInfoSchema = z.object({
   supports: z
     .object({
       /** Model can input this type of data. */
-      input: z.array(z.enum(['text', 'image'])).optional(),
+      input: z.array(z.enum(['text', 'image', 'video'])).optional(),
       /** Model can support multiple languages */
       multilingual: z.boolean().optional(),
     })
