@@ -889,7 +889,7 @@ describe('definePrompt', () => {
   });
 });
 
-describe.only('prompt', () => {
+describe('prompt', () => {
   let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
@@ -1016,7 +1016,7 @@ describe.only('prompt', () => {
     });
   });
 
-  it.only('resolved schema refs', async () => {
+  it('resolved schema refs', async () => {
     const prompt = ai.prompt('schemaRef');
 
     const rendered = await prompt.render({ foo: 'bar' });
