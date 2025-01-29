@@ -68,7 +68,7 @@ async function testFlowServer() {
         input: test.post.data,
       });
 
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         expected = want.message.replace('{count}', chunkCount.toString());
         let chunkJSON = JSON.stringify(await chunk);
         if (chunkJSON != expected) {
@@ -83,7 +83,7 @@ async function testFlowServer() {
           `unexpected number of stream chunks received: got ${chunkCount}, want: ${test.post.data}`
         );
       }
-      let out = await response.output();
+      let out = await response.output;
       want.result = want.result.replace(/\{count\}/g, chunkCount.toString());
       if (out != want.result) {
         throw new Error(

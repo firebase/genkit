@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// NOTE: This file is pulled into client code and cannot have any Node-only
+// dependencies.
+
 /**
  * A handle to a promise and its resolvers.
  */
