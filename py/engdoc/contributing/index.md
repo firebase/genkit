@@ -185,5 +185,5 @@ py/bin/setup
 The following is the equivalent used for CI/CD systems.
 
 ```bash
-py/bin/setup -e ci
+py/bin/setup -a ci
 ```

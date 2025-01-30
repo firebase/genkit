@@ -47,6 +47,9 @@
         },
         {
           "run": "py/bin/build_dists"
+        },
+        {
+          "run": "go test go/..."
         }
       ]
     },
@@ -81,6 +84,9 @@
         },
         {
           "run": "py/bin/build_dists"
+        },
+        {
+          "run": "go test go/..."
         },
         {
           "run": "py/.hooks/commit-message-format-pre-push"

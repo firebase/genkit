@@ -1,9 +1,10 @@
-go/
-public/
 .github/
+.mypy_cache/*
 .prettierrc.yaml
-pnpm-lock.yaml
-docs/*
 docs-go/*
+docs/*
 genkit-tools/genkit-schema.json
+go/
+pnpm-lock.yaml
+public/
 py/*
