@@ -39,13 +39,10 @@ const prompt = ai.definePrompt(
         description: z.string(),
       }),
     },
-  },
-  `
-You're a expert DnD designer, create a new character.
-
-Base the character on {{inspiration}} but don't make it
-and exact match.
-`
+  prompt: `You're a expert DnD designer, create a new character.
+    Base the character on {{inspiration}} but don't make it
+    and exact match.`
+  }
 );
 
 (async () => {
