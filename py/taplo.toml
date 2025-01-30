@@ -1,0 +1,5 @@
+[formatting]
+align_entries        = true
+array_trailing_comma = true
+reorder_keys         = true
+trailing_newline     = true

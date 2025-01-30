@@ -6,7 +6,6 @@ as callable functions using the Cloud Functions client libraries.
 
 ## Before you begin
 
-*   Install the [Firebase CLI](/docs/cli).
 *   You should be familiar with Genkit's concept of [flows](flows), and how to
     write them. The instructions on this page assume that you already have some
     flows defined, which you want to deploy.
@@ -23,6 +22,8 @@ up, follow these steps:
 
 1.  Upgrade the project to the Blaze plan, which is required to deploy Cloud
     Functions.
+
+1.  Install the [Firebase CLI](/docs/cli).
 
 1.  Log in with the Firebase CLI:
 

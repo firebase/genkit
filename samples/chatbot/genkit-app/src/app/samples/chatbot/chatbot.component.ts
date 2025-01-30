@@ -117,7 +117,7 @@ export class ChatbotComponent {
       });
 
       let textBlock: OutputSchema | undefined = undefined;
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         for (const content of chunk.content) {
           if (content.text) {
             if (!textBlock) {
@@ -133,7 +133,7 @@ export class ChatbotComponent {
       this.loading = false;
       this.chatFormControl.enable();
 
-      await response.output();
+      await response.output;
     } catch (e) {
       this.loading = false;
       this.chatFormControl.enable();

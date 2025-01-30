@@ -109,7 +109,7 @@ export class ChatbotComponent {
       });
 
       let textBlock: OutputSchema | undefined = undefined;
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         for (const content of chunk.content) {
           if (content.text) {
             if (!textBlock) {

@@ -143,6 +143,26 @@ const embedding = await ai.embed({
 });
 ```
 
+This plugin can also handle multimodal embeddings:
+
+```ts
+const ai = genkit({
+  plugins: [vertextAI({location: 'us-central1' })],
+});
+
+const embeddings = await ai.embed({
+  embedder: multimodalEmbedding001,
+  content: {
+    content: [{
+      "media": {
+        "url": "gs://cloud-samples-data/generative-ai/video/pixel8.mp4",
+        "contentType": "video/mp4"
+      }
+    }]
+  }
+});
+```
+
 Imagen3 model allows generating images from user prompt:
 
 ```ts
@@ -573,6 +593,6 @@ const llmResponse = await ai.generate({
 
 Only specific models, such as `gemini15Flash` and `gemini15Pro`, support context caching, and currently only on version numbers `001`. If an unsupported model is used, an error will be raised, indicating that caching cannot be applied.
 
-### Further Reading 
+### Further Reading
 
 See more information regarding context caching on Vertex AI in their [documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-overview).

@@ -80,10 +80,10 @@ const result = streamFlow({
   url: `http://localhost:${port}/simpleFlow`,
   input: 'say hello',
 });
-for await (const chunk of result.stream()) {
+for await (const chunk of result.stream) {
   console.log(chunk);
 }
-console.log(await result.output());
+console.log(await result.output);
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.

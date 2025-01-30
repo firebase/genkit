@@ -27,6 +27,7 @@ import { PluginOptions } from './common/types.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   defineVertexAIEmbedder,
+  multimodalEmbedding001,
   textEmbedding004,
   textEmbedding005,
   textEmbeddingGecko003,
@@ -61,6 +62,7 @@ export {
   imagen2,
   imagen3,
   imagen3Fast,
+  multimodalEmbedding001,
   textEmbedding004,
   textEmbedding005,
   textEmbeddingGecko003,
