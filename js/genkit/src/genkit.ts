@@ -104,6 +104,7 @@ import {
   ActionContext,
   FlowConfig,
   FlowFn,
+  GenkitError,
   JSONSchema,
   ReflectionServer,
   StreamingCallback,
@@ -120,6 +121,14 @@ import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
+
+/**
+ * @deprecated use `ai.definePrompt({messages: fn})`
+ */
+export type PromptFn<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
 
 /**
  * Options for initializing Genkit.
@@ -343,6 +352,7 @@ export class Genkit implements HasRegistry {
 
     return executablePrompt;
   }
+
   /**
    * Defines and registers a prompt based on a function.
    *
@@ -382,8 +392,37 @@ export class Genkit implements HasRegistry {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptConfig<I, O, CustomOptions>
+    options: PromptConfig<I, O, CustomOptions>,
+    /** @deprecated */
+    templateOrFn?: string | PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+    // For backwards compatibility...
+    if (templateOrFn) {
+      if (options.messages) {
+        throw new GenkitError({
+          status: 'INVALID_ARGUMENT',
+          message:
+            'Cannot specify template/function argument and options.message at the same time',
+        });
+      }
+      if (typeof templateOrFn === 'string') {
+        return definePrompt(this.registry, {
+          ...options,
+          messages: templateOrFn,
+        });
+      } else {
+        // it's the PromptFn
+        return definePrompt(this.registry, {
+          ...options,
+          messages: async (input) => {
+            const response = await (
+              templateOrFn as PromptFn<z.infer<I>, CustomOptions>
+            )(input);
+            return response.messages;
+          },
+        });
+      }
+    }
     return definePrompt(this.registry, options);
   }
 

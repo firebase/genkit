@@ -663,6 +663,36 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
+    it('calls legacy prompt with default model', async () => {
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+      }, async (input) => {
+        return {messages: [{ role: 'user', content: [{ text: `hi ${input.name}` }] }]};
+      });
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
+    });
+
+    it('calls legacy prompt with default model', async () => {
+      const hi = ai.definePrompt({
+        name: 'hi',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+      }, 'hi {{ name }}');
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
+    });
+
     it('calls prompt with default model with config', async () => {
       const hi = ai.definePrompt({
         name: 'hi',
