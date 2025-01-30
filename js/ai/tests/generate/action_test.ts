@@ -68,7 +68,6 @@ describe('spec', () => {
     );
   });
 
-  //console.log(JSON.stringify(parse(readFileSync('../../tests/specs/generate.yaml', 'utf-8')), undefined, 2))
   SpecSuiteSchema.parse(
     parse(readFileSync('../../tests/specs/generate.yaml', 'utf-8'))
   ).tests.forEach((test) => {
