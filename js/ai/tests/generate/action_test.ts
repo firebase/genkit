@@ -14,239 +14,100 @@
  * limitations under the License.
  */
 
+import { stripUndefinedProps, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
+import { readFileSync } from 'fs';
 import { beforeEach, describe, it } from 'node:test';
+import { parse } from 'yaml';
 import {
   GenerateAction,
   defineGenerateAction,
 } from '../../src/generate/action.js';
-import { GenerateResponseChunkData } from '../../src/model.js';
-import { defineTool } from '../../src/tool.js';
 import {
-  ProgrammableModel,
-  defineEchoModel,
-  defineProgrammableModel,
-} from '../helpers.js';
+  GenerateActionOptionsSchema,
+  GenerateResponseChunkData,
+  GenerateResponseChunkSchema,
+  GenerateResponseSchema,
+} from '../../src/model.js';
+import { defineTool } from '../../src/tool.js';
+import { ProgrammableModel, defineProgrammableModel } from '../helpers.js';
 
-describe('generate', () => {
+const SpecSuiteSchema = z
+  .object({
+    tests: z.array(
+      z
+        .object({
+          name: z.string(),
+          input: GenerateActionOptionsSchema,
+          streamChunks: z
+            .array(z.array(GenerateResponseChunkSchema))
+            .optional(),
+          modelResponses: z.array(GenerateResponseSchema),
+          expectResponse: GenerateResponseSchema.optional(),
+          stream: z.boolean().optional(),
+          expectChunks: z.array(GenerateResponseChunkSchema).optional(),
+        })
+        .strict()
+    ),
+  })
+  .strict();
+
+describe('spec', () => {
   let registry: Registry;
   let pm: ProgrammableModel;
 
   beforeEach(() => {
     registry = new Registry();
     defineGenerateAction(registry);
-    defineEchoModel(registry);
     pm = defineProgrammableModel(registry);
-  });
-
-  it('registers the action', async () => {
-    const action = await registry.lookupAction('/util/generate');
-    assert.ok(action);
-  });
-
-  it('generate simple response', async () => {
-    const action = (await registry.lookupAction(
-      '/util/generate'
-    )) as GenerateAction;
-
-    const response = await action({
-      model: 'echoModel',
-      messages: [{ role: 'user', content: [{ text: 'hi' }] }],
-      config: { temperature: 11 },
-    });
-
-    assert.deepStrictEqual(response, {
-      custom: {},
-      finishReason: 'stop',
-      message: {
-        role: 'model',
-        content: [
-          { text: 'Echo: hi' },
-          { text: '; config: {"temperature":11}' },
-        ],
-      },
-      request: {
-        messages: [
-          {
-            role: 'user',
-            content: [{ text: 'hi' }],
-          },
-        ],
-        output: {},
-        tools: [],
-        config: {
-          temperature: 11,
-        },
-        docs: undefined,
-      },
-      usage: {},
-    });
-  });
-
-  it('should call tools', async () => {
-    const action = (await registry.lookupAction(
-      '/util/generate'
-    )) as GenerateAction;
-
     defineTool(
       registry,
       { name: 'testTool', description: 'description' },
       async () => 'tool called'
     );
-
-    // first response be tools call, the subsequent just text response from agent b.
-    let reqCounter = 0;
-    pm.handleResponse = async (req, sc) => {
-      return {
-        message: {
-          role: 'model',
-          content: [
-            reqCounter++ === 0
-              ? {
-                  toolRequest: {
-                    name: 'testTool',
-                    input: {},
-                    ref: 'ref123',
-                  },
-                }
-              : {
-                  text: req.messages
-                    .map((m) =>
-                      m.content
-                        .map(
-                          (c) =>
-                            c.text || JSON.stringify(c.toolResponse?.output)
-                        )
-                        .join()
-                    )
-                    .join(),
-                },
-          ],
-        },
-      };
-    };
-
-    const response = await action({
-      model: 'programmableModel',
-      messages: [{ role: 'user', content: [{ text: 'hi' }] }],
-      tools: ['testTool'],
-      config: { temperature: 11 },
-    });
-
-    assert.deepStrictEqual(response, {
-      custom: {},
-      finishReason: undefined,
-      message: {
-        role: 'model',
-        content: [{ text: 'hi,,"tool called"' }],
-      },
-      request: {
-        messages: [
-          {
-            role: 'user',
-            content: [{ text: 'hi' }],
-          },
-          {
-            content: [
-              {
-                toolRequest: {
-                  input: {},
-                  name: 'testTool',
-                  ref: 'ref123',
-                },
-              },
-            ],
-            role: 'model',
-          },
-          {
-            content: [
-              {
-                toolResponse: {
-                  name: 'testTool',
-                  output: 'tool called',
-                  ref: 'ref123',
-                },
-              },
-            ],
-            role: 'tool',
-          },
-        ],
-        output: {},
-        tools: [
-          {
-            description: 'description',
-            inputSchema: {
-              $schema: 'http://json-schema.org/draft-07/schema#',
-            },
-            name: 'testTool',
-            outputSchema: {
-              $schema: 'http://json-schema.org/draft-07/schema#',
-            },
-          },
-        ],
-        config: {
-          temperature: 11,
-        },
-        docs: undefined,
-      },
-      usage: {},
-    });
   });
 
-  it('streams simple response', async () => {
-    const action = (await registry.lookupAction(
-      '/util/generate'
-    )) as GenerateAction;
+  //console.log(JSON.stringify(parse(readFileSync('../../tests/specs/generate.yaml', 'utf-8')), undefined, 2))
+  SpecSuiteSchema.parse(
+    parse(readFileSync('../../tests/specs/generate.yaml', 'utf-8'))
+  ).tests.forEach((test) => {
+    it(test.name, async () => {
+      if (test.modelResponses || test.streamChunks) {
+        let reqCounter = 0;
+        pm.handleResponse = async (req, sc) => {
+          if (test.streamChunks && sc) {
+            test.streamChunks[reqCounter].forEach(sc);
+          }
+          return test.modelResponses?.[reqCounter++]!;
+        };
+      }
+      const action = (await registry.lookupAction(
+        '/util/generate'
+      )) as GenerateAction;
 
-    const { output, stream } = action.stream({
-      model: 'echoModel',
-      messages: [{ role: 'user', content: [{ text: 'hi' }] }],
-    });
+      if (test.stream) {
+        const { output, stream } = action.stream(test.input);
 
-    const chunks = [] as GenerateResponseChunkData[];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
+        const chunks = [] as GenerateResponseChunkData[];
+        for await (const chunk of stream) {
+          chunks.push(stripUndefinedProps(chunk));
+        }
 
-    assert.deepStrictEqual(chunks, [
-      {
-        index: 0,
-        role: 'model',
-        content: [{ text: '3' }],
-      },
-      {
-        index: 0,
-        role: 'model',
-        content: [{ text: '2' }],
-      },
-      {
-        index: 0,
-        role: 'model',
-        content: [{ text: '1' }],
-      },
-    ]);
+        assert.deepStrictEqual(chunks, test.expectChunks);
 
-    assert.deepStrictEqual(await output, {
-      custom: {},
-      finishReason: 'stop',
-      message: {
-        role: 'model',
-        content: [{ text: 'Echo: hi' }, { text: '; config: undefined' }],
-      },
-      request: {
-        messages: [
-          {
-            role: 'user',
-            content: [{ text: 'hi' }],
-          },
-        ],
-        output: {},
-        tools: [],
-        config: undefined,
-        docs: undefined,
-      },
-      usage: {},
+        assert.deepStrictEqual(
+          stripUndefinedProps(await output),
+          test.expectResponse
+        );
+      } else {
+        const response = await action(test.input);
+
+        assert.deepStrictEqual(
+          stripUndefinedProps(response),
+          test.expectResponse
+        );
+      }
     });
   });
 });
