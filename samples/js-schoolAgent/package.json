@@ -8,7 +8,7 @@
     "dev": "tsx --no-warnings --watch src/terminal.ts",
     "genkit:dev": "genkit start -- npm run dev",
     "compile": "tsc",
-    "build": "pnpm build:clean && npm run compile",
+    "build": "npm build:clean && npm run compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
   },
