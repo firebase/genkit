@@ -1,0 +1,47 @@
+name: Python Checks
+
+on:
+  pull_request:
+    paths:
+      - 'py/**'
+
+jobs:
+  python-checks:
+    runs-on: ubuntu-latest
+    env:
+      PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/share/pnpm:${{ github.workspace }}/.local/bin:${{ env.PATH }}
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+    defaults:
+      run:
+        working-directory: py
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pre-requisites
+        run: bin/setup -a ci
+
+      - name: Install uv and setup Python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Lint with ruff
+        run: uv run ruff check .
+
+      - name: Run tests
+        run: uv run pytest .
+
+      - name: Build documentation
+        run: uv run mkdocs build --strict
+
+      - name: Build distributions
+        run: ./bin/build_dists
