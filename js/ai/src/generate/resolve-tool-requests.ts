@@ -19,6 +19,7 @@ import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import {
   GenerateActionOptions,
+  GenerateResponseData,
   MessageData,
   Part,
   ToolRequestPart,
@@ -331,8 +332,12 @@ async function resolveResumedToolRequest(
 export async function resolveResumeOption(
   registry: Registry,
   rawRequest: GenerateActionOptions
-): Promise<GenerateActionOptions> {
-  if (!rawRequest.resume) return rawRequest; // no-op if no resume option
+): Promise<{
+  revisedRequest?: GenerateActionOptions;
+  interruptedResponse?: GenerateResponseData;
+}> {
+  if (!rawRequest.resume) return { revisedRequest: rawRequest }; // no-op if no resume option
+  console.log('RESOLVE RESUME OPTION:', rawRequest.resume);
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
 
   const messages = rawRequest.messages;
@@ -360,6 +365,7 @@ export async function resolveResumeOption(
         part,
         toolMap
       );
+      console.log('RESOLVED TOOL', part.toolRequest.name, 'TO', resolved);
       if (resolved.interrupt) {
         interrupted = true;
         return resolved.interrupt;
@@ -369,6 +375,18 @@ export async function resolveResumeOption(
       return resolved.toolRequest!;
     })
   );
+
+  if (interrupted) {
+    // TODO: figure out how to make this trigger an interrupt response.
+    return {
+      interruptedResponse: {
+        finishReason: 'interrupted',
+        finishMessage:
+          'One or more tools triggered interrupts while resuming generation. The model was not called.',
+        message: lastMessage,
+      },
+    };
+  }
 
   const numToolRequests = lastMessage.content.filter(
     (p) => !!p.toolRequest
@@ -381,7 +399,7 @@ export async function resolveResumeOption(
     });
   }
 
-  const message: MessageData = {
+  const toolMessage: MessageData = {
     role: 'tool',
     content: toolResponses,
     metadata: {
@@ -389,10 +407,13 @@ export async function resolveResumeOption(
     },
   };
 
+  console.log('CONSTRUCTED A TOOL MESSAGE:', toolMessage.content);
   return stripUndefinedProps({
-    ...rawRequest,
-    resume: undefined,
-    messages: [...messages, message],
+    revisedRequest: {
+      ...rawRequest,
+      resume: undefined,
+      messages: [...messages, toolMessage],
+    },
   });
 }
 

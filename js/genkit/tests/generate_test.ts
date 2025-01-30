@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -645,6 +646,13 @@ describe('generate', () => {
         async (input, { interrupt }) =>
           interrupt({ confirm: 'is it a banana?' })
       );
+      ai.defineTool(
+        { name: 'resumableTool', description: 'description' },
+        async (input, { interrupt, resumed }) => {
+          if ((resumed as any)?.status === 'ok') return true;
+          return interrupt();
+        }
+      );
 
       // first response be tools call, the subsequent just text response from agent b.
       let reqCounter = 0;
@@ -669,7 +677,14 @@ describe('generate', () => {
                       toolRequest: {
                         name: 'simpleTool',
                         input: { name: 'foo' },
-                        ref: 'ref123',
+                        ref: 'ref456',
+                      },
+                    },
+                    {
+                      toolRequest: {
+                        name: 'resumableTool',
+                        input: { doIt: true },
+                        ref: 'ref789',
                       },
                     },
                   ]
@@ -680,7 +695,7 @@ describe('generate', () => {
 
       const response = await ai.generate({
         prompt: 'call the tool',
-        tools: ['interruptingTool', 'simpleTool'],
+        tools: ['interruptingTool', 'simpleTool', 'resumableTool'],
       });
 
       assert.strictEqual(reqCounter, 1);
@@ -703,10 +718,22 @@ describe('generate', () => {
               name: 'foo',
             },
             name: 'simpleTool',
-            ref: 'ref123',
+            ref: 'ref456',
           },
           metadata: {
             pendingOutput: 'response: foo',
+          },
+        },
+        {
+          metadata: {
+            interrupt: true,
+          },
+          toolRequest: {
+            name: 'resumableTool',
+            ref: 'ref789',
+            input: {
+              doIt: true,
+            },
           },
         },
       ]);
@@ -734,10 +761,22 @@ describe('generate', () => {
                 name: 'foo',
               },
               name: 'simpleTool',
-              ref: 'ref123',
+              ref: 'ref456',
             },
             metadata: {
               pendingOutput: 'response: foo',
+            },
+          },
+          {
+            metadata: {
+              interrupt: true,
+            },
+            toolRequest: {
+              name: 'resumableTool',
+              ref: 'ref789',
+              input: {
+                doIt: true,
+              },
             },
           },
         ],
@@ -772,8 +811,148 @@ describe('generate', () => {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
           },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'resumableTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
         ],
       });
+    });
+
+    it('can resume generation', { only: true }, async () => {
+      const interrupter = ai.defineInterrupt({
+        name: 'interrupter',
+        description: 'always interrupts',
+      });
+      const truth = ai.defineTool(
+        { name: 'truth', description: 'always returns true' },
+        async () => true
+      );
+      const resumable = ai.defineTool(
+        {
+          name: 'resumable',
+          description: 'interrupts unless resumed with {status: "ok"}',
+        },
+        async (_input, { interrupt, resumed }) => {
+          console.log('RESUMABLE TOOL CALLED WITH:', resumed);
+          if ((resumed as any)?.status === 'ok') return true;
+          return interrupt();
+        }
+      );
+
+      const messages: MessageData[] = [
+        { role: 'user', content: [{ text: 'hello' }] },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: { name: 'interrupter', input: {} },
+              metadata: { interrupt: true },
+            },
+            {
+              toolRequest: { name: 'truth', input: {} },
+              metadata: { pendingOutput: true },
+            },
+            {
+              toolRequest: { name: 'resumable', input: {} },
+              metadata: { interrupt: true },
+            },
+          ],
+        },
+      ];
+
+      const response = await ai.generate({
+        model: 'echoModel',
+        messages,
+        tools: [interrupter, resumable, truth],
+        resume: {
+          reply: interrupter.reply(
+            {
+              toolRequest: { name: 'interrupter', input: {} },
+              metadata: { interrupt: true },
+            },
+            23
+          ),
+          restart: resumable.restart(
+            {
+              toolRequest: { name: 'resumable', input: {} },
+              metadata: { interrupt: true },
+            },
+            { status: 'ok' }
+          ),
+        },
+      });
+
+      const revisedModelMessage = response.messages.at(-3);
+      const toolMessage = response.messages.at(-2);
+
+      assert.deepStrictEqual(
+        revisedModelMessage?.content,
+        [
+          {
+            metadata: {
+              resolvedInterrupt: true,
+            },
+            toolRequest: {
+              input: {},
+              name: 'interrupter',
+            },
+          },
+          {
+            metadata: {},
+            toolRequest: {
+              input: {},
+              name: 'truth',
+            },
+          },
+          {
+            metadata: {
+              resolvedInterrupt: true,
+            },
+            toolRequest: {
+              input: {},
+              name: 'resumable',
+            },
+          },
+        ],
+        'resuming amends the model message to resolve interrupts'
+      );
+      assert.deepStrictEqual(
+        toolMessage?.content,
+        [
+          {
+            metadata: {
+              reply: true,
+            },
+            toolResponse: {
+              name: 'interrupter',
+              output: 23,
+            },
+          },
+          {
+            metadata: {
+              source: 'pending',
+            },
+            toolResponse: {
+              name: 'truth',
+              output: true,
+            },
+          },
+          {
+            toolResponse: {
+              name: 'resumable',
+              output: true,
+            },
+          },
+        ],
+        'resuming generates a tool message containing all expected responses'
+      );
     });
   });
 });

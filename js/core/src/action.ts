@@ -310,6 +310,7 @@ export function action<
         try {
           const actionFn = () =>
             fn(input, {
+              ...options,
               // Context can either be explicitly set, or inherited from the parent action.
               context: options?.context ?? getContext(registry),
               sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,

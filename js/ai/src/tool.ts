@@ -235,7 +235,7 @@ export interface ToolFnOptions {
 
 export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
   input: z.infer<I>,
-  ctx: ToolFnOptions
+  ctx: ToolFnOptions & ToolRunOptions
 ) => Promise<z.infer<O>>;
 
 /**
@@ -255,12 +255,13 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       actionType: 'tool',
       metadata: { ...(config.metadata || {}), type: 'tool' },
     },
-    (i, runOptions) =>
-      fn(i, {
+    (i, runOptions) => {
+      return fn(i, {
         ...runOptions,
         context: { ...runOptions.context },
         interrupt: interruptTool,
-      })
+      });
+    }
   );
   (a as ToolAction<I, O>).reply = (interrupt, replyData, options) => {
     parseSchema(replyData, {
