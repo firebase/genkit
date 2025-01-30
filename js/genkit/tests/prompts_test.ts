@@ -17,6 +17,7 @@
 import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
+import { stripUndefinedProps } from '../../core/src';
 import { GenkitBeta, genkit } from '../src/beta';
 import { PromptAction, z } from '../src/index';
 import {
@@ -61,7 +62,7 @@ const wrapResponse: ModelMiddleware = async (req, next) => {
   };
 };
 
-describe('definePrompt - functional', () => {
+describe('definePrompt', () => {
   let ai: GenkitBeta;
 
   beforeEach(() => {
@@ -172,7 +173,7 @@ describe('definePrompt - functional', () => {
   });
 });
 
-describe('definePrompt - dotprompt', () => {
+describe.only('definePrompt', () => {
   describe('default model', () => {
     let ai: GenkitBeta;
 
@@ -309,7 +310,7 @@ describe('definePrompt - dotprompt', () => {
     });
   });
 
-  describe('default model ref', () => {
+  describe.only('default model ref', () => {
     let ai: GenkitBeta;
 
     beforeEach(() => {
@@ -317,6 +318,7 @@ describe('definePrompt - dotprompt', () => {
         model: modelRef({
           name: 'echoModel',
         }),
+        promptDir: './tests/prompts',
       });
       defineEchoModel(ai);
     });
@@ -397,6 +399,52 @@ describe('definePrompt - dotprompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       const foo = response.output;
+      assert.deepStrictEqual(foo, { bar: 'baz' });
+    });
+
+    it.only('defaults to json format from a loaded prompt', async () => {
+      defineStaticResponseModel(ai, {
+        role: 'model',
+        content: [
+          {
+            text: '```json\n{bar: "baz"}\n```',
+          },
+        ],
+      });
+      const hi = ai.prompt('output');
+
+      const response = await hi({ name: 'Genkit' });
+      const foo = response.output;
+      assert.deepStrictEqual(stripUndefinedProps(response.request), {
+        config: {},
+        messages: [
+          {
+            content: [
+              {
+                text: 'Hi Genkit',
+              },
+            ],
+            role: 'user',
+          },
+        ],
+        output: {
+          constrained: true,
+          contentType: 'application/json',
+          format: 'json',
+          schema: {
+            additionalProperties: false,
+            properties: {
+              bar: {
+                type: 'string',
+              },
+            },
+            required: ['bar'],
+            type: 'object',
+          },
+        },
+        tools: [],
+      });
+
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
