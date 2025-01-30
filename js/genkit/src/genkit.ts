@@ -402,7 +402,7 @@ export class Genkit implements HasRegistry {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
-            'Cannot specify template/function argument and options.message at the same time',
+            'Cannot specify template/function argument and `options.messages` at the same time',
         });
       }
       if (typeof templateOrFn === 'string') {
