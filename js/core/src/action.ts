@@ -16,6 +16,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
+import { lazy } from './async.js';
 import { ActionContext, getContext, runWithContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
@@ -446,24 +447,28 @@ export function defineActionAsync<
         pluginId: string;
         actionId: string;
       },
-  config: PromiseLike<ActionAsyncParams<I, O, S>>
+  config: PromiseLike<ActionAsyncParams<I, O, S>>,
+  onInit?: (action: Action<I, O, S>) => void
 ): PromiseLike<Action<I, O, S>> {
   const actionName =
     typeof name === 'string' ? name : `${name.pluginId}/${name.actionId}`;
-  const actionPromise = config.then((resolvedConfig) => {
-    const act = action(
-      registry,
-      resolvedConfig,
-      async (i: I, options): Promise<z.infer<O>> => {
-        await registry.initializeAllPlugins();
-        return await runInActionRuntimeContext(registry, () =>
-          resolvedConfig.fn(i, options)
-        );
-      }
-    );
-    act.__action.actionType = actionType;
-    return act;
-  });
+  const actionPromise = lazy(() =>
+    config.then((resolvedConfig) => {
+      const act = action(
+        registry,
+        resolvedConfig,
+        async (i: I, options): Promise<z.infer<O>> => {
+          await registry.initializeAllPlugins();
+          return await runInActionRuntimeContext(registry, () =>
+            resolvedConfig.fn(i, options)
+          );
+        }
+      );
+      act.__action.actionType = actionType;
+      onInit?.(act);
+      return act;
+    })
+  );
   registry.registerActionAsync(actionType, actionName, actionPromise);
   return actionPromise;
 }
