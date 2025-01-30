@@ -393,7 +393,7 @@ export class Genkit implements HasRegistry {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: PromptConfig<I, O, CustomOptions>,
-    /** @deprecated */
+    /** @deprecated use `options.messages` with a template string instead. */
     templateOrFn?: string | PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     // For backwards compatibility...
