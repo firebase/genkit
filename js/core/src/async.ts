@@ -113,3 +113,14 @@ export class LazyPromise<T> implements PromiseLike<T> {
     return this.promise.then(onfulfilled, onrejected);
   }
 }
+
+/** Lazily call the provided function to resolve the LazyPromise. */
+export function lazy<T>(fn: () => PromiseLike<T>): PromiseLike<T> {
+  return new LazyPromise<T>((resolve, reject) => {
+    try {
+      resolve(fn());
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
