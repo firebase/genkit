@@ -142,7 +142,7 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
         });
       }
 
-      const embedding = await ai.embed({
+      const queryEmbeddings = await ai.embed({
         embedder,
         content,
         options: embedderOptions,
@@ -152,7 +152,7 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
         include: getIncludes(options?.include),
         where: options?.where,
         whereDocument: options?.whereDocument,
-        queryEmbeddings: embedding[0].embedding,
+        queryEmbeddings: queryEmbeddings[0].embedding,
       });
 
       const documents = results.documents[0];
@@ -331,15 +331,16 @@ export async function createChromaCollection<
     chromaEmbedder = {
       generate(texts: string[]) {
         return Promise.all(
-          texts.map(
-            (text) =>
-              ai.embed({
-                embedder,
-                content: text,
-                options: params.embedderOptions,
-              })[0].embedding // Text only has a single embedding
+          texts.map((text) =>
+            ai.embed({
+              embedder,
+              content: text,
+              options: params.embedderOptions,
+            })
           )
-        );
+        ).then((results: Embedding[][]) => {
+          return results.map((result: Embedding[]) => result[0].embedding);
+        });
       },
     };
   }

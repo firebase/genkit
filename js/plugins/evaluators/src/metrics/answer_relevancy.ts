@@ -78,16 +78,20 @@ export async function answerRelevancyScore<
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
-    const questionEmbed = await ai.embed({
-      embedder,
-      content: input,
-      options: embedderOptions,
-    })[0].embedding; // Single embedding for text
-    const genQuestionEmbed = await ai.embed({
-      embedder,
-      content: genQuestion,
-      options: embedderOptions,
-    })[0].embedding; // Single embedding for text
+    const questionEmbed = (
+      await ai.embed({
+        embedder,
+        content: input,
+        options: embedderOptions,
+      })
+    )[0].embedding; // Single embedding for text
+    const genQuestionEmbed = (
+      await ai.embed({
+        embedder,
+        content: genQuestion,
+        options: embedderOptions,
+      })
+    )[0].embedding; // Single embedding for text
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
     const answered = response.output?.answered === '1' ? 1 : 0;
     const isNonCommittal = response.output?.noncommittal === '1' ? 1 : 0;

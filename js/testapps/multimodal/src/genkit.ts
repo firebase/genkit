@@ -20,16 +20,23 @@ import {
   multimodalEmbedding001,
   vertexAI,
 } from '@genkit-ai/vertexai';
-import { genkit } from 'genkit';
+import { Genkit, genkit } from 'genkit';
+import { pinecone } from 'genkitx-pinecone';
 
-export const ai = genkit({
+export const ai: Genkit = genkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
     }),
+    pinecone([
+      {
+        indexId: 'pinecone-multimodal-index',
+        embedder: multimodalEmbedding001,
+      },
+    ]),
     devLocalVectorstore([
       {
-        indexName: 'multiModalIndex',
+        indexName: 'localMultiModalIndex',
         embedder: multimodalEmbedding001,
       },
     ]),
