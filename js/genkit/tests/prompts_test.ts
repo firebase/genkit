@@ -924,7 +924,7 @@ describe('prompt', () => {
     });
   });
 
-  it.only('loads from from the sub folder', async () => {
+  it('loads from from the sub folder', async () => {
     const testPrompt = ai.prompt('sub/test'); // see tests/prompts/sub folder
 
     const { text } = await testPrompt();
@@ -1040,6 +1040,14 @@ describe('prompt', () => {
           content: [{ text: 'Write a poem about bar.' }],
         },
       ]
+    );
+  });
+
+  it('lazily resolved schema refs', async () => {
+    const prompt = ai.prompt('badSchemaRef');
+
+    await assert.rejects(prompt.render({ foo: 'bar' }), (e: Error) =>
+      e.message.includes("NOT_FOUND: Schema 'badSchemaRef1' not found")
     );
   });
 

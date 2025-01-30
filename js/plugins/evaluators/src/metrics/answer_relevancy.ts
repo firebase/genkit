@@ -82,12 +82,12 @@ export async function answerRelevancyScore<
       embedder,
       content: input,
       options: embedderOptions,
-    });
+    })[0].embedding; // Single embedding for text
     const genQuestionEmbed = await ai.embed({
       embedder,
       content: genQuestion,
       options: embedderOptions,
-    });
+    })[0].embedding; // Single embedding for text
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
     const answered = response.output?.answered === '1' ? 1 : 0;
     const isNonCommittal = response.output?.noncommittal === '1' ? 1 : 0;

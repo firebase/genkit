@@ -15,6 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
+import { Embedding } from './embedder';
 
 const EmptyPartSchema = z.object({
   text: z.never().optional(),
@@ -40,11 +41,20 @@ export type MediaPart = z.infer<typeof MediaPartSchema>;
 export const PartSchema = z.union([TextPartSchema, MediaPartSchema]);
 export type Part = z.infer<typeof PartSchema>;
 
+// We need both metadata and embedMetadata because they can
+// contain the same fields (e.g. video start/stop) with different values.
 export const DocumentDataSchema = z.object({
   content: z.array(PartSchema),
   metadata: z.record(z.string(), z.any()).optional(),
 });
 export type DocumentData = z.infer<typeof DocumentDataSchema>;
+
+function deepCopy<T>(value: T): T {
+  if (value === undefined) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 /**
  * Document represents document content along with its metadata that can be embedded, indexed or
@@ -55,8 +65,8 @@ export class Document implements DocumentData {
   metadata?: Record<string, any>;
 
   constructor(data: DocumentData) {
-    this.content = data.content;
-    this.metadata = data.metadata;
+    this.content = deepCopy(data.content);
+    this.metadata = deepCopy(data.metadata);
   }
 
   static fromText(text: string, metadata?: Record<string, any>) {
@@ -64,6 +74,37 @@ export class Document implements DocumentData {
       content: [{ text }],
       metadata,
     });
+  }
+
+  // Construct a Document from a single media item
+  static fromMedia(
+    url: string,
+    contentType?: string,
+    metadata?: Record<string, unknown>
+  ) {
+    return new Document({
+      content: [
+        {
+          media: {
+            contentType,
+            url,
+          },
+        },
+      ],
+      metadata,
+    });
+  }
+
+  // Construct a Document from content
+  static fromData(
+    data: string,
+    dataType?: string,
+    metadata?: Record<string, unknown>
+  ) {
+    if (dataType === 'text') {
+      return this.fromText(data, metadata);
+    }
+    return this.fromMedia(data, dataType, metadata);
   }
 
   /**
@@ -75,18 +116,90 @@ export class Document implements DocumentData {
   }
 
   /**
-   * Returns the first media part detected in the document. Useful for extracting
-   * (for example) an image.
-   * @returns The first detected `media` part in the document.
+   * Media array getter.
+   * @returns the array of media parts.
    */
-  get media(): { url: string; contentType?: string } | null {
-    return this.content.find((part) => part.media)?.media || null;
+  get media(): { url: string; contentType?: string }[] {
+    return this.content
+      .filter((part) => part.media && !part.text)
+      .map((part) => part.media!);
+  }
+
+  /**
+   * Gets the first item in the document. Either text or media url.
+   */
+  get data(): string {
+    //
+    if (this.text) {
+      return this.text;
+    }
+    if (this.media) {
+      return this.media[0].url;
+    }
+    return '';
+  }
+
+  /**
+   * Gets the contentType of the data that is returned by data()
+   */
+  get dataType(): string | undefined {
+    if (this.text) {
+      return 'text';
+    }
+    if (this.media && this.media[0].contentType) {
+      return this.media[0].contentType;
+    }
+    return undefined;
   }
 
   toJSON(): DocumentData {
     return {
-      content: this.content,
-      metadata: this.metadata,
-    };
+      content: deepCopy(this.content),
+      metadata: deepCopy(this.metadata),
+    } as DocumentData;
   }
+
+  /**
+   * Embedders may return multiple embeddings for a single document.
+   * But storage still requires a 1:1 relationship. So we create an
+   * array of Documents from a single document - one per embedding.
+   * @param embeddings The embeddings to create the documents from.
+   * @returns an array of documents based on this document and the embeddings.
+   */
+  getEmbeddingDocuments(embeddings: Embedding[]): Document[] {
+    let documents: Document[] = [];
+    for (const embedding of embeddings) {
+      let jsonDoc = this.toJSON();
+      if (embedding.metadata) {
+        if (!jsonDoc.metadata) {
+          jsonDoc.metadata = {};
+        }
+        jsonDoc.metadata.embedMetadata = embedding.metadata;
+      }
+      documents.push(new Document(jsonDoc));
+    }
+    checkUniqueDocuments(documents);
+    return documents;
+  }
+}
+
+// Unique documents are important because we key
+// our vector storage on the Md5 hash of the JSON.stringify(document)
+// So if we have multiple duplicate documents with
+// different embeddings, we will either skip or overwrite
+// those entries and lose embedding information.
+// Export and boolean return value for testing only.
+export function checkUniqueDocuments(documents: Document[]): boolean {
+  const seen = new Set();
+  for (const doc of documents) {
+    const serialized = JSON.stringify(doc);
+    if (seen.has(serialized)) {
+      console.warn(
+        'Warning: embedding documents are not unique. Are you missing embed metadata?'
+      );
+      return false;
+    }
+    seen.add(serialized);
+  }
+  return true;
 }

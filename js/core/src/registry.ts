@@ -67,7 +67,7 @@ export class Registry {
   private actionsById: Record<
     string,
     | Action<z.ZodTypeAny, z.ZodTypeAny>
-    | Promise<Action<z.ZodTypeAny, z.ZodTypeAny>>
+    | PromiseLike<Action<z.ZodTypeAny, z.ZodTypeAny>>
   > = {};
   private pluginsByName: Record<string, PluginProvider> = {};
   private schemasByName: Record<string, Schema> = {};
@@ -145,7 +145,7 @@ export class Registry {
   registerActionAsync<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
     name: string,
-    action: Promise<Action<I, O>>
+    action: PromiseLike<Action<I, O>>
   ) {
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
