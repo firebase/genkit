@@ -49,7 +49,7 @@ export function streamFlow<A extends Action = Action>(
 ): StreamResponse<A> {
   const res = baseStreamFlow<Output<A>, Stream<A>>(req);
   return {
-    output: res.output(),
-    stream: res.stream(),
+    output: res.output,
+    stream: res.stream,
   };
 }

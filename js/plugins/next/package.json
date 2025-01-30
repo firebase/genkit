@@ -37,6 +37,8 @@
     "next": "^15.0.0"
   },
   "devDependencies": {
+    "@genkit-ai/core": "workspace:*",
+    "genkit": "workspace:*",
     "@types/node": "^20.11.16",
     "@types/react": "^19",
     "@types/react-dom": "^19",

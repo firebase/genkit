@@ -675,14 +675,10 @@ importers:
         version: 5.6.3
 
   plugins/next:
-    dependencies:
+    devDependencies:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-    devDependencies:
       '@types/node':
         specifier: ^20.11.16
         version: 20.16.9
@@ -692,6 +688,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.0.3(@types/react@19.0.8)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       next:
         specifier: ^15.0.0
         version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
