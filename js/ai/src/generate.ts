@@ -176,6 +176,19 @@ export async function toGenerateRequest(
       message: 'at least one message is required in generate request',
     });
   }
+  if (
+    options.resume &&
+    !(
+      messages.at(-1)?.role === 'model' &&
+      messages.at(-1)?.content.find((p) => !!p.toolRequest)
+    )
+  ) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Last message must be a 'model' role with at least one tool request to 'resume' generation.`,
+      detail: messages.at(-1),
+    });
+  }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
     tools = await resolveTools(registry, options.tools);
