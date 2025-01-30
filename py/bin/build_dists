@@ -28,6 +28,7 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 PROJECT_DIRS=(
   "packages/dotprompt"
   "packages/genkit"
+  "packages/handlebarz"
   "plugins/chroma"
   "plugins/firebase"
   "plugins/google-ai"
