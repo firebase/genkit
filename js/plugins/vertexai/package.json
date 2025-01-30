@@ -17,7 +17,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.10",
+  "version": "1.0.0-rc.11",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -46,7 +46,7 @@
     "openai": "^4.52.7"
   },
   "peerDependencies": {
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "optionalDependencies": {
     "@google-cloud/bigquery": "^7.8.0",

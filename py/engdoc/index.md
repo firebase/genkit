@@ -388,9 +388,9 @@ capabilities in code:
 
 === "Python"
 
-```python
+    ```python
 
-```
+    ```
 
 === "JavaScript"
 
