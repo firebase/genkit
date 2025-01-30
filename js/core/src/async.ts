@@ -115,7 +115,7 @@ export class LazyPromise<T> implements PromiseLike<T> {
 }
 
 /** Lazily call the provided function to resolve the LazyPromise. */
-export function lazy<T>(fn: () => PromiseLike<T>): PromiseLike<T> {
+export function lazy<T>(fn: () => T | PromiseLike<T>): PromiseLike<T> {
   return new LazyPromise<T>((resolve, reject) => {
     try {
       resolve(fn());
