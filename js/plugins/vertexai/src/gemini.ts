@@ -78,10 +78,17 @@ const GoogleSearchRetrievalSchema = z.object({
  * Zod schema of Gemini model options.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  version: z.string().describe('Model version').optional(),
+  temperature: z.number().describe('Temperature').min(0).max(2).optional(),
+  maxOutputTokens: z.number().describe('Maximum number of tokens').optional(),
+  topK: z.number().describe('Top-K').min(1).max(40).optional(),
+  topP: z.number().describe('Top-P').min(0).max(1).optional(),
+  stopSequences: z.array(z.string()).describe('Stop sequences').optional(),
+
   /**
    * GCP region (e.g. us-central1)
    */
-  location: z.string().describe('banana').optional(),
+  location: z.string().describe('GCP region').optional(),
 
   /**
    * Safety filter settings. See: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters#configurable-filters
@@ -111,7 +118,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    * }
    * ```
    */
-  safetySettings: z.array(SafetySettingsSchema).optional(),
+  safetySettings: z
+    .array(SafetySettingsSchema)
+    .describe('Safety settings')
+    .optional(),
 
   /**
    * Vertex retrieval options.
@@ -131,7 +141,8 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    *   }
    * ```
    */
-  vertexRetrieval: VertexRetrievalSchema.optional(),
+  vertexRetrieval:
+    VertexRetrievalSchema.describe('Vertex Retrieval').optional(),
 
   /**
    * Google Search retrieval options.
@@ -144,7 +155,9 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    *   }
    * ```
    */
-  googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.describe(
+    'Google Search Retrieval'
+  ).optional(),
 
   /**
    * Function calling options.
@@ -164,6 +177,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
     })
+    .describe('Function calling config')
     .optional(),
 });
 
