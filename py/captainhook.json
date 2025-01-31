@@ -13,7 +13,7 @@
     "pre-commit": {
       "actions": [
         {
-          "run": "py/.hooks/no-commits-on-branches main py"
+          "run": "py/.hooks/no-commits-on-branches main"
         },
         {
           "run": "CaptainHook::File.MaxSize",
@@ -50,6 +50,17 @@
         },
         {
           "run": "go test go/..."
+        },
+        {
+          "run": "govulncheck -C go ./...",
+          "conditions": [
+            {
+              "run": "CaptainHook::FileChanged.Any",
+              "options": {
+                "files": ["go/go.mod", "go.sum", "*.go"]
+              }
+            }
+          ]
         }
       ]
     },
@@ -87,6 +98,17 @@
         },
         {
           "run": "go test go/..."
+        },
+        {
+          "run": "govulncheck -C go ./...",
+          "conditions": [
+            {
+              "run": "CaptainHook::FileChanged.Any",
+              "options": {
+                "files": ["go/go.mod", "go.sum", "*.go"]
+              }
+            }
+          ]
         },
         {
           "run": "py/.hooks/commit-message-format-pre-push"

@@ -50,6 +50,12 @@ fi
 
 OS_NAME=$(uname)
 
+PYTHON_CLI_TOOLS=(
+  "httpie" # HTTP client.                  See: https://httpie.io/
+  "mypy"   # Static type checker.          See: https://mypy.readthedocs.io/en/stable/
+  "ruff"   # Fast linter.                  See: https://github.com/astral-sh/ruff
+)
+
 # Updates your shell profile to include a path.
 function genkit::update_path() {
   local new_path="$1"
@@ -77,8 +83,19 @@ function genkit::update_path() {
   fi
 }
 
+function genkit::preconfigure_environment() {
+  git clean -Xfd
+  genkit::update_path "$HOME/.cargo/bin"
+  genkit::update_path "$HOME/.local/bin"
+  genkit::update_path "$HOME/.local/share/pnpm"
+  genkit::update_path "$HOME/go/bin"
+  genkit::update_path "$HOME/google-cloud-sdk/bin"
+}
+
 # Install all the required tools common to all audiences.
 function genkit::install_prerequisites() {
+  genkit::preconfigure_environment
+
   if [[ ${OS_NAME} == "Darwin" && -x "$(command -v brew)" ]]; then
     # Darwin-based systems.
     brew install \
@@ -109,20 +126,21 @@ function genkit::install_prerequisites() {
 
   # Install rust.
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  ~/.cargo/bin/rustup update
+  rustup update
 
   # Install uv for Python versioning, packaging, and workspace management.
   curl -LsSf https://astral.sh/uv/install.sh | sh
 
   # Install pnpm for JavaScript package management.
   # See: https://github.com/pnpm/pnpm/issues/6217
-  curl -fsSL https://get.pnpm.io/install.sh | env ENV="$HOME/.bashrc" SHELL="$(which bash)" PNPM_VERSION=10.0.0 bash -
-
-  genkit::update_path "$HOME/.cargo/bin"
-  genkit::update_path "$HOME/.local/share/pnpm"
-  genkit::update_path "$HOME/go/bin"
+  curl -fsSL https://get.pnpm.io/install.sh |
+    env ENV="$HOME/.bashrc" \
+      SHELL="$(which bash)" \
+      PNPM_VERSION=10.0.0 \
+      bash -
 }
 
+# Install the Google Cloud SDK.
 function genkit::install_google_cloud_sdk() {
   # This depends on Python 3.11 and installs it for the user on some systems.
   if command -v gcloud &>/dev/null; then
@@ -135,30 +153,14 @@ function genkit::install_google_cloud_sdk() {
   gcloud config set disable_usage_reporting true
 }
 
-# Install all the required tools for CI.
-function genkit::install_ci_packages() {
-  genkit::install_prerequisites
-  genkit::install_python_cli_tools
-  genkit::install_go_cli_tools
-  genkit::install_docs_cli_tools
-}
-
-# Install all the required tools for engineering.
-function genkit::install_eng_packages() {
-  genkit::install_prerequisites
-  genkit::install_go_cli_tools
-  genkit::install_cargo_cli_tools
-  genkit::install_python_cli_tools
-  genkit::install_docs_cli_tools
-  genkit::install_google_cloud_sdk
-  genkit::install_pnpm_cli_tools
-  genkit::install_pre_commit_hooks
-}
-
 # Install all the required tools that have been written in Go.
 function genkit::install_go_cli_tools() {
+  go install github.com/Gelio/go-global-update@latest
   go install github.com/captainhook-go/captainhook/cmd/captainhook@latest
+  go install github.com/google/addlicense@latest
+  go install github.com/google/go-licenses@latest
   go install github.com/jesseduffield/lazygit@latest
+  go install golang.org/x/vuln/cmd/govulncheck@latest
 }
 
 # Install all the required tools that have been written in Rust.  We're assuming
@@ -177,12 +179,6 @@ function genkit::install_pnpm_cli_tools() {
   # Install the Genkit CLI. See: https://firebase.google.com/docs/genkit/devtools
   pnpm add -g genkit-cli
 }
-
-PYTHON_CLI_TOOLS=(
-  "httpie" # HTTP client.                  See: https://httpie.io/
-  "mypy"   # Static type checker.          See: https://mypy.readthedocs.io/en/stable/
-  "ruff"   # Fast linter.                  See: https://github.com/astral-sh/ruff
-)
 
 # Install all the Python-related formatter and static analysis tools.
 function genkit::install_python_cli_tools() {
@@ -208,7 +204,38 @@ function genkit::install_docs_cli_tools() {
 
 # Install pre-commit hooks.
 function genkit::install_pre_commit_hooks() {
-  ~/go/bin/captainhook install -f -c ${TOP_DIR}/py/captainhook.json
+  captainhook install -f -c "${TOP_DIR}/py/captainhook.json"
+}
+
+# Setup genkit.
+function genkit::setup_genkit() {
+  pushd "${TOP_DIR}"
+  pnpm i
+  pnpm run setup
+  popd
+}
+
+# Install all the common packages.
+function genkit::install_common_packages() {
+  genkit::install_prerequisites
+  genkit::install_go_cli_tools
+  genkit::install_cargo_cli_tools
+  genkit::install_python_cli_tools
+  genkit::install_docs_cli_tools
+  genkit::install_pnpm_cli_tools
+}
+
+# Install all the required tools for CI.
+function genkit::install_ci_packages() {
+  genkit::install_common_packages
+}
+
+# Install all the required tools for engineering.
+function genkit::install_eng_packages() {
+  genkit::install_common_packages
+  genkit::install_google_cloud_sdk
+  genkit::install_pre_commit_hooks
+  genkit::setup_genkit
 }
 
 # Entry point for the setup script.

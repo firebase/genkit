@@ -26,6 +26,17 @@ fi
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 
+addlicense \
+  -c "Google LLC" \
+  -s \
+  -ignore '**/.github/**/*' \
+  -ignore '**/.mypy_cache/**/*' \
+  -ignore '**/bazel-*/**/*' \
+  -ignore '**/docs/**/*' \
+  -ignore '**/node_modules/**/*' \
+  -ignore '**/pnpm-lock.yaml' \
+  "$TOP_DIR"
+
 # Format all TOML files.
 "${TOP_DIR}/py/bin/format_toml_files"
 if [[ $? -ne 0 ]]; then

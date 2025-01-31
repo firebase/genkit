@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+
+pushd "${TOP_DIR}/go"
+go-licenses check ./... --disallowed_types=restricted,forbidden,reciprocal,unknown
+popd

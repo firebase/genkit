@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -x
+set -euo pipefail
+
+function genkit::cleanup() {
+  rm -rf /tmp/e2e* || true && rm -rf /tmp/test-cli* || true
+}
+
+genkit::cleanup
