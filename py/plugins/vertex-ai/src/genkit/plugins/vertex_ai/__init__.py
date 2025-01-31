@@ -11,13 +11,13 @@ import vertexai
 from typing import Callable, Optional
 from vertexai.generative_models import GenerativeModel, Content, Part
 
-from genkit.core.types import (
+from genkit.core.schemas import (
     GenerateRequest,
     GenerateResponse,
     Message,
     TextPart,
 )
-from genkit.veneer import Genkit
+from genkit.veneer.veneer import Genkit
 
 
 def package_name() -> str:
