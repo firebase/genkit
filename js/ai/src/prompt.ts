@@ -694,7 +694,13 @@ export function loadPromptFolderRecursively(
       } else {
         // If this prompt is in a subdirectory, we need to include that
         // in the namespace to prevent naming conflicts.
-        loadPrompt(registry, promptsPath, fileName, subDir ? `${subDir}/` : '', ns);
+        loadPrompt(
+          registry,
+          promptsPath,
+          fileName,
+          subDir ? `${subDir}/` : '',
+          ns
+        );
       }
     } else if (dirEnt.isDirectory()) {
       loadPromptFolderRecursively(
