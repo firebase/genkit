@@ -24,13 +24,15 @@ import (
 )
 
 // TestPicoschema tests the same cases as picoschema_test.ts.
-func TestPicoschema(t *testing.T) {
+// Temporarily disabled, see https://github.com/firebase/genkit/pull/1741.
+func disableTestPicoschema(t *testing.T) {
 	type test struct {
 		Description string
 		YAML        string
 		Want        map[string]any
 	}
 
+	// TODO(https://github.com/firebase/genkit/issues/1741): This file has been removed #1651
 	data, err := os.ReadFile(filepath.FromSlash("../../../js/plugins/dotprompt/tests/picoschema_tests.yaml"))
 	if err != nil {
 		t.Fatal(err)

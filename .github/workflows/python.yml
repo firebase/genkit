@@ -1,9 +1,6 @@
 name: Python Checks
 
-on:
-  pull_request:
-    paths:
-      - 'py/**'
+on: pull_request
 
 jobs:
   python-checks:
