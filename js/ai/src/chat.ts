@@ -235,8 +235,8 @@ function stripPreamble(msgs?: MessageData[]) {
 }
 
 function normalizeSendOptions<
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  O extends z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny,
 >(
   options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
 ): ChatGenerateOptions<O, CustomOptions> {
