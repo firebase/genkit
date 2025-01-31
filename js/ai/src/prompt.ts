@@ -703,12 +703,7 @@ export function loadPromptFolderRecursively(
         );
       }
     } else if (dirEnt.isDirectory()) {
-      loadPromptFolderRecursively(
-        registry,
-        dir,
-        ns,
-        (subDir ? `${subDir}/` : subDir) + fileName
-      );
+      loadPromptFolderRecursively(registry, dir, ns, join(subDir, fileName));
     }
   }
 }
