@@ -154,7 +154,7 @@ export class Chat {
           },
         },
         async (metadata) => {
-          let resolvedOptions = normalizeSendOptions(options);
+          let resolvedOptions = resolveSendOptions(options);
           let streamingCallback:
             | StreamingCallback<GenerateResponseChunk>
             | undefined = undefined;
@@ -195,7 +195,7 @@ export class Chat {
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): GenerateStreamResponse<z.infer<O>> {
     let channel = new Channel<GenerateResponseChunk>();
-    let resolvedOptions = normalizeSendOptions(options);
+    let resolvedOptions = resolveSendOptions(options);
 
     const sent = this.send({
       ...resolvedOptions,
@@ -234,7 +234,7 @@ function stripPreamble(msgs?: MessageData[]) {
   return msgs?.filter((m) => !m.metadata?.preamble);
 }
 
-function normalizeSendOptions<
+function resolveSendOptions<
   O extends z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny,
 >(
