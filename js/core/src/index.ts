@@ -37,6 +37,7 @@ export {
   type Flow,
   type FlowConfig,
   type FlowFn,
+  type FlowSideChannel,
 } from './flow.js';
 export * from './plugin.js';
 export * from './reflection.js';

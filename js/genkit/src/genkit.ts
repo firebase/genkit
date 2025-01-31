@@ -31,7 +31,6 @@ import {
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
-  InterruptConfig,
   ModelArgument,
   Part,
   PromptConfig,
@@ -44,7 +43,6 @@ import {
   ToolAction,
   ToolConfig,
   defineHelper,
-  defineInterrupt,
   definePartial,
   definePrompt,
   defineTool,
@@ -70,11 +68,7 @@ import {
   EvaluatorFn,
   defineEvaluator,
 } from '@genkit-ai/ai/evaluator';
-import {
-  Formatter,
-  configureFormats,
-  defineFormat,
-} from '@genkit-ai/ai/formats';
+import { configureFormats } from '@genkit-ai/ai/formats';
 import {
   DefineModelOptions,
   GenerateResponseChunkData,
@@ -154,8 +148,6 @@ export interface GenkitOptions {
 export class Genkit implements HasRegistry {
   /** Developer-configured options. */
   readonly options: GenkitOptions;
-  /** Environments that have been configured (at minimum dev). */
-  readonly configuredEnvs = new Set<string>(['dev']);
   /** Registry instance that is exclusively modified by this Genkit instance. */
   readonly registry: Registry;
   /** Reflection server for this registry. May be null if not started. */
@@ -169,7 +161,7 @@ export class Genkit implements HasRegistry {
     this.configure();
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {
-        configuredEnvs: [...this.configuredEnvs],
+        configuredEnvs: ['dev'],
       });
       this.reflectionServer.start().catch((e) => logger.error);
     }
@@ -206,66 +198,12 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Defines and registers an interrupt.
-   *
-   * Interrupts are special tools that halt model processing and return control back to the caller. Interrupts make it simpler to implement
-   * "human-in-the-loop" and out-of-band processing patterns that require waiting on external actions to complete.
-   */
-  defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    config: InterruptConfig<I, O>
-  ): ToolAction<I, O> {
-    return defineInterrupt(this.registry, config);
-  }
-
-  /**
    * Defines and registers a schema from a Zod schema.
    *
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
    */
   defineSchema<T extends z.ZodTypeAny>(name: string, schema: T): T {
     return defineSchema(this.registry, name, schema);
-  }
-
-  /**
-   * Defines and registers a custom model output formatter.
-   *
-   * Here's an example of a custom JSON output formatter:
-   *
-   * ```ts
-   * import { extractJson } from 'genkit/extract';
-   *
-   * ai.defineFormat(
-   *   { name: 'customJson' },
-   *   (schema) => {
-   *     let instructions: string | undefined;
-   *     if (schema) {
-   *       instructions = `Output should be in JSON format and conform to the following schema:
-   * \`\`\`
-   * ${JSON.stringify(schema)}
-   * \`\`\`
-   * `;
-   *     }
-   *     return {
-   *       parseChunk: (chunk) => extractJson(chunk.accumulatedText),
-   *       parseMessage: (message) => extractJson(message.text),
-   *       instructions,
-   *     };
-   *   }
-   * );
-   *
-   * const { output } = await ai.generate({
-   *   prompt: 'Invent a menu item for a pirate themed restaurant.',
-   *   output: { format: 'customJson', schema: MenuItemSchema },
-   * });
-   * ```
-   */
-  defineFormat(
-    options: {
-      name: string;
-    } & Formatter['config'],
-    handler: Formatter['handler']
-  ): { config: Formatter['config']; handler: Formatter['handler'] } {
-    return defineFormat(this.registry, options, handler);
   }
 
   /**
