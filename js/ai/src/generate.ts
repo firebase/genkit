@@ -331,7 +331,10 @@ export async function generate<
   });
 
   // If is schema is set but format is not explicitly set, default to `json` format.
-  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
+  if (
+    (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) &&
+    !resolvedOptions.output?.format
+  ) {
     resolvedOptions.output.format = 'json';
   }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);

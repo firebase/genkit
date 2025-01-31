@@ -16,6 +16,7 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
@@ -24,6 +25,15 @@ import {
 } from '@genkit-ai/vertexai/evaluation';
 import {
   claude35Sonnet,
+  claude35SonnetV2,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  codestral,
+  llama31,
+  llama32,
+  mistralLarge,
+  mistralNemo,
   vertexAIModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
 import { genkit } from 'genkit';
@@ -33,6 +43,17 @@ import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
 logger.setLogLevel('info');
+
+enableFirebaseTelemetry({
+  forceDevExport: false,
+  metricExportIntervalMillis: 5000,
+  autoInstrumentation: true,
+  autoInstrumentationConfig: {
+    '@opentelemetry/instrumentation-fs': { enabled: false },
+    '@opentelemetry/instrumentation-dns': { enabled: false },
+    '@opentelemetry/instrumentation-net': { enabled: false },
+  },
+});
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -77,8 +98,20 @@ export const ai = genkit({
       location: 'us-central1',
     }),
     vertexAIModelGarden({
-      location: 'us-central1',
-      models: [claude35Sonnet],
+      location: 'us-central1', // gemini, llama
+      // location: 'us-east5', // anthropic
+      models: [
+        claude35Sonnet,
+        claude35SonnetV2,
+        claude3Haiku,
+        claude3Opus,
+        claude3Sonnet,
+        codestral,
+        llama31,
+        llama32,
+        mistralLarge,
+        mistralNemo,
+      ],
     }),
     vertexAIEvaluation({
       location: 'us-central1',

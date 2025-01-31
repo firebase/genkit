@@ -170,7 +170,7 @@ describe('session', () => {
     const session = ai.createSession();
     const chat = session.chat();
 
-    let { response, stream } = await chat.sendStream('hi');
+    let { response, stream } = chat.sendStream('hi');
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
@@ -179,7 +179,7 @@ describe('session', () => {
     assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
-    ({ response, stream } = await chat.sendStream('bye'));
+    ({ response, stream } = chat.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
