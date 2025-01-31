@@ -1373,7 +1373,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.10)(@genkit-ai/core@1.0.0-rc.10)
+        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.12)(@genkit-ai/core@1.0.0-rc.12)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2505,11 +2505,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.0.0-rc.10':
-    resolution: {integrity: sha512-FIwseXpGFChZAoGXJiSDFSqEUam5dK0SR6EExtukBfZg4BGLz5e0XjzqmPvf8HW3iCWF/3MOZEBx7fVrCW60+g==}
+  '@genkit-ai/ai@1.0.0-rc.12':
+    resolution: {integrity: sha512-1hofDfuTEVDfryy7klgeJwCyXOp4wEZ+VPU34Dts9S5PYoN1nb23KAhnz+6dHgM42REM1PI5Zh2Wq8O10BXIww==}
 
-  '@genkit-ai/core@1.0.0-rc.10':
-    resolution: {integrity: sha512-KA+z3oqOsL2w65cMchfmS1ont1gkm0WYOQwzm9cxmyjBbbGP1Ndq3udCIUJM410emITuU4wHEDu1dokDoSaOWA==}
+  '@genkit-ai/core@1.0.0-rc.12':
+    resolution: {integrity: sha512-3K7GVXR1vnJu2ANICbojxKpBoxIncuGIvn0NJ7T+s3/IOBQcusmkUyJoc4TdeRsZdX693J+oMUSx+ZE18s28eQ==}
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -7822,9 +7822,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.0.0-rc.10':
+  '@genkit-ai/ai@1.0.0-rc.12':
     dependencies:
-      '@genkit-ai/core': 1.0.0-rc.10
+      '@genkit-ai/core': 1.0.0-rc.12
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -7836,7 +7836,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.0.0-rc.10':
+  '@genkit-ai/core@1.0.0-rc.12':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -10578,10 +10578,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.10)(@genkit-ai/core@1.0.0-rc.10):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.12)(@genkit-ai/core@1.0.0-rc.12):
     dependencies:
-      '@genkit-ai/ai': 1.0.0-rc.10
-      '@genkit-ai/core': 1.0.0-rc.10
+      '@genkit-ai/ai': 1.0.0-rc.12
+      '@genkit-ai/core': 1.0.0-rc.12
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
     transitivePeerDependencies:
