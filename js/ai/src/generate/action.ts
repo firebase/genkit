@@ -17,6 +17,7 @@
 import {
   Action,
   defineAction,
+  GenkitError,
   getStreamingCallback,
   runWithStreamingCallback,
   stripUndefinedProps,
@@ -25,7 +26,7 @@ import {
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
+import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
   resolveFormat,
@@ -52,12 +53,13 @@ import {
   ModelMiddleware,
   ModelRequest,
   Part,
-  Role,
   resolveModel,
+  Role,
 } from '../model.js';
-import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
+import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
 import {
   assertValidToolNames,
+  resolveResumeOption,
   resolveToolRequests,
 } from './resolve-tool-requests.js';
 
@@ -224,6 +226,23 @@ async function generate(
 
   // check to make sure we don't have overlapping tool names *before* generation
   await assertValidToolNames(tools);
+
+  const { revisedRequest, interruptedResponse } = await resolveResumeOption(
+    registry,
+    rawRequest
+  );
+  // NOTE: in the future we should make it possible to interrupt a restart, but
+  // at the moment it's too complicated because it's not clear how to return a
+  // response that amends history but doesn't generate a new message, so we throw
+  if (interruptedResponse) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message:
+        'One or more tools triggered an interrupt during a restarted execution.',
+      detail: { message: interruptedResponse.message },
+    });
+  }
+  rawRequest = revisedRequest!;
 
   const request = await actionToGenerateRequest(
     rawRequest,

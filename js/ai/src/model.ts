@@ -711,6 +711,14 @@ export const GenerateActionOptionsSchema = z.object({
       jsonSchema: z.any().optional(),
     })
     .optional(),
+  /** Options for resuming an interrupted generation. */
+  resume: z
+    .object({
+      reply: z.array(ToolResponsePartSchema).optional(),
+      restart: z.array(ToolRequestPartSchema).optional(),
+      metadata: z.record(z.any()).optional(),
+    })
+    .optional(),
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests: z.boolean().optional(),
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
