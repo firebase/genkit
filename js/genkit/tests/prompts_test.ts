@@ -402,7 +402,7 @@ describe.only('definePrompt', () => {
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
-    it.only('defaults to json format from a loaded prompt', async () => {
+    it('defaults to json format from a loaded prompt', async () => {
       defineStaticResponseModel(ai, {
         role: 'model',
         content: [
