@@ -15,40 +15,30 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { firebaseAuth } from '../lib/auth.js';
+import {
+  fakeToken,
+  firebaseAuth,
+  setDebugSkipTokenVerification,
+} from '../src/auth.js';
 
 describe('firebaseAuth', () => {
-  it('config unset throws', async () => {
-    const auth = firebaseAuth((user, input) => {});
+  setDebugSkipTokenVerification(true);
 
-    expect(auth.policy(undefined, undefined)).rejects.toThrow(
-      'Auth is required'
-    );
-  });
-
-  it('not required ok', async () => {
-    const auth = firebaseAuth((user, input) => {}, { required: false });
-
-    expect(auth.policy(undefined, undefined)).resolves.not.toThrow();
-  });
-
-  it('required throws', async () => {
-    const auth = firebaseAuth((user, input) => {}, { required: true });
-
-    expect(auth.policy(undefined, undefined)).rejects.toThrow(
-      'Auth is required'
-    );
-  });
-
-  it('config unset present ok', async () => {
-    const auth = firebaseAuth((user, input) => {});
-
-    expect(auth.policy({}, undefined)).resolves.not.toThrow();
-  });
-
-  it('required present ok', async () => {
-    const auth = firebaseAuth((user, input) => {}, { required: true });
-
-    expect(auth.policy({}, undefined)).resolves.not.toThrow();
+  describe('no policy', () => {
+    it('handles noop', async () => {
+      const context = await firebaseAuth()({ headers: {}, method: 'POST' });
+      expect(context).toEqual({});
+    });
+    it('handles all headers', async () => {
+      const context = await firebaseAuth()({
+        method: 'POST',
+        headers: {
+          Authorization: `bearer ${fakeToken({ sub: 'user' })}`,
+          'X-Firebase-AppCheck': fakeToken({ sub: 'appId' }),
+          'Firebase-Instance-ID-Token': 'token',
+        },
+      });
+      expect(context).toEqual({});
+    });
   });
 });

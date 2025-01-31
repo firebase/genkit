@@ -156,6 +156,12 @@
       "require": "./lib/client/index.js",
       "import": "./lib/client/index.mjs",
       "default": "./lib/client/index.js"
+    },
+    "./requestMiddleware": {
+      "types": "./lib/requestMiddleware.d.ts",
+      "require": "./lib/requestMiddleware.js",
+      "import": "./lib/requestMiddleware.mjs",
+      "default": "./lib/requestMiddleware.js"
     }
   },
   "typesVersions": {
@@ -216,6 +222,9 @@
       ],
       "client": [
         "lib/client/index"
+      ],
+      "requestMiddleware": [
+        "lib/requestMiddleware"
       ]
     }
   }
