@@ -662,36 +662,48 @@ export function loadPromptFolder(
 ): void {
   const promptsPath = resolve(dir);
   if (existsSync(promptsPath)) {
-    const dirEnts = readdirSync(promptsPath, {
-      withFileTypes: true,
-      recursive: true,
-    });
-    for (const dirEnt of dirEnts) {
-      const parentPath = dirEnt.parentPath ?? dirEnt.path;
-      if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
-        if (dirEnt.name.startsWith('_')) {
-          const partialName = dirEnt.name.substring(1, dirEnt.name.length - 7);
-          definePartial(
-            registry,
-            partialName,
-            readFileSync(join(parentPath, dirEnt.name), {
-              encoding: 'utf8',
-            })
-          );
-          logger.debug(
-            `Registered Dotprompt partial "${partialName}" from "${join(parentPath, dirEnt.name)}"`
-          );
-        } else {
-          // If this prompt is in a subdirectory, we need to include that
-          // in the namespace to prevent naming conflicts.
-          let prefix = '';
-          let name = dirEnt.name;
-          if (promptsPath !== parentPath) {
-            prefix = parentPath.replace(`${promptsPath}/`, '') + '/';
-          }
-          loadPrompt(registry, promptsPath, name, prefix, ns);
-        }
+    loadPromptFolderRecursively(registry, dir, ns, '');
+  }
+}
+export function loadPromptFolderRecursively(
+  registry: Registry,
+  dir: string,
+  ns: string,
+  subDir: string
+): void {
+  const promptsPath = resolve(dir);
+  const dirEnts = readdirSync(join(promptsPath, subDir), {
+    withFileTypes: true,
+  });
+  for (const dirEnt of dirEnts) {
+    const parentPath = join(promptsPath, subDir);
+    let fileName = dirEnt.name;
+    if (dirEnt.isFile() && fileName.endsWith('.prompt')) {
+      if (fileName.startsWith('_')) {
+        const partialName = fileName.substring(1, fileName.length - 7);
+        definePartial(
+          registry,
+          partialName,
+          readFileSync(join(parentPath, fileName), {
+            encoding: 'utf8',
+          })
+        );
+        logger.debug(
+          `Registered Dotprompt partial "${partialName}" from "${join(parentPath, fileName)}"`
+        );
+      } else {
+        // If this prompt is in a subdirectory, we need to include that
+        // in the namespace to prevent naming conflicts.
+        loadPrompt(
+          registry,
+          promptsPath,
+          fileName,
+          subDir ? `${subDir}/` : '',
+          ns
+        );
       }
+    } else if (dirEnt.isDirectory()) {
+      loadPromptFolderRecursively(registry, dir, ns, join(subDir, fileName));
     }
   }
 }
@@ -726,7 +738,7 @@ function loadPrompt(
     name = parts[0];
     variant = parts[1];
   }
-  const source = readFileSync(join(path, (prefix ?? '') + filename), 'utf8');
+  const source = readFileSync(join(path, prefix ?? '', filename), 'utf8');
   const parsedPrompt = registry.dotprompt.parse(source);
   definePromptAsync(
     registry,
