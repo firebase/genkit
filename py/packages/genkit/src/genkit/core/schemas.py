@@ -6,11 +6,12 @@
 #   filename:  genkit-schema.json
 #   timestamp: 2025-01-17T17:30:26+00:00
 
+"""Core Pydantic models and enums."""
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import ConfigDict, BaseModel, Field
 from typing import Any, Dict, List, Optional, Union
+from pydantic import ConfigDict, BaseModel, Field
 
 
 class InstrumentationLibrary(BaseModel):
@@ -74,9 +75,9 @@ class TimeEvent(BaseModel):
 
 
 class Code(Enum):
-    blocked = 'blocked'
-    other = 'other'
-    unknown = 'unknown'
+    BLOCKED = 'blocked'
+    OTHER = 'other'
+    UNKNOWN = 'unknown'
 
 
 class CandidateError(BaseModel):
@@ -107,9 +108,9 @@ class DataPart(BaseModel):
 
 
 class Format(Enum):
-    json = 'json'
-    text = 'text'
-    media = 'media'
+    JSON = 'json'
+    TEXT = 'text'
+    MEDIA = 'media'
 
 
 class Output(BaseModel):
@@ -176,10 +177,10 @@ class GenerationUsage(BaseModel):
 
 
 class Role(Enum):
-    system = 'system'
-    user = 'user'
-    model = 'model'
-    tool = 'tool'
+    SYSTEM = 'system'
+    USER = 'user'
+    MODEL = 'model'
+    TOOL = 'tool'
 
 
 class ToolDefinition(BaseModel):

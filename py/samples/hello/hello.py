@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from genkit.core.types import Message, TextPart, GenerateRequest
-from genkit.plugins.vertex_ai import vertexAI, gemini
-from genkit.veneer import Genkit
+from genkit.core.schemas import Message, TextPart, GenerateRequest
+from genkit.plugins.vertex_ai import vertex_ai, gemini
+from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
-ai = Genkit(plugins=[vertexAI()], model=gemini('gemini-1.5-flash'))
+ai = Genkit(
+    plugins=[vertex_ai()], model=gemini('gemini-1.5-flash')
+)
 
 
 class MyInput(BaseModel):
@@ -15,12 +17,11 @@ class MyInput(BaseModel):
     b: int = Field(description='b field')
 
 
-def hi_fn(input) -> GenerateRequest:
+def hi_fn(hi_input) -> GenerateRequest:
     return GenerateRequest(
         messages=[
-            Message(
-                role='user', content=[TextPart(text='hi, my name is ' + input)]
-            )
+            Message(role='user',
+                    content=[TextPart(text='hi, my name is ' + hi_input)])
         ]
     )
 
@@ -36,19 +37,19 @@ def hi_fn(input) -> GenerateRequest:
 
 
 @ai.flow()
-def sayHi(input: str):
+def say_hi(name: str):
     return ai.generate(
-        messages=[Message(role='user', content=[TextPart(text='hi ' + input)])]
+        messages=[Message(role='user', content=[TextPart(text='hi ' + name)])]
     )
 
 
 @ai.flow()
-def sum_two_numbers2(input: MyInput):
-    return input.a + input.b
+def sum_two_numbers2(my_input: MyInput):
+    return my_input.a + my_input.b
 
 
 def main() -> None:
-    print(sayHi('John Doe'))
+    print(say_hi('John Doe'))
     print(sum_two_numbers2(MyInput(a=1, b=3)))
 
 

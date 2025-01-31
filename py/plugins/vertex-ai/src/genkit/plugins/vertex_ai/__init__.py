@@ -11,35 +11,36 @@ import vertexai
 from typing import Callable, Optional
 from vertexai.generative_models import GenerativeModel, Content, Part
 
-from genkit.core.types import (
+from genkit.core.schemas import (
     GenerateRequest,
     GenerateResponse,
     Message,
     TextPart,
 )
-from genkit.veneer import Genkit
+from genkit.veneer.veneer import Genkit
 
 
 def package_name() -> str:
     return 'genkit.plugins.vertex_ai'
 
 
-def vertexAI(project_id: Optional[str] = None) -> Callable[[Genkit], None]:
+def vertex_ai(project_id: Optional[str] = None) -> Callable[[Genkit], None]:
     def plugin(ai: Genkit) -> None:
         vertexai.init(location='us-central1', project=project_id)
 
         def gemini(request: GenerateRequest) -> GenerateResponse:
-            geminiMsgs: list[Content] = []
+            gemini_msgs: list[Content] = []
             for m in request.messages:
-                geminiParts: list[Part] = []
+                gemini_parts: list[Part] = []
                 for p in m.content:
                     if p.text is not None:
-                        geminiParts.append(Part.from_text(p.text))
+                        gemini_parts.append(Part.from_text(p.text))
                     else:
                         raise Exception('unsupported part type')
-                geminiMsgs.append(Content(role=m.role.value, parts=geminiParts))
+                gemini_msgs.append(Content(role=m.role.value,
+                                           parts=gemini_parts))
             model = GenerativeModel('gemini-1.5-flash-002')
-            response = model.generate_content(contents=geminiMsgs)
+            response = model.generate_content(contents=gemini_msgs)
             return GenerateResponse(
                 message=Message(
                     role='model', content=[TextPart(text=response.text)]
@@ -64,4 +65,4 @@ def gemini(name: str) -> str:
     return f'vertexai/{name}'
 
 
-__all__ = ['package_name', 'vertexAI', 'gemini']
+__all__ = ['package_name', 'vertex_ai', 'gemini']
