@@ -19,13 +19,13 @@ import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
+import { GenkitBeta, genkit } from '../src/beta';
 import {
   ProgrammableModel,
   defineEchoModel,
   defineProgrammableModel,
   runAsync,
 } from './helpers';
-import { GenkitBeta, genkit } from '../src/beta';
 
 describe('generate', () => {
   describe('default model', () => {
