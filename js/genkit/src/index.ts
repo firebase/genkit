@@ -133,6 +133,7 @@ export {
   type Flow,
   type FlowConfig,
   type FlowFn,
+  type FlowSideChannel,
   type JSONSchema,
   type JSONSchema7,
   type Middleware,

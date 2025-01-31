@@ -14,16 +14,25 @@
  * limitations under the License.
  */
 
-import { ExecutablePrompt, isExecutablePrompt } from '@genkit-ai/ai';
-import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import {
+  defineInterrupt,
+  ExecutablePrompt,
+  InterruptConfig,
+  isExecutablePrompt,
+  ToolAction,
+} from '@genkit-ai/ai';
+import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
+import { defineFormat } from '@genkit-ai/ai/formats';
+import {
+  getCurrentSession,
   Session,
   SessionData,
   SessionError,
   SessionOptions,
-  getCurrentSession,
 } from '@genkit-ai/ai/session';
+import { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
+import { Formatter } from './formats';
 import { Genkit, GenkitOptions } from './genkit';
 
 /**
@@ -147,5 +156,59 @@ export class GenkitBeta extends Genkit {
       throw new SessionError('not running within a session');
     }
     return currentSession as Session;
+  }
+
+  /**
+   * Defines and registers a custom model output formatter.
+   *
+   * Here's an example of a custom JSON output formatter:
+   *
+   * ```ts
+   * import { extractJson } from 'genkit/extract';
+   *
+   * ai.defineFormat(
+   *   { name: 'customJson' },
+   *   (schema) => {
+   *     let instructions: string | undefined;
+   *     if (schema) {
+   *       instructions = `Output should be in JSON format and conform to the following schema:
+   * \`\`\`
+   * ${JSON.stringify(schema)}
+   * \`\`\`
+   * `;
+   *     }
+   *     return {
+   *       parseChunk: (chunk) => extractJson(chunk.accumulatedText),
+   *       parseMessage: (message) => extractJson(message.text),
+   *       instructions,
+   *     };
+   *   }
+   * );
+   *
+   * const { output } = await ai.generate({
+   *   prompt: 'Invent a menu item for a pirate themed restaurant.',
+   *   output: { format: 'customJson', schema: MenuItemSchema },
+   * });
+   * ```
+   */
+  defineFormat(
+    options: {
+      name: string;
+    } & Formatter['config'],
+    handler: Formatter['handler']
+  ): { config: Formatter['config']; handler: Formatter['handler'] } {
+    return defineFormat(this.registry, options, handler);
+  }
+
+  /**
+   * Defines and registers an interrupt.
+   *
+   * Interrupts are special tools that halt model processing and return control back to the caller. Interrupts make it simpler to implement
+   * "human-in-the-loop" and out-of-band processing patterns that require waiting on external actions to complete.
+   */
+  defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: InterruptConfig<I, O>
+  ): ToolAction<I, O> {
+    return defineInterrupt(this.registry, config);
   }
 }
