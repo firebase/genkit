@@ -788,7 +788,9 @@ describe('prompt', () => {
           banana: 'ripe',
           temperature: 11,
         },
-        messages: [{ content: [{ text: 'hello bar aux (bar)' }], role: 'user' }],
+        messages: [
+          { content: [{ text: 'hello bar aux (bar)' }], role: 'user' },
+        ],
         model: 'echoModel',
         tools: ['toolA'],
       },
