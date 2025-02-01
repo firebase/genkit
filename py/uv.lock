@@ -17,6 +17,7 @@ members = [
     "genkit-pinecone-plugin",
     "genkit-vertex-ai-plugin",
     "genkit-workspace",
+    "handlebarz",
     "hello",
 ]
 
@@ -436,6 +437,12 @@ wheels = [
 name = "dotprompt"
 version = "0.1.0"
 source = { editable = "packages/dotprompt" }
+dependencies = [
+    { name = "handlebarz" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "handlebarz", editable = "packages/handlebarz" }]
 
 [[package]]
 name = "executing"
@@ -469,6 +476,7 @@ name = "genkit"
 version = "0.1.0"
 source = { editable = "packages/genkit" }
 dependencies = [
+    { name = "dotprompt" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "pydantic" },
@@ -477,6 +485,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dotprompt", editable = "packages/dotprompt" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -578,6 +587,7 @@ dependencies = [
     { name = "genkit-ollama-plugin" },
     { name = "genkit-pinecone-plugin" },
     { name = "genkit-vertex-ai-plugin" },
+    { name = "handlebarz" },
 ]
 
 [package.dev-dependencies]
@@ -605,6 +615,7 @@ requires-dist = [
     { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
     { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
     { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "handlebarz", editable = "packages/handlebarz" },
 ]
 
 [package.metadata.requires-dev]
@@ -881,6 +892,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/f5/38/3af3d3633a34a3316
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/04/ff642e65ad6b90db43e668d70ffb6736436c7ce41fcc549f4e9472234127/h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761", size = 58259 },
 ]
+
+[[package]]
+name = "handlebarz"
+version = "0.1.0"
+source = { editable = "packages/handlebarz" }
 
 [[package]]
 name = "hello"

@@ -13,19 +13,16 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Code Generators",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Text Processing :: Markup",
 ]
-dependencies = [
-  "opentelemetry-api>=1.29.0",
-  "opentelemetry-sdk>=1.29.0",
-  "pydantic>=2.10.5",
-  "requests>=2.32.3",
-  "dotprompt",
-]
-description = "Genkit AI Framework"
+dependencies = []
+description = "Python implementation for Handlebars.js"
 license = { text = "Apache-2.0" }
-name = "genkit"
+name = "handlebarz"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version = "0.1.0"
 
 [build-system]
@@ -33,4 +30,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/genkit"]
+packages = ["src/handlebarz"]

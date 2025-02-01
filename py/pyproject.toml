@@ -9,6 +9,7 @@ dependencies = [
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
+  "handlebarz",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -59,6 +60,7 @@ genkit-google-cloud-plugin = { workspace = true }
 genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
+handlebarz                 = { workspace = true }
 hello                      = { workspace = true }
 
 [tool.uv.workspace]
