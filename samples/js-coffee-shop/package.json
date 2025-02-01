@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
-    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
+    "dev": "genkit start -- tsx --watch src/index.ts",
     "compile": "tsc",
     "build": "npm run build:clean && npm run compile",
     "build:clean": "rimraf ./lib",

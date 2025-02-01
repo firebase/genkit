@@ -14,12 +14,9 @@
         "type": "enum",
         "default": "js-character-generator",
         "options": {
-          "chatbot": "Chatbot",
-          "js-angular": "JavaScript Angular App",
           "js-character-generator": "Simple Character Generator",
           "js-coffee-shop": "Coffeeshop w Several types of Prompt",
-          "js-schoolAgent": "A Multi-Agent School Assistant",
-          "prompts": "Connection of Prompt Examples"
+          "js-schoolAgent": "A Multi-Agent School Assistant"
         }
       }
     ]
