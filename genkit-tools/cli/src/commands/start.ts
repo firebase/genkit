@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';
@@ -35,7 +36,7 @@ export const start = new Command('start')
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
-    let uiPromise = Promise.resolve();
+    let uiPromise: Promise<RuntimeManager | void> = Promise.resolve();
     if (!options.noui) {
       let port: number;
       if (options.port) {
@@ -47,23 +48,22 @@ export const start = new Command('start')
       } else {
         port = await getPort({ port: makeRange(4000, 4099) });
       }
-      uiPromise = startManager(true)
-        .then((manager) => {
-          startServer(manager, port);
-          return manager;
-        })
-        .then((manager) => {
-          const telemetryServerUrl = manager.telemetryServerUrl;
-          return startRuntime(telemetryServerUrl);
-        });
+      uiPromise = startManager(true).then((manager) => {
+        startServer(manager, port);
+        return manager;
+      });
       if (options.open) {
         open(`http://localhost:${port}`);
       }
     }
-    await uiPromise;
+    // Always start the runtime.
+    await uiPromise.then((manager: RuntimeManager | void) => {
+      const telemetryServerUrl = manager?.telemetryServerUrl;
+      return startRuntime(telemetryServerUrl);
+    });
   });
 
-async function startRuntime(telemetryServerUrl: string) {
+async function startRuntime(telemetryServerUrl?: string) {
   let runtimePromise = Promise.resolve();
   if (start.args.length > 0) {
     runtimePromise = new Promise((urlResolver, reject) => {
