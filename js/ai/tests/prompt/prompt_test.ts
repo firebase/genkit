@@ -753,6 +753,46 @@ describe('prompt', () => {
         tools: ['toolA'],
       },
     },
+    {
+      name: 'invoked prepare fn and merges with render options',
+      prompt: {
+        model: 'echoModel',
+        name: 'prompt1',
+        config: { banana: 'ripe' },
+        input: { schema: z.object({ name: z.string() }) },
+        prompt: 'hello {{@foo}} {{@baz}} ({{@state.name}})',
+        tools: ['toolA'],
+        prepare: async (input, { context }) => ({
+          context: { ...context, foo: 'bar' },
+          docs: [Document.fromText('doc txt')],
+        }),
+      },
+      input: { name: 'foo' },
+      state: { name: 'bar' },
+      inputOptions: { config: { temperature: 11 }, context: { baz: 'aux' } },
+      wantTextOutput:
+        'Echo: hello bar aux (bar),\n' +
+        '\n' +
+        'Use the following information to complete your task:\n' +
+        '\n' +
+        '- [0]: doc txt\n' +
+        '\n' +
+        '; config: {"banana":"ripe","temperature":11}',
+      wantRendered: {
+        context: {
+          baz: 'aux',
+          foo: 'bar',
+        },
+        docs: [Document.fromText('doc txt')],
+        config: {
+          banana: 'ripe',
+          temperature: 11,
+        },
+        messages: [{ content: [{ text: 'hello bar aux (bar)' }], role: 'user' }],
+        model: 'echoModel',
+        tools: ['toolA'],
+      },
+    },
   ];
 
   basicTests = basicTests.find((t) => t.only)
