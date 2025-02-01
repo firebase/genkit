@@ -15,6 +15,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
 
 if ((EUID == 0)) && [[ -z ${DANGEROUSLY_RUN_AS_ROOT+x} ]]; then
   echo "Please do not run as root unless DANGEROUSLY_RUN_AS_ROOT is set."
@@ -63,11 +65,6 @@ function genkit::update_path() {
   # Remove trailing slash if present.
   new_path="${new_path%/}"
 
-  if [ ! -d "$new_path" ]; then
-    echo "Error: Directory $new_path does not exist"
-    return 1
-  fi
-
   # Check if path is already in PATH
   if [[ ":$PATH:" != *":$new_path:"* ]]; then
     if [ -n "${ZSH_VERSION:-}" ]; then
@@ -100,26 +97,32 @@ function genkit::install_prerequisites() {
     # Darwin-based systems.
     brew install \
       curl \
+      fd \
       gh \
       go \
       node \
-      python3
+      python3 \
+      ripgrep
   elif [[ -x "$(command -v apt)" ]]; then
     # Debian-based systems.
     sudo apt install -y \
       curl \
+      fd-find \
       gh \
       golang \
       nodejs \
-      python3
+      python3 \
+      ripgrep
   elif [[ -x "$(command -v dnf)" ]]; then
     # Fedora-based systems.
     sudo dnf install -y \
       curl \
+      fd-find \
       gh \
       go \
       node \
-      python3
+      python3 \
+      ripgrep
   else
     echo "Unsupported OS. Please install protoc manually."
   fi
@@ -154,30 +157,39 @@ function genkit::install_google_cloud_sdk() {
 }
 
 # Install all the required tools that have been written in Go.
-function genkit::install_go_cli_tools() {
+function genkit::install_go_cli_tools_ci() {
+  go install github.com/google/go-licenses@latest
+  go install golang.org/x/vuln/cmd/govulncheck@latest
+  go install oss.terrastruct.com/d2@latest
+}
+
+# Install all the required tools that have been written in Go.
+function genkit::install_go_cli_tools_eng() {
   go install github.com/Gelio/go-global-update@latest
   go install github.com/captainhook-go/captainhook/cmd/captainhook@latest
   go install github.com/google/addlicense@latest
   go install github.com/google/go-licenses@latest
   go install github.com/jesseduffield/lazygit@latest
   go install golang.org/x/vuln/cmd/govulncheck@latest
+  go install oss.terrastruct.com/d2@latest
 }
 
 # Install all the required tools that have been written in Rust.  We're assuming
 # that the user has already installed rust and cargo.
-function genkit::install_cargo_cli_tools() {
+function genkit::install_cargo_cli_tools_eng() {
   cargo install --locked \
     convco \
-    fd-find \
-    ripgrep \
     rust-parallel \
     taplo-cli
 }
 
 # Install NPM packages.
 function genkit::install_pnpm_cli_tools() {
-  # Install the Genkit CLI. See: https://firebase.google.com/docs/genkit/devtools
-  pnpm add -g genkit-cli
+  # Genkit CLI: https://firebase.google.com/docs/genkit/devtools
+  # Biome: https://biomejs.dev/
+  pnpm add -g \
+    @biomejs/biome \
+    genkit-cli
 }
 
 # Install all the Python-related formatter and static analysis tools.
@@ -189,6 +201,9 @@ function genkit::install_python_cli_tools() {
 
 # Install documentation site generator.
 function genkit::install_docs_cli_tools() {
+  # Install d2.
+  curl -fsSL https://d2lang.com/install.sh | sh -s --
+
   # Engineering documentation site generator.
   # See: https://squidfunk.github.io/mkdocs-material/
   uv tool install \
@@ -218,8 +233,6 @@ function genkit::setup_genkit() {
 # Install all the common packages.
 function genkit::install_common_packages() {
   genkit::install_prerequisites
-  genkit::install_go_cli_tools
-  genkit::install_cargo_cli_tools
   genkit::install_python_cli_tools
   genkit::install_docs_cli_tools
   genkit::install_pnpm_cli_tools
@@ -227,12 +240,16 @@ function genkit::install_common_packages() {
 
 # Install all the required tools for CI.
 function genkit::install_ci_packages() {
+  export PNPM_HOME="$HOME/.local/share/pnpm"
   genkit::install_common_packages
+  genkit::install_go_cli_tools_ci
 }
 
 # Install all the required tools for engineering.
 function genkit::install_eng_packages() {
   genkit::install_common_packages
+  genkit::install_go_cli_tools_eng
+  genkit::install_cargo_cli_tools_eng
   genkit::install_google_cloud_sdk
   genkit::install_pre_commit_hooks
   genkit::setup_genkit
