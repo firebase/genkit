@@ -8,7 +8,7 @@ npm run genkit:dev
 
 or try it out on Project IDX, our Cloud-based IDE
 
-<a href="https://idx.google.com/new?template=https%3A%2F%2Fgithub.com%2Ffirebase%2Fgenkit%2Ftree%2Fmain%2Fsamples%2Fjs-coffee-shop">
+<a href="https://idx.google.com/new?repo=https%3A%2F%2Fgithub.com%2Ffirebase%2Fgenkit%2Ftree%2Fmain%2Fsamples%2Fjs-coffee-shop">
   <picture>
     <source
       media="(prefers-color-scheme: dark)"

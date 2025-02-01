@@ -1,0 +1,26 @@
+{
+    "name": "Genkit Samples",
+    "description": "Genkit Samples",
+    "categories": ["GenAI"],
+    "icon": "https://github.com/firebase/genkit/blob/c68d27f64b8bde069531404d947c44bdb446bbaf/docs/resources/logo-vertical-dark.png",
+    "publisher": "Firebase",
+    "host": {
+      "virtualization": true
+    },
+    "params": [
+      {
+        "id": "sammple",
+        "name": "Sample",
+        "type": "enum",
+        "default": "js-character-generator",
+        "options": {
+          "chatbot": "Chatbot",
+          "js-angular": "JavaScript Angular App",
+          "js-character-generator": "Simple Character Generator",
+          "js-coffee-shop": "Coffeeshop w Several types of Prompt",
+          "js-schoolAgent": "A Multi-Agent School Assistant",
+          "prompts": "Connection of Prompt Examples"
+        }
+      }
+    ]
+  }

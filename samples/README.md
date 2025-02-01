@@ -10,3 +10,13 @@ Take a look at some samples of Genkit in use:
 - [js-angular](js-angular/): Demo of streaming to an Angular frontend
 - [js-schoolAgent](js-schoolAgent/): A simple school assistant system with a routing agent and specialized agents
 - [prompts](prompts/): Shows off several prompting techniques
+
+
+These are also avaiable in IDX, Google's Cloud-Basd IDE try them out there.
+
+<a href="https://idx.google.com/new?template=https%3A%2F%2Fgithub.com%2Ffirebase%2Fgenkit%2Ftree%2Fupdate-samples-approach%2Fsamples">
+  <img
+    height="32"
+    alt="Try in IDX"
+    src="https://cdn.idx.dev/btn/try_light_32.svg">
+</a>
