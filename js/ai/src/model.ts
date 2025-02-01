@@ -714,7 +714,7 @@ export const GenerateActionOptionsSchema = z.object({
   /** Options for resuming an interrupted generation. */
   resume: z
     .object({
-      reply: z.array(ToolResponsePartSchema).optional(),
+      respond: z.array(ToolResponsePartSchema).optional(),
       restart: z.array(ToolRequestPartSchema).optional(),
       metadata: z.record(z.any()).optional(),
     })
