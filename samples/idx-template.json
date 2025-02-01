@@ -2,7 +2,7 @@
     "name": "Genkit Samples",
     "description": "Genkit Samples",
     "categories": ["GenAI"],
-    "icon": "https://github.com/firebase/genkit/blob/c68d27f64b8bde069531404d947c44bdb446bbaf/docs/resources/logo-vertical-dark.png",
+    "icon": "https://www.gstatic.com/monospace/240513/logo_firebase.svg",
     "publisher": "Firebase",
     "host": {
       "virtualization": true
