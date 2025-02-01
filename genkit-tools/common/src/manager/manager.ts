@@ -47,7 +47,7 @@ export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 interface RuntimeManagerOptions {
   /** URL of the telemetry server. */
-  telemetryServerUrl?: string;
+  telemetryServerUrl: string;
   /** Whether to clean up unhealthy runtimes. */
   manageHealth?: boolean;
 }
@@ -58,7 +58,7 @@ export class RuntimeManager {
   private eventEmitter = new EventEmitter();
 
   private constructor(
-    readonly telemetryServerUrl?: string,
+    readonly telemetryServerUrl: string,
     private manageHealth: boolean = true
   ) {}
 
