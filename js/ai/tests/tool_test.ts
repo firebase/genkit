@@ -22,32 +22,34 @@ import { defineInterrupt, defineTool } from '../src/tool.js';
 
 describe('defineInterrupt', () => {
   let registry = new Registry();
+  registry.apiStability = 'beta';
 
   afterEach(() => {
     registry = new Registry();
+    registry.apiStability = 'beta';
   });
 
   function expectInterrupt(fn: () => any, metadata?: Record<string, any>) {
-    assert.rejects(fn, { name: 'ToolInterruptError', metadata });
+    return assert.rejects(fn, { name: 'ToolInterruptError', metadata });
   }
 
-  it('should throw a simple interrupt with no metadata', () => {
+  it('should throw a simple interrupt with no metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
     });
-    expectInterrupt(async () => {
+    await expectInterrupt(async () => {
       await simple({});
     });
   });
 
-  it('should throw a simple interrupt with fixed metadata', () => {
+  it('should throw a simple interrupt with fixed metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
       requestMetadata: { foo: 'bar' },
     });
-    expectInterrupt(
+    await expectInterrupt(
       async () => {
         await simple({});
       },
@@ -55,14 +57,14 @@ describe('defineInterrupt', () => {
     );
   });
 
-  it('should throw a simple interrupt with function-returned metadata', () => {
+  it('should throw a simple interrupt with function-returned metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
       inputSchema: z.string(),
       requestMetadata: (foo) => ({ foo }),
     });
-    expectInterrupt(
+    await expectInterrupt(
       async () => {
         await simple('bar');
       },
@@ -70,14 +72,14 @@ describe('defineInterrupt', () => {
     );
   });
 
-  it('should throw a simple interrupt with async function-returned metadata', () => {
+  it('should throw a simple interrupt with async function-returned metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
       inputSchema: z.string(),
       requestMetadata: async (foo) => ({ foo }),
     });
-    expectInterrupt(
+    await expectInterrupt(
       async () => {
         await simple('bar');
       },
@@ -106,8 +108,10 @@ describe('defineInterrupt', () => {
 
 describe('defineTool', () => {
   let registry = new Registry();
+  registry.apiStability = 'beta';
   afterEach(() => {
     registry = new Registry();
+    registry.apiStability = 'beta';
   });
 
   describe('.reply()', () => {
