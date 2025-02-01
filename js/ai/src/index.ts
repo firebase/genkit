@@ -81,10 +81,14 @@ export {
   isExecutablePrompt,
   loadPromptFolder,
   prompt,
+  type DocsResolver,
   type ExecutablePrompt,
+  type MessagesResolver,
+  type PartsResolver,
   type PromptAction,
   type PromptConfig,
   type PromptGenerateOptions,
+  type PromptPrepare,
 } from './prompt.js';
 export {
   rerank,

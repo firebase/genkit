@@ -125,7 +125,7 @@ export interface PromptConfig<
   toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
   context?: ActionContext;
-  prepare?: PromptPrepareFn<I, O, CustomOptions>;
+  prepare?: PromptPrepare<I, O, CustomOptions>;
 }
 
 /**
@@ -210,9 +210,19 @@ export type DocsResolver<I, S = any> = (
 ) => DocumentData[] | Promise<DocumentData[]>;
 
 /**
- * A function that can be passes to the prompt that can asyncronously produce additional
+ * A function that can be passes to the prompt that can produce additional propmpt render options
+ * like context, docs, or any other propmpt option really:
+ *
+ * ```ts
+ * const ragPrompt = ai.definePrompt({
+ *   prepare: async (input, {context}) => ({
+ *     context: {...context, userInfo: await fetchUserInfo(context.auth.uid)},
+ *     docs: await myRetriever({query: input.query}),
+ *   })
+ * })
+ * ```
  */
-export type PromptPrepareFn<
+export type PromptPrepare<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
