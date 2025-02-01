@@ -18,7 +18,7 @@ import * as express from 'express';
 import { initializeApp } from 'firebase/app';
 import { getFunctions, httpsCallableFromURL } from 'firebase/functions';
 import { Genkit, genkit } from 'genkit';
-import { runFlow, streamFlow } from 'genkit/client';
+import { runFlow, streamFlow } from 'genkit/beta/client';
 import * as getPort from 'get-port';
 import * as http from 'http';
 import { RequestWithAuth, noAuth, onFlow } from '../lib/functions.js';

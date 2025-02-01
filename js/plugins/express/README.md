@@ -52,10 +52,10 @@ app.post(
 );
 ```
 
-Flows and actions exposed using the `expressHandler` function can be accessed using `genkit/client` library:
+Flows and actions exposed using the `expressHandler` function can be accessed using `genkit/beta/client` library:
 
 ```ts
-import { runFlow, streamFlow } from 'genkit/client';
+import { runFlow, streamFlow } from 'genkit/beta/client';
 
 const result = await runFlow({
   url: `http://localhost:${port}/simpleFlow`,
