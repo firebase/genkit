@@ -872,7 +872,7 @@ describe('generate', () => {
         messages,
         tools: [interrupter, resumable, truth],
         resume: {
-          reply: interrupter.reply(
+          respond: interrupter.respond(
             {
               toolRequest: { name: 'interrupter', input: {} },
               metadata: { interrupt: true },
@@ -928,7 +928,7 @@ describe('generate', () => {
         [
           {
             metadata: {
-              reply: true,
+              interruptResponse: true,
             },
             toolResponse: {
               name: 'interrupter',
