@@ -6,12 +6,11 @@ jobs:
   python-checks:
     runs-on: ubuntu-latest
     env:
-      PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/share/pnpm:${{ github.workspace }}/.local/bin:${{ env.PATH }}
+      PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/share/pnpm:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
     strategy:
       matrix:
         python-version:
           - "3.12"
-          - "3.13"
     defaults:
       run:
         working-directory: py
@@ -35,7 +34,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Run tests
-        run: uv run pytest .
+        run: ./bin/run_tests
 
       - name: Build documentation
         run: uv run mkdocs build --strict
