@@ -256,25 +256,25 @@ describe('toGenerateRequest', () => {
     },
     {
       should:
-        'throw a PRECONDITION_FAILED error if trying to resume without a model message',
+        'throw a FAILED_PRECONDITION error if trying to resume without a model message',
       prompt: {
         messages: [{ role: 'system', content: [{ text: 'sys' }] }],
         resume: {
-          reply: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+          respond: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
         },
       },
       throws: 'FAILED_PRECONDITION',
     },
     {
       should:
-        'throw a PRECONDITION_FAILED error if trying to resume a model message without toolRequests',
+        'throw a FAILED_PRECONDITION error if trying to resume a model message without toolRequests',
       prompt: {
         messages: [
           { role: 'user', content: [{ text: 'hi' }] },
           { role: 'model', content: [{ text: 'there' }] },
         ],
         resume: {
-          reply: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+          respond: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
         },
       },
       throws: 'FAILED_PRECONDITION',

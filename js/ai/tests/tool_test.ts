@@ -88,17 +88,17 @@ describe('defineInterrupt', () => {
   });
 
   it('should register the reply schema / json schema as the output schema of the tool', () => {
-    const ReplySchema = z.object({ foo: z.string() });
+    const ResponseSchema = z.object({ foo: z.string() });
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple',
-      replySchema: ReplySchema,
+      outputSchema: ResponseSchema,
     });
-    assert.equal(simple.__action.outputSchema, ReplySchema);
+    assert.equal(simple.__action.outputSchema, ResponseSchema);
     const simple2 = defineInterrupt(registry, {
       name: 'simple2',
       description: 'simple2',
-      replyJsonSchema: { type: 'string' },
+      outputJsonSchema: { type: 'string' },
     });
     assert.deepStrictEqual(simple2.__action.outputJsonSchema, {
       type: 'string',
@@ -114,7 +114,7 @@ describe('defineTool', () => {
     registry.apiStability = 'beta';
   });
 
-  describe('.reply()', () => {
+  describe('.respond()', () => {
     it('constructs a ToolResponsePart', () => {
       const t = defineTool(
         registry,
@@ -122,14 +122,14 @@ describe('defineTool', () => {
         async () => {}
       );
       assert.deepStrictEqual(
-        t.reply({ toolRequest: { name: 'test', input: {} } }, 'output'),
+        t.respond({ toolRequest: { name: 'test', input: {} } }, 'output'),
         {
           toolResponse: {
             name: 'test',
             output: 'output',
           },
           metadata: {
-            reply: true,
+            interruptResponse: true,
           },
         }
       );
@@ -142,7 +142,7 @@ describe('defineTool', () => {
         async () => {}
       );
       assert.deepStrictEqual(
-        t.reply({ toolRequest: { name: 'test', input: {} } }, 'output', {
+        t.respond({ toolRequest: { name: 'test', input: {} } }, 'output', {
           metadata: { extra: 'data' },
         }),
         {
@@ -151,7 +151,7 @@ describe('defineTool', () => {
             output: 'output',
           },
           metadata: {
-            reply: { extra: 'data' },
+            interruptResponse: { extra: 'data' },
           },
         }
       );
@@ -165,7 +165,7 @@ describe('defineTool', () => {
       );
       assert.throws(
         () => {
-          t.reply(
+          t.respond(
             { toolRequest: { name: 'test', input: {} } },
             'not_a_number' as any
           );
@@ -174,14 +174,14 @@ describe('defineTool', () => {
       );
 
       assert.deepStrictEqual(
-        t.reply({ toolRequest: { name: 'test', input: {} } }, 55),
+        t.respond({ toolRequest: { name: 'test', input: {} } }, 55),
         {
           toolResponse: {
             name: 'test',
             output: 55,
           },
           metadata: {
-            reply: true,
+            interruptResponse: true,
           },
         }
       );
