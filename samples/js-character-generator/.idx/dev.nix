@@ -12,7 +12,7 @@
   # Sets environment variables in the workspace
   env = {
     #TODO Get a API key from https://g.co/ai/idxGetGeminiKey 
-    GOOGLE_GENAI_API_KEY = "TODO"; 
+    GOOGLE_GENAI_API_KEY = ""; 
   };
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
