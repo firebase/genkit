@@ -4,7 +4,7 @@
     ];
     bootstrap = ''
         mkdir "$out"
-        cp -rf ${./.}/${sample}/* "$out"
+        cp -rf ${./.}/${sample}/. "$out"
         chmod -R u+w "$out"
     '';
 }
