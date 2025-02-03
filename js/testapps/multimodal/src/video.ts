@@ -138,7 +138,7 @@ export const VideoQAFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query: any, streamingCallback: any) => {
+  async (query, { sendChunk }) => {
     const docs = (await ai.retrieve({
       retriever: videoRetriever,
       query,
@@ -166,7 +166,7 @@ export const VideoQAFlow = ai.defineFlow(
           })[0],
       },
       {
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       }
     ).then((r) => r.text);
   }

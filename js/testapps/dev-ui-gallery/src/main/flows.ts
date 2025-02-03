@@ -83,13 +83,11 @@ ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.number(),
   },
-  async (count, streamingCallback) => {
+  async (count, { sendChunk }) => {
     let i = 1;
-    if (streamingCallback) {
-      for (; i <= count; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        streamingCallback(i);
-      }
+    for (; i <= count; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      sendChunk(i);
     }
     return `done: ${count}, streamed: ${i - 1} times`;
   }
@@ -168,16 +166,14 @@ ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.number(),
   },
-  async (count, streamingCallback) => {
+  async (count, { sendChunk }) => {
     let i = 1;
-    if (streamingCallback) {
-      for (; i <= count; i++) {
-        if (i == 3) {
-          throw new Error('I cannot count that high!');
-        }
-        await new Promise((r) => setTimeout(r, 500));
-        streamingCallback(i);
+    for (; i <= count; i++) {
+      if (i == 3) {
+        throw new Error('I cannot count that high!');
       }
+      await new Promise((r) => setTimeout(r, 500));
+      sendChunk(i);
     }
     if (count) {
       throw new Error('I cannot count that low!');

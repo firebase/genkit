@@ -109,12 +109,11 @@ Here's an example of a flow that supports streaming:
 *   The `streamSchema` option specifies the type of values your flow streams.
     This does not necessarily need to be the same type as the `outputSchema`,
     which is the type of the flow's complete output.
-*   `streamingCallback` is a callback function that takes a single parameter, of
+*   The second parameter to your flow definition is called "sideChannel". It provides
+    multiple useful features, such as request context and the `sendChunk` callback.
+    The `sendChunk` callback takes a single parameter, of
     the type specified by `streamSchema`. Whenever data becomes available within
-    your flow, send the data to the output stream by calling this function. Note
-    that `streamingCallback` is only defined if the caller of your flow
-    requested streaming output, so you need to check that it's defined before
-    calling it.
+    your flow, send the data to the output stream by calling this function.
 
 In the above example, the values streamed by the flow are directly coupled to
 the values streamed by the `generate()` call inside the flow. Although this is

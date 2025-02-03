@@ -6,17 +6,14 @@ This plugin provides utilities for conveninetly exposing Genkit flows and action
 import { expressHandler } from '@genkit-ai/express';
 import express from 'express';
 
-const simpleFlow = ai.defineFlow(
-  'simpleFlow',
-  async (input, streamingCallback) => {
-    const { text } = await ai.generate({
-      model: gemini15Flash,
-      prompt: input,
-      streamingCallback,
-    });
-    return text;
-  }
-);
+const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
+  const { text } = await ai.generate({
+    model: gemini15Flash,
+    prompt: input,
+    onChunk: (c) => sendChunk(c.text),
+  });
+  return text;
+});
 
 const app = express();
 app.use(express.json());

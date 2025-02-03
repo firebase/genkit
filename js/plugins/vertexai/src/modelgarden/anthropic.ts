@@ -409,9 +409,9 @@ export function anthropicModel(
       supports: model.info?.supports,
       versions: model.info?.versions,
     },
-    async (input, streamingCallback) => {
+    async (input, sendChunk) => {
       const client = clientFactory(input.config?.location || region);
-      if (!streamingCallback) {
+      if (!sendChunk) {
         const response = await client.messages.create({
           ...toAnthropicRequest(input.config?.version ?? modelName, input),
           stream: false,
@@ -423,7 +423,7 @@ export function anthropicModel(
         );
         for await (const event of stream) {
           if (event.type === 'content_block_delta') {
-            streamingCallback({
+            sendChunk({
               index: 0,
               content: [
                 {

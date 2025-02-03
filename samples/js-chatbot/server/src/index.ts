@@ -63,7 +63,7 @@ export const chatbotFlow = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: GenerateResponseChunkSchema,
   },
-  async (request, streamingCallback) => {
+  async (request, { sendChunk }) => {
     // Retrieve conversation history.
     const history = await ai.run(
       'retrieve-history',
@@ -78,7 +78,7 @@ export const chatbotFlow = ai.defineFlow(
       prompt: request.prompt,
       messages: history,
       model: llms[request.llmIndex],
-      streamingCallback,
+      onChunk: (c) => sendChunk(c.text),
     });
 
     // Save history.
