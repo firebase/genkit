@@ -1,4 +1,4 @@
-## Menu Understanding Sample Application
+# Menu Understanding Sample Application
 
 This sample demonstrates an application that can understand a restaurant menu and answer relevant questions about the items on the menu.
 
@@ -6,11 +6,11 @@ There are 5 iterations of this sample application, growing in complexity and dem
 
 To test each one out, open the Developer UI and exercise the prompts and flows. Each step contains one or more `example.json` files which you can use as inputs.
 
-### Prerequisites
+## Prerequisites
 
 This example uses Vertex AI for language models and embeddings.
 
-### Prompts and Flows
+## Prompts and Flows
 
 1. This step shows how to define prompts in code that can accept user input to their templates.
 2. This step illustrates how to wrap your llm calls and other application code into flows with strong input and output schemas.
