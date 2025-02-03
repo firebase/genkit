@@ -16,18 +16,14 @@
 
 import { startServer } from '@genkit-ai/tools-common/server';
 import fs from 'fs';
-import { resolveTelemetryServer, startManager } from './manager-utils';
+import { startManager } from './manager-utils';
 
 const args = process.argv.slice(2);
 const port = parseInt(args[0]) || 4100;
 redirectStdoutToFile(args[1]);
 
 async function start() {
-  const telemetryServerUrl = await resolveTelemetryServer();
-  const manager = await startManager({
-    manageHealth: true,
-    telemetryServerUrl,
-  });
+  const manager = await startManager(true);
   await startServer(manager, port);
 }
 
