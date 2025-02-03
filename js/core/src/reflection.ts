@@ -227,8 +227,12 @@ export class ReflectionServer {
     server.post('/api/notify', async (request, response) => {
       const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
       if (!process.env.GENKIT_TELEMETRY_SERVER) {
-        setTelemetryServerUrl(telemetryServerUrl);
-        logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
+        if (typeof telemetryServerUrl === 'string') {
+          setTelemetryServerUrl(telemetryServerUrl);
+          logger.debug(
+            `Connected to telemetry server on ${telemetryServerUrl}`
+          );
+        }
       }
       if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
         if (
