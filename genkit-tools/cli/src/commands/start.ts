@@ -36,7 +36,7 @@ export const start = new Command('start')
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
-    // Always start the manager and runtime, if avaliable
+    // Always start the manager.
     let managerPromise: Promise<RuntimeManager> = startManager(true);
     if (!options.noui) {
       let port: number;
