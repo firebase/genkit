@@ -18,7 +18,7 @@
   "dependencies": {
     "genkit": "^1.0.0-rc.14",
     "@genkit-ai/googleai": "^1.0.0-rc.14",
-    "google-auth-library": "^9.6.3",
+    "google-auth-library": "^9.15.1",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1"
   },
