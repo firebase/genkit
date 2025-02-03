@@ -30,7 +30,7 @@ export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 export { z } from 'zod';
 export * from './action.js';
 export { getContext, runWithContext, type ActionContext } from './context.js';
-export { GenkitError } from './error.js';
+export { GenkitError, UnstableApiError, assertUnstable } from './error.js';
 export {
   defineFlow,
   run,

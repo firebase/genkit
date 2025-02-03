@@ -131,6 +131,8 @@ export interface GenerateOptions<
    *   resume: myInterrupt.respond(interrupt, {note: "this is the reply data"}),
    * });
    * ```
+   *
+   * @beta
    */
   resume?: ResumeOptions;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
