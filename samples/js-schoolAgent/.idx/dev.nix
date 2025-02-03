@@ -14,7 +14,7 @@
   # Sets environment variables in the workspace
   env = {
     #TODO Get a API key from https://g.co/ai/idxGetGeminiKey 
-    GOOGLE_GENAI_API_KEY = "TODO"; 
+    GOOGLE_GENAI_API_KEY = ""; 
   };
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
@@ -30,7 +30,13 @@
       };
       # Runs when the workspace is (re)started
       onStart = {
-        run-server = "npm run genkit:dev";
+        run-server = "if [ -z \"\${GOOGLE_GENAI_API_KEY}\" ]; then \
+          echo 'No Gemini API key detected, enter a Gemini API key from https://aistudio.google.com/app/apikey:' && \
+          read -s GOOGLE_GENAI_API_KEY && \
+          echo 'You can also set the key in .idx/dev.nix to automatically add to your workspace'
+          export GOOGLE_GENAI_API_KEY; \
+          fi && \
+          npm run genkit:dev";      
       };
     };
   };
