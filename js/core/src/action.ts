@@ -119,7 +119,7 @@ export type Action<
   __action: ActionMetadata<I, O, S>;
   __registry: Registry;
   run(
-    input: z.infer<I>,
+    input?: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
   ): Promise<ActionResult<z.infer<O>>>;
 
