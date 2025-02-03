@@ -40,15 +40,19 @@ func Init() error {
 	}
 
 	// [START definemodel]
+	name := "my-model"
 	genkit.DefineModel(g,
-		providerID, "my-model",
+		providerID, name,
 		&ai.ModelMetadata{
-			Label: "my-model",
-			Supports: ai.ModelCapabilities{
-				Multiturn:  true,  // Does the model support multi-turn chats?
-				SystemRole: true,  // Does the model support syatem messages?
-				Media:      false, // Can the model accept media input?
-				Tools:      false, // Does the model support function calling (tools)?
+			Label: name,
+			Info: ai.ModelInfo{
+				Label: name,
+				Supports: &ai.ModelInfoSupports{
+					Multiturn:  true,  // Does the model support multi-turn chats?
+					SystemRole: true,  // Does the model support syatem messages?
+					Media:      false, // Can the model accept media input?
+					Tools:      false, // Does the model support function calling (tools)?
+				},
 			},
 		},
 		func(ctx context.Context,

@@ -36,41 +36,46 @@ import (
 
 const provider = "ollama"
 
-var mediaSupportedModels = []string{"llava"}
-var roleMapping = map[ai.Role]string{
-	ai.RoleUser:   "user",
-	ai.RoleModel:  "assistant",
-	ai.RoleSystem: "system",
-}
+var (
+	mediaSupportedModels = []string{"llava"}
+	roleMapping          = map[ai.Role]string{
+		ai.RoleUser:   "user",
+		ai.RoleModel:  "assistant",
+		ai.RoleSystem: "system",
+	}
+)
+
 var state struct {
-	mu            sync.Mutex
-	initted       bool
 	serverAddress string
+	initted       bool
+	mu            sync.Mutex
 }
 
-func DefineModel(g *genkit.Genkit, model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
+func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
-	var mc ai.ModelCapabilities
-	if caps != nil {
-		mc = *caps
+	var mi ai.ModelInfo
+	if info != nil {
+		mi = *info
 	} else {
-		mc = ai.ModelCapabilities{
-			Multiturn:  true,
-			SystemRole: true,
-			Media:      slices.Contains(mediaSupportedModels, model.Name),
+		mi = ai.ModelInfo{
+			Label: model.Name,
+			Supports: &ai.ModelInfoSupports{
+				Multiturn:  true,
+				SystemRole: true,
+				Media:      slices.Contains(mediaSupportedModels, model.Name),
+			},
 		}
 	}
 	meta := &ai.ModelMetadata{
-		Label:    "Ollama - " + model.Name,
-		Supports: mc,
+		Label: "Ollama - " + model.Name,
+		Info:  mi,
 	}
 	gen := &generator{model: model, serverAddress: state.serverAddress}
 	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)
-
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -170,7 +175,6 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 
 // Generate makes a request to the Ollama API and processes the response.
 func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
-
 	stream := cb != nil
 	var payload any
 	isChatModel := g.model.Type == "chat"

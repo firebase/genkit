@@ -45,24 +45,11 @@ type modelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChun
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
 
-// ModelCapabilities describes various capabilities of the model.
-type ModelCapabilities struct {
-	Multiturn  bool // the model can handle multiple request-response interactions
-	Media      bool // the model supports media as well as text input
-	Tools      bool // the model supports tools
-	SystemRole bool // the model supports a system prompt or role
-}
-
-type ModelDetails struct {
-	Versions []string
-	Caps     ModelCapabilities
-}
-
 // ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
 type ModelMetadata struct {
 	Label    string
 	Versions []string
-	Supports ModelCapabilities
+	Info     ModelInfo
 }
 
 // DefineModel registers the given generate function as an action, and returns a
@@ -78,16 +65,20 @@ func DefineModel(
 		// Always make sure there's at least minimal metadata.
 		metadata = &ModelMetadata{
 			Label: name,
+			Info: ModelInfo{
+				Label:    name,
+				Supports: &ModelInfoSupports{},
+			},
 		}
 	}
 	if metadata.Label != "" {
 		metadataMap["label"] = metadata.Label
 	}
 	supports := map[string]bool{
-		"media":      metadata.Supports.Media,
-		"multiturn":  metadata.Supports.Multiturn,
-		"systemRole": metadata.Supports.SystemRole,
-		"tools":      metadata.Supports.Tools,
+		"media":      metadata.Info.Supports.Media,
+		"multiturn":  metadata.Info.Supports.Multiturn,
+		"systemRole": metadata.Info.Supports.SystemRole,
+		"tools":      metadata.Info.Supports.Tools,
 	}
 	metadataMap["supports"] = supports
 	metadataMap["versions"] = metadata.Versions

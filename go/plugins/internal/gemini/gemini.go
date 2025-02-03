@@ -20,7 +20,7 @@ import "github.com/firebase/genkit/go/ai"
 
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
-	BasicText = ai.ModelCapabilities{
+	BasicText = ai.ModelInfoSupports{
 		Multiturn:  true,
 		Tools:      true,
 		SystemRole: true,
@@ -28,7 +28,7 @@ var (
 	}
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
-	Multimodal = ai.ModelCapabilities{
+	Multimodal = ai.ModelInfoSupports{
 		Multiturn:  true,
 		Tools:      true,
 		SystemRole: true,

@@ -48,25 +48,25 @@ var state struct {
 }
 
 var (
-	supportedModels = map[string]ai.ModelDetails{
+	supportedModels = map[string]ai.ModelInfo{
 		"gemini-1.0-pro": {
 			Versions: []string{"gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro-001"},
-			Caps:     gemini.BasicText,
+			Supports: &gemini.BasicText,
 		},
 
 		"gemini-1.5-flash": {
 			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
-			Caps:     gemini.Multimodal,
+			Supports: &gemini.Multimodal,
 		},
 
 		"gemini-1.5-pro": {
 			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
-			Caps:     gemini.Multimodal,
+			Supports: &gemini.Multimodal,
 		},
 
 		"gemini-1.5-flash-8b": {
 			Versions: []string{"gemini-1.5-flash-8b-latest", "gemini-1.5-flash-8b-001"},
-			Caps:     gemini.Multimodal,
+			Supports: &gemini.Multimodal,
 		},
 	}
 
@@ -140,32 +140,32 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.Model, error) {
+func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	var md ai.ModelDetails
-	if caps == nil {
+	var mi ai.ModelInfo
+	if info == nil {
 		var ok bool
-		md, ok = supportedModels[name]
+		mi, ok = supportedModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelCapabilities", provider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
 		}
 	} else {
 		// TODO: unknown models could also specify versions?
-		md.Caps = *caps
+		mi = *info
 	}
-	return defineModel(g, name, md), nil
+	return defineModel(g, name, mi), nil
 }
 
 // requires state.mu
-func defineModel(g *genkit.Genkit, name string, details ai.ModelDetails) ai.Model {
+func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
-		Supports: details.Caps,
-		Versions: details.Versions,
+		Info:     info,
+		Versions: info.Versions,
 	}
 	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
