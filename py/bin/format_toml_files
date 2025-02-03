@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# Format all TOML files in the project.
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+GIT_ROOT=$(git rev-parse --show-toplevel)
+
+if command -v rust-parallel >/dev/null 2>&1; then
+  if command -v fd >/dev/null 2>&1; then
+    fd -e toml \
+      --exclude 'py/**/*.egg-info/**' \
+      --exclude 'py/**/.dist/**' \
+      --exclude 'py/**/.next/**' \
+      --exclude 'py/**/.output/**' \
+      --exclude 'py/**/.pytest_cache/**' \
+      --exclude 'py/**/.venv/**' \
+      --exclude 'py/**/__pycache__/**' \
+      --exclude 'py/**/build/**' \
+      --exclude 'py/**/develop-eggs/**' \
+      --exclude 'py/**/dist/**' \
+      --exclude 'py/**/eggs/**' \
+      --exclude 'py/**/node_modules/**' \
+      --exclude 'py/**/sdist/**' \
+      --exclude 'py/**/site/**' \
+      --exclude 'py/**/target/**' \
+      --exclude 'py/**/venv/**' \
+      --exclude 'py/**/wheels/**' |
+      rust-parallel -j4 \
+        taplo format --config "${GIT_ROOT}/py/taplo.toml"
+  else
+    echo "Using find"
+    find "${GIT_ROOT}" -name "*.toml" \
+      ! -path 'py/**/*.egg-info/**' \
+      ! -path 'py/**/.dist/**' \
+      ! -path 'py/**/.next/**' \
+      ! -path 'py/**/.output/**' \
+      ! -path 'py/**/.pytest_cache/**' \
+      ! -path 'py/**/.venv/**' \
+      ! -path 'py/**/__pycache__/**' \
+      ! -path 'py/**/build/**' \
+      ! -path 'py/**/develop-eggs/**' \
+      ! -path 'py/**/dist/**' \
+      ! -path 'py/**/eggs/**' \
+      ! -path 'py/**/node_modules/**' \
+      ! -path 'py/**/sdist/**' \
+      ! -path 'py/**/site/**' \
+      ! -path 'py/**/target/**' \
+      ! -path 'py/**/venv/**' \
+      ! -path 'py/**/wheels/**' \
+      -print0 |
+      rust-parallel -j4 \
+        taplo format --config "${GIT_ROOT}/py/taplo.toml"
+  fi
+else
+  echo "Please install GNU parallel to use this script"
+fi

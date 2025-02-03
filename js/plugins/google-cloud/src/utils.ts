@@ -18,6 +18,17 @@ import { TraceFlags } from '@opentelemetry/api';
 import { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
 import { resolveCurrentPrincipal } from './auth.js';
 
+/**
+ * The maximum length (in characters) of a logged input or output.
+ * This limit exists to align the logs with GCP logging size limits.
+ * */
+const MAX_LOG_CONTENT_CHARS = 128_000;
+
+/**
+ * The maximum length (in characters) of a flow path.
+ */
+const MAX_PATH_CHARS = 4096;
+
 export function extractOuterFlowNameFromPath(path: string) {
   if (!path || path === '<unknown>') {
     return '<unknown>';
@@ -25,6 +36,17 @@ export function extractOuterFlowNameFromPath(path: string) {
 
   const flowName = path.match('/{(.+),t:flow}+');
   return flowName ? flowName[1] : '<unknown>';
+}
+
+export function truncate(
+  text: string,
+  limit: number = MAX_LOG_CONTENT_CHARS
+): string {
+  return text ? text.substring(0, limit) : text;
+}
+
+export function truncatePath(path: string) {
+  return truncate(path, MAX_PATH_CHARS);
 }
 
 /**
@@ -47,7 +69,7 @@ export function extractErrorName(events: TimedEvent[]): string | undefined {
     .map((event) => {
       const attributes = event.attributes;
       return attributes
-        ? (attributes['exception.type'] as string)
+        ? truncate(attributes['exception.type'] as string, 1024)
         : '<unknown>';
     })
     .at(0);
@@ -59,7 +81,7 @@ export function extractErrorMessage(events: TimedEvent[]): string | undefined {
     .map((event) => {
       const attributes = event.attributes;
       return attributes
-        ? (attributes['exception.message'] as string)
+        ? truncate(attributes['exception.message'] as string, 4096)
         : '<unknown>';
     })
     .at(0);
@@ -71,7 +93,7 @@ export function extractErrorStack(events: TimedEvent[]): string | undefined {
     .map((event) => {
       const attributes = event.attributes;
       return attributes
-        ? (attributes['exception.stacktrace'] as string)
+        ? truncate(attributes['exception.stacktrace'] as string, 32_768)
         : '<unknown>';
     })
     .at(0);

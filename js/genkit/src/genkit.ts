@@ -31,7 +31,6 @@ import {
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   IndexerParams,
-  InterruptConfig,
   ModelArgument,
   Part,
   PromptConfig,
@@ -44,7 +43,6 @@ import {
   ToolAction,
   ToolConfig,
   defineHelper,
-  defineInterrupt,
   definePartial,
   definePrompt,
   defineTool,
@@ -70,15 +68,12 @@ import {
   EvaluatorFn,
   defineEvaluator,
 } from '@genkit-ai/ai/evaluator';
-import {
-  Formatter,
-  configureFormats,
-  defineFormat,
-} from '@genkit-ai/ai/formats';
+import { configureFormats } from '@genkit-ai/ai/formats';
 import {
   DefineModelOptions,
   GenerateResponseChunkData,
   ModelAction,
+  defineGenerateAction,
   defineModel,
 } from '@genkit-ai/ai/model';
 import {
@@ -103,6 +98,7 @@ import {
   ActionContext,
   FlowConfig,
   FlowFn,
+  GenkitError,
   JSONSchema,
   ReflectionServer,
   StreamingCallback,
@@ -119,6 +115,14 @@ import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
+
+/**
+ * @deprecated use `ai.definePrompt({messages: fn})`
+ */
+export type PromptFn<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
 
 /**
  * Options for initializing Genkit.
@@ -144,8 +148,6 @@ export interface GenkitOptions {
 export class Genkit implements HasRegistry {
   /** Developer-configured options. */
   readonly options: GenkitOptions;
-  /** Environments that have been configured (at minimum dev). */
-  readonly configuredEnvs = new Set<string>(['dev']);
   /** Registry instance that is exclusively modified by this Genkit instance. */
   readonly registry: Registry;
   /** Reflection server for this registry. May be null if not started. */
@@ -159,7 +161,7 @@ export class Genkit implements HasRegistry {
     this.configure();
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {
-        configuredEnvs: [...this.configuredEnvs],
+        configuredEnvs: ['dev'],
       });
       this.reflectionServer.start().catch((e) => logger.error);
     }
@@ -196,66 +198,12 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Defines and registers an interrupt.
-   *
-   * Interrupts are special tools that halt model processing and return control back to the caller. Interrupts make it simpler to implement
-   * "human-in-the-loop" and out-of-band processing patterns that require waiting on external actions to complete.
-   */
-  defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    config: InterruptConfig<I, O>
-  ): ToolAction<I, O> {
-    return defineInterrupt(this.registry, config);
-  }
-
-  /**
    * Defines and registers a schema from a Zod schema.
    *
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
    */
   defineSchema<T extends z.ZodTypeAny>(name: string, schema: T): T {
     return defineSchema(this.registry, name, schema);
-  }
-
-  /**
-   * Defines and registers a custom model output formatter.
-   *
-   * Here's an example of a custom JSON output formatter:
-   *
-   * ```ts
-   * import { extractJson } from 'genkit/extract';
-   *
-   * ai.defineFormat(
-   *   { name: 'customJson' },
-   *   (schema) => {
-   *     let instructions: string | undefined;
-   *     if (schema) {
-   *       instructions = `Output should be in JSON format and conform to the following schema:
-   * \`\`\`
-   * ${JSON.stringify(schema)}
-   * \`\`\`
-   * `;
-   *     }
-   *     return {
-   *       parseChunk: (chunk) => extractJson(chunk.accumulatedText),
-   *       parseMessage: (message) => extractJson(message.text),
-   *       instructions,
-   *     };
-   *   }
-   * );
-   *
-   * const { output } = await ai.generate({
-   *   prompt: 'Invent a menu item for a pirate themed restaurant.',
-   *   output: { format: 'customJson', schema: MenuItemSchema },
-   * });
-   * ```
-   */
-  defineFormat(
-    options: {
-      name: string;
-    } & Formatter['config'],
-    handler: Formatter['handler']
-  ): { config: Formatter['config']; handler: Formatter['handler'] } {
-    return defineFormat(this.registry, options, handler);
   }
 
   /**
@@ -342,6 +290,7 @@ export class Genkit implements HasRegistry {
 
     return executablePrompt;
   }
+
   /**
    * Defines and registers a prompt based on a function.
    *
@@ -381,8 +330,37 @@ export class Genkit implements HasRegistry {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptConfig<I, O, CustomOptions>
+    options: PromptConfig<I, O, CustomOptions>,
+    /** @deprecated use `options.messages` with a template string instead. */
+    templateOrFn?: string | PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+    // For backwards compatibility...
+    if (templateOrFn) {
+      if (options.messages) {
+        throw new GenkitError({
+          status: 'INVALID_ARGUMENT',
+          message:
+            'Cannot specify template/function argument and `options.messages` at the same time',
+        });
+      }
+      if (typeof templateOrFn === 'string') {
+        return definePrompt(this.registry, {
+          ...options,
+          messages: templateOrFn,
+        });
+      } else {
+        // it's the PromptFn
+        return definePrompt(this.registry, {
+          ...options,
+          messages: async (input) => {
+            const response = await (
+              templateOrFn as PromptFn<z.infer<I>, CustomOptions>
+            )(input);
+            return response.messages;
+          },
+        });
+      }
+    }
     return definePrompt(this.registry, options);
   }
 
@@ -498,7 +476,7 @@ export class Genkit implements HasRegistry {
    */
   embed<CustomOptions extends z.ZodTypeAny>(
     params: EmbedderParams<CustomOptions>
-  ): Promise<Embedding> {
+  ): Promise<Embedding[]> {
     return embed(this.registry, params);
   }
 
@@ -801,6 +779,7 @@ export class Genkit implements HasRegistry {
    */
   private configure() {
     const activeRegistry = this.registry;
+    defineGenerateAction(activeRegistry);
     // install the default formats in the registry
     configureFormats(activeRegistry);
     const plugins = [...(this.options.plugins ?? [])];

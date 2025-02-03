@@ -30,6 +30,8 @@ import {
   createCommonLogAttributes,
   extractErrorName,
   extractOuterFeatureNameFromPath,
+  truncate,
+  truncatePath,
 } from '../utils.js';
 
 class ActionTelemetry implements Telemetry {
@@ -79,8 +81,8 @@ class ActionTelemetry implements Telemetry {
     }
 
     if (subtype === 'tool' && logInputAndOutput) {
-      const input = attributes['genkit:input'] as string;
-      const output = attributes['genkit:output'] as string;
+      const input = truncate(attributes['genkit:input'] as string);
+      const output = truncate(attributes['genkit:output'] as string);
       const sessionId = attributes['genkit:sessionId'] as string;
       const threadName = attributes['genkit:threadName'] as string;
 
@@ -159,7 +161,7 @@ class ActionTelemetry implements Telemetry {
     sessionId?: string,
     threadName?: string
   ) {
-    const path = toDisplayPath(qualifiedPath);
+    const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       path,

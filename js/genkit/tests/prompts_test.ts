@@ -17,6 +17,7 @@
 import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
+import { stripUndefinedProps } from '../../core/src';
 import { GenkitBeta, genkit } from '../src/beta';
 import { PromptAction, z } from '../src/index';
 import {
@@ -61,7 +62,7 @@ const wrapResponse: ModelMiddleware = async (req, next) => {
   };
 };
 
-describe('definePrompt - functional', () => {
+describe('definePrompt', () => {
   let ai: GenkitBeta;
 
   beforeEach(() => {
@@ -172,7 +173,7 @@ describe('definePrompt - functional', () => {
   });
 });
 
-describe('definePrompt - dotprompt', () => {
+describe.only('definePrompt', () => {
   describe('default model', () => {
     let ai: GenkitBeta;
 
@@ -309,7 +310,7 @@ describe('definePrompt - dotprompt', () => {
     });
   });
 
-  describe('default model ref', () => {
+  describe.only('default model ref', () => {
     let ai: GenkitBeta;
 
     beforeEach(() => {
@@ -317,6 +318,7 @@ describe('definePrompt - dotprompt', () => {
         model: modelRef({
           name: 'echoModel',
         }),
+        promptDir: './tests/prompts',
       });
       defineEchoModel(ai);
     });
@@ -397,6 +399,52 @@ describe('definePrompt - dotprompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       const foo = response.output;
+      assert.deepStrictEqual(foo, { bar: 'baz' });
+    });
+
+    it('defaults to json format from a loaded prompt', async () => {
+      defineStaticResponseModel(ai, {
+        role: 'model',
+        content: [
+          {
+            text: '```json\n{bar: "baz"}\n```',
+          },
+        ],
+      });
+      const hi = ai.prompt('output');
+
+      const response = await hi({ name: 'Genkit' });
+      const foo = response.output;
+      assert.deepStrictEqual(stripUndefinedProps(response.request), {
+        config: {},
+        messages: [
+          {
+            content: [
+              {
+                text: 'Hi Genkit',
+              },
+            ],
+            role: 'user',
+          },
+        ],
+        output: {
+          constrained: true,
+          contentType: 'application/json',
+          format: 'json',
+          schema: {
+            additionalProperties: false,
+            properties: {
+              bar: {
+                type: 'string',
+              },
+            },
+            required: ['bar'],
+            type: 'object',
+          },
+        },
+        tools: [],
+      });
+
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
@@ -663,6 +711,63 @@ describe('definePrompt', () => {
       assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
+    it('calls legacy prompt with default model', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        async (input) => {
+          return {
+            messages: [
+              { role: 'user', content: [{ text: `hi ${input.name}` }] },
+            ],
+          };
+        }
+      );
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
+    });
+
+    it('calls legacy prompt with default model', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
+    });
+
+    it('thrown on prompt with both legacy template and messages', async () => {
+      assert.throws(() =>
+        ai.definePrompt(
+          {
+            name: 'hi',
+            input: {
+              schema: z.object({
+                name: z.string(),
+              }),
+            },
+            messages: 'something',
+          },
+          'hi {{ name }}'
+        )
+      );
+    });
+
     it('calls prompt with default model with config', async () => {
       const hi = ai.definePrompt({
         name: 'hi',
@@ -889,7 +994,7 @@ describe('definePrompt', () => {
   });
 });
 
-describe.only('prompt', () => {
+describe('prompt', () => {
   let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
@@ -900,6 +1005,8 @@ describe.only('prompt', () => {
     });
     defineEchoModel(ai);
     pm = defineProgrammableModel(ai);
+    ai.defineSchema('myInputSchema', z.object({ foo: z.string() }));
+    ai.defineSchema('myOutputSchema', z.object({ output: z.string() }));
   });
 
   it('loads from from the folder', async () => {
@@ -922,7 +1029,7 @@ describe.only('prompt', () => {
     });
   });
 
-  it.only('loads from from the sub folder', async () => {
+  it('loads from from the sub folder', async () => {
     const testPrompt = ai.prompt('sub/test'); // see tests/prompts/sub folder
 
     const { text } = await testPrompt();
@@ -1012,6 +1119,41 @@ describe.only('prompt', () => {
       subject: 'banana',
       tools: ['toolA', 'toolB'],
     });
+  });
+
+  it('resolved schema refs', async () => {
+    const prompt = ai.prompt('schemaRef');
+
+    const rendered = await prompt.render({ foo: 'bar' });
+    assert.deepStrictEqual(rendered.output?.jsonSchema, {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      additionalProperties: true,
+      properties: {
+        output: {
+          type: 'string',
+        },
+      },
+      required: ['output'],
+      type: 'object',
+    });
+
+    assert.deepStrictEqual(
+      (await (await prompt.asTool())({ foo: 'bar' })).messages,
+      [
+        {
+          role: 'user',
+          content: [{ text: 'Write a poem about bar.' }],
+        },
+      ]
+    );
+  });
+
+  it('lazily resolved schema refs', async () => {
+    const prompt = ai.prompt('badSchemaRef');
+
+    await assert.rejects(prompt.render({ foo: 'bar' }), (e: Error) =>
+      e.message.includes("NOT_FOUND: Schema 'badSchemaRef1' not found")
+    );
   });
 
   it('loads a varaint from from the folder', async () => {

@@ -17,7 +17,7 @@
 import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
-import { Action } from './action.js';
+import { Action, runOutsideActionRuntimeContext } from './action.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
@@ -67,12 +67,13 @@ export class Registry {
   private actionsById: Record<
     string,
     | Action<z.ZodTypeAny, z.ZodTypeAny>
-    | Promise<Action<z.ZodTypeAny, z.ZodTypeAny>>
+    | PromiseLike<Action<z.ZodTypeAny, z.ZodTypeAny>>
   > = {};
   private pluginsByName: Record<string, PluginProvider> = {};
   private schemasByName: Record<string, Schema> = {};
   private valueByTypeAndName: Record<string, Record<string, any>> = {};
   private allPluginsInitialized = false;
+  public apiStability: 'stable' | 'beta' = 'stable';
 
   readonly asyncStore = new AsyncStore();
   readonly dotprompt = new Dotprompt({
@@ -145,7 +146,7 @@ export class Registry {
   registerActionAsync<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
     name: string,
-    action: Promise<Action<I, O>>
+    action: PromiseLike<Action<I, O>>
   ) {
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
@@ -229,7 +230,9 @@ export class Registry {
    */
   async initializePlugin(name: string) {
     if (this.pluginsByName[name]) {
-      return await this.pluginsByName[name].initializer();
+      return await runOutsideActionRuntimeContext(this, () =>
+        this.pluginsByName[name].initializer()
+      );
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "school-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "lib/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "tsx --no-warnings --watch src/terminal.ts",
     "genkit:dev": "genkit start -- npm run dev",
     "compile": "tsc",
-    "build": "pnpm build:clean && npm run compile",
+    "build": "npm build:clean && npm run compile",
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
   },
@@ -16,14 +16,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "^0.9.3",
-    "@genkit-ai/googleai": "^0.9.3",
+    "genkit": "^1.0.0-rc.14",
+    "@genkit-ai/googleai": "^1.0.0-rc.14",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
-    "genkit-cli": "^0.9.3",
+    "genkit-cli": "^1.0.0-rc.14",
     "@types/pdf-parse": "^1.1.4",
     "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",

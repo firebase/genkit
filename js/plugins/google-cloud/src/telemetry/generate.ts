@@ -39,6 +39,8 @@ import {
   createCommonLogAttributes,
   extractErrorName,
   extractOuterFeatureNameFromPath,
+  truncate,
+  truncatePath,
 } from '../utils.js';
 
 type SharedDimensions = {
@@ -58,9 +60,6 @@ class GenerateTelemetry implements Telemetry {
    * Wraps the declared metrics in a Genkit-specific, internal namespace.
    */
   private _N = internalMetricNamespaceWrap.bind(null, 'ai');
-
-  /** The maximum length (in characters) of a logged prompt message. */
-  private MAX_LOG_CONTENT_CHARS = 128_000;
 
   private actionCounter = new MetricCounter(this._N('generate/requests'), {
     description: 'Counts calls to genkit generate actions.',
@@ -136,7 +135,7 @@ class GenerateTelemetry implements Telemetry {
     projectId?: string
   ): void {
     const attributes = span.attributes;
-    const modelName = attributes['genkit:name'] as string;
+    const modelName = truncate(attributes['genkit:name'] as string, 1024);
     const path = (attributes['genkit:path'] as string) || '';
     const input =
       'genkit:input' in attributes
@@ -152,8 +151,10 @@ class GenerateTelemetry implements Telemetry {
         : undefined;
 
     const errName = extractErrorName(span.events);
-    let featureName = (attributes['genkit:metadata:flow:name'] ||
-      extractOuterFeatureNameFromPath(path)) as string;
+    let featureName = truncate(
+      (attributes['genkit:metadata:flow:name'] ||
+        extractOuterFeatureNameFromPath(path)) as string
+    );
     if (!featureName || featureName === '<unknown>') {
       featureName = 'generate';
     }
@@ -162,7 +163,7 @@ class GenerateTelemetry implements Telemetry {
     const threadName = attributes['genkit:threadName'] as string;
 
     if (input) {
-      this.recordGenerateActionMetrics(modelName, featureName, path, input, {
+      this.recordGenerateActionMetrics(modelName, featureName, path, {
         response: output,
         errName,
       });
@@ -209,7 +210,6 @@ class GenerateTelemetry implements Telemetry {
     modelName: string,
     featureName: string,
     path: string,
-    input: GenerateRequestData,
     opts: {
       response?: GenerateResponseData;
       errName?: string;
@@ -235,7 +235,7 @@ class GenerateTelemetry implements Telemetry {
     sessionId?: string,
     threadName?: string
   ) {
-    const path = toDisplayPath(qualifiedPath);
+    const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       model,
@@ -251,7 +251,7 @@ class GenerateTelemetry implements Telemetry {
       topK: input.config?.topK,
       topP: input.config?.topP,
       maxOutputTokens: input.config?.maxOutputTokens,
-      stopSequences: input.config?.stopSequences,
+      stopSequences: truncate(input.config?.stopSequences, 1024),
       source: 'ts',
       sourceVersion: GENKIT_VERSION,
     });
@@ -267,7 +267,7 @@ class GenerateTelemetry implements Telemetry {
     sessionId?: string,
     threadName?: string
   ) {
-    const path = toDisplayPath(qualifiedPath);
+    const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       model,
@@ -305,7 +305,7 @@ class GenerateTelemetry implements Telemetry {
     sessionId?: string,
     threadName?: string
   ) {
-    const path = toDisplayPath(qualifiedPath);
+    const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       model,
@@ -321,7 +321,7 @@ class GenerateTelemetry implements Telemetry {
     message.content.forEach((part, partIdx) => {
       const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
       const initial = output.finishMessage
-        ? { finishMessage: this.toPartLogText(output.finishMessage) }
+        ? { finishMessage: truncate(output.finishMessage) }
         : {};
       logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
         ...initial,
@@ -364,10 +364,10 @@ class GenerateTelemetry implements Telemetry {
 
   private toPartLogContent(part: Part): string {
     if (part.text) {
-      return this.toPartLogText(part.text);
+      return truncate(part.text);
     }
     if (part.data) {
-      return this.toPartLogText(JSON.stringify(part.data));
+      return truncate(JSON.stringify(part.data));
     }
     if (part.media) {
       return this.toPartLogMedia(part);
@@ -379,13 +379,9 @@ class GenerateTelemetry implements Telemetry {
       return this.toPartLogToolResponse(part);
     }
     if (part.custom) {
-      return this.toPartLogText(JSON.stringify(part.custom));
+      return truncate(JSON.stringify(part.custom));
     }
     return '<unknown format>';
-  }
-
-  private toPartLogText(text: string): string {
-    return text.substring(0, this.MAX_LOG_CONTENT_CHARS);
   }
 
   private toPartLogMedia(part: MediaPart): string {
@@ -400,7 +396,7 @@ class GenerateTelemetry implements Telemetry {
         .digest('hex');
       return `${prefix}<sha256(${hashedContent})>`;
     }
-    return this.toPartLogText(part.media.url);
+    return truncate(part.media.url);
   }
 
   private toPartLogToolRequest(part: ToolRequestPart): string {
@@ -408,7 +404,7 @@ class GenerateTelemetry implements Telemetry {
       typeof part.toolRequest.input === 'string'
         ? part.toolRequest.input
         : JSON.stringify(part.toolRequest.input);
-    return this.toPartLogText(
+    return truncate(
       `Tool request: ${part.toolRequest.name}, ref: ${part.toolRequest.ref}, input: ${inputText}`
     );
   }
@@ -418,7 +414,7 @@ class GenerateTelemetry implements Telemetry {
       typeof part.toolResponse.output === 'string'
         ? part.toolResponse.output
         : JSON.stringify(part.toolResponse.output);
-    return this.toPartLogText(
+    return truncate(
       `Tool response: ${part.toolResponse.name}, ref: ${part.toolResponse.ref}, output: ${outputText}`
     );
   }

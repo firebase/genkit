@@ -16,6 +16,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
+import { lazy } from './async.js';
 import { ActionContext, getContext, runWithContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
@@ -113,10 +114,8 @@ export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-> = ((
-  input?: z.infer<I>,
-  options?: ActionRunOptions<S>
-) => Promise<z.infer<O>>) & {
+  RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
+> = ((input?: z.infer<I>, options?: RunOptions) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
   __registry: Registry;
   run(
@@ -312,6 +311,7 @@ export function action<
         try {
           const actionFn = () =>
             fn(input, {
+              ...options,
               // Context can either be explicitly set, or inherited from the parent action.
               context: options?.context ?? getContext(registry),
               sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
@@ -446,24 +446,28 @@ export function defineActionAsync<
         pluginId: string;
         actionId: string;
       },
-  config: Promise<ActionAsyncParams<I, O, S>>
-): Promise<Action<I, O, S>> {
+  config: PromiseLike<ActionAsyncParams<I, O, S>>,
+  onInit?: (action: Action<I, O, S>) => void
+): PromiseLike<Action<I, O, S>> {
   const actionName =
     typeof name === 'string' ? name : `${name.pluginId}/${name.actionId}`;
-  const actionPromise = config.then((resolvedConfig) => {
-    const act = action(
-      registry,
-      resolvedConfig,
-      async (i: I, options): Promise<z.infer<O>> => {
-        await registry.initializeAllPlugins();
-        return await runInActionRuntimeContext(registry, () =>
-          resolvedConfig.fn(i, options)
-        );
-      }
-    );
-    act.__action.actionType = actionType;
-    return act;
-  });
+  const actionPromise = lazy(() =>
+    config.then((resolvedConfig) => {
+      const act = action(
+        registry,
+        resolvedConfig,
+        async (i: I, options): Promise<z.infer<O>> => {
+          await registry.initializeAllPlugins();
+          return await runInActionRuntimeContext(registry, () =>
+            resolvedConfig.fn(i, options)
+          );
+        }
+      );
+      act.__action.actionType = actionType;
+      onInit?.(act);
+      return act;
+    })
+  );
   registry.registerActionAsync(actionType, actionName, actionPromise);
   return actionPromise;
 }
@@ -512,7 +516,7 @@ const runtimeContextAslKey = 'core.action.runtimeContext';
  * Checks whether the caller is currently in the runtime context of an action.
  */
 export function isInRuntimeContext(registry: Registry) {
-  return !!registry.asyncStore.getStore(runtimeContextAslKey);
+  return registry.asyncStore.getStore(runtimeContextAslKey) === 'runtime';
 }
 
 /**
@@ -520,4 +524,14 @@ export function isInRuntimeContext(registry: Registry) {
  */
 export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
   return registry.asyncStore.run(runtimeContextAslKey, 'runtime', fn);
+}
+
+/**
+ * Execute the provided function outside the action runtime context.
+ */
+export function runOutsideActionRuntimeContext<R>(
+  registry: Registry,
+  fn: () => R
+) {
+  return registry.asyncStore.run(runtimeContextAslKey, 'outside', fn);
 }

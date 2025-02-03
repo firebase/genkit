@@ -166,11 +166,11 @@ describe('function', () => {
     });
 
     const chunks: any[] = [];
-    for await (const chunk of result.stream()) {
+    for await (const chunk of result.stream) {
       chunks.push(chunk);
     }
 
-    expect(await result.output()).toBe('hi Pavel - {"user":"Ali Baba"}');
+    expect(await result.output).toBe('hi Pavel - {"user":"Ali Baba"}');
     expect(chunks).toStrictEqual([{ chubk: 1 }, { chubk: 2 }, { chubk: 3 }]);
   });
 });

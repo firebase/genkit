@@ -122,8 +122,7 @@ export function defineFirestoreRetriever(
         collection: z.string().optional(),
       }),
     },
-    async (input, options) => {
-      const embedding = await ai.embed({ embedder, content: input });
+    async (content, options) => {
       if (!options.collection && !collection) {
         throw new Error(
           'Must specify a collection to query in Firestore retriever.'
@@ -135,6 +134,9 @@ export function defineFirestoreRetriever(
       for (const field in options.where || {}) {
         query = query.where(field, '==', options.where![field]);
       }
+      // Single embedding for text input
+      const embeddings = await ai.embed({ embedder, content });
+      const embedding = embeddings[0].embedding;
       const result = await query
         .findNearest(vectorField, embedding, {
           limit: options.limit || 10,

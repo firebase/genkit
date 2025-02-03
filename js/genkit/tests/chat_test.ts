@@ -66,7 +66,7 @@ describe('chat', () => {
 
   it('maintains history in the session with streaming', async () => {
     const chat = ai.chat();
-    let { response, stream } = await chat.sendStream('hi');
+    let { response, stream } = chat.sendStream('hi');
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
@@ -75,7 +75,7 @@ describe('chat', () => {
     assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
-    ({ response, stream } = await chat.sendStream('bye'));
+    ({ response, stream } = chat.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {

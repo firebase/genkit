@@ -19,6 +19,9 @@ import { HasRegistry, Registry } from './registry.js';
 
 const contextAlsKey = 'core.auth.context';
 
+/**
+ * Action side channel data, like auth and other invocation context infromation provided by the invoker.
+ */
 export interface ActionContext {
   /** Information about the currently authenticated user if provided. */
   auth?: Record<string, any>;

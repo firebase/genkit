@@ -256,127 +256,28 @@ describe('toGenerateRequest', () => {
     },
     {
       should:
-        'throw a PRECONDITION_FAILED error if trying to resume without a model message',
+        'throw a FAILED_PRECONDITION error if trying to resume without a model message',
       prompt: {
         messages: [{ role: 'system', content: [{ text: 'sys' }] }],
         resume: {
-          reply: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+          respond: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
         },
       },
       throws: 'FAILED_PRECONDITION',
     },
     {
       should:
-        'throw a PRECONDITION_FAILED error if trying to resume a model message without toolRequests',
+        'throw a FAILED_PRECONDITION error if trying to resume a model message without toolRequests',
       prompt: {
         messages: [
           { role: 'user', content: [{ text: 'hi' }] },
           { role: 'model', content: [{ text: 'there' }] },
         ],
         resume: {
-          reply: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+          respond: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
         },
       },
       throws: 'FAILED_PRECONDITION',
-    },
-    {
-      should: 'add pending responses and interrupt replies to a tool message',
-      prompt: {
-        messages: [
-          { role: 'user', content: [{ text: 'hey' }] },
-          {
-            role: 'model',
-            content: [
-              {
-                toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
-                metadata: {
-                  pendingOutput: 'done',
-                },
-              },
-              {
-                toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
-                metadata: {
-                  pendingOutput: 'done2',
-                },
-              },
-              {
-                toolRequest: { name: 'i1', ref: '3', input: { one: '1' } },
-                metadata: {
-                  interrupt: true,
-                },
-              },
-              {
-                toolRequest: { name: 'i2', ref: '4', input: { one: '1' } },
-                metadata: {
-                  interrupt: { sky: 'blue' },
-                },
-              },
-            ],
-          },
-        ],
-        resume: {
-          reply: [
-            { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
-            { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
-          ],
-        },
-      },
-      expectedOutput: {
-        config: undefined,
-        docs: undefined,
-        output: {},
-        tools: [],
-        messages: [
-          { role: 'user', content: [{ text: 'hey' }] },
-          {
-            role: 'model',
-            content: [
-              {
-                toolRequest: { name: 'p1', ref: '1', input: { one: '1' } },
-                metadata: {
-                  pendingOutput: 'done',
-                },
-              },
-              {
-                toolRequest: { name: 'p2', ref: '2', input: { one: '1' } },
-                metadata: {
-                  pendingOutput: 'done2',
-                },
-              },
-              {
-                toolRequest: { name: 'i1', ref: '3', input: { one: '1' } },
-                metadata: {
-                  interrupt: true,
-                },
-              },
-              {
-                toolRequest: { name: 'i2', ref: '4', input: { one: '1' } },
-                metadata: {
-                  interrupt: { sky: 'blue' },
-                },
-              },
-            ],
-          },
-          {
-            role: 'tool',
-            metadata: {
-              resume: true,
-            },
-            content: [
-              {
-                toolResponse: { name: 'p1', ref: '1', output: 'done' },
-                metadata: { source: 'pending' },
-              },
-              {
-                toolResponse: { name: 'p2', ref: '2', output: 'done2' },
-                metadata: { source: 'pending' },
-              },
-              { toolResponse: { name: 'i1', ref: '3', output: 'done3' } },
-              { toolResponse: { name: 'i2', ref: '4', output: 'done4' } },
-            ],
-          },
-        ],
-      },
     },
   ];
   for (const test of testCases) {

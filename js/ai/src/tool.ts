@@ -17,6 +17,8 @@
 import {
   Action,
   ActionContext,
+  ActionRunOptions,
+  assertUnstable,
   defineAction,
   JSONSchema7,
   stripUndefinedProps,
@@ -25,7 +27,12 @@ import {
 import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import { ToolDefinition, ToolRequestPart, ToolResponsePart } from './model.js';
+import {
+  Part,
+  ToolDefinition,
+  ToolRequestPart,
+  ToolResponsePart,
+} from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 
 /**
@@ -34,28 +41,65 @@ import { ExecutablePrompt } from './prompt.js';
 export type ToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<I, O> & {
+> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
   __action: {
     metadata: {
       type: 'tool';
     };
   };
   /**
-   * reply constructs a tool response corresponding to the provided interrupt tool request
+   * respond constructs a tool response corresponding to the provided interrupt tool request
    * using the provided reply data, validating it against the output schema of the tool if
    * it exists.
+   *
+   * @beta
    */
-  reply(
+  respond(
     /** The interrupt tool request to which you want to respond. */
     interrupt: ToolRequestPart,
     /**
      * The data with which you want to respond. Must conform to a tool's output schema or an
      * interrupt's input schema.
      **/
-    replyData: z.infer<O>,
+    outputData: z.infer<O>,
     options?: { metadata?: Record<string, any> }
   ): ToolResponsePart;
+
+  /**
+   * restart constructs a tool request corresponding to the provided interrupt tool request
+   * that will then re-trigger the tool after e.g. a user confirms. The `resumedMetadata`
+   * supplied to this method will be passed to the tool to allow for custom handling of
+   * restart logic.
+   *
+   * @param interrupt The interrupt tool request you want to restart.
+   * @param resumedMetadata The metadata you want to provide to the tool to aide in reprocessing. Defaults to `true` if none is supplied.
+   * @param options Additional options for restarting the tool.
+   *
+   * @beta
+   */
+  restart(
+    interrupt: ToolRequestPart,
+    resumedMetadata?: any,
+    options?: {
+      /**
+       * Replace the existing input arguments to the tool with different ones, for example
+       * if the user revised an action before confirming. When input is replaced, the existing
+       * tool request will be amended in the message history.
+       **/
+      replaceInput?: z.infer<I>;
+    }
+  ): ToolRequestPart;
 };
+
+export interface ToolRunOptions extends ActionRunOptions<z.ZodTypeAny> {
+  /**
+   * If resumed is supplied to a tool at runtime, that means that it was previously interrupted and this is a second
+   * @beta
+   **/
+  resumed?: boolean | Record<string, any>;
+  /** The metadata from the tool request that triggered this run. */
+  metadata?: Record<string, any>;
+}
 
 /**
  * Configuration for a tool.
@@ -200,7 +244,7 @@ export interface ToolFnOptions {
 
 export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
   input: z.infer<I>,
-  ctx: ToolFnOptions
+  ctx: ToolFnOptions & ToolRunOptions
 ) => Promise<z.infer<O>>;
 
 /**
@@ -220,16 +264,21 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       actionType: 'tool',
       metadata: { ...(config.metadata || {}), type: 'tool' },
     },
-    (i, { context }) =>
-      fn(i, {
-        interrupt: interruptTool,
-        context: {
-          ...context,
-        },
-      })
+    (i, runOptions) => {
+      return fn(i, {
+        ...runOptions,
+        context: { ...runOptions.context },
+        interrupt: interruptTool(registry),
+      });
+    }
   );
-  (a as ToolAction<I, O>).reply = (interrupt, replyData, options) => {
-    parseSchema(replyData, {
+  (a as ToolAction<I, O>).respond = (interrupt, responseData, options) => {
+    assertUnstable(
+      registry,
+      'beta',
+      "The 'tool.reply' method is part of the 'interrupts' beta feature."
+    );
+    parseSchema(responseData, {
       jsonSchema: config.outputJsonSchema,
       schema: config.outputSchema,
     });
@@ -237,11 +286,39 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       toolResponse: stripUndefinedProps({
         name: interrupt.toolRequest.name,
         ref: interrupt.toolRequest.ref,
-        output: replyData,
+        output: responseData,
       }),
       metadata: {
-        reply: options?.metadata || true,
+        interruptResponse: options?.metadata || true,
       },
+    };
+  };
+
+  (a as ToolAction<I, O>).restart = (interrupt, resumedMetadata, options) => {
+    assertUnstable(
+      registry,
+      'beta',
+      "The 'tool.restart' method is part of the 'interrupts' beta feature."
+    );
+    let replaceInput = options?.replaceInput;
+    if (replaceInput) {
+      replaceInput = parseSchema(replaceInput, {
+        schema: config.inputSchema,
+        jsonSchema: config.inputJsonSchema,
+      });
+    }
+    return {
+      toolRequest: stripUndefinedProps({
+        name: interrupt.toolRequest.name,
+        ref: interrupt.toolRequest.ref,
+        input: replaceInput || interrupt.toolRequest.input,
+      }),
+      metadata: stripUndefinedProps({
+        ...interrupt.metadata,
+        resumed: resumedMetadata || true,
+        // annotate the original input if replacing it
+        replacedInput: replaceInput ? interrupt.toolRequest.input : undefined,
+      }),
     };
   };
   return a as ToolAction<I, O>;
@@ -251,11 +328,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export type InterruptConfig<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   R extends z.ZodTypeAny = z.ZodTypeAny,
-> = Omit<ToolConfig<I, R>, 'outputSchema' | 'outputJsonSchema'> & {
-  /** replySchema defines the Zod schema that this interrupt needs when resuming */
-  replySchema?: R;
-  /** replyJsonSchema defines the JSON schema that this interrupt needs when resuming */
-  replyJsonSchema?: JSONSchema7;
+> = ToolConfig<I, R> & {
   /** requestMetadata adds additional `interrupt` metadata to the `toolRequest` generated by the interrupt */
   requestMetadata?:
     | Record<string, any>
@@ -264,21 +337,19 @@ export type InterruptConfig<
       ) => Record<string, any> | Promise<Record<string, any>>);
 };
 
+export function isToolRequest(part: Part): part is ToolRequestPart {
+  return !!part.toolRequest;
+}
+
+export function isToolResponse(part: Part): part is ToolResponsePart {
+  return !!part.toolResponse;
+}
+
 export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   registry: Registry,
   config: InterruptConfig<I, O>
 ): ToolAction<I, O> {
-  const {
-    replySchema: outputSchema,
-    replyJsonSchema: outputJsonSchema,
-    requestMetadata,
-    ...overlap
-  } = config;
-  const toolConfig: ToolConfig<I, O> = {
-    ...overlap,
-    outputSchema,
-    outputJsonSchema,
-  };
+  const { requestMetadata, ...toolConfig } = config;
 
   return defineTool<I, O>(
     registry,
@@ -306,6 +377,9 @@ export class ToolInterruptError extends Error {
  * Interrupts current tool execution causing tool request to be returned in the generation response.
  * Should only be called within a tool.
  */
-function interruptTool(metadata?: Record<string, any>): never {
-  throw new ToolInterruptError(metadata);
+function interruptTool(registry: Registry) {
+  return (metadata?: Record<string, any>): never => {
+    assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
+    throw new ToolInterruptError(metadata);
+  };
 }

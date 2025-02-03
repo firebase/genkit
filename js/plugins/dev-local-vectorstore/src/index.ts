@@ -16,7 +16,7 @@
 
 import similarity from 'compute-cosine-similarity';
 import * as fs from 'fs';
-import { Genkit, z } from 'genkit';
+import { Embedding, Genkit, z } from 'genkit';
 import { EmbedderArgument } from 'genkit/embedder';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
@@ -32,7 +32,7 @@ const _LOCAL_FILESTORE = '__db_{INDEX_NAME}.json';
 
 interface DbValue {
   doc: DocumentData;
-  embedding: Array<number>;
+  embedding: Embedding;
 }
 
 function loadFilestore(indexName: string) {
@@ -45,13 +45,12 @@ function loadFilestore(indexName: string) {
 }
 
 function addDocument(
+  embedding: Embedding,
   doc: Document,
-  contents: Record<string, DbValue>,
-  embedding: Array<number>
+  contents: Record<string, DbValue>
 ) {
   const id = Md5.hashStr(JSON.stringify(doc));
   if (!(id in contents)) {
-    // Only inlcude if doc is new
     contents[id] = { doc, embedding };
   } else {
     console.debug(`Skipping ${id} since it is already present`);
@@ -122,19 +121,22 @@ async function importDocumentsToLocalVectorstore<
 
   await Promise.all(
     docs.map(async (doc) => {
-      const embedding = await ai.embed({
+      const embeddings = await ai.embed({
         embedder,
         content: doc,
         options: embedderOptions,
       });
-      addDocument(doc, data, embedding);
+      const embeddingDocs = doc.getEmbeddingDocuments(embeddings);
+      for (const i in embeddingDocs) {
+        addDocument(embeddings[i], embeddingDocs[i], data);
+      }
     })
   );
 
   // Update the file
   fs.writeFileSync(
     _LOCAL_FILESTORE.replace('{INDEX_NAME}', params.indexName),
-    JSON.stringify(data)
+    JSON.stringify(data, null, 2)
   );
 }
 
@@ -148,8 +150,8 @@ async function getClosestDocuments<
 }): Promise<Document[]> {
   const scoredDocs: { score: number; doc: Document }[] = [];
   // Very dumb way to check for similar docs.
-  for (const [, value] of Object.entries(params.db)) {
-    const thisEmbedding = value.embedding;
+  for (const value of Object.values(params.db)) {
+    const thisEmbedding = value.embedding.embedding;
     const score = similarity(params.queryEmbeddings, thisEmbedding) ?? 0;
     scoredDocs.push({
       score,
@@ -180,8 +182,7 @@ function configureDevLocalRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
     },
     async (content, options) => {
       const db = loadFilestore(params.indexName);
-
-      const embedding = await ai.embed({
+      const embeddings = await ai.embed({
         embedder,
         content,
         options: embedderOptions,
@@ -189,7 +190,7 @@ function configureDevLocalRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
       return {
         documents: await getClosestDocuments({
           k: options?.k ?? 3,
-          queryEmbeddings: embedding,
+          queryEmbeddings: embeddings[0].embedding,
           db,
         }),
       };

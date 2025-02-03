@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# Build distributions for all projects
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+if ((EUID == 0)); then
+  echo "Please do not run as root"
+  exit
+fi
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+
+PROJECT_DIRS=(
+  "packages/dotprompt"
+  "packages/genkit"
+  "packages/handlebarz"
+  "plugins/chroma"
+  "plugins/firebase"
+  "plugins/google-ai"
+  "plugins/google-cloud"
+  "plugins/ollama"
+  "plugins/pinecone"
+  "plugins/vertex-ai"
+  "samples/hello"
+)
+
+for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do
+  uv \
+    --directory=${TOP_DIR}/py \
+    --project "$PROJECT_DIR" \
+    build
+done
