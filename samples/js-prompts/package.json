@@ -14,13 +14,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "^0.9.0-rc || ^0.9",
-    "@genkit-ai/googleai": "^0.9.0-rc || ^0.9",
+    "genkit": "^1.0.0-rc.14",
+    "@genkit-ai/googleai": "^1.0.0-rc.14",
+    "@genkit-ai/express": "^1.0.0-rc.14",
     "express": "^4.21.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "genkit-cli": "^0.9.0-rc || ^0.9",
+    "genkit-cli": "^1.0.0-rc.14",
     "typescript": "^5.5.4"
   }
 }
