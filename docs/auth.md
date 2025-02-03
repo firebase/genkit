@@ -10,53 +10,51 @@ are properly scoped to the user invoking the LLM, and the flow is being invoked
 only by verified client applications.
 
 Firebase Genkit provides mechanisms for managing authorization policies and
-contexts. For flows running on Cloud Functions for Firebase, developers are
-required to provide an auth policy or else explicitly acknowledge the lack of
-one. For non-Functions flows, auth can be managed and set as well, but requires
-a bit more manual integration.
+contexts. Flows running on Firebase can use an auth policy callback (or helper)
+or Firebase will provide auth context into the flow where it can do its own checks.
+For non-Functions flows, auth can be managed and set as well through middleware.
 
 ## Basic flow authorization
 
-All flows can define an `authPolicy` in their config. An auth policy is a function that tests if certain criteria (defined by you) are met, and throws an exception if any test fails.
-If this field is set, it is executed before the flow is invoked:
+Flows can check authorization in two ways: either the request binding (e.g. `onCallGenkit` for
+Cloud Functions for Fireabse or `express`) can enforce authorization, or those frameworks
+can pass auth policies to the flow itself where the flow will have access to the information
+for auth managed within the flow.
 
 ```ts
 import { genkit, z } from 'genkit';
 
 const ai = genkit({ ... });
 
-export const selfSummaryFlow = ai.defineFlow(
-  {
-    name: 'selfSummaryFlow',
-    inputSchema: z.object({ uid: z.string() }),
-    outputSchema: z.string(),
-    authPolicy: (auth, input) => {
-      if (!auth) {
-        throw new Error('Authorization required.');
-      }
-      if (input.uid !== auth.uid) {
-        throw new Error('You may only summarize your own profile data.');
-      }
-    },
-  },
-  async (input) => {
-    // Flow logic here...
+export const selfSummaryFlow = ai.defineFlow( {
+  name: 'selfSummaryFlow',
+  inputSchema: z.object({ uid: z.string() }),
+  outputSchema: z.string(),
+}, async (input, { context }) => {
+  if (!context.auth) {
+    throw new Error('Authorization required.');
   }
-);
+  if (input.uid !== context.auth.uid) {
+    throw new Error('You may only summarize your own profile data.');
+  }
+  // Flow logic here...
+});
 ```
 
-When executing this flow, you _must_ provide an auth object using `withLocalAuthContext` or else you'll
-receive an error:
+It is up to the request binding to populate `context.auth` in this case. For example, `onCallGenkit`
+will automatically populate `context.auth` (Firebase Authentication), `context.app` (Firebase App Check),
+and `context.instanceIdToken` (Firebase Cloud Messaging). When calling a flow manually, you can add
+your own auth context manually.
 
 ```ts
 // Error: Authorization required.
 await selfSummaryFlow({ uid: 'abc-def' });
 
 // Error: You may only summarize your own profile data.
-await selfSummaryFlow(
+await selfSummaryFlow.run(
   { uid: 'abc-def' },
   {
-    withLocalAuthContext: { uid: 'hij-klm' },
+    context: { auth: { uid: 'hij-klm' } },
   }
 );
 
@@ -64,7 +62,7 @@ await selfSummaryFlow(
 await selfSummaryFlow(
   { uid: 'abc-def' },
   {
-    withLocalAuthContext: { uid: 'abc-def' },
+    context: { auth: { uid: 'abc-def' } },
   }
 );
 ```
@@ -82,7 +80,9 @@ const ai = genkit({ ... });;
 
 async function readDatabase(uid: string) {
   const auth = ai.currentContext()?.auth;
-  if (auth?.admin) {
+  // Note: the shape of context.auth depends on the provider. onCallGenkit puts
+  // claims information in auth.token
+  if (auth?.token?.admin) {
     // Do something special if the user is an admin
   } else {
     // Otherwise, use the `uid` variable to retrieve the relevant document
@@ -111,47 +111,42 @@ genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"uid": "abc-def"}'
 
 ## Cloud Functions for Firebase integration
 
-The Firebase plugin provides convenient integration with Firebase Auth / Google
+The Cloud Functions for Firebase SDK Firebase supports Genkit including integration with Firebase Auth / Google
 Cloud Identity Platform as well as built-in Firebase App Check support.
 
 ### Authorization
 
-The `onFlow()` wrapper provided by the Firebase plugin works natively with the
+The `onCallGenkit()` wrapper provided by the Firebase Functions library works natively with the
 Cloud Functions for Firebase
 [client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function).
 When using the SDK, the Firebase Auth header will automatically be included as
 long as your app client is also using the
 [Firebase Auth SDK](https://firebase.google.com/docs/auth).
-You can use Firebase Auth to protect your flows defined with `onFlow()`:
+You can use Firebase Auth to protect your flows defined with `onCallGenkit()`:
 
 <!-- prettier-ignore: see note above -->
 
 ```ts
 import { genkit } from 'genkit';
-import { firebaseAuth } from '@genkit-ai/firebase';
-import { onFlow } from '@genkit-ai/firebase/functions';
+import { onCallGenkit } from 'firebase-functions/https';
 
 const ai = genkit({ ... });;
 
-export const selfSummaryFlow = onFlow(
-  ai,
-  {
-    name: 'selfSummaryFlow',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified && !user.admin) {
-        throw new Error('Email not verified');
-      }
-    }),
-  },
-  async (input) => {
-        // Flow logic here...
-  }
-);
+const selfSummaryFlow = ai.defineFlow({
+  name: 'selfSummaryFlow',
+  inputSchema: z.string(),
+  outputSchema: z.string(),
+}, async (input) => {
+  // Flow logic here...
+});
+
+export const selfSummary = onCallGenkit({
+  authPolicy: (auth) => auth?.token?.['email_verified'] && auth?.token?.['admin'],
+}, selfSummaryFlow);
 ```
 
-When using the Firebase Auth plugin, `user` will be returned as a
+When using the `onCallGenkit`, `context.auth` will be returned as an object with
+a `uid` for the user ID, and a `token` that is a
 [DecodedIdToken](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken).
 You can always retrieve this object at any time via `ai.currentContext()` as noted
 above. When running this flow during development, you would pass the user object
@@ -161,50 +156,34 @@ in the same way:
 genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"admin": true}'
 ```
 
-By default the Firebase Auth plugin requires the auth header to be sent by the
-client, but in cases where you wish to allow unauthenticated access with special
-handling for authenticated users (upselling features, say), then you can
-configure the policy like so:
-
-<!-- prettier-ignore: see note above  -->
-
-```ts
-authPolicy: firebaseAuth((user) => {
-  if (user && !user.email_verified) {
-    throw new Error("Logged in users must have verified emails");
-  }
-}, {required: false}),
-```
-
 Whenever you expose a Cloud Function to the wider internet, it is vitally
 important that you use some sort of authorization mechanism to protect your data
 and the data of your customers. With that said, there are times when you need
 to deploy a Cloud Function with no code-based authorization checks (for example,
 your Function is not world-callable but instead is protected by
-[Cloud IAM](https://cloud.google.com/functions/docs/concepts/iam)). The
-`authPolicy` field is always required when using `onFlow()`, but you can
-indicate to the library that you are forgoing authorization checks by using the
-`noAuth()` function:
+[Cloud IAM](https://cloud.google.com/functions/docs/concepts/iam)). Cloud Functions
+for Firebase allows you to do this using the `invoker` property, which controls
+IAM access. The special value `'private'` leaves the function as the default IAM
+setting, which means that only callers with the [Cloud Run Invoker role](https://cloud.google.com/run/docs/reference/iam/roles)
+can execute the function. You can instead provide the email address of a user
+or service account that should be granted permission to call this exact function.
 
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import { onFlow, noAuth } from "@genkit-ai/firebase/functions";
+import { onCallGenkit } from "firebase-functions/https'
 
-export const selfSummaryFlow = onFlow(
-  ai,
-  {
-    name: "selfSummaryFlow",
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    // WARNING: Only do this if you have some other gatekeeping in place, like
-    // Cloud IAM!
-    authPolicy: noAuth(),
-  },
-  async (input) => {
-        // Flow logic here...
-  }
-);
+const selfSummaryFlow = ai.defineFlow({
+  name: "selfSummaryFlow",
+  inputSchema: z.string(),
+  outputSchema: z.string(),
+}, async (input) => {
+  // Flow logic here...
+});
+
+export const selfSummary = onCallGenkit({
+  invoker: 'private',
+}, selfSummaryFlow);
 ```
 
 ### Client integrity
@@ -213,32 +192,30 @@ Authentication on its own goes a long way to protect your app. But it's also
 important to ensure that only your client apps are calling your functions. The
 Firebase plugin for genkit includes first-class support for
 [Firebase App Check](https://firebase.google.com/docs/app-check). Simply add
-the following configuration options to your `onFlow()`:
+the following configuration options to your `onCallGenkit()`:
 
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import { onFlow } from "@genkit-ai/firebase/functions";
+import { onCallGenkit } from "firebase-functions/https";
 
-export const selfSummaryFlow = onFlow(
-  ai,
-  {
-    name: "selfSummaryFlow",
-    inputSchema: z.string(),
-    outputSchema: z.string(),
+const selfSummaryFlow = ai.defineFlow({
+  name: "selfSummaryFlow",
+  inputSchema: z.string(),
+  outputSchema: z.string(),
+}, async (input) => {
+  // Flow logic here...
+});
 
-    // These two fields for app check. The consumeAppCheckToken option is for
-    // replay protection, and requires additional client configuration. See the
-    // App Check docs.
-    enforceAppCheck: true,
-    consumeAppCheckToken: true,
+export const selfSummary = onCallGenkit({
+  // These two fields for app check. The consumeAppCheckToken option is for
+  // replay protection, and requires additional client configuration. See the
+  // App Check docs.
+  enforceAppCheck: true,
+  consumeAppCheckToken: true,
 
-    authPolicy: ...,
-  },
-  async (input) => {
-        // Flow logic here...
-  }
-);
+  authPolicy: ...,
+}, selfSummaryFlow);
 ```
 
 ## Non-Firebase HTTP authorization
