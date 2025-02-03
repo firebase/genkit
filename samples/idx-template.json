@@ -9,7 +9,7 @@
     },
     "params": [
       {
-        "id": "sammple",
+        "id": "sample",
         "name": "Sample",
         "type": "enum",
         "default": "js-character-generator",
