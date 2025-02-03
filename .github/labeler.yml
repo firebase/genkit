@@ -1,0 +1,105 @@
+# Add 'root' label to any root file changes
+# Quotation marks are required for the leading asterisk
+root:
+  - changed-files:
+      - any-glob-to-any-file: '*'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - '**/*.rst'
+          - 'LICENSE'
+          - 'docs-go/**'
+          - 'docs/**'
+          - 'py/engdocs/**'
+
+go:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.go'
+          - '**/go.mod'
+          - '**/go.sum'
+          - 'go/**'
+
+python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.py'
+          - '**/pyproject.toml'
+          - 'py/**'
+
+js:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.js'
+          - '**/*.jsx'
+          - '**/*.ts'
+          - '**/*.tsx'
+          - '**/package.json'
+          - 'js/**'
+
+tooling:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'genkit-tools/**'
+
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.toml'
+          - '**/*.yaml'
+          - '**/*.yml'
+          - '**/.editorconfig'
+          - '**/.github/**'
+          - '**/.gitignore'
+          - '**/.npmignore'
+          - '**/.npmrc'
+          - '**/.prettierignore'
+          - '**/package.json'
+          - '**/tsconfig.*.json'
+          - '**/tsconfig.json'
+          - '**/typedoc.json'
+
+sample:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'samples/**'
+
+dotprompt:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/dotprompt/**'
+
+handlebarz:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/handlebarz/**'
+
+# Automatically add labels to any PR also based on branch naming conventions.
+build:
+  - head-branch: [^.*/build/.*, build]
+
+chore:
+  - head-branch: [^.*/chore/.*, chore]
+
+ci:
+  - head-branch: [^.*/ci/.*, ci]
+
+feature:
+  - head-branch: [^.*/feat/.*, feature]
+
+fix:
+  - head-branch: [^.*/fix/.*, fix]
+
+perf:
+  - head-branch: [^.*/perf/.*, perf]
+
+refactor:
+  - head-branch: [^.*/refactor/.*, refactor]
+
+style:
+  - head-branch: [^.*/style/.*, style]
+
+test:
+  - head-branch: [^.*/test/.*, test]
