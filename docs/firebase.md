@@ -182,7 +182,7 @@ but in general, you must do something similar for each service your flow uses.
 to verify that your API is only being called by your application. onCallGenkit supports App Check enforcement declaratively.
 
 ```ts
-export const generatePoem = onCallFlow({
+export const generatePoem = onCallGenkit({
   enforceAppCheck: true,
   // Optional. Makes App Check tokens only usable once. This adds extra security
   // at the expense of slowing down your app to generate a token for every API

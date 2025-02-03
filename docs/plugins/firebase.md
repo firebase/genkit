@@ -263,7 +263,7 @@ The prior example requires the `embedding` field to be indexed to work. To creat
 
 ### Deploy flows as Cloud Functions
 
-To deploy a flow with Cloud Functions, use the Firebase Functions library's native support for genkit. The `onCallFlow` method allows
+To deploy a flow with Cloud Functions, use the Firebase Functions library's native support for genkit. The `onCallGenkit` method allows
 you to create a [callable function](https://firebase.google.com/docs/functions/callable?gen=2nd) from a flow. It will automatically support
 streaming and JSON requests. You can use the [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function) to call them.
 
