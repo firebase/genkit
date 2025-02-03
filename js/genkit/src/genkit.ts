@@ -222,7 +222,7 @@ export class Genkit implements HasRegistry {
     options: DefineModelOptions<CustomOptionsSchema>,
     runner: (
       request: GenerateRequest<CustomOptionsSchema>,
-      streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+      sendChunk?: StreamingCallback<GenerateResponseChunkData>
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
     return defineModel(this.registry, options, runner);
@@ -721,7 +721,9 @@ export class Genkit implements HasRegistry {
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *
    * ```ts
-   * ai.defineFlow('hello', async() => {
+   * ai.defineFlow({
+   *   name: 'hello'
+   * }, async() => {
    *   await ai.run('step1', async () => {
    *     // ... step 1
    *   });
@@ -738,7 +740,9 @@ export class Genkit implements HasRegistry {
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *
    * ```ts
-   * ai.defineFlow('hello', async() => {
+   * ai.defineFlow({
+   *   name: 'hello'
+   * }, async() => {
    *   await ai.run('step1', async () => {
    *     // ... step 1
    *   });
