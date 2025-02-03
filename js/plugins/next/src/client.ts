@@ -18,7 +18,7 @@ import { Action } from '@genkit-ai/core';
 import {
   runFlow as baseRunFlow,
   streamFlow as baseStreamFlow,
-} from 'genkit/client';
+} from 'genkit/beta/client';
 
 type Input<A extends Action> =
   A extends Action<infer I, any, any> ? I['_output'] : never;

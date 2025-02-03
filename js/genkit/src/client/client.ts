@@ -24,7 +24,7 @@ const __flowStreamDelimiter = '\n\n';
  * For example:
  *
  * ```js
- * import { streamFlow } from 'genkit/client';
+ * import { streamFlow } from 'genkit/beta/client';
  *
  * const response = streamFlow({
  *   url: 'https://my-flow-deployed-url',
