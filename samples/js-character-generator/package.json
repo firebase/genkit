@@ -1,5 +1,5 @@
 {
-  "name": "Character Generator",
+  "name": "character_generator",
   "version": "0.1.0",
   "description": "A simple Firebase Genkit app to generate fantasy characters",
   "main": "index.js",
