@@ -34,18 +34,14 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamCharacters = ai.defineStreamingFlow(
+export const streamCharacters = ai.defineFlow(
   {
     name: 'streamCharacters',
     inputSchema: z.number(),
     outputSchema: z.string(),
     streamSchema: GameCharactersSchema,
   },
-  async (count, streamingCallback) => {
-    if (!streamingCallback) {
-      throw new Error('this flow only works in streaming mode');
-    }
-
+  async (count, { sendChunk }) => {
     const { response, stream } = await ai.generateStream({
       model: gemini15Flash,
       output: {
@@ -62,7 +58,7 @@ export const streamCharacters = ai.defineStreamingFlow(
     for await (const chunk of stream) {
       buffer += chunk.content[0].text!;
       if (buffer.length > 10) {
-        streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
+        sendChunk(parse(maybeStripMarkdown(buffer), Allow.ALL));
       }
     }
 

@@ -1496,52 +1496,6 @@ importers:
         specifier: ^5.6.2
         version: 5.6.3
 
-  testapps/personal-testing:
-    dependencies:
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/google-cloud':
-        specifier: workspace:*
-        version: link:../../plugins/google-cloud
-      '@genkit-ai/googleai':
-        specifier: workspace:*
-        version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      '@google/generative-ai':
-        specifier: ^0.15.0
-        version: 0.15.0
-      '@opentelemetry/sdk-trace-base':
-        specifier: ^1.25.0
-        version: 1.26.0(@opentelemetry/api@1.9.0)
-      body-parser:
-        specifier: ^1.20.3
-        version: 1.20.3
-      express:
-        specifier: ^4.21.0
-        version: 4.21.1
-      firebase-admin:
-        specifier: '>=12.2'
-        version: 12.3.1(encoding@0.1.13)
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-      partial-json:
-        specifier: ^0.1.7
-        version: 0.1.7
-    devDependencies:
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.19.2
-      typescript:
-        specifier: ^5.3.3
-        version: 5.6.3
-
   testapps/prompt-file:
     dependencies:
       '@genkit-ai/googleai':

@@ -129,16 +129,14 @@ export const streamFlow = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async (prompt, streamingCallback) => {
-    const { response, stream } = await ai.generateStream({
+  async (prompt, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       prompt,
     });
 
-    if (streamingCallback) {
-      for await (const chunk of stream) {
-        streamingCallback(chunk.content[0].text!);
-      }
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0].text!);
     }
 
     return (await response).text;
@@ -167,12 +165,8 @@ export const streamJsonFlow = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: GameCharactersSchema,
   },
-  async (count, streamingCallback) => {
-    if (!streamingCallback) {
-      throw new Error('this flow only works in streaming mode');
-    }
-
-    const { response, stream } = await ai.generateStream({
+  async (count, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       output: {
         schema: GameCharactersSchema,
@@ -184,7 +178,7 @@ export const streamJsonFlow = ai.defineFlow(
     for await (const chunk of stream) {
       buffer += chunk.content[0].text!;
       if (buffer.length > 10) {
-        streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
+        sendChunk(parse(maybeStripMarkdown(buffer), Allow.ALL));
       }
     }
 
@@ -270,12 +264,12 @@ export const vertexStreamer = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (input, streamingCallback) => {
+  async (input, { sendChunk }) => {
     return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: gemini15Flash,
         prompt: `Tell me a very long joke about ${input}.`,
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       });
 
       return llmResponse.text;
@@ -407,12 +401,8 @@ export const toolCaller = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.any(),
   },
-  async (_, streamingCallback) => {
-    if (!streamingCallback) {
-      throw new Error('this flow only works in streaming mode');
-    }
-
-    const { response, stream } = await ai.generateStream({
+  async (_, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       config: {
         temperature: 1,
@@ -422,7 +412,7 @@ export const toolCaller = ai.defineFlow(
     });
 
     for await (const chunk of stream) {
-      streamingCallback(chunk);
+      sendChunk(chunk);
     }
 
     return (await response).text;
@@ -449,12 +439,8 @@ export const forcedToolCaller = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.any(),
   },
-  async (input, streamingCallback) => {
-    if (!streamingCallback) {
-      throw new Error('this flow only works in streaming mode');
-    }
-
-    const { response, stream } = await ai.generateStream({
+  async (input, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       config: {
         temperature: 1,
@@ -465,7 +451,7 @@ export const forcedToolCaller = ai.defineFlow(
     });
 
     for await (const chunk of stream) {
-      streamingCallback(chunk);
+      sendChunk(chunk);
     }
 
     return (await response).text;
@@ -573,9 +559,9 @@ export const arrayStreamTester = ai.defineFlow(
     outputSchema: z.any(),
     streamSchema: z.any(),
   },
-  async (input, streamingCallback) => {
+  async (input, { sendChunk }) => {
     try {
-      const { stream, response } = await ai.generateStream({
+      const { stream, response } = ai.generateStream({
         model: gemini15Flash,
         config: {
           safetySettings: [
@@ -612,7 +598,7 @@ export const arrayStreamTester = ai.defineFlow(
       });
 
       for await (const { output, text } of stream) {
-        streamingCallback?.({ text, output });
+        sendChunk({ text, output });
       }
 
       const result = await response;
@@ -645,7 +631,7 @@ ai.defineModel(
   {
     name: 'hiModel',
   },
-  async (request, streamingCallback) => {
+  async () => {
     return {
       finishReason: 'stop',
       message: { role: 'model', content: [{ text: 'hi' }] },

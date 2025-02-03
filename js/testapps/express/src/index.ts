@@ -49,7 +49,7 @@ const ai = genkit({
 
 export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject, streamingCallback) => {
+  async (subject, { sendChunk }) => {
     return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         prompt: `tell me long joke about ${subject}`,
@@ -57,7 +57,7 @@ export const jokeFlow = ai.defineFlow(
         config: {
           temperature: 1,
         },
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       });
 
       return llmResponse.text;
