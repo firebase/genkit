@@ -225,25 +225,25 @@ export class ReflectionServer {
     });
 
     server.post('/api/notify', async (request, response) => {
+      const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
       if (!process.env.GENKIT_TELEMETRY_SERVER) {
-        const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
         setTelemetryServerUrl(telemetryServerUrl);
         logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
-        if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
-          if (
-            !reflectionApiSpecVersion ||
-            reflectionApiSpecVersion < GENKIT_REFLECTION_API_SPEC_VERSION
-          ) {
-            logger.warn(
-              'WARNING: Genkit CLI version may be outdated. Please update `genkit-cli` to the latest version.'
-            );
-          } else {
-            logger.warn(
-              'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
-                'Consider upgrading your runtime library version (debug info: expected ' +
-                `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
-            );
-          }
+      }
+      if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
+        if (
+          !reflectionApiSpecVersion ||
+          reflectionApiSpecVersion < GENKIT_REFLECTION_API_SPEC_VERSION
+        ) {
+          logger.warn(
+            'WARNING: Genkit CLI version may be outdated. Please update `genkit-cli` to the latest version.'
+          );
+        } else {
+          logger.warn(
+            'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
+              'Consider upgrading your runtime library version (debug info: expected ' +
+              `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
+          );
         }
       }
       response.status(200).send('OK');
