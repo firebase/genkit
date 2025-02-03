@@ -259,6 +259,29 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	if req.Model == nil {
 		return nil, errors.New("model is required")
 	}
+
+	parts := strings.Split(req.Model.Name(), "/")
+	if len(parts) != 2 {
+		return nil, errors.New("wrong model name")
+	}
+
+	// we must resolve model version
+	a := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, parts[0], parts[1])
+	if a == nil {
+		return nil, errors.New("model action not defined")
+	}
+
+	// TODO: make things a little bit prettier
+	// TODO add support for empty versions
+	// NOTE at this point, model version validation is OK!
+	modelVersion := ""
+	if config, ok := req.Request.Config.(*GenerationCommonConfig); ok {
+		modelVersion = config.Version
+	}
+	if !validateModelVersion(modelVersion, a.Desc().Metadata) {
+		return nil, fmt.Errorf("version %s is not supported", modelVersion)
+	}
+
 	if req.History != nil {
 		prev := req.Request.Messages
 		req.Request.Messages = req.History
@@ -271,6 +294,17 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	return req.Model.Generate(ctx, r, req.Request, req.Stream)
+}
+
+func validateModelVersion(modelVersion string, modelMetadata map[string]any) bool {
+	if md, ok := modelMetadata["model"].(map[string]any); ok {
+		for _, v := range md["versions"].([]string) {
+			if modelVersion == v {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
