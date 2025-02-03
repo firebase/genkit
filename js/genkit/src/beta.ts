@@ -131,7 +131,7 @@ export class GenkitBeta extends Genkit {
    * Create a session for this environment.
    */
   createSession<S = any>(options?: SessionOptions<S>): Session<S> {
-    const sessionId = uuidv4();
+    const sessionId = options?.sessionId?.trim() || uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
       state: options?.initialState,
