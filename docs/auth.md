@@ -171,10 +171,10 @@ or service account that should be granted permission to call this exact function
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import { onCallGenkit } from "firebase-functions/https'
+import { onCallGenkit } from 'firebase-functions/https'
 
 const selfSummaryFlow = ai.defineFlow({
-  name: "selfSummaryFlow",
+  name: 'selfSummaryFlow',
   inputSchema: z.string(),
   outputSchema: z.string(),
 }, async (input) => {
@@ -197,10 +197,10 @@ the following configuration options to your `onCallGenkit()`:
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import { onCallGenkit } from "firebase-functions/https";
+import { onCallGenkit } from 'firebase-functions/https';
 
 const selfSummaryFlow = ai.defineFlow({
-  name: "selfSummaryFlow",
+  name: 'selfSummaryFlow',
   inputSchema: z.string(),
   outputSchema: z.string(),
 }, async (input) => {

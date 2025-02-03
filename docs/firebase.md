@@ -2,7 +2,7 @@
 
 Cloud Functions for Firebase has an `onCallGenkit` method that allows you to
 quickly create a [callable function](https://firebase.google.com/docs/functions/callable?gen=2nd)
-with a Genkit action (e.g. a Flow). These functions can be called with `genkit/client` or the
+with a Genkit action (e.g. a Flow). These functions can be called with `genkit/beta/client` or the
 [Functions client SDK](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function),
 which will automatically add auth info.
 
@@ -228,7 +228,7 @@ const generatePoemFlow = ai.defineFlow({
 export const generateFlow = onCallGenkit({
   secrets: [apiKey],
   authPolicy: hasClaim("email_verified"),
-  enforceAppChecK: true,
+  enforceAppCheck: true,
 }, generatePoemFlow);
 ```
 

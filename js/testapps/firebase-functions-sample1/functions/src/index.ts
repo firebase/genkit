@@ -19,8 +19,8 @@ import {
   FirebaseUserEngagementSchema,
   collectUserEngagement,
 } from '@genkit-ai/firebase/user_engagement';
-import { gemini10Pro, vertexAI } from '@genkit-ai/vertexai';
-import { onCallGenkit, onRequest } from 'firebase-functions/v2/https';
+import { gemini15Flash, vertexAI } from '@genkit-ai/vertexai';
+import { onCallGenkit, onRequest } from 'firebase-functions/https';
 import { genkit, z } from 'genkit';
 
 enableFirebaseTelemetry();
@@ -53,9 +53,9 @@ const jokeFlow = ai.defineFlow(
   async (subject) => {
     const prompt = `Tell me a joke about ${subject}`;
 
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        model: gemini10Pro,
+        model: gemini15Flash,
         prompt: prompt,
       });
 
@@ -138,7 +138,9 @@ export const streamConsumer = onCallGenkit(
 );
 
 export const triggerJokeFlow = onRequest(
-  { invoker: 'private' },
+  {
+    invoker: 'private',
+  },
   async (req, res) => {
     const { subject } = req.query;
     console.log('req.query', req.query);
@@ -154,7 +156,9 @@ export const triggerJokeFlow = onRequest(
 
 /** Example of user engagement collection using Firebase Functions. */
 export const collectEngagement = onRequest(
-  { memory: '512MiB' },
+  {
+    memory: '512MiB',
+  },
   async (req, res) => {
     await collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
     res.send({});
