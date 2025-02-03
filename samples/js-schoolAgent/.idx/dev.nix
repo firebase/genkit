@@ -1,5 +1,5 @@
 ## Default Nix Environment for Typescript + Gemini Examples
-## Requires the sample to be started with npx run dev
+## Requires the sample to be started with npx run genkit:dev
 
 # To learn more about how to use Nix to configure your environment
 # see: https://developers.google.com/idx/guides/customize-idx-env
@@ -26,11 +26,11 @@
       # Runs when a workspace is first created
       onCreate = {
         npm-install = "npm ci --no-audit --prefer-offline --no-progress --timing";
-        default.openFiles = [ "README.md" "index.ts" ];
+        default.openFiles = [ "README.md" "src/terminal.ts" ];
       };
       # Runs when the workspace is (re)started
       onStart = {
-        run-server = "npm run dev";
+        run-server = "npm run genkit:dev";
       };
     };
   };
