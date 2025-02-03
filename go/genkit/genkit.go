@@ -319,7 +319,7 @@ func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) ([]ai.GenerateOption,
 		if model == nil {
 			return nil, fmt.Errorf("default model %q not found", g.Opts.DefaultModel)
 		}
-		opts = append([]ai.GenerateOption{ai.WithModel(model)}, ai.WithConfig(opts))
+		opts = append([]ai.GenerateOption{ai.WithModel(model)}, opts...)
 	}
 	return opts, nil
 }

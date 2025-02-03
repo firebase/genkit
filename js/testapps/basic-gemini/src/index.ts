@@ -44,7 +44,7 @@ export const jokeFlow = ai.defineFlow(
       config: {
         temperature: 2,
         // if desired, model versions can be explicitly set
-        version: "gemini-1.5-flash-002",
+        version: 'gemini-1.5-flash-002',
       },
       output: {
         schema: z.object({ jokeSubject: z.string() }),
