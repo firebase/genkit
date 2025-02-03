@@ -6,11 +6,11 @@ set -euo pipefail
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 PYTHON_VERSIONS=(
-    "3.12"
-    "3.13"
+  "3.12"
+  "3.13"
 )
 
 for VERSION in "${PYTHON_VERSIONS[@]}"; do
-    echo "Running tests with Python ${VERSION}..."
-    uv run --python "python${VERSION}" --directory "${TOP_DIR}/py" pytest .
+  echo "Running tests with Python ${VERSION}..."
+  uv run --python "python${VERSION}" --directory "${TOP_DIR}/py" pytest .
 done

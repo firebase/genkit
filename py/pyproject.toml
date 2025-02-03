@@ -46,6 +46,12 @@ python_files = [
 ]
 testpaths = ["packages", "plugins", "samples"]
 
+[tool.pytest.ini_options]
+addopts = "--cov"
+
+[tool.coverage.report]
+fail_under = 70
+
 # uv based package management.
 [tool.uv]
 default-groups = ["dev", "lint"]
