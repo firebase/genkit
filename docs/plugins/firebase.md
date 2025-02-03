@@ -282,8 +282,8 @@ export const exampleFlow = ai.defineFlow({
   }
 );
 
-// WARNING: This has no authentication or app check protections. See Cloud Functions for Firebase
-// docs for more information.
+// WARNING: This has no authentication or app check protections.
+// See github.com/firebase/genkit/blob/main/docs/auth.md for more information.
 export const example = onCallGenkit({ secrets: [apiKey] }, exampleFlow);
 ```
 
