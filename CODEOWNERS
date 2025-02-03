@@ -1,0 +1,18 @@
+# General.
+# TODO: Add groups.
+*                   @pavelgj
+
+# Python-related.
+*.py                @pavelgj @yesudeep
+pyproject.toml      @pavelgj @yesudeep
+py/*                @pavelgj @yesudeep
+
+# Go-related.
+*.go                @apascal07
+go/*                @apascal07
+
+# JavaScript-related.
+*.js                @pavelgj
+*.ts                @pavelgj
+js/*                @pavelgj
+package.json        @pavelgj
