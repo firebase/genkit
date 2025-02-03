@@ -11,7 +11,7 @@ Take a look at some samples of Genkit in use:
 - [js-schoolAgent](js-schoolAgent/): A simple school assistant system with a routing agent and specialized agents
 - [prompts](prompts/): Shows off several prompting techniques
 
-These are also avaiable in IDX, Google's Cloud-Basd IDE try them out there.
+These are also available in IDX, Google's Cloud-Based IDE, for you to try.
 
 <a href="https://idx.google.com/new?template=https%3A%2F%2Fgithub.com%2Ffirebase%2Fgenkit%2Ftree%2Fmain%2Fsamples">
   <img
