@@ -17,7 +17,8 @@
         "js-character-generator": "Simple Character Generator",
         "js-coffee-shop": "Coffeeshop w Several types of Prompt",
         "js-schoolAgent": "A Multi-Agent School Assistant",
-        "js-prompts": "A sample with various prompt styles"
+        "js-prompts": "A sample with various prompt styles",
+        "js-menu": "Menu parsing with increasing levels of complex architectures"
       }
     }
   ]

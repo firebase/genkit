@@ -137,7 +137,7 @@ const ai = genkit({
   plugins: [vertexAI({ location: 'us-central1' })],
 });
 
-const embedding = await ai.embed({
+const embeddings = await ai.embed({
   embedder: textEmbedding004,
   content: 'How many widgets do you have in stock?',
 });

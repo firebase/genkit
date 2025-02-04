@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.14",
+  "version": "1.0.0-rc.15",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -31,15 +31,11 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@genkit-ai/google-cloud": "workspace:^",
-    "@genkit-ai/express": "workspace:^",
-    "express": "^4.21.0",
-    "google-auth-library": "^9.6.3"
+    "@genkit-ai/google-cloud": "workspace:^"
   },
   "peerDependencies": {
     "@google-cloud/firestore": "^7.6.0",
     "firebase-admin": ">=12.2",
-    "firebase-functions": ">=4.8",
     "genkit": "workspace:^"
   },
   "devDependencies": {
@@ -52,10 +48,7 @@
     "@types/jest": "^29.5.12",
     "@jest/globals": "^29.7.0",
     "jest": "^29.7.0",
-    "ts-jest": "^29.1.2",
-    "express": "^4.21.1",
-    "get-port": "^5.1.0",
-    "firebase": "^11.1.0"
+    "ts-jest": "^29.1.2"
   },
   "types": "./lib/index.d.ts",
   "exports": {
@@ -64,18 +57,6 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
-    },
-    "./functions": {
-      "require": "./lib/functions.js",
-      "import": "./lib/functions.mjs",
-      "types": "./lib/functions.d.ts",
-      "default": "./lib/functions.js"
-    },
-    "./auth": {
-      "require": "./lib/auth.js",
-      "import": "./lib/auth.mjs",
-      "types": "./lib/auth.d.ts",
-      "default": "./lib/auth.js"
     },
     "./user_engagement": {
       "require": "./lib/user_engagement.js",
@@ -86,12 +67,6 @@
   },
   "typesVersions": {
     "*": {
-      "functions": [
-        "lib/functions"
-      ],
-      "auth": [
-        "lib/auth"
-      ],
       "user_engagement": [
         "lib/user_engagement"
       ]

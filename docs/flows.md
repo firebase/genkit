@@ -240,9 +240,8 @@ but this section gives brief overviews of your deployment options.
 
 ### Cloud Functions for Firebase
 
-To deploy flows with Cloud Functions for Firebase, use the `firebase` plugin. In
-your flow definitions, replace `defineFlow` with `onFlow` and include an
-`authPolicy`.
+To deploy flows with Cloud Functions for Firebase, use the `onCallGenkit` feature of `firebase-functions/https`.
+This will wrap your flow in a callable function. You may set an auth policy and configure App Check.
 
 ```ts
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/firebase.ts" region_tag="ex" adjust_indentation="auto" %}

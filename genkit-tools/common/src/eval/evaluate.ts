@@ -110,7 +110,7 @@ export async function runNewEvaluation(
     manager,
     actionRef,
     inferenceDataset,
-    auth: request.options?.auth,
+    context: request.options?.context,
     actionConfig: request.options?.actionConfig,
   });
   const evaluatorActions = await getMatchingEvaluatorActions(
@@ -136,10 +136,11 @@ export async function runInference(params: {
   manager: RuntimeManager;
   actionRef: string;
   inferenceDataset: Dataset;
-  auth?: string;
+  context?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, inferenceDataset, auth, actionConfig } = params;
+  const { manager, actionRef, inferenceDataset, context, actionConfig } =
+    params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
@@ -148,7 +149,7 @@ export async function runInference(params: {
     manager,
     actionRef,
     inferenceDataset,
-    auth,
+    context,
     actionConfig,
   });
   return evalDataset;
@@ -235,10 +236,11 @@ async function bulkRunAction(params: {
   manager: RuntimeManager;
   actionRef: string;
   inferenceDataset: Dataset;
-  auth?: string;
+  context?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, inferenceDataset, auth, actionConfig } = params;
+  const { manager, actionRef, inferenceDataset, context, actionConfig } =
+    params;
   const isModelAction = actionRef.startsWith('/model');
   if (inferenceDataset.length === 0) {
     throw new Error('Cannot run inference, no data provided');
@@ -268,7 +270,7 @@ async function bulkRunAction(params: {
           manager,
           actionRef,
           sample,
-          auth,
+          context,
         })
       );
     }
@@ -285,15 +287,15 @@ async function runFlowAction(params: {
   manager: RuntimeManager;
   actionRef: string;
   sample: FullInferenceSample;
-  auth?: any;
+  context?: any;
 }): Promise<InferenceRunState> {
-  const { manager, actionRef, sample, auth } = { ...params };
+  const { manager, actionRef, sample, context } = { ...params };
   let state: InferenceRunState;
   try {
     const runActionResponse = await manager.runAction({
       key: actionRef,
       input: sample.input,
-      context: auth ? JSON.parse(auth) : undefined,
+      context: context ? JSON.parse(context) : undefined,
     });
     state = {
       ...sample,

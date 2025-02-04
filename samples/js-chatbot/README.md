@@ -4,7 +4,7 @@ This is a simple chatbot. You can pick which model to use.
 
 Prerequisite
 
-- Google Cloud project with Vertex AI API enabled (https://pantheon.corp.google.com/apis/library/aiplatform.googleapis.com)
+- Google Cloud project with Vertex AI API enabled (https://cloud.google.com/apis/library/aiplatform.googleapis.com)
 - gcloud CLI installed (https://cloud.google.com/sdk/docs/install-sdk)
 - to use Llama 3.1 405b enable it in the Vertex AI [Model Garden](https://console.cloud.google.com/vertex-ai/publishers/meta/model-garden/llama3-405b-instruct-maas)
 
