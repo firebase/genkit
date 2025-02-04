@@ -331,15 +331,14 @@ export async function createChromaCollection<
     chromaEmbedder = {
       generate(texts: string[]) {
         return Promise.all(
-          texts.map(
-            (text) =>
-              ai
-                .embed({
-                  embedder,
-                  content: text,
-                  options: params.embedderOptions,
-                })
-                .then((response) => response[0].embedding) // Text only has a single embedding
+          texts.map((text) =>
+            ai
+              .embed({
+                embedder,
+                content: text,
+                options: params.embedderOptions,
+              }) // Text only has a single embedding
+              .then((response) => response[0].embedding)
           )
         );
       },
