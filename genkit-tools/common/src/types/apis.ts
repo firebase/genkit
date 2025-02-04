@@ -139,7 +139,7 @@ export const RunNewEvaluationRequestSchema = z.object({
   evaluators: z.array(z.string()).optional(),
   options: z
     .object({
-      auth: z.string().optional(),
+      context: z.string().optional(),
       actionConfig: z
         .any()
         .describe('addition parameters required for inference')

@@ -103,10 +103,10 @@ export const selfSummaryFlow = ai.defineFlow(
 ```
 
 When testing flows with Genkit dev tools, you are able to specify this auth
-object in the UI, or on the command line with the `--auth` flag:
+object in the UI, or on the command line with the `--context` flag:
 
 ```posix-terminal
-genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"uid": "abc-def"}'
+genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --context '{"auth": {"email_verified": true}}'
 ```
 
 ## Cloud Functions for Firebase integration
@@ -153,7 +153,7 @@ above. When running this flow during development, you would pass the user object
 in the same way:
 
 ```posix-terminal
-genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"admin": true}'
+genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --context '{"auth": {"admin": true}}'
 ```
 
 Whenever you expose a Cloud Function to the wider internet, it is vitally
