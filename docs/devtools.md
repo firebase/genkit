@@ -16,8 +16,8 @@ npm install -D genkit-cli
 The CLI supports various commands to facilitate working with Genkit projects:
 
 - `genkit start -- <command to run your code>`: Start the developer UI and connect it to a running code process.
-- `genkit flow:run <flowName>`: Run a specified flow.
-- `genkit eval:flow <flowName>`: Evaluate a specific flow.
+- `genkit flow:run <flowName>`: Run a specified flow. Your runtime must already be running in a separate terminal with `GENKIT_ENV=dev` environment variable set.
+- `genkit eval:flow <flowName>`: Evaluate a specific flow. Your runtime must already be running in a separate terminal with `GENKIT_ENV=dev` environment variable set.
 
 For a full list of commands, use:
 
