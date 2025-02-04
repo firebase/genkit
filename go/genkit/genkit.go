@@ -87,6 +87,8 @@ func New(opts *Options) (*Genkit, error) {
 // Thus Start(nil) will start a dev server in the "dev" environment, will always start
 // a flow server, and will pause execution until the flow server terminates.
 func (g *Genkit) Start(ctx context.Context, opts *StartOptions) error {
+	ai.DefineGenerateAction(ctx, g.reg)
+
 	if opts == nil {
 		opts = &StartOptions{}
 	}
@@ -175,7 +177,7 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 }
 
 // DefineTool defines a tool to be passed to a model generate call.
-func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx context.Context, input In) (Out, error)) *ai.ToolDef[In, Out] {
+func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) *ai.ToolDef[In, Out] {
 	return ai.DefineTool(g.reg, name, description, fn)
 }
 
@@ -238,8 +240,8 @@ func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.Generate
 }
 
 // GenerateWithRequest runs the model with the given request and streaming callback.
-func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
-	return m.Generate(ctx, g.reg, req, cb)
+func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+	return m.Generate(ctx, g.reg, req, toolCfg, cb)
 }
 
 // DefineIndexer registers the given index function as an action, and returns an

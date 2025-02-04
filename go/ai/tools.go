@@ -37,18 +37,51 @@ type Tool interface {
 	Action() action.Action
 	// RunRaw runs this tool using the provided raw map format data (JSON parsed
 	// as map[string]any).
-	RunRaw(ctx context.Context, input map[string]any) (any, error)
+	RunRaw(ctx context.Context, input any) (any, error)
 }
 
-// DefineTool defines a tool function.
-func DefineTool[In, Out any](r *registry.Registry, name, description string, fn func(ctx context.Context, input In) (Out, error)) *ToolDef[In, Out] {
+// ToolInterruptError represents an intentional interruption of tool execution.
+type ToolInterruptError struct {
+	Metadata map[string]any
+}
+
+func (e *ToolInterruptError) Error() string {
+	return "tool execution interrupted"
+}
+
+// InterruptOptions provides configuration for tool interruption.
+type InterruptOptions struct {
+	Metadata map[string]any
+}
+
+// ToolContext provides context and utility functions for tool execution.
+type ToolContext struct {
+	Context   context.Context
+	Interrupt func(opts *InterruptOptions) error
+}
+
+// DefineTool defines a tool function with interrupt capability
+func DefineTool[In, Out any](r *registry.Registry, name, description string,
+	fn func(ctx *ToolContext, input In) (Out, error)) *ToolDef[In, Out] {
+
 	metadata := make(map[string]any)
 	metadata["type"] = "tool"
 	metadata["name"] = name
 	metadata["description"] = description
 
-	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, fn)
+	wrappedFn := func(ctx context.Context, input In) (Out, error) {
+		toolCtx := &ToolContext{
+			Context: ctx,
+			Interrupt: func(opts *InterruptOptions) error {
+				return &ToolInterruptError{
+					Metadata: opts.Metadata,
+				}
+			},
+		}
+		return fn(toolCtx, input)
+	}
 
+	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, wrappedFn)
 	return &ToolDef[In, Out]{
 		action: toolAction,
 	}
@@ -85,18 +118,18 @@ func definition(ta Tool) *ToolDefinition {
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
-func (ta *toolAction) RunRaw(ctx context.Context, input map[string]any) (any, error) {
+func (ta *toolAction) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, ta, input)
 
 }
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
-func (ta *ToolDef[In, Out]) RunRaw(ctx context.Context, input map[string]any) (any, error) {
+func (ta *ToolDef[In, Out]) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, ta, input)
 }
 
-func runAction(ctx context.Context, action Tool, input map[string]any) (any, error) {
+func runAction(ctx context.Context, action Tool, input any) (any, error) {
 	mi, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling tool input for %v: %v", action.Definition().Name, err)
@@ -109,7 +142,7 @@ func runAction(ctx context.Context, action Tool, input map[string]any) (any, err
 	var uo any
 	err = json.Unmarshal(output, &uo)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing tool input for %v: %v", action.Definition().Name, err)
+		return nil, fmt.Errorf("error parsing tool output for %v: %v", action.Definition().Name, err)
 	}
 	return uo, nil
 }
