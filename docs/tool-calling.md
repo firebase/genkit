@@ -120,11 +120,11 @@ const getWeather = ai.defineTool(
 );
 ```
 
-The syntax here looks just like the `defineFlow()` syntax; however, all four of
-the `name`, `description`, `inputSchema`, and `outputSchema` parameters are
-required. When writing a tool definition, take special care with the wording and
-descriptiveness of these parameters, as they are vital for the LLM to
-effectively make use of the available tools.
+The syntax here looks just like the `defineFlow()` syntax; however, `name`,
+`description` and `inputSchema` parameters are required. When writing a tool
+definition, take special care with the wording and descriptiveness of these
+parameters, as they are vital for the LLM to effectively make use of the
+available tools.
 
 ### Using tools
 

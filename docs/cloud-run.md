@@ -88,26 +88,32 @@ authorization:
   in the Cloud Run docs for information on providing these credentials.
 
 - **Authorization policy defined in code**: Use the authorization policy feature
-  of Genkit flows to verify authorization info using custom code. This is often,
+  of Genkit express plugin to verify authorization info using custom code. This is often,
   but not necessarily, token-based authorization.
 
 If you want to define an authorization policy in code, use the `authPolicy`
 parameter in the flow definition:
 
 ```ts
-const myFlow = ai.defineFlow(
-  {
-    name: "myFlow",
-    authPolicy: (auth, input) => {
-      if (!auth) {
-        throw new Error("Authorization required.");
+// middleware for handling auth tokens in headers.
+const authMiddleware = async (req, resp, next) => {
+  // parse auth headers and convert to auth object.
+  (req as RequestWithAuth).auth = {
+    user: await verifyAuthToken(req.header('authorization')),
+  };
+  next();
+};
+
+app.post(
+  '/simpleFlow',
+  authMiddleware,
+  expressHandler(simpleFlow, {
+    authPolicy: ({ auth }) => {
+      if (!auth.user) {
+        throw new Error('not authorized');
       }
-      // Custom checks go here...
     },
-  },
-  async () => {
-    // ...
-  }
+  })
 );
 ```
 
@@ -115,6 +121,9 @@ The `auth` parameter of the authorization policy comes from the `auth` property
 of the request object. You typically set this property using Express middleware.
 See
 [Authorization and integrity](/docs/genkit/auth#non-firebase_http_authorization).
+
+Refer to [express plugin documentation](https://js.api.genkit.dev/modules/_genkit-ai_express.html)
+for more details.
 
 ### Make API credentials available to deployed flows 
 
