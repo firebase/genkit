@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package snippets
 
@@ -18,16 +8,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/invopop/jsonschema"
 )
 
 func pr01() {
-	model := ai.LookupModel("googleai", "gemini-1.5-flash")
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	model := genkit.LookupModel(g, "googleai", "gemini-1.5-flash")
 
 	// [START pr01]
-	ai.Generate(context.Background(), model, ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
+	genkit.Generate(context.Background(), g,
+		ai.WithModel(model),
+		ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 
@@ -40,10 +39,16 @@ func helloPrompt(name string) *ai.Part {
 // [END hello]
 
 func pr02() {
-	model := ai.LookupModel("googleai", "gemini-1.5-flash")
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	model := genkit.LookupModel(g, "googleai", "gemini-1.5-flash")
 
 	// [START pr02]
-	response, err := ai.GenerateText(context.Background(), model,
+	response, err := genkit.GenerateText(context.Background(), g,
+		ai.WithModel(model),
 		ai.WithMessages(ai.NewUserMessage(helloPrompt("Fred"))))
 	// [END pr02]
 
@@ -53,13 +58,19 @@ func pr02() {
 }
 
 func pr03() error {
-	model := ai.LookupModel("googleai", "gemini-1.5-flash")
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	model := genkit.LookupModel(g, "googleai", "gemini-1.5-flash")
 
 	// [START pr03_1]
 	type HelloPromptInput struct {
 		UserName string
 	}
-	helloPrompt := ai.DefinePrompt(
+	helloPrompt := genkit.DefinePrompt(
+		g,
 		"prompts",
 		"helloPrompt",
 		nil, // Additional model config
@@ -84,7 +95,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := model.Generate(context.Background(), request, nil)
+	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil)
 	// [END pr03_2]
 
 	_ = response

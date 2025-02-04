@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package rag
 
@@ -34,7 +24,12 @@ func main() {
 	// [START vec]
 	ctx := context.Background()
 
-	err := vertexai.Init(ctx, &vertexai.Config{})
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = vertexai.Init(ctx, g, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,9 +39,10 @@ func main() {
 	}
 
 	menuPDFIndexer, _, err := localvec.DefineIndexerAndRetriever(
+		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder("text-embedding-004"),
+			Embedder: vertexai.Embedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -61,6 +57,7 @@ func main() {
 	// [END splitcfg]
 	// [START indexflow]
 	genkit.DefineFlow(
+		g,
 		"indexMenu",
 		func(ctx context.Context, path string) (any, error) {
 			// Extract plain text from the PDF. Wrap the logic in Run so it
@@ -97,7 +94,7 @@ func main() {
 	)
 	// [END indexflow]
 
-	err = genkit.Init(ctx, nil)
+	err = g.Start(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -133,7 +130,12 @@ func menuQA() {
 	// [START retrieve]
 	ctx := context.Background()
 
-	err := vertexai.Init(ctx, &vertexai.Config{})
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = vertexai.Init(ctx, g, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -142,12 +144,13 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model("gemini-1.5-flash")
+	model := vertexai.Model(g, "gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
+		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder("text-embedding-004"),
+			Embedder: vertexai.Embedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -155,6 +158,7 @@ func menuQA() {
 	}
 
 	genkit.DefineFlow(
+		g,
 		"menuQA",
 		func(ctx context.Context, question string) (string, error) {
 			// Retrieve text relevant to the user's question.
@@ -173,7 +177,8 @@ func menuQA() {
 			}
 
 			// Call Generate, including the menu information in your prompt.
-			return ai.GenerateText(ctx, model,
+			return genkit.GenerateText(ctx, g,
+				ai.WithModel(model),
 				ai.WithMessages(
 					ai.NewSystemTextMessage(`
 You are acting as a helpful AI assistant that can answer questions about the
@@ -187,10 +192,16 @@ make up an answer. Do not add or change items on the menu.`),
 }
 
 func customret() {
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	_, menuPDFRetriever, _ := localvec.DefineIndexerAndRetriever(
+		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder("text-embedding-004"),
+			Embedder: vertexai.Embedder(g, "text-embedding-004"),
 		},
 	)
 
@@ -199,7 +210,8 @@ func customret() {
 		K          int
 		PreRerankK int
 	}
-	advancedMenuRetriever := ai.DefineRetriever(
+	advancedMenuRetriever := genkit.DefineRetriever(
+		g,
 		"custom",
 		"advancedMenuRetriever",
 		func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {

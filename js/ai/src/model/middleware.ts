@@ -15,14 +15,14 @@
  */
 
 import { Document } from '../document.js';
-import {
+import { injectInstructions } from '../formats/index.js';
+import type {
   MediaPart,
   MessageData,
   ModelInfo,
   ModelMiddleware,
   Part,
 } from '../model.js';
-
 /**
  * Preprocess a GenerateRequest to download referenced http(s) media URLs and
  * inline them as data URIs.
@@ -129,12 +129,15 @@ export function validateSupport(options: {
   };
 }
 
+// N.B. Figure out why array.findLast isn't available despite setting target
+// to ES2022 (Node 16.14.0)
 function lastUserMessage(messages: MessageData[]) {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') {
       return messages[i];
     }
   }
+  return undefined;
 }
 
 /**
@@ -226,6 +229,50 @@ export function augmentWithContext(
       } as Part;
     } else {
       userMessage.content.push({ text: out, metadata: { purpose: 'context' } });
+    }
+
+    return next(req);
+  };
+}
+
+export interface SimulatedConstrainedGenerationOptions {
+  instructionsRenderer?: (schema: Record<string, any>) => string;
+}
+
+const DEFAULT_CONSTRAINED_GENERATION_INSTRUSCTIONS = (
+  schema: Record<string, any>
+) => `Output should be in JSON format and conform to the following schema:
+
+\`\`\`
+${JSON.stringify(schema)}
+\`\`\`
+`;
+
+/**
+ * Model middleware that simulates constrained generation by injecting generation
+ * instructions into the user message.
+ */
+export function simulateConstrainedGeneration(
+  options?: SimulatedConstrainedGenerationOptions
+): ModelMiddleware {
+  return (req, next) => {
+    let instructions: string | undefined;
+    if (req.output?.constrained && req.output?.schema) {
+      instructions = (
+        options?.instructionsRenderer ??
+        DEFAULT_CONSTRAINED_GENERATION_INSTRUSCTIONS
+      )(req.output?.schema);
+
+      req = {
+        ...req,
+        messages: injectInstructions(req.messages, instructions),
+        output: {
+          ...req.output,
+          // we're simulating it, so to the underlying model it's unconstrained.
+          constrained: false,
+          schema: undefined,
+        },
+      };
     }
 
     return next(req);

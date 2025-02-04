@@ -1,0 +1,30 @@
+{
+  "name": "nextjs-sample",
+  "type": "module",
+  "version": "0.0.1-dev.1",
+  "description": "Sample app to test @genkit-ai/nextjs",
+  "main": "lib/index.js",
+  "scripts": {
+    "vendor": "cd ../../plugins/next && pnpm pack --pack-destination ../../testapps/next && cd - && pnpm install ./genkit-ai-next*.tgz --filter nextjs-sample",
+    "start": "next start",
+    "build": "next build",
+    "dev": "next dev",
+    "build:clean": "rimraf ./lib",
+    "build:watch": "next dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/next": "workspace:*",
+    "genkit": "workspace:*",
+    "next": "^15.1.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.8",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.3.3"
+  }
+}

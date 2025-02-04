@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package main
 
@@ -67,21 +57,25 @@ var textMenuQuestionInputSchema = jsonschema.Reflect(textMenuQuestionInput{})
 
 func main() {
 	ctx := context.Background()
-	err := vertexai.Init(ctx, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatalf("failed to create Genkit: %v", err)
+	}
+	err = vertexai.Init(ctx, g, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model("gemini-1.5-flash")
-	visionModel := vertexai.Model("gemini-1.5-flash")
-	embedder := vertexai.Embedder("text-embedding-004")
-	if err := setup01(ctx, model); err != nil {
+	model := vertexai.Model(g, "gemini-1.5-flash")
+	visionModel := vertexai.Model(g, "gemini-1.5-flash")
+	embedder := vertexai.Embedder(g, "text-embedding-004")
+	if err := setup01(g, model); err != nil {
 		log.Fatal(err)
 	}
-	if err := setup02(ctx, model); err != nil {
+	if err := setup02(g, model); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := setup03(ctx, model); err != nil {
+	if err := setup03(g, model); err != nil {
 		log.Fatal(err)
 	}
 
@@ -89,21 +83,21 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever("go-menu_items", localvec.Config{
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "go-menu_items", localvec.Config{
 		Embedder: embedder,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, indexer, retriever, model); err != nil {
+	if err := setup04(g, indexer, retriever, model); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := setup05(ctx, model, visionModel); err != nil {
+	if err := setup05(g, model, visionModel); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := genkit.Init(ctx, nil); err != nil {
+	if err := g.Start(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

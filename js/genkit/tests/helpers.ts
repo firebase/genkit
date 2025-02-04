@@ -17,6 +17,7 @@
 import { MessageData } from '@genkit-ai/ai';
 import { BaseEvalDataPoint } from '@genkit-ai/ai/evaluator';
 import { ModelAction } from '@genkit-ai/ai/model';
+import { SessionData, SessionStore } from '@genkit-ai/ai/session';
 import { StreamingCallback } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
 import {
@@ -24,19 +25,18 @@ import {
   GenerateResponseChunkData,
   GenerateResponseData,
 } from '../src/model';
-import { SessionData, SessionStore } from '../src/session';
 
 export function defineEchoModel(ai: Genkit): ModelAction {
   const model = ai.defineModel(
     {
       name: 'echoModel',
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       (model as any).__test__lastRequest = request;
-      (model as any).__test__lastStreamingCallback = streamingCallback;
-      if (streamingCallback) {
+      (model as any).__test__lastStreamingCallback = sendChunk;
+      if (sendChunk) {
         await runAsync(() => {
-          streamingCallback({
+          sendChunk({
             content: [
               {
                 text: '3',
@@ -45,7 +45,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
           });
         });
         await runAsync(() => {
-          streamingCallback({
+          sendChunk({
             content: [
               {
                 text: '2',
@@ -54,7 +54,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
           });
         });
         await runAsync(() => {
-          streamingCallback({
+          sendChunk({
             content: [
               {
                 text: '1',
@@ -148,7 +148,7 @@ export function defineStaticResponseModel(
 export type ProgrammableModel = ModelAction & {
   handleResponse: (
     req: GenerateRequest,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+    sendChunk?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>;
 
   lastRequest?: GenerateRequest;
@@ -162,9 +162,9 @@ export function defineProgrammableModel(ai: Genkit): ProgrammableModel {
         tools: true,
       },
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       pm.lastRequest = JSON.parse(JSON.stringify(request));
-      return pm.handleResponse(request, streamingCallback);
+      return pm.handleResponse(request, sendChunk);
     }
   ) as ProgrammableModel;
 

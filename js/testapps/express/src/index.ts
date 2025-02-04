@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { AuthPolicy, RequestWithAuth, handler } from '@genkit-ai/express';
+import {
+  AuthPolicy,
+  RequestWithAuth,
+  expressHandler,
+} from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, {
@@ -23,7 +27,7 @@ import express, {
   Request,
   Response,
 } from 'express';
-import { genkit, run, z } from 'genkit';
+import { genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ollama } from 'genkitx-ollama';
 
@@ -45,15 +49,15 @@ const ai = genkit({
 
 export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject, streamingCallback) => {
-    return await run('call-llm', async () => {
+  async (subject, { sendChunk }) => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         prompt: `tell me long joke about ${subject}`,
         model: gemini15Flash,
         config: {
           temperature: 1,
         },
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       });
 
       return llmResponse.text;
@@ -75,7 +79,7 @@ app.use(express.json());
 
 const authPolicies: Record<string, AuthPolicy> = {
   jokeFlow: ({ auth }) => {
-    if (auth.username != 'Ali Baba') {
+    if (auth?.username != 'Ali Baba') {
       throw new Error('unauthorized: ' + JSON.stringify(auth));
     }
   },
@@ -86,12 +90,12 @@ ai.flows.forEach((f) => {
   app.post(
     `/${f.name}`,
     auth,
-    handler(f, { authPolicy: authPolicies[f.name] })
+    expressHandler(f, { authPolicy: authPolicies[f.name] })
   );
 });
 
 // curl http://localhost:5000/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"
-app.post('/jokeHandler', handler(jokeFlow));
+app.post('/jokeHandler', expressHandler(jokeFlow));
 
 // curl http://localhost:5000/jokeWithFlow?subject=banana
 app.get('/jokeWithFlow', async (req: Request, res: Response) => {

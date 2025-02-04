@@ -15,18 +15,23 @@
  */
 
 import {
+  Action,
+  defineAction,
   GenkitError,
   getStreamingCallback,
   runWithStreamingCallback,
+  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
-import * as clc from 'colorette';
-import { DocumentDataSchema } from '../document.js';
-import { resolveFormat } from '../formats/index.js';
+import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import {
+  injectInstructions,
+  resolveFormat,
+  resolveInstructions,
+} from '../formats/index.js';
 import { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
@@ -35,57 +40,80 @@ import {
   tagAsPreamble,
 } from '../generate.js';
 import {
+  GenerateActionOptions,
+  GenerateActionOptionsSchema,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkData,
+  GenerateResponseChunkSchema,
   GenerateResponseData,
-  MessageData,
-  MessageSchema,
+  GenerateResponseSchema,
+  ModelAction,
+  ModelInfo,
   ModelMiddleware,
+  ModelRequest,
   Part,
-  Role,
-  ToolDefinitionSchema,
-  ToolResponsePart,
   resolveModel,
+  Role,
 } from '../model.js';
-import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
+import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import {
+  assertValidToolNames,
+  resolveResumeOption,
+  resolveToolRequests,
+} from './resolve-tool-requests.js';
 
-export const GenerateUtilParamSchema = z.object({
-  /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
-  model: z.string(),
-  /** Retrieved documents to be used as context for this generation. */
-  docs: z.array(DocumentDataSchema).optional(),
-  /** Conversation history for multi-turn prompting when supported by the underlying model. */
-  messages: z.array(MessageSchema),
-  /** List of registered tool names for this generation if supported by the underlying model. */
-  tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
-  /** Configuration for the generation request. */
-  config: z.any().optional(),
-  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
-  output: z
-    .object({
-      format: z.string().optional(),
-      contentType: z.string().optional(),
-      instructions: z.union([z.boolean(), z.string()]).optional(),
-      jsonSchema: z.any().optional(),
-    })
-    .optional(),
-  /** When true, return tool calls for manual processing instead of automatically resolving them. */
-  returnToolRequests: z.boolean().optional(),
-  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
-  maxTurns: z.number().optional(),
-});
+export type GenerateAction = Action<
+  typeof GenerateActionOptionsSchema,
+  typeof GenerateResponseSchema,
+  typeof GenerateResponseChunkSchema
+>;
+
+/** Defines (registers) a utilty generate action. */
+export function defineGenerateAction(registry: Registry): GenerateAction {
+  return defineAction(
+    registry,
+    {
+      actionType: 'util',
+      name: 'generate',
+      inputSchema: GenerateActionOptionsSchema,
+      outputSchema: GenerateResponseSchema,
+      streamSchema: GenerateResponseChunkSchema,
+    },
+    async (request, { sendChunk }) => {
+      const generateFn = () =>
+        generate(registry, {
+          rawRequest: request,
+          currentTurn: 0,
+          messageIndex: 0,
+          // Generate util action does not support middleware. Maybe when we add named/registered middleware....
+          middleware: [],
+        });
+      return sendChunk
+        ? runWithStreamingCallback(
+            registry,
+            (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
+            generateFn
+          )
+        : generateFn();
+    }
+  );
+}
 
 /**
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
  */
 export async function generateHelper(
   registry: Registry,
-  input: z.infer<typeof GenerateUtilParamSchema>,
-  middleware?: ModelMiddleware[],
-  currentTurns?: number
+  options: {
+    rawRequest: GenerateActionOptions;
+    middleware?: ModelMiddleware[];
+    currentTurn?: number;
+    messageIndex?: number;
+  }
 ): Promise<GenerateResponseData> {
-  currentTurns = currentTurns ?? 0;
+  let currentTurn = options.currentTurn ?? 0;
+  let messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -94,78 +122,164 @@ export async function generateHelper(
         name: 'generate',
       },
       labels: {
-        [SPAN_TYPE_ATTR]: 'helper',
+        [SPAN_TYPE_ATTR]: 'util',
       },
     },
     async (metadata) => {
       metadata.name = 'generate';
-      metadata.input = input;
-      const output = await generate(registry, input, middleware, currentTurns!);
+      metadata.input = options.rawRequest;
+      const output = await generate(registry, {
+        rawRequest: options.rawRequest,
+        middleware: options.middleware,
+        currentTurn,
+        messageIndex,
+      });
       metadata.output = JSON.stringify(output);
       return output;
     }
   );
 }
 
-async function generate(
+/** Take the raw request and resolve tools, model, and format into their registry action counterparts. */
+async function resolveParameters(
   registry: Registry,
-  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
-  middleware: ModelMiddleware[] | undefined,
-  currentTurn: number
-): Promise<GenerateResponseData> {
-  const { modelAction: model } = await resolveModel(registry, rawRequest.model);
-  if (model.__action.metadata?.model.stage === 'deprecated') {
-    logger.warn(
-      `${clc.bold(clc.yellow('Warning:'))} ` +
-        `Model '${model.__action.name}' is deprecated and may be removed in a future release.`
-    );
+  request: GenerateActionOptions
+) {
+  const [model, tools, format] = await Promise.all([
+    resolveModel(registry, request.model, { warnDeprecated: true }).then(
+      (r) => r.modelAction
+    ),
+    resolveTools(registry, request.tools),
+    resolveFormat(registry, request.output),
+  ]);
+  return { model, tools, format };
+}
+
+/** Given a raw request and a formatter, apply the formatter's logic and instructions to the request. */
+function applyFormat(
+  rawRequest: GenerateActionOptions,
+  resolvedFormat?: Formatter
+) {
+  const outRequest = { ...rawRequest };
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (rawRequest.output?.jsonSchema && !rawRequest.output?.format) {
+    outRequest.output = { ...rawRequest.output, format: 'json' };
   }
 
-  const tools = await resolveTools(registry, rawRequest.tools);
+  const instructions = resolveInstructions(
+    resolvedFormat,
+    outRequest.output?.jsonSchema,
+    outRequest?.output?.instructions
+  );
 
-  const resolvedFormat = await resolveFormat(registry, rawRequest.output);
-  // Create a lookup of tool names with namespaces stripped to original names
-  const toolMap = tools.reduce<Record<string, ToolAction>>((acc, tool) => {
-    const name = tool.__action.name;
-    const shortName = name.substring(name.lastIndexOf('/') + 1);
-    if (acc[shortName]) {
-      throw new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message: `Cannot provide two tools with the same name: '${name}' and '${acc[shortName]}'`,
-      });
-    }
-    acc[shortName] = tool;
-    return acc;
-  }, {});
+  if (resolvedFormat) {
+    outRequest.messages = injectInstructions(outRequest.messages, instructions);
+    outRequest.output = {
+      // use output config from the format
+      ...resolvedFormat.config,
+      // if anything is set explicitly, use that
+      ...outRequest.output,
+    };
+  }
+
+  return outRequest;
+}
+
+function applyTransferPreamble(
+  rawRequest: GenerateActionOptions,
+  transferPreamble?: GenerateActionOptions
+): GenerateActionOptions {
+  if (!transferPreamble) {
+    return rawRequest;
+  }
+
+  return stripUndefinedProps({
+    ...rawRequest,
+    messages: [
+      ...tagAsPreamble(transferPreamble.messages!)!,
+      ...rawRequest.messages.filter((m) => !m.metadata?.preamble),
+    ],
+    toolChoice: transferPreamble.toolChoice || rawRequest.toolChoice,
+    tools: transferPreamble.tools || rawRequest.tools,
+  });
+}
+
+async function generate(
+  registry: Registry,
+  {
+    rawRequest,
+    middleware,
+    currentTurn,
+    messageIndex,
+  }: {
+    rawRequest: GenerateActionOptions;
+    middleware: ModelMiddleware[] | undefined;
+    currentTurn: number;
+    messageIndex: number;
+  }
+): Promise<GenerateResponseData> {
+  const { model, tools, format } = await resolveParameters(
+    registry,
+    rawRequest
+  );
+  rawRequest = applyFormat(rawRequest, format);
+
+  // check to make sure we don't have overlapping tool names *before* generation
+  await assertValidToolNames(tools);
+
+  const { revisedRequest, interruptedResponse } = await resolveResumeOption(
+    registry,
+    rawRequest
+  );
+  // NOTE: in the future we should make it possible to interrupt a restart, but
+  // at the moment it's too complicated because it's not clear how to return a
+  // response that amends history but doesn't generate a new message, so we throw
+  if (interruptedResponse) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message:
+        'One or more tools triggered an interrupt during a restarted execution.',
+      detail: { message: interruptedResponse.message },
+    });
+  }
+  rawRequest = revisedRequest!;
 
   const request = await actionToGenerateRequest(
     rawRequest,
     tools,
-    resolvedFormat
+    format,
+    model
   );
 
-  const accumulatedChunks: GenerateResponseChunkData[] = [];
+  const previousChunks: GenerateResponseChunkData[] = [];
+
+  let chunkRole: Role = 'model';
+  // convenience method to create a full chunk from role and data, append the chunk
+  // to the previousChunks array, and increment the message index as needed
+  const makeChunk = (
+    role: Role,
+    chunk: GenerateResponseChunkData
+  ): GenerateResponseChunk => {
+    if (role !== chunkRole) messageIndex++;
+    chunkRole = role;
+
+    const prevToSend = [...previousChunks];
+    previousChunks.push(chunk);
+
+    return new GenerateResponseChunk(chunk, {
+      index: messageIndex,
+      role,
+      previousChunks: prevToSend,
+      parser: format?.handler(request.output?.schema).parseChunk,
+    });
+  };
 
   const streamingCallback = getStreamingCallback(registry);
   const response = await runWithStreamingCallback(
     registry,
-    streamingCallback
-      ? (chunk: GenerateResponseChunkData) => {
-          // Store accumulated chunk data
-          if (streamingCallback) {
-            streamingCallback!(
-              new GenerateResponseChunk(chunk, {
-                index: 0,
-                role: 'model',
-                previousChunks: accumulatedChunks,
-                parser: resolvedFormat?.handler(request.output?.schema)
-                  .parseChunk,
-              })
-            );
-          }
-          accumulatedChunks.push(chunk);
-        }
-      : undefined,
+    streamingCallback &&
+      ((chunk: GenerateResponseChunkData) =>
+        streamingCallback(makeChunk('model', chunk))),
     async () => {
       const dispatch = async (
         index: number,
@@ -184,19 +298,24 @@ async function generate(
 
       return new GenerateResponse(await dispatch(0, request), {
         request,
-        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+        parser: format?.handler(request.output?.schema).parseMessage,
       });
     }
   );
 
   // Throw an error if the response is not usable.
-  response.assertValid(request);
-  const message = response.message!; // would have thrown if no message
+  response.assertValid();
+  const generatedMessage = response.message!; // would have thrown if no message
 
-  const toolCalls = message.content.filter((part) => !!part.toolRequest);
-  if (rawRequest.returnToolRequests || toolCalls.length === 0) {
+  const toolRequests = generatedMessage.content.filter(
+    (part) => !!part.toolRequest
+  );
+
+  if (rawRequest.returnToolRequests || toolRequests.length === 0) {
+    if (toolRequests.length === 0) response.assertValidSchema(request);
     return response.toJSON();
   }
+
   const maxIterations = rawRequest.maxTurns ?? 5;
   if (currentTurn + 1 > maxIterations) {
     throw new GenerationResponseError(
@@ -207,69 +326,69 @@ async function generate(
     );
   }
 
-  const toolResponses: ToolResponsePart[] = [];
-  let messages: MessageData[] = [...request.messages, message];
-  let newTools = rawRequest.tools;
-  for (const part of toolCalls) {
-    if (!part.toolRequest) {
-      throw Error(
-        'Tool request expected but not provided in tool request part'
-      );
-    }
-    const tool = toolMap[part.toolRequest?.name];
-    if (!tool) {
-      throw Error(`Tool ${part.toolRequest?.name} not found`);
-    }
-    if ((tool.__action.metadata.type as string) === 'prompt') {
-      const newPreamble = await tool(part.toolRequest?.input);
-      toolResponses.push({
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: `transferred to ${part.toolRequest.name}`,
-        },
-      });
-      // swap out the preamble
-      messages = [
-        ...tagAsPreamble(newPreamble.messages)!,
-        ...messages.filter((m) => !m?.metadata?.preamble),
-      ];
-      newTools = newPreamble.tools;
-    } else {
-      toolResponses.push({
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: await tool(part.toolRequest?.input),
-        },
-      });
-    }
+  const { revisedModelMessage, toolMessage, transferPreamble } =
+    await resolveToolRequests(registry, rawRequest, generatedMessage);
+
+  // if an interrupt message is returned, stop the tool loop and return a response
+  if (revisedModelMessage) {
+    return {
+      ...response.toJSON(),
+      finishReason: 'interrupted',
+      finishMessage: 'One or more tool calls resulted in interrupts.',
+      message: revisedModelMessage,
+    };
   }
-  const nextRequest = {
-    ...rawRequest,
-    messages: [
-      ...messages,
-      {
-        role: 'tool',
-        content: toolResponses,
-      },
-    ] as MessageData[],
-    tools: newTools,
-  };
-  return await generateHelper(
-    registry,
-    nextRequest,
-    middleware,
-    currentTurn + 1
+
+  // if the loop will continue, stream out the tool response message...
+  streamingCallback?.(
+    makeChunk('tool', {
+      content: toolMessage!.content,
+    })
   );
+
+  let nextRequest = {
+    ...rawRequest,
+    messages: [...rawRequest.messages, generatedMessage.toJSON(), toolMessage!],
+  };
+  nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
+
+  // then recursively call for another loop
+  return await generateHelper(registry, {
+    rawRequest: nextRequest,
+    middleware: middleware,
+    currentTurn: currentTurn + 1,
+    messageIndex: messageIndex + 1,
+  });
 }
 
 async function actionToGenerateRequest(
-  options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[],
-  resolvedFormat?: Formatter
+  options: GenerateActionOptions,
+  resolvedTools: ToolAction[] | undefined,
+  resolvedFormat: Formatter | undefined,
+  model: ModelAction
 ): Promise<GenerateRequest> {
-  const out = {
+  const modelInfo = model.__action.metadata?.model as ModelInfo;
+  if (
+    (options.tools?.length ?? 0) > 0 &&
+    modelInfo?.supports &&
+    !modelInfo?.supports?.tools
+  ) {
+    logger.warn(
+      `The model '${model.__action.name}' does not support tools (you set: ${options.tools?.length} tools). ` +
+        'The model may not behave the way you expect.'
+    );
+  }
+  if (
+    options.toolChoice &&
+    modelInfo?.supports &&
+    !modelInfo?.supports?.toolChoice
+  ) {
+    logger.warn(
+      `The model '${model.__action.name}' does not support the 'toolChoice' option (you set: ${options.toolChoice}). ` +
+        'The model may not behave the way you expect.'
+    );
+  }
+  const out: ModelRequest = {
     messages: options.messages,
     config: options.config,
     docs: options.docs,
@@ -281,7 +400,10 @@ async function actionToGenerateRequest(
       }),
     },
   };
-  if (!out.output.schema) delete out.output.schema;
+  if (options.toolChoice) {
+    out.toolChoice = options.toolChoice;
+  }
+  if (out.output && !out.output.schema) delete out.output.schema;
   return out;
 }
 

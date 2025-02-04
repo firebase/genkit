@@ -4,11 +4,10 @@
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:libs && pnpm build:docsnippets && pnpm build:testapps",
     "build:libs": "pnpm build:core && pnpm build:genkit && pnpm build:noncore ",
-    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build && pnpm build:dotprompt",
+    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build",
     "build:genkit": "pnpm -F genkit build",
-    "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./plugins/**\" -F \"!./plugins/dotprompt\" build",
+    "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./plugins/**\" build",
     "build:testapps": "pnpm -r --workspace-concurrency 0 -F \"./testapps/**\" build",
-    "build:dotprompt": "cd plugins/dotprompt && pnpm build",
     "build:docsnippets": "cd doc-snippets && pnpm install && pnpm build",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:ai pack:genkit pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
@@ -35,5 +34,5 @@
       "cross-spawn": "^7.0.5"
     }
   },
-  "packageManager": "pnpm@9.15.1+sha256.9e534e70afef06374f6126b44bda5760947135ce16a30aef1010e965fb7e3e3e"
+  "packageManager": "pnpm@9.15.5+sha256.8472168c3e1fd0bff287e694b053fccbbf20579a3ff9526b6333beab8df65a8d"
 }

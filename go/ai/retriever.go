@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package ai
 
@@ -20,6 +10,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Retriever represents a document retriever.
@@ -67,39 +58,39 @@ type RetrieverResponse struct {
 
 // DefineIndexer registers the given index function as an action, and returns an
 // [Indexer] that runs it.
-func DefineIndexer(provider, name string, index func(context.Context, *IndexerRequest) error) Indexer {
+func DefineIndexer(r *registry.Registry, provider, name string, index func(context.Context, *IndexerRequest) error) Indexer {
 	f := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	}
-	return (*indexerActionDef)(core.DefineAction(provider, name, atype.Indexer, nil, f))
+	return (*indexerActionDef)(core.DefineAction(r, provider, name, atype.Indexer, nil, f))
 }
 
 // IsDefinedIndexer reports whether an [Indexer] is defined.
-func IsDefinedIndexer(provider, name string) bool {
-	return (*indexerActionDef)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name)) != nil
+func IsDefinedIndexer(r *registry.Registry, provider, name string) bool {
+	return (*indexerActionDef)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](r, atype.Indexer, provider, name)) != nil
 }
 
 // LookupIndexer looks up an [Indexer] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
-func LookupIndexer(provider, name string) Indexer {
-	return (*indexerActionDef)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name))
+func LookupIndexer(r *registry.Registry, provider, name string) Indexer {
+	return (*indexerActionDef)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](r, atype.Indexer, provider, name))
 }
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
-func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *retrieverActionDef {
-	return (*retrieverActionDef)(core.DefineAction(provider, name, atype.Retriever, nil, ret))
+func DefineRetriever(r *registry.Registry, provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *retrieverActionDef {
+	return (*retrieverActionDef)(core.DefineAction(r, provider, name, atype.Retriever, nil, ret))
 }
 
 // IsDefinedRetriever reports whether a [Retriever] is defined.
-func IsDefinedRetriever(provider, name string) bool {
-	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name)) != nil
+func IsDefinedRetriever(r *registry.Registry, provider, name string) bool {
+	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name)) != nil
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the model was not defined.
-func LookupRetriever(provider, name string) Retriever {
-	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name))
+func LookupRetriever(r *registry.Registry, provider, name string) Retriever {
+	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name))
 }
 
 // Index runs the given [Indexer].

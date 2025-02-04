@@ -24,8 +24,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  generateTestCaseId,
-  loadEvalInputDataset,
+  loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -79,6 +78,13 @@ export const evalRun = new Command('eval:run')
           evalActionKeys
         );
       }
+      if (!evaluatorActions.length) {
+        throw new Error(
+          options.evaluators
+            ? `No matching evaluators found for '${options.evaluators}'`
+            : `No evaluators found in your app`
+        );
+      }
       logger.info(
         `Using evaluators: ${evaluatorActions.map((action) => action.name).join(',')}`
       );
@@ -92,13 +98,8 @@ export const evalRun = new Command('eval:run')
         }
       }
 
-      const evalDataset: EvalInputDataset = (
-        await loadEvalInputDataset(dataset)
-      ).map((testCase: any) => ({
-        ...testCase,
-        testCaseId: testCase.testCaseId || generateTestCaseId(),
-        traceIds: testCase.traceIds || [],
-      }));
+      const evalDataset: EvalInputDataset =
+        await loadEvaluationDatasetFile(dataset);
       const evalRun = await runEvaluation({
         manager,
         evaluatorActions,

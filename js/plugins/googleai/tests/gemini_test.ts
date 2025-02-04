@@ -15,9 +15,9 @@
  */
 
 import { GenerateContentCandidate } from '@google/generative-ai';
+import * as assert from 'assert';
 import { genkit } from 'genkit';
 import { MessageData, ModelInfo } from 'genkit/model';
-import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
   GENERIC_GEMINI_MODEL,

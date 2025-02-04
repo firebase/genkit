@@ -1,0 +1,119 @@
+{
+  "config": {
+    "git-directory": ".git"
+  },
+  "hooks": {
+    "commit-msg": {
+      "actions": [
+        {
+          "run": "convco check -n 1"
+        }
+      ]
+    },
+    "pre-commit": {
+      "actions": [
+        {
+          "run": "py/.hooks/no-commits-on-branches main"
+        },
+        {
+          "run": "CaptainHook::File.MaxSize",
+          "config": {
+            "allow-failure": true
+          },
+          "options": {
+            "max-size": "1M"
+          }
+        },
+        {
+          "run": "CaptainHook::File.BlockSecrets",
+          "options": {
+            "presets": ["Aws", "GitHub", "Stripe", "Google"]
+          }
+        },
+        {
+          "run": "pnpm i --frozen-lockfile"
+        },
+        {
+          "run": "py/bin/fmt"
+        },
+        {
+          "run": "uvx --directory py ruff check --fix ."
+        },
+        {
+          "run": "py/bin/run_tests"
+        },
+        {
+          "run": "uv run --directory py mkdocs build"
+        },
+        {
+          "run": "py/bin/build_dists"
+        },
+        {
+          "run": "go test go/..."
+        },
+        {
+          "run": "govulncheck -C go ./...",
+          "conditions": [
+            {
+              "run": "CaptainHook::FileChanged.Any",
+              "options": {
+                "files": ["go/go.mod", "go.sum", "*.go"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "pre-push": {
+      "actions": [
+        {
+          "run": "CaptainHook::Branch.PreventPushOfFixupAndSquashCommits",
+          "options": {
+            "branches-to-protect": ["main"]
+          }
+        },
+        {
+          "run": "CaptainHook::Branch.EnsureNaming",
+          "options": {
+            "regex": "^main|[a-z_][0-9a-z_]+-(build|chore|ci|docs|feat|fix|perf|refactor|revert|release|style|test)-[a-z][0-9a-z_]+-?([A-Za-z0-9a_-])*$"
+          }
+        },
+        {
+          "run": "pnpm i --frozen-lockfile"
+        },
+        {
+          "run": "py/bin/fmt"
+        },
+        {
+          "run": "uvx --directory py ruff check --fix ."
+        },
+        {
+          "run": "py/bin/run_tests"
+        },
+        {
+          "run": "uv run --directory py mkdocs build"
+        },
+        {
+          "run": "py/bin/build_dists"
+        },
+        {
+          "run": "go test go/..."
+        },
+        {
+          "run": "govulncheck -C go ./...",
+          "conditions": [
+            {
+              "run": "CaptainHook::FileChanged.Any",
+              "options": {
+                "files": ["go/go.mod", "go.sum", "*.go"]
+              }
+            }
+          ]
+        },
+        {
+          "run": "py/.hooks/commit-message-format-pre-push"
+        }
+      ]
+    }
+  }
+}

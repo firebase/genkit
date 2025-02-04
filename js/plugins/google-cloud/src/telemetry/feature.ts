@@ -26,7 +26,12 @@ import {
   Telemetry,
   internalMetricNamespaceWrap,
 } from '../metrics.js';
-import { createCommonLogAttributes, extractErrorName } from '../utils.js';
+import {
+  createCommonLogAttributes,
+  extractErrorName,
+  truncate,
+  truncatePath,
+} from '../utils.js';
 
 class FeaturesTelemetry implements Telemetry {
   /**
@@ -48,7 +53,7 @@ class FeaturesTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
@@ -76,14 +81,35 @@ class FeaturesTelemetry implements Telemetry {
       return;
     }
 
-    if (logIO) {
-      const input = attributes['genkit:input'] as string;
-      const output = attributes['genkit:output'] as string;
+    if (logInputAndOutput) {
+      const input = truncate(attributes['genkit:input'] as string);
+      const output = truncate(attributes['genkit:output'] as string);
+      const sessionId = attributes['genkit:sessionId'] as string;
+      const threadName = attributes['genkit:threadName'] as string;
+
       if (input) {
-        this.recordIO(span, 'Input', name, path, input, projectId);
+        this.writeLog(
+          span,
+          'Input',
+          name,
+          path,
+          input,
+          projectId,
+          sessionId,
+          threadName
+        );
       }
       if (output) {
-        this.recordIO(span, 'Output', name, path, output, projectId);
+        this.writeLog(
+          span,
+          'Output',
+          name,
+          path,
+          output,
+          projectId,
+          sessionId,
+          threadName
+        );
       }
     }
   }
@@ -115,24 +141,28 @@ class FeaturesTelemetry implements Telemetry {
     this.featureLatencies.record(latencyMs, dimensions);
   }
 
-  private recordIO(
+  private writeLog(
     span: ReadableSpan,
     tag: string,
     featureName: string,
     qualifiedPath: string,
-    input: string,
-    projectId?: string
+    content: string,
+    projectId?: string,
+    sessionId?: string,
+    threadName?: string
   ) {
-    const path = toDisplayPath(qualifiedPath);
+    const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       path,
       qualifiedPath,
       featureName,
+      sessionId,
+      threadName,
     };
     logger.logStructured(`${tag}[${path}, ${featureName}]`, {
       ...sharedMetadata,
-      content: input,
+      content,
     });
   }
 }

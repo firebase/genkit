@@ -43,14 +43,12 @@ function registerPrompt(
   logger.debug(
     `[@genkit-ai/mcp] Registering MCP prompt ${params.name}/${prompt.name}`
   );
-  ai.definePrompt(
-    {
-      name: prompt.name,
-      description: prompt.description || '',
-      input: { jsonSchema: toSchema(prompt.arguments) },
-      output: { format: 'text' },
-    },
-    async (args) => {
+  ai.definePrompt({
+    name: prompt.name,
+    description: prompt.description || '',
+    input: { jsonSchema: toSchema(prompt.arguments) },
+    output: { format: 'text' },
+    messages: async (args) => {
       logger.debug(
         `[@genkit-ai/mcp] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
         JSON.stringify(args)
@@ -59,11 +57,9 @@ function registerPrompt(
         name: prompt.name,
         arguments: args,
       });
-      return {
-        messages: result.messages.map(fromMcpPromptMessage),
-      };
-    }
-  );
+      return result.messages.map(fromMcpPromptMessage);
+    },
+  });
 }
 
 /**

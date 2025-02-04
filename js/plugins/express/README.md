@@ -3,25 +3,22 @@
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Express HTTP server as REST APIs.
 
 ```ts
-import { handler } from '@genkit-ai/express';
+import { expressHandler } from '@genkit-ai/express';
 import express from 'express';
 
-const simpleFlow = ai.defineFlow(
-  'simpleFlow',
-  async (input, streamingCallback) => {
-    const { text } = await ai.generate({
-      model: gemini15Flash,
-      prompt: input,
-      streamingCallback,
-    });
-    return text;
-  }
-);
+const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
+  const { text } = await ai.generate({
+    model: gemini15Flash,
+    prompt: input,
+    onChunk: (c) => sendChunk(c.text),
+  });
+  return text;
+});
 
 const app = express();
 app.use(express.json());
 
-app.post('/simpleFlow', handler(simpleFlow));
+app.post('/simpleFlow', expressHandler(simpleFlow));
 
 app.listen(8080);
 ```
@@ -42,7 +39,7 @@ const authMiddleware = async (req, resp, next) => {
 app.post(
   '/simpleFlow',
   authMiddleware,
-  handler(simpleFlow, {
+  expressHandler(simpleFlow, {
     authPolicy: ({ auth }) => {
       if (auth.user !== 'Ali Baba') {
         throw new Error('not authorized');
@@ -52,10 +49,10 @@ app.post(
 );
 ```
 
-Flows and actions exposed using the `handler` function can be accessed using `genkit/client` library:
+Flows and actions exposed using the `expressHandler` function can be accessed using `genkit/beta/client` library:
 
 ```ts
-import { runFlow, streamFlow } from 'genkit/client';
+import { runFlow, streamFlow } from 'genkit/beta/client';
 
 const result = await runFlow({
   url: `http://localhost:${port}/simpleFlow`,
@@ -80,10 +77,10 @@ const result = streamFlow({
   url: `http://localhost:${port}/simpleFlow`,
   input: 'say hello',
 });
-for await (const chunk of result.stream()) {
+for await (const chunk of result.stream) {
   console.log(chunk);
 }
-console.log(await result.output());
+console.log(await result.output);
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.

@@ -20,21 +20,19 @@ import { ai } from './genkit.js';
 
 // Define a prompt that includes the retrieved context documents
 
-export const augmentedPrompt = ai.definePrompt(
-  {
-    model: gemini15Flash,
-    name: 'augmentedPrompt',
-    input: {
-      schema: z.object({
-        context: z.array(z.string()),
-        question: z.string(),
-      }),
-    },
-    output: {
-      format: 'text',
-    },
+export const augmentedPrompt = ai.definePrompt({
+  model: gemini15Flash,
+  name: 'augmentedPrompt',
+  input: {
+    schema: z.object({
+      context: z.array(z.string()),
+      question: z.string(),
+    }),
   },
-  `
+  output: {
+    format: 'text',
+  },
+  messages: `
 Use the following context to answer the question at the end.
 If you don't know the answer, just say that you don't know, don't try to make up an answer.
 {{#each context}}
@@ -43,5 +41,5 @@ If you don't know the answer, just say that you don't know, don't try to make up
 
 Question: {{question}}
 Helpful Answer:
-`
-);
+`,
+});

@@ -1,25 +1,17 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package dotprompt
 
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/invopop/jsonschema"
 )
@@ -28,8 +20,8 @@ type InputOutput struct {
 	Text string `json:"text"`
 }
 
-func testTool(name string) *ai.ToolDef[struct{ Test string }, string] {
-	return ai.DefineTool(name, "use when need to execute a test",
+func testTool(g *genkit.Genkit, name string) *ai.ToolDef[struct{ Test string }, string] {
+	return genkit.DefineTool(g, name, "use when need to execute a test",
 		func(ctx context.Context, input struct {
 			Test string
 		}) (string, error) {
@@ -38,10 +30,19 @@ func testTool(name string) *ai.ToolDef[struct{ Test string }, string] {
 	)
 }
 
-var testModel = ai.DefineModel("defineoptions", "test", nil, testGenerate)
+var g, _ = genkit.New(&genkit.Options{
+	PromptDir: "testdata",
+})
+
+var testModel = genkit.DefineModel(g, "defineoptions", "test", nil, testGenerate)
 
 func TestPrompts(t *testing.T) {
-	SetDirectory("testdata")
+	g, err := genkit.New(&genkit.Options{
+		PromptDir: "testdata",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var tests = []struct {
 		name   string
@@ -126,7 +127,7 @@ func TestPrompts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			prompt, err := Open(test.name)
+			prompt, err := Open(g, test.name)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -154,9 +155,10 @@ func TestPrompts(t *testing.T) {
 func TestOptionsPatternDefine(t *testing.T) {
 	t.Run("WithTypesAndModel", func(t *testing.T) {
 		dotPrompt, err := Define(
+			g,
 			"TestTypes",
 			"TestTypes",
-			WithTools(testTool("testOptionsPatternDefine")),
+			WithTools(testTool(g, "testOptionsPatternDefine")),
 			WithDefaultConfig(&ai.GenerationCommonConfig{}),
 			WithInputType(InputOutput{}),
 			WithOutputType(InputOutput{}),
@@ -199,6 +201,7 @@ func TestOptionsPatternDefine(t *testing.T) {
 
 	t.Run("WithDefaultMap", func(t *testing.T) {
 		dotPrompt, err := Define(
+			g,
 			"TestDefaultMap",
 			"TestDefaultMap",
 			WithInputType(map[string]any{"test": "test"}),
@@ -219,6 +222,7 @@ func TestOptionsPatternDefine(t *testing.T) {
 
 	t.Run("WithDefaultStruct", func(t *testing.T) {
 		dotPrompt, err := Define(
+			g,
 			"TestDefaultStruct",
 			"TestDefaultStruct",
 			WithInputType(InputOutput{Text: "test"}),
@@ -269,6 +273,7 @@ func TestOutputFormat(t *testing.T) {
 
 			if test.output == nil {
 				_, err = Define(
+					g,
 					"aModel",
 					"aModel",
 					WithInputType(InputOutput{Text: "test"}),
@@ -276,6 +281,7 @@ func TestOutputFormat(t *testing.T) {
 				)
 			} else {
 				_, err = Define(
+					g,
 					"bModel",
 					"bModel",
 					WithInputType(InputOutput{Text: "test"}),
@@ -355,12 +361,14 @@ func TestInputFormat(t *testing.T) {
 
 			if test.inputType != nil {
 				p, err = Define(
+					g,
 					test.name,
 					test.templateText,
 					WithInputType(test.inputType),
 				)
 			} else {
 				p, err = Define(
+					g,
 					"inputFormat",
 					test.templateText,
 				)
@@ -389,7 +397,7 @@ func TestPromptOptions(t *testing.T) {
 	}{
 		{
 			name: "WithTools",
-			with: WithTools(testTool("testPromptOptions")),
+			with: WithTools(testTool(g, "testPromptOptions")),
 		},
 		{
 			name: "WithDefaultConfig",
@@ -424,6 +432,7 @@ func TestPromptOptions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := Define(
+				g,
 				"TestWith",
 				"TestWith",
 				test.with,

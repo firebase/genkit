@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package vertexai
 
@@ -25,6 +15,7 @@ import (
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -80,7 +71,7 @@ type Config struct {
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, cfg *Config) error {
+func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	if cfg == nil {
 		cfg = &Config{}
 	}
@@ -125,10 +116,10 @@ func Init(ctx context.Context, cfg *Config) error {
 	}
 	state.initted = true
 	for model, caps := range knownCaps {
-		defineModel(model, caps)
+		defineModel(g, model, caps)
 	}
 	for _, e := range knownEmbedders {
-		defineEmbedder(e)
+		defineEmbedder(g, e)
 	}
 	return nil
 }
@@ -140,7 +131,7 @@ func Init(ctx context.Context, cfg *Config) error {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
+func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -156,16 +147,16 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	} else {
 		mc = *caps
 	}
-	return defineModel(name, mc), nil
+	return defineModel(g, name, mc), nil
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
+func defineModel(g *genkit.Genkit, name string, caps ai.ModelCapabilities) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
 	}
-	return ai.DefineModel(provider, name, meta, func(
+	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
@@ -175,8 +166,8 @@ func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
-func IsDefinedModel(name string) bool {
-	return ai.IsDefinedModel(provider, name)
+func IsDefinedModel(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedModel(g, provider, name)
 }
 
 // DO NOT MODIFY above ^^^^
@@ -186,27 +177,27 @@ func IsDefinedModel(name string) bool {
 // DO NOT MODIFY below vvvv
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) ai.Embedder {
+func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	return defineEmbedder(name)
+	return defineEmbedder(g, name)
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
-func IsDefinedEmbedder(name string) bool {
-	return ai.IsDefinedEmbedder(provider, name)
+func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedEmbedder(g, provider, name)
 }
 
 // DO NOT MODIFY above ^^^^
 //copy:endsink defineEmbedder
 
 // requires state.mu
-func defineEmbedder(name string) ai.Embedder {
+func defineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", state.projectID, state.location, name)
-	return ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		return embed(ctx, fullName, state.pclient, req)
 	})
 }
@@ -216,14 +207,14 @@ func defineEmbedder(name string) ai.Embedder {
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
-func Model(name string) ai.Model {
-	return ai.LookupModel(provider, name)
+func Model(g *genkit.Genkit, name string) ai.Model {
+	return genkit.LookupModel(g, provider, name)
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(name string) ai.Embedder {
-	return ai.LookupEmbedder(provider, name)
+func Embedder(g *genkit.Genkit, name string) ai.Embedder {
+	return genkit.LookupEmbedder(g, provider, name)
 }
 
 // DO NOT MODIFY above ^^^^

@@ -18,7 +18,6 @@ import { checks } from '@genkit-ai/checks';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval } from '@genkit-ai/evaluator';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
@@ -43,6 +42,5 @@ pinecone;
 chroma;
 devLocalVectorstore;
 genkitEval;
-firebaseAuth;
 
 export const ai = genkit({});

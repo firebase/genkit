@@ -39,6 +39,7 @@ import {
   MediaPart,
   MessageData,
   ModelAction,
+  ModelInfo,
   ModelMiddleware,
   ModelReference,
   Part,
@@ -167,6 +168,69 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
 });
 
 /**
+ * Known model names, to allow code completion for convenience. Allows other model names.
+ */
+export type GeminiVersionString =
+  | keyof typeof SUPPORTED_GEMINI_MODELS
+  | (string & {});
+
+/**
+ * Returns a reference to a model that can be used in generate calls.
+ *
+ * ```js
+ * await ai.generate({
+ *   prompt: 'hi',
+ *   model: gemini('gemini-1.5-flash')
+ * });
+ * ```
+ */
+export function gemini(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const nearestModel = nearestGeminiModelRef(version);
+  return modelRef({
+    name: `vertexai/${version}`,
+    config: options,
+    configSchema: GeminiConfigSchema,
+    info: {
+      ...nearestModel.info,
+      // If exact suffix match for a known model, use its label, otherwise create a new label
+      label: nearestModel.name.endsWith(version)
+        ? nearestModel.info?.label
+        : `Vertex AI - ${version}`,
+    },
+  });
+}
+
+function nearestGeminiModelRef(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const matchingKey = longestMatchingPrefix(
+    version,
+    Object.keys(SUPPORTED_GEMINI_MODELS)
+  );
+  if (matchingKey) {
+    return SUPPORTED_GEMINI_MODELS[matchingKey].withConfig({
+      ...options,
+      version,
+    });
+  }
+  return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
+}
+
+function longestMatchingPrefix(version: string, potentialMatches: string[]) {
+  return potentialMatches
+    .filter((p) => version.startsWith(p))
+    .reduce(
+      (longest, current) =>
+        current.length > longest.length ? current : longest,
+      ''
+    );
+}
+
+/**
  * Gemini model configuration options.
  *
  * E.g.
@@ -210,6 +274,8 @@ export const gemini10Pro = modelRef({
       media: false,
       tools: true,
       systemRole: true,
+      constrained: true,
+      toolChoice: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -224,7 +290,9 @@ export const gemini15Pro = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -239,7 +307,9 @@ export const gemini15Flash = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -254,10 +324,27 @@ export const gemini20FlashExp = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
+});
+
+export const GENERIC_GEMINI_MODEL = modelRef({
+  name: 'vertexai/gemini',
+  configSchema: GeminiConfigSchema,
+  info: {
+    label: 'Google Gemini',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+    },
+  },
 });
 
 export const SUPPORTED_V1_MODELS = {
@@ -273,11 +360,11 @@ export const SUPPORTED_V15_MODELS = {
 export const SUPPORTED_GEMINI_MODELS = {
   ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
-};
+} as const;
 
 function toGeminiRole(
   role: MessageData['role'],
-  model?: ModelReference<z.ZodTypeAny>
+  modelInfo?: ModelInfo
 ): string {
   switch (role) {
     case 'user':
@@ -285,7 +372,7 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model && SUPPORTED_V15_MODELS[model.name]) {
+      if (modelInfo && modelInfo.supports?.systemRole) {
         // We should have already pulled out the supported system messages,
         // anything remaining is unsupported; throw an error.
         throw new Error(
@@ -314,10 +401,10 @@ const toGeminiTool = (
 
 const toGeminiFileDataPart = (part: MediaPart): GeminiPart => {
   const media = part.media;
-  if (media.url.startsWith('gs://')) {
+  if (media.url.startsWith('gs://') || media.url.startsWith('http')) {
     if (!media.contentType)
       throw new Error(
-        'Must supply contentType when using media from gs:// URLs.'
+        'Must supply contentType when using media from http(s):// or gs:// URLs.'
       );
     return {
       fileData: {
@@ -379,10 +466,10 @@ export function toGeminiSystemInstruction(message: MessageData): Content {
 
 export function toGeminiMessage(
   message: MessageData,
-  model?: ModelReference<z.ZodTypeAny>
+  modelInfo?: ModelInfo
 ): Content {
   return {
-    role: toGeminiRole(message.role, model),
+    role: toGeminiRole(message.role, modelInfo),
     parts: message.content.map(toGeminiPart),
   };
 }
@@ -573,7 +660,7 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 /**
  * Define a Vertex AI Gemini model.
  */
-export function defineGeminiModel(
+export function defineGeminiKnownModel(
   ai: Genkit,
   name: string,
   vertexClientFactory: (
@@ -586,11 +673,34 @@ export function defineGeminiModel(
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
+  return defineGeminiModel(
+    ai,
+    modelName,
+    name,
+    model?.info,
+    vertexClientFactory,
+    options
+  );
+}
+
+/**
+ * Define a Vertex AI Gemini model.
+ */
+export function defineGeminiModel(
+  ai: Genkit,
+  modelName: string,
+  version: string,
+  modelInfo: ModelInfo | undefined,
+  vertexClientFactory: (
+    request: GenerateRequest<typeof GeminiConfigSchema>
+  ) => VertexAI,
+  options: PluginOptions
+): ModelAction {
   const middlewares: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[version]) {
     middlewares.push(simulateSystemPrompt());
   }
-  if (model?.info?.supports?.media) {
+  if (modelInfo?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
@@ -598,7 +708,7 @@ export function defineGeminiModel(
   return ai.defineModel(
     {
       name: modelName,
-      ...model.info,
+      ...modelInfo,
       configSchema: GeminiConfigSchema,
       use: middlewares,
     },
@@ -611,7 +721,7 @@ export function defineGeminiModel(
 
       // Handle system instructions separately
       let systemInstruction: Content | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (!SUPPORTED_V1_MODELS[version]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -624,19 +734,18 @@ export function defineGeminiModel(
         : [];
 
       let toolConfig: ToolConfig | undefined;
-      if (
-        request?.config?.functionCallingConfig &&
-        // This is a workround for issue: https://github.com/firebase/genkit/issues/1520
-        // TODO: remove this when the issue is resolved upstream in the Gemini API
-        !messages.at(-1)?.content.find((c) => c.toolResponse)
-      ) {
+      if (request?.config?.functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
             allowedFunctionNames:
               request.config.functionCallingConfig.allowedFunctionNames,
-            mode: toGeminiFunctionMode(
-              request.config.functionCallingConfig.mode
-            ),
+            mode: toFunctionModeEnum(request.config.functionCallingConfig.mode),
+          },
+        };
+      } else if (request.toolChoice) {
+        toolConfig = {
+          functionCallingConfig: {
+            mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
       }
@@ -652,7 +761,7 @@ export function defineGeminiModel(
         toolConfig,
         history: messages
           .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
+          .map((message) => toGeminiMessage(message, modelInfo)),
         generationConfig: {
           candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
@@ -666,9 +775,7 @@ export function defineGeminiModel(
       };
 
       // Handle cache
-      const modelVersion = (request.config?.version ||
-        model.version ||
-        name) as string;
+      const modelVersion = (request.config?.version || version) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const apiClient = new ApiClient(
@@ -720,7 +827,7 @@ export function defineGeminiModel(
         });
       }
 
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = toGeminiMessage(messages[messages.length - 1], modelInfo);
 
       if (cache) {
         genModel = vertex.preview.getGenerativeModelFromCachedContent(
@@ -798,13 +905,14 @@ export function defineGeminiModel(
   );
 }
 
-function toGeminiFunctionMode(
-  genkitMode: string | undefined
+/** Converts mode from the config, which follows Gemini naming convention. */
+function toFunctionModeEnum(
+  enumMode: string | undefined
 ): FunctionCallingMode | undefined {
-  if (genkitMode === undefined) {
+  if (enumMode === undefined) {
     return undefined;
   }
-  switch (genkitMode) {
+  switch (enumMode) {
     case 'MODE_UNSPECIFIED': {
       return FunctionCallingMode.MODE_UNSPECIFIED;
     }
@@ -815,6 +923,28 @@ function toGeminiFunctionMode(
       return FunctionCallingMode.AUTO;
     }
     case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${enumMode}`);
+  }
+}
+
+/** Converts mode from genkit tool choice. */
+function toGeminiFunctionModeEnum(
+  genkitMode: 'auto' | 'required' | 'none'
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'required': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'auto': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'none': {
       return FunctionCallingMode.NONE;
     }
     default:

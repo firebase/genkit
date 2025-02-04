@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package main
 
@@ -24,8 +14,8 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
-	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
+func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
+	ragDataMenuPrompt, err := dotprompt.Define(g, "s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
 		  You can answer questions about the food on the menu or any other questions
@@ -55,7 +45,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 		Rows int `json:"rows"`
 	}
 
-	genkit.DefineFlow("s04_indexMenuItems",
+	genkit.DefineFlow(g, "s04_indexMenuItems",
 		func(ctx context.Context, input []*menuItem) (*flowOutput, error) {
 			var docs []*ai.Document
 			for _, m := range input {
@@ -76,7 +66,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 		},
 	)
 
-	genkit.DefineFlow("s04_ragMenuQuestion",
+	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := ai.Retrieve(ctx, retriever,
 				ai.WithRetrieverText(input.Question),
@@ -97,7 +87,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 			}
 
 			presp, err := ragDataMenuPrompt.Generate(
-				ctx,
+				ctx, g,
 				dotprompt.WithInput(questionInput),
 				nil)
 			if err != nil {

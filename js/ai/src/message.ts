@@ -123,6 +123,14 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
+   * Returns all tool requests annotated with interrupt metadata.
+   * @returns Array of all interrupt tool requests.
+   */
+  get interrupts(): ToolRequestPart[] {
+    return this.toolRequests.filter((t) => !!t.metadata?.interrupt);
+  }
+
+  /**
    * Converts the Message to a plain JS object.
    * @returns Plain JS object representing the data contained in the message.
    */

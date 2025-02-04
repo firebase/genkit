@@ -15,7 +15,7 @@
  */
 
 import { Document, EmbedderAction, embedderRef } from '@genkit-ai/ai';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 
@@ -30,10 +30,12 @@ describe('embed', () => {
     });
 
     it('passes string content as docs', async () => {
-      const response = await ai.embed({
-        embedder: 'echoEmbedder',
-        content: 'hi',
-      });
+      const response = (
+        await ai.embed({
+          embedder: 'echoEmbedder',
+          content: 'hi',
+        })
+      )[0].embedding;
       assert.deepStrictEqual((embedder as any).lastRequest, [
         [Document.fromText('hi')],
         {
@@ -54,7 +56,7 @@ describe('embed', () => {
           version: undefined,
         },
       ]);
-      assert.deepStrictEqual(response, [1, 2, 3, 4]);
+      assert.deepStrictEqual(response, [{ embedding: [1, 2, 3, 4] }]);
     });
   });
 
@@ -75,7 +77,7 @@ describe('embed', () => {
           temperature: 11,
         },
       });
-      assert.deepStrictEqual(response, [1, 2, 3, 4]);
+      assert.deepStrictEqual(response, [{ embedding: [1, 2, 3, 4] }]);
       assert.deepStrictEqual((embedder as any).lastRequest[1], {
         temperature: 11,
         version: undefined,
@@ -95,7 +97,7 @@ describe('embed', () => {
           temperature: 11,
         },
       });
-      assert.deepStrictEqual(response, [1, 2, 3, 4]);
+      assert.deepStrictEqual(response, [{ embedding: [1, 2, 3, 4] }]);
       assert.deepStrictEqual((embedder as any).lastRequest[1], {
         temperature: 11,
         version: 'abc',
@@ -113,7 +115,7 @@ describe('embed', () => {
           temperature: 11,
         },
       });
-      assert.deepStrictEqual(response, [1, 2, 3, 4]);
+      assert.deepStrictEqual(response, [{ embedding: [1, 2, 3, 4] }]);
       assert.deepStrictEqual((embedder as any).lastRequest[1], {
         temperature: 11,
         version: 'abc',

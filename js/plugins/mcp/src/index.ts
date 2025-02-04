@@ -44,7 +44,7 @@ async function transportFrom(params: McpClientOptions): Promise<Transport> {
     const { SSEClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/sse.js'
     );
-    return new SSEClientTransport(URL.parse(params.serverUrl)!);
+    return new SSEClientTransport(new URL(params.serverUrl));
   }
   if (params.serverProcess) {
     const { StdioClientTransport } = await import(

@@ -16,6 +16,7 @@
 
 import { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
+import { ModelMiddleware } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import { checksEvaluators } from './evaluation.js';
@@ -69,7 +70,7 @@ export function checks(options?: PluginOptions): GenkitPlugin {
 export function checksMiddleware(options: {
   authOptions: GoogleAuthOptions;
   metrics: ChecksEvaluationMetric[];
-}) {
+}): ModelMiddleware {
   const googleAuth = inititializeAuth(options.authOptions);
 
   return authorizedMiddleware({

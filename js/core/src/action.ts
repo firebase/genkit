@@ -16,7 +16,8 @@
 
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
-import { getContext } from './context.js';
+import { lazy } from './async.js';
+import { ActionContext, getContext, runWithContext } from './context.js';
 import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
@@ -70,7 +71,7 @@ export interface ActionRunOptions<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: any;
+  context?: ActionContext;
 
   /**
    * Additional span attributes to apply to OT spans.
@@ -90,7 +91,20 @@ export interface ActionFnArg<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: any;
+  context?: ActionContext;
+}
+
+/**
+ * Streaming response from an action.
+ */
+export interface StreamingResponse<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /** Iterator over the streaming chunks. */
+  stream: AsyncGenerator<z.infer<S>>;
+  /** Final output of the action. */
+  output: Promise<z.infer<O>>;
 }
 
 /**
@@ -100,16 +114,19 @@ export type Action<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-> = ((
-  input: z.infer<I>,
-  options?: ActionRunOptions<S>
-) => Promise<z.infer<O>>) & {
+  RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
+> = ((input?: z.infer<I>, options?: RunOptions) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
   __registry: Registry;
   run(
-    input: z.infer<I>,
+    input?: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
   ): Promise<ActionResult<z.infer<O>>>;
+
+  stream(
+    input?: z.infer<I>,
+    opts?: ActionRunOptions<z.infer<S>>
+  ): StreamingResponse<O, S>;
 };
 
 /**
@@ -135,6 +152,17 @@ export type ActionParams<
   use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
   streamSchema?: S;
   actionType: ActionType;
+};
+
+export type ActionAsyncParams<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = ActionParams<I, O, S> & {
+  fn: (
+    input: z.infer<I>,
+    options: ActionFnArg<z.infer<S>>
+  ) => Promise<z.infer<O>>;
 };
 
 export type SimpleMiddleware<I = any, O = any> = (
@@ -205,6 +233,7 @@ export function actionWithMiddleware<
         throw new Error('unspported middleware function shape');
       }
     };
+    wrapped.stream = action.stream;
 
     return { result: await dispatch(0, req, options), telemetry };
   };
@@ -230,7 +259,10 @@ export function action<
     typeof config.name === 'string'
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
-  const actionFn = async (input: I, options?: ActionRunOptions<z.infer<S>>) => {
+  const actionFn = async (
+    input?: I,
+    options?: ActionRunOptions<z.infer<S>>
+  ) => {
     return (await actionFn.run(input, options)).result;
   };
   actionFn.__registry = registry;
@@ -277,11 +309,20 @@ export function action<
         metadata.input = input;
 
         try {
-          const output = await fn(input, {
-            // Context can either be explicitly set, or inherited from the parent action.
-            context: options?.context ?? getContext(registry),
-            sendChunk: options?.onChunk ?? ((c) => {}),
-          });
+          const actionFn = () =>
+            fn(input, {
+              ...options,
+              // Context can either be explicitly set, or inherited from the parent action.
+              context: options?.context ?? getContext(registry),
+              sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
+            });
+          // if context is explicitly passed in, we run action with the provided context,
+          // otherwise we let upstream context carry through.
+          const output = await runWithContext(
+            registry,
+            options?.context,
+            actionFn
+          );
 
           metadata.output = JSON.stringify(output);
           return output;
@@ -306,34 +347,53 @@ export function action<
     };
   };
 
+  actionFn.stream = (
+    input?: z.infer<I>,
+    opts?: ActionRunOptions<z.infer<S>>
+  ): StreamingResponse<O, S> => {
+    let chunkStreamController: ReadableStreamController<z.infer<S>>;
+    const chunkStream = new ReadableStream<z.infer<S>>({
+      start(controller) {
+        chunkStreamController = controller;
+      },
+      pull() {},
+      cancel() {},
+    });
+
+    const invocationPromise = actionFn
+      .run(config.inputSchema ? config.inputSchema.parse(input) : input, {
+        onChunk: ((chunk: z.infer<S>) => {
+          chunkStreamController.enqueue(chunk);
+        }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
+        context: opts?.context,
+      })
+      .then((s) => s.result)
+      .finally(() => {
+        chunkStreamController.close();
+      });
+
+    return {
+      output: invocationPromise,
+      stream: (async function* () {
+        const reader = chunkStream.getReader();
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.value) {
+            yield chunk.value;
+          }
+          if (chunk.done) {
+            break;
+          }
+        }
+        return await invocationPromise;
+      })(),
+    };
+  };
+
   if (config.use) {
     return actionWithMiddleware(actionFn, config.use);
   }
   return actionFn;
-}
-
-function validateActionName(registry: Registry, name: string) {
-  if (name.includes('/')) {
-    validatePluginName(registry, name.split('/', 1)[0]);
-    validateActionId(name.substring(name.indexOf('/') + 1));
-  }
-  return name;
-}
-
-function validatePluginName(registry: Registry, pluginId: string) {
-  if (!registry.lookupPlugin(pluginId)) {
-    throw new Error(
-      `Unable to find plugin name used in the action name: ${pluginId}`
-    );
-  }
-  return pluginId;
-}
-
-function validateActionId(actionId: string) {
-  if (actionId.includes('/')) {
-    throw new Error(`Action name must not include slashes (/): ${actionId}`);
-  }
-  return actionId;
 }
 
 /**
@@ -357,11 +417,6 @@ export function defineAction<
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
-  if (typeof config.name === 'string') {
-    validateActionName(registry, config.name);
-  } else {
-    validateActionId(config.name.actionId);
-  }
   const act = action(
     registry,
     config,
@@ -373,6 +428,48 @@ export function defineAction<
   act.__action.actionType = config.actionType;
   registry.registerAction(config.actionType, act);
   return act;
+}
+
+/**
+ * Defines an action with the given config promise and registers it in the registry.
+ */
+export function defineActionAsync<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  actionType: ActionType,
+  name:
+    | string
+    | {
+        pluginId: string;
+        actionId: string;
+      },
+  config: PromiseLike<ActionAsyncParams<I, O, S>>,
+  onInit?: (action: Action<I, O, S>) => void
+): PromiseLike<Action<I, O, S>> {
+  const actionName =
+    typeof name === 'string' ? name : `${name.pluginId}/${name.actionId}`;
+  const actionPromise = lazy(() =>
+    config.then((resolvedConfig) => {
+      const act = action(
+        registry,
+        resolvedConfig,
+        async (i: I, options): Promise<z.infer<O>> => {
+          await registry.initializeAllPlugins();
+          return await runInActionRuntimeContext(registry, () =>
+            resolvedConfig.fn(i, options)
+          );
+        }
+      );
+      act.__action.actionType = actionType;
+      onInit?.(act);
+      return act;
+    })
+  );
+  registry.registerActionAsync(actionType, actionName, actionPromise);
+  return actionPromise;
 }
 
 // Streaming callback function.
@@ -419,7 +516,7 @@ const runtimeContextAslKey = 'core.action.runtimeContext';
  * Checks whether the caller is currently in the runtime context of an action.
  */
 export function isInRuntimeContext(registry: Registry) {
-  return !!registry.asyncStore.getStore(runtimeContextAslKey);
+  return registry.asyncStore.getStore(runtimeContextAslKey) === 'runtime';
 }
 
 /**
@@ -427,4 +524,14 @@ export function isInRuntimeContext(registry: Registry) {
  */
 export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
   return registry.asyncStore.run(runtimeContextAslKey, 'runtime', fn);
+}
+
+/**
+ * Execute the provided function outside the action runtime context.
+ */
+export function runOutsideActionRuntimeContext<R>(
+  registry: Registry,
+  fn: () => R
+) {
+  return registry.asyncStore.run(runtimeContextAslKey, 'outside', fn);
 }

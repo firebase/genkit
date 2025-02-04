@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { action } from '../src/action.js';
+import {
+  action,
+  defineAction,
+  runInActionRuntimeContext,
+} from '../src/action.js';
 import { Registry } from '../src/registry.js';
 
 describe('registry class', () => {
@@ -69,6 +73,7 @@ describe('registry class', () => {
         name: 'bar',
         async initializer() {
           registry.registerAction('model', barSomethingAction);
+          registry.registerAction('model', barSubSomethingAction);
           return {};
         },
       });
@@ -83,11 +88,49 @@ describe('registry class', () => {
         },
         async () => null
       );
+      const barSubSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'bar',
+            actionId: 'sub/something',
+          },
+          actionType: 'util',
+        },
+        async () => null
+      );
 
       assert.deepEqual(await registry.listActions(), {
         '/model/foo/something': fooSomethingAction,
         '/model/bar/something': barSomethingAction,
+        '/model/bar/sub/something': barSubSomethingAction,
       });
+    });
+
+    it('should allow plugin initialization from runtime context', async () => {
+      let fooInitialized = false;
+      registry.registerPluginProvider('foo', {
+        name: 'foo',
+        async initializer() {
+          defineAction(
+            registry,
+            {
+              actionType: 'model',
+              name: 'foo/something',
+            },
+            async () => null
+          );
+          fooInitialized = true;
+          return {};
+        },
+      });
+
+      const action = await runInActionRuntimeContext(registry, () =>
+        registry.lookupAction('/model/foo/something')
+      );
+
+      assert.ok(action);
+      assert.ok(fooInitialized);
     });
 
     it('returns all registered actions, including parent', async () => {
@@ -159,6 +202,12 @@ describe('registry class', () => {
         async () => null
       );
       registry.registerAction('model', barSomethingAction);
+      const barSubSomethingAction = action(
+        registry,
+        { name: 'sub/bar_something', actionType: 'util' },
+        async () => null
+      );
+      registry.registerAction('model', barSubSomethingAction);
 
       assert.strictEqual(
         await registry.lookupAction('/model/foo_something'),
@@ -168,6 +217,10 @@ describe('registry class', () => {
         await registry.lookupAction('/model/bar_something'),
         barSomethingAction
       );
+      assert.strictEqual(
+        await registry.lookupAction('/model/sub/bar_something'),
+        barSubSomethingAction
+      );
     });
 
     it('returns action registered by plugin', async () => {
@@ -175,6 +228,7 @@ describe('registry class', () => {
         name: 'foo',
         async initializer() {
           registry.registerAction('model', somethingAction);
+          registry.registerAction('model', subSomethingAction);
           return {};
         },
       });
@@ -189,10 +243,26 @@ describe('registry class', () => {
         },
         async () => null
       );
+      const subSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'foo',
+            actionId: 'sub/something',
+          },
+          actionType: 'util',
+        },
+        async () => null
+      );
 
       assert.strictEqual(
         await registry.lookupAction('/model/foo/something'),
         somethingAction
+      );
+
+      assert.strictEqual(
+        await registry.lookupAction('/model/foo/sub/something'),
+        subSomethingAction
       );
     });
 

@@ -77,7 +77,7 @@ ai.defineFlow(
 
 // A variation that supports streaming, optionally
 
-ai.defineStreamingFlow(
+ai.defineFlow(
   {
     name: 'tellStory',
     inputSchema: z.object({
@@ -87,20 +87,15 @@ ai.defineStreamingFlow(
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async ({ subject, personality }, streamingCallback) => {
+  async ({ subject, personality }, { sendChunk }) => {
     const storyPrompt = ai.prompt('story');
-    if (streamingCallback) {
-      const { response, stream } = await storyPrompt.stream({
-        subject,
-        personality,
-      });
-      for await (const chunk of stream) {
-        streamingCallback(chunk.content[0]?.text!);
-      }
-      return (await response).text;
-    } else {
-      const response = await storyPrompt({ subject });
-      return response.text;
+    const { response, stream } = storyPrompt.stream({
+      subject,
+      personality,
+    });
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0]?.text!);
     }
+    return (await response).text;
   }
 );

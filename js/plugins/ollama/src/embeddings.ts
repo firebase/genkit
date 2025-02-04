@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Document, Genkit } from 'genkit';
+import { Document, EmbedderAction, Genkit } from 'genkit';
 import { EmbedRequest, EmbedResponse } from 'ollama';
 import { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
 
@@ -62,7 +62,7 @@ async function toOllamaEmbedRequest(
 export function defineOllamaEmbedder(
   ai: Genkit,
   { name, modelName, dimensions, options }: DefineOllamaEmbeddingParams
-) {
+): EmbedderAction<any> {
   return ai.defineEmbedder(
     {
       name: `ollama/${name}`,
@@ -98,7 +98,7 @@ export function defineOllamaEmbedder(
         );
       }
 
-      const payload: EmbedResponse = await response.json();
+      const payload = (await response.json()) as EmbedResponse;
 
       const embeddings: { embedding: number[] }[] = [];
 

@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package googleai_test
 
@@ -18,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"google.golang.org/api/option"
@@ -47,17 +39,22 @@ func TestLive(t *testing.T) {
 	if *testAll {
 		t.Skip("-all provided")
 	}
+	g, err := genkit.New(&genkit.Options{
+		DefaultModel: "googleai/gemini-1.5-flash",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	ctx := context.Background()
-	err := googleai.Init(ctx, &googleai.Config{APIKey: *apiKey})
+	err = googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := googleai.Embedder("embedding-001")
-	model := googleai.Model("gemini-1.0-pro")
+	embedder := googleai.Embedder(g, "embedding-001")
 	if err != nil {
 		t.Fatal(err)
 	}
-	gablorkenTool := ai.DefineTool("gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx context.Context, input struct {
 			Value float64
 			Over  float64
@@ -85,7 +82,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,7 +101,7 @@ func TestLive(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
 		out := ""
 		parts := 0
-		final, err := ai.Generate(ctx, model,
+		final, err := genkit.Generate(ctx, g,
 			ai.WithTextPrompt("Write one paragraph about the North Pole."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
@@ -134,7 +131,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
-		resp, err := ai.Generate(ctx, model,
+		resp, err := genkit.Generate(ctx, g,
 			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 
@@ -151,6 +148,12 @@ func TestLive(t *testing.T) {
 }
 
 func TestHeader(t *testing.T) {
+	g, err := genkit.New(&genkit.Options{
+		DefaultModel: "googleai/gemini-1.5-flash",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	if !*header {
 		t.Skip("skipped; to run, pass -header and don't run the live test")
 	}
@@ -163,11 +166,10 @@ func TestHeader(t *testing.T) {
 	defer server.Close()
 
 	opts := []option.ClientOption{option.WithHTTPClient(server.Client()), option.WithEndpoint(server.URL)}
-	if err := googleai.Init(ctx, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
 		t.Fatal(err)
 	}
-	model := googleai.Model("gemini-1.0-pro")
-	_, _ = ai.Generate(ctx, model, ai.WithTextPrompt("hi"))
+	_, _ = genkit.Generate(ctx, g, ai.WithTextPrompt("hi"))
 	got := header.Get("x-goog-api-client")
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {

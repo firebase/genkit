@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package ai
 
@@ -21,6 +11,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
 )
 
@@ -33,24 +24,24 @@ type Prompt core.Action[any, *ModelRequest, struct{}]
 // The prompt expects some input described by inputSchema.
 // DefinePrompt registers the function as an action,
 // and returns a [Prompt] that runs it.
-func DefinePrompt(provider, name string, metadata map[string]any, inputSchema *jsonschema.Schema, render func(context.Context, any) (*ModelRequest, error)) *Prompt {
+func DefinePrompt(r *registry.Registry, provider, name string, metadata map[string]any, inputSchema *jsonschema.Schema, render func(context.Context, any) (*ModelRequest, error)) *Prompt {
 	mm := maps.Clone(metadata)
 	if mm == nil {
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	return (*Prompt)(core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, inputSchema, render))
+	return (*Prompt)(core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, mm, inputSchema, render))
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
-func IsDefinedPrompt(provider, name string) bool {
-	return LookupPrompt(provider, name) != nil
+func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
+	return LookupPrompt(r, provider, name) != nil
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(provider, name string) *Prompt {
-	return (*Prompt)(core.LookupActionFor[any, *ModelRequest, struct{}](atype.Prompt, provider, name))
+func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
+	return (*Prompt)(core.LookupActionFor[any, *ModelRequest, struct{}](r, atype.Prompt, provider, name))
 }
 
 // Render renders the [Prompt] with some input data.

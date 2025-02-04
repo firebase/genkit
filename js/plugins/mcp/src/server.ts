@@ -99,7 +99,6 @@ export class GenkitMcpServer {
     const toolList: ToolAction[] = [];
     const promptList: PromptAction[] = [];
     for (const k in allActions) {
-      console.log('action:', k);
       if (k.startsWith('/tool/')) {
         toolList.push(allActions[k] as ToolAction);
       } else if (k.startsWith('/prompt/')) {
@@ -184,7 +183,9 @@ export class GenkitMcpServer {
   }
 }
 
-function toMcpPromptArguments(p: PromptAction): Prompt['arguments'] {
+function toMcpPromptArguments(
+  p: PromptAction
+): Prompt['arguments'] | undefined {
   const jsonSchema = toJsonSchema({
     schema: p.__action.inputSchema,
     jsonSchema: p.__action.inputJsonSchema,
@@ -216,6 +217,7 @@ function toMcpPromptArguments(p: PromptAction): Prompt['arguments'] {
       required: jsonSchema.required?.includes(k),
     });
   }
+  return args;
 }
 
 const ROLE_MAP = { model: 'assistant', user: 'user' } as const;

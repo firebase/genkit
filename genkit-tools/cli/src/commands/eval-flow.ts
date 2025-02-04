@@ -16,8 +16,9 @@
 
 import {
   Action,
-  EvalInferenceInput,
-  EvalInferenceInputSchema,
+  Dataset,
+  DatasetMetadata,
+  DatasetSchema,
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
@@ -30,7 +31,8 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  loadEvalInference,
+  hasAction,
+  loadInferenceDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -39,7 +41,7 @@ import { runWithManager } from '../utils/manager-utils';
 interface EvalFlowRunCliOptions {
   input?: string;
   output?: string;
-  auth?: string;
+  context?: string;
   evaluators?: string;
   force?: boolean;
   outputFormat: string;
@@ -63,11 +65,7 @@ export const evalFlow = new Command('eval:flow')
     '--input <input>',
     'Input dataset ID or JSON file to be used for evaluation'
   )
-  .option(
-    '-a, --auth <JSON>',
-    'JSON object passed to authPolicy and stored in local state as auth',
-    ''
-  )
+  .option('-c, --context <JSON>', 'JSON object passed to context', '')
   .option(
     '-o, --output <filename>',
     'Name of the output file to write evaluation results. Defaults to json output.'
@@ -86,10 +84,16 @@ export const evalFlow = new Command('eval:flow')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
       await runWithManager(async (manager) => {
+        const actionRef = `/flow/${flowName}`;
         if (!data && !options.input) {
           throw new Error(
             'No input data passed. Specify input data using [data] argument or --input <filename> option'
           );
+        }
+
+        const hasTargetAction = await hasAction({ manager, actionRef });
+        if (!hasTargetAction) {
+          throw new Error(`Cannot find action ${actionRef}.`);
         }
 
         let evaluatorActions: Action[];
@@ -102,6 +106,13 @@ export const evalFlow = new Command('eval:flow')
           evaluatorActions = await getMatchingEvaluatorActions(
             manager,
             evalActionKeys
+          );
+        }
+        if (!evaluatorActions.length) {
+          throw new Error(
+            options.evaluators
+              ? `No matching evaluators found for '${options.evaluators}'`
+              : `No evaluators found in your app`
           );
         }
         logger.debug(
@@ -121,17 +132,20 @@ export const evalFlow = new Command('eval:flow')
           const datasetStore = await getDatasetStore();
           const datasetMetadatas = await datasetStore.listDatasets();
           targetDatasetMetadata = datasetMetadatas.find(
-            (d) => d.datasetId === options.input
+            (d: DatasetMetadata) => d.datasetId === options.input
           );
         }
 
-        const actionRef = `/flow/${flowName}`;
-        const evalFlowInput = await readInputs(sourceType, data, options.input);
+        const inferenceDataset = await readInputs(
+          sourceType,
+          data,
+          options.input
+        );
         const evalDataset = await runInference({
           manager,
           actionRef,
-          evalFlowInput,
-          auth: options.auth,
+          inferenceDataset,
+          context: options.context,
         });
 
         const evalRun = await runEvaluation({
@@ -168,7 +182,7 @@ async function readInputs(
   sourceType: SourceType,
   dataField?: string,
   input?: string
-): Promise<EvalInferenceInput> {
+): Promise<Dataset> {
   let parsedData;
   switch (sourceType) {
     case SourceType.DATA:
@@ -176,7 +190,7 @@ async function readInputs(
       break;
     case SourceType.FILE:
       try {
-        return await loadEvalInference(input!);
+        return await loadInferenceDatasetFile(input!);
       } catch (e) {
         throw new Error(`Error parsing the input from file. Error: ${e}`);
       }
@@ -188,7 +202,7 @@ async function readInputs(
   }
 
   try {
-    return EvalInferenceInputSchema.parse(parsedData);
+    return DatasetSchema.parse(parsedData);
   } catch (e) {
     throw new Error(
       `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
@@ -201,7 +215,9 @@ function getSourceType(data?: string, input?: string): SourceType {
     if (data) {
       logger.warn('Both [data] and input provided, ignoring [data]...');
     }
-    return input.endsWith('.json') ? SourceType.FILE : SourceType.DATASET;
+    return input.endsWith('.json') || input.endsWith('.jsonl')
+      ? SourceType.FILE
+      : SourceType.DATASET;
   } else if (data) {
     return SourceType.DATA;
   }

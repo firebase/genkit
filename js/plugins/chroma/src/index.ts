@@ -29,6 +29,7 @@ import {
 import {
   Document,
   EmbedderArgument,
+  Embedding,
   Genkit,
   indexerRef,
   retrieverRef,
@@ -141,7 +142,7 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
         });
       }
 
-      const embedding = await ai.embed({
+      const queryEmbeddings = await ai.embed({
         embedder,
         content,
         options: embedderOptions,
@@ -151,7 +152,7 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
         include: getIncludes(options?.include),
         where: options?.where,
         whereDocument: options?.whereDocument,
-        queryEmbeddings: embedding,
+        queryEmbeddings: queryEmbeddings[0].embedding,
       });
 
       const documents = results.documents[0];
@@ -174,9 +175,15 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
         );
 
       return {
-        documents: combined.map((result) =>
-          Document.fromText(result.document, result.metadata).toJSON()
-        ),
+        documents: combined.map((result) => {
+          const data = result.document;
+          const metadata = result.metadata.metadata[0];
+          const dataType = metadata.dataType;
+          const docMetadata = metadata.docMetadata
+            ? JSON.parse(metadata.docMetadata)
+            : undefined;
+          return Document.fromData(data, dataType, docMetadata).toJSON();
+        }),
       };
     }
   );
@@ -207,8 +214,8 @@ function constructMetadata(
   metadatas: (Metadata | null)[][],
   embeddings: Embeddings[] | null,
   distances: number[][] | null
-): any {
-  var fullMetadata: Record<string, any> = {};
+): unknown {
+  var fullMetadata: Record<string, unknown> = {};
   if (metadatas && metadatas[i]) {
     fullMetadata.metadata = metadatas[i];
   }
@@ -268,19 +275,32 @@ export function chromaIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(
         )
       );
 
-      const entries = embeddings.map((value, i) => {
-        const metadata: Metadata = {
-          ...docs[i].metadata,
-        };
+      const entries = embeddings
+        .map((value, i) => {
+          const doc = docs[i];
+          // The array of embeddings for this document
+          const docEmbeddings: Embedding[] = value;
+          const embeddingDocs = doc.getEmbeddingDocuments(docEmbeddings);
+          return docEmbeddings.map((docEmbedding, j) => {
+            const metadata: Metadata = {
+              docMetadata: JSON.stringify(embeddingDocs[j].metadata),
+              dataType: embeddingDocs[j].dataType || '',
+            };
 
-        const id = Md5.hashStr(JSON.stringify(docs[i]));
-        return {
-          id,
-          value,
-          document: docs[i].text,
-          metadata,
-        };
-      });
+            const data = embeddingDocs[j].data;
+            const id = Md5.hashStr(JSON.stringify(embeddingDocs[j]));
+            return {
+              id,
+              value: docEmbedding.embedding,
+              document: data,
+              metadata,
+            };
+          });
+        })
+        .reduce((acc, val) => {
+          return acc.concat(val);
+        }, []);
+
       await collection.add({
         ids: entries.map((e) => e.id),
         embeddings: entries.map((e) => e.value),
@@ -293,6 +313,8 @@ export function chromaIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(
 
 /**
  * Helper function for creating Chroma collections.
+ * Currently only available for text
+ * https://docs.trychroma.com/docs/embeddings/multimodal
  */
 export async function createChromaCollection<
   EmbedderCustomOptions extends z.ZodTypeAny,
@@ -319,7 +341,9 @@ export async function createChromaCollection<
               options: params.embedderOptions,
             })
           )
-        );
+        ).then((results: Embedding[][]) => {
+          return results.map((result: Embedding[]) => result[0].embedding);
+        });
       },
     };
   }

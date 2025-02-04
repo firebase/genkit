@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 // Package dotprompt parses and renders dotprompt files.
 package dotprompt
@@ -30,18 +20,11 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )
-
-// promptDirectory is the directory where dotprompt files are found.
-var promptDirectory string
-
-// SetDirectory sets the directory where dotprompt files are read from.
-func SetDirectory(directory string) {
-	promptDirectory = directory
-}
 
 // Prompt is a parsed dotprompt file.
 //
@@ -117,18 +100,18 @@ type PromptOption func(p *Prompt) error
 
 // Open opens and parses a dotprompt file.
 // The name is a base file name, without the ".prompt" extension.
-func Open(name string) (*Prompt, error) {
-	return OpenVariant(name, "")
+func Open(g *genkit.Genkit, name string) (*Prompt, error) {
+	return OpenVariant(g, name, "")
 }
 
 // OpenVariant opens a parses a dotprompt file with a variant.
 // If the variant does not exist, the non-variant version is tried.
-func OpenVariant(name, variant string) (*Prompt, error) {
-	if promptDirectory == "" {
+func OpenVariant(g *genkit.Genkit, name, variant string) (*Prompt, error) {
+	if g.Opts.PromptDir == "" {
 		// The TypeScript code defaults to ./prompts,
 		// but that makes the program change behavior
 		// depending on where it is run.
-		return nil, errors.New("missing call to dotprompt.SetDirectory")
+		return nil, errors.New("PromptDir in Genkit options is empty")
 	}
 
 	vname := name
@@ -136,19 +119,19 @@ func OpenVariant(name, variant string) (*Prompt, error) {
 		vname = name + "." + variant
 	}
 
-	fileName := filepath.Join(promptDirectory, vname+".prompt")
+	fileName := filepath.Join(g.Opts.PromptDir, vname+".prompt")
 
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		if variant != "" && errors.Is(err, fs.ErrNotExist) {
 			slog.Warn("prompt not found, trying without variant", "name", name, "variant", variant)
-			return OpenVariant(name, "")
+			return OpenVariant(g, name, "")
 		}
 
 		return nil, fmt.Errorf("failed to read dotprompt file %q: %w", name, err)
 	}
 
-	return Parse(name, variant, data)
+	return Parse(g, name, variant, data)
 }
 
 // frontmatterYAML is the type we use to unpack the frontmatter.
@@ -175,13 +158,13 @@ type frontmatterYAML struct {
 }
 
 // Parse parses the contents of a dotprompt file.
-func Parse(name, variant string, data []byte) (*Prompt, error) {
+func Parse(g *genkit.Genkit, name, variant string, data []byte) (*Prompt, error) {
 	const header = "---\n"
 	var fmName string
 	var cfg Config
 	if bytes.HasPrefix(data, []byte(header)) {
 		var err error
-		fmName, cfg, data, err = parseFrontmatter(data[len(header):])
+		fmName, cfg, data, err = parseFrontmatter(g, data[len(header):])
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +197,7 @@ func newPrompt(name, templateText, hash string, config Config) (*Prompt, error) 
 
 // parseFrontmatter parses the initial YAML frontmatter of a dotprompt file.
 // It returns the frontmatter as a Config along with the remaining data.
-func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err error) {
+func parseFrontmatter(g *genkit.Genkit, data []byte) (name string, c Config, rest []byte, err error) {
 	const footer = "\n---\n"
 	end := bytes.Index(data, []byte(footer))
 	if end == -1 {
@@ -228,7 +211,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	var tools []ai.Tool
 	for _, tn := range fy.Tools {
-		tools = append(tools, ai.LookupTool(tn))
+		tools = append(tools, genkit.LookupTool(g, tn))
 	}
 
 	ret := Config{
@@ -284,8 +267,8 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
-func Define(name, templateText string, opts ...PromptOption) (*Prompt, error) {
-	p, err := New(name, templateText, Config{})
+func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (*Prompt, error) {
+	p, err := New(name, templateText, Config{ModelName: g.Opts.DefaultModel})
 	if err != nil {
 		return nil, err
 	}
@@ -297,9 +280,7 @@ func Define(name, templateText string, opts ...PromptOption) (*Prompt, error) {
 		}
 	}
 
-	// TODO Inherit model from genkit instance
-
-	p.Register()
+	p.Register(g)
 	return p, nil
 }
 

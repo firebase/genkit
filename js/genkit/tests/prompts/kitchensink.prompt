@@ -1,0 +1,25 @@
+---
+model: googleai/gemini-5.0-ultimate-pro-plus
+description: a description
+config: 
+  temperature: 11
+tools:
+  - toolA
+  - toolB
+returnToolRequests: true
+input:
+  schema:
+    subject: string
+output:
+  format: csv
+  schema:
+    obj?(object, a nested object):
+      nest1?: string
+    arr(array, array of objects):
+      nest2?: boolean
+maxTurns: 77
+toolChoice: required
+metadata:
+  foo: bar
+---
+{{role "system"}} Hello {{history}} from the prompt file {{ subject }}
