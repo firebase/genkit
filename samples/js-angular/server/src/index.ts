@@ -15,9 +15,9 @@
  */
 
 import { chatbotFlow } from './chatbot.js';
-import { ai } from './genkit.js';
+import { startFlowServer } from '@genkit-ai/express';
 import { streamCharacters } from './jsonStreaming.js';
 
-ai.startFlowServer({
+startFlowServer({
   flows: [chatbotFlow, streamCharacters],
 });
