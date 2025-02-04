@@ -21,7 +21,6 @@ import {
   ModelArgument,
   PartSchema,
   ToolArgument,
-  run,
   z,
 } from 'genkit';
 import { GenerateResponseSchema } from 'genkit/model';
@@ -64,7 +63,7 @@ export function defineAgent(
   return ai.defineFlow(
     { name, inputSchema: AgentInput, outputSchema: GenerateResponseSchema },
     async (request, streamingCallback) => {
-      const history = await run(
+      const history = await ai.run(
         'retrieve-history',
         request.conversationId,
         async () => {
@@ -96,7 +95,7 @@ export function defineAgent(
             returnToolRequests,
             streamingCallback,
           });
-      await run(
+      await ai.run(
         'save-history',
         { conversationId: request.conversationId, history: resp.messages },
         async () => {

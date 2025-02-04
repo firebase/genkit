@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { startFlowServer } from '@genkit-ai/express';
 import { chatbotFlow } from './chatbot.js';
-import { ai } from './genkit.js';
 import { streamCharacters } from './jsonStreaming.js';
 
-ai.startFlowServer({
+startFlowServer({
   flows: [chatbotFlow, streamCharacters],
 });
