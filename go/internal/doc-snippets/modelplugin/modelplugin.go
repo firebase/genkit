@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package modelplugin
 
 import (
@@ -32,14 +31,16 @@ func Init() error {
 	// [START definemodel]
 	genkit.DefineModel(g,
 		providerID, "my-model",
-		&ai.ModelMetadata{
+		&ai.ModelInfo{
 			Label: "my-model",
-			Supports: ai.ModelCapabilities{
+			Supports: &ai.ModelInfoSupports{
+				Context:    false, // Default value set formally
 				Multiturn:  true,  // Does the model support multi-turn chats?
 				SystemRole: true,  // Does the model support syatem messages?
 				Media:      false, // Can the model accept media input?
 				Tools:      false, // Does the model support function calling (tools)?
 			},
+			Versions: make([]string, 0),
 		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,

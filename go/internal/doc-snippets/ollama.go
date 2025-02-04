@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package snippets
 
 import (
@@ -35,7 +34,7 @@ func ollamaEx(ctx context.Context) error {
 			Name: "gemma2",
 			Type: "chat", // "chat" or "generate"
 		},
-		&ai.ModelCapabilities{
+		&ai.ModelInfoSupports{
 			Multiturn:  true,
 			SystemRole: true,
 			Tools:      false,

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -35,44 +34,37 @@ type modelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChun
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
 
-// ModelCapabilities describes various capabilities of the model.
-type ModelCapabilities struct {
-	Multiturn  bool // the model can handle multiple request-response interactions
-	Media      bool // the model supports media as well as text input
-	Tools      bool // the model supports tools
-	SystemRole bool // the model supports a system prompt or role
-}
-
-// ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
-type ModelMetadata struct {
-	Label    string
-	Supports ModelCapabilities
-}
-
 // DefineModel registers the given generate function as an action, and returns a
 // [Model] that runs it.
 func DefineModel(
 	r *registry.Registry,
 	provider, name string,
-	metadata *ModelMetadata,
+	metadata *ModelInfo,
 	generate func(context.Context, *ModelRequest, ModelStreamingCallback) (*ModelResponse, error),
 ) Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
 		// Always make sure there's at least minimal metadata.
-		metadata = &ModelMetadata{
+		metadata = &ModelInfo{
 			Label: name,
 		}
 	}
 	if metadata.Label != "" {
 		metadataMap["label"] = metadata.Label
 	}
-	supports := map[string]bool{
-		"media":      metadata.Supports.Media,
-		"multiturn":  metadata.Supports.Multiturn,
-		"systemRole": metadata.Supports.SystemRole,
-		"tools":      metadata.Supports.Tools,
+	supports := make(map[string]any)
+	if metadata.Supports != nil {
+		supports = map[string]any{
+			"context":    metadata.Supports.Context,
+			"media":      metadata.Supports.Media,
+			"multiturn":  metadata.Supports.Multiturn,
+			"output":     metadata.Supports.Output,
+			"systemRole": metadata.Supports.SystemRole,
+			"tools":      metadata.Supports.Tools,
+		}
 	}
+
+	// TODO: If it is not required empty, move this to the if
 	metadataMap["supports"] = supports
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{
