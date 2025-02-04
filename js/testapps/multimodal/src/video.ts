@@ -21,6 +21,7 @@ import {
 import fileTypeChecker from 'file-type-checker';
 import fs from 'fs';
 import { Document, z } from 'genkit';
+import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
 import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
 import path from 'path';
 
@@ -41,6 +42,16 @@ export const pineconeVideoRetriever = pineconeRetrieverRef({
 export const pineconeVideoIndexer = pineconeIndexerRef({
   indexId: 'pinecone-multimodal-index',
   displayName: 'Pinecone video indexer',
+});
+
+export const chromaVideoRetriever = chromaRetrieverRef({
+  collectionName: 'multimodal_collection',
+  displayName: 'Chroma Video retriever',
+});
+
+export const chromaVideoIndexer = chromaIndexerRef({
+  collectionName: 'multimodal_collection',
+  displayName: 'Chroma video indexer',
 });
 
 // Define a local video indexer flow
@@ -65,7 +76,7 @@ export const localIndexVideo = ai.defineFlow(
   }
 );
 
-// Define a pine video indexer flow
+// Define a pinecone video indexer flow
 export const pineconeIndexVideo = ai.defineFlow(
   {
     name: 'pineconeIndexVideo',
@@ -82,6 +93,28 @@ export const pineconeIndexVideo = ai.defineFlow(
 
     await ai.index({
       indexer: pineconeVideoIndexer,
+      documents,
+    });
+  }
+);
+
+// Define a chroma video indexer flow
+export const chromaIndexVideo = ai.defineFlow(
+  {
+    name: 'chromaIndexVideo',
+    inputSchema: z
+      .string()
+      .describe(
+        `Video URL. e.g. 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'`
+      ),
+  },
+  async (videoUrl: string) => {
+    const documents = await ai.run('extract-video', () =>
+      extractVideo(videoUrl)
+    );
+
+    await ai.index({
+      indexer: chromaVideoIndexer,
       documents,
     });
   }
@@ -244,6 +277,46 @@ export const pineconeVideoQAFlow = ai.defineFlow(
       },
       {
         onChunk: (c) => sendChunk(c.text),
+      }
+    ).then((r) => r.text);
+  }
+);
+
+export const chromaVideoQAFlow = ai.defineFlow(
+  {
+    name: 'chromaVideoQuestions',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query: any, streamingCallback: any) => {
+    const docs = (await ai.retrieve({
+      retriever: chromaVideoRetriever,
+      query,
+      options: { k: 1 }, // we are choosing a single segment of video for context
+    })) as Document[];
+
+    return augmentedVideoPrompt(
+      {
+        question: query,
+        media: docs
+          .filter(
+            (d) => d.media[0]?.url?.length && d.media[0]?.contentType?.length
+          )
+          .map((d) => {
+            console.log(
+              `Retriever returned video: ${d.media[0].url} from ${d.metadata?.embedMetadata?.startOffsetSec}s to ${d.metadata?.embedMetadata?.endOffsetSec}s`
+            );
+            return {
+              gcsUrl: d.media[0]?.url,
+              contentType: d.media[0]?.contentType || '',
+              startOffsetSec: d.metadata?.embedMetadata
+                ?.startOffsetSec as number,
+              endOffsetSec: d.metadata?.embedMetadata?.endOffsetSec as number,
+            };
+          })[0],
+      },
+      {
+        streamingCallback,
       }
     ).then((r) => r.text);
   }

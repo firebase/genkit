@@ -177,8 +177,11 @@ export function chromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
       return {
         documents: combined.map((result) => {
           const data = result.document;
-          const dataType = result.metadata.datatype;
-          const docMetadata = JSON.parse(result.metadata.docMetadata);
+          const metadata = result.metadata.metadata[0];
+          const dataType = metadata.dataType;
+          const docMetadata = metadata.docMetadata
+            ? JSON.parse(metadata.docMetadata)
+            : undefined;
           return Document.fromData(data, dataType, docMetadata).toJSON();
         }),
       };
@@ -280,7 +283,7 @@ export function chromaIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(
           const embeddingDocs = doc.getEmbeddingDocuments(docEmbeddings);
           return docEmbeddings.map((docEmbedding, j) => {
             const metadata: Metadata = {
-              docMetdata: JSON.stringify(embeddingDocs[j].metadata),
+              docMetadata: JSON.stringify(embeddingDocs[j].metadata),
               dataType: embeddingDocs[j].dataType || '',
             };
 
