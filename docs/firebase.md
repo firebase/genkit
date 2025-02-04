@@ -96,7 +96,7 @@ export generatePoem = onCallGenkit(generatePoemFlow);
 All deployed flows, whether deployed to Firebase or not, should have an
 authorization policy; without one, your potentially-expensive generative AI
 flows would be invocable by anyone. To define an authorization policy, use the
-`authPolicy` parameter in `onCallFlow`:
+`authPolicy` parameter in `onCallGenkit`:
 
 ```ts
 export const generatePoem = onCallGenkit({
