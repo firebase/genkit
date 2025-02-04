@@ -44,7 +44,7 @@ Before reading this page, you should be familiar with the content covered on the
 [Generating content with AI models](models) page.
 
 If you want to run the code examples on this page, first complete the steps in
-the [Getting started](get-started) guide. All of the examples assume that you
+the [Get started](get-started) guide. All of the examples assume that you
 have already installed Genkit as a dependency in your project.
 
 ## Creating prompt files
@@ -364,7 +364,7 @@ your prompt's input schema.
 You already saw this in action in the section on input and output schemas:
 
 ```handlebars
-{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex03.prompt" %}
+{% includecode github_path="firebase/genkit/js/doc-snippets/src/dotprompt/prompts/ex04.prompt" %}
 ```
 
 In this example, the Handlebars expression, `{{theme}}`,

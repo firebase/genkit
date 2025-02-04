@@ -92,11 +92,11 @@ async function fn04() {
   // [START outSchema]
   // [START inSchema]
   const menuPrompt = ai.prompt('menu');
-  const { data } = await menuPrompt({ theme: 'medieval' });
+  const { output } = await menuPrompt({ theme: 'medieval' });
   // [END inSchema]
 
-  const dishName = data['dishname'];
-  const description = data['description'];
+  const dishName = output['dishname'];
+  const description = output['description'];
   // [END outSchema]
 }
 
@@ -107,11 +107,11 @@ async function fn05() {
     typeof MenuItemSchema, // Output schema
     z.ZodTypeAny // Custom options schema
   >('menu');
-  const { data } = await menuPrompt({ theme: 'medieval' });
+  const { output } = await menuPrompt({ theme: 'medieval' });
 
   // Now data is strongly typed as MenuItemSchema:
-  const dishName = data?.dishname;
-  const description = data?.description;
+  const dishName = output?.dishname;
+  const description = output?.description;
   // [END outSchema2]
 }
 
