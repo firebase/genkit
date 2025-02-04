@@ -162,9 +162,9 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 
 // requires state.mu
 func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
-	meta := &ai.ModelMetadata{
+	meta := &ai.ModelInfo{
 		Label:    labelPrefix + " - " + name,
-		Info:     info,
+		Supports: info.Supports,
 		Versions: info.Versions,
 	}
 	return genkit.DefineModel(g, provider, name, meta, func(

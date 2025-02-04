@@ -16,8 +16,8 @@ const providerID = "mymodels"
 // [START cfg]
 type MyModelConfig struct {
 	ai.GenerationCommonConfig
-	CustomOption        int
 	AnotherCustomOption string
+	CustomOption        int
 }
 
 // [END cfg]
@@ -32,18 +32,15 @@ func Init() error {
 	name := "my-model"
 	genkit.DefineModel(g,
 		providerID, name,
-		&ai.ModelMetadata{
+		&ai.ModelInfo{
 			Label: name,
-			Info: ai.ModelInfo{
-				Label: name,
-				Supports: &ai.ModelInfoSupports{
-					Multiturn:  true,  // Does the model support multi-turn chats?
-					SystemRole: true,  // Does the model support syatem messages?
-					Media:      false, // Can the model accept media input?
-					Tools:      false, // Does the model support function calling (tools)?
-				},
-				Versions: []string{},
+			Supports: &ai.ModelInfoSupports{
+				Multiturn:  true,  // Does the model support multi-turn chats?
+				SystemRole: true,  // Does the model support syatem messages?
+				Media:      false, // Can the model accept media input?
+				Tools:      false, // Does the model support function calling (tools)?
 			},
+			Versions: []string{},
 		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,

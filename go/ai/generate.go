@@ -34,30 +34,20 @@ type modelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChun
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
 
-// ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
-type ModelMetadata struct {
-	Label    string
-	Versions []string
-	Info     ModelInfo
-}
-
 // DefineModel registers the given generate function as an action, and returns a
 // [Model] that runs it.
 func DefineModel(
 	r *registry.Registry,
 	provider, name string,
-	metadata *ModelMetadata,
+	metadata *ModelInfo,
 	generate func(context.Context, *ModelRequest, ModelStreamingCallback) (*ModelResponse, error),
 ) Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
 		// Always make sure there's at least minimal metadata.
-		metadata = &ModelMetadata{
-			Label: name,
-			Info: ModelInfo{
-				Label:    name,
-				Supports: &ModelInfoSupports{},
-			},
+		metadata = &ModelInfo{
+			Label:    name,
+			Supports: &ModelInfoSupports{},
 			Versions: []string{},
 		}
 	}
@@ -65,10 +55,10 @@ func DefineModel(
 		metadataMap["label"] = metadata.Label
 	}
 	supports := map[string]bool{
-		"media":      metadata.Info.Supports.Media,
-		"multiturn":  metadata.Info.Supports.Multiturn,
-		"systemRole": metadata.Info.Supports.SystemRole,
-		"tools":      metadata.Info.Supports.Tools,
+		"media":      metadata.Supports.Media,
+		"multiturn":  metadata.Supports.Multiturn,
+		"systemRole": metadata.Supports.SystemRole,
+		"tools":      metadata.Supports.Tools,
 	}
 	metadataMap["supports"] = supports
 	metadataMap["versions"] = metadata.Versions
@@ -275,13 +265,18 @@ func validateModelVersion(r *registry.Registry, v string, req *generateParams) (
 		return false, errors.New("wrong model name")
 	}
 
-	a := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, parts[0], parts[1])
-	if a == nil {
-		return false, errors.New("model action not defined")
+	m := LookupModel(r, parts[0], parts[1])
+	if m == nil {
+		return false, fmt.Errorf("model %s not found", v)
 	}
 
-	if !modelVersionSupported(v, a.Desc().Metadata) {
-		return false, fmt.Errorf("version not supported: %s", v)
+	// at the end, a Model is an action so type conversion is required
+	if a, ok := m.(*modelActionDef); ok {
+		if !(modelVersionSupported(v, (*modelAction)(a).Desc().Metadata)) {
+			return false, fmt.Errorf("version %s not supported", v)
+		}
+	} else {
+		return false, errors.New("unable to validate model version")
 	}
 
 	return true, nil

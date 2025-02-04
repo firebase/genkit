@@ -60,9 +60,9 @@ func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai
 			Versions: []string{},
 		}
 	}
-	meta := &ai.ModelMetadata{
+	meta := &ai.ModelInfo{
 		Label:    "Ollama - " + model.Name,
-		Info:     mi,
+		Supports: mi.Supports,
 		Versions: []string{},
 	}
 	gen := &generator{model: model, serverAddress: state.serverAddress}
