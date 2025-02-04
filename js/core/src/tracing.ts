@@ -22,7 +22,10 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
-import { TraceServerExporter } from './tracing/exporter.js';
+import {
+  TraceServerExporter,
+  setTelemetryServerUrl,
+} from './tracing/exporter.js';
 import { isDevEnv } from './utils.js';
 
 export * from './tracing/exporter.js';
@@ -51,6 +54,9 @@ export async function ensureBasicTelemetryInstrumentation() {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
+  if (process.env.GENKIT_TELEMETRY_SERVER) {
+    setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
+  }
   global[instrumentationKey] =
     telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
 
