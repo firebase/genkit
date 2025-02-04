@@ -5,7 +5,13 @@ use https://github.com/firebase/firebase-tools/blob/master/templates/init/functi
 
 The Firebase plugin provides integrations with Firebase services, allowing you to build intelligent and scalable AI applications. Key features include:
 
+<<<<<<< HEAD
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.  
+=======
+- **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.
+- **Cloud Functions**: Deploy flows as HTTPS-triggered functions.
+- **Firebase Authentication**: Implement authorization policies.
+>>>>>>> origin/main
 - **Telemetry**: Export telemetry to [Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit Monitoring console.
 
 ## Installation
@@ -20,8 +26,8 @@ npm install @genkit-ai/firebase
 
 ### Firebase Project Setup
 
-1. All Firebase products require a Firebase project. You can create a new project or enable Firebase in an existing Google Cloud project using the [Firebase console](https://console.firebase.google.com/).  
-2. If deploying flows with Cloud Functions, [upgrade your Firebase project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered) to the Blaze plan.  
+1. All Firebase products require a Firebase project. You can create a new project or enable Firebase in an existing Google Cloud project using the [Firebase console](https://console.firebase.google.com/).
+2. If deploying flows with Cloud Functions, [upgrade your Firebase project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered) to the Blaze plan.
 3. If you want to run code locally that exports telemetry, you need the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) tool installed.
 
 ### Firebase Admin SDK Initialization
@@ -42,19 +48,19 @@ The plugin requires you to specify your Firebase project ID. You can specify you
 
 - Set `projectId` in the `initializeApp()` configuration object as shown in the snippet above.
 
-- Set the `GCLOUD_PROJECT` environment variable. If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), `GCLOUD_PROJECT` is automatically set to the project ID of the environment.  
-    
+- Set the `GCLOUD_PROJECT` environment variable. If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), `GCLOUD_PROJECT` is automatically set to the project ID of the environment.
+
   If you set `GCLOUD_PROJECT`, you can omit the configuration parameter in `initializeApp()`.
 
 ### Credentials
 
 To provide Firebase credentials, you also need to set up Google Cloud Application Default Credentials. To specify your credentials:
 
-- If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), this is set automatically.  
-    
-- For other environments:  
-    
-  1. Generate service account credentials for your Firebase project and download the JSON key file. You can do so on the [Service account](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk) page of the Firebase console.  
+- If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), this is set automatically.
+
+- For other environments:
+
+  1. Generate service account credentials for your Firebase project and download the JSON key file. You can do so on the [Service account](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk) page of the Firebase console.
   2. Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file path of the JSON file that contains your service account key, or you can set the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the JSON file.
 
 ## Features and usage
@@ -156,17 +162,17 @@ const docs = await ai.retrieve({
 
 The following options can be passed to the `options` field in `ai.retrieve`:
 
-- **`limit`**: *(number)*  
-  Specify the maximum number of documents to retrieve. Default is `10`.  
-    
-- **`where`**: *(Record\<string, any\>)*  
+- **`limit`**: *(number)*
+  Specify the maximum number of documents to retrieve. Default is `10`.
+
+- **`where`**: *(Record\<string, any\>)*
   Add additional filters based on Firestore fields. Example:
 
   ```js
   where: { category: 'news', status: 'published' }
   ```
 
-- **`collection`**: *(string)*  
+- **`collection`**: *(string)*
   Override the default collection specified in the retriever configuration. This is useful for querying subcollections or dynamically switching between collections.
 
 #### Populate Firestore with Embeddings
@@ -218,10 +224,10 @@ export async function indexMenu(filePath: string) {
 
 async function indexToFirestore(data: string[]) {
   for (const text of data) {
-    const embedding = await ai.embed({
+    const embedding = (await ai.embed({
       embedder: indexConfig.embedder,
       content: text,
-    });
+    }))[0].embedding;
     await firestore.collection(indexConfig.collection).add({
       [indexConfig.vectorField]: FieldValue.vector(embedding),
       [indexConfig.contentField]: text,
@@ -241,8 +247,8 @@ Firestore depends on indexes to provide fast and efficient querying on collectio
 
 The prior example requires the `embedding` field to be indexed to work. To create the index:
 
-- Run the `gcloud` command described in the [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes) section of the Firestore docs.  
-    
+- Run the `gcloud` command described in the [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes) section of the Firestore docs.
+
   The command looks like the following:
 
   ```
@@ -258,7 +264,7 @@ The prior example requires the `embedding` field to be indexed to work. To creat
 
 #### Learn more
 
-- See the [Retrieval-augmented generation](http://../rag.md) page for a general discussion on indexers and retrievers in Genkit.  
+- See the [Retrieval-augmented generation](http://../rag.md) page for a general discussion on indexers and retrievers in Genkit.
 - See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search) in the Cloud Firestore docs for more on the vector search feature.
 
 ### Deploy flows as Cloud Functions

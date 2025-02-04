@@ -18,7 +18,6 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { startFlowServer } from '@genkit-ai/express';
 import fileTypeChecker from 'file-type-checker';
 import fs from 'fs';
 import { Document, z } from 'genkit';
@@ -176,7 +175,3 @@ async function extractText(filePath: string) {
   const data = await pdf(dataBuffer);
   return data.text;
 }
-
-startFlowServer({
-  flows: [indexMultimodalPdf, multimodalPdfQAFlow],
-});
