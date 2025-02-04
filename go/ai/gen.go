@@ -71,14 +71,6 @@ const (
 	OutputFormatMedia OutputFormat = "media"
 )
 
-type ToolChoice string
-
-const (
-	ToolChoiceAuto     ToolChoice = "auto"
-	ToolChoiceRequired ToolChoice = "required"
-	ToolChoiceNone     ToolChoice = "none"
-)
-
 // GenerationCommonConfig holds configuration for generation.
 type GenerationCommonConfig struct {
 	MaxOutputTokens int      `json:"maxOutputTokens,omitempty"`
