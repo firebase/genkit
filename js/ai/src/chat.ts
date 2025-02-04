@@ -176,7 +176,7 @@ export class Chat {
           this.requestBase = Promise.resolve({
             ...(await this.requestBase),
             // these things may get changed by tools calling within generate.
-            tools: response?.request?.tools?.map(td => td.name),
+            tools: response?.request?.tools?.map((td) => td.name),
             toolChoice: response?.request?.toolChoice,
             config: response?.request?.config,
           });

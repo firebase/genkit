@@ -127,11 +127,7 @@ export interface ToolConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> =
-  | string
-  | ToolAction<I, O>
-  | Action<I, O>
-  | ExecutablePrompt<any, any, any>;
+> = string | ToolAction<I, O> | Action<I, O> | ExecutablePrompt<any, any, any>;
 
 /**
  * Converts an action to a tool action by setting the appropriate metadata.
@@ -161,7 +157,10 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(registry: Registry, tools?: (ToolArgument | ToolDefinition)[]): Promise<ToolAction[]> {
+>(
+  registry: Registry,
+  tools?: (ToolArgument | ToolDefinition)[]
+): Promise<ToolAction[]> {
   if (!tools || tools.length === 0) {
     return [];
   }
