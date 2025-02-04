@@ -131,7 +131,6 @@ export type ToolArgument<
   | string
   | ToolAction<I, O>
   | Action<I, O>
-  | ToolDefinition
   | ExecutablePrompt<any, any, any>;
 
 /**
@@ -162,7 +161,7 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(registry: Registry, tools?: ToolArgument[]): Promise<ToolAction[]> {
+>(registry: Registry, tools?: (ToolArgument | ToolDefinition)[]): Promise<ToolAction[]> {
   if (!tools || tools.length === 0) {
     return [];
   }
