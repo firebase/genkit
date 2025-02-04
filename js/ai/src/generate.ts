@@ -67,15 +67,15 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
 /** ResumeOptions configure how to resume generation after an interrupt. */
 export interface ResumeOptions {
   /**
-   * reply should contain a single or list of `toolResponse` parts corresponding
+   * respond should contain a single or list of `toolResponse` parts corresponding
    * to interrupt `toolRequest` parts from the most recent model message. Each
    * entry must have a matching `name` and `ref` (if supplied) for its `toolRequest`
    * counterpart.
    *
-   * Tools have a `.reply` helper method to construct a reply ToolResponse and validate
-   * the data against its schema. Call `myTool.reply(interruptToolRequest, yourReplyData)`.
+   * Tools have a `.respond` helper method to construct a reply ToolResponse and validate
+   * the data against its schema. Call `myTool.respond(interruptToolRequest, yourReplyData)`.
    */
-  reply?: ToolResponsePart | ToolResponsePart[];
+  respond?: ToolResponsePart | ToolResponsePart[];
   /**
    * restart will run a tool again with additionally supplied metadata passed through as
    * a `resumed` option in the second argument. This allows for scenarios like conditionally
@@ -83,6 +83,7 @@ export interface ResumeOptions {
    *
    * Tools have a `.restart` helper method to construct a restart ToolRequest. Call
    * `myTool.restart(interruptToolRequest, resumeMetadata)`.
+   *
    */
   restart?: ToolRequestPart | ToolRequestPart[];
   /** Additional metadata to annotate the created tool message with in the "resume" key. */
@@ -127,9 +128,11 @@ export interface GenerateOptions<
    *
    * const resumedResponse = await ai.generate({
    *   messages: response.messages,
-   *   resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
+   *   resume: myInterrupt.respond(interrupt, {note: "this is the reply data"}),
    * });
    * ```
+   *
+   * @beta
    */
   resume?: ResumeOptions;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
@@ -361,7 +364,7 @@ export async function generate<
     },
     // coerce reply and restart into arrays for the action schema
     resume: resolvedOptions.resume && {
-      reply: [resolvedOptions.resume.reply || []].flat(),
+      respond: [resolvedOptions.resume.respond || []].flat(),
       restart: [resolvedOptions.resume.restart || []].flat(),
       metadata: resolvedOptions.resume.metadata,
     },

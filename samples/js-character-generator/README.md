@@ -1,5 +1,6 @@
 # Character Generator
 
+<!-- markdownlint-disable MD033 -->
 <a href="https://idx.google.com/new?template=https%3A%2F%2Fgithub.com%2Ffirebase%2Fgenkit%2Ftree%2Fmain%2Fsamples%2Fjs-character-generator">
   <picture>
     <source
@@ -14,6 +15,7 @@
       src="https://cdn.idx.dev/btn/open_purple_32.svg">
   </picture>
 </a>
+<!-- markdownlint-enable MD033 -->
 
 This sample is used as the Genkit template in Project IDX, you can check it out in IDX!
 

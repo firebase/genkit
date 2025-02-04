@@ -646,7 +646,7 @@ export function defineGoogleAIModel(
       configSchema: model.configSchema,
       use: middleware,
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -780,14 +780,14 @@ export function defineGoogleAIModel(
         );
       }
 
-      if (streamingCallback) {
+      if (sendChunk) {
         const result = await genModel
           .startChat(updatedChatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
             const c = fromJSONModeScopedGeminiCandidate(candidate);
-            streamingCallback({
+            sendChunk({
               index: c.index,
               content: c.message.content,
             });

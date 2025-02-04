@@ -267,12 +267,12 @@ async function resolveResumedToolRequest(
   }
 
   // if there's a corresponding reply, append it to toolResponses
-  const replyResponse = findCorrespondingToolResponse(
-    rawRequest.resume?.reply || [],
+  const providedResponse = findCorrespondingToolResponse(
+    rawRequest.resume?.respond || [],
     part
   );
-  if (replyResponse) {
-    const toolResponse = replyResponse;
+  if (providedResponse) {
+    const toolResponse = providedResponse;
 
     // remove the 'interrupt' but leave a 'resolvedInterrupt'
     const { interrupt, ...metadata } = part.metadata || {};
@@ -324,7 +324,7 @@ async function resolveResumedToolRequest(
 
   throw new GenkitError({
     status: 'INVALID_ARGUMENT',
-    message: `Unresolved tool request '${part.toolRequest.name}${part.toolRequest.ref ? `#${part.toolRequest.ref}` : ''} was not handled by the 'resume' argument. You must supply replies or restarts for all interrupted tool requests.'`,
+    message: `Unresolved tool request '${part.toolRequest.name}${part.toolRequest.ref ? `#${part.toolRequest.ref}` : ''}' was not handled by the 'resume' argument. You must supply replies or restarts for all interrupted tool requests.'`,
   });
 }
 

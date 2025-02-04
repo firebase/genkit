@@ -73,6 +73,7 @@ export class Registry {
   private schemasByName: Record<string, Schema> = {};
   private valueByTypeAndName: Record<string, Record<string, any>> = {};
   private allPluginsInitialized = false;
+  public apiStability: 'stable' | 'beta' = 'stable';
 
   readonly asyncStore = new AsyncStore();
   readonly dotprompt = new Dotprompt({

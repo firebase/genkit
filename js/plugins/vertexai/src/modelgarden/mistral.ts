@@ -341,13 +341,13 @@ export function mistralModel(
       supports: model.info?.supports,
       versions: model.info?.versions,
     },
-    async (input, streamingCallback) => {
+    async (input, sendChunk) => {
       const client = getClient(input.config?.location || region);
 
       const versionedModel =
         input.config?.version ?? model.info?.versions?.[0] ?? model.name;
 
-      if (!streamingCallback) {
+      if (!sendChunk) {
         const mistralRequest = toMistralRequest(versionedModel, input);
 
         const response = await client.chat.complete(mistralRequest, {
@@ -372,7 +372,7 @@ export function mistralModel(
         for await (const event of stream) {
           const parts = fromMistralCompletionChunk(event.data);
           if (parts.length > 0) {
-            streamingCallback({
+            sendChunk({
               content: parts,
             });
           }

@@ -42,6 +42,8 @@ import { Genkit, GenkitOptions } from './genkit';
  *
  * This will create a new Genkit registry, register the provided plugins, stores, and other configuration. This
  * should be called before any flows are registered.
+ *
+ * @beta
  */
 export function genkit(options: GenkitOptions): GenkitBeta {
   return new GenkitBeta(options);
@@ -49,8 +51,15 @@ export function genkit(options: GenkitOptions): GenkitBeta {
 
 /**
  * Genkit BETA APIs.
+ *
+ * @beta
  */
 export class GenkitBeta extends Genkit {
+  constructor(options?: GenkitOptions) {
+    super(options);
+    this.registry.apiStability = 'beta';
+  }
+
   /**
    * Create a chat session with the provided options.
    *
@@ -61,6 +70,8 @@ export class GenkitBeta extends Genkit {
    * let response = await chat.send('tell me a joke')
    * response = await chat.send('another one')
    * ```
+   *
+   * @beta
    */
   chat<I>(options?: ChatOptions<I>): Chat;
 
@@ -74,6 +85,8 @@ export class GenkitBeta extends Genkit {
    * const chat = ai.chat(triageAgent)
    * const { text } = await chat.send('my phone feels hot');
    * ```
+   *
+   * @beta
    */
   chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I>): Chat;
 
@@ -87,6 +100,8 @@ export class GenkitBeta extends Genkit {
    * let response = await chat.send('tell me a joke')
    * response = await chat.send('another one')
    * ```
+   *
+   * @beta
    */
   chat<I>(
     preambleOrOptions?: ChatOptions<I> | ExecutablePrompt<I>,
@@ -116,7 +131,7 @@ export class GenkitBeta extends Genkit {
    * Create a session for this environment.
    */
   createSession<S = any>(options?: SessionOptions<S>): Session<S> {
-    const sessionId = uuidv4();
+    const sessionId = options?.sessionId?.trim() || uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
       state: options?.initialState,
@@ -130,6 +145,8 @@ export class GenkitBeta extends Genkit {
 
   /**
    * Loads a session from the store.
+   *
+   * @beta
    */
   async loadSession(
     sessionId: string,
@@ -149,6 +166,8 @@ export class GenkitBeta extends Genkit {
 
   /**
    * Gets the current session from async local storage.
+   *
+   * @beta
    */
   currentSession<S = any>(): Session<S> {
     const currentSession = getCurrentSession(this.registry);
@@ -190,6 +209,8 @@ export class GenkitBeta extends Genkit {
    *   output: { format: 'customJson', schema: MenuItemSchema },
    * });
    * ```
+   *
+   * @beta
    */
   defineFormat(
     options: {
@@ -205,6 +226,8 @@ export class GenkitBeta extends Genkit {
    *
    * Interrupts are special tools that halt model processing and return control back to the caller. Interrupts make it simpler to implement
    * "human-in-the-loop" and out-of-band processing patterns that require waiting on external actions to complete.
+   *
+   * @beta
    */
   defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: InterruptConfig<I, O>

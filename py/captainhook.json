@@ -40,7 +40,7 @@
           "run": "uvx --directory py ruff check --fix ."
         },
         {
-          "run": "uv run --directory py pytest ."
+          "run": "py/bin/run_tests"
         },
         {
           "run": "uv run --directory py mkdocs build"
@@ -88,7 +88,7 @@
           "run": "uvx --directory py ruff check --fix ."
         },
         {
-          "run": "uv run --directory py pytest ."
+          "run": "py/bin/run_tests"
         },
         {
           "run": "uv run --directory py mkdocs build"

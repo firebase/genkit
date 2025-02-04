@@ -1,10 +1,10 @@
 {
-  "name": "Character Generator",
+  "name": "character_generator",
   "version": "0.1.0",
   "description": "A simple Firebase Genkit app to generate fantasy characters",
   "main": "index.js",
   "scripts": {
-    "dev": "genkit start -- npx tsx --watch index.ts"
+    "genkit:dev": "genkit start -- npx tsx --watch index.ts"
   },
   "keywords": [],
   "author": "",
