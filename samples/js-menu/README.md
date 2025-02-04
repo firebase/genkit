@@ -8,7 +8,10 @@ To test each one out, open the Developer UI and exercise the prompts and flows. 
 
 ## Prerequisites
 
-This example uses Vertex AI for language models and embeddings.
+Prerequisite
+- Google Cloud project with Vertex AI API enabled (https://console.cloud.google.com/apis/library/aiplatform.googleapis.com)
+- gcloud CLI installed (https://cloud.google.com/sdk/docs/install-sdk)
+- to use Llama 3.1 405b enable it in the Vertex AI [Model Garden](https://console.cloud.google.com/vertex-ai/publishers/meta/model-garden/llama3-405b-instruct-maas)
 
 ## Prompts and Flows
 
@@ -20,6 +23,15 @@ This example uses Vertex AI for language models and embeddings.
 5. This step illustrates how to combine models with different modalities. It uses a vision model to ingest the menu items from a photograph.
 
 ## Running the sample
+
+### Setup authentication (can skip on IDX)
+
+```bash
+gcloud auth login
+gcloud auth application-default login --project YOUR_PROJECT
+```
+
+### Run the sample
 
 ```bash
 npm i
