@@ -5,9 +5,13 @@ use https://github.com/firebase/firebase-tools/blob/master/templates/init/functi
 
 The Firebase plugin provides integrations with Firebase services, allowing you to build intelligent and scalable AI applications. Key features include:
 
+<<<<<<< HEAD
+- **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.  
+=======
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.
 - **Cloud Functions**: Deploy flows as HTTPS-triggered functions.
 - **Firebase Authentication**: Implement authorization policies.
+>>>>>>> origin/main
 - **Telemetry**: Export telemetry to [Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit Monitoring console.
 
 ## Installation
@@ -265,25 +269,28 @@ The prior example requires the `embedding` field to be indexed to work. To creat
 
 ### Deploy flows as Cloud Functions
 
-The plugin provides the `onFlow()` constructor, which creates a flow backed by a Cloud Functions for Firebase HTTPS-triggered function. These functions conform to Firebase's [callable function interface](https://firebase.google.com/docs/functions/callable-reference) and you can use the [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function) to call them.
+To deploy a flow with Cloud Functions, use the Firebase Functions library's native support for genkit. The `onCallGenkit` method allows
+you to create a [callable function](https://firebase.google.com/docs/functions/callable?gen=2nd) from a flow. It will automatically support
+streaming and JSON requests. You can use the [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function) to call them.
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import { onFlow, noAuth } from "@genkit-ai/firebase/functions";
+import { onCallGenkit } from 'firebase-functions/https';
+import { defineSecret } from 'firebase-functions/params';
 
-export const exampleFlow = onFlow(
-  ai, // Provide the Genkit instance
-  {
-    name: "exampleFlow",
-    authPolicy: noAuth(), // WARNING: noAuth() creates an open endpoint!
-  },
-  async (prompt) => {
+export const exampleFlow = ai.defineFlow({
+  name: "exampleFlow",
+}, async (prompt) => {
     // Flow logic goes here.
 
     return response;
   }
 );
+
+// WARNING: This has no authentication or app check protections.
+// See github.com/firebase/genkit/blob/main/docs/auth.md for more information.
+export const example = onCallGenkit({ secrets: [apiKey] }, exampleFlow);
 ```
 
 Deploy your flow using the Firebase CLI:
@@ -291,58 +298,3 @@ Deploy your flow using the Firebase CLI:
 ```
 firebase deploy --only functions
 ```
-
-The `onFlow()` function has some options not present in `defineFlow()`:
-
-- `httpsOptions`: an [`HttpsOptions`](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.https.httpsoptions) object used to configure your Cloud Function:
-
-  <!--See note above on prettier-ignore -->
-  <!-- prettier-ignore -->
-  ```js
-  export const exampleFlow = onFlow(
-    ai,
-    {
-      name: "exampleFlow",
-      httpsOptions: {
-        cors: true,
-      },
-      // ...
-    },
-    async (prompt) => {
-      // ...
-    }
-  );
-  ```
-
-- `enforceAppCheck`: when `true`, reject requests with missing or invalid [App Check](https://firebase.google.com/docs/app-check) tokens.
-
-- `consumeAppCheckToken`: when `true`, invalidate the App Check token after verifying it.
-
-  See [Replay protection](https://firebase.google.com/docs/app-check/cloud-functions#replay-protection).
-
-### Firebase Authentication
-
-This plugin provides a helper function to create authorization policies around Firebase Auth:
-
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-import {firebaseAuth} from "@genkit-ai/firebase/auth";
-
-export const exampleFlow = onFlow(
-  ai,
-  {
-    name: "exampleFlow",
-    authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified) throw new Error("Requires verification!");
-    }),
-  },
-  async (prompt) => {
-    // ...
-  }
-);
-```
-
-To define an auth policy, provide `firebaseAuth()` with a callback function that takes a [`DecodedIdToken`](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken) as its only parameter. In this function, examine the user token and throw an error if the user fails to meet any of the criteria you want to require.
-
-See [Authorization and integrity](http://../auth.md) for a more thorough discussion of this topic.

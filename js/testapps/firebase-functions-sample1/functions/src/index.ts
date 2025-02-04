@@ -14,66 +14,48 @@
  * limitations under the License.
  */
 
-import { firebase } from '@genkit-ai/firebase';
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
-import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import {
   FirebaseUserEngagementSchema,
   collectUserEngagement,
 } from '@genkit-ai/firebase/user_engagement';
-import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
-import { onRequest } from 'firebase-functions/v2/https';
-import { genkit, run, z } from 'genkit';
+import { gemini15Flash, vertexAI } from '@genkit-ai/vertexai';
+import { onCallGenkit, onRequest } from 'firebase-functions/https';
+import { genkit, z } from 'genkit';
+
+enableFirebaseTelemetry();
 
 const ai = genkit({
-  plugins: [firebase(), vertexAI()],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
-  telemetry: {
-    instrumentation: 'firebase',
-    logger: 'firebase',
-  },
+  plugins: [vertexAI()],
 });
 
-export const simpleFlow = onFlow(
-  ai,
+export const simpleFlow = ai.defineFlow(
   {
     name: 'simpleFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
-    httpsOptions: {
-      cors: '*',
-    },
-    authPolicy: noAuth(),
   },
   async (subject) => {
     return 'hello world!';
   }
 );
 
-export const jokeFlow = onFlow(
-  ai,
+// No access to secrets (e.g. only works because simpleFlow does not call
+// ai.generate). No authPolicy or App Check integration;
+export const simple = onCallGenkit(simpleFlow);
+
+const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
-    httpsOptions: {
-      cors: '*',
-    },
-    authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified && !user.admin) {
-        throw new Error('Email not verified');
-      }
-    }),
   },
   async (subject) => {
     const prompt = `Tell me a joke about ${subject}`;
 
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        model: geminiPro,
+        model: gemini15Flash,
         prompt: prompt,
       });
 
@@ -82,69 +64,90 @@ export const jokeFlow = onFlow(
   }
 );
 
-export const authFlow = onFlow(
-  ai,
+export const joke = onCallGenkit(
+  {
+    secrets: ['apiKey'],
+    authPolicy: (auth) => auth?.token?.email_verified && auth?.token?.admin,
+  },
+  jokeFlow
+);
+
+const authFlow = ai.defineFlow(
   {
     name: 'authFlow',
     inputSchema: z.object({ uid: z.string(), input: z.string() }),
     outputSchema: z.string(),
-    authPolicy: firebaseAuth((user, input) => {
-      if (user.user_id !== input.uid) {
-        throw new Error('User must act as themselves');
-      }
-    }),
   },
   async ({ input }) => input.toUpperCase()
 );
 
-export const streamer = onFlow(
-  ai,
+export const auth = onCallGenkit(
+  {
+    authPolicy: (auth, input) => !!auth && auth.uid === input.uid,
+  },
+  authFlow
+);
+
+const streamingFlow = ai.defineFlow(
   {
     name: 'streamer',
     inputSchema: z.number(),
     outputSchema: z.string(),
     streamSchema: z.object({ count: z.number() }),
-    httpsOptions: { invoker: 'private' },
-    authPolicy: noAuth(),
   },
-  async (count, streamingCallback) => {
-    console.log('streamingCallback', !!streamingCallback);
+  async (count, { sendChunk }) => {
     let i = 0;
-    if (streamingCallback) {
-      for (; i < count; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
-        streamingCallback({ count: i });
-      }
+    for (; i < count; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      sendChunk({ count: i });
     }
     return `done: ${count}, streamed: ${i} times`;
   }
 );
 
-export const streamConsumer = onFlow(
-  ai,
+// onCallFlow automatically handles streaming when passed
+// a flow that streams. This example sets invoker to "private",
+// which means that IAM enforces access.
+export const streamer = onCallGenkit(
   {
-    name: 'streamConsumer',
-    httpsOptions: { invoker: 'private' },
-    authPolicy: noAuth(),
+    invoker: 'private',
+  },
+  streamingFlow
+);
+
+export const streamConsumerFlow = ai.defineFlow(
+  {
+    name: 'streamConsumerFlow',
   },
   async () => {
-    const response = streamer(5);
+    const { output, stream } = streamingFlow.stream(5);
 
-    for await (const chunk of response.stream) {
-      console.log('chunk', chunk);
+    for await (const chunk of stream) {
+      console.log(`chunk ${chunk}`);
     }
 
-    console.log('streamConsumer done', await response.output);
+    console.log(`Streaming consumer done ${await output}`);
   }
 );
 
+export const streamConsumer = onCallGenkit(
+  {
+    invoker: 'private',
+  },
+  streamConsumerFlow
+);
+
 export const triggerJokeFlow = onRequest(
-  { invoker: 'private' },
+  {
+    invoker: 'private',
+  },
   async (req, res) => {
     const { subject } = req.query;
     console.log('req.query', req.query);
-    const op = await jokeFlow(String(subject), {
-      withLocalAuthContext: { admin: true },
+    const op = await jokeFlow.run(String(subject), {
+      context: {
+        auth: { admin: true },
+      },
     });
     console.log('operation', op);
     res.send(op);
@@ -153,7 +156,9 @@ export const triggerJokeFlow = onRequest(
 
 /** Example of user engagement collection using Firebase Functions. */
 export const collectEngagement = onRequest(
-  { memory: '512MiB' },
+  {
+    memory: '512MiB',
+  },
   async (req, res) => {
     await collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
     res.send({});
