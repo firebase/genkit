@@ -439,8 +439,8 @@ export type GenerateStreamOptions<
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 > = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
 
-export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
-  get stream(): AsyncIterable<GenerateResponseChunk>;
+export interface GenerateStreamResponse<O = unknown> {
+  get stream(): AsyncIterable<GenerateResponseChunk<O>>;
   get response(): Promise<GenerateResponse<O>>;
 }
 
@@ -452,8 +452,8 @@ export function generateStream<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): GenerateStreamResponse<O> {
-  let channel = new Channel<GenerateResponseChunk>();
+): GenerateStreamResponse<z.infer<O>> {
+  let channel = new Channel<GenerateResponseChunk<z.infer<O>>>();
 
   const generated = Promise.resolve(options).then((resolvedOptions) =>
     generate<O, CustomOptions>(registry, {

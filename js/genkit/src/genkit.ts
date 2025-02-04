@@ -274,7 +274,7 @@ export class Genkit implements HasRegistry {
     executablePrompt.stream = (
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
-    ): GenerateStreamResponse<O> => {
+    ): GenerateStreamResponse<z.infer<O>> => {
       return this.generateStream(
         promise.then((action) =>
           action.render(input, {
