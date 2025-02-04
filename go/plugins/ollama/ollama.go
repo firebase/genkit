@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ollama
 
 import (
@@ -58,11 +57,13 @@ func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai
 				SystemRole: true,
 				Media:      slices.Contains(mediaSupportedModels, model.Name),
 			},
+			Versions: []string{},
 		}
 	}
 	meta := &ai.ModelMetadata{
-		Label: "Ollama - " + model.Name,
-		Info:  mi,
+		Label:    "Ollama - " + model.Name,
+		Info:     mi,
+		Versions: []string{},
 	}
 	gen := &generator{model: model, serverAddress: state.serverAddress}
 	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)

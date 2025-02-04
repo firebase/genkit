@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -59,6 +58,7 @@ func DefineModel(
 				Label:    name,
 				Supports: &ModelInfoSupports{},
 			},
+			Versions: []string{},
 		}
 	}
 	if metadata.Label != "" {

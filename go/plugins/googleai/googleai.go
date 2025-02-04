@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Parts of this file are copied into vertexai, because the code is identical
 // except for the import path of the Gemini SDK.
 //go:generate go run ../../internal/cmd/copy -dest ../vertexai googleai.go

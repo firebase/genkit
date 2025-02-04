@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package modelplugin
 
 import (
@@ -43,6 +42,7 @@ func Init() error {
 					Media:      false, // Can the model accept media input?
 					Tools:      false, // Does the model support function calling (tools)?
 				},
+				Versions: []string{},
 			},
 		},
 		func(ctx context.Context,
