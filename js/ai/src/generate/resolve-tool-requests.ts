@@ -337,7 +337,6 @@ export async function resolveResumeOption(
   interruptedResponse?: GenerateResponseData;
 }> {
   if (!rawRequest.resume) return { revisedRequest: rawRequest }; // no-op if no resume option
-  console.log('RESOLVE RESUME OPTION:', rawRequest.resume);
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
 
   const messages = rawRequest.messages;
@@ -346,11 +345,11 @@ export async function resolveResumeOption(
   if (
     !lastMessage ||
     lastMessage.role !== 'model' ||
-    !lastMessage.content.find((p) => p.toolRequest && p.metadata?.interrupt)
+    !lastMessage.content.find((p) => p.toolRequest)
   ) {
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
-      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
+      message: `Cannot 'resume' generation unless the previous message is a model message with at least one tool request.`,
     });
   }
 
@@ -365,7 +364,6 @@ export async function resolveResumeOption(
         part,
         toolMap
       );
-      console.log('RESOLVED TOOL', part.toolRequest.name, 'TO', resolved);
       if (resolved.interrupt) {
         interrupted = true;
         return resolved.interrupt;
@@ -407,7 +405,6 @@ export async function resolveResumeOption(
     },
   };
 
-  console.log('CONSTRUCTED A TOOL MESSAGE:', toolMessage.content);
   return stripUndefinedProps({
     revisedRequest: {
       ...rawRequest,
