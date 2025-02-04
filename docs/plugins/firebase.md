@@ -5,13 +5,7 @@ use https://github.com/firebase/firebase-tools/blob/master/templates/init/functi
 
 The Firebase plugin provides integrations with Firebase services, allowing you to build intelligent and scalable AI applications. Key features include:
 
-<<<<<<< HEAD
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.  
-=======
-- **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.
-- **Cloud Functions**: Deploy flows as HTTPS-triggered functions.
-- **Firebase Authentication**: Implement authorization policies.
->>>>>>> origin/main
 - **Telemetry**: Export telemetry to [Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit Monitoring console.
 
 ## Installation
