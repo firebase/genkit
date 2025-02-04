@@ -41,7 +41,7 @@ import { runWithManager } from '../utils/manager-utils';
 interface EvalFlowRunCliOptions {
   input?: string;
   output?: string;
-  auth?: string;
+  context?: string;
   evaluators?: string;
   force?: boolean;
   outputFormat: string;
@@ -65,11 +65,7 @@ export const evalFlow = new Command('eval:flow')
     '--input <input>',
     'Input dataset ID or JSON file to be used for evaluation'
   )
-  .option(
-    '-a, --auth <JSON>',
-    'JSON object passed to authPolicy and stored in local state as auth',
-    ''
-  )
+  .option('-c, --context <JSON>', 'JSON object passed to context', '')
   .option(
     '-o, --output <filename>',
     'Name of the output file to write evaluation results. Defaults to json output.'
@@ -149,7 +145,7 @@ export const evalFlow = new Command('eval:flow')
           manager,
           actionRef,
           inferenceDataset,
-          auth: options.auth,
+          context: options.context,
         });
 
         const evalRun = await runEvaluation({

@@ -87,7 +87,6 @@ export const qaFlow = ai.defineFlow({
     const factDocs = await ai.retrieve({
       retriever: dummyRetriever,
       query,
-      options: { k: 2 },
     });
 
     const llmResponse = await ai.generate({
@@ -306,10 +305,10 @@ field and an optional `reference` field, like below:
 ]
 ```
 
-If your flow requires auth, you may specify it using the `--auth` argument:
+If your flow requires auth, you may specify it using the `--context` argument:
 
 ```posix-terminal
-genkit eval:flow qaFlow --input testInputs.json --auth "{\"email_verified\": true}"
+genkit eval:flow qaFlow --input testInputs.json --context '{"auth": {"email_verified": true}}'
 ```
 
 By default, the `eval:flow` and `eval:run` commands use all available metrics
