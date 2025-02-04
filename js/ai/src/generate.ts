@@ -140,13 +140,13 @@ export interface GenerateOptions<
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
   maxTurns?: number;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
-  onChunk?: StreamingCallback<GenerateResponseChunk>;
+  onChunk?: StreamingCallback<GenerateResponseChunk<z.infer<O>>>;
   /**
    * When provided, models supporting streaming will call the provided callback with chunks as generation progresses.
    *
    * @deprecated use {@link onChunk} instead.
    */
-  streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+  streamingCallback?: StreamingCallback<GenerateResponseChunk<z.infer<O>>>;
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
   /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
