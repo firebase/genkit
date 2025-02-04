@@ -55,7 +55,7 @@ func TestLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
-		func(ctx context.Context, input struct {
+		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
 		}) (float64, error) {
