@@ -9,6 +9,7 @@ To test each one out, open the Developer UI and exercise the prompts and flows. 
 ## Prerequisites
 
 Prerequisite
+
 - Google Cloud project with Vertex AI API enabled (https://console.cloud.google.com/apis/library/aiplatform.googleapis.com)
 - gcloud CLI installed (https://cloud.google.com/sdk/docs/install-sdk)
 - to use Llama 3.1 405b enable it in the Vertex AI [Model Garden](https://console.cloud.google.com/vertex-ai/publishers/meta/model-garden/llama3-405b-instruct-maas)
