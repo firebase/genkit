@@ -333,11 +333,13 @@ export async function createChromaCollection<
         return Promise.all(
           texts.map(
             (text) =>
-              ai.embed({
-                embedder,
-                content: text,
-                options: params.embedderOptions,
-              })[0].embedding // Text only has a single embedding
+              ai
+                .embed({
+                  embedder,
+                  content: text,
+                  options: params.embedderOptions,
+                })
+                .then((response) => response[0].embedding) // Text only has a single embedding
           )
         );
       },
