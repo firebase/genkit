@@ -42,8 +42,8 @@ This section explains how to perform inference-based evaluation using Genkit.
 
 ### Setup
 <ol>
-<li>Use an existing Genkit app or create a new one by following our [Getting
-started](get-started) guide.</li>
+<li>Use an existing Genkit app or create a new one by following our [Get 
+started](get-started.md) guide.</li>
 <li>Add the following code to define a simple RAG application to evaluate. For
 this guide, we use a dummy retriever that always returns the same documents.
 
@@ -52,7 +52,6 @@ import { genkit, z, Document } from "genkit";
 import {
   googleAI,
   gemini15Flash,
-  gemini15Pro,
 } from "@genkit-ai/googleai";
 
 // Initialize Genkit
@@ -164,7 +163,7 @@ to open the Datasets page.
     c. Repeat steps (a) and (b) a couple more times to add more examples. This
     guide adds the following example inputs to the dataset:
 
-    ```
+    ```none {:.devsite-disable-click-to-copy}
     "Can I give milk to my cats?"
     "From which animals did dogs evolve?"
     ```
@@ -174,8 +173,8 @@ to open the Datasets page.
 
 ### Run evaluation and view results
 
-To start evaluating the flow, click the `Evaluations` tab in the Dev UI and
-click the **Run new evaluation** button to get started.
+To start evaluating the flow, click the **Run new evaluation** button on your
+dataset page. You can also start a new evaluation from the `Evaluations` tab.
 
 1. Select the `Flow` radio button to evaluate a flow.
 
@@ -234,7 +233,7 @@ and is only enforced if a schema is specified on the target flow.
   control for advanced use cases (e.g.  providing model parameters, message
   history, tools, etc). You can find the full schema for `GenerateRequest` in
   our [API reference
-  docs](https://js.api.genkit.dev/interfaces/genkit._.GenerateRequest.html).
+  docs](https://js.api.genkit.dev/interfaces/genkit._.GenerateRequest.html){: .external}.
 
 Note: Schema validation is a helper tool for editing examples, but it is
 possible to save an example with invalid schema. These examples may fail when
@@ -245,7 +244,7 @@ the running an evaluation.
 ### Genkit evaluators
 
 Genkit includes a small number of native evaluators, inspired by
-[RAGAS](https://docs.ragas.io/en/stable/), to help you get started:
+[RAGAS](https://docs.ragas.io/en/stable/){: .external}, to help you get started:
 
 *   Faithfulness -- Measures the factual consistency of the generated answer
 against the given context
@@ -257,7 +256,7 @@ harm, or exploit
 ### Evaluator plugins
 
 Genkit supports additional evaluators through plugins, like the Vertex Rapid
-Evaluators, which you access via the [VertexAI
+Evaluators, which you can access via the [VertexAI
 Plugin](./plugins/vertex-ai#evaluators).
 
 ## Advanced use
@@ -309,7 +308,7 @@ field and an optional `reference` field, like below:
 If your flow requires auth, you may specify it using the `--auth` argument:
 
 ```posix-terminal
-genkit eval:flow qaFlow --input testInputs.json --auth "{\"email_verified\": true}"
+genkit eval:flow qaFlow --input testInputs.json --auth '{"auth":{"email_verified":true}}'
 ```
 
 By default, the `eval:flow` and `eval:run` commands use all available metrics
@@ -317,7 +316,7 @@ for evaluation. To run on a subset of the configured evaluators, use the
 `--evaluators` flag and provide a comma-separated list of evaluators by name:
 
 ```posix-terminal
-genkit eval:flow qaFlow --input testInputs.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
+genkit eval:flow qaFlow --input testInputs.json --evaluators=genkitEval/maliciousness,genkitEval/answer_relevancy
 ```
 You can view the results of your evaluation run in the Dev UI at
 `localhost:4000/evaluate`.
@@ -385,6 +384,8 @@ First, as a preparatory step, introduce an auxilary step in our `qaFlow`
 example:
 
 ```js
+import { run } from '@genkit-ai/core';
+
 export const qaFlow = ai.defineFlow({
     name: 'qaFlow',
     inputSchema: z.string(),
@@ -409,7 +410,7 @@ export const qaFlow = ai.defineFlow({
     const llmResponse = await ai.generate({
       model: gemini15Flash,
       prompt: `Answer this question with the given context ${query}`,
-      docs: factDocs,
+      docs: factDocsModified,
     });
     return llmResponse.text;
   }
@@ -483,7 +484,8 @@ Here is an example flow that uses a PDF file to generate potential user
 questions.
 
 ```ts
-import { genkit, run, z } from "genkit";
+import { genkit, z } from "genkit";
+import { run } from "@genkit-ai/core";
 import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
 import { chunk } from "llm-chunk"; // npm i llm-chunk
 import path from "path";
