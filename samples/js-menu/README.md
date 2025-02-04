@@ -23,5 +23,5 @@ This example uses Vertex AI for language models and embeddings.
 
 ```bash
 npm i
-genkit start
+npm run genkit:dev
 ```
