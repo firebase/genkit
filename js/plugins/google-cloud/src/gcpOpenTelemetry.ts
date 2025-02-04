@@ -218,6 +218,8 @@ export class GcpOpenTelemetry {
  * helpful information about how to set up metrics/telemetry in GCP.
  */
 class MetricExporterWrapper extends MetricExporter {
+  private inFlightExports = 0;
+
   constructor(
     options?: ExporterOptions,
     private errorHandler?: (error: Error) => void
@@ -229,12 +231,45 @@ class MetricExporterWrapper extends MetricExporter {
     metrics: ResourceMetrics,
     resultCallback: (result: ExportResult) => void
   ): void {
+    this.inFlightExports++;
     super.export(metrics, (result) => {
-      if (this.errorHandler && result.error) {
-        this.errorHandler(result.error);
+      try {
+        if (this.errorHandler && result.error) {
+          this.errorHandler(result.error);
+        }
+        resultCallback(result);
+      } finally {
+        this.inFlightExports--;
       }
-      resultCallback(result);
     });
+  }
+
+  async shutdown(): Promise<void> {
+    return await this.forceFlush();
+  }
+
+  async forceFlush(): Promise<void> {
+    const allExported = await this.waitForMetricsExport();
+    if (!allExported) {
+      logger.error(
+        'Timed out while waiting for metrics to export. Metrics may be incomplete.'
+      );
+    }
+  }
+
+  async waitForMetricsExport(): Promise<boolean> {
+    // Wait for 10 seconds before bailing.
+    var maxRetries = 20;
+    const retryInterval = 500;
+
+    while (maxRetries > 0) {
+      if (this.inFlightExports === 0) {
+        return true;
+      }
+      maxRetries--;
+      await new Promise((resolve) => setTimeout(resolve, retryInterval));
+    }
+    return false;
   }
 }
 
