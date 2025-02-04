@@ -235,7 +235,7 @@ export const localVideoQAFlow = ai.defineFlow(
           })[0],
       },
       {
-        onChunk: (c) => sendChunk(c.text)
+        onChunk: (c) => sendChunk(c.text),
       }
     ).then((r) => r.text);
   }
