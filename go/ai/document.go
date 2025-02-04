@@ -31,11 +31,12 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	Kind         PartKind      `json:"kind,omitempty"`
-	ContentType  string        `json:"contentType,omitempty"` // valid for kind==blob
-	Text         string        `json:"text,omitempty"`        // valid for kind∈{text,blob}
-	ToolRequest  *ToolRequest  `json:"toolreq,omitempty"`     // valid for kind==partToolRequest
-	ToolResponse *ToolResponse `json:"toolresp,omitempty"`    // valid for kind==partToolResponse
+	Kind         PartKind       `json:"kind,omitempty"`
+	ContentType  string         `json:"contentType,omitempty"` // valid for kind==blob
+	Text         string         `json:"text,omitempty"`        // valid for kind∈{text,blob}
+	ToolRequest  *ToolRequest   `json:"toolreq,omitempty"`     // valid for kind==partToolRequest
+	ToolResponse *ToolResponse  `json:"toolresp,omitempty"`    // valid for kind==partToolResponse
+	Metadata     map[string]any `json:"metadata,omitempty"`    // valid for all kinds
 }
 
 type PartKind int8

@@ -105,7 +105,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil)
+	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil)
 	// [END pr03_2]
 
 	_ = response

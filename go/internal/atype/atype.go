@@ -29,5 +29,6 @@ const (
 	Model     ActionType = "model"
 	Prompt    ActionType = "prompt"
 	Tool      ActionType = "tool"
+	Util      ActionType = "util"
 	Custom    ActionType = "custom"
 )

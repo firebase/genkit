@@ -150,7 +150,7 @@ func tools() error {
 		g,
 		"myJoke",
 		"useful when you need a joke to tell",
-		func(ctx context.Context, input *any) (string, error) {
+		func(ctx *ai.ToolContext, input *any) (string, error) {
 			return "haha Just kidding no joke! got you", nil
 		},
 	)

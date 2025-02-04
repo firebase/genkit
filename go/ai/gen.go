@@ -21,6 +21,43 @@ type dataPart struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+type FinishReason string
+
+const (
+	FinishReasonStop        FinishReason = "stop"
+	FinishReasonLength      FinishReason = "length"
+	FinishReasonBlocked     FinishReason = "blocked"
+	FinishReasonInterrupted FinishReason = "interrupted"
+	FinishReasonOther       FinishReason = "other"
+	FinishReasonUnknown     FinishReason = "unknown"
+)
+
+type GenerateActionOptions struct {
+	Config             any                          `json:"config,omitempty"`
+	Docs               []*Document                  `json:"docs,omitempty"`
+	MaxTurns           int                          `json:"maxTurns,omitempty"`
+	Messages           []*Message                   `json:"messages,omitempty"`
+	Model              string                       `json:"model,omitempty"`
+	Output             *GenerateActionOptionsOutput `json:"output,omitempty"`
+	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
+	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
+	Tools              []*ToolDefinition            `json:"tools,omitempty"`
+}
+
+type GenerateActionOptionsOutput struct {
+	ContentType string         `json:"contentType,omitempty"`
+	Format      OutputFormat   `json:"format,omitempty"`
+	JsonSchema  map[string]any `json:"jsonSchema,omitempty"`
+}
+
+type ToolChoice string
+
+const (
+	ToolChoiceAuto     ToolChoice = "auto"
+	ToolChoiceRequired ToolChoice = "required"
+	ToolChoiceNone     ToolChoice = "none"
+)
+
 type ModelRequestOutput struct {
 	Format OutputFormat   `json:"format,omitempty"`
 	Schema map[string]any `json:"schema,omitempty"`
@@ -32,6 +69,14 @@ const (
 	OutputFormatJSON  OutputFormat = "json"
 	OutputFormatText  OutputFormat = "text"
 	OutputFormatMedia OutputFormat = "media"
+)
+
+type ToolChoice string
+
+const (
+	ToolChoiceAuto     ToolChoice = "auto"
+	ToolChoiceRequired ToolChoice = "required"
+	ToolChoiceNone     ToolChoice = "none"
 )
 
 // GenerationCommonConfig holds configuration for generation.
@@ -85,12 +130,15 @@ type ModelInfo struct {
 }
 
 type ModelInfoSupports struct {
-	Context    bool         `json:"context,omitempty"`
-	Media      bool         `json:"media,omitempty"`
-	Multiturn  bool         `json:"multiturn,omitempty"`
-	Output     OutputFormat `json:"output,omitempty"`
-	SystemRole bool         `json:"systemRole,omitempty"`
-	Tools      bool         `json:"tools,omitempty"`
+	Constrained bool         `json:"constrained,omitempty"`
+	ContentType []string     `json:"contentType,omitempty"`
+	Context     bool         `json:"context,omitempty"`
+	Media       bool         `json:"media,omitempty"`
+	Multiturn   bool         `json:"multiturn,omitempty"`
+	Output      OutputFormat `json:"output,omitempty"`
+	SystemRole  bool         `json:"systemRole,omitempty"`
+	ToolChoice  bool         `json:"toolChoice,omitempty"`
+	Tools       bool         `json:"tools,omitempty"`
 }
 
 // A ModelRequest is a request to generate completions from a model.
@@ -99,7 +147,8 @@ type ModelRequest struct {
 	Context  []any      `json:"context,omitempty"`
 	Messages []*Message `json:"messages,omitempty"`
 	// Output describes the desired response format.
-	Output *ModelRequestOutput `json:"output,omitempty"`
+	Output     *ModelRequestOutput `json:"output,omitempty"`
+	ToolChoice ToolChoice          `json:"toolChoice,omitempty"`
 	// Tools lists the available tools that the model can ask the client to run.
 	Tools []*ToolDefinition `json:"tools,omitempty"`
 }
@@ -124,17 +173,9 @@ type ModelResponseChunk struct {
 	Aggregated bool    `json:"aggregated,omitempty"`
 	Content    []*Part `json:"content,omitempty"`
 	Custom     any     `json:"custom,omitempty"`
+	Index      int     `json:"index,omitempty"`
+	Role       Role    `json:"role,omitempty"`
 }
-
-type FinishReason string
-
-const (
-	FinishReasonStop    FinishReason = "stop"
-	FinishReasonLength  FinishReason = "length"
-	FinishReasonBlocked FinishReason = "blocked"
-	FinishReasonOther   FinishReason = "other"
-	FinishReasonUnknown FinishReason = "unknown"
-)
 
 // Role indicates which entity is responsible for the content of a message.
 type Role string
@@ -161,7 +202,9 @@ type ToolDefinition struct {
 	Description string `json:"description,omitempty"`
 	// Valid JSON Schema representing the input of the tool.
 	InputSchema map[string]any `json:"inputSchema,omitempty"`
-	Name        string         `json:"name,omitempty"`
+	// additional metadata for this tool definition
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Name     string         `json:"name,omitempty"`
 	// Valid JSON Schema describing the output of the tool.
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
@@ -172,8 +215,9 @@ type ToolDefinition struct {
 type ToolRequest struct {
 	// Input is a JSON object describing the input values to the tool.
 	// An example might be map[string]any{"country":"USA", "president":3}.
-	Input map[string]any `json:"input,omitempty"`
-	Name  string         `json:"name,omitempty"`
+	Input any    `json:"input,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Ref   string `json:"ref,omitempty"`
 }
 
 // A ToolResponse is a message from the client to the model containing
@@ -183,5 +227,6 @@ type ToolResponse struct {
 	Name string `json:"name,omitempty"`
 	// Output is a JSON object describing the results of running the tool.
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
-	Output map[string]any `json:"output,omitempty"`
+	Output any    `json:"output,omitempty"`
+	Ref    string `json:"ref,omitempty"`
 }
