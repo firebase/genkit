@@ -4,6 +4,8 @@
 
 """Ollama Plugin for Genkit."""
 
+from genkit.plugins.ollama.plugin_api import Ollama
+
 
 def package_name() -> str:
     """Get the package name for the Ollama plugin.
@@ -14,4 +16,7 @@ def package_name() -> str:
     return 'genkit.plugins.ollama'
 
 
-__all__ = ['package_name']
+__all__ = [
+    package_name.__name__,
+    Ollama.__name__,
+]
