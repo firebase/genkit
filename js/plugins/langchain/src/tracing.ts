@@ -62,13 +62,7 @@ export class GenkitTracer extends BaseTracer {
       ctx = trace.setSpan(context.active(), parentCtx);
     }
     const span = this.tracer.startSpan(run.name, undefined, ctx);
-    console.log('run', JSON.stringify(run, undefined, '  '));
     if (run.inputs) {
-      console.log('setting inputs', run.inputs);
-      console.log(
-        'setting inputs flattened',
-        this.maybeFlattenInput(run.inputs)
-      );
       span.setAttribute(
         'genkit:input',
         JSON.stringify(this.maybeFlattenInput(run.inputs))
