@@ -1499,58 +1499,6 @@ importers:
         specifier: ^5.6.2
         version: 5.6.3
 
-  testapps/personal-testing:
-    dependencies:
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/google-cloud':
-        specifier: workspace:*
-        version: link:../../plugins/google-cloud
-      '@genkit-ai/googleai':
-        specifier: workspace:*
-        version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      '@google/generative-ai':
-        specifier: ^0.15.0
-        version: 0.15.0
-      '@opentelemetry/sdk-trace-base':
-        specifier: ^1.25.0
-        version: 1.26.0(@opentelemetry/api@1.9.0)
-      body-parser:
-        specifier: ^1.20.3
-        version: 1.20.3
-      express:
-        specifier: ^4.21.2
-        version: 4.21.2
-      firebase-admin:
-        specifier: '>=12.2'
-        version: 12.3.1(encoding@0.1.13)
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-      genkitx-openai:
-        specifier: ^0.13.0
-        version: 0.13.0(encoding@0.1.13)(genkit@genkit)
-      partial-json:
-        specifier: ^0.1.7
-        version: 0.1.7
-    devDependencies:
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.21
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.19.2
-      typescript:
-        specifier: ^5.3.3
-        version: 5.6.3
-
   testapps/prompt-file:
     dependencies:
       '@genkit-ai/googleai':
@@ -4921,11 +4869,6 @@ packages:
     peerDependencies:
       '@genkit-ai/ai': ^0.5.0
       '@genkit-ai/core': ^0.5.0
-
-  genkitx-openai@0.13.0:
-    resolution: {integrity: sha512-69/5EWM5gMHG4W4kcO+8cfsMJ3KiTv+CIFscgQyZxO4oE0S1nDAEzH7iEg7pFlyvpZ75qO5rfti6m1o2nExLIA==}
-    peerDependencies:
-      genkit: ^0.9.0
 
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
@@ -10687,13 +10630,6 @@ snapshots:
       '@genkit-ai/core': 1.0.0-rc.15
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
-    transitivePeerDependencies:
-      - encoding
-
-  genkitx-openai@0.13.0(encoding@0.1.13)(genkit@genkit):
-    dependencies:
-      genkit: link:genkit
-      openai: 4.53.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
 
