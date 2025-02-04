@@ -57,7 +57,7 @@ func TestLive(t *testing.T) {
 		ai.NewModelRequest(
 			&ai.GenerationCommonConfig{Temperature: 1},
 			ai.NewUserTextMessage("I'm hungry, what should I eat?")),
-		nil)
+		nil, nil)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)
 	}

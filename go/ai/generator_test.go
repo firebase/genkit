@@ -43,7 +43,7 @@ var echoModel = DefineModel(r, "test", "echo", nil, func(ctx context.Context, gr
 
 // with tools
 var gablorkenTool = DefineTool(r, "gablorken", "use when need to calculate a gablorken",
-	func(ctx context.Context, input struct {
+	func(ctx *ToolContext, input struct {
 		Value float64
 		Over  float64
 	}) (float64, error) {
