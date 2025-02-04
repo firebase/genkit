@@ -35,4 +35,6 @@ export {
 } from './05/flows';
 export { s05_readMenuPrompt, s05_textMenuPrompt } from './05/prompts';
 
-console.log("All prompts and flows loaded, use the Developer UI to test them out");
+console.log(
+  'All prompts and flows loaded, use the Developer UI to test them out'
+);
