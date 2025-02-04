@@ -207,7 +207,7 @@ export const localVideoQAFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query, { sendChunk }) => {
+  async (query: string, { sendChunk }) => {
     const docs = (await ai.retrieve({
       retriever: localVideoRetriever,
       query,
@@ -235,7 +235,7 @@ export const localVideoQAFlow = ai.defineFlow(
           })[0],
       },
       {
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text)
       }
     ).then((r) => r.text);
   }
@@ -248,7 +248,7 @@ export const pineconeVideoQAFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query: any, streamingCallback: any) => {
+  async (query: string, { sendChunk }) => {
     const docs = (await ai.retrieve({
       retriever: pineconeVideoRetriever,
       query,
@@ -288,7 +288,7 @@ export const chromaVideoQAFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query: any, streamingCallback: any) => {
+  async (query: string, { sendChunk }) => {
     const docs = (await ai.retrieve({
       retriever: chromaVideoRetriever,
       query,
@@ -316,7 +316,7 @@ export const chromaVideoQAFlow = ai.defineFlow(
           })[0],
       },
       {
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       }
     ).then((r) => r.text);
   }
