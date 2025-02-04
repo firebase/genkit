@@ -16,7 +16,6 @@
 
 import { MessageData } from '@genkit-ai/ai/model';
 import { gemini15Flash } from '@genkit-ai/vertexai';
-import { run } from 'genkit';
 import { ai } from '../genkit.js';
 import { MenuItem } from '../types';
 import {
@@ -72,7 +71,7 @@ export const s03_multiTurnChatFlow = ai.defineFlow(
     // First fetch the chat history. We'll wrap this in a run block.
     // If we were going to a database for the history,
     // we might want to have that db result captured in the trace.
-    let history = await run('fetchHistory', async () =>
+    let history = await ai.run('fetchHistory', async () =>
       chatHistoryStore.read(input.sessionId)
     );
 

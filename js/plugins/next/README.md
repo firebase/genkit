@@ -25,7 +25,7 @@ import { appRoute } from '@genkit-ai/nextjs';
 export const POST = appRoute(simpleFlow);
 ```
 
-APIs can be called with the generic `genkit/client` library, or `@genkit-ai/nextjs/client`
+APIs can be called with the generic `genkit/beta/client` library, or `@genkit-ai/nextjs/client`
 
 ```ts
 import { runFlow, streamFlow } from '@genkit-ai/nextjs/client';

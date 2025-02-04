@@ -1,3 +1,6 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
 """Smoke tests for package structure."""
 
 # TODO: Replace this with proper imports once we have a proper implementation.

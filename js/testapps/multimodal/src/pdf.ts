@@ -43,7 +43,7 @@ export const multimodalPdfQAFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query: any, streamingCallback: any) => {
+  async (query: string, { sendChunk }) => {
     const docs = (await ai.retrieve({
       retriever: pdfMultimodalRetriever,
       query,
@@ -74,7 +74,7 @@ export const multimodalPdfQAFlow = ai.defineFlow(
           }),
       },
       {
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       }
     ).then((r) => r.text);
   }

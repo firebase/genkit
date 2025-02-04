@@ -13,7 +13,7 @@
     "pre-commit": {
       "actions": [
         {
-          "run": "py/.hooks/no-commits-on-branches main py"
+          "run": "py/.hooks/no-commits-on-branches main"
         },
         {
           "run": "CaptainHook::File.MaxSize",
@@ -40,13 +40,27 @@
           "run": "uvx --directory py ruff check --fix ."
         },
         {
-          "run": "uv run --directory py pytest ."
+          "run": "py/bin/run_tests"
         },
         {
           "run": "uv run --directory py mkdocs build"
         },
         {
           "run": "py/bin/build_dists"
+        },
+        {
+          "run": "go test go/..."
+        },
+        {
+          "run": "govulncheck -C go ./...",
+          "conditions": [
+            {
+              "run": "CaptainHook::FileChanged.Any",
+              "options": {
+                "files": ["go/go.mod", "go.sum", "*.go"]
+              }
+            }
+          ]
         }
       ]
     },
@@ -74,13 +88,27 @@
           "run": "uvx --directory py ruff check --fix ."
         },
         {
-          "run": "uv run --directory py pytest ."
+          "run": "py/bin/run_tests"
         },
         {
           "run": "uv run --directory py mkdocs build"
         },
         {
           "run": "py/bin/build_dists"
+        },
+        {
+          "run": "go test go/..."
+        },
+        {
+          "run": "govulncheck -C go ./...",
+          "conditions": [
+            {
+              "run": "CaptainHook::FileChanged.Any",
+              "options": {
+                "files": ["go/go.mod", "go.sum", "*.go"]
+              }
+            }
+          ]
         },
         {
           "run": "py/.hooks/commit-message-format-pre-push"

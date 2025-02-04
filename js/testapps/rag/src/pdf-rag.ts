@@ -38,7 +38,7 @@ export const pdfQA = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query, streamingCallback) => {
+  async (query, { sendChunk }) => {
     const docs = await ai.retrieve({
       retriever: pdfChatRetriever,
       query,
@@ -51,7 +51,7 @@ export const pdfQA = ai.defineFlow(
         context: docs.map((d) => d.text),
       },
       {
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       }
     ).then((r) => r.text);
   }

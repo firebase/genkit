@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+import { startFlowServer } from '@genkit-ai/express';
 import { gemini15Flash, vertexAI } from '@genkit-ai/vertexai';
 import {
   VertexAIEvaluationMetricType,
   vertexAIEvaluation,
 } from '@genkit-ai/vertexai/evaluation';
 import { llama31, vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
-import { ModelReference, PartSchema, genkit, run } from 'genkit';
+import { ModelReference, PartSchema, genkit } from 'genkit';
 import { GenerateResponseChunkSchema } from 'genkit/model';
 import { z } from 'zod';
 import { inMemoryStore } from './memory.js';
@@ -55,16 +56,16 @@ const llms: ModelReference<any>[] = [gemini15Flash, llama31];
 
 const historyStore = inMemoryStore();
 
-export const chatbotFlow = ai.defineStreamingFlow(
+export const chatbotFlow = ai.defineFlow(
   {
     name: 'chatbotFlow',
     inputSchema: AgentInput,
     outputSchema: z.string(),
     streamSchema: GenerateResponseChunkSchema,
   },
-  async (request, streamingCallback) => {
+  async (request, { sendChunk }) => {
     // Retrieve conversation history.
-    const history = await run(
+    const history = await ai.run(
       'retrieve-history',
       request.conversationId,
       async () => {
@@ -77,11 +78,11 @@ export const chatbotFlow = ai.defineStreamingFlow(
       prompt: request.prompt,
       messages: history,
       model: llms[request.llmIndex],
-      streamingCallback,
+      onChunk: (c) => sendChunk(c.text),
     });
 
     // Save history.
-    await run(
+    await ai.run(
       'save-history',
       {
         conversationId: request.conversationId,
@@ -95,6 +96,6 @@ export const chatbotFlow = ai.defineStreamingFlow(
   }
 );
 
-ai.startFlowServer({
+startFlowServer({
   flows: [chatbotFlow],
 });

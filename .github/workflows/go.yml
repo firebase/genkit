@@ -14,9 +14,7 @@
 
 name: Go tests and checks
 
-on:
-  pull_request:
-    paths: 'go/**'
+on: pull_request
 
 jobs:
   tests:

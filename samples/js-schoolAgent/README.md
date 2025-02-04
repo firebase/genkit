@@ -47,13 +47,13 @@ NOTE: The agent description is how the generalized agent knows what tools the sp
 npm install
 ```
 
-2. Set up your Google AI API key:
+1. Set up your Google AI API key:
 
 ```bash
 export GOOGLE_GENAI_API_KEY=your_api_key_here
 ```
 
-3. Start the development server:
+1. Start the development server:
 
 ```bash
 npm run genkit:dev
@@ -61,7 +61,7 @@ npm run genkit:dev
 
 In your terminal, a commandline chat interface should show up:
 
-```
+```terminal
 Telemetry API running on http://localhost:4033
 Genkit Developer UI: http://localhost:4000
 

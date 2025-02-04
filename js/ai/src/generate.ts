@@ -22,7 +22,6 @@ import {
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
-  stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
@@ -46,6 +45,7 @@ import {
   ModelArgument,
   ModelMiddleware,
   Part,
+  ToolRequestPart,
   ToolResponsePart,
   resolveModel,
 } from './model.js';
@@ -67,15 +67,25 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
 /** ResumeOptions configure how to resume generation after an interrupt. */
 export interface ResumeOptions {
   /**
-   * reply should contain a single or list of `toolResponse` parts corresponding
+   * respond should contain a single or list of `toolResponse` parts corresponding
    * to interrupt `toolRequest` parts from the most recent model message. Each
    * entry must have a matching `name` and `ref` (if supplied) for its `toolRequest`
    * counterpart.
    *
-   * Tools have a `.reply` helper method to construct a reply ToolResponse and validate
-   * the data against its schema. Call `myTool.reply(interruptToolRequest, yourReplyData)`.
+   * Tools have a `.respond` helper method to construct a reply ToolResponse and validate
+   * the data against its schema. Call `myTool.respond(interruptToolRequest, yourReplyData)`.
    */
-  reply: ToolResponsePart | ToolResponsePart[];
+  respond?: ToolResponsePart | ToolResponsePart[];
+  /**
+   * restart will run a tool again with additionally supplied metadata passed through as
+   * a `resumed` option in the second argument. This allows for scenarios like conditionally
+   * requesting confirmation of an LLM's tool request.
+   *
+   * Tools have a `.restart` helper method to construct a restart ToolRequest. Call
+   * `myTool.restart(interruptToolRequest, resumeMetadata)`.
+   *
+   */
+  restart?: ToolRequestPart | ToolRequestPart[];
   /** Additional metadata to annotate the created tool message with in the "resume" key. */
   metadata?: Record<string, any>;
 }
@@ -118,9 +128,11 @@ export interface GenerateOptions<
    *
    * const resumedResponse = await ai.generate({
    *   messages: response.messages,
-   *   resume: myInterrupt.reply(interrupt, {note: "this is the reply data"}),
+   *   resume: myInterrupt.respond(interrupt, {note: "this is the reply data"}),
    * });
    * ```
+   *
+   * @beta
    */
   resume?: ResumeOptions;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
@@ -141,53 +153,6 @@ export interface GenerateOptions<
   context?: ActionContext;
 }
 
-/** Amends message history to handle `resume` arguments. Returns the amended history. */
-async function applyResumeOption(
-  options: GenerateOptions,
-  messages: MessageData[]
-): Promise<MessageData[]> {
-  if (!options.resume) return messages;
-  if (
-    messages.at(-1)?.role !== 'model' ||
-    !messages
-      .at(-1)
-      ?.content.find((p) => p.toolRequest && p.metadata?.interrupt)
-  ) {
-    throw new GenkitError({
-      status: 'FAILED_PRECONDITION',
-      message: `Cannot 'resume' generation unless the previous message is a model message with at least one interrupt.`,
-    });
-  }
-  const lastModelMessage = messages.at(-1)!;
-  const toolRequests = lastModelMessage.content.filter((p) => !!p.toolRequest);
-
-  const pendingResponses: ToolResponsePart[] = toolRequests
-    .filter((t) => !!t.metadata?.pendingOutput)
-    .map((t) =>
-      stripUndefinedProps({
-        toolResponse: {
-          name: t.toolRequest!.name,
-          ref: t.toolRequest!.ref,
-          output: t.metadata!.pendingOutput,
-        },
-        metadata: { source: 'pending' },
-      })
-    ) as ToolResponsePart[];
-
-  const reply = Array.isArray(options.resume.reply)
-    ? options.resume.reply
-    : [options.resume.reply];
-
-  const message: MessageData = {
-    role: 'tool',
-    content: [...pendingResponses, ...reply],
-    metadata: {
-      resume: options.resume.metadata || true,
-    },
-  };
-  return [...messages, message];
-}
-
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
@@ -202,8 +167,6 @@ export async function toGenerateRequest(
   if (options.messages) {
     messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
-  // resuming from interrupts occurs after message history but before user prompt
-  messages = await applyResumeOption(options, messages);
   if (options.prompt) {
     messages.push({
       role: 'user',
@@ -214,6 +177,19 @@ export async function toGenerateRequest(
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: 'at least one message is required in generate request',
+    });
+  }
+  if (
+    options.resume &&
+    !(
+      messages.at(-1)?.role === 'model' &&
+      messages.at(-1)?.content.find((p) => !!p.toolRequest)
+    )
+  ) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Last message must be a 'model' role with at least one tool request to 'resume' generation.`,
+      detail: messages.at(-1),
     });
   }
   let tools: Action<any, any>[] | undefined;
@@ -358,7 +334,10 @@ export async function generate<
   });
 
   // If is schema is set but format is not explicitly set, default to `json` format.
-  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
+  if (
+    (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) &&
+    !resolvedOptions.output?.format
+  ) {
     resolvedOptions.output.format = 'json';
   }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
@@ -382,6 +361,12 @@ export async function generate<
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
       jsonSchema: resolvedSchema,
+    },
+    // coerce reply and restart into arrays for the action schema
+    resume: resolvedOptions.resume && {
+      respond: [resolvedOptions.resume.respond || []].flat(),
+      restart: [resolvedOptions.resume.restart || []].flat(),
+      metadata: resolvedOptions.resume.metadata,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
     maxTurns: resolvedOptions.maxTurns,

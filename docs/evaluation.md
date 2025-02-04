@@ -234,8 +234,7 @@ and is only enforced if a schema is specified on the target flow.
   control for advanced use cases (e.g.  providing model parameters, message
   history, tools, etc). You can find the full schema for `GenerateRequest` in
   our [API reference
-  docs](https://genkit-js-api.web.app/interfaces/genkit._.GenerateRequest.html).
-<!-- TODO(thedmail): Update link to API reference once formally published -->
+  docs](https://js.api.genkit.dev/interfaces/genkit._.GenerateRequest.html).
 
 Note: Schema validation is a helper tool for editing examples, but it is
 possible to save an example with invalid schema. These examples may fail when

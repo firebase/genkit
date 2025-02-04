@@ -31,12 +31,12 @@ export function defineEchoModel(ai: Genkit): ModelAction {
     {
       name: 'echoModel',
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       (model as any).__test__lastRequest = request;
-      (model as any).__test__lastStreamingCallback = streamingCallback;
-      if (streamingCallback) {
+      (model as any).__test__lastStreamingCallback = sendChunk;
+      if (sendChunk) {
         await runAsync(() => {
-          streamingCallback({
+          sendChunk({
             content: [
               {
                 text: '3',
@@ -45,7 +45,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
           });
         });
         await runAsync(() => {
-          streamingCallback({
+          sendChunk({
             content: [
               {
                 text: '2',
@@ -54,7 +54,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
           });
         });
         await runAsync(() => {
-          streamingCallback({
+          sendChunk({
             content: [
               {
                 text: '1',
@@ -148,7 +148,7 @@ export function defineStaticResponseModel(
 export type ProgrammableModel = ModelAction & {
   handleResponse: (
     req: GenerateRequest,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+    sendChunk?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>;
 
   lastRequest?: GenerateRequest;
@@ -162,9 +162,9 @@ export function defineProgrammableModel(ai: Genkit): ProgrammableModel {
         tools: true,
       },
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       pm.lastRequest = JSON.parse(JSON.stringify(request));
-      return pm.handleResponse(request, streamingCallback);
+      return pm.handleResponse(request, sendChunk);
     }
   ) as ProgrammableModel;
 

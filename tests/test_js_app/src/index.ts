@@ -69,13 +69,11 @@ export const streamy = ai.defineFlow(
     outputSchema: z.string(),
     streamSchema: z.object({ count: z.number() }),
   },
-  async (count, streamingCallback) => {
+  async (count, { sendChunk }) => {
     let i = 0;
-    if (streamingCallback) {
-      for (; i < count; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
-        streamingCallback({ count: i });
-      }
+    for (; i < count; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      sendChunk({ count: i });
     }
     return `done: ${count}, streamed: ${i} times`;
   }

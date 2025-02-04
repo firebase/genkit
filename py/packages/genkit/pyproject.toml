@@ -19,6 +19,7 @@ dependencies = [
   "opentelemetry-sdk>=1.29.0",
   "pydantic>=2.10.5",
   "requests>=2.32.3",
+  "dotprompt",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }

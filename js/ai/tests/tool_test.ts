@@ -22,32 +22,34 @@ import { defineInterrupt, defineTool } from '../src/tool.js';
 
 describe('defineInterrupt', () => {
   let registry = new Registry();
+  registry.apiStability = 'beta';
 
   afterEach(() => {
     registry = new Registry();
+    registry.apiStability = 'beta';
   });
 
   function expectInterrupt(fn: () => any, metadata?: Record<string, any>) {
-    assert.rejects(fn, { name: 'ToolInterruptError', metadata });
+    return assert.rejects(fn, { name: 'ToolInterruptError', metadata });
   }
 
-  it('should throw a simple interrupt with no metadata', () => {
+  it('should throw a simple interrupt with no metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
     });
-    expectInterrupt(async () => {
+    await expectInterrupt(async () => {
       await simple({});
     });
   });
 
-  it('should throw a simple interrupt with fixed metadata', () => {
+  it('should throw a simple interrupt with fixed metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
       requestMetadata: { foo: 'bar' },
     });
-    expectInterrupt(
+    await expectInterrupt(
       async () => {
         await simple({});
       },
@@ -55,14 +57,14 @@ describe('defineInterrupt', () => {
     );
   });
 
-  it('should throw a simple interrupt with function-returned metadata', () => {
+  it('should throw a simple interrupt with function-returned metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
       inputSchema: z.string(),
       requestMetadata: (foo) => ({ foo }),
     });
-    expectInterrupt(
+    await expectInterrupt(
       async () => {
         await simple('bar');
       },
@@ -70,14 +72,14 @@ describe('defineInterrupt', () => {
     );
   });
 
-  it('should throw a simple interrupt with async function-returned metadata', () => {
+  it('should throw a simple interrupt with async function-returned metadata', async () => {
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple interrupt',
       inputSchema: z.string(),
       requestMetadata: async (foo) => ({ foo }),
     });
-    expectInterrupt(
+    await expectInterrupt(
       async () => {
         await simple('bar');
       },
@@ -86,17 +88,17 @@ describe('defineInterrupt', () => {
   });
 
   it('should register the reply schema / json schema as the output schema of the tool', () => {
-    const ReplySchema = z.object({ foo: z.string() });
+    const ResponseSchema = z.object({ foo: z.string() });
     const simple = defineInterrupt(registry, {
       name: 'simple',
       description: 'simple',
-      replySchema: ReplySchema,
+      outputSchema: ResponseSchema,
     });
-    assert.equal(simple.__action.outputSchema, ReplySchema);
+    assert.equal(simple.__action.outputSchema, ResponseSchema);
     const simple2 = defineInterrupt(registry, {
       name: 'simple2',
       description: 'simple2',
-      replyJsonSchema: { type: 'string' },
+      outputJsonSchema: { type: 'string' },
     });
     assert.deepStrictEqual(simple2.__action.outputJsonSchema, {
       type: 'string',
@@ -106,11 +108,13 @@ describe('defineInterrupt', () => {
 
 describe('defineTool', () => {
   let registry = new Registry();
+  registry.apiStability = 'beta';
   afterEach(() => {
     registry = new Registry();
+    registry.apiStability = 'beta';
   });
 
-  describe('.reply()', () => {
+  describe('.respond()', () => {
     it('constructs a ToolResponsePart', () => {
       const t = defineTool(
         registry,
@@ -118,14 +122,14 @@ describe('defineTool', () => {
         async () => {}
       );
       assert.deepStrictEqual(
-        t.reply({ toolRequest: { name: 'test', input: {} } }, 'output'),
+        t.respond({ toolRequest: { name: 'test', input: {} } }, 'output'),
         {
           toolResponse: {
             name: 'test',
             output: 'output',
           },
           metadata: {
-            reply: true,
+            interruptResponse: true,
           },
         }
       );
@@ -138,7 +142,7 @@ describe('defineTool', () => {
         async () => {}
       );
       assert.deepStrictEqual(
-        t.reply({ toolRequest: { name: 'test', input: {} } }, 'output', {
+        t.respond({ toolRequest: { name: 'test', input: {} } }, 'output', {
           metadata: { extra: 'data' },
         }),
         {
@@ -147,7 +151,7 @@ describe('defineTool', () => {
             output: 'output',
           },
           metadata: {
-            reply: { extra: 'data' },
+            interruptResponse: { extra: 'data' },
           },
         }
       );
@@ -161,7 +165,7 @@ describe('defineTool', () => {
       );
       assert.throws(
         () => {
-          t.reply(
+          t.respond(
             { toolRequest: { name: 'test', input: {} } },
             'not_a_number' as any
           );
@@ -170,14 +174,91 @@ describe('defineTool', () => {
       );
 
       assert.deepStrictEqual(
-        t.reply({ toolRequest: { name: 'test', input: {} } }, 55),
+        t.respond({ toolRequest: { name: 'test', input: {} } }, 55),
         {
           toolResponse: {
             name: 'test',
             output: 55,
           },
           metadata: {
-            reply: true,
+            interruptResponse: true,
+          },
+        }
+      );
+    });
+  });
+
+  describe('.restart()', () => {
+    it('constructs a ToolRequestPart', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test' },
+        async () => {}
+      );
+      assert.deepStrictEqual(
+        t.restart({ toolRequest: { name: 'test', input: {} } }),
+        {
+          toolRequest: {
+            name: 'test',
+            input: {},
+          },
+          metadata: {
+            resumed: true,
+          },
+        }
+      );
+    });
+
+    it('includes metadata', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test' },
+        async () => {}
+      );
+      assert.deepStrictEqual(
+        t.restart(
+          { toolRequest: { name: 'test', input: {} } },
+          { extra: 'data' }
+        ),
+        {
+          toolRequest: {
+            name: 'test',
+            input: {},
+          },
+          metadata: {
+            resumed: { extra: 'data' },
+          },
+        }
+      );
+    });
+
+    it('validates schema', () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', inputSchema: z.number() },
+        async (input, { interrupt }) => interrupt()
+      );
+      assert.throws(
+        () => {
+          t.restart({ toolRequest: { name: 'test', input: {} } }, undefined, {
+            replaceInput: 'not_a_number' as any,
+          });
+        },
+        { name: 'GenkitError', status: 'INVALID_ARGUMENT' }
+      );
+
+      assert.deepStrictEqual(
+        t.restart({ toolRequest: { name: 'test', input: {} } }, undefined, {
+          replaceInput: 55,
+        }),
+        {
+          toolRequest: {
+            name: 'test',
+            input: 55,
+          },
+          metadata: {
+            resumed: true,
+            replacedInput: {},
           },
         }
       );

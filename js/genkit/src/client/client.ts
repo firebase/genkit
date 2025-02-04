@@ -24,7 +24,7 @@ const __flowStreamDelimiter = '\n\n';
  * For example:
  *
  * ```js
- * import { streamFlow } from 'genkit/client';
+ * import { streamFlow } from 'genkit/beta/client';
  *
  * const response = streamFlow({
  *   url: 'https://my-flow-deployed-url',
@@ -53,7 +53,7 @@ export function streamFlow<O = any, S = any>({
   const operationPromise = __flowRunEnvelope({
     url,
     input,
-    streamingCallback: (c) => channel.send(c),
+    sendChunk: (c) => channel.send(c),
     headers,
   });
   operationPromise.then(
@@ -70,12 +70,12 @@ export function streamFlow<O = any, S = any>({
 async function __flowRunEnvelope({
   url,
   input,
-  streamingCallback,
+  sendChunk,
   headers,
 }: {
   url: string;
   input: any;
-  streamingCallback: (chunk: any) => void;
+  sendChunk: (chunk: any) => void;
   headers?: Record<string, string>;
 }) {
   const response = await fetch(url, {
@@ -115,7 +115,7 @@ async function __flowRunEnvelope({
           .substring('data: '.length)
       );
       if (chunk.hasOwnProperty('message')) {
-        streamingCallback(chunk.message);
+        sendChunk(chunk.message);
       } else if (chunk.hasOwnProperty('result')) {
         return chunk.result;
       } else if (chunk.hasOwnProperty('error')) {
