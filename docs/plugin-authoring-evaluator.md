@@ -61,23 +61,22 @@ function getDeliciousnessPrompt(ai: Genkit) {
       output: {
         schema: DeliciousnessDetectionResponseSchema,
       }
-    },
-    `You are a food critic. Assess whether the provided output sounds delicious, giving only "yes" (delicious), "no" (not delicious), or "maybe" (undecided) as the verdict.
+      prompt: `You are a food critic. Assess whether the provided output sounds delicious, giving only "yes" (delicious), "no" (not delicious), or "maybe" (undecided) as the verdict.
 
-    Examples:
-    Output: Chicken parm sandwich
-    Response: { "reason": "A classic and beloved dish.", "verdict": "yes" }
+      Examples:
+      Output: Chicken parm sandwich
+      Response: { "reason": "A classic and beloved dish.", "verdict": "yes" }
 
-    Output: Boston Logan Airport tarmac
-    Response: { "reason": "Not edible.", "verdict": "no" }
+      Output: Boston Logan Airport tarmac
+      Response: { "reason": "Not edible.", "verdict": "no" }
 
-    Output: A juicy piece of gossip
-    Response: { "reason": "Metaphorically 'tasty' but not food.", "verdict": "maybe" }
+      Output: A juicy piece of gossip
+      Response: { "reason": "Metaphorically 'tasty' but not food.", "verdict": "maybe" }
 
-    New Output: {% verbatim %}{{ responseToTest }} {% endverbatim %}
-    Response:
-    `
-  );
+      New Output: {% verbatim %}{{ responseToTest }} {% endverbatim %}
+      Response:
+      `
+  });
 }
 ```
 
@@ -91,7 +90,7 @@ responsibility of the evaluator to validate that all fields required for
 evaluation are present.
 
 ```ts
-import { ModelArgument, z } from 'genkit';
+import { ModelArgument } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 
 /**
@@ -100,6 +99,7 @@ import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 export async function deliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
@@ -141,8 +141,7 @@ export async function deliciousnessScore<
 The final step is to write a function that defines the `EvaluatorAction`.
 
 ```ts
-import { Genkit, z } from 'genkit';
-import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
+import { EvaluatorAction } from 'genkit/evaluator';
 
 /**
  * Create the Deliciousness evaluator action.
@@ -162,7 +161,7 @@ export function createDeliciousnessEvaluator<
       isBilled: true,
     },
     async (datapoint: BaseEvalDataPoint) => {
-      const score = await deliciousnessScore(judge, datapoint, judgeConfig);
+      const score = await deliciousnessScore(ai, judge, datapoint, judgeConfig);
       return {
         testCaseId: datapoint.testCaseId,
         evaluation: score,
@@ -245,7 +244,6 @@ As with the LLM-based evaluator, define the scoring function. In this case,
 the scoring function does not need a judge LLM.
 
 ```ts
-import { EvalResponses } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 
 const US_PHONE_REGEX =
