@@ -383,8 +383,6 @@ First, as a preparatory step, introduce an auxilary step in our `qaFlow`
 example:
 
 ```js
-import { run } from '@genkit-ai/core';
-
 export const qaFlow = ai.defineFlow({
     name: 'qaFlow',
     inputSchema: z.string(),
@@ -394,9 +392,8 @@ export const qaFlow = ai.defineFlow({
     const factDocs = await ai.retrieve({
       retriever: dummyRetriever,
       query,
-      options: { k: 2 },
     });
-    const factDocsModified = await run('factModified', async () => {
+    const factDocsModified = await ai.run('factModified', async () => {
         // Let us use only facts that are considered silly. This is a 
         // hypothetical step for demo purposes, you may perform any 
         // arbitrary task inside a step and reference it in custom 
@@ -484,7 +481,6 @@ questions.
 
 ```ts
 import { genkit, z } from "genkit";
-import { run } from "@genkit-ai/core";
 import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
 import { chunk } from "llm-chunk"; // npm i llm-chunk
 import path from "path";
@@ -517,9 +513,9 @@ export const synthesizeQuestions = ai.defineFlow(
   async (filePath) => {
     filePath = path.resolve(filePath);
     // `extractText` loads the PDF and extracts its contents as text.
-    const pdfTxt = await run("extract-text", () => extractText(filePath));
+    const pdfTxt = await ai.run("extract-text", () => extractText(filePath));
 
-    const chunks = await run("chunk-it", async () =>
+    const chunks = await ai.run("chunk-it", async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
