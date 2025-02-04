@@ -16,25 +16,40 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
+	"os"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
 func main() {
+	projectID := os.Getenv("GCLOUD_PROJECT")
+	if projectID == "" {
+		fmt.Println("GCLOUD_PROJECT environment variable not set")
+		return
+	}
+	location := os.Getenv("GCLOUD_LOCATION")
+	if location == "" {
+		fmt.Println("GCLOUD_LOCATION environment variable not set")
+		return
+	}
+	var r, _ = registry.New()
 	ctx := context.Background()
-	if err := vertexai.Init(ctx, nil); err != nil {
-		log.Fatal(err)
+	g, err := genkit.New(&genkit.Options{
+		DefaultModel: "vertexai/gemini-1.5-flash",
+	})
+	if err != nil {
+		fmt.Println(err)
 	}
-	m := vertexai.Model("gemini-1.5-flash-002")
-	if m == nil {
-		log.Fatal(errors.New("vertexai init failed"))
+	err = vertexai.Init(ctx, g, &vertexai.Config{ProjectID: projectID, Location: location})
+	if err != nil {
+		fmt.Println(err)
 	}
-	resp, err := ai.Generate(ctx, m,
+	resp, err := ai.Generate(ctx, r,
 		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1, TTL: time.Hour}),
 		ai.WithTextPrompt("Tell me a joke about golang developers"))
 
