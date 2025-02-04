@@ -17,7 +17,6 @@ package vertexai
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -26,21 +25,6 @@ import (
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 )
-
-// We’ll define a mock/fake that implements genai.Client for testing handleCacheIfNeeded.
-type fakeGenaiClient struct {
-	// a function pointer we can set to simulate behavior
-	createCachedContentFunc func(ctx context.Context, content *genai.CachedContent) (*genai.CachedContent, error)
-}
-
-func (f *fakeGenaiClient) CreateCachedContent(ctx context.Context, content *genai.CachedContent) (*genai.CachedContent, error) {
-	if f.createCachedContentFunc != nil {
-		return f.createCachedContentFunc(ctx, content)
-	}
-	return nil, errors.New("not implemented")
-}
-
-// ===== Tests for getContentForCache =====
 
 func TestGetContentForCache_NoCacheMetadata(t *testing.T) {
 	req := &ai.ModelRequest{
@@ -120,8 +104,6 @@ func TestGetContentForCache_Valid(t *testing.T) {
 	}
 }
 
-// ===== Tests for generateCacheKey =====
-
 func TestGenerateCacheKey(t *testing.T) {
 	content := &genai.CachedContent{
 		Model: "gemini-1.5-flash",
@@ -156,8 +138,6 @@ func TestGenerateCacheKey(t *testing.T) {
 	}
 }
 
-// ===== Tests for calculateTTL =====
-
 func TestCalculateTTL(t *testing.T) {
 	// if <= 0, we return DEFAULT_TTL
 	ttl := calculateTTL(0)
@@ -175,8 +155,6 @@ func TestCalculateTTL(t *testing.T) {
 		t.Errorf("expected 5s, got %s", ttl)
 	}
 }
-
-// ===== Tests for getKeysFrom =====
 
 func TestGetKeysFrom(t *testing.T) {
 	m := map[string]ai.ModelCapabilities{
@@ -202,8 +180,6 @@ func TestGetKeysFrom(t *testing.T) {
 	}
 }
 
-// ===== Tests for contains =====
-
 func TestContains(t *testing.T) {
 	slice := []string{"foo", "bar", "baz"}
 	if !contains(slice, "foo") {
@@ -213,8 +189,6 @@ func TestContains(t *testing.T) {
 		t.Errorf("expected slice NOT to contain 'notfound'")
 	}
 }
-
-// ===== Tests for validateContextCacheRequest =====
 
 func TestValidateContextCacheRequest_EmptyModelVersion(t *testing.T) {
 	req := &ai.ModelRequest{}
@@ -259,8 +233,6 @@ func TestValidateContextCacheRequest_Valid(t *testing.T) {
 	}
 }
 
-// ===== Tests for extractCacheConfig =====
-
 func TestExtractCacheConfig_NoMetadata(t *testing.T) {
 	req := &ai.ModelRequest{
 		Messages: []*ai.Message{
@@ -299,8 +271,8 @@ func TestExtractCacheConfig_BooleanTrue(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected non-nil config")
 	}
-	if config.TTLSeconds != 0 {
-		t.Errorf("expected TTLSeconds = 0, got %v", config.TTLSeconds)
+	if config.TTL != 0 {
+		t.Errorf("expected TTLSeconds = 0, got %v", config.TTL)
 	}
 }
 
@@ -324,8 +296,8 @@ func TestExtractCacheConfig_BooleanFalse(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected non-nil config")
 	}
-	if config.TTLSeconds != 0 {
-		t.Errorf("expected TTLSeconds=0, got %v", config.TTLSeconds)
+	if config.TTL != 0 {
+		t.Errorf("expected TTLSeconds=0, got %v", config.TTL)
 	}
 }
 
@@ -355,8 +327,8 @@ func TestExtractCacheConfig_MapTTL(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected non-nil config")
 	}
-	if config.TTLSeconds != 123 {
-		t.Errorf("expected TTLSeconds=123, got %v", config.TTLSeconds)
+	if config.TTL != 123 {
+		t.Errorf("expected TTLSeconds=123, got %v", config.TTL)
 	}
 }
 
@@ -388,8 +360,6 @@ func TestExtractCacheConfig_InvalidCacheType(t *testing.T) {
 		t.Errorf("expected config to be nil, got %#v", config)
 	}
 }
-
-// ===== Tests for handleCacheIfNeeded =====
 
 func TestHandleCacheIfNeeded_NoCacheConfig(t *testing.T) {
 	req := &ai.ModelRequest{}

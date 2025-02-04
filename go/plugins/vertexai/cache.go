@@ -33,9 +33,9 @@ const DEFAULT_TTL = 300
 // CacheConfigDetails holds configuration details for caching.
 // Adjust fields as needed for your use case.
 type CacheConfigDetails struct {
-	// TTLSeconds is how long to keep the cached content.
+	// TTL in seconds is how long to keep the cached content.
 	// If zero, defaults to 60 minutes.
-	TTLSeconds time.Duration
+	TTL time.Duration
 }
 
 var (
@@ -115,7 +115,7 @@ func getContentForCache(
 			Parts: []genai.Part{genai.Text(systemInstruction)},
 		},
 		Contents:   userParts,
-		Expiration: genai.ExpireTimeOrTTL{TTL: calculateTTL(cacheConfig.TTLSeconds)},
+		Expiration: genai.ExpireTimeOrTTL{TTL: calculateTTL(cacheConfig.TTL)},
 	}
 
 	return content, nil
@@ -182,10 +182,10 @@ func contains(slice []string, target string) bool {
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
 	models := getKeysFrom(knownCaps)
 	if modelVersion == "" || !contains(models, modelVersion) {
-		return fmt.Errorf(INVALID_ARGUMENT_MESSAGES.modelVersion)
+		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.modelVersion)
 	}
 	if len(request.Tools) > 0 {
-		return fmt.Errorf(INVALID_ARGUMENT_MESSAGES.tools)
+		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.tools)
 	}
 
 	// If we reach here, request is valid for context caching
@@ -210,22 +210,22 @@ func extractCacheConfig(request *ai.ModelRequest) (int, *CacheConfigDetails, err
 					// If it's just a boolean, true = default TTL, false = no cache
 					if val {
 						cacheConfig = &CacheConfigDetails{
-							TTLSeconds: 0, // use default if 0
+							TTL: 0, // use default if 0
 						}
 					} else {
 						// false means no caching
 						cacheConfig = &CacheConfigDetails{
-							TTLSeconds: 0,
+							TTL: 0,
 						}
 					}
 
 				case map[string]interface{}:
-					ttlSeconds := time.Duration(0)
+					ttl := time.Duration(0)
 					if ttlVal, ok := val["ttlSeconds"].(float64); ok {
-						ttlSeconds = time.Duration(ttlVal)
+						ttl = time.Duration(ttlVal)
 					}
 					cacheConfig = &CacheConfigDetails{
-						TTLSeconds: ttlSeconds,
+						TTL: ttl,
 					}
 
 				default:

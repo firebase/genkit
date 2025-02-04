@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package vertexai
 
 import (
@@ -237,7 +236,7 @@ func generate(
 	var cacheConfig *CacheConfigDetails
 	if req.TTL != 0 {
 		cacheConfig = &CacheConfigDetails{
-			TTLSeconds: req.TTL,
+			TTL: req.TTL,
 		}
 	}
 	cache, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
