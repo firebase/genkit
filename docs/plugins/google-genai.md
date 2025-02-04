@@ -67,7 +67,7 @@ const ai = genkit({
   plugins: [googleAI()],
 });
 
-const embedding = await ai.embed({
+const embeddings = await ai.embed({
   embedder: textEmbedding004,
   content: input,
 });
@@ -285,6 +285,6 @@ const analyzeVideoResponse = await ai.generate({
 
 Only specific models, such as `gemini15Flash` and `gemini15Pro`, support context caching. If an unsupported model is used, an error will be raised, indicating that caching cannot be applied.
 
-### Further Reading 
+### Further Reading
 
 See more information regarding context caching on Google AI in their [documentation](https://ai.google.dev/gemini-api/docs/caching?lang=node).

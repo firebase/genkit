@@ -21,18 +21,43 @@ import {
 import fileTypeChecker from 'file-type-checker';
 import fs from 'fs';
 import { Document, z } from 'genkit';
+import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
+import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
 import path from 'path';
+
 import { ai } from './genkit.js';
 import { augmentedVideoPrompt } from './prompt.js';
 
-// Simple aliases for readability
-export const videoRetriever = devLocalRetrieverRef('multiModalIndex');
-export const videoIndexer = devLocalIndexerRef('multiModalIndex');
+export const localVideoRetriever = devLocalRetrieverRef('localMultiModalIndex');
+export const localVideoIndexer = devLocalIndexerRef('localMultiModalIndex');
 
-// Define a video indexer flow
-export const indexVideo = ai.defineFlow(
+// Before using this, set up a pinecone database with
+// dimension: 1408 and metric: cosine.
+// Also set the PINECONE_API_KEY environment variable with your key.
+export const pineconeVideoRetriever = pineconeRetrieverRef({
+  indexId: 'pinecone-multimodal-index',
+  displayName: 'Pinecone video retriever',
+});
+
+export const pineconeVideoIndexer = pineconeIndexerRef({
+  indexId: 'pinecone-multimodal-index',
+  displayName: 'Pinecone video indexer',
+});
+
+export const chromaVideoRetriever = chromaRetrieverRef({
+  collectionName: 'multimodal_collection',
+  displayName: 'Chroma Video retriever',
+});
+
+export const chromaVideoIndexer = chromaIndexerRef({
+  collectionName: 'multimodal_collection',
+  displayName: 'Chroma video indexer',
+});
+
+// Define a local video indexer flow
+export const localIndexVideo = ai.defineFlow(
   {
-    name: 'indexVideo',
+    name: 'localIndexVideo',
     inputSchema: z
       .string()
       .describe(
@@ -45,7 +70,51 @@ export const indexVideo = ai.defineFlow(
     );
 
     await ai.index({
-      indexer: videoIndexer,
+      indexer: localVideoIndexer,
+      documents,
+    });
+  }
+);
+
+// Define a pinecone video indexer flow
+export const pineconeIndexVideo = ai.defineFlow(
+  {
+    name: 'pineconeIndexVideo',
+    inputSchema: z
+      .string()
+      .describe(
+        `Video URL. e.g. 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'`
+      ),
+  },
+  async (videoUrl: string) => {
+    const documents = await ai.run('extract-video', () =>
+      extractVideo(videoUrl)
+    );
+
+    await ai.index({
+      indexer: pineconeVideoIndexer,
+      documents,
+    });
+  }
+);
+
+// Define a chroma video indexer flow
+export const chromaIndexVideo = ai.defineFlow(
+  {
+    name: 'chromaIndexVideo',
+    inputSchema: z
+      .string()
+      .describe(
+        `Video URL. e.g. 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'`
+      ),
+  },
+  async (videoUrl: string) => {
+    const documents = await ai.run('extract-video', () =>
+      extractVideo(videoUrl)
+    );
+
+    await ai.index({
+      indexer: chromaVideoIndexer,
       documents,
     });
   }
@@ -132,15 +201,96 @@ async function extractVideo(filePath: string): Promise<Document[]> {
 }
 
 // Define a video QA flow
-export const VideoQAFlow = ai.defineFlow(
+export const localVideoQAFlow = ai.defineFlow(
   {
-    name: 'videoQuestions',
+    name: 'localVideoQuestions',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query, { sendChunk }) => {
+  async (query: string, { sendChunk }) => {
     const docs = (await ai.retrieve({
-      retriever: videoRetriever,
+      retriever: localVideoRetriever,
+      query,
+      options: { k: 1 }, // we are choosing a single segment of video for context
+    })) as Document[];
+
+    return augmentedVideoPrompt(
+      {
+        question: query,
+        media: docs
+          .filter(
+            (d) => d.media[0]?.url?.length && d.media[0]?.contentType?.length
+          )
+          .map((d) => {
+            console.log(
+              `Retriever returned video: ${d.media[0].url} from ${d.metadata?.embedMetadata?.startOffsetSec}s to ${d.metadata?.embedMetadata?.endOffsetSec}s`
+            );
+            return {
+              gcsUrl: d.media[0]?.url,
+              contentType: d.media[0]?.contentType || '',
+              startOffsetSec: d.metadata?.embedMetadata
+                ?.startOffsetSec as number,
+              endOffsetSec: d.metadata?.embedMetadata?.endOffsetSec as number,
+            };
+          })[0],
+      },
+      {
+        onChunk: (c) => sendChunk(c.text),
+      }
+    ).then((r) => r.text);
+  }
+);
+
+// Define a video QA flow
+export const pineconeVideoQAFlow = ai.defineFlow(
+  {
+    name: 'pineconeVideoQuestions',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query: string, { sendChunk }) => {
+    const docs = (await ai.retrieve({
+      retriever: pineconeVideoRetriever,
+      query,
+      options: { k: 1 }, // we are choosing a single segment of video for context
+    })) as Document[];
+
+    return augmentedVideoPrompt(
+      {
+        question: query,
+        media: docs
+          .filter(
+            (d) => d.media[0]?.url?.length && d.media[0]?.contentType?.length
+          )
+          .map((d) => {
+            console.log(
+              `Retriever returned video: ${d.media[0].url} from ${d.metadata?.embedMetadata?.startOffsetSec}s to ${d.metadata?.embedMetadata?.endOffsetSec}s`
+            );
+            return {
+              gcsUrl: d.media[0]?.url,
+              contentType: d.media[0]?.contentType || '',
+              startOffsetSec: d.metadata?.embedMetadata
+                ?.startOffsetSec as number,
+              endOffsetSec: d.metadata?.embedMetadata?.endOffsetSec as number,
+            };
+          })[0],
+      },
+      {
+        onChunk: (c) => sendChunk(c.text),
+      }
+    ).then((r) => r.text);
+  }
+);
+
+export const chromaVideoQAFlow = ai.defineFlow(
+  {
+    name: 'chromaVideoQuestions',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query: string, { sendChunk }) => {
+    const docs = (await ai.retrieve({
+      retriever: chromaVideoRetriever,
       query,
       options: { k: 1 }, // we are choosing a single segment of video for context
     })) as Document[];

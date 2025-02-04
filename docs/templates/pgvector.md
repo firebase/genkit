@@ -27,10 +27,10 @@ const sqlRetriever = ai.defineRetriever(
     configSchema: QueryOptions,
   },
   async (input, options) => {
-    const embedding = await ai.embed({
+    const embedding = (await ai.embed({
       embedder: textEmbedding004,
       content: input,
-    });
+    }))[0].embedding;
     const results = await sql`
       SELECT episode_id, season_number, chunk as content
         FROM embeddings

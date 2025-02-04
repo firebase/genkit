@@ -46,10 +46,12 @@ describe('defineOllamaEmbedder - Live Tests', () => {
       dimensions: 768,
       options,
     });
-    const result = await ai.embed({
-      embedder,
-      content: 'Hello, world!',
-    });
+    const result = (
+      await ai.embed({
+        embedder,
+        content: 'Hello, world!',
+      })
+    )[0].embedding;
     assert.strictEqual(result.length, 768);
   });
 });

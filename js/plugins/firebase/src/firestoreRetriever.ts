@@ -135,8 +135,7 @@ export function defineFirestoreRetriever(
         query = query.where(field, '==', options.where![field]);
       }
       // Single embedding for text input
-      const embeddings = await ai.embed({ embedder, content });
-      const embedding = embeddings[0].embedding;
+      const embedding = (await ai.embed({ embedder, content }))[0].embedding;
       const result = await query
         .findNearest(vectorField, embedding, {
           limit: options.limit || 10,
