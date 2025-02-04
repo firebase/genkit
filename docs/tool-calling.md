@@ -147,7 +147,7 @@ Include defined tools in your prompts to generate content.
         name: 'weatherPrompt',
         tools: [getWeather],
       },
-      'What is the weather in {{location}}?'
+      'What is the weather in {% verbatim %}{{location}}{% endverbatim %}?'
     );
 
     const response = await weatherPrompt({ location: 'Baltimore' });
@@ -164,7 +164,7 @@ Include defined tools in your prompts to generate content.
         location: string
     ---
 
-    What is the weather in {{location}}?
+    What is the weather in {% verbatim %}{{location}}{% endverbatim %}?
     ```
 
     Then you can execute the prompt in your code as follows:
@@ -196,14 +196,15 @@ Include defined tools in your prompts to generate content.
 Genkit will automatically handle the tool call if the LLM needs to use the
 `getWeather` tool to answer the prompt.
 
-### Pausing the tool loop with interrupts
+### Pause the tool loop by using interrupts
 
 By default, Genkit repeatedly calls the LLM until every tool call has been
-resolved. In some situations you may wish to conditionally pause execution to:
+resolved. You may want to conditionally pause execution in situations where
+you want to, for example:
 
-- ask the user a question or display UI
-- confirm a potentially risky action with the user
-- request out-of-band approval for an action
+* Ask the user a question or display UI.
+* Confirm a potentially risky action with the user.
+* Request out-of-band approval for an action.
 
 **Interrupts** are special tools that can halt the loop and return control
 to your code so that you can handle more advanced scenarios. Visit the
@@ -211,7 +212,7 @@ to your code so that you can handle more advanced scenarios. Visit the
 
 ### Explicitly handling tool calls
 
-If you want full control over this tool calling loop, for example to
+If you want full control over this tool-calling loop, for example to
 apply more complicated logic, set the `returnToolRequests` parameter to `true`.
 Now it's your responsibility to ensure all of the tool requests are fulfilled:
 
