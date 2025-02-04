@@ -1,61 +1,59 @@
-# Interrupts
+# Pause generation using interrupts
 
 _Interrupts_ are a special kind of [tool](tool-calling) that can pause the
-LLM generation and tool calling loop to return control back to you. When
-you're ready, generation can then be *resumed* with *replies* that will be
-processed by the LLM for further generation.
+LLM generation-and-tool-calling loop to return control back to you. When
+you're ready, you can then *resume* generation by sending *replies* that the LLM
+processes for further generation.
 
-The most common uses for interruptions fall into a few categories:
+The most common uses for interrupts fall into a few categories:
 
-*  **Human-in-the-Loop:** Allowing the user of an interactive AI application
-   to clarify needed informatino or confirm the LLM's action before it is
-   completed, providing a measure of safety and confidence.
+*  **Human-in-the-Loop:** Enabling the user of an interactive AI
+   to clarify needed information or confirm the LLM's action
+   before it is completed, providing a measure of safety and confidence.
 *  **Async Processing:** Starting an asynchronous task that can only be
    completed out-of-band, such as sending an approval notification to
    a human reviewer or kicking off a long-running background process.
-*  **Exiting Autonomous Task:** In workflows that might iterate through
-   a long series of tool calls, an interrupt can provide the model a way
-   to mark the task as complete.
+*  **Exit from an Autonomous Task:** Providing the model a way
+   to mark a task as complete, in a workflow that might iterate through
+   a long series of tool calls.
 
 ## Before you begin {:#you-begin}
 
-If you want to run the code examples on this page, first complete the steps in
-the [Getting started](get-started) guide. All of the examples assume that you
-have already set up a project with Genkit dependencies installed.
+All of the examples documented here assume that you have already set up a
+project with Genkit dependencies installed. If you want to run the code
+examples on this page, first complete the steps in the
+[Get started](get-started) guide.
 
-This page discusses one of the advanced features of Genkit model abstraction, so
-before you dive too deeply, you should be familiar with the content on the
-[Generating content with AI models](models) page. You should also be familiar
-with Genkit's system for defining input and output schemas, which is discussed
-on the [Flows](flows) page and the general methods of tool calling discussed
-on the [Tool Calling](tool-calling) page.
+Before diving too deeply, you should also be familiar with the following
+concepts:
+
+* [Generating content](models) with AI models.
+* Genkit's system for [defining input and output schemas](flows).
+* General methods of [tool-calling](tool-calling).
 
 ## Overview of interrupts {:#overview-interrupts}
 
-At a high level, this is what an interrupt looks like when interacting with an LLM:
+At a high level, this is what an interrupt looks like when
+interacting with an LLM:
 
-1. The calling application prompts the LLM with a request and also includes in
-   the prompt a list of tools including at least one interrupt tool that the LLM
+1. The calling application prompts the LLM with a request. The prompt includes
+   a list of tools, including at least one for an interrupt that the LLM
    can use to generate a response.
-2. The LLM either generates a complete response or generates a tool call request
-   in a specific format. To the LLM, an interrupt looks like any other tool call.
-3. If the LLM selects the interrupt among the tool calls it generates, the Genkit
-   library will automatically halt generation rather than immediately passing
-   responses back to the model for additional processing.
-4. The developer checks if an interrupt is called and  performs whatever task is
-   needed to collect the information needed for the interrupt reply.
-5. The developer resumes generation by passing an interrupt reply to the model,
-   returning to Step 2.
+2. The LLM either generates either a complete response or a tool call request
+   in a specific format. To the LLM, an interrupt call looks like any
+   other tool call.
+3. If the LLM calls an interrupt tool,
+   the Genkit library automatically pauses generation rather than immediately
+   passing responses back to the model for additional processing.
+4. The developer checks whether an interrupt call is made, and performs whatever
+   task is needed to collect the information needed for the interrupt response.
+5. The developer resumes generation by passing an interrupt response to the
+   model. This action triggers a return to Step 2.
 
-## Triggering interrupts with Genkit {:#tool-calling}
+## Define manual-response interrupts {:#manual-response}
 
-Interrupts can be triggered from any tool or by using the `defineInterrupt` method.
-
-### Defining interrupts
-
-The most common kind of interrupt is providing a tool that allows the LLM to 
-request clarification from the user, for example by asking a multiple choice
-question.
+The most common kind of interrupt allows the LLM to request clarification from
+the user, for example by asking a multiple-choice question.
 
 For this use case, use the Genkit instance's `defineInterrupt()` method:
 
@@ -75,20 +73,21 @@ const askQuestion = ai.defineInterrupt({
     choices: z.array(z.string()).describe('the choices to display to the user'),
     allowOther: z.boolean().optional().describe('when true, allow write-ins')
   }),
-  replySchema: z.string()
+  outputSchema: z.string()
 });
 ```
 
-Note that interrupts have a `replySchema` instead of an output schema, although
-they are treated as equivalent when passing data to the model.
+Note that the `outputSchema` of an interrupt corresponds to the response data
+you will provide as opposed to something that will be automatically populated
+by a tool function.
 
-### Using interrupts
+### Use interrupts
 
 Interrupts are passed into the `tools` array when generating content, just like
-other types of tools. You can pass both normal tools and interrupts to the same
-generate call:
+other types of tools. You can pass both normal tools and interrupts to the
+same `generate` call:
 
-*   {Generate}
+*   {generate}
 
     ```ts
     const response = await ai.generate({
@@ -107,7 +106,7 @@ generate call:
         input: {
           schema: z.object({subject: z.string()})
         },
-        prompt: 'Ask me a trivia question about {{subject}}.',
+        prompt: 'Ask me a trivia question about {% verbatim %}{{subject}}{% endverbatim %}.',
       }
     );
 
@@ -123,14 +122,14 @@ generate call:
       schema:
         partyType: string
     ---
-    {{role "system}}
+    {% verbatim %}{{role "system"}}{% endverbatim %}
     Use the askQuestion tool if you need to clarify something.
 
-    {{role "user"}}
-    Help me plan a {{partyType}} party next week.
+    {% verbatim %}{{role "user"}}{% endverbatim %}
+    Help me plan a {% verbatim %}{{partyType}}{% endverbatim %} party next week.
     ```
 
-    Then you can execute the prompt in your code as follows:
+Then you can execute the prompt in your code as follows:
 
     ```ts
     // assuming prompt file is named partyPlanner.prompt
@@ -150,11 +149,11 @@ generate call:
     const response = await chat.send('make a plan for my birthday party');
     ```
 
-Genkit will immediately return a response once an interrupt tool is triggered.
+Genkit immediately returns a response on receipt of an interrupt tool call.
 
-### Replying to interrupts
+### Respond to interrupts
 
-If you've passed one or more interrupt tools to your generate call, you will
+If you've passed one or more interrupts to your generate call, you
 need to check the response for interrupts so that you can handle them:
 
 ```ts
@@ -164,12 +163,12 @@ response.finishReason === 'interrupted'
 response.interrupts.length > 0
 ```
 
-Replying to an interrupt is done using the `resume` option on a subsequent
-generate call, making sure to pass in the existing history. Each tool has
-a `.reply()` method on it to help construct the reply.
+Responding to an interrupt is done using the `resume` option on a subsequent
+`generate` call, making sure to pass in the existing history. Each tool has
+a `.respond()` method on it to help construct the response.
 
-Once resumed, the model will re-enter the generation loop including tool
-execution until it either completes or another interrupt is triggered:
+Once resumed, the model re-enters the generation loop, including tool
+execution, until either it completes or another interrupt is triggered:
 
 ```ts
 let response = await ai.generate({
@@ -183,8 +182,8 @@ while (response.interrupts.length) {
   // multiple interrupts can be called at once, so we handle them all
   for (const question in response.interrupts) {
     answers.push(
-      // use the 'reply' method on our tool to populate answers
-      askQuestion.reply(
+      // use the `respond` method on our tool to populate answers
+      askQuestion.respond(
         question,
         // send the tool request input to the user to respond
         await askUser(question.toolRequest.input)
@@ -196,7 +195,111 @@ while (response.interrupts.length) {
     tools: [askQuestion],
     messages: response.messages,
     resume: {
-      reply: answers
+      respond: answers
+    }
+  })
+}
+
+// no more interrupts, we can see the final response
+console.log(response.text);
+```
+
+## Tools with restartable interrupts {:#restartable-interrupts}
+
+Another common pattern for interrupts is the need to *confirm* an action that
+the LLM suggests before actually performing it. For example, a payments app
+might want the user to confirm certain kinds of transfers.
+
+For this use case, you can use the standard `defineTool` method to add custom
+logic around when to trigger an interrupt, and what to do when an interrupt is
+*restarted* with additional metadata.
+
+### Define a restartable tool
+
+Every tool has access to two special helpers in the second argument of its
+implementation definition:
+
+- `interrupt`: when called, this method throws a special kind of exception that
+  is caught to pause the generation loop. You can provide additional metadata
+  as an object.
+- `resumed`: when a request from an interrupted generation is restarted using
+  the `{resume: {restart: ...}}` option (see below), this helper contains the
+  metadata provided when restarting.
+
+If you were building a payments app, for example, you might want to confirm with
+the user before making a transfer exceeding a certain amount:
+
+```ts
+const transferMoney = ai.defineTool({
+  name: 'transferMoney',
+  description: 'Transfers money between accounts.',
+  inputSchema: z.object({
+    toAccountId: z.string().describe('the account id of the transfer destination'),
+    amount: z.number().describe('the amount in integer cents (100 = $1.00)'),
+  }),
+  outputSchema: z.object({
+    status: z.string().describe('the outcome of the transfer'),
+    message: z.string().optional(),
+  })
+}, async (input, {context, interrupt, resumed})) {
+  // if the user rejected the transaction
+  if (resumed?.status === "REJECTED") {
+    return {status: 'REJECTED', message: 'The user rejected the transaction.'};
+  }
+  // trigger an interrupt to confirm if amount > $100
+  if (resumed?.status !== "APPROVED" && input.amount > 10000) {
+    interrupt({
+      message: "Please confirm sending an amount > $100.",
+    });
+  }
+  // complete the transaction if not interrupted
+  return doTransfer(input);
+}
+```
+
+In this example, on first execution (when `resumed` is undefined), the tool
+checks to see if the amount exceeds $100, and triggers an interrupt if so. On
+second execution, it looks for a status in the new metadata provided and
+performs the transfer or returns a rejection response, depending on whether it
+is approved or rejected.
+
+### Restart tools after interruption
+
+Interrupt tools give you full control over:
+
+1. When an initial tool request should trigger an interrupt.
+2. When and whether to resume the generation loop.
+3. What additional information to provide to the tool when resuming.
+
+In the example shown in the previous section, the application might ask the user
+to confirm the interrupted request to make sure the transfer amount is okay:
+
+```ts
+let response = await ai.generate({
+  tools: [transferMoney],
+  prompt: "Transfer $1000 to account ABC123",
+});
+
+while (response.interrupts.length) {
+  const confirmations = [];
+  // multiple interrupts can be called at once, so we handle them all
+  for (const interrupt in response.interrupts) {
+    confirmations.push(
+      // use the 'restart' method on our tool to provide `resumed` metadata
+      transferMoney.restart(
+        interrupt,
+        // send the tool request input to the user to respond. assume that this
+        // returns `{status: "APPROVED"}` or `{status: "REJECTED"}`
+        await requestConfirmation(interrupt.toolRequest.input);
+      )
+    );
+  }
+
+  response = await ai.generate({
+    tools: [transferMoney],
+    messages: response.messages,
+    resume: {
+      restart: confirmations,
     }
   })
 }
