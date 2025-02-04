@@ -1775,6 +1775,9 @@ importers:
         specifier: ^9.11.0
         version: 9.11.0(encoding@0.1.13)
     devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
