@@ -16,48 +16,13 @@
 
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
-import express, { RequestHandler } from 'express';
+import express from 'express';
 import { Action, Flow, runWithStreamingCallback, z } from 'genkit';
+import * as authPolicy from 'genkit/authPolicy';
 import { logger } from 'genkit/logging';
 import { Server } from 'http';
-import { getErrorMessage, getErrorStack } from './utils';
 
 const streamDelimiter = '\n\n';
-
-/**
- * Auth policy context is an object passed to the auth policy providing details necessary for auth.
- */
-export interface AuthPolicyContext<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  action?: Action<I, O, S>;
-  input: z.infer<I>;
-  auth?: Record<string, any>;
-  request: RequestWithAuth;
-}
-
-/**
- * Flow Auth policy. Consumes the authorization context of the flow and
- * performs checks before the flow runs. If this throws, the flow will not
- * be executed.
- */
-export interface AuthPolicy<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  (ctx: AuthPolicyContext<I, O, S>): void | Promise<void>;
-}
-
-/**
- * For express-based flows, req.auth should contain the value to bepassed into
- * the flow context.
- */
-export interface RequestWithAuth extends express.Request {
-  auth?: Record<string, any>;
-}
 
 /**
  * Exposes provided flow or an action as express handler.
@@ -69,33 +34,38 @@ export function expressHandler<
 >(
   action: Action<I, O, S>,
   opts?: {
-    authPolicy?: AuthPolicy<I, O, S>;
+    authPolicy?: authPolicy.AuthPolicy<I>;
   }
 ): express.RequestHandler {
   return async (
-    request: RequestWithAuth,
+    request: express.Request,
     response: express.Response
   ): Promise<void> => {
     const { stream } = request.query;
-    let input = request.body.data;
-    const auth = request.auth;
+    let input = request.body.data as z.infer<I>;
+    let context: Record<string, any>;
 
     try {
-      await opts?.authPolicy?.({
-        action,
-        auth,
-        input,
-        request,
-      });
+      context =
+        (await opts?.authPolicy?.({
+          method: request.method as authPolicy.Request['method'],
+          headers: Object.fromEntries(
+            Object.entries(request.headers).map(([key, value]) => [
+              key.toLowerCase(),
+              Array.isArray(value) ? value.join(' ') : String(value),
+            ])
+          ),
+          body: input,
+        })) || {};
     } catch (e: any) {
-      logger.debug(e);
-      const respBody = {
-        error: {
-          status: 'PERMISSION_DENIED',
-          message: e.message || 'Permission denied to resource',
-        },
-      };
-      response.status(403).send(respBody).end();
+      logger.error(
+        `Auth policy failed with error: ${(e as Error).message}\n${(e as Error).stack}`
+      );
+      if (!(e instanceof authPolicy.UserFacingError)) {
+        e = new authPolicy.UserFacingError('internal', 'Internal');
+      } else {
+        response.status(e.httpErrorCode.status).json(e.toJSON()).end();
+      }
       return;
     }
 
@@ -116,7 +86,7 @@ export function expressHandler<
           () =>
             action.run(input, {
               onChunk,
-              context: { auth },
+              context,
             })
         );
         response.write(
@@ -124,43 +94,40 @@ export function expressHandler<
         );
         response.end();
       } catch (e) {
-        logger.error(e);
+        logger.error(
+          `Streaming request failed with error: ${(e as Error).message}\n${(e as Error).stack}`
+        );
+        if (!(e instanceof authPolicy.UserFacingError)) {
+          e = new authPolicy.UserFacingError('internal', 'Internal error');
+        }
         response.write(
-          'data: ' +
-            JSON.stringify({
-              error: {
-                status: 'INTERNAL',
-                message: getErrorMessage(e),
-                details: getErrorStack(e),
-              },
-            }) +
-            streamDelimiter
+          `error: ${JSON.stringify({ error: (e as authPolicy.UserFacingError).toJSON() })}${streamDelimiter}`
         );
         response.end();
       }
     } else {
       try {
-        const result = await action.run(input, { context: { auth } });
+        const result = await action.run(input, { context });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
         response
           .status(200)
-          .send({
+          .json({
             result: result.result,
           })
           .end();
       } catch (e) {
         // Errors for non-streaming flows are passed back as standard API errors.
+        logger.error(
+          `Non-streaming request failed with error: ${(e as Error).message}\n${(e as Error).stack}`
+        );
+        if (!(e instanceof authPolicy.UserFacingError)) {
+          e = new authPolicy.UserFacingError('internal', 'Internal error');
+        }
         response
-          .status(500)
-          .send({
-            error: {
-              status: 'INTERNAL',
-              message: getErrorMessage(e),
-              details: getErrorStack(e),
-            },
-          })
+          .status((e as authPolicy.UserFacingError).httpErrorCode.status)
+          .json((e as authPolicy.UserFacingError).toJSON())
           .end();
       }
     }
@@ -176,8 +143,7 @@ export type FlowWithAuthPolicy<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
   flow: Flow<I, O, S>;
-  authProvider: RequestHandler;
-  authPolicy: AuthPolicy;
+  authPolicy: authPolicy.AuthPolicy<I>;
 };
 
 /**
@@ -189,12 +155,10 @@ export function withAuth<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S>,
-  authProvider: RequestHandler,
-  authPolicy: AuthPolicy
+  authPolicy: authPolicy.AuthPolicy<I>
 ): FlowWithAuthPolicy<I, O, S> {
   return {
     flow,
-    authProvider,
     authPolicy,
   };
 }
@@ -260,22 +224,19 @@ export class FlowServer {
     logger.debug('Running flow server with flow paths:');
     const pathPrefix = this.options.pathPrefix ?? '';
     this.options.flows?.forEach((flow) => {
-      if ((flow as FlowWithAuthPolicy).authPolicy) {
-        const flowWithPolicy = flow as FlowWithAuthPolicy;
-        const flowPath = `/${pathPrefix}${flowWithPolicy.flow.__action.name}`;
+      if ('authPolicy' in flow) {
+        const flowPath = `/${pathPrefix}${flow.flow.__action.name}`;
         logger.debug(` - ${flowPath}`);
         server.post(
           flowPath,
-          flowWithPolicy.authProvider,
-          expressHandler(flowWithPolicy.flow, {
-            authPolicy: flowWithPolicy.authPolicy,
+          expressHandler(flow.flow, {
+            authPolicy: flow.authPolicy,
           })
         );
       } else {
-        const resolvedFlow = flow as Flow;
-        const flowPath = `/${pathPrefix}${resolvedFlow.__action.name}`;
+        const flowPath = `/${pathPrefix}${flow.__action.name}`;
         logger.debug(` - ${flowPath}`);
-        server.post(flowPath, expressHandler(resolvedFlow));
+        server.post(flowPath, expressHandler(flow));
       }
     });
     this.port =

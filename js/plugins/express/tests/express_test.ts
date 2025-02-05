@@ -17,6 +17,7 @@
 import * as assert from 'assert';
 import express from 'express';
 import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
+import * as authPolicy from 'genkit/authPolicy';
 import { runFlow, streamFlow } from 'genkit/beta/client';
 import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
@@ -24,11 +25,28 @@ import * as http from 'http';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
   FlowServer,
-  RequestWithAuth,
   expressHandler,
   startFlowServer,
   withAuth,
 } from '../src/index.js';
+
+const auth: authPolicy.AuthPolicy = (req: authPolicy.Request) => {
+  assert.ok(req.method, 'method must be set');
+  assert.ok(req.headers, 'headers must be set');
+  assert.ok(req.body, 'body must be set');
+
+  if (req.headers['authorization'] !== 'open sesame') {
+    throw new authPolicy.UserFacingError(
+      'permission-denied',
+      'Wrong secret phrase'
+    );
+  }
+  return {
+    auth: {
+      user: 'Ali Baba',
+    },
+  };
+};
 
 describe('expressHandler', async () => {
   let server: http.Server;
@@ -82,7 +100,7 @@ describe('expressHandler', async () => {
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
-        return `${input.question} - ${JSON.stringify(context.auth)}`;
+        return `${input.question} - ${JSON.stringify(context!.auth)}`;
       }
     );
 
@@ -96,54 +114,13 @@ describe('expressHandler', async () => {
     app.post('/streamingFlow', expressHandler(streamingFlow));
     app.post(
       '/flowWithAuth',
-      async (req, resp, next) => {
-        (req as RequestWithAuth).auth = {
-          user:
-            req.header('authorization') === 'open sesame'
-              ? 'Ali Baba'
-              : '40 thieves',
-        };
-        next();
-      },
-      expressHandler(flowWithAuth, {
-        authPolicy: ({ auth, action, input, request }) => {
-          assert.ok(auth, 'auth must be set');
-          assert.ok(action, 'flow must be set');
-          assert.ok(input, 'input must be set');
-          assert.ok(request, 'request must be set');
-
-          if (auth.user !== 'Ali Baba') {
-            throw new Error('not authorized');
-          }
-        },
-      })
+      expressHandler(flowWithAuth, { authPolicy: auth })
     );
-
     // Can also expose any action.
     app.post('/echoModel', expressHandler(echoModel));
     app.post(
       '/echoModelWithAuth',
-      async (req, resp, next) => {
-        (req as RequestWithAuth).auth = {
-          user:
-            req.header('authorization') === 'open sesame'
-              ? 'Ali Baba'
-              : '40 thieves',
-        };
-        next();
-      },
-      expressHandler(echoModel, {
-        authPolicy: ({ auth, action, input, request }) => {
-          assert.ok(auth, 'auth must be set');
-          assert.ok(action, 'flow must be set');
-          assert.ok(input, 'input must be set');
-          assert.ok(request, 'request must be set');
-
-          if (auth.user !== 'Ali Baba') {
-            throw new Error('not authorized');
-          }
-        },
-      })
+      expressHandler(echoModel, { authPolicy: auth })
     );
 
     server = app.listen(port, () => {
@@ -336,7 +313,7 @@ describe('startFlowServer', async () => {
 
   beforeEach(async () => {
     const ai = genkit({});
-    const echoModel = defineEchoModel(ai);
+    defineEchoModel(ai);
 
     const voidInput = ai.defineFlow('voidInput', async () => {
       return 'banana';
@@ -382,7 +359,7 @@ describe('startFlowServer', async () => {
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
-        return `${input.question} - ${JSON.stringify(context.auth)}`;
+        return `${input.question} - ${JSON.stringify(context!.auth)}`;
       }
     );
 
@@ -394,28 +371,7 @@ describe('startFlowServer', async () => {
         stringInput,
         objectInput,
         streamingFlow,
-        withAuth(
-          flowWithAuth,
-          async (req, resp, next) => {
-            (req as RequestWithAuth).auth = {
-              user:
-                req.header('authorization') === 'open sesame'
-                  ? 'Ali Baba'
-                  : '40 thieves',
-            };
-            return next();
-          },
-          ({ auth, action, input, request }) => {
-            assert.ok(auth, 'auth must be set');
-            assert.ok(action, 'flow must be set');
-            assert.ok(input, 'input must be set');
-            assert.ok(request, 'request must be set');
-
-            if (auth.user !== 'Ali Baba') {
-              throw new Error('not authorized');
-            }
-          }
-        ),
+        withAuth(flowWithAuth, auth),
       ],
       port,
     });
