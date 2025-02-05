@@ -3,8 +3,8 @@ module github.com/firebase/genkit/go
 go 1.22.0
 
 retract (
-	v0.1.3 // This shold have been a minor release.
 	v0.1.4 // Retraction only.
+	v0.1.3 // This shold have been a minor release.
 )
 
 require (

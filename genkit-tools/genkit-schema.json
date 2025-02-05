@@ -765,6 +765,9 @@
             },
             "constrained": {
               "type": "boolean"
+            },
+            "toolChoice": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false
