@@ -425,14 +425,7 @@
         "tools": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "$ref": "#/$defs/ToolDefinition"
-              }
-            ]
+            "type": "string"
           }
         },
         "toolChoice": {
