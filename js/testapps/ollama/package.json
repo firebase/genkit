@@ -8,7 +8,7 @@
     "start": "node lib/index.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
     "dev": "tsx --watch src/index.ts"
   },
   "keywords": [],
