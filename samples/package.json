@@ -3,13 +3,17 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build:js-samples": "for i in js-c*/; do cd $i && npm run setup && npm run build && cd ../; done"
+    "build:js-samples": "concurrently npm:build:js-chatbot npm:build:js-coffee-shop npm:build:js-character-generator",
+    "build:js-chatbot": "cd js-chatbot && npm install && npm run build",
+    "build:js-coffee-shop": "cd js-coffee-shop && npm install && npm run build",
+    "build:js-character-generator": "cd js-character-generator && npm install && npm run build"
   },
   "pre-commit": [
     "format:check"
   ],
   "devDependencies": {
     "npm-run-all": "^4.1.5",
+    "concurrently": "^8.2.2",
     "only-allow": "^1.2.1",
     "pre-commit": "^1.2.2",
     "prettier": "^3.2.5",
