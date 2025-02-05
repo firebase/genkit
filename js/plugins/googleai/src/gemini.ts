@@ -105,7 +105,7 @@ export const gemini10Pro = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
   },
   configSchema: GeminiConfigSchema,
@@ -121,7 +121,7 @@ export const gemini15Pro = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
     versions: [
       'gemini-1.5-pro-latest',
@@ -142,7 +142,7 @@ export const gemini15Flash = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
       // @ts-ignore
       contextCache: true,
     },
@@ -165,7 +165,7 @@ export const gemini15Flash8b = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
   },
@@ -183,7 +183,7 @@ export const gemini20Flash = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
   },
   configSchema: GeminiConfigSchema,
@@ -211,7 +211,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
   },
 });
@@ -711,8 +711,9 @@ export function defineGoogleAIModel(
       // Cannot use tools with JSON mode
       const jsonMode =
         (request.output?.format === 'json' ||
-          request.output?.contentType === 'application/json') &&
-        tools.length === 0;
+          request.output?.contentType === 'application/json')
+        //    &&
+        // tools.length === 0;
 
       const generationConfig: GenerationConfig = {
         candidateCount: request.candidates || undefined,

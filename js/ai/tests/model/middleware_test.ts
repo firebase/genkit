@@ -511,7 +511,7 @@ describe('simulateConstrainedGeneration', () => {
 
   it('relies on native support -- no instructions', async () => {
     let pm = defineProgrammableModel(registry, {
-      supports: { constrained: true },
+      supports: { constrained: 'all' },
     });
     pm.handleResponse = async (req, sc) => {
       return {

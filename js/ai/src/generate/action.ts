@@ -25,7 +25,6 @@ import {
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
-import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
@@ -393,12 +392,12 @@ async function actionToGenerateRequest(
     config: options.config,
     docs: options.docs,
     tools: resolvedTools?.map(toToolDefinition) || [],
-    output: {
-      ...(resolvedFormat?.config || {}),
-      schema: toJsonSchema({
-        jsonSchema: options.output?.jsonSchema,
-      }),
-    },
+    output: stripUndefinedProps({
+      constrained: options.output?.constrained,
+      contentType: options.output?.contentType,
+      format: options.output?.format,
+      schema: options.output?.jsonSchema,
+    }),
   };
   if (options.toolChoice) {
     out.toolChoice = options.toolChoice;

@@ -212,7 +212,7 @@ export const ModelInfoSchema = z.object({
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
       /** Model can natively support constrained generation. */
-      constrained: z.boolean().optional(),
+      constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
     })
@@ -487,8 +487,21 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  if (!options?.supports?.constrained)
-    middleware.push(simulateConstrainedGeneration());
+  const constratedSimulator = simulateConstrainedGeneration();
+  middleware.push((req, next) => {
+    console.log(' - - - - -', options?.supports)
+    if (
+      !options?.supports?.constrained ||
+      options?.supports?.constrained === 'none' ||
+      (options?.supports?.constrained === 'no-tools' &&
+        (req.tools?.length ?? 0) > 0)
+    ) {
+      console.log(' - - -- simulating');
+      return constratedSimulator(req, next);
+    }
+    console.log(' - - -- NOT simulating');
+    return next(req);
+  });
   const act = defineAction(
     registry,
     {
@@ -709,6 +722,7 @@ export const GenerateActionOptionsSchema = z.object({
       contentType: z.string().optional(),
       instructions: z.union([z.boolean(), z.string()]).optional(),
       jsonSchema: z.any().optional(),
+      constrained: z.boolean().optional(),
     })
     .optional(),
   /** Options for resuming an interrupted generation. */
