@@ -2,7 +2,7 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
-    "genkit:dev": "genkit start -- npm run dev",
+    "genkit:dev": "npx genkit start -- npm run dev",
     "dev": "tsx --watch src/index.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
