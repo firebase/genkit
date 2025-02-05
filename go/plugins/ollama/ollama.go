@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ollama
 
 import (
@@ -38,25 +37,27 @@ var state struct {
 	serverAddress string
 }
 
-func DefineModel(g *genkit.Genkit, model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
+func DefineModel(g *genkit.Genkit, model ModelDefinition, caps *ai.ModelInfoSupports) ai.Model {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
-	var mc ai.ModelCapabilities
+	var mc *ai.ModelInfoSupports
 	if caps != nil {
-		mc = *caps
+		mc = caps
 	} else {
-		mc = ai.ModelCapabilities{
+		mc = &ai.ModelInfoSupports{
+			Context:    false, // Default value set formally
 			Multiturn:  true,
 			SystemRole: true,
 			Media:      slices.Contains(mediaSupportedModels, model.Name),
 		}
 	}
-	meta := &ai.ModelMetadata{
+	meta := &ai.ModelInfo{
 		Label:    "Ollama - " + model.Name,
 		Supports: mc,
+		Versions: make([]string, 0),
 	}
 	gen := &generator{model: model, serverAddress: state.serverAddress}
 	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package vertexai
 
 import (
@@ -29,7 +28,7 @@ const (
 )
 
 var (
-	knownCaps = map[string]ai.ModelCapabilities{
+	knownCaps = map[string]ai.ModelInfoSupports{
 		"gemini-1.0-pro":   gemini.BasicText,
 		"gemini-1.5-pro":   gemini.Multimodal,
 		"gemini-1.5-flash": gemini.Multimodal,
@@ -115,7 +114,8 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 	state.initted = true
 	for model, caps := range knownCaps {
-		defineModel(g, model, caps)
+		// TODO: How to define the versions?
+		defineModel(g, model, make([]string, 0), caps)
 	}
 	for _, e := range knownEmbedders {
 		defineEmbedder(g, e)
@@ -130,13 +130,13 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.Model, error) {
+func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelInfoSupports) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	var mc ai.ModelCapabilities
+	var mc ai.ModelInfoSupports
 	if caps == nil {
 		var ok bool
 		mc, ok = knownCaps[name]
@@ -146,14 +146,16 @@ func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.
 	} else {
 		mc = *caps
 	}
-	return defineModel(g, name, mc), nil
+	// TODO: How to define the versions?
+	return defineModel(g, name, make([]string, 0), mc), nil
 }
 
 // requires state.mu
-func defineModel(g *genkit.Genkit, name string, caps ai.ModelCapabilities) ai.Model {
-	meta := &ai.ModelMetadata{
+func defineModel(g *genkit.Genkit, name string, versions []string, caps ai.ModelInfoSupports) ai.Model {
+	meta := &ai.ModelInfo{
 		Label:    labelPrefix + " - " + name,
-		Supports: caps,
+		Supports: &caps,
+		Versions: versions,
 	}
 	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
