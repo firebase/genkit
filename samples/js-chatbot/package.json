@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "genkit-cli": "^1.0.0-rc.15"
   }
 }
