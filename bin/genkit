@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Conveniency wrapper script for repo-local genkit cli.
+
+set -euo pipefail
+
+TOP_DIR="$(git rev-parse --show-toplevel)"
+GENKIT_SCRIPT="${TOP_DIR}/genkit-tools/cli/dist/bin/genkit.js"
+
+if [[ ! -f "${GENKIT_SCRIPT}" ]]; then
+    echo "Building genkit..."
+    pushd "${TOP_DIR}"
+
+    # We skip linking here on purpose since this script is a convenience
+    # wrapper.
+    pnpm -C js install
+    pnpm -C genkit-tools install
+    pnpm run build
+
+    popd
+fi
+
+node "${GENKIT_SCRIPT}" "$@"
