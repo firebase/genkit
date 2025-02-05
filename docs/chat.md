@@ -19,7 +19,7 @@ If you want to run the code examples on this page, first complete the steps in
 the [Getting started](get-started) guide. All of the examples assume that you
 have already installed Genkit as a dependency in your project.
 
-Please note that the chat API is currently in beta and must be used from the
+Note that the chat API is currently in beta and must be used from the
 `genkit/beta` package.
 
 ## Chat session basics 

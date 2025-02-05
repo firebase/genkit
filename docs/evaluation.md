@@ -47,7 +47,7 @@ started](get-started.md) guide.</li>
 <li>Add the following code to define a simple RAG application to evaluate. For
 this guide, we use a dummy retriever that always returns the same documents.
 
-```js
+<pre class="prettyprint lang-js">
 import { genkit, z, Document } from "genkit";
 import {
   googleAI,
@@ -96,13 +96,13 @@ export const qaFlow = ai.defineFlow({
     return llmResponse.text;
   }
 );
-```
+</pre>
 </li>
 <li>(Optional) Add evaluation metrics to your application to use while
-evaluating. This guide uses the `MALICIOUSNESS` metric from the
-`genkitEval` plugin.
+evaluating. This guide uses the <code>MALICIOUSNESS</code> metric from the
+<code>genkitEval</code> plugin.
 
-```js
+<pre class="prettyprint lang-js">
 import { genkitEval, GenkitMetric } from "@genkit-ai/evaluator";
 import { gemini15Pro } from "@genkit-ai/googleai";
 
@@ -116,21 +116,21 @@ export const ai = genkit ({
     }),
   ]
 });
-```
+</pre>
 
-**Note:** The configuration above requires installing the
-[`@genkit-ai/evaluator`](https://www.npmjs.com/package/@genkit-ai/evaluator)
-package.
+<strong>Note:</strong> The configuration above requires installation of the
+<a href="https://www.npmjs.com/package/@genkit-ai/evaluator">
+<code>@genkit-ai/evaluator</code></a> package.
 
-```posix-terminal
-  npm install @genkit-ai/evaluator
-```
+<pre class="prettyprint lang-posix">
+npm install @genkit-ai/evaluator
+</pre>
 </li>
-<li>Start your Genkit application
+<li>Start your Genkit application.
 
-```posix-terminal
+<pre class="prettyprint lang-posix">
 genkit start -- <command to start your app>
-```
+</pre>
 </li>
 </ol>
 
@@ -173,7 +173,7 @@ to open the Datasets page.
 ### Run evaluation and view results
 
 To start evaluating the flow, click the **Run new evaluation** button on your
-dataset page. You can also start a new evaluation from the `Evaluations` tab.
+dataset page. You can also start a new evaluation from the _Evaluations_ tab.
 
 1. Select the `Flow` radio button to evaluate a flow.
 
