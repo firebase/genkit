@@ -15,6 +15,7 @@
       "default": "js-character-generator",
       "options": {
         "js-character-generator": "Simple Character Generator",
+        "js-chatbot": "An simple chatbot using Vertex and two different models",
         "js-coffee-shop": "Coffeeshop w Several types of Prompt",
         "js-schoolAgent": "A Multi-Agent School Assistant",
         "js-prompts": "A sample with various prompt styles",
