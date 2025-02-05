@@ -17,6 +17,9 @@
 import JSON5 from 'json5';
 import { Allow, parse } from 'partial-json';
 
+/**
+ * Parses partially complete JSON string.
+ */
 export function parsePartialJson<T = unknown>(jsonString: string): T {
   return JSON5.parse<T>(JSON.stringify(parse(jsonString, Allow.ALL)));
 }

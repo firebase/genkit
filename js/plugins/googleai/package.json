@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.9.6",
+  "version": "1.0.0-rc.16",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -21,7 +21,7 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "tsx --test ./tests/*_test.ts"
+    "test": "tsx --test ./tests/*_test.ts ./tests/**/*_test.ts"
   },
   "repository": {
     "type": "git",
@@ -36,7 +36,7 @@
     "node-fetch": "^3.3.2"
   },
   "peerDependencies": {
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

@@ -19,13 +19,15 @@ import {
   beforeAll,
   beforeEach,
   describe,
+  expect,
   it,
   jest,
 } from '@jest/globals';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, genkit, run, z } from 'genkit';
+import * as assert from 'assert';
+import { Genkit, z } from 'genkit';
+import { GenkitBeta, genkit } from 'genkit/beta';
 import { appendSpan } from 'genkit/tracing';
-import assert from 'node:assert';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -55,7 +57,7 @@ jest.mock('../src/auth.js', () => {
 });
 
 describe('GoogleCloudTracing', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeAll(async () => {
     process.env.GCLOUD_PROJECT = 'test';
@@ -91,7 +93,8 @@ describe('GoogleCloudTracing', () => {
     const spans = await getExportedSpans();
     // Check some common attributes
     assert.equal(spans[0].attributes['genkit/name'], 'testFlow');
-    assert.equal(spans[0].attributes['genkit/type'], 'flow');
+    assert.equal(spans[0].attributes['genkit/type'], 'action');
+    assert.equal(spans[0].attributes['genkit/metadata/subtype'], 'flow');
     // Ensure we have no attributes with ':' because these are awkward to use in
     // Cloud Trace.
     const spanAttrKeys = Object.entries(spans[0].attributes).map(([k, v]) => k);
@@ -102,8 +105,8 @@ describe('GoogleCloudTracing', () => {
 
   it('sub actions are contained within flows', async () => {
     const testFlow = createFlow(ai, 'testFlow', async () => {
-      return await run('subAction', async () => {
-        return await run('subAction2', async () => {
+      return await ai.run('subAction', async () => {
+        return await ai.run('subAction2', async () => {
           return 'done';
         });
       });
@@ -136,7 +139,7 @@ describe('GoogleCloudTracing', () => {
 
   it('labels failed spans', async () => {
     const testFlow = createFlow(ai, 'badFlow', async () => {
-      return await run('badStep', async () => {
+      return await ai.run('badStep', async () => {
         throw new Error('oh no!');
       });
     });
@@ -152,11 +155,13 @@ describe('GoogleCloudTracing', () => {
       spans[0].attributes['genkit/failedPath'],
       '/{badFlow,t:flow}/{badStep,t:flowStep}'
     );
+    assert.equal(spans[1].attributes['genkit/isRoot'], true);
+    assert.equal(spans[1].attributes['genkit/rootState'], 'error');
   });
 
   it('labels the root feature', async () => {
     const testFlow = createFlow(ai, 'niceFlow', async () => {
-      return run('niceStep', async () => {});
+      return ai.run('niceStep', async () => {});
     });
     await testFlow();
 
@@ -165,6 +170,28 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[0].attributes['genkit/feature'], undefined);
     assert.equal(spans[1].name, 'niceFlow');
     assert.equal(spans[1].attributes['genkit/feature'], 'niceFlow');
+    assert.equal(spans[1].attributes['genkit/rootState'], 'success');
+  });
+
+  it('marks the root feature failed when it is the failure', async () => {
+    const testFlow = createFlow(ai, 'failingFlow', async () => {
+      await ai.run('good step', async () => {});
+      throw new Error('oops!');
+    });
+    try {
+      await testFlow();
+    } catch (e) {}
+
+    const spans = await getExportedSpans();
+    assert.equal(spans.length, 2);
+    assert.equal(spans[1].name, 'failingFlow');
+    assert.equal(spans[1].attributes['genkit/failedSpan'], 'failingFlow');
+    assert.equal(
+      spans[1].attributes['genkit/failedPath'],
+      '/{failingFlow,t:flow}'
+    );
+    assert.equal(spans[1].attributes['genkit/isRoot'], true);
+    assert.equal(spans[1].attributes['genkit/rootState'], 'error');
   });
 
   it('adds the genkit/model label for model actions', async () => {
@@ -191,7 +218,7 @@ describe('GoogleCloudTracing', () => {
       }
     );
     const testFlow = createFlow(ai, 'modelFlow', async () => {
-      return run('runFlow', async () => {
+      return ai.run('runFlow', async () => {
         await ai.generate({
           model: echoModel,
           prompt: 'Testing model telemetry',
@@ -227,6 +254,51 @@ describe('GoogleCloudTracing', () => {
       span?.attributes['genkit/metadata/metadata_key'],
       'metadata_value'
     );
+  });
+
+  it('writes sessionId and threadName for chats', async () => {
+    const testModel = ai.defineModel({ name: 'testModel' }, async () => {
+      return {
+        message: {
+          role: 'user',
+          content: [
+            {
+              text: 'response',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
+
+    const chat = ai.chat();
+
+    await chat.send({ model: testModel, prompt: 'Sending test prompt' });
+
+    const spans = await getExportedSpans();
+    // We should get 3 spans from this chat -- "send" which delegates to "generate" which delegates to our "testModel"
+    // Only the top level span will have the sessionId and threadName until we make sessionId more ubiquitous
+    expect(spans).toHaveLength(3);
+
+    spans.forEach((span) => {
+      if (span.name === 'send') {
+        expect(span?.attributes['genkit/sessionId']).not.toBeUndefined();
+        expect(span?.attributes['genkit/threadName']).not.toBeUndefined();
+        return;
+      }
+
+      // Once we make the change to have sessionId on all relevant spans, then these should verify they are populated.
+      expect(span?.attributes['genkit/sessionId']).toBeUndefined();
+      expect(span?.attributes['genkit/threadName']).toBeUndefined();
+    });
   });
 
   /** Helper to create a flow with no inputs or outputs */

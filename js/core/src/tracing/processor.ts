@@ -72,10 +72,6 @@ class FilteringReadableSpanProxy implements ReadableSpan {
     return this.span.status;
   }
   get attributes() {
-    console.log(
-      'FilteringReadableSpanProxy get attributes',
-      this.span.attributes
-    );
     const out = {} as Record<string, any>;
     for (const [key, value] of Object.entries(this.span.attributes)) {
       if (!key.startsWith(ATTR_PREFIX + ':')) {

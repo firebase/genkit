@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { GenerateResponseChunk } from '../../src/generate.js';
 
 describe('GenerateResponseChunk', () => {
   describe('text accumulation', () => {
     const testChunk = new GenerateResponseChunk(
-      { content: [{ text: 'new' }] },
+      { index: 0, role: 'model', content: [{ text: 'new' }] },
       {
         previousChunks: [
-          { content: [{ text: 'old1' }] },
-          { content: [{ text: 'old2' }] },
+          { index: 0, role: 'model', content: [{ text: 'old1' }] },
+          { index: 0, role: 'model', content: [{ text: 'old2' }] },
         ],
       }
     );

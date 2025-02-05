@@ -1,20 +1,22 @@
 # Monitoring
 
-Firebase Genkit is fully instrumented with
+Firebase Genkit has a robust set of observability and monitoring features. 
+
+Genkit is fully instrumented with
 [OpenTelemetry](https://opentelemetry.io/) and provides built-in telemetry support for tracing and metrics.
 
-## Telemetry Configuration
+The [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring) helps you with understanding the overall health of your features, and for debugging stability as well as content quality issues that may point to problems with your LLM prompts and Genkit Flows.
 
-Genkit automatically manages tracing and metrics without requiring explicit configuration. You can enable telemetry exports for Firebase or Google Cloud using their respective plugins and helper functions. Using either plugin poweres the [Firebase AI Monitoring dashboard (private preview)](https://forms.gle/Lp5S1NxbZUXsWc457) that has an AI-idiomatic view of telemetry data.
+## Telemetry
 
-### For Firebase:
+ You can enable telemetry exports to the Genkit Monitoring dashboard using the Firebase plugin and helper function.
 
 ```ts
 import { genkit } from 'genkit';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
 enableFirebaseTelemetry({
-  // Firebase-specific configuration options
+  // Configuration options
 });
 
 const ai = genkit({
@@ -23,21 +25,7 @@ const ai = genkit({
 ```
 More details are outlined in the [Firebase plugin docs](./plugins/firebase.md).
 
-### For Google Cloud:
-
-```ts
-import { genkit } from 'genkit';
-import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-
-enableGoogleCloudTelemetry({
-  // Google Cloud-specific configuration options
-});
-
-const ai = genkit({
-  plugins: [ ... ]
-});
-```
-More details are outlined in the [Google Cloud plugin docs](./plugins/google-cloud.md).
+Note: Genkit automatically manages tracing and metrics without requiring explicit configuration.
 
 ## Logging
 Genkit provides a centralized logging system that can be configured using the logging module. Logs will be exported Google Cloud operations suite if telemetry export is enabled.

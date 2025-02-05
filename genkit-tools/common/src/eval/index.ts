@@ -17,10 +17,11 @@
 import { DatasetStore, EvalStore } from '../types/eval';
 import { LocalFileDatasetStore } from './localFileDatasetStore';
 import { LocalFileEvalStore } from './localFileEvalStore';
-export { EvalInferenceInput, EvalInferenceInputSchema } from '../types/eval';
+export { InferenceDataset, InferenceDatasetSchema } from '../types/eval';
 export * from './evaluate';
 export * from './exporter';
 export * from './parser';
+export * from './validate';
 
 export function getEvalStore(): EvalStore {
   // TODO: This should provide EvalStore, based on tools config.

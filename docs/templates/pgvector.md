@@ -5,8 +5,8 @@ following example as a starting point and modify it to work with your database
 schema.
 
 ```ts
-import { genkit, z } from 'genkit';
-import { googleAI, textEmbedding004 } from '@genkit-ai/google-ai';
+import { genkit, z, Document } from 'genkit';
+import { googleAI, textEmbedding004 } from '@genkit-ai/googleai';
 import { toSql } from 'pgvector';
 import postgres from 'postgres';
 
@@ -27,10 +27,10 @@ const sqlRetriever = ai.defineRetriever(
     configSchema: QueryOptions,
   },
   async (input, options) => {
-    const embedding = await ai.embed({
+    const embedding = (await ai.embed({
       embedder: textEmbedding004,
       content: input,
-    });
+    }))[0].embedding;
     const results = await sql`
       SELECT episode_id, season_number, chunk as content
         FROM embeddings
@@ -40,7 +40,7 @@ const sqlRetriever = ai.defineRetriever(
     return {
       documents: results.map((row) => {
         const { content, ...metadata } = row;
-        return ai.Document.fromText(content, metadata);
+        return Document.fromText(content, metadata);
       }),
     };
   }

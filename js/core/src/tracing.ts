@@ -22,7 +22,10 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
-import { TraceServerExporter } from './tracing/exporter.js';
+import {
+  TraceServerExporter,
+  setTelemetryServerUrl,
+} from './tracing/exporter.js';
 import { isDevEnv } from './utils.js';
 
 export * from './tracing/exporter.js';
@@ -35,6 +38,9 @@ let nodeOtelConfig: TelemetryConfig | null = null;
 
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 
+/**
+ * @hidden
+ */
 export async function ensureBasicTelemetryInstrumentation() {
   if (global[instrumentationKey]) {
     return await global[instrumentationKey];
@@ -48,6 +54,9 @@ export async function ensureBasicTelemetryInstrumentation() {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
+  if (process.env.GENKIT_TELEMETRY_SERVER) {
+    setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
+  }
   global[instrumentationKey] =
     telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
 
@@ -76,24 +85,17 @@ export async function enableTelemetry(
 }
 
 export async function cleanUpTracing(): Promise<void> {
-  return new Promise((resolve) => {
-    if (telemetrySDK) {
-      // Metrics are not flushed as part of the shutdown operation. If metrics
-      // are enabled, we need to manually flush them *before* the reader
-      // receives shutdown order.
-      const metricFlush = maybeFlushMetrics();
+  if (!telemetrySDK) {
+    return;
+  }
 
-      return metricFlush.then(() => {
-        return telemetrySDK!.shutdown().then(() => {
-          logger.debug('OpenTelemetry SDK shut down.');
-          telemetrySDK = null;
-          resolve();
-        });
-      });
-    } else {
-      resolve();
-    }
-  });
+  // Metrics are not flushed as part of the shutdown operation. If metrics
+  // are enabled, we need to manually flush them *before* the reader
+  // receives shutdown order.
+  await maybeFlushMetrics();
+  await telemetrySDK.shutdown();
+  logger.debug('OpenTelemetry SDK shut down.');
+  telemetrySDK = null;
 }
 
 /**
@@ -115,7 +117,9 @@ function maybeFlushMetrics(): Promise<void> {
 }
 
 /**
- * Flushes all configured span processors
+ * Flushes all configured span processors.
+ *
+ * @hidden
  */
 export async function flushTracing() {
   if (nodeOtelConfig?.spanProcessors) {

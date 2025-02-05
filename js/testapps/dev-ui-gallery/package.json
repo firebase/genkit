@@ -25,11 +25,12 @@
   "dependencies": {
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/firebase": "^0.9.12",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "firebase-admin": ">=12.2",
+    "firebase-functions": "^6.3.1",
     "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
     "genkitx-ollama": "workspace:*",

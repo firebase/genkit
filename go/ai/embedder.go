@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package ai
 
@@ -20,6 +10,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Embedder represents an embedder that can perform content embedding.
@@ -56,19 +47,23 @@ type DocumentEmbedding struct {
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
-func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) Embedder {
-	return (*embedderActionDef)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
+func DefineEmbedder(
+	r *registry.Registry,
+	provider, name string,
+	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
+) Embedder {
+	return (*embedderActionDef)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
 }
 
 // IsDefinedEmbedder reports whether an embedder is defined.
-func IsDefinedEmbedder(provider, name string) bool {
-	return LookupEmbedder(provider, name) != nil
+func IsDefinedEmbedder(r *registry.Registry, provider, name string) bool {
+	return LookupEmbedder(r, provider, name) != nil
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
-func LookupEmbedder(provider, name string) Embedder {
-	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](atype.Embedder, provider, name)
+func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
+	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, atype.Embedder, provider, name)
 	if action == nil {
 		return nil
 	}

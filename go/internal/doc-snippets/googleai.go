@@ -1,48 +1,43 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package snippets
 
 import (
 	"context"
+	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googleai"
 )
 
 func googleaiEx(ctx context.Context) error {
-	var err error
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// [START init]
-	if err := googleai.Init(ctx, nil); err != nil {
+	if err := googleai.Init(ctx, g, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourKey := ""
 	// [START initkey]
-	if err := googleai.Init(ctx, &googleai.Config{APIKey: yourKey}); err != nil {
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: yourKey}); err != nil {
 		return err
 	}
 	// [END initkey]
 
 	// [START model]
-	model := googleai.Model("gemini-1.5-flash")
+	model := googleai.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
-	text, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
+	text, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -53,7 +48,7 @@ func googleaiEx(ctx context.Context) error {
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := googleai.Embedder("text-embedding-004")
+	embeddingModel := googleai.Embedder(g, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]

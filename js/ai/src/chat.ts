@@ -14,27 +14,34 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
-import { runInNewSpan } from '@genkit-ai/core/tracing';
+import { StreamingCallback, z } from '@genkit-ai/core';
+import { Channel } from '@genkit-ai/core/async';
 import {
-  generate,
+  ATTR_PREFIX,
+  SPAN_TYPE_ATTR,
+  runInNewSpan,
+} from '@genkit-ai/core/tracing';
+import {
   GenerateOptions,
   GenerateResponse,
-  generateStream,
+  GenerateResponseChunk,
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
   MessageData,
   Part,
+  generate,
 } from './index.js';
 import {
   BaseGenerateOptions,
-  runWithSession,
   Session,
   SessionStore,
-} from './session';
+  runWithSession,
+} from './session.js';
 
 export const MAIN_THREAD = 'main';
+export const SESSION_ID_ATTR = `${ATTR_PREFIX}:sessionId`;
+export const THREAD_NAME_ATTR = `${ATTR_PREFIX}:threadName`;
 
 export type ChatGenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -133,43 +140,51 @@ export class Chat {
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return runWithSession(this.session, () =>
-      runInNewSpan({ metadata: { name: 'send' } }, async () => {
-        let resolvedOptions;
-        let streamingCallback = undefined;
+    return runWithSession(this.session.registry, this.session, () =>
+      runInNewSpan(
+        this.session.registry,
+        {
+          metadata: {
+            name: 'send',
+          },
+          labels: {
+            [SPAN_TYPE_ATTR]: 'helper',
+            [SESSION_ID_ATTR]: this.session.id,
+            [THREAD_NAME_ATTR]: this.threadName,
+          },
+        },
+        async (metadata) => {
+          let resolvedOptions = resolveSendOptions(options);
+          let streamingCallback:
+            | StreamingCallback<GenerateResponseChunk>
+            | undefined = undefined;
 
-        // string
-        if (typeof options === 'string') {
-          resolvedOptions = {
-            prompt: options,
-          } as ChatGenerateOptions<O, CustomOptions>;
-        } else if (Array.isArray(options)) {
-          // Part[]
-          resolvedOptions = {
-            prompt: options,
-          } as ChatGenerateOptions<O, CustomOptions>;
-        } else {
-          resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
-          streamingCallback = resolvedOptions.streamingCallback;
+          if (resolvedOptions.onChunk || resolvedOptions.streamingCallback) {
+            streamingCallback =
+              resolvedOptions.onChunk ?? resolvedOptions.streamingCallback;
+          }
+          let request: GenerateOptions = {
+            ...(await this.requestBase),
+            messages: this.messages,
+            ...resolvedOptions,
+          };
+          metadata.input = resolvedOptions;
+          let response = await generate(this.session.registry, {
+            ...request,
+            onChunk: streamingCallback,
+          });
+          this.requestBase = Promise.resolve({
+            ...(await this.requestBase),
+            // these things may get changed by tools calling within generate.
+            tools: response?.request?.tools,
+            toolChoice: response?.request?.toolChoice,
+            config: response?.request?.config,
+          });
+          await this.updateMessages(response.messages);
+          metadata.output = JSON.stringify(response);
+          return response;
         }
-        let request: GenerateOptions = {
-          ...(await this.requestBase),
-          messages: this.messages,
-          ...resolvedOptions,
-        };
-        let response = await generate(this.session.registry, {
-          ...request,
-          streamingCallback,
-        });
-        this.requestBase = Promise.resolve({
-          ...(await this.requestBase),
-          // these things may get changed by tools calling within generate.
-          tools: response?.request?.tools,
-          config: response?.request?.config,
-        });
-        await this.updateMessages(response.messages);
-        return response;
-      })
+      )
     );
   }
 
@@ -178,56 +193,30 @@ export class Chat {
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
-  ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    return runWithSession(this.session, () =>
-      runInNewSpan({ metadata: { name: 'send' } }, async () => {
-        let resolvedOptions;
+  ): GenerateStreamResponse<z.infer<O>> {
+    let channel = new Channel<GenerateResponseChunk>();
+    let resolvedOptions = resolveSendOptions(options);
 
-        // string
-        if (typeof options === 'string') {
-          resolvedOptions = {
-            prompt: options,
-          } as GenerateStreamOptions<O, CustomOptions>;
-        } else if (Array.isArray(options)) {
-          // Part[]
-          resolvedOptions = {
-            prompt: options,
-          } as GenerateStreamOptions<O, CustomOptions>;
-        } else {
-          resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
-        }
-
-        const { response, stream } = await generateStream(
-          this.session.registry,
-          {
-            ...(await this.requestBase),
-            messages: this.messages,
-            ...resolvedOptions,
-          }
-        );
-
-        return {
-          response: response.finally(async () => {
-            const resolvedResponse = await response;
-            this.requestBase = Promise.resolve({
-              ...(await this.requestBase),
-              // these things may get changed by tools calling within generate.
-              tools: resolvedResponse?.request?.tools,
-              config: resolvedResponse?.request?.config,
-            });
-            this.updateMessages(resolvedResponse.messages);
-          }),
-          stream,
-        };
-      })
+    const sent = this.send({
+      ...resolvedOptions,
+      onChunk: (chunk) => channel.send(chunk),
+    });
+    sent.then(
+      () => channel.close(),
+      (err) => channel.error(err)
     );
+
+    return {
+      response: sent,
+      stream: channel,
+    };
   }
 
   get messages(): MessageData[] {
     return this._messages ?? [];
   }
 
-  async updateMessages(messages: MessageData[]): Promise<void> {
+  private async updateMessages(messages: MessageData[]): Promise<void> {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }
@@ -243,4 +232,28 @@ function getPreamble(msgs?: MessageData[]) {
 
 function stripPreamble(msgs?: MessageData[]) {
   return msgs?.filter((m) => !m.metadata?.preamble);
+}
+
+function resolveSendOptions<
+  O extends z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny,
+>(
+  options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
+): ChatGenerateOptions<O, CustomOptions> {
+  let resolvedOptions: ChatGenerateOptions<O, CustomOptions>;
+
+  // string
+  if (typeof options === 'string') {
+    resolvedOptions = {
+      prompt: options,
+    } as ChatGenerateOptions<O, CustomOptions>;
+  } else if (Array.isArray(options)) {
+    // Part[]
+    resolvedOptions = {
+      prompt: options,
+    } as ChatGenerateOptions<O, CustomOptions>;
+  } else {
+    resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+  }
+  return resolvedOptions;
 }

@@ -90,7 +90,7 @@ Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere
 
 Want to skip the local setup? Click below to try out Genkit using [Project IDX](https://idx.dev), Google's AI-assisted workspace for full-stack app development in the cloud.
 
-<a href="https://idx.google.com/import?url=">
+<a href="https://idx.google.com/new/genkit">
   <img
     height="32"
     alt="Try in IDX"
@@ -101,19 +101,19 @@ Want to skip the local setup? Click below to try out Genkit using [Project IDX](
 
 Take a look at some samples of Genkit in use:
 
-- ["AI barista"](samples/js-coffee-shop/) -- demonstrates simple LLM usage
-- [A simple chatbot with a JavaScript frontend](samples/chatbot/) -- add history to LLM sessions
-- [Restaurant menu Q&A app](samples/js-menu/) -- this sample shows progressively
+- ["AI barista"](https://github.com/firebase/genkit/blob/main/samples/js-coffee-shop) -- demonstrates simple LLM usage
+- [A simple chatbot with a JavaScript frontend](https://github.com/firebase/genkit/blob/main/samples/chatbot) -- add history to LLM sessions
+- [Restaurant menu Q&A app](https://github.com/firebase/genkit/blob/main/samples/js-menu) -- this sample shows progressively
   more sophisticated versions of a menu understanding app.
-- [Streaming to an Angular frontend](samples/js-angular/)
+- [Streaming to an Angular frontend](https://github.com/firebase/genkit/blob/main/samples/js-angular)
+- [js-schoolAgent](https://github.com/firebase/genkit/blob/main/samples/js-schoolAgent/): A simple school assistant system with a routing agent and specialized agents
+- [Prompts](https://github.com/firebase/genkit/blob/main/samples/prompts/): Shows off several prompting techniques
 
 ## Connect with us
 
 - **Join the community:** Stay updated, ask questions, and share your work with other Genkit users on our [Discord server](https://discord.gg/qXt5zzQKpc).
 
 - **Provide feedback:** Report issues or suggest new features using our GitHub [issue tracker](https://github.com/firebase/genkit/issues).
-
-- **Engage in discussions:** Participate in conversations about Genkit on our [GitHub Discussions](https://github.com/firebase/genkit/discussions) forum.
 
 ## Contributing
 

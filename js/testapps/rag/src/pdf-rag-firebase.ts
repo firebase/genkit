@@ -21,7 +21,7 @@ import { FieldValue } from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFile } from 'fs/promises';
-import { run, z } from 'genkit';
+import { z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
@@ -119,25 +119,27 @@ export const indexPdfFirebase = ai.defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () =>
+    const pdfTxt = await ai.run('extract-text', () =>
       extractTextFromPdf(filePath)
     );
 
-    const chunks = await run('chunk-it', async () =>
+    const chunks = await ai.run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
     // Add chunks to the index.
-    await run('index-chunks', async () => indexToFirestore(chunks));
+    await ai.run('index-chunks', async () => indexToFirestore(chunks));
   }
 );
 
 async function indexToFirestore(data: string[]) {
   for (const text of data) {
-    const embedding = await ai.embed({
-      embedder: indexConfig.embedder,
-      content: text,
-    });
+    const embedding = (
+      await ai.embed({
+        embedder: indexConfig.embedder,
+        content: text,
+      })
+    )[0].embedding;
     await firestore.collection(indexConfig.collection).add({
       [indexConfig.vectorField]: FieldValue.vector(embedding),
       [indexConfig.contentField]: text,

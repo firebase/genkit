@@ -1,4 +1,4 @@
-## Menu Understanding Sample Application
+# Menu Understanding Sample Application
 
 This sample demonstrates an application that can understand a restaurant menu and answer relevant questions about the items on the menu.
 
@@ -6,11 +6,15 @@ There are 5 iterations of this sample application, growing in complexity and dem
 
 To test each one out, open the Developer UI and exercise the prompts and flows. Each step contains one or more `example.json` files which you can use as inputs.
 
-### Prerequisites
+## Prerequisites
 
-This example uses Vertex AI for language models and embeddings.
+Prerequisite
 
-### Prompts and Flows
+- Google Cloud project with Vertex AI API enabled (https://console.cloud.google.com/apis/library/aiplatform.googleapis.com)
+- gcloud CLI installed (https://cloud.google.com/sdk/docs/install-sdk)
+- to use Llama 3.1 405b enable it in the Vertex AI [Model Garden](https://console.cloud.google.com/vertex-ai/publishers/meta/model-garden/llama3-405b-instruct-maas)
+
+## Prompts and Flows
 
 1. This step shows how to define prompts in code that can accept user input to their templates.
 2. This step illustrates how to wrap your llm calls and other application code into flows with strong input and output schemas.
@@ -21,7 +25,16 @@ This example uses Vertex AI for language models and embeddings.
 
 ## Running the sample
 
+### Setup authentication (can skip on IDX)
+
+```bash
+gcloud auth login
+gcloud auth application-default login --project YOUR_PROJECT
+```
+
+### Run the sample
+
 ```bash
 npm i
-genkit start
+npm run genkit:dev
 ```

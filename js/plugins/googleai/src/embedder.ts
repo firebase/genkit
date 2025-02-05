@@ -15,7 +15,7 @@
  */
 
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
-import { EmbedderReference, Genkit, z } from 'genkit';
+import { EmbedderAction, EmbedderReference, Genkit, z } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { PluginOptions } from './index.js';
 
@@ -36,6 +36,14 @@ export const GeminiEmbeddingConfigSchema = z.object({
   taskType: TaskTypeSchema.optional(),
   title: z.string().optional(),
   version: z.string().optional(),
+  /**
+   * The `outputDimensionality` parameter allows you to specify the dimensionality of the embedding output.
+   * By default, the model generates embeddings with 768 dimensions. Models such as
+   * `text-embedding-004`, `text-embedding-005`, and `text-multilingual-embedding-002`
+   * allow the output dimensionality to be adjusted between 1 and 768.
+   * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
+   **/
+  outputDimensionality: z.number().min(1).max(768).optional(),
 });
 
 export type GeminiEmbeddingConfig = z.infer<typeof GeminiEmbeddingConfigSchema>;
@@ -52,15 +60,28 @@ export const textEmbeddingGecko001 = embedderRef({
   },
 });
 
+export const textEmbedding004 = embedderRef({
+  name: 'googleai/text-embedding-004',
+  configSchema: GeminiEmbeddingConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Google Gen AI - Text Embedding 001',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+
 export const SUPPORTED_MODELS = {
   'embedding-001': textEmbeddingGecko001,
+  'text-embedding-004': textEmbedding004,
 };
 
 export function defineGoogleAIEmbedder(
   ai: Genkit,
   name: string,
   options: PluginOptions
-) {
+): EmbedderAction<any> {
   let apiKey =
     options?.apiKey ||
     process.env.GOOGLE_GENAI_API_KEY ||
@@ -109,6 +130,7 @@ export function defineGoogleAIEmbedder(
               role: '',
               parts: [{ text: doc.text }],
             },
+            outputDimensionality: options?.outputDimensionality,
           } as EmbedContentRequest);
           const values = response.embedding.values;
           return { embedding: values };

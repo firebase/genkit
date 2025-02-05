@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package pinecone
 
@@ -20,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
@@ -35,6 +26,11 @@ func TestGenkit(t *testing.T) {
 	namespace := *testNamespace + "TestGenkit"
 
 	ctx := context.Background()
+
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Get information about the index.
 
@@ -77,13 +73,13 @@ func TestGenkit(t *testing.T) {
 	}
 	cfg := Config{
 		IndexID:  *testIndex,
-		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
 	}
-	indexer, err := DefineIndexer(ctx, cfg)
+	indexer, err := DefineIndexer(ctx, g, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	retriever, err := DefineRetriever(ctx, cfg)
+	retriever, err := DefineRetriever(ctx, g, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

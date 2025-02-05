@@ -4,8 +4,8 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
-    "format": "(prettier . --write) && (ts-node scripts/copyright.ts)",
-    "format:check": "(prettier . --check) && (ts-node scripts/copyright.ts --check)",
+    "format": "(prettier . --write) && (tsx scripts/copyright.ts)",
+    "format:check": "(prettier . --check) && (tsx scripts/copyright.ts --check)",
     "build": "pnpm build:js && pnpm build:genkit-tools",
     "build:js": "cd js && pnpm i && pnpm build",
     "build:genkit-tools": "cd genkit-tools && pnpm i && pnpm build",
@@ -44,5 +44,5 @@
       "cross-spawn": "^7.0.5"
     }
   },
-  "packageManager": "pnpm@9.13.2+sha256.ccce81bf7498c5f0f80e31749c1f8f03baba99d168f64590fc7e13fad3ea1938"
+  "packageManager": "pnpm@9.15.5+sha256.8472168c3e1fd0bff287e694b053fccbbf20579a3ff9526b6333beab8df65a8d"
 }

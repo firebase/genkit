@@ -32,7 +32,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { streamFlow } from 'genkit/client';
+import { streamFlow } from 'genkit/beta/client';
 
 const url = 'http://127.0.0.1:3400/chatbotFlow';
 
@@ -109,7 +109,7 @@ export class ChatbotComponent {
       });
 
       let textBlock: OutputSchema | undefined = undefined;
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         for (const content of chunk.content) {
           if (content.text) {
             if (!textBlock) {

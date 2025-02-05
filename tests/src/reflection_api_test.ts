@@ -50,7 +50,7 @@ async function testReflectionApi() {
     }
   );
 
-  const t = yaml.parse(readFileSync('reflection_api_tests.yaml', 'utf8'));
+  const t = yaml.parse(readFileSync('specs/reflection_api.yaml', 'utf8'));
   for (const test of t.tests) {
     console.log('path', test.path);
     let fetchopts = {

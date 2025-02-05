@@ -23,7 +23,7 @@ import {
 import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 
-import { EmbedderArgument } from 'genkit/embedder';
+import { EmbedderArgument, Embedding } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
   Document,
@@ -59,8 +59,17 @@ const PineconeIndexerOptionsSchema = z.object({
   namespace: z.string().optional(),
 });
 
-const TEXT_KEY = '_content';
+const CONTENT_KEY = '_content';
+const CONTENT_TYPE = '_contentType';
 
+/**
+ * pineconeRetrieverRef function creates a retriever for Pinecone.
+ * @param params The params for the new Pinecone retriever
+ * @param params.indexId The indexId for the Pinecone retriever
+ * @param params.displayName  A display name for the retriever.
+If not specified, the default label will be `Pinecone - <indexId>`
+ * @returns A reference to a Pinecone retriever.
+ */
 export const pineconeRetrieverRef = (params: {
   indexId: string;
   displayName?: string;
@@ -74,6 +83,14 @@ export const pineconeRetrieverRef = (params: {
   });
 };
 
+/**
+ * pineconeIndexerRef function creates an indexer for Pinecone.
+ * @param params The params for the new Pinecone indexer.
+ * @param params.indexId The indexId for the Pinecone indexer.
+ * @param params.displayName  A display name for the indexer.
+If not specified, the default label will be `Pinecone - <indexId>`
+ * @returns A reference to a Pinecone indexer.
+ */
 export const pineconeIndexerRef = (params: {
   indexId: string;
   displayName?: string;
@@ -88,12 +105,21 @@ export const pineconeIndexerRef = (params: {
 };
 
 /**
- * Pinecone plugin that provides a pinecone retriever and indexer
+ * Pinecone plugin that provides a Pinecone retriever and indexer
+ * @param params An array of params to set up Pinecone retrievers and indexers
+ * @param params.clientParams PineconeConfiguration containing the
+PINECONE_API_KEY. If not set, the PINECONE_API_KEY environment variable will
+be used instead.
+ * @param params.indexId The name of the index
+ * @param params.embedder The embedder to use for the indexer and retriever
+ * @param params.embedderOptions  Options to customize the embedder
+ * @returns The Pinecone Genkit plugin
  */
 export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
     clientParams?: PineconeConfiguration;
     indexId: string;
+    contentKey?: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }[]
@@ -108,6 +134,18 @@ export default pinecone;
 
 /**
  * Configures a Pinecone retriever.
+ * @param ai A Genkit instance
+ * @param params The params for the retriever
+ * @param params.indexId The name of the retriever
+ * @param params.clientParams PineconeConfiguration containing the
+PINECONE_API_KEY. If not set, the PINECONE_API_KEY environment variable will
+be used instead.
+ * @param params.textKey Deprecated. Please use contentKey.
+ * @param params.contentKey The metadata key that contains the
+content. If not specified, the value '_content' is used by default.
+ * @param params.embedder The embedder to use for the retriever
+ * @param params.embedderOptions  Options to customize the embedder
+ * @returns A Pinecone retriever
  */
 export function configurePineconeRetriever<
   EmbedderCustomOptions extends z.ZodTypeAny,
@@ -116,7 +154,11 @@ export function configurePineconeRetriever<
   params: {
     indexId: string;
     clientParams?: PineconeConfiguration;
+    /**
+     * @deprecated use contentKey instead.
+     */
     textKey?: string;
+    contentKey?: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }
@@ -125,7 +167,7 @@ export function configurePineconeRetriever<
     ...params,
   };
   const pineconeConfig = params.clientParams ?? getDefaultConfig();
-  const textKey = params.textKey ?? TEXT_KEY;
+  const contentKey = params.contentKey ?? params.textKey ?? CONTENT_KEY;
   const pinecone = new Pinecone(pineconeConfig);
   const index = pinecone.index(indexId);
 
@@ -145,7 +187,7 @@ export function configurePineconeRetriever<
         : index;
       const response = await scopedIndex.query({
         topK: options.k,
-        vector: queryEmbeddings,
+        vector: queryEmbeddings[0].embedding,
         includeValues: false,
         includeMetadata: true,
       });
@@ -155,9 +197,14 @@ export function configurePineconeRetriever<
           .filter((m): m is RecordMetadata => !!m)
           .map((m) => {
             const metadata = m;
-            const content = metadata[textKey] as string;
-            delete metadata[textKey];
-            return Document.fromText(content, metadata).toJSON();
+            return Document.fromData(
+              metadata[contentKey] as string,
+              metadata[CONTENT_TYPE] as string,
+              JSON.parse(metadata.docMetadata as string) as Record<
+                string,
+                unknown
+              >
+            );
           }),
       };
     }
@@ -166,6 +213,18 @@ export function configurePineconeRetriever<
 
 /**
  * Configures a Pinecone indexer.
+ * @param ai A Genkit instance
+ * @param params The params for the indexer
+ * @param params.indexId The name of the indexer
+ * @param params.clientParams PineconeConfiguration containing the
+PINECONE_API_KEY. If not set, the PINECONE_API_KEY environment variable will
+be used instead.
+ * @param params.textKey Deprecated. Please use contentKey.
+ * @param params.contentKey The metadata key that contains the
+content. If not specified, the value '_content' is used by default.
+ * @param params.embedder The embedder to use for the retriever
+ * @param params.embedderOptions  Options to customize the embedder
+ * @returns A Genkit indexer
  */
 export function configurePineconeIndexer<
   EmbedderCustomOptions extends z.ZodTypeAny,
@@ -174,7 +233,11 @@ export function configurePineconeIndexer<
   params: {
     indexId: string;
     clientParams?: PineconeConfiguration;
+    /**
+     * @deprecated use contentKey instead.
+     */
     textKey?: string;
+    contentKey?: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }
@@ -183,7 +246,7 @@ export function configurePineconeIndexer<
     ...params,
   };
   const pineconeConfig = params.clientParams ?? getDefaultConfig();
-  const textKey = params.textKey ?? TEXT_KEY;
+  const contentKey = params.contentKey ?? params.textKey ?? CONTENT_KEY;
   const pinecone = new Pinecone(pineconeConfig);
   const index = pinecone.index(indexId);
 
@@ -207,19 +270,34 @@ export function configurePineconeIndexer<
         )
       );
       await scopedIndex.upsert(
-        embeddings.map((value, i) => {
-          const metadata: RecordMetadata = {
-            ...docs[i].metadata,
-          };
+        embeddings
+          .map((value, i) => {
+            const doc = docs[i];
+            // The array of embeddings for this document
+            const docEmbeddings: Embedding[] = value;
 
-          metadata[textKey] = docs[i].text;
-          const id = Md5.hashStr(JSON.stringify(docs[i]));
-          return {
-            id,
-            values: value,
-            metadata,
-          };
-        })
+            // Create one doc per docEmbedding so we can store them 1:1.
+            // They should be unique because the embedding metadata is
+            // added to the new docs.
+            const embeddingDocs = doc.getEmbeddingDocuments(docEmbeddings);
+
+            return docEmbeddings.map((docEmbedding, j) => {
+              const metadata: RecordMetadata = {
+                docMetadata: JSON.stringify(embeddingDocs[j].metadata),
+              };
+              metadata[contentKey] = embeddingDocs[j].data;
+              metadata[CONTENT_TYPE] = embeddingDocs[j].dataType || '';
+              const id = Md5.hashStr(JSON.stringify(embeddingDocs[j]));
+              return {
+                id,
+                values: docEmbedding.embedding,
+                metadata,
+              };
+            });
+          })
+          .reduce((acc, val) => {
+            return acc.concat(val);
+          }, [])
       );
     }
   );
@@ -227,6 +305,10 @@ export function configurePineconeIndexer<
 
 /**
  * Helper function for creating a Pinecone index.
+ * @param params The params for creating a Pinecone index
+ * @param params.clientParams The params to initialize Pinecone.
+ * @param params.options The options for creating the index.
+ * @returns A Pinecone index.
  */
 export async function createPineconeIndex(params: {
   clientParams?: PineconeConfiguration;
@@ -239,6 +321,10 @@ export async function createPineconeIndex(params: {
 
 /**
  * Helper function to describe a Pinecone index. Use it to check if a newly created index is ready for use.
+ * @param params The params for describing a Pinecone index.
+ * @param params.clientParams The params to initialize Pinecone.
+ * @param params.name The name of the Pinecone index to describe.
+ * @return A description of the Pinecone index.
  */
 export async function describePineconeIndex(params: {
   clientParams?: PineconeConfiguration;
@@ -250,7 +336,11 @@ export async function describePineconeIndex(params: {
 }
 
 /**
- * Helper function for deleting Chroma collections.
+ * Helper function for deleting pinecone indices.
+ * @param params The params for deleting a Pinecone index.
+ * @param params.clientParams The params to initialize Pinecone.
+ * @param params.name The name of the Pinecone index to delete.
+ * @returns a void Promise that is fulfilled when the index has been deleted.
  */
 export async function deletePineconeIndex(params: {
   clientParams?: PineconeConfiguration;

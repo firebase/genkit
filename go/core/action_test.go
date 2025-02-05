@@ -1,22 +1,13 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package core
 
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -30,7 +21,11 @@ func inc(_ context.Context, x int, _ noStream) (int, error) {
 }
 
 func TestActionRun(t *testing.T) {
-	a := newAction("inc", atype.Custom, nil, nil, inc)
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := defineAction(r, "test", "inc", atype.Custom, nil, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +36,11 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	a := newAction("inc", atype.Custom, nil, nil, inc)
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := defineAction(r, "test", "inc", atype.Custom, nil, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
 	got, err := a.RunJSON(context.Background(), input, nil)
@@ -67,7 +66,11 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := newAction("count", atype.Custom, nil, nil, count)
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := defineAction(r, "test", "count", atype.Custom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -98,17 +101,23 @@ func TestActionStreaming(t *testing.T) {
 }
 
 func TestActionTracing(t *testing.T) {
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := "test"
 	tc := tracing.NewTestOnlyTelemetryClient()
-	registry.Global.TracingState().WriteTelemetryImmediate(tc)
+	r.TracingState().WriteTelemetryImmediate(tc)
 	const actionName = "TestTracing-inc"
-	a := newAction(actionName, atype.Custom, nil, nil, inc)
+	a := defineAction(r, provider, actionName, atype.Custom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}
 	// The same trace store is used for all tests, so there might be several traces.
 	// Look for this one, which has a unique name.
+	fullActionName := fmt.Sprintf("%s/%s", provider, actionName)
 	for _, td := range tc.Traces {
-		if td.DisplayName == actionName {
+		if td.DisplayName == fullActionName {
 			// Spot check: expect a single span.
 			if g, w := len(td.Spans), 1; g != w {
 				t.Errorf("got %d spans, want %d", g, w)

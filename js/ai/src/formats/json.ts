@@ -24,18 +24,7 @@ export const jsonFormatter: Formatter<unknown, unknown> = {
     contentType: 'application/json',
     constrained: true,
   },
-  handler: (schema) => {
-    let instructions: string | undefined;
-
-    if (schema) {
-      instructions = `Output should be in JSON format and conform to the following schema:
-
-\`\`\`
-${JSON.stringify(schema)}
-\`\`\`
-`;
-    }
-
+  handler: () => {
     return {
       parseChunk: (chunk) => {
         return extractJson(chunk.accumulatedText);
@@ -44,8 +33,6 @@ ${JSON.stringify(schema)}
       parseMessage: (message) => {
         return extractJson(message.text);
       },
-
-      instructions,
     };
   },
 };

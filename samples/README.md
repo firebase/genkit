@@ -2,9 +2,20 @@
 
 Take a look at some samples of Genkit in use:
 
-- [js-coffee-shop](samples/js-coffee-shop/): "AI barista", demonstrating simple
+- [js-coffee-shop](js-coffee-shop/): "AI barista", demonstrating simple
   LLM usage
-- [js-menu](samples/js-menu/): Progressively more sophisticated versions of a
+- [js-menu](js-menu/): Progressively more sophisticated versions of a
   menu understanding app
-- [chatbot](samples/chatbot/): A simple chatbot with a JavaScript frontend
-- [js-angular](samples/js-angular/): Demo of streaming to an Angular frontend
+- [chatbot](chatbot/): A simple chatbot with a JavaScript frontend
+- [js-angular](js-angular/): Demo of streaming to an Angular frontend
+- [js-schoolAgent](js-schoolAgent/): A simple school assistant system with a routing agent and specialized agents
+- [prompts](prompts/): Shows off several prompting techniques
+
+These are also available in IDX, Google's Cloud-Based IDE, for you to try.
+
+<a href="https://idx.google.com/new?template=https%3A%2F%2Fgithub.com%2Ffirebase%2Fgenkit%2Ftree%2Fmain%2Fsamples">
+  <img
+    height="32"
+    alt="Try in IDX"
+    src="https://cdn.idx.dev/btn/try_light_32.svg">
+</a>

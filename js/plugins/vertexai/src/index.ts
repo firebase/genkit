@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +16,10 @@
  * limitations under the License.
  */
 
+/**
+ * @module /
+ */
+
 import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { getDerivedParams } from './common/index.js';
@@ -21,17 +27,23 @@ import { PluginOptions } from './common/types.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   defineVertexAIEmbedder,
+  multimodalEmbedding001,
   textEmbedding004,
+  textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 } from './embedder.js';
 import {
   SUPPORTED_GEMINI_MODELS,
+  defineGeminiKnownModel,
   defineGeminiModel,
+  gemini,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
+  gemini20FlashExp,
+  type GeminiConfig,
 } from './gemini.js';
 import {
   SUPPORTED_IMAGEN_MODELS,
@@ -42,16 +54,21 @@ import {
 } from './imagen.js';
 export { type PluginOptions } from './common/types.js';
 export {
+  gemini,
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
+  gemini20FlashExp,
   imagen2,
   imagen3,
   imagen3Fast,
+  multimodalEmbedding001,
   textEmbedding004,
+  textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
+  type GeminiConfig,
 };
 
 /**
@@ -66,8 +83,33 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       imagenModel(ai, name, authClient, { projectId, location })
     );
     Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-      defineGeminiModel(ai, name, vertexClientFactory, { projectId, location })
+      defineGeminiKnownModel(ai, name, vertexClientFactory, {
+        projectId,
+        location,
+      })
     );
+    if (options?.models) {
+      for (const modelOrRef of options?.models) {
+        const modelName =
+          typeof modelOrRef === 'string'
+            ? modelOrRef
+            : // strip out the `vertexai/` prefix
+              modelOrRef.name.split('/')[1];
+        const modelRef =
+          typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
+        defineGeminiModel(
+          ai,
+          modelRef.name,
+          modelName,
+          modelRef.info,
+          vertexClientFactory,
+          {
+            projectId,
+            location,
+          }
+        );
+      }
+    }
 
     Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
       defineVertexAIEmbedder(ai, name, authClient, { projectId, location })

@@ -23,11 +23,18 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
-import { augmentWithContext, validateSupport } from './model/middleware.js';
+import {
+  augmentWithContext,
+  simulateConstrainedGeneration,
+  validateSupport,
+} from './model/middleware.js';
+export { defineGenerateAction } from './generate/action.js';
+export { simulateConstrainedGeneration };
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -44,12 +51,22 @@ const EmptyPartSchema = z.object({
   custom: z.record(z.unknown()).optional(),
 });
 
+/**
+ * Zod schema for a text part.
+ */
 export const TextPartSchema = EmptyPartSchema.extend({
   /** The text of the message. */
   text: z.string(),
 });
+
+/**
+ * Text part.
+ */
 export type TextPart = z.infer<typeof TextPartSchema>;
 
+/**
+ * Zod schema of a media part.
+ */
 export const MediaPartSchema = EmptyPartSchema.extend({
   media: z.object({
     /** The media content type. Inferred from data uri if not provided. */
@@ -58,8 +75,15 @@ export const MediaPartSchema = EmptyPartSchema.extend({
     url: z.string(),
   }),
 });
+
+/**
+ * Media part.
+ */
 export type MediaPart = z.infer<typeof MediaPartSchema>;
 
+/**
+ * Zod schema of a tool request part.
+ */
 export const ToolRequestPartSchema = EmptyPartSchema.extend({
   /** A request for a tool to be executed, usually provided by a model. */
   toolRequest: z.object({
@@ -71,8 +95,15 @@ export const ToolRequestPartSchema = EmptyPartSchema.extend({
     input: z.unknown().optional(),
   }),
 });
+
+/**
+ * Tool part.
+ */
 export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
 
+/**
+ * Zod schema of a tool response part.
+ */
 export const ToolResponsePartSchema = EmptyPartSchema.extend({
   /** A provided response to a tool call. */
   toolResponse: z.object({
@@ -84,19 +115,39 @@ export const ToolResponsePartSchema = EmptyPartSchema.extend({
     output: z.unknown().optional(),
   }),
 });
+
+/**
+ * Tool response part.
+ */
 export type ToolResponsePart = z.infer<typeof ToolResponsePartSchema>;
 
+/**
+ * Zod schema of a data part.
+ */
 export const DataPartSchema = EmptyPartSchema.extend({
   data: z.unknown(),
 });
 
+/**
+ * Data part.
+ */
 export type DataPart = z.infer<typeof DataPartSchema>;
 
+/**
+ * Zod schema of a custom part.
+ */
 export const CustomPartSchema = EmptyPartSchema.extend({
   custom: z.record(z.any()),
 });
+
+/**
+ * Custom part.
+ */
 export type CustomPart = z.infer<typeof CustomPartSchema>;
 
+/**
+ * Zod schema of message part.
+ */
 export const PartSchema = z.union([
   TextPartSchema,
   MediaPartSchema,
@@ -106,18 +157,38 @@ export const PartSchema = z.union([
   CustomPartSchema,
 ]);
 
+/**
+ * Message part.
+ */
 export type Part = z.infer<typeof PartSchema>;
 
+/**
+ * Zod schema of a message role.
+ */
 export const RoleSchema = z.enum(['system', 'user', 'model', 'tool']);
+
+/**
+ * Message role.
+ */
 export type Role = z.infer<typeof RoleSchema>;
 
+/**
+ * Zod schema of a message.
+ */
 export const MessageSchema = z.object({
   role: RoleSchema,
   content: z.array(PartSchema),
   metadata: z.record(z.unknown()).optional(),
 });
+
+/**
+ * Model message data.
+ */
 export type MessageData = z.infer<typeof MessageSchema>;
 
+/**
+ * Zod schema of model info metadata.
+ */
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
   versions: z.array(z.string()).optional(),
@@ -140,6 +211,10 @@ export const ModelInfoSchema = z.object({
       contentType: z.array(z.string()).optional(),
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
+      /** Model can natively support constrained generation. */
+      constrained: z.boolean().optional(),
+      /** Model supports controlling tool choice, e.g. forced tool calling. */
+      toolChoice: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
@@ -153,8 +228,15 @@ export const ModelInfoSchema = z.object({
     .enum(['featured', 'stable', 'unstable', 'legacy', 'deprecated'])
     .optional(),
 });
+
+/**
+ * Model info metadata.
+ */
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 
+/**
+ * Zod schema of a tool definition.
+ */
 export const ToolDefinitionSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -171,8 +253,15 @@ export const ToolDefinitionSchema = z.object({
     .describe('additional metadata for this tool definition')
     .optional(),
 });
+
+/**
+ * Tool definition.
+ */
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
+/**
+ * Zod schema of a common config object.
+ */
 export const GenerationCommonConfigSchema = z.object({
   /** A specific version of a model family, e.g. `gemini-1.0-pro-001` for the `gemini-1.0-pro` family. */
   version: z.string().optional(),
@@ -182,15 +271,26 @@ export const GenerationCommonConfigSchema = z.object({
   topP: z.number().optional(),
   stopSequences: z.array(z.string()).optional(),
 });
+
+/**
+ * Common config object.
+ */
 export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 
-const OutputConfigSchema = z.object({
+/**
+ * Zod schema of output config.
+ */
+export const OutputConfigSchema = z.object({
   format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
   instructions: z.string().optional(),
   contentType: z.string().optional(),
 });
+
+/**
+ * Output config.
+ */
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
 /** ModelRequestSchema represents the parameters that are passed to a model when generating content. */
@@ -198,6 +298,7 @@ export const ModelRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   docs: z.array(DocumentDataSchema).optional(),
 });
@@ -207,19 +308,31 @@ export interface ModelRequest<
 > extends z.infer<typeof ModelRequestSchema> {
   config?: z.infer<CustomOptionsSchema>;
 }
-
+/**
+ * Zod schema of a generate request.
+ */
 export const GenerateRequestSchema = ModelRequestSchema.extend({
   /** @deprecated All responses now return a single candidate. This will always be `undefined`. */
   candidates: z.number().optional(),
 });
+
+/**
+ * Generate request data.
+ */
 export type GenerateRequestData = z.infer<typeof GenerateRequestSchema>;
 
+/**
+ * Generate request.
+ */
 export interface GenerateRequest<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 > extends z.infer<typeof GenerateRequestSchema> {
   config?: z.infer<CustomOptionsSchema>;
 }
 
+/**
+ * Zod schema of usage info from a generate request.
+ */
 export const GenerationUsageSchema = z.object({
   inputTokens: z.number().optional(),
   outputTokens: z.number().optional(),
@@ -234,14 +347,28 @@ export const GenerationUsageSchema = z.object({
   outputAudioFiles: z.number().optional(),
   custom: z.record(z.number()).optional(),
 });
+
+/**
+ * Usage info from a generate request.
+ */
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
+
+/** Model response finish reason enum. */
+const FinishReasonSchema = z.enum([
+  'stop',
+  'length',
+  'blocked',
+  'interrupted',
+  'other',
+  'unknown',
+]);
 
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateSchema = z.object({
   index: z.number(),
   message: MessageSchema,
   usage: GenerationUsageSchema.optional(),
-  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
   custom: z.unknown(),
 });
@@ -257,9 +384,12 @@ export const CandidateErrorSchema = z.object({
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
+/**
+ * Zod schema of a model response.
+ */
 export const ModelResponseSchema = z.object({
   message: MessageSchema.optional(),
-  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
@@ -268,19 +398,31 @@ export const ModelResponseSchema = z.object({
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
 });
+
+/**
+ * Model response data.
+ */
 export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
 
+/**
+ * Zod schema of generaete response.
+ */
 export const GenerateResponseSchema = ModelResponseSchema.extend({
   /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finishReason`, and `finishMessage` instead. */
   candidates: z.array(CandidateSchema).optional(),
-  finishReason: z
-    .enum(['stop', 'length', 'blocked', 'other', 'unknown'])
-    .optional(),
+  finishReason: FinishReasonSchema.optional(),
 });
+
+/**
+ * Generate response data.
+ */
 export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
 
 /** ModelResponseChunkSchema represents a chunk of content to stream to the client. */
 export const ModelResponseChunkSchema = z.object({
+  role: RoleSchema.optional(),
+  /** index of the message this chunk belongs to. */
+  index: z.number().optional(),
   /** The chunk of content to stream right now. */
   content: z.array(PartSchema),
   /** Model-specific extra information attached to this chunk. */
@@ -290,10 +432,7 @@ export const ModelResponseChunkSchema = z.object({
 });
 export type ModelResponseChunkData = z.infer<typeof ModelResponseChunkSchema>;
 
-export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({
-  /** @deprecated The index of the candidate this chunk belongs to. Always 0. */
-  index: z.number().optional(),
-});
+export const GenerateResponseChunkSchema = ModelResponseChunkSchema;
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
 >;
@@ -348,7 +487,8 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  // middleware.push(conformOutput(registry));
+  if (!options?.supports?.constrained)
+    middleware.push(simulateConstrainedGeneration());
   const act = defineAction(
     registry,
     {
@@ -372,7 +512,7 @@ export function defineModel<
     (input) => {
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback()).then((response) => {
+      return runner(input, getStreamingCallback(registry)).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,
@@ -495,7 +635,8 @@ export interface ResolvedModel<
 
 export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
-  model: ModelArgument<C> | undefined
+  model: ModelArgument<C> | undefined,
+  options?: { warnDeprecated?: boolean }
 ): Promise<ResolvedModel<C>> {
   let out: ResolvedModel<C>;
   let modelId: string;
@@ -532,9 +673,55 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   if (!out.modelAction) {
     throw new GenkitError({
       status: 'NOT_FOUND',
-      message: `Model ${modelId} not found`,
+      message: `Model '${modelId}' not found`,
     });
+  }
+
+  if (
+    options?.warnDeprecated &&
+    out.modelAction.__action.metadata?.model?.stage === 'deprecated'
+  ) {
+    logger.warn(
+      `Model '${out.modelAction.__action.name}' is deprecated and may be removed in a future release.`
+    );
   }
 
   return out;
 }
+
+export const GenerateActionOptionsSchema = z.object({
+  /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
+  model: z.string(),
+  /** Retrieved documents to be used as context for this generation. */
+  docs: z.array(DocumentDataSchema).optional(),
+  /** Conversation history for multi-turn prompting when supported by the underlying model. */
+  messages: z.array(MessageSchema),
+  /** List of registered tool names for this generation if supported by the underlying model. */
+  tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
+  /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
+  toolChoice: z.enum(['auto', 'required', 'none']).optional(),
+  /** Configuration for the generation request. */
+  config: z.any().optional(),
+  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
+  output: z
+    .object({
+      format: z.string().optional(),
+      contentType: z.string().optional(),
+      instructions: z.union([z.boolean(), z.string()]).optional(),
+      jsonSchema: z.any().optional(),
+    })
+    .optional(),
+  /** Options for resuming an interrupted generation. */
+  resume: z
+    .object({
+      respond: z.array(ToolResponsePartSchema).optional(),
+      restart: z.array(ToolRequestPartSchema).optional(),
+      metadata: z.record(z.any()).optional(),
+    })
+    .optional(),
+  /** When true, return tool calls for manual processing instead of automatically resolving them. */
+  returnToolRequests: z.boolean().optional(),
+  /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
+  maxTurns: z.number().optional(),
+});
+export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;

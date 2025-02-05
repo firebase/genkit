@@ -28,11 +28,17 @@ export {
   type TextPart,
 } from './document.js';
 
+/**
+ * Retriever implementation function signature.
+ */
 export type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
   query: Document,
   queryOpts: z.infer<RetrieverOptions>
 ) => Promise<RetrieverResponse>;
 
+/**
+ * Indexer implementation function signature.
+ */
 export type IndexerFn<IndexerOptions extends z.ZodTypeAny> = (
   docs: Array<Document>,
   indexerOpts: z.infer<IndexerOptions>
@@ -54,6 +60,9 @@ const IndexerRequestSchema = z.object({
   options: z.any().optional(),
 });
 
+/**
+ * Zod schema of retriever info metadata.
+ */
 export const RetrieverInfoSchema = z.object({
   label: z.string().optional(),
   /** Supported model capabilities. */
@@ -66,11 +75,17 @@ export const RetrieverInfoSchema = z.object({
 });
 export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
 
+/**
+ * A retriever action type.
+ */
 export type RetrieverAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   Action<typeof RetrieverRequestSchema, typeof RetrieverResponseSchema> & {
     __configSchema?: CustomOptions;
   };
 
+/**
+ * An indexer action type.
+ */
 export type IndexerAction<IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   Action<typeof IndexerRequestSchema, z.ZodVoid> & {
     __configSchema?: IndexerOptions;
@@ -192,6 +207,9 @@ export interface RetrieverParams<
   options?: z.infer<CustomOptions>;
 }
 
+/**
+ * A type that can be used to pass a retriever as an argument, either using a reference or an action.
+ */
 export type RetrieverArgument<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = RetrieverAction<CustomOptions> | RetrieverReference<CustomOptions> | string;
@@ -227,9 +245,15 @@ export async function retrieve<CustomOptions extends z.ZodTypeAny>(
   return response.documents.map((d) => new Document(d));
 }
 
+/**
+ * A type that can be used to pass an indexer as an argument, either using a reference or an action.
+ */
 export type IndexerArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   IndexerReference<CustomOptions> | IndexerAction<CustomOptions> | string;
 
+/**
+ * Options passed to the index function.
+ */
 export interface IndexerParams<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
@@ -262,10 +286,16 @@ export async function index<CustomOptions extends z.ZodTypeAny>(
   });
 }
 
+/**
+ * Zod schema of common retriever options.
+ */
 export const CommonRetrieverOptionsSchema = z.object({
   k: z.number().describe('Number of documents to retrieve').optional(),
 });
 
+/**
+ * A retriver reference object.
+ */
 export interface RetrieverReference<CustomOptions extends z.ZodTypeAny> {
   name: string;
   configSchema?: CustomOptions;
@@ -285,6 +315,10 @@ export function retrieverRef<
 
 // Reuse the same schema for both indexers and retrievers -- for now.
 export const IndexerInfoSchema = RetrieverInfoSchema;
+
+/**
+ * Indexer metadata.
+ */
 export type IndexerInfo = z.infer<typeof IndexerInfoSchema>;
 
 export interface IndexerReference<CustomOptions extends z.ZodTypeAny> {
@@ -336,6 +370,7 @@ function itemToMetadata(
   if (Array.isArray(options.metadata) && typeof item === 'object') {
     const out: Record<string, any> = {};
     options.metadata.forEach((key) => (out[key] = item[key]));
+    return out;
   }
   if (typeof options.metadata === 'function') return options.metadata(item);
   if (!options.metadata && typeof item === 'object') {
@@ -349,6 +384,9 @@ function itemToMetadata(
   });
 }
 
+/**
+ * Simple retriever options.
+ */
 export interface SimpleRetrieverOptions<
   C extends z.ZodTypeAny = z.ZodTypeAny,
   R = any,

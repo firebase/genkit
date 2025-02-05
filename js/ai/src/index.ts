@@ -47,9 +47,11 @@ export {
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
+  type ResumeOptions,
 } from './generate.js';
 export { Message } from './message.js';
 export {
+  GenerateResponseChunkSchema,
   GenerationCommonConfigSchema,
   MessageSchema,
   ModelRequestSchema,
@@ -58,6 +60,7 @@ export {
   RoleSchema,
   type GenerateRequest,
   type GenerateRequestData,
+  type GenerateResponseChunkData,
   type GenerateResponseData,
   type GenerationUsage,
   type MediaPart,
@@ -72,13 +75,15 @@ export {
   type ToolResponsePart,
 } from './model.js';
 export {
+  defineHelper,
+  definePartial,
   definePrompt,
   isExecutablePrompt,
-  renderPrompt,
+  loadPromptFolder,
+  prompt,
   type ExecutablePrompt,
   type PromptAction,
   type PromptConfig,
-  type PromptFn,
   type PromptGenerateOptions,
 } from './prompt.js';
 export {
@@ -108,8 +113,11 @@ export {
   type RetrieverReference,
 } from './retriever.js';
 export {
+  ToolInterruptError,
   asTool,
+  defineInterrupt,
   defineTool,
+  type InterruptConfig,
   type ToolAction,
   type ToolArgument,
   type ToolConfig,

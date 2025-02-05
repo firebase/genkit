@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package ollama_test
 
@@ -20,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
@@ -39,8 +30,13 @@ func TestLive(t *testing.T) {
 
 	ctx := context.Background()
 
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Initialize the Ollama plugin
-	err := ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
+	err = ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
 		ServerAddress: *serverAddress,
 	})
 	if err != nil {
@@ -48,16 +44,16 @@ func TestLive(t *testing.T) {
 	}
 
 	// Define the model
-	ollamaPlugin.DefineModel(ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	ollamaPlugin.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
 
 	// Use the Ollama model
-	m := ollamaPlugin.Model(*modelName)
+	m := ollamaPlugin.Model(g, *modelName)
 	if m == nil {
 		t.Fatalf(`failed to find model: %s`, *modelName)
 	}
 
 	// Generate a response from the model
-	resp, err := m.Generate(ctx,
+	resp, err := genkit.GenerateWithRequest(ctx, g, m,
 		ai.NewModelRequest(
 			&ai.GenerationCommonConfig{Temperature: 1},
 			ai.NewUserTextMessage("I'm hungry, what should I eat?")),

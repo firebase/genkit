@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package localvec
 
@@ -21,11 +11,17 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
 func TestLocalVec(t *testing.T) {
 	ctx := context.Background()
+
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Make two very similar vectors and one different vector.
 	// Arrange for a fake embedder to return those vector
@@ -50,7 +46,7 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := ai.DefineEmbedder("fake", "embedder1", embedder.Embed)
+	embedAction := genkit.DefineEmbedder(g, "fake", "embedder1", embedder.Embed)
 	ds, err := newDocStore(t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -92,6 +88,11 @@ func TestLocalVec(t *testing.T) {
 func TestPersistentIndexing(t *testing.T) {
 	ctx := context.Background()
 
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	const dim = 32
 	v1 := make([]float32, dim)
 	v2 := make([]float32, dim)
@@ -110,7 +111,7 @@ func TestPersistentIndexing(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := ai.DefineEmbedder("fake", "embedder2", embedder.Embed)
+	embedAction := genkit.DefineEmbedder(g, "fake", "embedder2", embedder.Embed)
 
 	tDir := t.TempDir()
 
@@ -188,12 +189,16 @@ func TestSimilarity(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	embedder := ai.DefineEmbedder("fake", "e", fakeembedder.New().Embed)
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	embedder := genkit.DefineEmbedder(g, "fake", "e", fakeembedder.New().Embed)
 	if err := Init(); err != nil {
 		t.Fatal(err)
 	}
 	const name = "mystore"
-	ind, ret, err := DefineIndexerAndRetriever(name, Config{Embedder: embedder})
+	ind, ret, err := DefineIndexerAndRetriever(g, name, Config{Embedder: embedder})
 	if err != nil {
 		t.Fatal(err)
 	}

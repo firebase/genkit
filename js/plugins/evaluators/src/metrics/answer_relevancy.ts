@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-import { loadPromptFile } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
 import { Genkit, ModelArgument, z } from 'genkit';
 import { EmbedderArgument } from 'genkit/embedder';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
-import { getDirName } from './helper.js';
+import { getDirName, loadPromptFile, renderText } from './helper.js';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
-  answered: z.literal(0).or(z.literal(1)),
-  noncommittal: z.literal(0).or(z.literal(1)),
+  answered: z.enum(['0', '1'] as const),
+  noncommittal: z.enum(['0', '1'] as const),
 });
 
 export async function answerRelevancyScore<
@@ -40,23 +39,36 @@ export async function answerRelevancyScore<
   embedderOptions?: z.infer<CustomEmbedderOptions>
 ): Promise<Score> {
   try {
-    if (!dataPoint.context?.length) {
-      throw new Error('Context was not provided');
+    if (!dataPoint.input) {
+      throw new Error('Input was not provided');
     }
     if (!dataPoint.output) {
       throw new Error('Output was not provided');
     }
+    if (!dataPoint.context?.length) {
+      throw new Error('Context was not provided');
+    }
+
+    const input =
+      typeof dataPoint.input === 'string'
+        ? dataPoint.input
+        : JSON.stringify(dataPoint.input);
+    const output =
+      typeof dataPoint.output === 'string'
+        ? dataPoint.output
+        : JSON.stringify(dataPoint.output);
+    const context = dataPoint.context.map((i) => JSON.stringify(i));
+
     const prompt = await loadPromptFile(
-      ai.registry,
       path.resolve(getDirName(), '../../prompts/answer_relevancy.prompt')
     );
     const response = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: prompt.renderText({
-        question: dataPoint.input as string,
-        answer: dataPoint.output as string,
-        context: dataPoint.context.join(' '),
+      prompt: await renderText(prompt, {
+        question: input,
+        answer: output,
+        context: context.join(' '),
       }),
       output: {
         schema: AnswerRelevancyResponseSchema,
@@ -66,19 +78,23 @@ export async function answerRelevancyScore<
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
-    const questionEmbed = await ai.embed({
-      embedder,
-      content: dataPoint.input as string,
-      options: embedderOptions,
-    });
-    const genQuestionEmbed = await ai.embed({
-      embedder,
-      content: genQuestion,
-      options: embedderOptions,
-    });
+    const questionEmbed = (
+      await ai.embed({
+        embedder,
+        content: input,
+        options: embedderOptions,
+      })
+    )[0].embedding; // Single embedding for text
+    const genQuestionEmbed = (
+      await ai.embed({
+        embedder,
+        content: genQuestion,
+        options: embedderOptions,
+      })
+    )[0].embedding; // Single embedding for text
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
-    const answered = response.output?.answered === 1;
-    const isNonCommittal = response.output?.noncommittal === 1;
+    const answered = response.output?.answered === '1' ? 1 : 0;
+    const isNonCommittal = response.output?.noncommittal === '1' ? 1 : 0;
     const answeredPenalty = !answered ? 0.5 : 0;
     const adjustedScore =
       score - answeredPenalty < 0 ? 0 : score - answeredPenalty;

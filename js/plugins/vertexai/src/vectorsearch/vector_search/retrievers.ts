@@ -48,7 +48,6 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentRetriever, indexId, publicDomainName } = vectorSearchOption;
-    const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
     const retriever = ai.defineRetriever(
@@ -66,11 +65,13 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const queryEmbeddings = await ai.embed({
-          embedder: embedderReference,
-          options: embedderOptions,
-          content,
-        });
+        const queryEmbeddings = (
+          await ai.embed({
+            embedder: embedderReference,
+            options: embedderOptions,
+            content,
+          })
+        )[0].embedding; // Single embedding for text
 
         const accessToken = await params.authClient.getAccessToken();
 

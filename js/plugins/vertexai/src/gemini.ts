@@ -22,13 +22,15 @@ import {
   Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
-  GenerateContentResult,
+  GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
   StartChatParams,
   ToolConfig,
   VertexAI,
+  type GoogleSearchRetrieval,
 } from '@google-cloud/vertexai';
+import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
 import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
@@ -37,6 +39,7 @@ import {
   MediaPart,
   MessageData,
   ModelAction,
+  ModelInfo,
   ModelMiddleware,
   ModelReference,
   Part,
@@ -48,7 +51,10 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
+import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
+import { handleCacheIfNeeded } from './context-caching/index.js';
+import { extractCacheConfig } from './context-caching/utils.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
@@ -68,11 +74,91 @@ const GoogleSearchRetrievalSchema = z.object({
   disableAttribution: z.boolean().optional(),
 });
 
+/**
+ * Zod schema of Gemini model options.
+ */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  /**
+   * GCP region (e.g. us-central1)
+   */
+  location: z.string().describe('banana').optional(),
+
+  /**
+   * Safety filter settings. See: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters#configurable-filters
+   *
+   * E.g.
+   *
+   * ```js
+   * config: {
+   *   safetySettings: [
+   *     {
+   *       category: 'HARM_CATEGORY_HATE_SPEECH',
+   *       threshold: 'BLOCK_LOW_AND_ABOVE',
+   *     },
+   *     {
+   *       category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+   *       threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+   *     },
+   *     {
+   *       category: 'HARM_CATEGORY_HARASSMENT',
+   *       threshold: 'BLOCK_ONLY_HIGH',
+   *     },
+   *     {
+   *       category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+   *       threshold: 'BLOCK_NONE',
+   *     },
+   *   ],
+   * }
+   * ```
+   */
   safetySettings: z.array(SafetySettingsSchema).optional(),
-  location: z.string().optional(),
+
+  /**
+   * Vertex retrieval options.
+   *
+   * E.g.
+   *
+   * ```js
+   *   config: {
+   *     vertexRetrieval: {
+   *       datastore: {
+   *         projectId: 'your-cloud-project',
+   *         location: 'us-central1',
+   *         collection: 'your-collection',
+   *       },
+   *       disableAttribution: true,
+   *     }
+   *   }
+   * ```
+   */
   vertexRetrieval: VertexRetrievalSchema.optional(),
+
+  /**
+   * Google Search retrieval options.
+   *
+   * ```js
+   *   config: {
+   *     googleSearchRetrieval: {
+   *       disableAttribution: true,
+   *     }
+   *   }
+   * ```
+   */
   googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
+
+  /**
+   * Function calling options.
+   *
+   * E.g. forced tool call:
+   *
+   * ```js
+   *   config: {
+   *     functionCallingConfig: {
+   *       mode: 'ANY',
+   *     }
+   *   }
+   * ```
+   */
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
@@ -80,6 +166,103 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .optional(),
 });
+
+/**
+ * Known model names, to allow code completion for convenience. Allows other model names.
+ */
+export type GeminiVersionString =
+  | keyof typeof SUPPORTED_GEMINI_MODELS
+  | (string & {});
+
+/**
+ * Returns a reference to a model that can be used in generate calls.
+ *
+ * ```js
+ * await ai.generate({
+ *   prompt: 'hi',
+ *   model: gemini('gemini-1.5-flash')
+ * });
+ * ```
+ */
+export function gemini(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const nearestModel = nearestGeminiModelRef(version);
+  return modelRef({
+    name: `vertexai/${version}`,
+    config: options,
+    configSchema: GeminiConfigSchema,
+    info: {
+      ...nearestModel.info,
+      // If exact suffix match for a known model, use its label, otherwise create a new label
+      label: nearestModel.name.endsWith(version)
+        ? nearestModel.info?.label
+        : `Vertex AI - ${version}`,
+    },
+  });
+}
+
+function nearestGeminiModelRef(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const matchingKey = longestMatchingPrefix(
+    version,
+    Object.keys(SUPPORTED_GEMINI_MODELS)
+  );
+  if (matchingKey) {
+    return SUPPORTED_GEMINI_MODELS[matchingKey].withConfig({
+      ...options,
+      version,
+    });
+  }
+  return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
+}
+
+function longestMatchingPrefix(version: string, potentialMatches: string[]) {
+  return potentialMatches
+    .filter((p) => version.startsWith(p))
+    .reduce(
+      (longest, current) =>
+        current.length > longest.length ? current : longest,
+      ''
+    );
+}
+
+/**
+ * Gemini model configuration options.
+ *
+ * E.g.
+ * ```js
+ *   config: {
+ *     temperature: 0.9,
+ *     maxOutputTokens: 300,
+ *     safetySettings: [
+ *       {
+ *         category: 'HARM_CATEGORY_HATE_SPEECH',
+ *         threshold: 'BLOCK_LOW_AND_ABOVE',
+ *       },
+ *       {
+ *         category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+ *         threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+ *       },
+ *       {
+ *         category: 'HARM_CATEGORY_HARASSMENT',
+ *         threshold: 'BLOCK_ONLY_HIGH',
+ *       },
+ *       {
+ *         category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+ *         threshold: 'BLOCK_NONE',
+ *       },
+ *     ],
+ *     functionCallingConfig: {
+ *       mode: 'ANY',
+ *     }
+ *   }
+ * ```
+ */
+export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
   name: 'vertexai/gemini-1.0-pro',
@@ -91,6 +274,8 @@ export const gemini10Pro = modelRef({
       media: false,
       tools: true,
       systemRole: true,
+      constrained: true,
+      toolChoice: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -105,7 +290,9 @@ export const gemini15Pro = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -120,10 +307,44 @@ export const gemini15Flash = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
+});
+
+export const gemini20FlashExp = modelRef({
+  name: 'vertexai/gemini-2.0-flash-exp',
+  info: {
+    label: 'Vertex AI - Gemini 2.0 Flash (Experimental)',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const GENERIC_GEMINI_MODEL = modelRef({
+  name: 'vertexai/gemini',
+  configSchema: GeminiConfigSchema,
+  info: {
+    label: 'Google Gemini',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+    },
+  },
 });
 
 export const SUPPORTED_V1_MODELS = {
@@ -133,16 +354,17 @@ export const SUPPORTED_V1_MODELS = {
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
+  'gemini-2.0-flash-exp': gemini20FlashExp,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
   ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
-};
+} as const;
 
 function toGeminiRole(
   role: MessageData['role'],
-  model?: ModelReference<z.ZodTypeAny>
+  modelInfo?: ModelInfo
 ): string {
   switch (role) {
     case 'user':
@@ -150,7 +372,7 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model && SUPPORTED_V15_MODELS[model.name]) {
+      if (modelInfo && modelInfo.supports?.systemRole) {
         // We should have already pulled out the supported system messages,
         // anything remaining is unsupported; throw an error.
         throw new Error(
@@ -179,10 +401,10 @@ const toGeminiTool = (
 
 const toGeminiFileDataPart = (part: MediaPart): GeminiPart => {
   const media = part.media;
-  if (media.url.startsWith('gs://')) {
+  if (media.url.startsWith('gs://') || media.url.startsWith('http')) {
     if (!media.contentType)
       throw new Error(
-        'Must supply contentType when using media from gs:// URLs.'
+        'Must supply contentType when using media from http(s):// or gs:// URLs.'
       );
     return {
       fileData: {
@@ -244,10 +466,10 @@ export function toGeminiSystemInstruction(message: MessageData): Content {
 
 export function toGeminiMessage(
   message: MessageData,
-  model?: ModelReference<z.ZodTypeAny>
+  modelInfo?: ModelInfo
 ): Content {
   return {
-    role: toGeminiRole(message.role, model),
+    role: toGeminiRole(message.role, modelInfo),
     parts: message.content.map(toGeminiPart),
   };
 }
@@ -438,7 +660,7 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 /**
  * Define a Vertex AI Gemini model.
  */
-export function defineGeminiModel(
+export function defineGeminiKnownModel(
   ai: Genkit,
   name: string,
   vertexClientFactory: (
@@ -451,11 +673,34 @@ export function defineGeminiModel(
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
+  return defineGeminiModel(
+    ai,
+    modelName,
+    name,
+    model?.info,
+    vertexClientFactory,
+    options
+  );
+}
+
+/**
+ * Define a Vertex AI Gemini model.
+ */
+export function defineGeminiModel(
+  ai: Genkit,
+  modelName: string,
+  version: string,
+  modelInfo: ModelInfo | undefined,
+  vertexClientFactory: (
+    request: GenerateRequest<typeof GeminiConfigSchema>
+  ) => VertexAI,
+  options: PluginOptions
+): ModelAction {
   const middlewares: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[version]) {
     middlewares.push(simulateSystemPrompt());
   }
-  if (model?.info?.supports?.media) {
+  if (modelInfo?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
@@ -463,31 +708,20 @@ export function defineGeminiModel(
   return ai.defineModel(
     {
       name: modelName,
-      ...model.info,
+      ...modelInfo,
       configSchema: GeminiConfigSchema,
       use: middlewares,
     },
     async (request, streamingCallback) => {
       const vertex = vertexClientFactory(request);
-      const client = vertex.preview.getGenerativeModel(
-        {
-          model: request.config?.version || model.version || name,
-        },
-        {
-          apiClient: GENKIT_CLIENT_HEADER,
-        }
-      );
 
-      // make a copy so that modifying the request will not produce side-effects
+      // Make a copy of messages to avoid side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
 
-      // Gemini does not support messages with role system and instead expects
-      // systemInstructions to be provided as a separate input. The first
-      // message detected with role=system will be used for systemInstructions.
-      // Any additional system messages may be considered to be "exceptional".
+      // Handle system instructions separately
       let systemInstruction: Content | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (!SUPPORTED_V1_MODELS[version]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -496,7 +730,7 @@ export function defineGeminiModel(
       }
 
       const tools = request.tools?.length
-        ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
+        ? [{ functionDeclarations: request.tools.map(toGeminiTool) }]
         : [];
 
       let toolConfig: ToolConfig | undefined;
@@ -505,24 +739,29 @@ export function defineGeminiModel(
           functionCallingConfig: {
             allowedFunctionNames:
               request.config.functionCallingConfig.allowedFunctionNames,
-            mode: toGeminiFunctionMode(
-              request.config.functionCallingConfig.mode
-            ),
+            mode: toFunctionModeEnum(request.config.functionCallingConfig.mode),
+          },
+        };
+      } else if (request.toolChoice) {
+        toolConfig = {
+          functionCallingConfig: {
+            mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
       }
+
       // Cannot use tools and function calling at the same time
       const jsonMode =
         (request.output?.format === 'json' || !!request.output?.schema) &&
         tools.length === 0;
 
-      const chatRequest: StartChatParams = {
+      let chatRequest: StartChatParams = {
         systemInstruction,
         tools,
         toolConfig,
         history: messages
           .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
+          .map((message) => toGeminiMessage(message, modelInfo)),
         generationConfig: {
           candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
@@ -535,19 +774,42 @@ export function defineGeminiModel(
         safetySettings: request.config?.safetySettings,
       };
 
+      // Handle cache
+      const modelVersion = (request.config?.version || version) as string;
+      const cacheConfigDetails = extractCacheConfig(request);
+
+      const apiClient = new ApiClient(
+        options.projectId!,
+        options.location,
+        'v1beta1',
+        new GoogleAuth(options.googleAuth!)
+      );
+
+      const { chatRequest: updatedChatRequest, cache } =
+        await handleCacheIfNeeded(
+          apiClient,
+          request,
+          chatRequest,
+          modelVersion,
+          cacheConfigDetails
+        );
+
+      let genModel: GenerativeModelPreview;
+
       if (jsonMode && request.output?.constrained) {
-        chatRequest.generationConfig!.responseSchema = cleanSchema(
+        updatedChatRequest.generationConfig!.responseSchema = cleanSchema(
           request.output.schema
         );
       }
 
       if (request.config?.googleSearchRetrieval) {
-        chatRequest.tools?.push({
-          googleSearchRetrieval: request.config.googleSearchRetrieval,
+        updatedChatRequest.tools?.push({
+          googleSearchRetrieval: request.config
+            .googleSearchRetrieval as GoogleSearchRetrieval,
         });
       }
+
       if (request.config?.vertexRetrieval) {
-        // https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#ground-gemini
         const vertexRetrieval = request.config.vertexRetrieval;
         const _projectId =
           vertexRetrieval.datastore.projectId || options.projectId;
@@ -555,7 +817,7 @@ export function defineGeminiModel(
           vertexRetrieval.datastore.location || options.location;
         const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
         const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
-        chatRequest.tools?.push({
+        updatedChatRequest.tools?.push({
           retrieval: {
             vertexAiSearch: {
               datastore,
@@ -564,11 +826,36 @@ export function defineGeminiModel(
           },
         });
       }
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+
+      const msg = toGeminiMessage(messages[messages.length - 1], modelInfo);
+
+      if (cache) {
+        genModel = vertex.preview.getGenerativeModelFromCachedContent(
+          cache,
+          {
+            model: modelVersion,
+          },
+          {
+            apiClient: GENKIT_CLIENT_HEADER,
+          }
+        );
+      } else {
+        genModel = vertex.preview.getGenerativeModel(
+          {
+            model: modelVersion,
+          },
+          {
+            apiClient: GENKIT_CLIENT_HEADER,
+          }
+        );
+      }
+
+      // Handle streaming and non-streaming responses
       if (streamingCallback) {
-        const result = await client
-          .startChat(chatRequest)
+        const result = await genModel
+          .startChat(updatedChatRequest)
           .sendMessageStream(msg.parts);
+
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
             const c = fromGeminiCandidate(candidate, jsonMode);
@@ -578,30 +865,31 @@ export function defineGeminiModel(
             });
           });
         }
+
         const response = await result.response;
         if (!response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
+
         return {
-          candidates:
-            response.candidates?.map((c) => fromGeminiCandidate(c, jsonMode)) ||
-            [],
+          candidates: response.candidates.map((c) =>
+            fromGeminiCandidate(c, jsonMode)
+          ),
           custom: response,
         };
       } else {
-        let result: GenerateContentResult | undefined;
-        try {
-          result = await client.startChat(chatRequest).sendMessage(msg.parts);
-        } catch (err) {
-          throw new Error(`Vertex response generation failed: ${err}`);
-        }
+        const result = await genModel
+          .startChat(updatedChatRequest)
+          .sendMessage(msg.parts);
+
         if (!result?.response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
-        const responseCandidates =
-          result.response.candidates?.map((c) =>
-            fromGeminiCandidate(c, jsonMode)
-          ) || [];
+
+        const responseCandidates = result.response.candidates.map((c) =>
+          fromGeminiCandidate(c, jsonMode)
+        );
+
         return {
           candidates: responseCandidates,
           custom: result.response,
@@ -617,13 +905,14 @@ export function defineGeminiModel(
   );
 }
 
-function toGeminiFunctionMode(
-  genkitMode: string | undefined
+/** Converts mode from the config, which follows Gemini naming convention. */
+function toFunctionModeEnum(
+  enumMode: string | undefined
 ): FunctionCallingMode | undefined {
-  if (genkitMode === undefined) {
+  if (enumMode === undefined) {
     return undefined;
   }
-  switch (genkitMode) {
+  switch (enumMode) {
     case 'MODE_UNSPECIFIED': {
       return FunctionCallingMode.MODE_UNSPECIFIED;
     }
@@ -634,6 +923,28 @@ function toGeminiFunctionMode(
       return FunctionCallingMode.AUTO;
     }
     case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${enumMode}`);
+  }
+}
+
+/** Converts mode from genkit tool choice. */
+function toGeminiFunctionModeEnum(
+  genkitMode: 'auto' | 'required' | 'none'
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'required': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'auto': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'none': {
       return FunctionCallingMode.NONE;
     }
     default:

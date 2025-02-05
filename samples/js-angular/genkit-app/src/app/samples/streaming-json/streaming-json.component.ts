@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { streamFlow } from 'genkit/client';
+import { streamFlow } from 'genkit/beta/client';
 
 const url = 'http://127.0.0.1:3400/streamCharacters';
 
@@ -44,10 +44,10 @@ export class StreamingJSONComponent {
         url,
         input: parseInt(this.count),
       });
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         this.characters = chunk;
       }
-      console.log('streamConsumer done', await response.output());
+      console.log('streamConsumer done', await response.output);
       this.loading = false;
     } catch (e) {
       this.loading = false;

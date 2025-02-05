@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, EvalInput } from '@genkit-ai/tools-common';
+import { Action, EvalInputDataset } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
   getAllEvaluatorActions,
@@ -24,11 +24,10 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  generateTestCaseId,
+  loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
-import { readFile } from 'fs/promises';
 import { runWithManager } from '../utils/manager-utils';
 
 interface EvalRunCliOptions {
@@ -79,6 +78,13 @@ export const evalRun = new Command('eval:run')
           evalActionKeys
         );
       }
+      if (!evaluatorActions.length) {
+        throw new Error(
+          options.evaluators
+            ? `No matching evaluators found for '${options.evaluators}'`
+            : `No evaluators found in your app`
+        );
+      }
       logger.info(
         `Using evaluators: ${evaluatorActions.map((action) => action.name).join(',')}`
       );
@@ -92,13 +98,8 @@ export const evalRun = new Command('eval:run')
         }
       }
 
-      const evalDataset: EvalInput[] = JSON.parse(
-        (await readFile(dataset)).toString('utf-8')
-      ).map((testCase: any) => ({
-        ...testCase,
-        testCaseId: testCase.testCaseId || generateTestCaseId(),
-        traceIds: testCase.traceIds || [],
-      }));
+      const evalDataset: EvalInputDataset =
+        await loadEvaluationDatasetFile(dataset);
       const evalRun = await runEvaluation({
         manager,
         evaluatorActions,

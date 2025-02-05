@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import * as assert from 'assert';
 import { genkit } from 'genkit';
-import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js'; // Adjust the import path as necessary
 import { ollama } from '../src/index.js';
@@ -46,10 +46,12 @@ describe('defineOllamaEmbedder - Live Tests', () => {
       dimensions: 768,
       options,
     });
-    const result = await ai.embed({
-      embedder,
-      content: 'Hello, world!',
-    });
+    const result = (
+      await ai.embed({
+        embedder,
+        content: 'Hello, world!',
+      })
+    )[0].embedding;
     assert.strictEqual(result.length, 768);
   });
 });

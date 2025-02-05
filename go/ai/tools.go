@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package ai
 
@@ -51,13 +41,13 @@ type Tool interface {
 }
 
 // DefineTool defines a tool function.
-func DefineTool[In, Out any](name, description string, fn func(ctx context.Context, input In) (Out, error)) *ToolDef[In, Out] {
+func DefineTool[In, Out any](r *registry.Registry, name, description string, fn func(ctx context.Context, input In) (Out, error)) *ToolDef[In, Out] {
 	metadata := make(map[string]any)
 	metadata["type"] = "tool"
 	metadata["name"] = name
 	metadata["description"] = description
 
-	toolAction := core.DefineAction(provider, name, atype.Tool, metadata, fn)
+	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, fn)
 
 	return &ToolDef[In, Out]{
 		action: toolAction,
@@ -125,6 +115,6 @@ func runAction(ctx context.Context, action Tool, input map[string]any) (any, err
 }
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
-func LookupTool(name string) Tool {
-	return &toolAction{action: registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
+func LookupTool(r *registry.Registry, name string) Tool {
+	return &toolAction{action: r.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
 }

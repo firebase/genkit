@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { EvalInput, TraceData } from '@genkit-ai/tools-common';
+import {
+  EvalInput,
+  EvalInputDataset,
+  TraceData,
+} from '@genkit-ai/tools-common';
 import {
   generateTestCaseId,
   getEvalExtractors,
@@ -45,7 +49,7 @@ export const evalExtractData = new Command('eval:extractData')
       const extractors = await getEvalExtractors(`/flow/${flowName}`);
 
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
-      let dataset: EvalInput[] = [];
+      let dataset: EvalInputDataset = [];
       let continuationToken = undefined;
       while (dataset.length < parseInt(options.maxRows)) {
         const response = await manager.listTraces({
@@ -58,12 +62,10 @@ export const evalExtractData = new Command('eval:extractData')
           .map((t) => {
             const rootSpan = Object.values(t.spans).find(
               (s) =>
-                s.attributes['genkit:type'] === 'flow' &&
+                s.attributes['genkit:metadata:subtype'] === 'flow' &&
                 (!options.label ||
-                  s.attributes['genkit:metadata:flow:label:batchRun'] ===
-                    options.label) &&
-                s.attributes['genkit:metadata:flow:name'] === flowName &&
-                s.attributes['genkit:metadata:flow:state'] === 'done'
+                  s.attributes['batchRun'] === options.label) &&
+                s.attributes['genkit:name'] === flowName
             );
             if (!rootSpan) {
               return undefined;
@@ -76,7 +78,7 @@ export const evalExtractData = new Command('eval:extractData')
               testCaseId: generateTestCaseId(),
               input: extractors.input(trace),
               output: extractors.output(trace),
-              context: JSON.parse(extractors.context(trace)) as string[],
+              context: toArray(extractors.context(trace)),
               // The trace (t) does not contain the traceId, so we have to pull it out of the
               // spans, de- dupe, and turn it back into an array.
               traceIds: Array.from(
@@ -107,3 +109,7 @@ export const evalExtractData = new Command('eval:extractData')
       }
     });
   });
+
+function toArray(input: any) {
+  return Array.isArray(input) ? input : [input];
+}

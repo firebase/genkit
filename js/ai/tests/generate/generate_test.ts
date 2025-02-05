@@ -16,11 +16,12 @@
 
 import { PluginProvider, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
   GenerateOptions,
   generate,
+  generateStream,
   toGenerateRequest,
 } from '../../src/generate.js';
 import { ModelAction, ModelMiddleware, defineModel } from '../../src/model.js';
@@ -253,13 +254,48 @@ describe('toGenerateRequest', () => {
         output: {},
       },
     },
+    {
+      should:
+        'throw a FAILED_PRECONDITION error if trying to resume without a model message',
+      prompt: {
+        messages: [{ role: 'system', content: [{ text: 'sys' }] }],
+        resume: {
+          respond: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+        },
+      },
+      throws: 'FAILED_PRECONDITION',
+    },
+    {
+      should:
+        'throw a FAILED_PRECONDITION error if trying to resume a model message without toolRequests',
+      prompt: {
+        messages: [
+          { role: 'user', content: [{ text: 'hi' }] },
+          { role: 'model', content: [{ text: 'there' }] },
+        ],
+        resume: {
+          respond: { toolResponse: { name: 'test', output: { foo: 'bar' } } },
+        },
+      },
+      throws: 'FAILED_PRECONDITION',
+    },
   ];
   for (const test of testCases) {
     it(test.should, async () => {
-      assert.deepStrictEqual(
-        await toGenerateRequest(registry, test.prompt as GenerateOptions),
-        test.expectedOutput
-      );
+      if (test.throws) {
+        await assert.rejects(
+          async () => {
+            await toGenerateRequest(registry, test.prompt as GenerateOptions);
+          },
+          { name: 'GenkitError', status: test.throws }
+        );
+      } else {
+        const actualOutput = await toGenerateRequest(
+          registry,
+          test.prompt as GenerateOptions
+        );
+        assert.deepStrictEqual(actualOutput, test.expectedOutput);
+      }
     });
   }
 });
@@ -355,6 +391,7 @@ describe('generate', () => {
       })
     );
   });
+
   it('should preserve the request in the returned response, enabling .messages', async () => {
     const response = await generate(registry, {
       model: 'echo',
@@ -364,5 +401,50 @@ describe('generate', () => {
       response.messages.map((m) => m.content[0].text),
       ['Testing messages', 'Testing messages']
     );
+  });
+
+  describe('generateStream', () => {
+    it('should stream out chunks', async () => {
+      let registry = new Registry();
+
+      defineModel(
+        registry,
+        { name: 'echo-streaming', supports: { tools: true } },
+        async (input, streamingCallback) => {
+          streamingCallback!({ content: [{ text: 'hello, ' }] });
+          streamingCallback!({ content: [{ text: 'world!' }] });
+          return {
+            message: input.messages[0],
+            finishReason: 'stop',
+          };
+        }
+      );
+
+      const { response, stream } = generateStream(registry, {
+        model: 'echo-streaming',
+        prompt: 'Testing streaming',
+      });
+
+      let streamed: any[] = [];
+      for await (const chunk of stream) {
+        streamed.push(chunk.toJSON());
+      }
+      assert.deepStrictEqual(streamed, [
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'hello, ' }],
+        },
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'world!' }],
+        },
+      ]);
+      assert.deepEqual(
+        (await response).messages.map((m) => m.content[0].text),
+        ['Testing streaming', 'Testing streaming']
+      );
+    });
   });
 });

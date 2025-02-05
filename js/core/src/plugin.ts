@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { Action, isInRuntimeContext } from './action.js';
+import { Action } from './action.js';
 
 export interface Provider<T> {
   id: string;
@@ -44,58 +44,4 @@ export interface InitializedPlugin {
   telemetry?: any;
 }
 
-type PluginInit = (
-  ...args: any[]
-) => InitializedPlugin | void | Promise<InitializedPlugin | void>;
-
 export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
-
-/**
- * Defines a Genkit plugin.
- */
-export function genkitPlugin<T extends PluginInit>(
-  pluginName: string,
-  initFn: T
-): Plugin<Parameters<T>> {
-  if (isInRuntimeContext()) {
-    throw new Error(
-      'Cannot define new plugins at runtime.\n' +
-        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
-    );
-  }
-  return (...args: Parameters<T>) => ({
-    name: pluginName,
-    initializer: async () => {
-      const initializedPlugin = (await initFn(...args)) || {};
-      validatePluginActions(pluginName, initializedPlugin);
-      return initializedPlugin;
-    },
-  });
-}
-
-function validatePluginActions(pluginName: string, plugin?: InitializedPlugin) {
-  if (!plugin) {
-    return;
-  }
-
-  plugin.models?.forEach((model) => validateNaming(pluginName, model));
-  plugin.retrievers?.forEach((retriever) =>
-    validateNaming(pluginName, retriever)
-  );
-  plugin.embedders?.forEach((embedder) => validateNaming(pluginName, embedder));
-  plugin.indexers?.forEach((indexer) => validateNaming(pluginName, indexer));
-  plugin.evaluators?.forEach((evaluator) =>
-    validateNaming(pluginName, evaluator)
-  );
-}
-
-function validateNaming(
-  pluginName: string,
-  action: Action<z.ZodTypeAny, z.ZodTypeAny>
-) {
-  const nameParts = action.__action.name.split('/');
-  if (nameParts[0] !== pluginName) {
-    const err = `Plugin name ${pluginName} not found in action name ${action.__action.name}. Action names must follow the pattern {pluginName}/{actionName}`;
-    throw new Error(err);
-  }
-}

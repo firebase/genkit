@@ -19,9 +19,9 @@ import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import path from 'path';
-import z from 'zod';
+import * as z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
-import { GENKIT_VERSION } from './index.js';
+import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
@@ -52,6 +52,8 @@ export interface ReflectionServerOptions {
  * Reflection server exposes an API for inspecting and interacting with Genkit in development.
  *
  * This is for use in development environments.
+ *
+ * @hidden
  */
 export class ReflectionServer {
   /** List of all running servers needed to be cleaned up on process exit. */
@@ -153,10 +155,9 @@ export class ReflectionServer {
     });
 
     server.post('/api/runAction', async (request, response, next) => {
-      const { key, input } = request.body;
+      const { key, input, context, telemetryLabels } = request.body;
       const { stream } = request.query;
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
-      let traceId;
       try {
         const action = await this.registry.lookupAction(key);
         if (!action) {
@@ -164,24 +165,47 @@ export class ReflectionServer {
           return;
         }
         if (stream === 'true') {
-          const result = await runWithStreamingCallback(
-            (chunk) => {
+          try {
+            const callback = (chunk) => {
               response.write(JSON.stringify(chunk) + '\n');
-            },
-            async () => await action.run(input)
-          );
-          await flushTracing();
-          response.write(
-            JSON.stringify({
-              result: result.result,
-              telemetry: {
-                traceId: result.telemetry.traceId,
+            };
+            const result = await runWithStreamingCallback(
+              this.registry,
+              callback,
+              () => action.run(input, { context, onChunk: callback })
+            );
+            await flushTracing();
+            response.write(
+              JSON.stringify({
+                result: result.result,
+                telemetry: {
+                  traceId: result.telemetry.traceId,
+                },
+              } as RunActionResponse)
+            );
+            response.end();
+          } catch (err) {
+            const { message, stack } = err as Error;
+            // since we're streaming, we must do special error handling here -- the headers are already sent.
+            const errorResponse: Status = {
+              code: StatusCodes.INTERNAL,
+              message,
+              details: {
+                stack,
               },
-            } as RunActionResponse)
-          );
-          response.end();
+            };
+            if ((err as any).traceId) {
+              errorResponse.details.traceId = (err as any).traceId;
+            }
+            response.write(
+              JSON.stringify({
+                error: errorResponse,
+              } as RunActionResponse)
+            );
+            response.end();
+          }
         } else {
-          const result = await action.run(input);
+          const result = await action.run(input, { context, telemetryLabels });
           await flushTracing();
           response.send({
             result: result.result,
@@ -191,7 +215,7 @@ export class ReflectionServer {
           } as RunActionResponse);
         }
       } catch (err) {
-        const { message, stack } = err as Error;
+        const { message, stack, traceId } = err as any;
         next({ message, stack, traceId });
       }
     });
@@ -201,10 +225,30 @@ export class ReflectionServer {
     });
 
     server.post('/api/notify', async (request, response) => {
-      const { telemetryServerUrl } = request.body;
-      if (typeof telemetryServerUrl === 'string') {
-        setTelemetryServerUrl(telemetryServerUrl);
-        logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
+      const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
+      if (!process.env.GENKIT_TELEMETRY_SERVER) {
+        if (typeof telemetryServerUrl === 'string') {
+          setTelemetryServerUrl(telemetryServerUrl);
+          logger.debug(
+            `Connected to telemetry server on ${telemetryServerUrl}`
+          );
+        }
+      }
+      if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
+        if (
+          !reflectionApiSpecVersion ||
+          reflectionApiSpecVersion < GENKIT_REFLECTION_API_SPEC_VERSION
+        ) {
+          logger.warn(
+            'WARNING: Genkit CLI version may be outdated. Please update `genkit-cli` to the latest version.'
+          );
+        } else {
+          logger.warn(
+            'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
+              'Consider upgrading your runtime library version (debug info: expected ' +
+              `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
+          );
+        }
       }
       response.status(200).send('OK');
     });
@@ -286,6 +330,8 @@ export class ReflectionServer {
           pid: process.pid,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
+          genkitVersion: `nodejs/${GENKIT_VERSION}`,
+          reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
         },
         null,
         2

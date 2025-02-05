@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Registry } from './registry.js';
 import { StatusName } from './statusTypes.js';
 
 /**
@@ -38,6 +39,33 @@ export class GenkitError extends Error {
     super(`${source ? `${source}: ` : ''}${status}: ${message}`);
     this.status = status;
     this.detail = detail;
+    this.name = 'GenkitError';
+  }
+}
+
+export class UnstableApiError extends GenkitError {
+  constructor(level: 'beta', message?: string) {
+    super({
+      status: 'FAILED_PRECONDITION',
+      message: `${message ? message + ' ' : ''}This API requires '${level}' stability level.\n\nTo use this feature, initialize Genkit using \`import {genkit} from "genkit/${level}"\`.`,
+    });
+    this.name = 'UnstableApiError';
+  }
+}
+
+/**
+ * assertUnstable allows features to raise exceptions when using Genkit from *more* stable initialized instances.
+ *
+ * @param level The maximum stability channel allowed.
+ * @param message An optional message describing which feature is not allowed.
+ */
+export function assertUnstable(
+  registry: Registry,
+  level: 'beta',
+  message?: string
+) {
+  if (level === 'beta' && registry.apiStability === 'stable') {
+    throw new UnstableApiError(level, message);
   }
 }
 

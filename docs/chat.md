@@ -19,12 +19,15 @@ If you want to run the code examples on this page, first complete the steps in
 the [Getting started](get-started) guide. All of the examples assume that you
 have already installed Genkit as a dependency in your project.
 
+Please note that the chat API is currently in beta and must be used from the
+`genkit/beta` package.
+
 ## Chat session basics 
 
 Here is a minimal, console-based, chatbot application:
 
 ```ts
-import { genkit } from "genkit";
+import { genkit } from "genkit/beta";
 import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
 
 import { createInterface } from "node:readline/promises";

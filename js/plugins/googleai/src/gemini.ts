@@ -25,6 +25,7 @@ import {
   Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
+  GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
@@ -61,6 +62,8 @@ import {
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import process from 'process';
+import { handleCacheIfNeeded } from './context-caching';
+import { extractCacheConfig } from './context-caching/utils';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -81,6 +84,7 @@ const SafetySettingsSchema = z.object({
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
+  contextCache: z.boolean().optional(),
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
@@ -88,6 +92,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .optional(),
 });
+export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
   name: 'googleai/gemini-1.0-pro',
@@ -98,7 +103,9 @@ export const gemini10Pro = modelRef({
       multiturn: true,
       media: false,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -112,7 +119,9 @@ export const gemini15Pro = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
     versions: [
       'gemini-1.5-pro-latest',
@@ -131,7 +140,11 @@ export const gemini15Flash = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
+      // @ts-ignore
+      contextCache: true,
     },
     versions: [
       'gemini-1.5-flash-latest',
@@ -150,9 +163,28 @@ export const gemini15Flash8b = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      toolChoice: true,
       systemRole: true,
+      constrained: true,
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini20FlashExp = modelRef({
+  name: 'googleai/gemini-2.0-flash-exp',
+  info: {
+    label: 'Google AI - Gemini 2.0 Flash (Experimental)',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: true,
+    },
   },
   configSchema: GeminiConfigSchema,
 });
@@ -165,15 +197,92 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
+  'gemini-2.0-flash-exp': gemini20FlashExp,
 };
 
-export const SUPPORTED_GEMINI_MODELS: Record<
-  string,
-  ModelReference<typeof GeminiConfigSchema>
-> = {
+export const GENERIC_GEMINI_MODEL = modelRef({
+  name: 'googleai/gemini',
+  configSchema: GeminiConfigSchema,
+  info: {
+    label: 'Google Gemini',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: true,
+    },
+  },
+});
+
+export const SUPPORTED_GEMINI_MODELS = {
   ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
-};
+} as const;
+
+function longestMatchingPrefix(version: string, potentialMatches: string[]) {
+  return potentialMatches
+    .filter((p) => version.startsWith(p))
+    .reduce(
+      (longest, current) =>
+        current.length > longest.length ? current : longest,
+      ''
+    );
+}
+
+/**
+ * Known model names, to allow code completion for convenience. Allows other model names.
+ */
+export type GeminiVersionString =
+  | keyof typeof SUPPORTED_GEMINI_MODELS
+  | (string & {});
+
+/**
+ * Returns a reference to a model that can be used in generate calls.
+ *
+ * ```js
+ * await ai.generate({
+ *   prompt: 'hi',
+ *   model: gemini('gemini-1.5-flash')
+ * });
+ * ```
+ */
+export function gemini(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const nearestModel = nearestGeminiModelRef(version);
+  return modelRef({
+    name: `googleai/${version}`,
+    config: options,
+    configSchema: GeminiConfigSchema,
+    info: {
+      ...nearestModel.info,
+      // If exact suffix match for a known model, use its label, otherwise create a new label
+      label: nearestModel.name.endsWith(version)
+        ? nearestModel.info?.label
+        : `Google AI - ${version}`,
+    },
+  });
+}
+
+function nearestGeminiModelRef(
+  version: GeminiVersionString,
+  options: GeminiConfig = {}
+): ModelReference<typeof GeminiConfigSchema> {
+  const matchingKey = longestMatchingPrefix(
+    version,
+    Object.keys(SUPPORTED_GEMINI_MODELS)
+  );
+  if (matchingKey) {
+    return SUPPORTED_GEMINI_MODELS[matchingKey].withConfig({
+      ...options,
+      version,
+    });
+  }
+  return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
+}
 
 function toGeminiRole(
   role: MessageData['role'],
@@ -479,7 +588,7 @@ export function defineGoogleAIModel(
   apiVersion?: string,
   baseUrl?: string,
   info?: ModelInfo,
-  defaultConfig?: z.infer<typeof GeminiConfigSchema>
+  defaultConfig?: GeminiConfig
 ): ModelAction {
   if (!apiKey) {
     apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -497,7 +606,7 @@ export function defineGoogleAIModel(
   const model: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[name] ??
     modelRef({
-      name,
+      name: `googleai/${apiModelName}`,
       info: {
         label: `Google AI - ${apiModelName}`,
         supports: {
@@ -537,7 +646,7 @@ export function defineGoogleAIModel(
       configSchema: model.configSchema,
       use: middleware,
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -550,25 +659,13 @@ export function defineGoogleAIModel(
         ...request.config,
       };
 
-      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel(
-        {
-          model:
-            requestConfig.version ||
-            model.config?.version ||
-            model.version ||
-            apiModelName,
-        },
-        options
-      );
-
-      // make a copy so that modifying the request will not produce side-effects
+      // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
 
       // Gemini does not support messages with role system and instead expects
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
-      // Any additional system messages may be considered to be "exceptional".
       let systemInstruction: GeminiMessage | undefined = undefined;
       if (SUPPORTED_V15_MODELS[name]) {
         const systemMessage = messages.find((m) => m.role === 'system');
@@ -600,14 +697,18 @@ export function defineGoogleAIModel(
           functionCallingConfig: {
             allowedFunctionNames:
               requestConfig.functionCallingConfig.allowedFunctionNames,
-            mode: toGeminiFunctionMode(
-              requestConfig.functionCallingConfig.mode
-            ),
+            mode: toFunctionModeEnum(requestConfig.functionCallingConfig.mode),
+          },
+        };
+      } else if (request.toolChoice) {
+        toolConfig = {
+          functionCallingConfig: {
+            mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
       }
 
-      //  cannot use tools with json mode
+      // Cannot use tools with JSON mode
       const jsonMode =
         (request.output?.format === 'json' ||
           request.output?.contentType === 'application/json') &&
@@ -627,16 +728,6 @@ export function defineGoogleAIModel(
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
-      const chatRequest = {
-        systemInstruction,
-        generationConfig,
-        tools,
-        toolConfig,
-        history: messages
-          .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
-        safetySettings: requestConfig.safetySettings,
-      } as StartChatParams;
       const msg = toGeminiMessage(messages[messages.length - 1], model);
 
       const fromJSONModeScopedGeminiCandidate = (
@@ -644,14 +735,59 @@ export function defineGoogleAIModel(
       ) => {
         return fromGeminiCandidate(candidate, jsonMode);
       };
-      if (streamingCallback) {
-        const result = await client
-          .startChat(chatRequest)
+
+      let chatRequest: StartChatParams = {
+        systemInstruction,
+        generationConfig,
+        tools: tools.length ? tools : undefined,
+        toolConfig,
+        history: messages
+          .slice(0, -1)
+          .map((message) => toGeminiMessage(message, model)),
+        safetySettings: requestConfig.safetySettings,
+      } as StartChatParams;
+      const modelVersion = (request.config?.version ||
+        model.version ||
+        name) as string;
+      const cacheConfigDetails = extractCacheConfig(request);
+
+      const { chatRequest: updatedChatRequest, cache } =
+        await handleCacheIfNeeded(
+          apiKey!,
+          request,
+          chatRequest,
+          modelVersion,
+          cacheConfigDetails
+        );
+
+      const client = new GoogleGenerativeAI(apiKey!);
+      let genModel: GenerativeModel;
+
+      if (cache) {
+        genModel = client.getGenerativeModelFromCachedContent(
+          cache,
+          {
+            model: modelVersion,
+          },
+          options
+        );
+      } else {
+        genModel = client.getGenerativeModel(
+          {
+            model: modelVersion,
+          },
+          options
+        );
+      }
+
+      if (sendChunk) {
+        const result = await genModel
+          .startChat(updatedChatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
             const c = fromJSONModeScopedGeminiCandidate(candidate);
-            streamingCallback({
+            sendChunk({
               index: c.index,
               content: c.message.content,
             });
@@ -669,17 +805,17 @@ export function defineGoogleAIModel(
           });
         }
         return {
-          candidates: candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
+          candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
           custom: response,
         };
       } else {
-        const result = await client
-          .startChat(chatRequest)
+        const result = await genModel
+          .startChat(updatedChatRequest)
           .sendMessage(msg.parts, options);
         if (!result.response.candidates?.length)
           throw new Error('No valid candidates returned.');
         const responseCandidates =
-          result.response.candidates?.map(fromJSONModeScopedGeminiCandidate) ||
+          result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
           [];
         return {
           candidates: responseCandidates,
@@ -696,13 +832,14 @@ export function defineGoogleAIModel(
   );
 }
 
-function toGeminiFunctionMode(
-  genkitMode: string | undefined
+/** Converts mode from the config, which follows Gemini naming convention. */
+function toFunctionModeEnum(
+  configEnum: string | undefined
 ): FunctionCallingMode | undefined {
-  if (genkitMode === undefined) {
+  if (configEnum === undefined) {
     return undefined;
   }
-  switch (genkitMode) {
+  switch (configEnum) {
     case 'MODE_UNSPECIFIED': {
       return FunctionCallingMode.MODE_UNSPECIFIED;
     }
@@ -713,6 +850,28 @@ function toGeminiFunctionMode(
       return FunctionCallingMode.AUTO;
     }
     case 'NONE': {
+      return FunctionCallingMode.NONE;
+    }
+    default:
+      throw new Error(`unsupported function calling mode: ${configEnum}`);
+  }
+}
+
+/** Converts mode from genkit tool choice. */
+function toGeminiFunctionModeEnum(
+  genkitMode: 'auto' | 'required' | 'none'
+): FunctionCallingMode | undefined {
+  if (genkitMode === undefined) {
+    return undefined;
+  }
+  switch (genkitMode) {
+    case 'required': {
+      return FunctionCallingMode.ANY;
+    }
+    case 'auto': {
+      return FunctionCallingMode.AUTO;
+    }
+    case 'none': {
       return FunctionCallingMode.NONE;
     }
     default:

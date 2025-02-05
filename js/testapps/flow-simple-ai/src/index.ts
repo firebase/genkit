@@ -26,8 +26,9 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, genkit, run, z } from 'genkit';
+import { GenerateResponseData, MessageSchema, genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
+import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
 
@@ -93,7 +94,7 @@ export const jokeFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: input.modelName,
         config: { version: input.modelVersion },
@@ -111,7 +112,7 @@ export const drawPictureFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    return await run('call-llm', async () => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: input.modelName,
         prompt: `Draw a picture of a ${input.object}.`,
@@ -121,23 +122,21 @@ export const drawPictureFlow = ai.defineFlow(
   }
 );
 
-export const streamFlow = ai.defineStreamingFlow(
+export const streamFlow = ai.defineFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async (prompt, streamingCallback) => {
-    const { response, stream } = await ai.generateStream({
+  async (prompt, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       prompt,
     });
 
-    if (streamingCallback) {
-      for await (const chunk of stream) {
-        streamingCallback(chunk.content[0].text!);
-      }
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0].text!);
     }
 
     return (await response).text;
@@ -159,19 +158,15 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = ai.defineStreamingFlow(
+export const streamJsonFlow = ai.defineFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
     outputSchema: z.string(),
     streamSchema: GameCharactersSchema,
   },
-  async (count, streamingCallback) => {
-    if (!streamingCallback) {
-      throw new Error('this flow only works in streaming mode');
-    }
-
-    const { response, stream } = await ai.generateStream({
+  async (count, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       output: {
         schema: GameCharactersSchema,
@@ -183,7 +178,7 @@ export const streamJsonFlow = ai.defineStreamingFlow(
     for await (const chunk of stream) {
       buffer += chunk.content[0].text!;
       if (buffer.length > 10) {
-        streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
+        sendChunk(parse(maybeStripMarkdown(buffer), Allow.ALL));
       }
     }
 
@@ -248,14 +243,16 @@ export const jokeWithOutputFlow = ai.defineFlow(
     }),
     outputSchema,
   },
-  async (input) => {
+  async (input, { sendChunk }) => {
     const llmResponse = await ai.generate({
       model: input.modelName,
       output: {
         format: 'json',
         schema: outputSchema,
       },
-      prompt: `Tell a joke about ${input.subject}.`,
+      prompt: `Tell a long joke about ${input.subject}.`,
+      use: [simulateConstrainedGeneration()],
+      onChunk: (c) => sendChunk(c.output),
     });
     return { ...llmResponse.output! };
   }
@@ -267,12 +264,12 @@ export const vertexStreamer = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (input, streamingCallback) => {
-    return await run('call-llm', async () => {
+  async (input, { sendChunk }) => {
+    return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: gemini15Flash,
         prompt: `Tell me a very long joke about ${input}.`,
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       });
 
       return llmResponse.text;
@@ -385,18 +382,27 @@ const jokeSubjectGenerator = ai.defineTool(
   }
 );
 
-export const toolCaller = ai.defineStreamingFlow(
+const gablorkenTool = ai.defineTool(
+  {
+    name: 'gablorkenTool',
+    inputSchema: z.object({
+      value: z.number(),
+    }),
+    description: 'can be used to calculate gablorken value',
+  },
+  async (input) => {
+    return input.value * 3 - 4;
+  }
+);
+
+export const toolCaller = ai.defineFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
     streamSchema: z.any(),
   },
-  async (_, streamingCallback) => {
-    if (!streamingCallback) {
-      throw new Error('this flow only works in streaming mode');
-    }
-
-    const { response, stream } = await ai.generateStream({
+  async (_, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
       model: gemini15Flash,
       config: {
         temperature: 1,
@@ -406,7 +412,46 @@ export const toolCaller = ai.defineStreamingFlow(
     });
 
     for await (const chunk of stream) {
-      streamingCallback(chunk);
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+const exitTool = ai.defineTool(
+  {
+    name: 'exitTool',
+    inputSchema: z.object({
+      answer: z.number(),
+    }),
+    description: 'call this tool when you have the final answer',
+  },
+  async (input) => {
+    throw new Error(`Answer: ${input.answer}`);
+  }
+);
+
+export const forcedToolCaller = ai.defineFlow(
+  {
+    name: 'forcedToolCaller',
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (input, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: gemini15Flash,
+      config: {
+        temperature: 1,
+      },
+      tools: [gablorkenTool, exitTool],
+      toolChoice: 'required',
+      prompt: `what is a gablorken of ${input}`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
     }
 
     return (await response).text;
@@ -507,16 +552,16 @@ export const toolTester = ai.defineFlow(
   }
 );
 
-export const arrayStreamTester = ai.defineStreamingFlow(
+export const arrayStreamTester = ai.defineFlow(
   {
     name: 'arrayStreamTester',
     inputSchema: z.string().nullish(),
     outputSchema: z.any(),
     streamSchema: z.any(),
   },
-  async (input, streamingCallback) => {
+  async (input, { sendChunk }) => {
     try {
-      const { stream, response } = await ai.generateStream({
+      const { stream, response } = ai.generateStream({
         model: gemini15Flash,
         config: {
           safetySettings: [
@@ -553,7 +598,7 @@ export const arrayStreamTester = ai.defineStreamingFlow(
       });
 
       for await (const { output, text } of stream) {
-        streamingCallback?.({ text, output });
+        sendChunk({ text, output });
       }
 
       const result = await response;
@@ -571,12 +616,41 @@ ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query) => {
+  async (query, { sendChunk }) => {
     const { text } = await ai.generate({
       model: gemini15Flash,
       prompt: query,
       tools: ['math/add', 'math/subtract'],
+      onChunk: sendChunk,
     });
     return text;
   }
 );
+
+ai.defineModel(
+  {
+    name: 'hiModel',
+  },
+  async () => {
+    return {
+      finishReason: 'stop',
+      message: { role: 'model', content: [{ text: 'hi' }] },
+    };
+  }
+);
+
+const blockingMiddleware: ModelMiddleware = async (req, next) => {
+  return {
+    finishReason: 'blocked',
+    finishMessage: `Model input violated policies: further processing blocked.`,
+  } as GenerateResponseData;
+};
+
+ai.defineFlow('blockingMiddleware', async () => {
+  const { text } = await ai.generate({
+    prompt: 'hi',
+    model: 'hiModel',
+    use: [blockingMiddleware],
+  });
+  return text;
+});

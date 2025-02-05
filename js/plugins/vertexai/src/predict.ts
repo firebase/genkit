@@ -23,8 +23,11 @@ function endpoint(options: {
   location: string;
   model: string;
 }) {
-  // eslint-disable-next-line max-len
-  return `https://${options.location}-aiplatform.googleapis.com/v1/projects/${options.projectId}/locations/${options.location}/publishers/google/models/${options.model}:predict`;
+  return (
+    `https://${options.location}-aiplatform.googleapis.com/v1/` +
+    `projects/${options.projectId}/locations/${options.location}/` +
+    `publishers/google/models/${options.model}:predict`
+  );
 }
 
 interface PredictionResponse<R> {
@@ -33,7 +36,7 @@ interface PredictionResponse<R> {
 
 export type PredictClient<I = unknown, R = unknown, P = unknown> = (
   instances: I[],
-  parameters?: P
+  parameters: P
 ) => Promise<PredictionResponse<R>>;
 
 export function predictModel<I = unknown, R = unknown, P = unknown>(
@@ -43,14 +46,14 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
 ): PredictClient<I, R, P> {
   return async (
     instances: I[],
-    parameters?: P
+    parameters: P
   ): Promise<PredictionResponse<R>> => {
     const fetch = (await import('node-fetch')).default;
 
     const accessToken = await auth.getAccessToken();
     const req = {
       instances,
-      parameters: parameters || {},
+      parameters,
     };
 
     const response = await fetch(

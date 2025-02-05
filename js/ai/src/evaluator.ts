@@ -175,6 +175,7 @@ export function defineEvaluator<
         };
         try {
           await runInNewSpan(
+            registry,
             {
               metadata: {
                 name: `Test Case ${datapoint.testCaseId}`,

@@ -24,7 +24,7 @@ import {
   DatasetMetadata,
   DatasetSchema,
   DatasetStore,
-  EvalInferenceInput,
+  InferenceDataset,
 } from '../types/eval';
 import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
@@ -81,7 +81,7 @@ export class LocalFileDatasetStore implements DatasetStore {
         `Create dataset failed: file already exists at {$filePath}`
       );
     }
-    const dataset = this.getDatasetFromInferenceInput(data);
+    const dataset = this.getDatasetFromInferenceDataset(data);
     logger.info(`Saving Dataset to ` + filePath);
     await writeFile(filePath, JSON.stringify(dataset));
 
@@ -123,7 +123,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
     }
-    const patch = this.getDatasetFromInferenceInput(data ?? []);
+    const patch = this.getDatasetFromInferenceDataset(data ?? []);
     let newSize = prevMetadata.size;
     if (patch.length > 0) {
       logger.info(`Updating Dataset at ` + filePath);
@@ -159,7 +159,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       this.generateFileName(datasetId)
     );
     if (!fs.existsSync(filePath)) {
-      throw new Error(`Dataset not found for dataset ID {$id}`);
+      throw new Error(`Dataset not found for dataset ID ${datasetId}`);
     }
     return await readFile(filePath, 'utf8').then((data) => {
       return DatasetSchema.parse(JSON.parse(data));
@@ -203,7 +203,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     const metadataMap = await this.getMetadataMap();
     const keys = Object.keys(metadataMap);
     if (datasetId) {
-      const isValid = /^[a-z][A-Za-z0-9_.-]{4,34}[A-Za-z0-9]$/g.test(datasetId);
+      const isValid = /^[A-Za-z][A-Za-z0-9_.-]{4,34}[A-Za-z0-9]$/g.test(
+        datasetId
+      );
       if (!isValid) {
         throw new Error(
           'Invalid datasetId provided. ID must be alphanumeric, with hyphens, dots and dashes. Is must start with an alphabet, end with an alphabet or a number, and must be 6-36 characters long.'
@@ -240,19 +242,11 @@ export class LocalFileDatasetStore implements DatasetStore {
     );
   }
 
-  private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
-    if (Array.isArray(data)) {
-      return data.map((d) => ({
-        testCaseId: d.testCaseId ?? generateTestCaseId(),
-        input: d,
-      }));
-    } else if (!!data.samples) {
-      return data.samples.map((d) => ({
-        testCaseId: d.testCaseId ?? generateTestCaseId(),
-        ...d,
-      }));
-    }
-    return [];
+  private getDatasetFromInferenceDataset(data: InferenceDataset): Dataset {
+    return data.map((d) => ({
+      testCaseId: d.testCaseId ?? generateTestCaseId(),
+      ...d,
+    }));
   }
 
   private async patchDataset(

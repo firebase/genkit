@@ -25,6 +25,7 @@ import { loggingDenied, loggingDeniedHelpText } from './utils.js';
  * Additional streams for writing log data to. Useful for unit testing.
  */
 let additionalStream: Writable;
+let useJsonFormatOverride: boolean = false;
 
 /**
  * Provides a logger for exporting Genkit debug logs to GCP Cloud
@@ -40,13 +41,15 @@ export class GcpLogger {
     // an internal OT warning and will result in logs not being
     // associated with correct spans/traces.
     const winston = await import('winston');
-    const format = this.shouldExport(env)
-      ? { format: winston.format.json() }
-      : {
-          format: winston.format.printf((info): string => {
-            return `[${info.level}] ${info.message}`;
-          }),
-        };
+
+    const format =
+      useJsonFormatOverride || this.shouldExport(env)
+        ? { format: winston.format.json() }
+        : {
+            format: winston.format.printf((info): string => {
+              return `[${info.level}] ${info.message}`;
+            }),
+          };
 
     let transports: any[] = [];
     transports.push(
@@ -110,6 +113,12 @@ export class GcpLogger {
   }
 }
 
+/** @hidden */
 export function __addTransportStreamForTesting(stream: Writable) {
   additionalStream = stream;
+}
+
+/** @hidden */
+export function __useJsonFormatForTesting() {
+  useJsonFormatOverride = true;
 }

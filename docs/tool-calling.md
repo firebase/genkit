@@ -96,7 +96,7 @@ Use the Genkit instance's `defineTool()` function to write tool definitions:
 
 ```ts
 import { genkit, z } from 'genkit';
-import { googleAI, gemini15Flash } from '@genkit-ai/google-ai';
+import { googleAI, gemini15Flash } from '@genkitai/google-ai';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -120,11 +120,11 @@ const getWeather = ai.defineTool(
 );
 ```
 
-The syntax here looks just like the `defineFlow()` syntax; however, all four of
-the `name`, `description`, `inputSchema`, and `outputSchema` parameters are
-required. When writing a tool definition, take special care with the wording and
-descriptiveness of these parameters, as they are vital for the LLM to
-effectively make use of the available tools.
+The syntax here looks just like the `defineFlow()` syntax; however, `name`,
+`description` and `inputSchema` parameters are required. When writing a tool
+definition, take special care with the wording and descriptiveness of these
+parameters, as they are vital for the LLM to effectively make use of the
+available tools.
 
 ### Using tools
 
@@ -147,7 +147,7 @@ Include defined tools in your prompts to generate content.
         name: 'weatherPrompt',
         tools: [getWeather],
       },
-      'What is the weather in {{location}}?'
+      'What is the weather in {% verbatim %}{{location}}{% endverbatim %}?'
     );
 
     const response = await weatherPrompt({ location: 'Baltimore' });
@@ -164,7 +164,7 @@ Include defined tools in your prompts to generate content.
         location: string
     ---
 
-    What is the weather in {{location}}?
+    What is the weather in {% verbatim %}{{location}}{% endverbatim %}?
     ```
 
     Then you can execute the prompt in your code as follows:
@@ -196,10 +196,23 @@ Include defined tools in your prompts to generate content.
 Genkit will automatically handle the tool call if the LLM needs to use the
 `getWeather` tool to answer the prompt.
 
-### Explicitly handling tool calls
+### Pause the tool loop by using interrupts
 
 By default, Genkit repeatedly calls the LLM until every tool call has been
-resolved. If you want more control over this tool calling loop, for example to
+resolved. You may want to conditionally pause execution in situations where
+you want to, for example:
+
+* Ask the user a question or display UI.
+* Confirm a potentially risky action with the user.
+* Request out-of-band approval for an action.
+
+**Interrupts** are special tools that can halt the loop and return control
+to your code so that you can handle more advanced scenarios. Visit the
+[interrupts guide](interrupts) to learn how to use them.
+
+### Explicitly handling tool calls
+
+If you want full control over this tool-calling loop, for example to
 apply more complicated logic, set the `returnToolRequests` parameter to `true`.
 Now it's your responsibility to ensure all of the tool requests are fulfilled:
 

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { FlowInvokeEnvelopeMessage } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
@@ -24,7 +23,7 @@ interface FlowBatchRunOptions {
   wait?: boolean;
   output?: string;
   label?: string;
-  auth?: string;
+  context?: string;
 }
 
 /** Command to run flows with batch input. */
@@ -35,11 +34,7 @@ export const flowBatchRun = new Command('flow:batchRun')
   .argument('<flowName>', 'name of the flow to run')
   .argument('<inputFileName>', 'JSON batch data to use to run the flow')
   .option('-w, --wait', 'Wait for the flow to complete', false)
-  .option(
-    '-a, --auth <JSON>',
-    'JSON object passed to authPolicy and stored in local state as auth',
-    ''
-  )
+  .option('-c, --context <JSON>', 'JSON object passed to context', '')
   .option('--output <filename>', 'name of the output file to store the output')
   .option('--label [label]', 'label flow run in this batch')
   .action(
@@ -50,22 +45,25 @@ export const flowBatchRun = new Command('flow:batchRun')
     ) => {
       await runWithManager(async (manager) => {
         const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
-        if (!Array.isArray(inputData)) {
-          throw new Error('batch input data must be an array');
+        let input = inputData;
+        if (inputData.length === 0) {
+          throw new Error('batch input data must be a non-empty array');
+        }
+        if (Object.hasOwn(inputData[0], 'input')) {
+          // If object has "input" field, use that instead.
+          input = inputData.map((d) => d.input);
         }
 
         const outputValues = [] as { input: any; output: any }[];
-        for (const data of inputData) {
+        for (const data of input) {
           logger.info(`Running '/flow/${flowName}'...`);
           let response = await manager.runAction({
             key: `/flow/${flowName}`,
-            input: {
-              start: {
-                input: data,
-                labels: options.label ? { batchRun: options.label } : undefined,
-                auth: options.auth ? JSON.parse(options.auth) : undefined,
-              },
-            } as FlowInvokeEnvelopeMessage,
+            input: data,
+            context: options.context ? JSON.parse(options.context) : undefined,
+            telemetryLabels: options.label
+              ? { batchRun: options.label }
+              : undefined,
           });
           logger.info(
             'Result:\n' + JSON.stringify(response.result, undefined, '  ')

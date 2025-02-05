@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package genkit
 
@@ -22,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -32,7 +21,11 @@ func incFlow(_ context.Context, i int, _ noStream) (int, error) {
 }
 
 func TestFlowStart(t *testing.T) {
-	f := DefineStreamingFlow("inc", incFlow)
+	ai, err := New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := DefineStreamingFlow(ai, "inc", incFlow)
 	ss, err := core.NewFileFlowStateStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -58,13 +51,17 @@ func TestFlowStart(t *testing.T) {
 }
 
 func TestFlowRun(t *testing.T) {
+	ai, err := New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	n := 0
 	stepf := func() (int, error) {
 		n++
 		return n, nil
 	}
 
-	flow := DefineFlow("run", func(ctx context.Context, s string) ([]int, error) {
+	flow := DefineFlow(ai, "run", func(ctx context.Context, s string) ([]int, error) {
 		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
@@ -91,11 +88,11 @@ func TestFlowRun(t *testing.T) {
 }
 
 func TestRunFlow(t *testing.T) {
-	reg, err := registry.New()
+	ai, err := New(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := defineFlow(reg, "inc", incFlow)
+	f := defineFlow(ai.reg, "inc", incFlow)
 	got, err := f.Run(context.Background(), 2)
 	if err != nil {
 		t.Fatal(err)

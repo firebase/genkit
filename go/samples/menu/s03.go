@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package main
 
@@ -55,8 +45,8 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 	return ch.preamble
 }
 
-func setup03(ctx context.Context, model ai.Model) error {
-	chatPreamblePrompt, err := dotprompt.Define("s03_chatPreamble",
+func setup03(g *genkit.Genkit, m ai.Model) error {
+	chatPreamblePrompt, err := dotprompt.Define(g, "s03_chatPreamble",
 		`
 		  {{ role "user" }}
 		  Hi. What's on the menu today?
@@ -71,14 +61,12 @@ func setup03(ctx context.Context, model ai.Model) error {
 		    {{this.description}}
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
-		dotprompt.Config{
-			Model:        model,
-			InputSchema:  dataMenuQuestionInputSchema,
-			OutputFormat: ai.OutputFormatText,
-			GenerationConfig: &ai.GenerationCommonConfig{
-				Temperature: 0.3,
-			},
-		},
+		dotprompt.WithDefaultModel(m),
+		dotprompt.WithInputType(dataMenuQuestionInput{}),
+		dotprompt.WithOutputFormat(ai.OutputFormatText),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err
@@ -102,7 +90,7 @@ func setup03(ctx context.Context, model ai.Model) error {
 		sessions: make(map[string]chatHistory),
 	}
 
-	genkit.DefineFlow("s03_multiTurnChat",
+	genkit.DefineFlow(g, "s03_multiTurnChat",
 		func(ctx context.Context, input *chatSessionInput) (*chatSessionOutput, error) {
 			history := storedHistory.Retrieve(input.SessionID)
 			msg := &ai.Message{
@@ -112,7 +100,7 @@ func setup03(ctx context.Context, model ai.Model) error {
 				Role: ai.RoleUser,
 			}
 			messages := append(slices.Clip(history), msg)
-			resp, err := ai.Generate(ctx, model, ai.WithMessages(messages...))
+			resp, err := genkit.Generate(ctx, g, ai.WithModel(m), ai.WithMessages(messages...))
 			if err != nil {
 				return nil, err
 			}

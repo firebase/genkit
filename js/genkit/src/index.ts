@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +16,17 @@
  * limitations under the License.
  */
 
+/**
+ * Main genkit import.
+ *
+ * ```ts
+ * import { genkit } from 'genkit';
+ * ```
+ *
+ * @module /
+ */
 export {
+  BaseDataPointSchema,
   Document,
   DocumentDataSchema,
   GenerationBlockedError,
@@ -24,23 +36,17 @@ export {
   LlmStatsSchema,
   Message,
   MessageSchema,
-  ModelIdSchema,
   ModelRequestSchema,
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
   ToolCallSchema,
   ToolSchema,
-  asTool,
   embedderRef,
   evaluatorRef,
   indexerRef,
   rerankerRef,
   retrieverRef,
-  toGenerateRequest,
-  toToolWireFormat,
-  type BaseDataPointSchema,
-  type CommonLlmOptions,
   type DocumentData,
   type EmbedderAction,
   type EmbedderArgument,
@@ -57,6 +63,8 @@ export {
   type GenerateRequest,
   type GenerateRequestData,
   type GenerateResponse,
+  type GenerateResponseChunk,
+  type GenerateResponseChunkData,
   type GenerateResponseData,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
@@ -66,25 +74,25 @@ export {
   type IndexerInfo,
   type IndexerParams,
   type IndexerReference,
+  type InterruptConfig,
   type LlmResponse,
   type LlmStats,
   type MediaPart,
   type MessageData,
   type ModelArgument,
-  type ModelId,
   type ModelReference,
   type ModelRequest,
   type ModelResponseData,
   type Part,
   type PromptAction,
   type PromptConfig,
-  type PromptFn,
   type RankedDocument,
   type RerankerAction,
   type RerankerArgument,
   type RerankerInfo,
   type RerankerParams,
   type RerankerReference,
+  type ResumeOptions,
   type RetrieverAction,
   type RetrieverArgument,
   type RetrieverInfo,
@@ -99,56 +107,41 @@ export {
   type ToolRequestPart,
   type ToolResponsePart,
 } from '@genkit-ai/ai';
-export { type SessionData, type SessionStore } from '@genkit-ai/ai/session';
+export { Chat } from '@genkit-ai/ai/chat';
 export {
-  FlowActionInputSchema,
-  FlowErrorSchema,
-  FlowInvokeEnvelopeMessageSchema,
-  FlowServer,
+  Session,
+  type SessionData,
+  type SessionStore,
+} from '@genkit-ai/ai/session';
+export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
   GenkitError,
   ReflectionServer,
-  RunActionResponseSchema,
   StatusCodes,
   StatusSchema,
-  defineFlow,
   defineJsonSchema,
   defineSchema,
-  defineStreamingFlow,
-  deleteUndefinedProps,
-  flowMetadataPrefix,
   getCurrentEnv,
-  getFlowAuth,
   getStreamingCallback,
   isDevEnv,
-  run,
   runWithStreamingCallback,
   z,
   type Action,
+  type ActionContext,
   type ActionMetadata,
-  type CallableFlow,
   type Flow,
-  type FlowActionInput,
-  type FlowAuthPolicy,
   type FlowConfig,
-  type FlowError,
   type FlowFn,
-  type FlowInvokeEnvelopeMessage,
-  type FlowResponseSchema,
-  type FlowResultSchema,
-  type FlowServerOptions,
+  type FlowSideChannel,
   type JSONSchema,
   type JSONSchema7,
   type Middleware,
   type ReflectionServerOptions,
   type RunActionResponse,
   type Status,
-  type StreamableFlow,
   type StreamingCallback,
-  type StreamingFlowConfig,
+  type StreamingResponse,
   type TelemetryConfig,
-  type __RequestWithAuth,
 } from '@genkit-ai/core';
-export { loadPromptFile } from '@genkit-ai/dotprompt';
-export * from './genkit.js';
+export { Genkit, genkit, type GenkitOptions } from './genkit.js';

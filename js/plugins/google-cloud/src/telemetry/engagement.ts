@@ -24,7 +24,7 @@ import {
   Telemetry,
   internalMetricNamespaceWrap,
 } from '../metrics.js';
-import { createCommonLogAttributes } from '../utils.js';
+import { createCommonLogAttributes, truncate } from '../utils.js';
 
 class EngagementTelemetry implements Telemetry {
   /**
@@ -45,7 +45,7 @@ class EngagementTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    logIO: boolean,
+    logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const subtype = span.attributes['genkit:metadata:subtype'] as string;
@@ -81,7 +81,9 @@ class EngagementTelemetry implements Telemetry {
       feedbackValue: attributes['genkit:metadata:feedbackValue'],
     };
     if (attributes['genkit:metadata:textFeedback']) {
-      metadata['textFeedback'] = attributes['genkit:metadata:textFeedback'];
+      metadata['textFeedback'] = truncate(
+        attributes['genkit:metadata:textFeedback'] as string
+      );
     }
     logger.logStructured(`UserFeedback[${name}]`, metadata);
   }

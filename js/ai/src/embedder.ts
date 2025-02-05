@@ -18,32 +18,57 @@ import { Action, defineAction, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
+/**
+ * A batch (array) of embeddings.
+ */
 export type EmbeddingBatch = { embedding: number[] }[];
 
-export const EmbeddingSchema = z.array(z.number());
+/**
+ * EmbeddingSchema includes the embedding and also metadata so you know
+ * which of multiple embeddings corresponds to which part of a document.
+ */
+export const EmbeddingSchema = z.object({
+  embedding: z.array(z.number()),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
 export type Embedding = z.infer<typeof EmbeddingSchema>;
 
+/**
+ * A function used for embedder definition, encapsulates embedder implementation.
+ */
 export type EmbedderFn<EmbedderOptions extends z.ZodTypeAny> = (
   input: Document[],
   embedderOpts?: z.infer<EmbedderOptions>
 ) => Promise<EmbedResponse>;
 
+/**
+ * Zod schema of an embed request.
+ */
 const EmbedRequestSchema = z.object({
   input: z.array(DocumentDataSchema),
   options: z.any().optional(),
 });
 
+/**
+ * Zod schema of an embed response.
+ */
 const EmbedResponseSchema = z.object({
-  embeddings: z.array(z.object({ embedding: EmbeddingSchema })),
+  embeddings: z.array(EmbeddingSchema),
   // TODO: stats, etc.
 });
 type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
 
+/**
+ * Embedder action -- a subtype of {@link Action} with input/output types for embedders.
+ */
 export type EmbedderAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema> & {
     __configSchema?: CustomOptions;
   };
 
+/**
+ * Options of an `embed` function.
+ */
 export interface EmbedderParams<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
@@ -105,6 +130,9 @@ export function defineEmbedder<
   return ewm;
 }
 
+/**
+ * A union type representing all the types that can refer to an embedder.
+ */
 export type EmbedderArgument<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = string | EmbedderAction<CustomOptions> | EmbedderReference<CustomOptions>;
@@ -115,7 +143,7 @@ export type EmbedderArgument<
 export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
   params: EmbedderParams<CustomOptions>
-): Promise<Embedding> {
+): Promise<Embedding[]> {
   let embedder = await resolveEmbedder(registry, params);
   if (!embedder.embedderAction) {
     let embedderId: string;
@@ -139,7 +167,7 @@ export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
       ...params.options,
     },
   });
-  return response.embeddings[0].embedding;
+  return response.embeddings;
 }
 
 interface ResolvedEmbedder<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -215,6 +243,9 @@ export async function embedMany<
   return response.embeddings;
 }
 
+/**
+ * Zod schema of embedder info object.
+ */
 export const EmbedderInfoSchema = z.object({
   /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
@@ -222,7 +253,7 @@ export const EmbedderInfoSchema = z.object({
   supports: z
     .object({
       /** Model can input this type of data. */
-      input: z.array(z.enum(['text', 'image'])).optional(),
+      input: z.array(z.enum(['text', 'image', 'video'])).optional(),
       /** Model can support multiple languages */
       multilingual: z.boolean().optional(),
     })
@@ -232,6 +263,10 @@ export const EmbedderInfoSchema = z.object({
 });
 export type EmbedderInfo = z.infer<typeof EmbedderInfoSchema>;
 
+/**
+ * A reference object that can used to resolve an embedder instance. Include additional type information
+ * about the specific embedder, e.g. custom config options schema.
+ */
 export interface EmbedderReference<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {

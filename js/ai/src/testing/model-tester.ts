@@ -17,7 +17,7 @@
 import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { generate } from '../generate';
 import { ModelAction } from '../model';
 import { defineTool } from '../tool';
@@ -53,9 +53,9 @@ const tests: Record<string, TestCase> = {
       ],
     });
 
-    const want = '';
+    const want = /plus/i;
     const got = response.text.trim();
-    assert.match(got, /plus/i);
+    assert.match(got, want);
   },
   history: async (registry: Registry, model: string) => {
     const resolvedModel = (await registry.lookupAction(
@@ -155,7 +155,7 @@ export async function testModels(
   registry: Registry,
   models: string[]
 ): Promise<TestReport> {
-  const gablorkenTool = defineTool(
+  defineTool(
     registry,
     {
       name: 'gablorkenTool',
@@ -170,44 +170,48 @@ export async function testModels(
     }
   );
 
-  return await runInNewSpan({ metadata: { name: 'testModels' } }, async () => {
-    const report: TestReport = [];
-    for (const test of Object.keys(tests)) {
-      await runInNewSpan({ metadata: { name: test } }, async () => {
-        report.push({
-          description: test,
-          models: [],
-        });
-        const caseReport = report[report.length - 1];
-        for (const model of models) {
-          caseReport.models.push({
-            name: model,
-            passed: true, // optimistically
+  return await runInNewSpan(
+    registry,
+    { metadata: { name: 'testModels' } },
+    async () => {
+      const report: TestReport = [];
+      for (const test of Object.keys(tests)) {
+        await runInNewSpan(registry, { metadata: { name: test } }, async () => {
+          report.push({
+            description: test,
+            models: [],
           });
-          const modelReport = caseReport.models[caseReport.models.length - 1];
-          try {
-            await tests[test](registry, model);
-          } catch (e) {
-            modelReport.passed = false;
-            if (e instanceof SkipTestError) {
-              modelReport.skipped = true;
-            } else if (e instanceof Error) {
-              modelReport.error = {
-                message: e.message,
-                stack: e.stack,
-              };
-            } else {
-              modelReport.error = {
-                message: `${e}`,
-              };
+          const caseReport = report[report.length - 1];
+          for (const model of models) {
+            caseReport.models.push({
+              name: model,
+              passed: true, // optimistically
+            });
+            const modelReport = caseReport.models[caseReport.models.length - 1];
+            try {
+              await tests[test](registry, model);
+            } catch (e) {
+              modelReport.passed = false;
+              if (e instanceof SkipTestError) {
+                modelReport.skipped = true;
+              } else if (e instanceof Error) {
+                modelReport.error = {
+                  message: e.message,
+                  stack: e.stack,
+                };
+              } else {
+                modelReport.error = {
+                  message: `${e}`,
+                };
+              }
             }
           }
-        }
-      });
-    }
+        });
+      }
 
-    return report;
-  });
+      return report;
+    }
+  );
 }
 
 class SkipTestError extends Error {}

@@ -16,14 +16,14 @@
 
 import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
+import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat.js';
 import {
   ExecutablePrompt,
   GenerateOptions,
   Message,
   MessageData,
+  PromptGenerateOptions,
   isExecutablePrompt,
   tagAsPreamble,
 } from './index.js';
@@ -102,10 +102,7 @@ export class Session<S = any> {
   /**
    * Update messages for a given thread.
    */
-  async updateMessages(
-    thread: string,
-    messasges: MessageData[]
-  ): Promise<void> {
+  async updateMessages(thread: string, messages: MessageData[]): Promise<void> {
     let sessionData = this.sessionData;
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
@@ -113,7 +110,9 @@ export class Session<S = any> {
     if (!sessionData.threads) {
       sessionData.threads = {};
     }
-    sessionData.threads[thread] = messasges;
+    sessionData.threads[thread] = messages.map((m: any) =>
+      m.toJSON ? m.toJSON() : m
+    );
     this.sessionData = sessionData;
 
     await this.store.save(this.id, sessionData);
@@ -193,7 +192,7 @@ export class Session<S = any> {
     maybeOptionsOrPreamble?: ChatOptions<I, S> | ExecutablePrompt<I>,
     maybeOptions?: ChatOptions<I, S>
   ): Chat {
-    return runWithSession(this, () => {
+    return runWithSession(this.registry, this, () => {
       let options: ChatOptions<S> | undefined;
       let threadName = MAIN_THREAD;
       let preamble: ExecutablePrompt<I> | undefined;
@@ -222,12 +221,7 @@ export class Session<S = any> {
       if (preamble) {
         const renderOptions = options as PromptRenderOptions<I>;
         requestBase = preamble
-          .render({
-            input: renderOptions?.input,
-            model: (renderOptions as BaseGenerateOptions)?.model,
-            config: (renderOptions as BaseGenerateOptions)?.config,
-            messages: (renderOptions as BaseGenerateOptions)?.messages,
-          })
+          .render(renderOptions?.input, renderOptions as PromptGenerateOptions)
           .then((rb) => {
             return {
               ...rb,
@@ -267,7 +261,7 @@ export class Session<S = any> {
    * `ai.currentSession().state`
    */
   run<O>(fn: () => O) {
-    return runWithSession(this, fn);
+    return runWithSession(this.registry, this, fn);
   }
 
   toJSON() {
@@ -281,21 +275,24 @@ export interface SessionData<S = any> {
   threads?: Record<string, MessageData[]>;
 }
 
-const sessionAls = new AsyncLocalStorage<Session<any>>();
+const sessionAlsKey = 'ai.session';
 
 /**
  * Executes provided function within the provided session state.
  */
 export function runWithSession<S = any, O = any>(
+  registry: Registry,
   session: Session<S>,
   fn: () => O
 ): O {
-  return sessionAls.run(session, fn);
+  return registry.asyncStore.run(sessionAlsKey, session, fn);
 }
 
 /** Returns the current session. */
-export function getCurrentSession<S = any>(): Session<S> | undefined {
-  return sessionAls.getStore();
+export function getCurrentSession<S = any>(
+  registry: Registry
+): Session<S> | undefined {
+  return registry.asyncStore.getStore(sessionAlsKey);
 }
 
 /** Throw when session state errors occur, ex. missing state, etc. */

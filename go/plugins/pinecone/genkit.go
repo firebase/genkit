@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package pinecone
 
@@ -27,6 +17,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 const provider = "pinecone"
@@ -83,31 +74,31 @@ type Config struct {
 }
 
 // DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, cfg Config) (ai.Indexer, error) {
+func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return ai.DefineIndexer(provider, cfg.IndexID, ds.Index), nil
+	return genkit.DefineIndexer(g, provider, cfg.IndexID, ds.Index), nil
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, cfg Config) (ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return ai.DefineRetriever(provider, cfg.IndexID, ds.Retrieve), nil
+	return genkit.DefineRetriever(g, provider, cfg.IndexID, ds.Retrieve), nil
 }
 
 // IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
-func IsDefinedIndexer(name string) bool {
-	return ai.IsDefinedIndexer(provider, name)
+func IsDefinedIndexer(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedIndexer(g, provider, name)
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
-func IsDefinedRetriever(name string) bool {
-	return ai.IsDefinedRetriever(provider, name)
+func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedRetriever(g, provider, name)
 }
 
 func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
@@ -143,13 +134,13 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 }
 
 // Indexer returns the indexer with the given index name.
-func Indexer(name string) ai.Indexer {
-	return ai.LookupIndexer(provider, name)
+func Indexer(g *genkit.Genkit, name string) ai.Indexer {
+	return genkit.LookupIndexer(g, provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
-func Retriever(name string) ai.Retriever {
-	return ai.LookupRetriever(provider, name)
+func Retriever(g *genkit.Genkit, name string) ai.Retriever {
+	return genkit.LookupRetriever(g, provider, name)
 }
 
 // IndexerOptions may be passed in the Options field

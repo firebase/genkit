@@ -7,11 +7,11 @@ must accompany the model call. For example:
 
 *   Retrieving contextual information to send with the model call
 *   Retrieving the history of the user's current session, for example in a chat
-    app 
+    app
 *   Using one model to reformat the user input in a way that's suitable to pass
-    to another model 
-*   Evaluating the "safety" of a model's output before presenting it to the user 
-*   Combining the output of several models 
+    to another model
+*   Evaluating the "safety" of a model's output before presenting it to the user
+*   Combining the output of several models
 
 Every step of this workflow must work together for any AI-related task to
 succeed.
@@ -22,7 +22,7 @@ they add additional capabilities intended to ease the development of AI
 features:
 
 *   **Type safety**: Input and output schemas defined using Zod, which provides
-    both static and runtime type checking 
+    both static and runtime type checking
 *   **Integration with developer UI**: Debug flows independently of your
     application code using the developer UI. In the developer UI, you can run
     flows and view traces for each step of the flow.
@@ -37,7 +37,7 @@ flow doesn't need to be flow-aware.
 ## Defining and calling flows
 
 In its simplest form, a flow just wraps a function. The following example wraps
-a function that calls `generate()`: 
+a function that calls `generate()`:
 
 ```ts
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/index.ts" region_tag="ex01" adjust_indentation="auto" %}
@@ -48,7 +48,7 @@ doing so lets you run the flow from the Genkit CLI and from the developer UI,
 and is a requirement for several of Genkit's features, including deployment and
 observability (later sections discuss these topics).
 
-### Input and output schemas 
+### Input and output schemas
 
 One of the most important advantages Genkit flows have over directly calling a
 model API is type safety of both inputs and outputs. When defining flows, you
@@ -81,7 +81,7 @@ Once you've defined a flow, you can call it from your Node.js code:
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/index.ts" region_tag="ex04" adjust_indentation="auto" %}
 ```
 
-The argument to the flow must conform to the input schema, if you defined one. 
+The argument to the flow must conform to the input schema, if you defined one.
 
 If you defined an output schema, the flow response will conform to it. For
 example, if you set the output schema to `MenuItemSchema`, the flow output will
@@ -91,7 +91,7 @@ contain its properties:
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/index.ts" region_tag="ex05" adjust_indentation="auto" %}
 ```
 
-## Streaming flows 
+## Streaming flows
 
 Flows support streaming using an interface similar to `generate()`'s streaming
 interface. Streaming is useful when your flow generates a large amount of
@@ -109,12 +109,11 @@ Here's an example of a flow that supports streaming:
 *   The `streamSchema` option specifies the type of values your flow streams.
     This does not necessarily need to be the same type as the `outputSchema`,
     which is the type of the flow's complete output.
-*   `streamingCallback` is a callback function that takes a single parameter, of
+*   The second parameter to your flow definition is called "sideChannel". It provides
+    multiple useful features, such as request context and the `sendChunk` callback.
+    The `sendChunk` callback takes a single parameter, of
     the type specified by `streamSchema`. Whenever data becomes available within
-    your flow, send the data to the output stream by calling this function. Note
-    that `streamingCallback` is only defined if the caller of your flow
-    requested streaming output, so you need to check that it's defined before
-    calling it.
+    your flow, send the data to the output stream by calling this function.
 
 In the above example, the values streamed by the flow are directly coupled to
 the values streamed by the `generate()` call inside the flow. Although this is
@@ -148,7 +147,7 @@ Note that the streaming output of a flow might not be the same type as the
 complete output; the streaming output conforms to `streamSchema`,  whereas the
 complete output conforms to `outputSchema`.
 
-## Running flows from the command line 
+## Running flows from the command line
 
 You can run flows from the command line using the Genkit CLI tool:
 
@@ -167,7 +166,7 @@ Running a flow from the command line is useful for testing a flow, or for
 running flows that perform tasks needed on an ad hoc basis&mdash;for example, to
 run a flow that ingests a document into your vector database.
 
-## Debugging flows 
+## Debugging flows
 
 One of the advantages of encapsulating AI logic within a flow is that you can
 test and debug the flow independently from your app using the Genkit developer
@@ -224,6 +223,7 @@ some unspecified method, and the second step includes the menu as context for a
 `generate()` call.
 
 ```ts
+import { run } from 'genkit';
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/index.ts" region_tag="ex11" adjust_indentation="auto" %}
 ```
 
@@ -240,9 +240,8 @@ but this section gives brief overviews of your deployment options.
 
 ### Cloud Functions for Firebase
 
-To deploy flows with Cloud Functions for Firebase, use the `firebase` plugin. In
-your flow definitions, replace `defineFlow` with `onFlow` and include an
-`authPolicy`.
+To deploy flows with Cloud Functions for Firebase, use the `onCallGenkit` feature of `firebase-functions/https`.
+This will wrap your flow in a callable function. You may set an auth policy and configure App Check.
 
 ```ts
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/firebase.ts" region_tag="ex" adjust_indentation="auto" %}

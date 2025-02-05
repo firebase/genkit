@@ -1,29 +1,48 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 package dotprompt
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"testing"
 
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/invopop/jsonschema"
 )
 
+type InputOutput struct {
+	Text string `json:"text"`
+}
+
+func testTool(g *genkit.Genkit, name string) *ai.ToolDef[struct{ Test string }, string] {
+	return genkit.DefineTool(g, name, "use when need to execute a test",
+		func(ctx context.Context, input struct {
+			Test string
+		}) (string, error) {
+			return input.Test, nil
+		},
+	)
+}
+
+var g, _ = genkit.New(&genkit.Options{
+	PromptDir: "testdata",
+})
+
+var testModel = genkit.DefineModel(g, "defineoptions", "test", nil, testGenerate)
+
 func TestPrompts(t *testing.T) {
-	SetDirectory("testdata")
+	g, err := genkit.New(&genkit.Options{
+		PromptDir: "testdata",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var tests = []struct {
 		name   string
@@ -108,7 +127,7 @@ func TestPrompts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			prompt, err := Open(test.name)
+			prompt, err := Open(g, test.name)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,6 +147,300 @@ func TestPrompts(t *testing.T) {
 				if diff := cmpSchema(t, prompt.OutputSchema, test.output); diff != "" {
 					t.Errorf("input schema mismatch (-want, +got):\n%s", diff)
 				}
+			}
+		})
+	}
+}
+
+func TestOptionsPatternDefine(t *testing.T) {
+	t.Run("WithTypesAndModel", func(t *testing.T) {
+		dotPrompt, err := Define(
+			g,
+			"TestTypes",
+			"TestTypes",
+			WithTools(testTool(g, "testOptionsPatternDefine")),
+			WithDefaultConfig(&ai.GenerationCommonConfig{}),
+			WithInputType(InputOutput{}),
+			WithOutputType(InputOutput{}),
+			WithMetadata(map[string]any{"test": "test"}),
+			WithDefaultModel(testModel),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if dotPrompt.Tools == nil {
+			t.Error("tools not set")
+		}
+		if dotPrompt.Config.GenerationConfig == nil {
+			t.Error("generationConfig not set")
+		}
+		if dotPrompt.Config.InputSchema == nil {
+			t.Error("inputschema not set")
+		}
+		if dotPrompt.Config.OutputSchema == nil {
+			t.Error("outputschema not set")
+		}
+		if dotPrompt.Config.OutputFormat == "" {
+			t.Error("outputschema not set")
+		}
+		if dotPrompt.Config.DefaultInput == nil {
+			t.Error("default input not set")
+		}
+		if dotPrompt.Config.Metadata == nil {
+			t.Error("metadata not set")
+		}
+		if dotPrompt.Config.Model == nil {
+			t.Error("model not set")
+		}
+		// TODO Inherit from model in genkit
+		// if dotPrompt.Config.Model == nil {
+		// 	t.Error("model not inherited")
+		// }
+	})
+
+	t.Run("WithDefaultMap", func(t *testing.T) {
+		dotPrompt, err := Define(
+			g,
+			"TestDefaultMap",
+			"TestDefaultMap",
+			WithInputType(map[string]any{"test": "test"}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dotPrompt.Config.InputSchema == nil {
+			t.Error("inputschema not set")
+		}
+		if dotPrompt.Config.DefaultInput == nil {
+			t.Error("Input default not set")
+		}
+		if dotPrompt.Config.DefaultInput["test"] != "test" {
+			t.Error("Input default incorrect")
+		}
+	})
+
+	t.Run("WithDefaultStruct", func(t *testing.T) {
+		dotPrompt, err := Define(
+			g,
+			"TestDefaultStruct",
+			"TestDefaultStruct",
+			WithInputType(InputOutput{Text: "test"}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dotPrompt.Config.InputSchema == nil {
+			t.Error("inputschema not set")
+		}
+		if dotPrompt.Config.DefaultInput == nil {
+			t.Error("Input default not set")
+		}
+		if dotPrompt.Config.DefaultInput["text"] != "test" {
+			t.Error("Input default incorrect")
+		}
+	})
+}
+
+func TestOutputFormat(t *testing.T) {
+	var tests = []struct {
+		name   string
+		output any
+		format ai.OutputFormat
+		err    bool
+	}{
+		{
+			name:   "mismatch",
+			output: InputOutput{},
+			format: ai.OutputFormatText,
+			err:    true,
+		},
+		{
+			name:   "json",
+			output: InputOutput{},
+			format: ai.OutputFormatJSON,
+			err:    false,
+		},
+		{
+			name:   "text",
+			format: ai.OutputFormatText,
+			err:    false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var err error
+
+			if test.output == nil {
+				_, err = Define(
+					g,
+					"aModel",
+					"aModel",
+					WithInputType(InputOutput{Text: "test"}),
+					WithOutputFormat(test.format),
+				)
+			} else {
+				_, err = Define(
+					g,
+					"bModel",
+					"bModel",
+					WithInputType(InputOutput{Text: "test"}),
+					WithOutputType(test.output),
+					WithOutputFormat(test.format),
+				)
+			}
+			if err != nil {
+				if test.err {
+					t.Logf("got expected error %v", err)
+					return
+				}
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestInputFormat(t *testing.T) {
+	type hello struct {
+		Name string `json:"name"`
+	}
+
+	var tests = []struct {
+		name         string
+		templateText string
+		inputType    any
+		input        map[string]any
+		render       string
+	}{
+		{
+			name:         "noInput",
+			templateText: "hello world",
+			input:        nil,
+			render:       "hello world",
+		},
+		{
+			name:         "structInput",
+			templateText: "hello {{name}}",
+			inputType:    hello{},
+			input:        map[string]any{"name": "world"},
+			render:       "hello world",
+		},
+		{
+			name:         "stringInput",
+			templateText: "hello {{input}}",
+			inputType:    "world",
+			input:        map[string]any{"input": "world"},
+			render:       "hello world",
+		},
+		{
+			name:         "intInput",
+			templateText: "hello {{input}}",
+			inputType:    1,
+			input:        map[string]any{"input": 1},
+			render:       "hello 1",
+		},
+		{
+			name:         "floatInput",
+			templateText: "the value of pi is {{input}}",
+			inputType:    3.14159,
+			input:        map[string]any{"input": 3.14159},
+			render:       "the value of pi is 3.14159",
+		},
+		{
+			name:         "mapInput",
+			templateText: "hello {{name}}",
+			inputType:    map[string]any{"name": "world"},
+			input:        map[string]any{"name": "world"},
+			render:       "hello world",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var err error
+			var p *Prompt
+
+			if test.inputType != nil {
+				p, err = Define(
+					g,
+					test.name,
+					test.templateText,
+					WithInputType(test.inputType),
+				)
+			} else {
+				p, err = Define(
+					g,
+					"inputFormat",
+					test.templateText,
+				)
+			}
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			txt, err := p.RenderText(test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if txt != test.render {
+				t.Errorf("got %q want %q", txt, test.render)
+			}
+		})
+	}
+}
+
+func TestPromptOptions(t *testing.T) {
+	var tests = []struct {
+		name string
+		with PromptOption
+	}{
+		{
+			name: "WithTools",
+			with: WithTools(testTool(g, "testPromptOptions")),
+		},
+		{
+			name: "WithDefaultConfig",
+			with: WithDefaultConfig(&ai.GenerationCommonConfig{}),
+		},
+		{
+			name: "WithInputType",
+			with: WithInputType(InputOutput{}),
+		},
+		{
+			name: "WithOutputType",
+			with: WithOutputType(InputOutput{}),
+		},
+		{
+			name: "WithOutputFormat",
+			with: WithOutputFormat(ai.OutputFormatJSON),
+		},
+		{
+			name: "WithMetadata",
+			with: WithMetadata(map[string]any{"test": "test"}),
+		},
+		{
+			name: "WithDefaultModelName",
+			with: WithDefaultModelName("defineoptions/test"),
+		},
+		{
+			name: "WithDefaultModel",
+			with: WithDefaultModel(testModel),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := Define(
+				g,
+				"TestWith",
+				"TestWith",
+				test.with,
+				test.with,
+			)
+
+			if err == nil {
+				t.Errorf("%s could be set twice", test.name)
 			}
 		})
 	}

@@ -16,20 +16,23 @@
 
 import { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
+import { ModelMiddleware } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import { checksEvaluators } from './evaluation.js';
 import {
   ChecksEvaluationMetric,
   ChecksEvaluationMetricType,
-  checksEvaluators,
-} from './evaluation.js';
+} from './metrics.js';
+import { checksMiddleware as authorizedMiddleware } from './middleware.js';
+
 export { ChecksEvaluationMetricType as ChecksEvaluationMetricType };
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. Must have quota for the Checks API. */
   projectId?: string;
   /** Provide custom authentication configuration for connecting to Checks API. */
-  googleAuth?: GoogleAuthOptions;
+  googleAuthOptions?: GoogleAuthOptions;
   /** Configure Checks evaluators. */
   evaluation?: {
     metrics: ChecksEvaluationMetric[];
@@ -46,36 +49,9 @@ const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
  */
 export function checks(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('checks', async (ai: Genkit) => {
-    let authClient: GoogleAuth;
-    let authOptions = options?.googleAuth;
+    const googleAuth = inititializeAuth(options?.googleAuthOptions);
 
-    // Allow customers to pass in cloud credentials from environment variables
-    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
-      );
-      authOptions = {
-        credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
-      };
-      authClient = new GoogleAuth(authOptions);
-    } else {
-      authClient = new GoogleAuth(
-        authOptions ?? {
-          scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
-        }
-      );
-    }
-
-    const client = await authClient.getClient();
-    if (client.quotaProjectId) {
-      logger.warn(
-        `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
-      );
-    }
-
-    const projectId = options?.projectId || (await authClient.getProjectId());
+    const projectId = options?.projectId || (await googleAuth.getProjectId());
 
     if (!projectId) {
       throw new Error(
@@ -87,8 +63,60 @@ export function checks(options?: PluginOptions): GenkitPlugin {
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
-    checksEvaluators(ai, authClient, metrics, projectId);
+    checksEvaluators(ai, googleAuth, metrics, projectId);
   });
+}
+
+export function checksMiddleware(options: {
+  authOptions: GoogleAuthOptions;
+  metrics: ChecksEvaluationMetric[];
+}): ModelMiddleware {
+  const googleAuth = inititializeAuth(options.authOptions);
+
+  return authorizedMiddleware({
+    auth: googleAuth,
+    metrics: options.metrics,
+    projectId: options.authOptions.projectId,
+  });
+}
+
+/**
+ * Helper function for initializing an instance of GoogleAuth.
+ *
+ * @param options Options for initializing a GoogleAuth instance.
+ * @returns GoogleAuth
+ */
+function inititializeAuth(options?: GoogleAuthOptions): GoogleAuth {
+  let googleAuth: GoogleAuth;
+
+  // Allow customers to pass in cloud credentials from environment variables
+  // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+  if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+    const serviceAccountCreds = JSON.parse(
+      process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+    );
+    options = {
+      credentials: serviceAccountCreds,
+      scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
+    };
+    googleAuth = new GoogleAuth(options);
+  } else {
+    googleAuth = new GoogleAuth(
+      options ?? {
+        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE, CHECKS_OAUTH_SCOPE],
+      }
+    );
+  }
+
+  googleAuth.getClient().then((client) => {
+    if (client.quotaProjectId && options?.projectId) {
+      logger.warn(
+        `Checks Evaluator: Your Google cloud authentication has a default quota project(${client.quotaProjectId}) associated with it which will overrid the projectId in your Checks plugin config(${options?.projectId}).`
+      );
+    }
+  });
+
+  return googleAuth;
 }
 
 export default checks;

@@ -25,7 +25,6 @@ const EXPORTED_TYPE_MODULES = [
   '../common/src/types/trace.ts',
   '../common/src/types/retrievers.ts',
   '../common/src/types/model.ts',
-  '../common/src/types/flow.ts',
 ];
 
 /** Types that may appear that do not need to be included. */

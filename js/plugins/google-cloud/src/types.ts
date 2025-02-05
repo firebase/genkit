@@ -46,7 +46,7 @@ export interface GcpTelemetryConfigOptions {
   disableTraces?: boolean;
 
   /** When true, inputs and outputs are not logged to GCP */
-  disableLoggingIO?: boolean;
+  disableLoggingInputAndOutput?: boolean;
 
   /** When true, telemetry data will be exported, even for local runs. Defaults to not exporting development traces. */
   forceDevExport?: boolean;
@@ -67,7 +67,7 @@ export interface GcpTelemetryConfig {
   instrumentations: Instrumentation[];
   disableMetrics: boolean;
   disableTraces: boolean;
-  exportIO: boolean;
+  exportInputAndOutput: boolean;
   export: boolean;
 }
 

@@ -24,22 +24,24 @@ jobs:
     name: Run e2e tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: pnpm/action-setup@v3
-    - name: Set up node v20
-      uses: actions/setup-node@v4
-      with:
-        node-version: 21.x
-        cache: 'pnpm'
-    - name: Install dependencies
-      run: pnpm install
-    - name: Run build script
-      run: pnpm build
-    - name: Run pack:all script
-      run: pnpm pack:all
-    - name: Run js tests
-      run: pnpm test:js
-    - name: Run e2e tests
-      run: pnpm test:e2e
-    - name: Validate working directory is clean
-      run: .github/workflows/scripts/ensure-clean-working-tree.sh
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v3
+      - name: Set up node v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run build script
+        run: pnpm build
+      - name: Run pack:all script
+        run: pnpm pack:all
+      - name: Install local Genkit
+        run: pnpm link ./js/genkit
+      - name: Run js tests
+        run: pnpm test:js
+      - name: Run e2e tests
+        run: pnpm test:e2e
+      - name: Validate working directory is clean
+        run: .github/workflows/scripts/ensure-clean-working-tree.sh
