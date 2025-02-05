@@ -172,10 +172,10 @@ export const gemini15Flash8b = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20FlashExp = modelRef({
-  name: 'googleai/gemini-2.0-flash-exp',
+export const gemini20Flash = modelRef({
+  name: 'googleai/gemini-2.0-flash',
   info: {
-    label: 'Google AI - Gemini 2.0 Flash (Experimental)',
+    label: 'Google AI - Gemini 2.0 Flash',
     versions: [],
     supports: {
       multiturn: true,
@@ -197,7 +197,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
-  'gemini-2.0-flash-exp': gemini20FlashExp,
+  'gemini-2.0-flash': gemini20Flash,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
