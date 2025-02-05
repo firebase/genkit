@@ -10,7 +10,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.10",
+  "version": "1.0.0-rc.16",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -29,7 +29,7 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "dependencies": {
     "ollama": "^0.5.9"

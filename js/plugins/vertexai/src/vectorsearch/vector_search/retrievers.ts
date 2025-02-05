@@ -65,11 +65,13 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const queryEmbeddings = await ai.embed({
-          embedder: embedderReference,
-          options: embedderOptions,
-          content,
-        })[0].embedding; // Single embedding for text
+        const queryEmbeddings = (
+          await ai.embed({
+            embedder: embedderReference,
+            options: embedderOptions,
+            content,
+          })
+        )[0].embedding; // Single embedding for text
 
         const accessToken = await params.authClient.getAccessToken();
 

@@ -16,11 +16,11 @@
 
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { GenkitBeta, genkit } from '../src/beta';
 import { defineEchoModel } from './helpers';
 
 describe('formats', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeEach(() => {
     ai = genkit({});

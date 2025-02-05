@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.10",
+  "version": "1.0.0-rc.16",
   "type": "commonjs",
   "main": "./lib/cjs/index.js",
   "scripts": {
@@ -151,7 +151,7 @@
       "import": "./lib/plugin.mjs",
       "default": "./lib/plugin.js"
     },
-    "./client": {
+    "./beta/client": {
       "types": "./lib/client/index.d.ts",
       "require": "./lib/client/index.js",
       "import": "./lib/client/index.mjs",
@@ -220,7 +220,7 @@
       "plugin": [
         "lib/plugin"
       ],
-      "client": [
+      "beta/client": [
         "lib/client/index"
       ],
       "requestMiddleware": [

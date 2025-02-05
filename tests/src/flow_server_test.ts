@@ -15,7 +15,7 @@
  */
 
 import { readFileSync } from 'fs';
-import { streamFlow } from 'genkit/client';
+import { streamFlow } from 'genkit/beta/client';
 import * as yaml from 'yaml';
 import { retriable, runTestsForApp } from './utils.js';
 

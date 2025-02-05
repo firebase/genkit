@@ -9,6 +9,7 @@ dependencies = [
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
+  "handlebarz",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -45,6 +46,12 @@ python_files = [
 ]
 testpaths = ["packages", "plugins", "samples"]
 
+[tool.pytest.ini_options]
+addopts = "--cov"
+
+[tool.coverage.report]
+fail_under = 70
+
 # uv based package management.
 [tool.uv]
 default-groups = ["dev", "lint"]
@@ -59,6 +66,7 @@ genkit-google-cloud-plugin = { workspace = true }
 genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
+handlebarz                 = { workspace = true }
 hello                      = { workspace = true }
 
 [tool.uv.workspace]

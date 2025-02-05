@@ -17,8 +17,10 @@
 import type { Action } from '@genkit-ai/core';
 import { NextRequest, NextResponse } from 'next/server';
 
-const appRoute =
-  <A extends Action<any, any, any>>(action: A) =>
+const appRoute: <A extends Action<any, any, any>>(
+  action: A
+) => (req: NextRequest) => Promise<NextResponse> =
+  (action) =>
   async (req: NextRequest): Promise<NextResponse> => {
     const { data } = await req.json();
     if (req.headers.get('accept') !== 'text/event-stream') {

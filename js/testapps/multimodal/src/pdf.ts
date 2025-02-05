@@ -18,7 +18,6 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { startFlowServer } from '@genkit-ai/express';
 import fileTypeChecker from 'file-type-checker';
 import fs from 'fs';
 import { Document, z } from 'genkit';
@@ -43,7 +42,7 @@ export const multimodalPdfQAFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query: any, streamingCallback: any) => {
+  async (query: string, { sendChunk }) => {
     const docs = (await ai.retrieve({
       retriever: pdfMultimodalRetriever,
       query,
@@ -74,7 +73,7 @@ export const multimodalPdfQAFlow = ai.defineFlow(
           }),
       },
       {
-        streamingCallback,
+        onChunk: (c) => sendChunk(c.text),
       }
     ).then((r) => r.text);
   }
@@ -176,7 +175,3 @@ async function extractText(filePath: string) {
   const data = await pdf(dataBuffer);
   return data.text;
 }
-
-startFlowServer({
-  flows: [indexMultimodalPdf, multimodalPdfQAFlow],
-});

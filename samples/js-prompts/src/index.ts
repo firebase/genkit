@@ -15,6 +15,7 @@
  */
 
 // Import the Genkit core libraries and plugins.
+import { startFlowServer } from '@genkit-ai/express';
 import { googleAI } from '@genkit-ai/googleai';
 import { genkit, z } from 'genkit';
 
@@ -77,13 +78,19 @@ const threeGreetingsPrompt = ai.definePrompt(
 
 const threeGreetings = ai.defineFlow('threeGreetingsPrompt', async () => {
   const response = await threeGreetingsPrompt({ name: 'Fred' });
-  return response.output?.likeAPirate;
+  return response.output;
 });
 
 // Start a flow server, which exposes your flows as HTTP endpoints. This call
 // must come last, after all of your plug-in configuration and flow definitions.
 // You can optionally specify a subset of flows to serve, and configure some
 // HTTP server options, but by default, the flow server serves all defined flows.
-ai.startFlowServer({
+startFlowServer({
   flows: [threeGreetings, simpleTemplate, simpleDotprompt, simplePrompt],
+});
+
+// Call one of the flows just to validate everything is hooked up properly
+helloDotprompt({ name: 'Bob' }).then((generateResponse) => {
+  console.log('\nThe model response:');
+  console.log(generateResponse.text);
 });

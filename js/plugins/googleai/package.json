@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.10",
+  "version": "1.0.0-rc.16",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -36,7 +36,7 @@
     "node-fetch": "^3.3.2"
   },
   "peerDependencies": {
-    "genkit": "workspace:*"
+    "genkit": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

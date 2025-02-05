@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+set -x
+set -euo pipefail
+
+function genkit::cleanup() {
+  rm -rf /tmp/e2e* || true && rm -rf /tmp/test-cli* || true
+}
+
+genkit::cleanup

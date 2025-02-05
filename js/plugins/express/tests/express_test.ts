@@ -17,7 +17,7 @@
 import * as assert from 'assert';
 import express from 'express';
 import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
-import { runFlow, streamFlow } from 'genkit/client';
+import { runFlow, streamFlow } from 'genkit/beta/client';
 import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import * as http from 'http';

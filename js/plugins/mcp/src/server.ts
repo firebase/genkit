@@ -99,7 +99,6 @@ export class GenkitMcpServer {
     const toolList: ToolAction[] = [];
     const promptList: PromptAction[] = [];
     for (const k in allActions) {
-      console.log('action:', k);
       if (k.startsWith('/tool/')) {
         toolList.push(allActions[k] as ToolAction);
       } else if (k.startsWith('/prompt/')) {
