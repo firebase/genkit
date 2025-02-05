@@ -53,7 +53,7 @@ up, follow these steps:
     firebase init genkit
     ```
 
-    The rest of this page assumes that you've selected to write your functions
+    The rest of this page assumes that you've decided to write your functions
     in TypeScript, but you can also deploy your Genkit flows if you're using
     JavaScript.
 
@@ -64,8 +64,8 @@ write flow definitions in the project’s `functions/src` directory, and export
 them in `index.ts`.
 
 For your flows to be deployable, you need to wrap them in `onCallGenkit`.
-This method has all the features of the normal `onCall`. It automatically supports
-both streaming and JSON responses.
+This method has all the features of the normal `onCall`. It automatically
+supports both streaming and JSON responses.
 
 Suppose you have the following flow:
 
@@ -96,7 +96,7 @@ export generatePoem = onCallGenkit(generatePoemFlow);
 All deployed flows, whether deployed to Firebase or not, should have an
 authorization policy; without one, anyone can invoke your potentially-expensive
 generative AI flows. To define an authorization policy, use the
-`authPolicy` parameter in `onCallGenkit`:
+`authPolicy` parameter of `onCallGenkit`:
 
 ```ts
 export const generatePoem = onCallGenkit({
@@ -119,7 +119,7 @@ export const generatePoem = onCallGenkit({
 ### Make API credentials available to deployed flows
 
 Once deployed, your flows need some way to authenticate with any remote services
-they rely on. Most flows will at a minimum need credentials for accessing the
+they rely on. Most flows need, at a minimum, credentials for accessing the
 model API service they use.
 
 For this example, do one of the following, depending on the model provider you
@@ -139,8 +139,8 @@ chose:
         firebase functions:secrets:set GOOGLE_GENAI_API_KEY
         ```
 
-        This step is important to prevent accidentally leaking your API key, which
-        grants access to a potentially metered service.
+        This step is important to prevent accidentally leaking your API key,
+        which grants access to a potentially metered service.
 
         See [Store and access sensitive configuration information](/docs/functions/config-env?gen=2nd#secret-manager)
         for more information on managing secrets.
@@ -152,8 +152,8 @@ chose:
         const googleAIapiKey = defineSecret("GOOGLE_GENAI_API_KEY");
         ```
 
-        Then, in the flow definition, declare that the cloud function needs access
-        to this secret value:
+        Then, in the flow definition, declare that the cloud function needs
+        access to this secret value:
 
         ```ts
         export const generatePoem = onCallGenkit({
@@ -161,7 +161,7 @@ chose:
         }, generatePoemFlow);
         ```
 
-  Now, when you deploy this function, your API key will be stored in Cloud
+  Now, when you deploy this function, your API key is stored in Cloud
   Secret Manager, and available from the Cloud Functions environment.
 
 - {Gemini (Vertex AI)}
@@ -179,9 +179,9 @@ but in general, you must do something similar for each service your flow uses.
 
 ### Add App Check enforcement
 
-[Firebase App Check](https://firebase.google.com/docs/app-check) uses native attestation
-to verify that your API is only being called by your application.
-`onCallGenkit` supports App Check enforcement declaratively.
+[Firebase App Check](https://firebase.google.com/docs/app-check) uses a
+built-in attestation mechanism to verify that your API is only being called by
+your application. `onCallGenkit` supports App Check enforcement declaratively.
 
 ```ts
 export const generatePoem = onCallGenkit({
@@ -195,8 +195,9 @@ export const generatePoem = onCallGenkit({
 
 ### Set a CORS policy
 
-Callable functions default to allowing any domain to call your function. If you would
-like to customize this, use the `cors` option.
+Callable functions default to allowing any domain to call your function. If you
+want to customize the domains that can do this, use the `cors` option.
+With proper authentication (especially App Check), CORS is often unnecessary.
 
 ```ts
 export const generatePoem = onCallGenkit({
@@ -204,12 +205,10 @@ export const generatePoem = onCallGenkit({
 }, generatePoemFlow);
 ```
 
-With proper authentication (especially App Check), CORS is often unnecessary.
-
 ### Complete example
 
-After you've made all of the changes described above, your deployable flow will
-look something like the following example:
+After you've made all of the changes described earlier, your deployable flow
+looks something like the following example:
 
 ```ts
 import { genkit } from 'genkit';
@@ -236,8 +235,8 @@ export const generateFlow = onCallGenkit({
 
 ## 3. Deploy flows to Firebase {:#deploy-flows}
 
-After you've defined flows using `onCallGenkit`, you can deploy them as you would
-deploy other Cloud Functions:
+After you've defined flows using `onCallGenkit`, you can deploy them the same
+way you would deploy other Cloud Functions:
 
 ```posix-terminal
 cd $PROJECT_ROOT
@@ -245,10 +244,10 @@ cd $PROJECT_ROOT
 firebase deploy --only functions
 ```
 
-You've now deployed the flow as a Cloud Function! But, you won't be able to
+You've now deployed the flow as a Cloud Function! But you can't
 access your deployed endpoint with `curl` or similar, because of the flow's
-authorization policy. Continue to the next section to learn how to securely
-access the flow.
+authorization policy. The next section explains how to securely  access the
+flow.
 
 ## Optional: Try the deployed flow {:#example-client}
 
@@ -261,8 +260,8 @@ app:
 
 1.  In the
     [Authentication](https://console.firebase.google.com/project/_/authentication/providers)
-    section of the Firebase console, enable the **Google** provider, which you
-    will use in this example.
+    section of the Firebase console, enable the **Google** provider, used in
+    this example.
 
 1.  In your project directory, set up Firebase Hosting, where you will deploy
     the sample app:
@@ -355,9 +354,9 @@ endpoint requests.
 
 ## Optional: Run flows in the developer UI {:#run-flows}
 
-You can run flows defined using `onCallGenkit` in the developer UI, exactly the same
-way as you run flows defined using `defineFlow`, so there's no need to switch
-between the two between deployment and development.
+You can run flows defined using `onCallGenkit` in the developer UI, exactly the
+same way as you run flows defined using `defineFlow`, so there's no need to
+switch between the two between deployment and development.
 
 ```posix-terminal
 cd $PROJECT_ROOT/functions
@@ -381,17 +380,17 @@ Firebase offers a
 [suite of emulators for local development](/docs/emulator-suite), which you can
 use with Genkit.
 
-To use the Genkit Dev UI with the Firebase Emulator Suite, start the Firebase emulators
-like this:
+To use the Genkit Dev UI with the Firebase Emulator Suite, start the Firebase
+emulators as follows:
 
 ```posix-terminal
 npx genkit start -- firebase emulators:start --inspect-functions
 ```
 
-This will run your code in the emulator and run the Genkit framework in
-development mode, which launches and exposes the Genkit reflection API (but not
+This command runs your code in the emulator, and runs the Genkit framework in
+development mode. This launches and exposes the Genkit reflection API (but not
 the Dev UI).
 
-To see traces from Firestore in the Dev UI you can navigate to the Inspect tab
-and toggle the "Dev/Prod" switch. When toggled to "prod" it will be loading
+To see traces from Firestore in the Dev UI, you can navigate to the _Inspect_
+tab and toggle the *Dev/Prod* switch. When toggled to _prod_ it loads
 traces from firestore.
