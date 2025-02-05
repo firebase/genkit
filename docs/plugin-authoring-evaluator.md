@@ -84,10 +84,9 @@ function getDeliciousnessPrompt(ai: Genkit) {
 
 Define a function that takes an example that includes `output` as
 required by the prompt, and scores the result. Genkit testcases include
-`input` as
-a required field, with `output` and `context` as optional fields. It is the
-responsibility of the evaluator to validate that all fields required for
-evaluation are present.
+`input` as  a required field, with `output` and `context` as optional fields.
+It is the  responsibility of the evaluator to validate that all fields
+required for evaluation are present.
 
 ```ts
 import { ModelArgument } from 'genkit';
