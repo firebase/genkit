@@ -18,7 +18,7 @@ through middleware.
 ## Basic flow authorization
 
 Flows can check authorization in two ways: either the request binding
-(e.g. `onCallGenkit` for Cloud Functions for Fireabse or `express`) can enforce
+(e.g. `onCallGenkit` for Cloud Functions for Firebase or `express`) can enforce
 authorization, or those frameworks can pass auth policies to the flow itself,
 where the flow has access to the information for auth managed within the
 flow.
@@ -278,6 +278,3 @@ alongside the native flows. You have two options:
 
     For more information about using Express, see the
     [Cloud Run](/genkit/cloud-run) instructions.
-
-If you select (1), the `middleware` configuration option is
-be ignored by when the flow is invoked directly.
