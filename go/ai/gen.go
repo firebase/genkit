@@ -118,6 +118,7 @@ type ModelInfoSupports struct {
 	Multiturn   bool         `json:"multiturn,omitempty"`
 	Output      OutputFormat `json:"output,omitempty"`
 	SystemRole  bool         `json:"systemRole,omitempty"`
+	ToolChoice  bool         `json:"toolChoice,omitempty"`
 	Tools       bool         `json:"tools,omitempty"`
 }
 
