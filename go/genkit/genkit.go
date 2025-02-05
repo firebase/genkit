@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package genkit provides Genkit functionality for application developers.
 package genkit
 
@@ -157,7 +156,7 @@ func (g *Genkit) Start(ctx context.Context, opts *StartOptions) error {
 func DefineModel(
 	g *Genkit,
 	provider, name string,
-	metadata *ai.ModelMetadata,
+	metadata *ai.ModelInfo,
 	generate func(context.Context, *ai.ModelRequest, ai.ModelStreamingCallback) (*ai.ModelResponse, error),
 ) ai.Model {
 	return ai.DefineModel(g.reg, provider, name, metadata, generate)

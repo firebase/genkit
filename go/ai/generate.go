@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -35,33 +34,21 @@ type modelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChun
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
 
-// ModelCapabilities describes various capabilities of the model.
-type ModelCapabilities struct {
-	Multiturn  bool // the model can handle multiple request-response interactions
-	Media      bool // the model supports media as well as text input
-	Tools      bool // the model supports tools
-	SystemRole bool // the model supports a system prompt or role
-}
-
-// ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
-type ModelMetadata struct {
-	Label    string
-	Supports ModelCapabilities
-}
-
 // DefineModel registers the given generate function as an action, and returns a
 // [Model] that runs it.
 func DefineModel(
 	r *registry.Registry,
 	provider, name string,
-	metadata *ModelMetadata,
+	metadata *ModelInfo,
 	generate func(context.Context, *ModelRequest, ModelStreamingCallback) (*ModelResponse, error),
 ) Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
 		// Always make sure there's at least minimal metadata.
-		metadata = &ModelMetadata{
-			Label: name,
+		metadata = &ModelInfo{
+			Label:    name,
+			Supports: &ModelInfoSupports{},
+			Versions: []string{},
 		}
 	}
 	if metadata.Label != "" {
@@ -74,6 +61,7 @@ func DefineModel(
 		"tools":      metadata.Supports.Tools,
 	}
 	metadataMap["supports"] = supports
+	metadataMap["versions"] = metadata.Versions
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
@@ -100,8 +88,8 @@ type generateParams struct {
 	Request      *ModelRequest
 	Model        Model
 	Stream       ModelStreamingCallback
-	History      []*Message
 	SystemPrompt *Message
+	History      []*Message
 }
 
 // GenerateOption configures params of the Generate call.
@@ -242,6 +230,19 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	if req.Model == nil {
 		return nil, errors.New("model is required")
 	}
+
+	var modelVersion string
+	if config, ok := req.Request.Config.(*GenerationCommonConfig); ok {
+		modelVersion = config.Version
+	}
+
+	if modelVersion != "" {
+		ok, err := validateModelVersion(r, modelVersion, req)
+		if !ok {
+			return nil, err
+		}
+	}
+
 	if req.History != nil {
 		prev := req.Request.Messages
 		req.Request.Messages = req.History
@@ -254,6 +255,44 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	return req.Model.Generate(ctx, r, req.Request, req.Stream)
+}
+
+// validateModelVersion checks in the registry the action of the
+// given model version and determines whether its supported or not.
+func validateModelVersion(r *registry.Registry, v string, req *generateParams) (bool, error) {
+	parts := strings.Split(req.Model.Name(), "/")
+	if len(parts) != 2 {
+		return false, errors.New("wrong model name")
+	}
+
+	m := LookupModel(r, parts[0], parts[1])
+	if m == nil {
+		return false, fmt.Errorf("model %s not found", v)
+	}
+
+	// at the end, a Model is an action so type conversion is required
+	if a, ok := m.(*modelActionDef); ok {
+		if !(modelVersionSupported(v, (*modelAction)(a).Desc().Metadata)) {
+			return false, fmt.Errorf("version %s not supported", v)
+		}
+	} else {
+		return false, errors.New("unable to validate model version")
+	}
+
+	return true, nil
+}
+
+// modelVersionSupported iterates over model's metadata to find the requested
+// supported model version
+func modelVersionSupported(modelVersion string, modelMetadata map[string]any) bool {
+	if md, ok := modelMetadata["model"].(map[string]any); ok {
+		for _, v := range md["versions"].([]string) {
+			if modelVersion == v {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
