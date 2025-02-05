@@ -63,10 +63,6 @@ func defineProgrammableModel(r *registry.Registry) *programmableModel {
 }
 
 func TestGenerateAction(t *testing.T) {
-	cmpopts := cmp.Options{
-		cmpopts.EquateEmpty(),
-	}
-
 	data, err := os.ReadFile("../../tests/specs/generate.yaml")
 	if err != nil {
 		t.Fatalf("failed to read spec file: %v", err)
@@ -105,6 +101,9 @@ func TestGenerateAction(t *testing.T) {
 					}
 					resp := tc.ModelResponses[reqCounter]
 					resp.Request = req
+					resp.Custom = map[string]any{}
+					resp.Request.Output = &ModelRequestOutput{}
+					resp.Usage = &GenerationUsage{}
 					reqCounter++
 					return resp, nil
 				}
@@ -128,7 +127,7 @@ func TestGenerateAction(t *testing.T) {
 					t.Errorf("chunks mismatch (-want +got):\n%s", diff)
 				}
 
-				if diff := cmp.Diff(tc.ExpectResponse, resp, cmpopts); diff != "" {
+				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{cmpopts.EquateEmpty()}); diff != "" {
 					t.Errorf("response mismatch (-want +got):\n%s", diff)
 				}
 			} else {
@@ -137,7 +136,7 @@ func TestGenerateAction(t *testing.T) {
 					t.Fatalf("action failed: %v", err)
 				}
 
-				if diff := cmp.Diff(tc.ExpectResponse, resp, cmpopts); diff != "" {
+				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{cmpopts.EquateEmpty()}); diff != "" {
 					t.Errorf("response mismatch (-want +got):\n%s", diff)
 				}
 			}
