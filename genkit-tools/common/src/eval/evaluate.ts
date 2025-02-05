@@ -26,10 +26,7 @@ import {
   EvalKeyAugments,
   EvalRun,
   EvalRunKey,
-  GenerateRequest,
-  GenerateRequestSchema,
   GenerateResponseSchema,
-  MessageData,
   RunNewEvaluationRequest,
   SpanData,
 } from '../types';
@@ -37,6 +34,7 @@ import {
   evaluatorName,
   generateTestCaseId,
   getEvalExtractors,
+  getModelInput,
   hasAction,
   isEvaluator,
   logger,
@@ -439,31 +437,4 @@ function isSupportedActionRef(actionRef: string) {
   return SUPPORTED_ACTION_TYPES.some((supportedType) =>
     actionRef.startsWith(`/${supportedType}`)
   );
-}
-
-function getModelInput(data: any, modelConfig: any): GenerateRequest {
-  let message: MessageData;
-  if (typeof data === 'string') {
-    message = {
-      role: 'user',
-      content: [
-        {
-          text: data,
-        },
-      ],
-    } as MessageData;
-    return {
-      messages: message ? [message] : [],
-      config: modelConfig,
-    };
-  } else {
-    const maybeRequest = GenerateRequestSchema.safeParse(data);
-    if (maybeRequest.success) {
-      return maybeRequest.data;
-    } else {
-      throw new Error(
-        `Unable to parse model input as MessageSchema as input. Details: ${maybeRequest.error}`
-      );
-    }
-  }
 }
