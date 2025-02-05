@@ -5,6 +5,7 @@ package tracing
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -53,17 +54,18 @@ func TestTraceJSON(t *testing.T) {
 	if diff := cmp.Diff(jsMap, goMap); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
-	ensureAllSpanDataFieldsArePresent(t, td, goMap)
+	if err := ensureAllSpanDataFieldsArePresent(td, goMap); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // ensureAllSpanDataFieldsArePresent checks that every non-zero field in SpanData
 // (by its json tag) is present in the marshaled JSON. Fields with `,omitempty`
 // that are zero/empty are allowed to be omitted.
-func ensureAllSpanDataFieldsArePresent(t *testing.T, data Data, jsonMap map[string]any) {
+func ensureAllSpanDataFieldsArePresent(data Data, jsonMap map[string]any) error {
 	spans, ok := jsonMap["spans"].(map[string]any)
 	if !ok {
-		t.Errorf("expected 'spans' to be a map, but got %T", jsonMap["spans"])
-		return
+		return fmt.Errorf("expected 'spans' to be a map, but got %T", jsonMap["spans"])
 	}
 
 	spanDataType := reflect.TypeOf(SpanData{})
@@ -72,14 +74,12 @@ func ensureAllSpanDataFieldsArePresent(t *testing.T, data Data, jsonMap map[stri
 		// Retrieve the SpanData struct from `data` so we can reflect on actual field values.
 		spanStruct := data.Spans[spanKey]
 		if spanStruct == nil {
-			t.Errorf("no SpanData found for %q in the original Data struct", spanKey)
-			continue
+			return fmt.Errorf("no SpanData found for %q in the original Data struct", spanKey)
 		}
 
 		spanMap, ok := spanVal.(map[string]any)
 		if !ok {
-			t.Errorf("span %q expected to be a map, got %T", spanKey, spanVal)
-			continue
+			return fmt.Errorf("span %q expected to be a map, got %T", spanKey, spanVal)
 		}
 
 		// Check each exported field in SpanData.
@@ -113,10 +113,11 @@ func ensureAllSpanDataFieldsArePresent(t *testing.T, data Data, jsonMap map[stri
 
 			// Otherwise, we expect the field to be present in the JSON map.
 			if _, present := spanMap[jsonKey]; !present {
-				t.Errorf("span %q is missing non-zero field %q in the JSON output", spanKey, jsonKey)
+				return fmt.Errorf("span %q is missing non-zero field %q in the JSON output", spanKey, jsonKey)
 			}
 		}
 	}
+	return nil
 }
 
 // isZeroValue tells if a reflect.Value is the "zero" value for its type.
