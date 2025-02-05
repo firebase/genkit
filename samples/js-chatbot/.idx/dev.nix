@@ -27,7 +27,7 @@
         default.openFiles = [ "README.md" "server/src/index.ts" ];
       };
       onStart = {
-        npm-run-server = "npm run start:server";
+        npm-run-server = "npm run start:server:idx";
       };
     };
 
