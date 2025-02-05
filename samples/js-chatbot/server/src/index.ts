@@ -78,7 +78,7 @@ export const chatbotFlow = ai.defineFlow(
       prompt: request.prompt,
       messages: history,
       model: llms[request.llmIndex],
-      onChunk: (c) => sendChunk(c.text),
+      onChunk: (c) => sendChunk(c),
     });
 
     // Save history.
