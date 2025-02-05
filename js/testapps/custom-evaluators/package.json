@@ -10,7 +10,7 @@
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
     "dev": "tsx --watch src/index.ts",
-    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev"
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts"
   },
   "keywords": [],
   "author": "",
