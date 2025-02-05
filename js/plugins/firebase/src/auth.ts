@@ -16,12 +16,8 @@
 
 import { DecodedAppCheckToken, getAppCheck } from 'firebase-admin/app-check';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import {
-  Request,
-  RequestMiddleware,
-  UserFacingError,
-} from 'genkit/requestMiddleware';
-import { initializeAppIfNecessary } from './helpers.js';
+import { AuthPolicy, Request, UserFacingError } from 'genkit/authPolicy';
+import { initializeAppIfNecessary } from './helpers';
 
 /**
  * Debug features that can be enabled to simplify testing.
@@ -93,7 +89,7 @@ export interface FirebaseContext {
   instanceIdToken?: string;
 }
 
-export interface FirebaseMiddleware<I = any> extends RequestMiddleware<I> {
+export interface FirebaseAuthPolicy<I = any> extends AuthPolicy<I> {
   (request: Request<I>): Promise<FirebaseContext>;
 }
 
@@ -108,9 +104,16 @@ export interface DeclarativePolicy {
   signedIn?: boolean;
 
   /**
+   * Requires the user's email to be verified.
+   * Requires the user to be signed in.
+   */
+  emailVerified?: boolean;
+
+  /**
    * Clam or Claims that must be present in the request.
    * Can be a singel claim name or array of claim names to merely test the presence
    * of a clam or can be an object of claim names and values that must be present.
+   * Requires the user to be signed in.
    */
   hasClaim?: string | string[] | Record<string, string>;
 
@@ -131,7 +134,7 @@ export interface DeclarativePolicy {
  * It does not do any validation on the data found. To do automatic validation,
  * pass either an options object or function for freeform validation.
  */
-export function firebaseAuth<I = any>(): FirebaseMiddleware<I>;
+export function firebaseAuth<I = any>(): FirebaseAuthPolicy<I>;
 
 /**
  * Calling firebaseAuth() with a declarative policy both parses and enforces context.
@@ -140,7 +143,7 @@ export function firebaseAuth<I = any>(): FirebaseMiddleware<I>;
  */
 export function firebaseAuth<I = any>(
   policy: DeclarativePolicy
-): FirebaseMiddleware<I>;
+): FirebaseAuthPolicy<I>;
 
 /**
  * Calling firebaseAuth() with a policy context parses context but delegates enforcement.
@@ -149,23 +152,32 @@ export function firebaseAuth<I = any>(
  */
 export function firebaseAuth<I = any>(
   policy: (context: FirebaseContext, input: I) => void | Promise<void>
-): FirebaseMiddleware<I>;
+): FirebaseAuthPolicy<I>;
 
 export function firebaseAuth<I = any>(
   policy?:
     | DeclarativePolicy
     | ((context: FirebaseContext, input: I) => void | Promise<void>)
-): FirebaseMiddleware<I> {
+): FirebaseAuthPolicy<I> {
   return async function (request: Request): Promise<FirebaseContext> {
     initializeAppIfNecessary();
-    const auth = await parseAuth(request.headers['authentication']);
-    const consumeAppCheckToken =
-      typeof policy === 'object' && policy['consumeAppCheckToken'];
-    const app = await parseAppCheck(
-      request.headers['x-firebase-appcheck'],
-      consumeAppCheckToken ?? false
-    );
-    const instanceIdToken = request.headers['firebase-instance-id-token'];
+    let auth: FirebaseContext['auth'];
+    if ('authorization' in request.headers) {
+      auth = await parseAuth(request.headers['authorization']);
+    }
+    let app: FirebaseContext['app'];
+    if ('x-firebase-appcheck' in request.headers) {
+      const consumeAppCheckToken =
+        typeof policy === 'object' && policy['consumeAppCheckToken'];
+      app = await parseAppCheck(
+        request.headers['x-firebase-appcheck'],
+        consumeAppCheckToken ?? false
+      );
+    }
+    let instanceIdToken: FirebaseContext['instanceIdToken'];
+    if ('firebase-instance-id-token' in request.headers) {
+      instanceIdToken = request.headers['firebase-instance-id-token'];
+    }
     const context: FirebaseContext = {};
     if (auth) {
       context.auth = auth;
@@ -185,32 +197,48 @@ export function firebaseAuth<I = any>(
   };
 }
 
+function verifyHasClaims(claims: string[], token: DecodedIdToken) {
+  for (const claim of claims) {
+    if (!token[claim] || token[claim] === 'false') {
+      if (claim == 'email_verified') {
+        throw new UserFacingError(403, 'email must be verified');
+      }
+      if (claim === 'admin') {
+        throw new UserFacingError(403, 'Must be an admin');
+      }
+      throw new UserFacingError(403, `${claim} claim is required`);
+    }
+  }
+}
+
 function enforceDelcarativePolicy(
   policy: DeclarativePolicy,
   context: FirebaseContext
 ) {
-  if ((policy.signedIn || policy.hasClaim) && !context.auth) {
+  if (
+    (policy.signedIn || policy.hasClaim || policy.emailVerified) &&
+    !context.auth
+  ) {
     throw new UserFacingError(401, 'Auth is required');
   }
   if (policy.hasClaim) {
-    function verifyHasClaims(claims: string[], token: DecodedIdToken) {
-      for (const claim of claims) {
-        if (!token[claim]) {
-          throw new UserFacingError(403, `${claim} claim is required`);
-        }
-      }
-    }
     if (typeof policy.hasClaim === 'string') {
       verifyHasClaims([policy.hasClaim], context.auth!.token);
     } else if (Array.isArray(policy.hasClaim)) {
       verifyHasClaims(policy.hasClaim, context.auth!.token);
-    } else {
-      for (const [claim, value] of Object.values(policy.hasClaim)) {
+    } else if (typeof policy.hasClaim === 'object') {
+      for (const [claim, value] of Object.entries(policy.hasClaim)) {
         if (context.auth!.token[claim] !== value) {
           throw new UserFacingError(403, `Claim ${claim} must be ${value}`);
         }
       }
+    } else {
+      // Not a user facing error so this turns into a log + 500 internal to the user.
+      throw Error(`Invalid type ${typeof policy.hasClaim} for hasClaim`);
     }
+  }
+  if (policy.emailVerified) {
+    verifyHasClaims(['email_verified'], context.auth!.token);
   }
   if (policy.enforceAppCheck && !context.app) {
     throw new UserFacingError(403, `AppCheck token is required`);
@@ -264,13 +292,13 @@ async function parseAppCheck(
 }
 
 export function fakeToken(claims: Record<string, string>): string {
-  return `fake.${Buffer.from(JSON.stringify(claims), 'base64').toString()}.fake`;
+  return `fake.${Buffer.from(JSON.stringify(claims), 'utf-8').toString('base64')}.fake`;
 }
 
-const TOKEN_REGEX = /[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/;
+const TOKEN_REGEX = /[a-zA-Z0-9_=-]+\.[a-zA-Z0-9_=-]+\.[a-zA-Z0-9_=-]+/;
 function unsafeDecodeToken(token: string): Record<string, unknown> {
   if (!TOKEN_REGEX.test(token)) {
-    throw UserFacingError(
+    throw new UserFacingError(
       401,
       'Invalid fake token. Use the fakeToken() method to create a valid fake token'
     );

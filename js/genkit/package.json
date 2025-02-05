@@ -157,11 +157,11 @@
       "import": "./lib/client/index.mjs",
       "default": "./lib/client/index.js"
     },
-    "./requestMiddleware": {
-      "types": "./lib/requestMiddleware.d.ts",
-      "require": "./lib/requestMiddleware.js",
-      "import": "./lib/requestMiddleware.mjs",
-      "default": "./lib/requestMiddleware.js"
+    "./authPolicy": {
+      "types": "./lib/authPolicy.d.ts",
+      "require": "./lib/authPolicy.js",
+      "import": "./lib/authPolicy.mjs",
+      "default": "./lib/authPolicy.js"
     }
   },
   "typesVersions": {
@@ -223,8 +223,8 @@
       "beta/client": [
         "lib/client/index"
       ],
-      "requestMiddleware": [
-        "lib/requestMiddleware"
+      "authPolicy": [
+        "lib/authPolicy"
       ]
     }
   }
