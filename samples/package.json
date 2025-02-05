@@ -1,0 +1,18 @@
+{
+  "name": "genkit-samples",
+  "private": true,
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "build:js-samples": "for i in js-c*/; do cd $i && npm run setup && npm run build && cd ../; done"
+  },
+  "pre-commit": [
+    "format:check"
+  ],
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "only-allow": "^1.2.1",
+    "pre-commit": "^1.2.2",
+    "prettier": "^3.2.5",
+    "tsx": "^4.19.2"
+  }
+}
