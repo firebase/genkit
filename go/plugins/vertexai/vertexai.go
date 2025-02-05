@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package vertexai
 
 import (
@@ -33,6 +32,9 @@ var (
 		"gemini-1.0-pro":   gemini.BasicText,
 		"gemini-1.5-pro":   gemini.Multimodal,
 		"gemini-1.5-flash": gemini.Multimodal,
+		"imagen2":          gemini.Multimodal,
+		"imagen3":          gemini.Multimodal,
+		"imagen3-fast":     gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
@@ -115,12 +117,30 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 	state.initted = true
 	for model, caps := range knownCaps {
-		defineModel(g, model, caps)
+		if strings.HasPrefix(model, "imagen") {
+			defineImagenModel(g, model, caps)
+		} else {
+			defineModel(g, model, caps)
+		}
 	}
 	for _, e := range knownEmbedders {
 		defineEmbedder(g, e)
 	}
 	return nil
+}
+
+func defineImagenModel(g *genkit.Genkit, name string, caps ai.ModelCapabilities) ai.Model {
+	meta := &ai.ModelMetadata{
+		Label:    labelPrefix + " - " + name,
+		Supports: caps,
+	}
+	return genkit.DefineModel(g, provider, name, meta, func(
+		ctx context.Context,
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
+		return imagenModel(ctx, state.gclient, name, input, cb)
+	})
 }
 
 //copy:sink defineModel from ../googleai/googleai.go
