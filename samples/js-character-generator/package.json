@@ -4,7 +4,8 @@
   "description": "A simple Firebase Genkit app to generate fantasy characters",
   "main": "index.js",
   "scripts": {
-    "genkit:dev": "genkit start -- npx tsx --watch index.ts"
+    "build": "npx tsc",
+    "genkit:dev": "npx genkit start -- npx tsx --watch index.ts"
   },
   "keywords": [],
   "author": "",

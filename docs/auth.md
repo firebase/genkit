@@ -10,16 +10,18 @@ are properly scoped to the user invoking the LLM, and the flow is being invoked
 only by verified client applications.
 
 Firebase Genkit provides mechanisms for managing authorization policies and
-contexts. Flows running on Firebase can use an auth policy callback (or helper)
-or Firebase will provide auth context into the flow where it can do its own checks.
-For non-Functions flows, auth can be managed and set as well through middleware.
+contexts. Flows running on Firebase can use an auth policy callback (or helper).
+Alternatively, Firebase also provides auth context into the flow where it can
+do its own  checks. For non-Functions flows, auth can be managed and set
+through middleware.
 
 ## Basic flow authorization
 
-Flows can check authorization in two ways: either the request binding (e.g. `onCallGenkit` for
-Cloud Functions for Fireabse or `express`) can enforce authorization, or those frameworks
-can pass auth policies to the flow itself where the flow will have access to the information
-for auth managed within the flow.
+Flows can check authorization in two ways: either the request binding
+(e.g. `onCallGenkit` for Cloud Functions for Firebase or `express`) can enforce
+authorization, or those frameworks can pass auth policies to the flow itself,
+where the flow has access to the information for auth managed within the
+flow.
 
 ```ts
 import { genkit, z } from 'genkit';
@@ -41,10 +43,11 @@ export const selfSummaryFlow = ai.defineFlow( {
 });
 ```
 
-It is up to the request binding to populate `context.auth` in this case. For example, `onCallGenkit`
-will automatically populate `context.auth` (Firebase Authentication), `context.app` (Firebase App Check),
-and `context.instanceIdToken` (Firebase Cloud Messaging). When calling a flow manually, you can add
-your own auth context manually.
+It is up to the request binding to populate `context.auth` in this case. For
+example, `onCallGenkit` automatically populates `context.auth`
+(Firebase Authentication), `context.app` (Firebase App Check), and
+`context.instanceIdToken` (Firebase Cloud Messaging). When calling a flow
+manually, you can add your own auth context manually.
 
 ```ts
 // Error: Authorization required.
@@ -111,15 +114,16 @@ genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --context '{"auth": {"email
 
 ## Cloud Functions for Firebase integration
 
-The Cloud Functions for Firebase SDK Firebase supports Genkit including integration with Firebase Auth / Google
-Cloud Identity Platform as well as built-in Firebase App Check support.
+The Cloud Functions for Firebase SDKs support Genkit including
+integration with Firebase Auth / Google Cloud Identity Platform, as well as
+built-in Firebase App Check support.
 
 ### Authorization
 
-The `onCallGenkit()` wrapper provided by the Firebase Functions library works natively with the
-Cloud Functions for Firebase
+The `onCallGenkit()` wrapper provided by the Firebase Functions library works
+natively with the Cloud Functions for Firebase
 [client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function).
-When using the SDK, the Firebase Auth header will automatically be included as
+When you use these SDKs, the Firebase Auth header is automatically included as
 long as your app client is also using the
 [Firebase Auth SDK](https://firebase.google.com/docs/auth).
 You can use Firebase Auth to protect your flows defined with `onCallGenkit()`:
@@ -145,12 +149,12 @@ export const selfSummary = onCallGenkit({
 }, selfSummaryFlow);
 ```
 
-When using the `onCallGenkit`, `context.auth` will be returned as an object with
+When you use `onCallGenkit`, `context.auth` is returned as an object with
 a `uid` for the user ID, and a `token` that is a
 [DecodedIdToken](https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken).
-You can always retrieve this object at any time via `ai.currentContext()` as noted
-above. When running this flow during development, you would pass the user object
-in the same way:
+You can always retrieve this object at any time using `ai.currentContext()` as
+noted earlier. When running this flow during development, you would pass the
+user object in the same way:
 
 ```posix-terminal
 genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --context '{"auth": {"admin": true}}'
@@ -161,12 +165,14 @@ important that you use some sort of authorization mechanism to protect your data
 and the data of your customers. With that said, there are times when you need
 to deploy a Cloud Function with no code-based authorization checks (for example,
 your Function is not world-callable but instead is protected by
-[Cloud IAM](https://cloud.google.com/functions/docs/concepts/iam)). Cloud Functions
-for Firebase allows you to do this using the `invoker` property, which controls
-IAM access. The special value `'private'` leaves the function as the default IAM
-setting, which means that only callers with the [Cloud Run Invoker role](https://cloud.google.com/run/docs/reference/iam/roles)
+[Cloud IAM](https://cloud.google.com/functions/docs/concepts/iam)).
+Cloud Functions for Firebase lets you to do this using the `invoker` property,
+which controls IAM access. The special value `'private'` leaves the function as
+the default IAM setting, which means that only callers with the
+[Cloud Run Invoker role](https://cloud.google.com/run/docs/reference/iam/roles)
 can execute the function. You can instead provide the email address of a user
-or service account that should be granted permission to call this exact function.
+or service account that should be granted permission to call this exact
+function.
 
 <!-- prettier-ignore: see note above -->
 
@@ -191,8 +197,8 @@ export const selfSummary = onCallGenkit({
 Authentication on its own goes a long way to protect your app. But it's also
 important to ensure that only your client apps are calling your functions. The
 Firebase plugin for genkit includes first-class support for
-[Firebase App Check](https://firebase.google.com/docs/app-check). Simply add
-the following configuration options to your `onCallGenkit()`:
+[Firebase App Check](https://firebase.google.com/docs/app-check). Do this by
+adding the following configuration options to your `onCallGenkit()`:
 
 <!-- prettier-ignore: see note above -->
 
@@ -224,11 +230,11 @@ When deploying flows to a server context outside of Cloud Functions for
 Firebase, you'll want to have a way to set up your own authorization checks
 alongside the native flows. You have two options:
 
-1.  Use whatever server framework you like, and pass the auth context through via
-    the flow call as noted above.
+1.  Use whatever server framework you like, and pass the auth context through
+    using the flow call as noted earlier.
 
-1.  Use  `startFlowsServer()` available via `@genkit-ai/express` plugin and provide
-    Express auth middleware in the flow server config:
+1.  Use `startFlowsServer()`, which the `@genkit-ai/express` plugin
+    exposes, and provide Express auth middleware in the flow server config:
 
     ```ts
     import { genkit, z } from 'genkit';
@@ -267,11 +273,8 @@ alongside the native flows. You have two options:
           }
         })
       ],
-    });  // Registers the middleware
+    });  // Registers the auth provider middleware and policy
     ```
 
-    For more information about using Express, see the [Cloud Run](/genkit/cloud-run)
-    instructions.
-
-Please note, if you go with (1), you the `middleware` configuration option will
-be ignored by when the flow is invoked directly.
+    For more information about using Express, see the
+    [Cloud Run](/genkit/cloud-run) instructions.
