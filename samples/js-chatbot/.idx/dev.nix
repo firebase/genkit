@@ -26,18 +26,22 @@
         npm-install = "npm ci --no-audit --prefer-offline --no-progress --timing && npm run setup";
         default.openFiles = [ "README.md" "server/src/index.ts" ];
       };
+      onStart = {
+        npm-run-server = "npm run start:server"
+      }
     };
 
     previews = {
       enable = true;
       previews = {
         web = {
-          command = ["npm run genkit:dev"];
+          command = ["npm run start:ng"];
           env = {
             PORT = "$PORT";
           };
           manager = "web";
         };
+      };
     };
   };
 }

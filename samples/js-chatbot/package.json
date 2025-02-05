@@ -5,8 +5,8 @@
     "start:server": "cd server && npm run genkit:dev",
     "start:ng": "cd genkit-app && npm start"
   },
-  "name": "js-angular",
-  "version": "1.0.0",
+  "name": "js-chatbot",
+  "version": "0.1.0",
   "description": "This is a simple UI for streaming RPG character generator.",
   "keywords": [],
   "author": "",
