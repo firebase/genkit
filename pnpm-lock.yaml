@@ -6,10 +6,15 @@ settings:
 
 overrides:
   cross-spawn: ^7.0.5
+  genkit: link:js/genkit
 
 importers:
 
   .:
+    dependencies:
+      genkit:
+        specifier: link:js/genkit
+        version: link:js/genkit
     devDependencies:
       inquirer:
         specifier: ^8.0.0
