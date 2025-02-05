@@ -3,10 +3,14 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build:js-samples": "concurrently npm:build:js-chatbot npm:build:js-coffee-shop npm:build:js-character-generator",
+    "build:js-angular": "cd js-angular && npm run setup && npm run build",
+    "build:js-character-generator": "cd js-character-generator && npm install && npm run build",
     "build:js-chatbot": "cd js-chatbot && npm install && npm run setup && npm run build",
     "build:js-coffee-shop": "cd js-coffee-shop && npm install && npm run build",
-    "build:js-character-generator": "cd js-character-generator && npm install && npm run build"
+    "build:js-menu": "cd js-menu && npm install && npm run build",
+    "build:js-prompts": "cd js-prompts && npm install && npm run build",
+    "build:js-schoolAgent": "cd js-schoolAgent && npm install && npm run build",
+    "build:all-samples": "concurrently npm:build:js-*"
   },
   "pre-commit": [
     "format:check"
