@@ -402,8 +402,8 @@ these automatically-defined values and how you can use them.
 ### Multi-message prompts
 
 By default, Dotprompt constructs a single message with a "user" role.
-However, some prompts are best expressed as a combination of multiple messages,
-such as a system prompt.
+However, some prompts are best expressed as a combination of multiple
+messages, such as a system prompt.
 
 The `{{role}}` helper provides a simple way to
 construct multi-message prompts:
