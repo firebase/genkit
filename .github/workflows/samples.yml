@@ -37,6 +37,6 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     - name: Build Samples
-      run: build:js-samples
+      run: pnpm build:js-samples
     - name: Validate working directory is clean
       run: .github/workflows/scripts/ensure-clean-working-tree.sh
