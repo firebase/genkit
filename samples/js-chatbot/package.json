@@ -8,7 +8,7 @@
   },
   "name": "js-chatbot",
   "version": "0.1.0",
-  "description": "This is a simple UI for streaming RPG character generator.",
+  "description": "This is a simple chatbot app build with Genkit and Angular",
   "keywords": [],
   "author": "",
   "license": "ISC",
