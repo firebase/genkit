@@ -201,12 +201,18 @@ function verifyHasClaims(claims: string[], token: DecodedIdToken) {
   for (const claim of claims) {
     if (!token[claim] || token[claim] === 'false') {
       if (claim == 'email_verified') {
-        throw new UserFacingError(403, 'email must be verified');
+        throw new UserFacingError(
+          'permission-denied',
+          'Email must be verified'
+        );
       }
       if (claim === 'admin') {
-        throw new UserFacingError(403, 'Must be an admin');
+        throw new UserFacingError('permission-denied', 'Must be an admin');
       }
-      throw new UserFacingError(403, `${claim} claim is required`);
+      throw new UserFacingError(
+        'permission-denied',
+        `${claim} claim is required`
+      );
     }
   }
 }
@@ -219,7 +225,7 @@ function enforceDelcarativePolicy(
     (policy.signedIn || policy.hasClaim || policy.emailVerified) &&
     !context.auth
   ) {
-    throw new UserFacingError(401, 'Auth is required');
+    throw new UserFacingError('unauthenticated', 'Auth is required');
   }
   if (policy.hasClaim) {
     if (typeof policy.hasClaim === 'string') {
@@ -229,7 +235,10 @@ function enforceDelcarativePolicy(
     } else if (typeof policy.hasClaim === 'object') {
       for (const [claim, value] of Object.entries(policy.hasClaim)) {
         if (context.auth!.token[claim] !== value) {
-          throw new UserFacingError(403, `Claim ${claim} must be ${value}`);
+          throw new UserFacingError(
+            'permission-denied',
+            `Claim ${claim} must be ${value}`
+          );
         }
       }
     } else {
@@ -241,7 +250,10 @@ function enforceDelcarativePolicy(
     verifyHasClaims(['email_verified'], context.auth!.token);
   }
   if (policy.enforceAppCheck && !context.app) {
-    throw new UserFacingError(403, `AppCheck token is required`);
+    throw new UserFacingError(
+      'permission-denied',
+      `AppCheck token is required`
+    );
   }
 }
 
@@ -265,7 +277,7 @@ async function parseAuth(authHeader: string): Promise<FirebaseContext['auth']> {
     };
   } catch (err) {
     console.error(`Error decoding auth token: ${err}`);
-    throw new UserFacingError(401, 'Invalid auth token');
+    throw new UserFacingError('permission-denied', 'Invalid auth token');
   }
 }
 
@@ -287,7 +299,7 @@ async function parseAppCheck(
     });
   } catch (err) {
     console.error(`Got error verifying AppCheck token: ${err}`);
-    throw new UserFacingError(403, 'Invalid AppCheck token');
+    throw new UserFacingError('permission-denied', 'Invalid AppCheck token');
   }
 }
 
@@ -299,7 +311,7 @@ const TOKEN_REGEX = /[a-zA-Z0-9_=-]+\.[a-zA-Z0-9_=-]+\.[a-zA-Z0-9_=-]+/;
 function unsafeDecodeToken(token: string): Record<string, unknown> {
   if (!TOKEN_REGEX.test(token)) {
     throw new UserFacingError(
-      401,
+      'permission-denied',
       'Invalid fake token. Use the fakeToken() method to create a valid fake token'
     );
   }
@@ -307,7 +319,7 @@ function unsafeDecodeToken(token: string): Record<string, unknown> {
     return JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
   } catch (err) {
     throw new UserFacingError(
-      410,
+      'permission-denied',
       'Invalid fake token. Use the fakeToken() method to create a valid fake token'
     );
   }
