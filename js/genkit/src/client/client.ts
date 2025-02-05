@@ -15,6 +15,66 @@
  */
 
 import { Channel } from '@genkit-ai/core/async';
+import { z } from '@genkit-ai/core/zod';
+
+interface RunOptions {
+  headers?: Record<string, string>;
+}
+
+export type RemoteAction<I = any, O = any, S = any> = ((
+  input?: I,
+  options?: RunOptions
+) => Promise<O>) & {
+  stream(input?: I, opts?: RunOptions): StreamingResponse<O, S>;
+};
+
+/**
+ * Streaming response from an action.
+ */
+export interface StreamingResponse<O = any, S = any> {
+  /** Iterator over the streaming chunks. */
+  stream: AsyncIterable<S>;
+  /** Final output of the action. */
+  output: Promise<O>;
+}
+
+/**
+ * Defines a remote action which can be invoked as a function or streamed.
+ */
+export function defineRemoteAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(actionOptions: {
+  url: string;
+  headers?: Record<string, string>;
+  inputSchema?: I;
+  outputSchema?: O;
+  streamSchema?: S;
+}): RemoteAction<z.infer<I>, z.infer<O>, z.infer<S>> {
+  const action = (
+    input?: z.infer<I>,
+    runOptions?: RunOptions
+  ): Promise<z.infer<O>> => {
+    return runFlow({
+      url: actionOptions.url,
+      headers: runOptions?.headers ?? actionOptions.headers,
+      input,
+    });
+  };
+  (action as RemoteAction<z.infer<I>, z.infer<O>, z.infer<S>>).stream = (
+    input?: I,
+    runOptions?: RunOptions
+  ): StreamingResponse<z.infer<O>, z.infer<S>> => {
+    return streamFlow({
+      url: actionOptions.url,
+      headers: runOptions?.headers ?? actionOptions.headers,
+      input,
+    });
+  };
+
+  return action as RemoteAction<z.infer<I>, z.infer<O>, z.infer<S>>;
+}
 
 const __flowStreamDelimiter = '\n\n';
 
