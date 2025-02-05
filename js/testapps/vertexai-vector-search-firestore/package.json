@@ -31,7 +31,6 @@
     "google-auth-library": "^9.11.0"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",
     "typescript": "^5.5.2"
   }
