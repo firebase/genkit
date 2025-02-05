@@ -273,7 +273,7 @@ alongside the native flows. You have two options:
           }
         })
       ],
-    });  // Registers the middleware
+    });  // Registers the auth provider middleware and policy
     ```
 
     For more information about using Express, see the
