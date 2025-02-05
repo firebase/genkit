@@ -36,11 +36,16 @@ information on using pull requests.
 
 ### Environment
 
-1. [Install node v20](https://nodejs.org/en/download)
+1. It is recommended that you [Install node v20](https://nodejs.org/en/download)
 2. Run `corepack enable pnpm` to enable pnpm.
 
 Note: We recommend using Node v20 or greater when compiling and running Genkit.
 Any older versions of Node may not work properly.
+
+In case you're running a system where that is not possible due to access
+restrictions or outdated systems [installing pnpm using their installation
+script](https://pnpm.io/installation#on-posix-systems). PNPM [manages the
+version of node](https://pnpm.io/npmrc#use-node-version) used with genkit.
 
 ### Install dependencies
 
