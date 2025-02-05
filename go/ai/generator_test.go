@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -316,6 +315,68 @@ func TestGenerate(t *testing.T) {
 			"{*ai.ModelRequest}.Messages[4].Content[1].Text",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
+		}
+	})
+
+	t.Run("handles tool interrupts", func(t *testing.T) {
+		interruptTool := DefineTool(r, "interruptor", "always interrupts",
+			func(ctx *ToolContext, input any) (any, error) {
+				return nil, ctx.Interrupt(&InterruptOptions{
+					Metadata: map[string]any{
+						"reason": "test interrupt",
+					},
+				})
+			},
+		)
+
+		interruptModel := DefineModel(r, "test", "interrupt", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewToolRequestPart(&ToolRequest{
+								Name:  "interruptor",
+								Input: nil,
+							}),
+						},
+					},
+				}, nil
+			})
+
+		res, err := Generate(context.Background(), r,
+			WithModel(interruptModel),
+			WithTextPrompt("trigger interrupt"),
+			WithTools(interruptTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.FinishReason != "interrupted" {
+			t.Errorf("expected finish reason 'interrupted', got %q", res.FinishReason)
+		}
+		if res.FinishMessage != "One or more tool calls resulted in interrupts." {
+			t.Errorf("unexpected finish message: %q", res.FinishMessage)
+		}
+
+		if len(res.Message.Content) != 1 {
+			t.Fatalf("expected 1 content part, got %d", len(res.Message.Content))
+		}
+
+		metadata := res.Message.Content[0].Metadata
+		if metadata == nil {
+			t.Fatal("expected metadata in content part")
+		}
+
+		interrupt, ok := metadata["interrupt"].(map[string]any)
+		if !ok {
+			t.Fatal("expected interrupt metadata")
+		}
+
+		reason, ok := interrupt["reason"].(string)
+		if !ok || reason != "test interrupt" {
+			t.Errorf("expected interrupt reason 'test interrupt', got %v", reason)
 		}
 	})
 }

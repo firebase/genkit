@@ -475,24 +475,18 @@ func cloneMessage(m *Message) *Message {
 	if m == nil {
 		return nil
 	}
-	copy := &Message{
-		Role:    m.Role,
-		Content: make([]*Part, len(m.Content)),
+
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal message: %v", err))
 	}
-	for i, part := range m.Content {
-		copiedPart := &Part{
-			Text:        part.Text,
-			ToolRequest: part.ToolRequest,
-		}
-		if part.Metadata != nil {
-			copiedPart.Metadata = make(map[string]any)
-			for k, v := range part.Metadata {
-				copiedPart.Metadata[k] = v
-			}
-		}
-		copy.Content[i] = copiedPart
+
+	var copy Message
+	if err := json.Unmarshal(bytes, &copy); err != nil {
+		panic(fmt.Sprintf("failed to unmarshal message: %v", err))
 	}
-	return copy
+
+	return &copy
 }
 
 // handleToolRequests processes any tool requests in the response, returning either a new request to continue the conversation or nil if no tool requests need handling.

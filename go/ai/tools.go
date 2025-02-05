@@ -140,7 +140,7 @@ func runAction(ctx context.Context, action Tool, input any) (any, error) {
 	}
 	output, err := action.Action().RunJSON(ctx, mi, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error calling tool %v: %v", action.Definition().Name, err)
+		return nil, fmt.Errorf("error calling tool %v: %w", action.Definition().Name, err)
 	}
 
 	var uo any
