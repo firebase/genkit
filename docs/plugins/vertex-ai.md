@@ -6,6 +6,7 @@ The Vertex AI plugin provides interfaces to several AI services:
     *   Gemini text generation
     *   Imagen2 and Imagen3 image generation
     *   Text embedding generation
+    *   Multimodal embedding generation
 *   A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
     *   [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
     *   [ROUGE](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#rougeinput)
@@ -130,7 +131,7 @@ const ai = genkit({
 });
 ```
 
-Or you can generate an embedding directly:
+Or you can generate embeddings directly:
 
 ```ts
 const ai = genkit({
@@ -146,6 +147,8 @@ const embeddings = await ai.embed({
 This plugin can also handle multimodal embeddings:
 
 ```ts
+import { multimodalEmbedding001, vertexAI } from '@genkit-ai/vertexai';
+
 const ai = genkit({
   plugins: [vertextAI({location: 'us-central1' })],
 });
@@ -218,7 +221,7 @@ Refer to [Imagen model documentation](https://cloud.google.com/vertex-ai/generat
 
 If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-haiku), [sonnet](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-sonnet) or [opus](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-opus)) in Vertex AI Model Garden you can use them with Genkit.
 
-Here's sample configuration for enabling Vertex AI Model Garden models:
+Here's a sample configuration for enabling Vertex AI Model Garden models:
 
 ```ts
 import { genkit } from 'genkit';
@@ -268,7 +271,7 @@ const ai = genkit({
 });
 ```
 
-Then use it as regular models:
+Then use it as a regular model:
 
 ```ts
 const llmResponse = await ai.generate({
@@ -281,7 +284,7 @@ const llmResponse = await ai.generate({
 
 If you have access to Mistral models ([Mistral Large](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-large), [Mistral Nemo](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-nemo), or [Codestral](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/codestral)) in Vertex AI Model Garden, you can use them with Genkit.
 
-Here's sample configuration for enabling Vertex AI Model Garden models:
+Here's a sample configuration for enabling Vertex AI Model Garden models:
 
 ```ts
 import { genkit } from 'genkit';
@@ -388,9 +391,9 @@ Important: Pricing for Vector Search consists of both a charge for every gigabyt
 
 To use Vertex AI Vector Search:
 
-1. Choose an embedding model. This model is responsible for creating vector embeddings from text. Advanced users might use an embedding model optimized for their particular data sets, but for most users, Vertex AI's `text-embedding-004` model is a good choice for English text and the `text-multilingual-embedding-002` model is good for multilingual text.
+1. Choose an embedding model. This model is responsible for creating vector embeddings from text or media. Advanced users might use an embedding model optimized for their particular data sets, but for most users, Vertex AI's `text-embedding-004` model is a good choice for English text, the `text-multilingual-embedding-002` model is good for multilingual text, and the `multimodalEmbedding001` model is good for mixed text, images, and video.
 2. In the [Vector Search](https://console.cloud.google.com/vertex-ai/matching-engine/indexes) section of the Google Cloud console, create a new index. The most important settings are:
-    *   **Dimensions:** Specify the dimensionality of the vectors produced by your chosen embedding model. The `text-embedding-004` and `text-multilingual-embedding-002` models produce vectors of 768 dimensions.
+    *   **Dimensions:** Specify the dimensionality of the vectors produced by your chosen embedding model. The `text-embedding-004` and `text-multilingual-embedding-002` models produce vectors of 768 dimensions. The `multimodalEmbedding001` model can produce vectors of 128, 256, 512, or 1408 dimensions for text and image, and will produce vectors of 1408 dimensions for video.
     *   **Update method:** Select streaming updates.
 
     After you create the index, deploy it to a standard (public) endpoint.
