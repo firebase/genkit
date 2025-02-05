@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package base
 
 import (
@@ -16,6 +15,9 @@ import (
 // ValidateValue will validate any value against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
 func ValidateValue(data any, schema *jsonschema.Schema) error {
+	if schema == nil {
+		return nil
+	}
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("data is not a valid JSON type: %w", err)
@@ -26,6 +28,9 @@ func ValidateValue(data any, schema *jsonschema.Schema) error {
 // ValidateJSON will validate JSON against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
 func ValidateJSON(dataBytes json.RawMessage, schema *jsonschema.Schema) error {
+	if schema == nil {
+		return nil
+	}
 	schemaBytes, err := schema.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("expected schema is not valid: %w", err)

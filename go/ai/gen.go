@@ -30,7 +30,7 @@ type GenerateActionOptions struct {
 	Output             *GenerateActionOptionsOutput `json:"output,omitempty"`
 	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
 	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
-	Tools              []*ToolDefinition            `json:"tools,omitempty"`
+	Tools              []string            			`json:"tools,omitempty"`
 }
 
 type GenerateActionOptionsOutput struct {
@@ -189,6 +189,11 @@ type ToolDefinition struct {
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
+type toolRequestPart struct {
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	ToolRequest *ToolRequest   `json:"toolRequest,omitempty"`
+}
+
 // A ToolRequest is a message from the model to the client that it should run a
 // specific tool and pass a [ToolResponse] to the model on the next chat request it makes.
 // Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
@@ -198,6 +203,11 @@ type ToolRequest struct {
 	Input any    `json:"input,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Ref   string `json:"ref,omitempty"`
+}
+
+type toolResponsePart struct {
+	Metadata     map[string]any `json:"metadata,omitempty"`
+	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"`
 }
 
 // A ToolResponse is a message from the client to the model containing

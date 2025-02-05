@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -58,7 +57,7 @@ type ToolConfig struct {
 }
 
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "util", "generate", atype.Util, map[string]any{},
+	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, map[string]any{},
 		func(ctx context.Context, req *GenerateActionOptions, cb ModelStreamingCallback) (output *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", req))
@@ -67,17 +66,22 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"output", fmt.Sprintf("%#v", output),
 					"err", err)
 			}()
-			return tracing.RunInNewSpan(ctx, nil, "generate", "util", false, req,
+			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, req,
 				func(ctx context.Context, input *GenerateActionOptions) (*ModelResponse, error) {
 					model := LookupModel(r, "default", req.Model)
 					if model == nil {
 						return nil, fmt.Errorf("model %q not found", req.Model)
 					}
 
+					toolDefs := make([]*ToolDefinition, len(req.Tools))
+					for i, toolName := range req.Tools {
+						toolDefs[i] = LookupTool(r, toolName).Definition()
+					}
+
 					modelReq := &ModelRequest{
 						Messages:   req.Messages,
 						Config:     req.Config,
-						Tools:      req.Tools,
+						Tools:      toolDefs,
 						ToolChoice: req.ToolChoice,
 					}
 
@@ -418,10 +422,9 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 		return nil, err
 	}
 
-	a := (*core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m)
 	currentTurn := 0
 	for {
-		resp, err := a.Run(ctx, req, cb)
+		resp, err := (*modelAction)(m).Run(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}
@@ -467,6 +470,31 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 
 func (i *modelActionDef) Name() string { return (*modelAction)(i).Name() }
 
+// cloneMessage creates a deep copy of the provided Message.
+func cloneMessage(m *Message) *Message {
+	if m == nil {
+		return nil
+	}
+	copy := &Message{
+		Role:    m.Role,
+		Content: make([]*Part, len(m.Content)),
+	}
+	for i, part := range m.Content {
+		copiedPart := &Part{
+			Text:        part.Text,
+			ToolRequest: part.ToolRequest,
+		}
+		if part.Metadata != nil {
+			copiedPart.Metadata = make(map[string]any)
+			for k, v := range part.Metadata {
+				copiedPart.Metadata[k] = v
+			}
+		}
+		copy.Content[i] = copiedPart
+	}
+	return copy
+}
+
 // handleToolRequests processes any tool requests in the response, returning either a new request to continue the conversation or nil if no tool requests need handling.
 func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamingCallback) (*ModelRequest, *Message, error) {
 	toolCount := 0
@@ -488,9 +516,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 	resultChan := make(chan toolResult)
 	toolMessage := &Message{Role: RoleTool}
-	revisedMessage := resp.Message
-	revisedMessage.Content = make([]*Part, len(resp.Message.Content))
-	copy(revisedMessage.Content, resp.Message.Content)
+	revisedMessage := cloneMessage(resp.Message)
 
 	for i, part := range resp.Message.Content {
 		if !part.IsToolRequest() {

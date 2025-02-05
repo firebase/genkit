@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -108,12 +107,17 @@ func (ta *toolAction) Definition() *ToolDefinition {
 }
 
 func definition(ta Tool) *ToolDefinition {
-	return &ToolDefinition{
-		Name:         ta.Action().Desc().Metadata["name"].(string),
-		Description:  ta.Action().Desc().Metadata["description"].(string),
-		InputSchema:  base.SchemaAsMap(ta.Action().Desc().InputSchema),
-		OutputSchema: base.SchemaAsMap(ta.Action().Desc().OutputSchema),
+	td := &ToolDefinition{
+		Name:        ta.Action().Desc().Metadata["name"].(string),
+		Description: ta.Action().Desc().Metadata["description"].(string),
 	}
+	if ta.Action().Desc().InputSchema != nil {
+		td.InputSchema = base.SchemaAsMap(ta.Action().Desc().InputSchema)
+	}
+	if ta.Action().Desc().OutputSchema != nil {
+		td.OutputSchema = base.SchemaAsMap(ta.Action().Desc().OutputSchema)
+	}
+	return td
 }
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
