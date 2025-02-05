@@ -5,6 +5,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -377,6 +378,160 @@ func TestGenerate(t *testing.T) {
 		reason, ok := interrupt["reason"].(string)
 		if !ok || reason != "test interrupt" {
 			t.Errorf("expected interrupt reason 'test interrupt', got %v", reason)
+		}
+	})
+
+	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
+		roundCount := 0
+		parallelModel := DefineModel(r, "test", "parallel", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				roundCount++
+				if roundCount == 1 {
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 2, "Over": 3},
+								}),
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 3, "Over": 2},
+								}),
+							},
+						},
+					}, nil
+				}
+				var sum float64
+				for _, msg := range gr.Messages {
+					if msg.Role == RoleTool {
+						for _, part := range msg.Content {
+							if part.ToolResponse != nil {
+								sum += part.ToolResponse.Output.(float64)
+							}
+						}
+					}
+				}
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewTextPart(fmt.Sprintf("Final result: %d", int(sum))),
+						},
+					},
+				}, nil
+			})
+
+		res, err := Generate(context.Background(), r,
+			WithModel(parallelModel),
+			WithTextPrompt("trigger parallel tools"),
+			WithTools(gablorkenTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finalPart := res.Message.Content[0]
+		if finalPart.Text != "Final result: 17" {
+			t.Errorf("expected final result text to be 'Final result: 17', got %q", finalPart.Text)
+		}
+	})
+
+	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
+		roundCount := 0
+		multiRoundModel := DefineModel(r, "test", "multiround", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				roundCount++
+				if roundCount == 1 {
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 2, "Over": 3},
+								}),
+							},
+						},
+					}, nil
+				}
+				if roundCount == 2 {
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 3, "Over": 2},
+								}),
+							},
+						},
+					}, nil
+				}
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewTextPart("Final result"),
+						},
+					},
+				}, nil
+			})
+
+		res, err := Generate(context.Background(), r,
+			WithModel(multiRoundModel),
+			WithTextPrompt("trigger multiple rounds"),
+			WithTools(gablorkenTool),
+			WithMaxTurns(2),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if roundCount != 3 {
+			t.Errorf("expected 3 rounds, got %d", roundCount)
+		}
+
+		if res.Text() != "Final result" {
+			t.Errorf("expected final message 'Final result', got %q", res.Text())
+		}
+	})
+
+	t.Run("exceeds maximum turns", func(t *testing.T) {
+		infiniteModel := DefineModel(r, "test", "infinite", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewToolRequestPart(&ToolRequest{
+								Name:  "gablorken",
+								Input: map[string]any{"Value": 2, "Over": 2},
+							}),
+						},
+					},
+				}, nil
+			})
+
+		_, err := Generate(context.Background(), r,
+			WithModel(infiniteModel),
+			WithTextPrompt("trigger infinite loop"),
+			WithTools(gablorkenTool),
+			WithMaxTurns(2),
+		)
+
+		if err == nil {
+			t.Fatal("expected error for exceeding maximum turns")
+		}
+		if !strings.Contains(err.Error(), "exceeded maximum tool call iterations (2)") {
+			t.Errorf("unexpected error message: %v", err)
 		}
 	})
 }
