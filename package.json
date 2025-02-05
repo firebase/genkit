@@ -6,7 +6,7 @@
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
     "format": "(prettier . --write) && (tsx scripts/copyright.ts)",
     "format:check": "(prettier . --check) && (tsx scripts/copyright.ts --check)",
-    "build": "pnpm build:js && pnpm build:genkit-tools && pnpm build:js-samples",
+    "build": "pnpm build:js && pnpm build:genkit-tools",
     "build:js": "cd js && pnpm i && pnpm build",
     "build:genkit-tools": "cd genkit-tools && pnpm i && pnpm build",
     "build:js-samples": "cd samples && pnpm i && pnpm run build:js-samples",
