@@ -25,6 +25,7 @@ import {
   ValidateDataRequest,
   ValidateDataResponse,
 } from '../types';
+import { getModelInput } from '../utils';
 
 // Setup for AJV
 type JSONSchema = JSONSchemaType<any> | any;
@@ -61,8 +62,8 @@ export async function validateSchema(
     if (dataset.length === 0) {
       return { valid: true };
     }
-    dataset.forEach((sample, index) => {
-      const response = validate(targetSchema, sample.input);
+    dataset.forEach((sample) => {
+      const response = validate(actionRef, targetSchema, sample.input);
       if (!response.valid) {
         errorsMap[sample.testCaseId] = response.errors ?? [];
       }
@@ -74,7 +75,7 @@ export async function validateSchema(
   } else {
     const dataset = InferenceDatasetSchema.parse(data);
     dataset.forEach((sample, index) => {
-      const response = validate(targetSchema, sample.input);
+      const response = validate(actionRef, targetSchema, sample.input);
       if (!response.valid) {
         errorsMap[index.toString()] = response.errors ?? [];
       }
@@ -86,11 +87,16 @@ export async function validateSchema(
 }
 
 function validate(
+  actionRef: string,
   jsonSchema: JSONSchema,
   data: unknown
 ): { valid: boolean; errors?: ErrorDetail[] } {
+  const isModelAction = actionRef.startsWith('/model');
+  let input = isModelAction
+    ? getModelInput(data, /* modelConfig= */ undefined)
+    : data;
   const validator = ajv.compile(jsonSchema);
-  const valid = validator(data) as boolean;
+  const valid = validator(input) as boolean;
   const errors = validator.errors?.map((e) => e);
   return { valid, errors: errors?.map(toErrorDetail) };
 }
