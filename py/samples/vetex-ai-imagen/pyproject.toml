@@ -22,7 +22,7 @@ dependencies = [
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
-  "pydantic>=2.10.5"
+  "pydantic>=2.10.5",
 ]
 description = "Imagen Genkit sample"
 license = { text = "Apache-2.0" }

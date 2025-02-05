@@ -22,7 +22,7 @@ brew install ollama
 #### Debian/Ubuntu (apt installer)
 
 ```bash
-apt-get install ollama
+curl -fsSL https://ollama.com/install.sh | sh
 ```
 
 Other installation options may be found [here](https://ollama.com/download)

@@ -6,38 +6,72 @@ Ollama Plugin for Genkit.
 """
 
 import logging
-from typing import Callable
+from functools import cached_property
+from typing import Type
+
+from genkit.core.action import ActionKind
+from genkit.core.plugin_abc import Plugin
+from genkit.core.registry import Registry
+from genkit.plugins.ollama.models import (
+    AsyncOllamaModel,
+    OllamaAPITypes,
+    OllamaModel,
+    OllamaPluginParams,
+)
 
 import ollama as ollama_api
-
-from genkit.plugins.ollama.models import OllamaPluginParams
-from genkit.plugins.ollama.utils import (
-    register_ollama_embedder,
-    register_ollama_model,
-)
-from genkit.veneer import Genkit
 
 LOG = logging.getLogger(__name__)
 
 
-def Ollama(plugin_params: OllamaPluginParams) -> Callable[[Genkit], None]:
-    client = ollama_api.Client(
-        host=plugin_params.server_address.unicode_string()
-    )
+def ollama_name(name: str) -> str:
+    return f'ollama/{name}'
 
-    def plugin(ai: Genkit) -> None:
-        for model in plugin_params.models:
-            register_ollama_model(
-                ai=ai,
-                model=model,
-                client=client,
+
+class Ollama(Plugin):
+    def __init__(self, plugin_params: OllamaPluginParams):
+        self.plugin_params = plugin_params
+        self._sync_client = ollama_api.Client(
+            host=self.plugin_params.server_address.unicode_string()
+        )
+        self._async_client = ollama_api.AsyncClient(
+            host=self.plugin_params.server_address.unicode_string()
+        )
+
+    @cached_property
+    def client(self) -> ollama_api.AsyncClient | ollama_api.Client:
+        client_cls = (
+            ollama_api.AsyncClient
+            if self.plugin_params.use_async_api
+            else ollama_api.Client
+        )
+        return client_cls(
+            host=self.plugin_params.server_address.unicode_string(),
+        )
+
+    @cached_property
+    def ollama_model_class(self) -> Type[AsyncOllamaModel | OllamaModel]:
+        return (
+            AsyncOllamaModel
+            if self.plugin_params.use_async_api
+            else OllamaModel
+        )
+
+    def initialize(self, registry: Registry) -> None:
+        for model_definition in self.plugin_params.models:
+            model = self.ollama_model_class(
+                client=self.client,
+                model_definition=model_definition,
             )
-
-        for embedder in plugin_params.embedders:
-            register_ollama_embedder(
-                ai=ai,
-                embedder=embedder,
-                client=client,
+            registry.register_action(
+                kind=ActionKind.MODEL,
+                name=ollama_name(model_definition.name),
+                fn=model.generate,
+                metadata={
+                    'multiturn': model_definition.api_type
+                    == OllamaAPITypes.CHAT,
+                    'system_role': True,
+                },
             )
-
-    return plugin
+        # TODO: introduce embedders here
+        # for embedder in self.plugin_params.embedders:

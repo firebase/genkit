@@ -4,7 +4,7 @@
 
 """Ollama Plugin for Genkit."""
 
-from genkit.plugins.ollama.plugin_api import Ollama
+from genkit.plugins.ollama.plugin_api import Ollama, ollama_name
 
 
 def package_name() -> str:
@@ -19,4 +19,5 @@ def package_name() -> str:
 __all__ = [
     package_name.__name__,
     Ollama.__name__,
+    ollama_name.__name__,
 ]

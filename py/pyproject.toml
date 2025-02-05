@@ -49,7 +49,8 @@ python_files = [
 testpaths = ["packages", "plugins", "samples"]
 
 [tool.pytest.ini_options]
-addopts = "--cov"
+addopts                            = "--cov"
+asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
 fail_under = 85
