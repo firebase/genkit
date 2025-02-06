@@ -84,13 +84,14 @@ When you deploy your flows with Cloud Run, you have two options for
 authorization:
 
 - **Cloud IAM-based authorization**: Use Google Cloud's native access management
-  facilities to gate access to your endpoints. See
+  facilities to gate access to your endpoints. For information on providing
+  these credentials, see
   [Authentication](https://cloud.google.com/run/docs/authenticating/overview)
-  in the Cloud Run docs for information on providing these credentials.
+  in the Cloud Run docs.
 
 - **Authorization policy defined in code**: Use the authorization policy feature
-  of Genkit express plugin to verify authorization info using custom code. This is often,
-  but not necessarily, token-based authorization.
+  of the Genkit express plugin to verify authorization info using custom code.
+  This is often, but not necessarily, token-based authorization.
 
 If you want to define an authorization policy in code, use the `authPolicy`
 parameter in the flow definition:
