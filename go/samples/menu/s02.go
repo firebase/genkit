@@ -43,9 +43,6 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 		dotprompt.WithDefaultModel(m),
 		dotprompt.WithInputType(menuQuestionInput{}),
 		dotprompt.WithTools(menuTool),
-		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
-			Temperature: 0.3,
-		}),
 	)
 	if err != nil {
 		return err
