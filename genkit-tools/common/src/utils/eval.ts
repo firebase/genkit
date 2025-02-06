@@ -356,7 +356,7 @@ export function getModelInput(data: any, modelConfig: any): GenerateRequest {
       return maybeRequest.data;
     } else {
       throw new Error(
-        `Unable to parse model input as MessageSchema as input. Details: ${maybeRequest.error}`
+        `Unable to parse model input as MessageSchema. Details: ${maybeRequest.error}`
       );
     }
   }

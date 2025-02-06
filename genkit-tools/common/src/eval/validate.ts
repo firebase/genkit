@@ -92,9 +92,24 @@ function validate(
   data: unknown
 ): { valid: boolean; errors?: ErrorDetail[] } {
   const isModelAction = actionRef.startsWith('/model');
-  let input = isModelAction
-    ? getModelInput(data, /* modelConfig= */ undefined)
-    : data;
+  let input;
+  if (isModelAction) {
+    try {
+      input = getModelInput(data, /* modelConfig= */ undefined);
+    } catch (e) {
+      return {
+        valid: false,
+        errors: [
+          {
+            path: '(root)',
+            message: `Unable to convert to model input. Details: ${e}`,
+          },
+        ],
+      };
+    }
+  } else {
+    input = data;
+  }
   const validator = ajv.compile(jsonSchema);
   const valid = validator(input) as boolean;
   const errors = validator.errors?.map((e) => e);
