@@ -17,8 +17,8 @@
 import { ContextProvider, RequestData, UserFacingError } from '@genkit-ai/core';
 
 export interface ApiKeyContext {
-  auth?: {
-    apiKey: string;
+  auth: {
+    apiKey: string | undefined;
   };
 }
 
@@ -30,16 +30,14 @@ export function apiKey(
   valueOrPolicy?: ((context: ApiKeyContext) => void | Promise<void>) | string
 ): ContextProvider<ApiKeyContext> {
   return async function (request: RequestData): Promise<ApiKeyContext> {
-    const context: ApiKeyContext = {};
-    if ('authorization' in request.headers) {
-      context.auth = { apiKey: request.headers['authorization'] };
-    }
+    const context: ApiKeyContext = { auth: { apiKey: undefined } };
+    context.auth = { apiKey: request.headers['authorization'] };
     if (typeof valueOrPolicy === 'string') {
       if (!context.auth) {
         throw new UserFacingError('UNAUTHENTICATED', 'Unauthenticated');
       }
       if (context.auth?.apiKey != valueOrPolicy) {
-        throw new UserFacingError('PERMISSION_DENIED', 'Permission denied');
+        throw new UserFacingError('PERMISSION_DENIED', 'Permission Denied');
       }
     } else if (typeof valueOrPolicy === 'function') {
       await valueOrPolicy(context);

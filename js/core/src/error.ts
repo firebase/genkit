@@ -32,6 +32,10 @@ export class GenkitError extends Error {
   detail?: any;
   code: number;
 
+  // For easy printing, we wrap the error with information like the source
+  // and status, but that's redundant with JSON.
+  originalMessage: string;
+
   constructor({
     status,
     message,
@@ -44,6 +48,7 @@ export class GenkitError extends Error {
     source?: string;
   }) {
     super(`${source ? `${source}: ` : ''}${status}: ${message}`);
+    this.originalMessage = message;
     this.code = httpStatusCode(status);
     this.status = status;
     this.detail = detail;
@@ -59,7 +64,7 @@ export class GenkitError extends Error {
       // but the actual Callable protocol value is "details"
       ...(this.detail === undefined ? {} : { details: this.detail }),
       status: this.status,
-      message: this.message,
+      message: this.originalMessage,
     };
   }
 }

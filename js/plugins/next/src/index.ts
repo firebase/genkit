@@ -14,56 +14,122 @@
  * limitations under the License.
  */
 
-import type { Action } from '@genkit-ai/core';
+import {
+  Action,
+  ActionContext,
+  ContextProvider,
+  RequestData,
+  getCallableJSON,
+  getHttpStatus,
+  z,
+} from '@genkit-ai/core';
 import { NextRequest, NextResponse } from 'next/server';
 
-const appRoute: <A extends Action<any, any, any>>(
-  action: A
-) => (req: NextRequest) => Promise<NextResponse> =
-  (action) =>
+const delimiter = '\n\n';
+async function getContext<C extends ActionContext, T>(
+  request: NextRequest,
+  input: T,
+  provider: ContextProvider<C, T> | undefined
+): Promise<C> {
+  // Type cast is necessary because there is no runtime way to generate a context if C is provided to appRoute
+  // but contextProvider is missing. When I'm less sleepy/busy I'll see if I can make this a type error.
+  let context = {} as C;
+  if (!provider) {
+    return context;
+  }
+
+  const r: RequestData = {
+    method: request.method as RequestData['method'],
+    headers: {},
+    input,
+  };
+  request.headers.forEach((val, key) => {
+    r.headers[key.toLowerCase()] = val;
+  });
+  return await provider(r);
+}
+
+const appRoute =
+  <
+    C extends ActionContext = ActionContext,
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    S extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    action: Action<I, O, S>,
+    opts?: {
+      context?: ContextProvider<C, I>;
+    }
+  ) =>
   async (req: NextRequest): Promise<NextResponse> => {
-    const { data } = await req.json();
+    let context: C = {} as C;
+    const { data: input } = await req.json();
     if (req.headers.get('accept') !== 'text/event-stream') {
       try {
-        const resp = await action.run(data);
+        context = await getContext(req, input, opts?.context);
+      } catch (e) {
+        console.error('Error gathering context for running action:', e);
+        return NextResponse.json(
+          { error: getCallableJSON(e) },
+          { status: getHttpStatus(e) }
+        );
+      }
+      try {
+        const resp = await action.run(input, { context });
         return NextResponse.json({ result: resp.result });
       } catch (e) {
         // For security reasons, log the error rather than responding with it.
-        console.error(e);
-        return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });
+        console.error('Error calling action:', e);
+        return NextResponse.json(
+          { error: getCallableJSON(e) },
+          { status: getHttpStatus(e) }
+        );
       }
     }
 
-    const { output, stream } = action.stream(data);
+    try {
+      context = await getContext(req, input, opts?.context);
+    } catch (e) {
+      console.error('Error gathering context for streaming action:', e);
+      return new NextResponse(
+        `error: ${JSON.stringify(getCallableJSON(e))}${delimiter}END`,
+        { status: getHttpStatus(e) }
+      );
+    }
+    const { output, stream } = action.stream(input, { context });
     const encoder = new TextEncoder();
     const { readable, writable } = new TransformStream();
 
-    // Not using a dangling Promise causes NextResponse to deadlock.
+    // Not using a dangling promise causes this closure to block on the stream being drained,
+    // which doesn't happen until the NextResponse is consumed later in the cosure.
     // TODO: Add ping comments at regular intervals between streaming responses to mitigate
     // timeouts.
     (async (): Promise<void> => {
       const writer = writable.getWriter();
       try {
         for await (const chunk of stream) {
-          console.debug('Writing chunk ' + chunk + '\n');
           await writer.write(
             encoder.encode(
-              'data: ' + JSON.stringify({ message: chunk }) + '\n\n'
+              `data: ${JSON.stringify({ message: chunk })}${delimiter}`
             )
           );
         }
         await writer.write(
           encoder.encode(
-            'data: ' + JSON.stringify({ result: await output }) + '\n\n'
+            `data: ${JSON.stringify({ result: await output })}${delimiter}`
           )
         );
-        await writer.write('END');
+        await writer.write(encoder.encode('END'));
       } catch (err) {
-        console.error('Error in streaming output:', err);
+        console.error('Error streaming action:', err);
         await writer.write(
-          encoder.encode(`error: {"error": {"message":"INTERNAL"}}` + '\n\n')
+          encoder.encode(
+            `error: ${JSON.stringify(getCallableJSON(err))}` + '\n\n'
+          )
         );
         await writer.write(encoder.encode('END'));
+      } finally {
+        await writer.close();
       }
     })();
 
