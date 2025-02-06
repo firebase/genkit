@@ -18,13 +18,8 @@ import { expressHandler } from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
-import {
-  ContextProvider,
-  RequestData,
-  UserFacingError,
-  genkit,
-  z,
-} from 'genkit';
+import { UserFacingError, genkit, z } from 'genkit';
+import { ContextProvider, RequestData } from 'genkit/context';
 import { logger } from 'genkit/logging';
 import { ollama } from 'genkitx-ollama';
 

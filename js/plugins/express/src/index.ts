@@ -21,11 +21,11 @@ import express from 'express';
 import {
   Action,
   ActionContext,
-  ContextProvider,
   Flow,
   runWithStreamingCallback,
   z,
 } from 'genkit';
+import { ContextProvider } from 'genkit/context';
 import { logger } from 'genkit/logging';
 import { Server } from 'http';
 

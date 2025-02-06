@@ -18,7 +18,6 @@ import { RequestData } from '@genkit-ai/core';
 import * as assert from 'assert';
 import express from 'express';
 import {
-  ContextProvider,
   GenerateResponseData,
   Genkit,
   UserFacingError,
@@ -26,6 +25,7 @@ import {
   z,
 } from 'genkit';
 import { runFlow, streamFlow } from 'genkit/beta/client';
+import { ContextProvider } from 'genkit/context';
 import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import * as http from 'http';
