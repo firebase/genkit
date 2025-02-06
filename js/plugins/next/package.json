@@ -33,14 +33,11 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "@genkit-ai/core": "workspace:*",
     "genkit": "workspace:*",
     "next": "^15.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/api-key": "workspace:*",
     "genkit": "workspace:*",
     "@types/node": "^20.11.16",
     "@types/react": "^19",

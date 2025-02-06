@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-import {
-  AuthPolicy,
-  RequestWithAuth,
-  expressHandler,
-} from '@genkit-ai/express';
+import { expressHandler } from '@genkit-ai/express';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
-import express, {
-  ErrorRequestHandler,
-  Handler,
-  Request,
-  Response,
-} from 'express';
-import { genkit, z } from 'genkit';
+import express, { Request, Response } from 'express';
+import {
+  ContextProvider,
+  RequestData,
+  UserFacingError,
+  genkit,
+  z,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import { ollama } from 'genkitx-ollama';
 
@@ -49,7 +46,10 @@ const ai = genkit({
 
 export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject, { sendChunk }) => {
+  async (subject, { context, sendChunk }) => {
+    if (context!.auth!.username != 'Ali Baba') {
+      throw new UserFacingError('PERMISSION_DENIED', context!.auth!.username!);
+    }
     return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         prompt: `tell me long joke about ${subject}`,
@@ -65,33 +65,45 @@ export const jokeFlow = ai.defineFlow(
   }
 );
 
-const auth: Handler = (req, resp, next) => {
-  const token = req.header('authorization');
-  // pretend we check auth token
-  (req as RequestWithAuth).auth = {
-    username: token === 'open sesame' ? 'Ali Baba' : '40 thieves',
+interface AuthContext {
+  auth: {
+    username: string;
   };
-  next();
-};
+}
+
+// ContextProviders often follow this pattern, where a factory function
+// creates a ContextProvider that also validates the Context.
+// This is often done either declaratively or with a callback.
+// This type, once defined, can be used in other web frameworks such
+// as Next.js as well.
+function auth(requiredUser?: string): ContextProvider<AuthContext> {
+  return (req: RequestData): AuthContext => {
+    // Parsing:
+    const token = req.headers['authorization'];
+    const context: AuthContext = {
+      auth: {
+        // pretend we check auth token
+        username: token === 'open sesame' ? 'Ali Baba' : '40 thieves',
+      },
+    };
+    // validating
+    if (requiredUser && context.auth.username != requiredUser) {
+      throw new UserFacingError('PERMISSION_DENIED', context.auth.username);
+    }
+    return context;
+  };
+}
 
 const app = express();
 app.use(express.json());
 
-const authPolicies: Record<string, AuthPolicy> = {
-  jokeFlow: ({ auth }) => {
-    if (auth?.username != 'Ali Baba') {
-      throw new Error('unauthorized: ' + JSON.stringify(auth));
-    }
-  },
+const acls: Record<string, string> = {
+  jokeFlow: 'Ali Baba',
 };
 
 // curl http://localhost:5000/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: open sesame"
 ai.flows.forEach((f) => {
-  app.post(
-    `/${f.name}`,
-    auth,
-    expressHandler(f, { authPolicy: authPolicies[f.name] })
-  );
+  app.post(`/${f.name}`, expressHandler(f, { context: auth(acls[f.name]) }));
 });
 
 // curl http://localhost:5000/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"
@@ -132,14 +144,6 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
 
   res.end();
 });
-
-const errorHandler: ErrorRequestHandler = (error, request, response, next) => {
-  if (error instanceof Error) {
-    console.log(error.stack);
-  }
-  return response.status(500).send(error);
-};
-app.use(errorHandler);
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {

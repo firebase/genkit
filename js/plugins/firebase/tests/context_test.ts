@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { RequestData } from '@genkit-ai/core';
 import { describe, expect, it } from '@jest/globals';
+import { RequestData } from 'genkit';
 import {
   FirebaseContext,
   fakeToken,

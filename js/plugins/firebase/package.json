@@ -34,14 +34,12 @@
     "@genkit-ai/google-cloud": "workspace:^"
   },
   "peerDependencies": {
-    "@genkit-ai/core": "workspace:*",
     "@google-cloud/firestore": "^7.6.0",
     "firebase-admin": ">=12.2",
     "genkit": "workspace:^"
   },
   "devDependencies": {
     "genkit": "workspace:*",
-    "@genkit-ai/api-key": "workspace:*",
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.16",

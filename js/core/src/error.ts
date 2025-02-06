@@ -17,7 +17,9 @@
 import { Registry } from './registry.js';
 import { httpStatusCode, StatusName } from './statusTypes.js';
 
-interface HttpErrorWireFormat {
+export { StatusName };
+
+export interface HttpErrorWireFormat {
   details?: unknown;
   message: string;
   status: StatusName;

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { apiKey } from '@genkit-ai/api-key';
 import { checks } from '@genkit-ai/checks';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval } from '@genkit-ai/evaluator';
@@ -23,6 +22,7 @@ import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
+import { appRoute } from '@genkit-ai/next';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { vertexAIEvaluation } from '@genkit-ai/vertexai/evaluation';
 import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
@@ -32,7 +32,6 @@ import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
-apiKey();
 firebaseContext();
 enableFirebaseTelemetry;
 enableGoogleCloudTelemetry;
@@ -50,4 +49,5 @@ genkitEval;
 
 export const ai = genkit({});
 const hello = ai.defineFlow('hello', () => 'hello');
-expressHandler(hello, { context: apiKey() });
+expressHandler(hello);
+appRoute(hello);

@@ -15,15 +15,16 @@
  */
 
 import {
-  Action,
-  ActionContext,
-  ContextProvider,
   RequestData,
   getCallableJSON,
   getHttpStatus,
   z,
-} from '@genkit-ai/core';
-import { NextRequest, NextResponse } from 'next/server';
+  type Action,
+  type ActionContext,
+  type ContextProvider,
+} from 'genkit';
+import { NextRequest, NextResponse } from 'next/server.js';
+export { NextRequest, NextResponse, z, type Action, type ActionContext };
 
 const delimiter = '\n\n';
 async function getContext<C extends ActionContext, T>(
@@ -49,19 +50,18 @@ async function getContext<C extends ActionContext, T>(
   return await provider(r);
 }
 
-const appRoute =
-  <
-    C extends ActionContext = ActionContext,
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    S extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    action: Action<I, O, S>,
-    opts?: {
-      context?: ContextProvider<C, I>;
-    }
-  ) =>
-  async (req: NextRequest): Promise<NextResponse> => {
+function appRoute<
+  C extends ActionContext = ActionContext,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  action: Action<I, O, S>,
+  opts?: {
+    context?: ContextProvider<C, I>;
+  }
+) {
+  return async (req: NextRequest): Promise<NextResponse> => {
     let context: C = {} as C;
     const { data: input } = await req.json();
     if (req.headers.get('accept') !== 'text/event-stream') {
@@ -143,6 +143,7 @@ const appRoute =
       },
     });
   };
+}
 
 export default appRoute;
 export { appRoute };

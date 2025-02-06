@@ -18,7 +18,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/api-key": "workspace:*",
     "@genkit-ai/checks": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
@@ -26,6 +25,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/next": "workspace:^",
     "@genkit-ai/vertexai": "workspace:*",
     "firebase-admin": ">=12.2",
     "genkit": "workspace:*",

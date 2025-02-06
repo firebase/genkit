@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import { Action } from '@genkit-ai/core';
+import { Action, z } from 'genkit';
 import {
   runFlow as baseRunFlow,
   streamFlow as baseStreamFlow,
 } from 'genkit/beta/client';
 
 type Input<A extends Action> =
-  A extends Action<infer I, any, any> ? I['_output'] : never;
+  A extends Action<infer I extends z.ZodAny, any, any> ? z.infer<I> : never;
 type Output<A extends Action> =
-  A extends Action<any, infer O, any> ? O['_output'] : never;
+  A extends Action<any, infer O extends z.ZodAny, any> ? z.infer<O> : never;
 type Stream<A extends Action> =
-  A extends Action<any, any, infer S> ? S['_output'] : never;
+  A extends Action<any, any, infer S extends z.ZodAny> ? z.infer<S> : never;
 
 export interface RequestData<T> {
   url: string;

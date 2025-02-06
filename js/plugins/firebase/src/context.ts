@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { ContextProvider, RequestData, UserFacingError } from '@genkit-ai/core';
 import { DecodedAppCheckToken, getAppCheck } from 'firebase-admin/app-check';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
+import { ContextProvider, RequestData, UserFacingError } from 'genkit';
 import { initializeAppIfNecessary } from './helpers.js';
 
 /**
