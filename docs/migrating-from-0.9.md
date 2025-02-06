@@ -4,27 +4,16 @@ Genkit 1.0 introduces many feature enhancements that improve overall functionali
 If you're using 0.5, use the [0.5 to 0.9 migration guide](https://firebase.google.com/docs/genkit/migrating-from-0.5) to upgrade to 0.9 first before upgrading to 1.0
 
 
-## Streaming functions do not require an await
-
-
-**Old:**
-
-```ts
-const { stream, response } = await ai.generateStream(`hi`);
-const { stream, output } = await myflow.stream(`hi`);
-```
-
-**New**
-
-```ts
-const { stream, response } = ai.generateStream(`hi`);
-const { stream, output } = myflow.stream(`hi`);
-```
-
-
 ## Beta APIs
 
-We're introducing an unstable, Beta API channel, and leaving session, chat and Genkit client APIs in beta as we continue to refine them. 
+We're introducing an unstable, Beta API channel, and leaving session, chat and Genkit client APIs in beta as we continue to refine them. More specifically the following functions are currently in the beta namespace:
+
+ * `ai.chat`
+ * `ai.createSession`
+ * `ai.loadSession`
+ * `ai.currentSession`
+ * `ai.defineFormat`
+ * `ai.defineInterrupt`
 
 Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking chanhes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
 
@@ -85,12 +74,18 @@ startFlowServer({
 
 ## Changes to Flows
 
+There are several changes to flows in 1.0:
+ - `ai.defineStreamingFlow` consilidated into `ai.defineFlow`,
+ - `onFlow` replaced by `onCallGenkit`,
+ - `run` moved to `ai.run`,
+ - changes to working with auth.
+ 
 The `run` function for custom trace blocks has moved to part of the `genkit` object, invoke it with `ai.run` instead
 
 **Old:**
 
 ```ts
-ai.defineFlow({name: 'banana'}, async (input, streamingCallback) => {
+ai.defineFlow({name: 'banana'}, async (input) => {
   const step = await run('myCode', async () => {
     return 'something'
   });
@@ -100,7 +95,7 @@ ai.defineFlow({name: 'banana'}, async (input, streamingCallback) => {
 **New**
 
 ```ts
-ai.defineFlow({name: 'banana'}, async (input, {context, sendChunk}) => {
+ai.defineFlow({name: 'banana'}, async (input) => {
   const step = await ai.run('myCode', async () => {
     return 'something'
   });
@@ -135,7 +130,7 @@ for await (const chunk of stream) {
 }
 ```
 
-Flow auth is now called context. You can access auth as a field inside context:
+FlowAuth auth is now called context. You can access auth as a field inside context:
 
 **Old:**
 
@@ -155,6 +150,33 @@ ai.defineFlow({name: 'banana'}, async (input, { context }) => {
 ```
 
 `onFlow` moved to `firebase-functions/https` package and got renamed to `onCallGenkit`. Here's how to use it:
+
+**Old**
+
+```ts
+import { onFlow } from "@genkit-ai/firebase/functions";
+
+export const generatePoem = onFlow(
+  ai,
+  {
+    name: "jokeTeller",
+    inputSchema: z.string().nullable(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (type, streamingCallback) => {
+    const { stream, response } = await ai.generateStream(
+      `Tell me a longish ${type ?? "dad"} joke.`
+    );
+    for await (const chunk of stream) {
+      streamingCallback(chunk.text);
+    }
+    return (await response).text;
+  }
+);
+```
+
+**New**
 
 ```ts
 import { onCallGenkit } from "firebase-functions/https";
@@ -248,4 +270,22 @@ const hello = ai.definePrompt({
 });
 ```
 
+
+
+## Streaming functions do not require an await
+
+
+**Old:**
+
+```ts
+const { stream, response } = await ai.generateStream(`hi`);
+const { stream, output } = await myflow.stream(`hi`);
+```
+
+**New**
+
+```ts
+const { stream, response } = ai.generateStream(`hi`);
+const { stream, output } = myflow.stream(`hi`);
+```
 
