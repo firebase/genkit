@@ -15,7 +15,8 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { ApiKeyContext, UserFacingError, apiKey, genkit, z } from 'genkit';
+import { UserFacingError, genkit, z } from 'genkit';
+import { ApiKeyContext, apiKey } from 'genkit/context';
 import { NextRequest } from 'next/server.js';
 import { appRoute } from '../src/index.js';
 
