@@ -710,10 +710,9 @@ export function defineGoogleAIModel(
 
       // Cannot use tools with JSON mode
       const jsonMode =
-        (request.output?.format === 'json' ||
-          request.output?.contentType === 'application/json')
-        //    &&
-        // tools.length === 0;
+        request.output?.format === 'json' ||
+        (request.output?.contentType === 'application/json' &&
+          tools.length === 0);
 
       const generationConfig: GenerationConfig = {
         candidateCount: request.candidates || undefined,

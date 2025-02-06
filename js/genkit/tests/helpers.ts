@@ -26,7 +26,10 @@ import {
   GenerateResponseData,
 } from '../src/model';
 
-export function defineEchoModel(ai: Genkit, modelInfo?: ModelInfo): ModelAction {
+export function defineEchoModel(
+  ai: Genkit,
+  modelInfo?: ModelInfo
+): ModelAction {
   const model = ai.defineModel(
     {
       name: 'echoModel',

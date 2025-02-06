@@ -489,17 +489,14 @@ export function defineModel<
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   const constratedSimulator = simulateConstrainedGeneration();
   middleware.push((req, next) => {
-    console.log(' - - - - -', options?.supports)
     if (
       !options?.supports?.constrained ||
       options?.supports?.constrained === 'none' ||
       (options?.supports?.constrained === 'no-tools' &&
         (req.tools?.length ?? 0) > 0)
     ) {
-      console.log(' - - -- simulating');
       return constratedSimulator(req, next);
     }
-    console.log(' - - -- NOT simulating');
     return next(req);
   });
   const act = defineAction(
