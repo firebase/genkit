@@ -74,14 +74,12 @@ type ModelInfo struct {
 }
 
 type ModelInfoSupports struct {
-	Context     bool         `json:"context,omitempty"`
-	Media       bool         `json:"media,omitempty"`
-	Multiturn   bool         `json:"multiturn,omitempty"`
-	Output      OutputFormat `json:"output,omitempty"`
-	SystemRole  bool         `json:"systemRole,omitempty"`
-	Tools       bool         `json:"tools,omitempty"`
-	ToolChoice  bool         `json:"toolChoice,omitempty"`
-	Constrained bool         `json:"constrained,omitempty"`
+	Context    bool         `json:"context,omitempty"`
+	Media      bool         `json:"media,omitempty"`
+	Multiturn  bool         `json:"multiturn,omitempty"`
+	Output     OutputFormat `json:"output,omitempty"`
+	SystemRole bool         `json:"systemRole,omitempty"`
+	Tools      bool         `json:"tools,omitempty"`
 }
 
 // A ModelRequest is a request to generate completions from a model.

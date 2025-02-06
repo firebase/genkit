@@ -18,11 +18,9 @@ var (
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
 	Multimodal = ai.ModelInfoSupports{
-		Multiturn:   true,
-		Tools:       true,
-		SystemRole:  true,
-		Media:       true,
-		ToolChoice:  true,
-		Constrained: true,
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      true,
 	}
 )
