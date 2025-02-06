@@ -279,6 +279,29 @@ describe('toGenerateRequest', () => {
       },
       throws: 'FAILED_PRECONDITION',
     },
+    {
+      should: 'passes through output options',
+      prompt: {
+        model: 'vertexai/gemini-1.0-pro',
+        prompt: 'Tell a joke about dogs.',
+        output: {
+          constrained: true,
+          format: 'banana',
+        },
+      },
+      expectedOutput: {
+        messages: [
+          { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
+        ],
+        config: undefined,
+        docs: undefined,
+        tools: [],
+        output: {
+          constrained: true,
+          format: 'banana',
+        },
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, async () => {

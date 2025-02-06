@@ -449,8 +449,6 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: false,
-        contentType: 'application/json',
-        format: 'json',
       },
       tools: [],
     });
@@ -502,8 +500,6 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: false,
-        contentType: 'application/json',
-        format: 'json',
       },
       tools: [],
     });
@@ -511,7 +507,7 @@ describe('simulateConstrainedGeneration', () => {
 
   it('relies on native support -- no instructions', async () => {
     let pm = defineProgrammableModel(registry, {
-      supports: { constrained: true },
+      supports: { constrained: 'all' },
     });
     pm.handleResponse = async (req, sc) => {
       return {

@@ -270,6 +270,8 @@ export function simulateConstrainedGeneration(
           ...req.output,
           // we're simulating it, so to the underlying model it's unconstrained.
           constrained: false,
+          format: undefined,
+          contentType: undefined,
           schema: undefined,
         },
       };
