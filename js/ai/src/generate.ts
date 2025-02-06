@@ -62,6 +62,7 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   instructions?: boolean | string;
   schema?: O;
   jsonSchema?: any;
+  constrained?: boolean;
 }
 
 /** ResumeOptions configure how to resume generation after an interrupt. */
@@ -217,9 +218,10 @@ export async function toGenerateRequest(
     output: {
       ...(resolvedFormat?.config || {}),
       schema: resolvedSchema,
+      ...options.output,
     },
-  };
-  if (!out.output.schema) delete out.output.schema;
+  } as GenerateRequest;
+  if (!out?.output?.schema) delete out?.output?.schema;
   return out;
 }
 
@@ -359,6 +361,7 @@ export async function generate<
       ...stripUndefinedOptions(resolvedOptions.config),
     },
     output: resolvedOptions.output && {
+      ...resolvedOptions.output,
       format: resolvedOptions.output.format,
       jsonSchema: resolvedSchema,
     },
