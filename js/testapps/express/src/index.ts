@@ -98,7 +98,10 @@ const acls: Record<string, string> = {
 
 // curl http://localhost:5000/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: open sesame"
 ai.flows.forEach((f) => {
-  app.post(`/${f.name}`, expressHandler(f, { context: auth(acls[f.name]) }));
+  app.post(
+    `/${f.name}`,
+    expressHandler(f, { contextProvider: auth(acls[f.name]) })
+  );
 });
 
 // curl http://localhost:5000/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"

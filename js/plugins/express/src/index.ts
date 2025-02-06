@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { RequestData, getCallableJSON, getHttpStatus } from '@genkit-ai/core';
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
@@ -22,6 +21,9 @@ import {
   Action,
   ActionContext,
   Flow,
+  RequestData,
+  getCallableJSON,
+  getHttpStatus,
   runWithStreamingCallback,
   z,
 } from 'genkit';
@@ -42,7 +44,7 @@ export function expressHandler<
 >(
   action: Action<I, O, S>,
   opts?: {
-    context?: ContextProvider<C, I>;
+    contextProvider?: ContextProvider<C, I>;
   }
 ): express.RequestHandler {
   return async (
@@ -55,7 +57,7 @@ export function expressHandler<
 
     try {
       context =
-        (await opts?.context?.({
+        (await opts?.contextProvider?.({
           method: request.method as RequestData['method'],
           headers: Object.fromEntries(
             Object.entries(request.headers).map(([key, value]) => [
@@ -226,7 +228,7 @@ export class FlowServer {
         logger.debug(` - ${flowPath}`);
         server.post(
           flowPath,
-          expressHandler(flow.flow, { context: flow.context })
+          expressHandler(flow.flow, { contextProvider: flow.context })
         );
       } else {
         const flowPath = `/${pathPrefix}${flow.__action.name}`;

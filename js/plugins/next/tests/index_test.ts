@@ -109,14 +109,14 @@ describe('appRoute', () => {
 
     let r = request();
     r.headers.set('authorization', 'myApiKey');
-    route = appRoute(echoContext, { context: apiKey() });
+    route = appRoute(echoContext, { contextProvider: apiKey() });
     response = await route(r);
     expect(response.status).toEqual(200);
     expect(await response.json()).toEqual({
       result: { auth: { apiKey: 'myApiKey' } },
     });
 
-    route = appRoute(echoContext, { context: apiKey('myApiKey') });
+    route = appRoute(echoContext, { contextProvider: apiKey('myApiKey') });
     r = request();
     r.headers.set('authorization', 'some other API key');
     response = await route(r);
@@ -125,7 +125,9 @@ describe('appRoute', () => {
       error: { status: 'PERMISSION_DENIED', message: 'Permission Denied' },
     });
 
-    route = appRoute(echoContext, { context: apiKey('Some other key') });
+    route = appRoute(echoContext, {
+      contextProvider: apiKey('Some other key'),
+    });
     r = request();
     r.headers.set('authorization', 'some other API key');
     r.headers.set('accept', 'text/event-stream');

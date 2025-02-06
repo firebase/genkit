@@ -277,7 +277,7 @@ import { expressHandler } from "@genkit-ai/express;
 
 const app = express();
 // Capture but don't validate the API key (or its absence)
-app.post('/summary', expressHandler(selfSummaryFlow, { context: apiKey()}))
+app.post('/summary', expressHandler(selfSummaryFlow, { contextProvider: apiKey()}))
 
 app.listen(process.env.PORT, () => {
   console.log(`Listening on port ${process.env.PORT}`);
@@ -292,7 +292,7 @@ Firebase app built on Next.js.
 import { appRoute } from "@genkit-ai/express";
 import { firebaseContext } from "@genkit-ai/firebase";
 
-export const POST = appRoute(selfSummaryFlow, { context: firebaseContext })
+export const POST = appRoute(selfSummaryFlow, { contextProvider: firebaseContext })
 ```
 
 <!-- NOTE: Should we provide more docs? E.g. docs into various web frameworks and hosting services? -->

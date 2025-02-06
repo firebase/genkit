@@ -43,7 +43,7 @@ interface Context {
   };
 }
 
-const context: ContextProvider<Context> = (req: RequestData) => {
+const contextProvider: ContextProvider<Context> = (req: RequestData) => {
   assert.ok(req.method, 'method must be set');
   assert.ok(req.headers, 'headers must be set');
   assert.ok(req.input, 'input must be set');
@@ -122,10 +122,16 @@ describe('expressHandler', async () => {
     app.post('/stringInput', expressHandler(stringInput));
     app.post('/objectInput', expressHandler(objectInput));
     app.post('/streamingFlow', expressHandler(streamingFlow));
-    app.post('/flowWithAuth', expressHandler(flowWithAuth, { context }));
+    app.post(
+      '/flowWithAuth',
+      expressHandler(flowWithAuth, { contextProvider })
+    );
     // Can also expose any action.
     app.post('/echoModel', expressHandler(echoModel));
-    app.post('/echoModelWithAuth', expressHandler(echoModel, { context }));
+    app.post(
+      '/echoModelWithAuth',
+      expressHandler(echoModel, { contextProvider })
+    );
 
     server = app.listen(port, () => {
       console.log(`Example app listening on port ${port}`);
@@ -375,7 +381,7 @@ describe('startFlowServer', async () => {
         stringInput,
         objectInput,
         streamingFlow,
-        withContextProvider(flowWithAuth, context),
+        withContextProvider(flowWithAuth, contextProvider),
       ],
       port,
     });

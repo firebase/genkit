@@ -56,7 +56,7 @@ function appRoute<
 >(
   action: Action<I, O, S>,
   opts?: {
-    context?: ContextProvider<C, I>;
+    contextProvider?: ContextProvider<C, I>;
   }
 ) {
   return async (req: NextRequest): Promise<NextResponse> => {
@@ -64,7 +64,7 @@ function appRoute<
     const { data: input } = await req.json();
     if (req.headers.get('accept') !== 'text/event-stream') {
       try {
-        context = await getContext(req, input, opts?.context);
+        context = await getContext(req, input, opts?.contextProvider);
       } catch (e) {
         console.error('Error gathering context for running action:', e);
         return NextResponse.json(
@@ -86,7 +86,7 @@ function appRoute<
     }
 
     try {
-      context = await getContext(req, input, opts?.context);
+      context = await getContext(req, input, opts?.contextProvider);
     } catch (e) {
       console.error('Error gathering context for streaming action:', e);
       return new NextResponse(
