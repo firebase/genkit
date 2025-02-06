@@ -14,10 +14,17 @@
  * limitations under the License.
  */
 
+import { RequestData } from '@genkit-ai/core';
 import * as assert from 'assert';
 import express from 'express';
-import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
-import * as authPolicy from 'genkit/authPolicy';
+import {
+  ContextProvider,
+  GenerateResponseData,
+  Genkit,
+  UserFacingError,
+  genkit,
+  z,
+} from 'genkit';
 import { runFlow, streamFlow } from 'genkit/beta/client';
 import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
@@ -27,19 +34,22 @@ import {
   FlowServer,
   expressHandler,
   startFlowServer,
-  withAuth,
+  withContextProvider,
 } from '../src/index.js';
 
-const auth: authPolicy.AuthPolicy = (req: authPolicy.Request) => {
+interface Context {
+  auth: {
+    user: string;
+  };
+}
+
+const context: ContextProvider<Context> = (req: RequestData) => {
   assert.ok(req.method, 'method must be set');
   assert.ok(req.headers, 'headers must be set');
-  assert.ok(req.body, 'body must be set');
+  assert.ok(req.input, 'input must be set');
 
   if (req.headers['authorization'] !== 'open sesame') {
-    throw new authPolicy.UserFacingError(
-      'permission-denied',
-      'Wrong secret phrase'
-    );
+    throw new UserFacingError('PERMISSION_DENIED', 'not authorized');
   }
   return {
     auth: {
@@ -112,16 +122,10 @@ describe('expressHandler', async () => {
     app.post('/stringInput', expressHandler(stringInput));
     app.post('/objectInput', expressHandler(objectInput));
     app.post('/streamingFlow', expressHandler(streamingFlow));
-    app.post(
-      '/flowWithAuth',
-      expressHandler(flowWithAuth, { authPolicy: auth })
-    );
+    app.post('/flowWithAuth', expressHandler(flowWithAuth, { context }));
     // Can also expose any action.
     app.post('/echoModel', expressHandler(echoModel));
-    app.post(
-      '/echoModelWithAuth',
-      expressHandler(echoModel, { authPolicy: auth })
-    );
+    app.post('/echoModelWithAuth', expressHandler(echoModel, { context }));
 
     server = app.listen(port, () => {
       console.log(`Example app listening on port ${port}`);
@@ -190,7 +194,7 @@ describe('expressHandler', async () => {
           question: 'hello',
         },
         headers: {
-          Authorization: 'thieve #24',
+          Authorization: 'thief #24',
         },
       });
       await assert.rejects(result, (err) => {
@@ -241,7 +245,7 @@ describe('expressHandler', async () => {
           ],
         },
         headers: {
-          Authorization: 'thieve #24',
+          Authorization: 'thief #24',
         },
       });
       await assert.rejects(result, (err) => {
@@ -371,7 +375,7 @@ describe('startFlowServer', async () => {
         stringInput,
         objectInput,
         streamingFlow,
-        withAuth(flowWithAuth, auth),
+        withContextProvider(flowWithAuth, context),
       ],
       port,
     });
@@ -439,7 +443,7 @@ describe('startFlowServer', async () => {
           question: 'hello',
         },
         headers: {
-          Authorization: 'thieve #24',
+          Authorization: 'thief #24',
         },
       });
       await assert.rejects(result, (err) => {

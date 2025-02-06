@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import { RequestData } from '@genkit-ai/core';
 import { describe, expect, it } from '@jest/globals';
-import { Request } from 'genkit/authPolicy';
 import { ApiKeyContext, apiKey } from '../src';
 
-function request(key?: string): Request {
+function request(key?: string): RequestData {
   let headers: Record<string, string> = {};
 
   if (key) {
@@ -27,7 +27,7 @@ function request(key?: string): Request {
   return {
     method: 'POST',
     headers,
-    body: undefined,
+    input: undefined,
   };
 }
 

@@ -58,3 +58,30 @@ export function getContext(
   registry = registry as Registry;
   return registry.asyncStore.getStore<ActionContext>(contextAlsKey);
 }
+
+/**
+ * A universal type that request handling extensions (e.g. express, next) can map their request to.
+ * This allows middleware to build consistent interfacese on any web framework.
+ * Headers must be lowercase to ensure portability.
+ */
+export interface RequestData<T = any> {
+  method: 'GET' | 'PUT' | 'POST' | 'DELETE' | 'OPTIONS' | 'QUERY';
+  headers: Record<string, string>;
+  input: T;
+}
+
+/**
+ * Middleware can read request data and add information to the context that will
+ * be passed to the Action. If middleware throws an error, that error will fail
+ * the request and the Action will not be invoked. Expected cases should return a
+ * UserFacingError, which allows the request handler to know what data is safe to
+ * return to end users.
+ *
+ * Middleware can provide validation in addition to parsing. For example, an auth
+ * middleware can have policies for validating auth in addition to passing auth context
+ * to the Action.
+ */
+export type ContextProvider<
+  C extends ActionContext = ActionContext,
+  T = any,
+> = (request: RequestData<T>) => C | Promise<C>;

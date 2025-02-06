@@ -176,6 +176,7 @@ export enum StatusCodes {
 }
 
 export const StatusNameSchema = z.enum([
+  'OK',
   'CANCELLED',
   'UNKNOWN',
   'INVALID_ARGUMENT',
@@ -194,6 +195,33 @@ export const StatusNameSchema = z.enum([
   'DATA_LOSS',
 ]);
 export type StatusName = z.infer<typeof StatusNameSchema>;
+
+const statusCodeMap: Record<StatusName, number> = {
+  OK: 200,
+  CANCELLED: 499,
+  UNKNOWN: 500,
+  INVALID_ARGUMENT: 400,
+  DEADLINE_EXCEEDED: 504,
+  NOT_FOUND: 404,
+  ALREADY_EXISTS: 409,
+  PERMISSION_DENIED: 403,
+  UNAUTHENTICATED: 401,
+  RESOURCE_EXHAUSTED: 429,
+  FAILED_PRECONDITION: 400,
+  ABORTED: 409,
+  OUT_OF_RANGE: 400,
+  UNIMPLEMENTED: 501,
+  INTERNAL: 500,
+  UNAVAILABLE: 503,
+  DATA_LOSS: 500,
+};
+
+export function httpStatusCode(status: StatusName): number {
+  if (!(status in statusCodeMap)) {
+    throw new Error(`Invalid status code ${status}`);
+  }
+  return statusCodeMap[status];
+}
 
 const StatusCodesSchema = z.nativeEnum(StatusCodes);
 

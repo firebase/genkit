@@ -240,9 +240,9 @@ importers:
 
   plugins/api-key:
     dependencies:
-      genkit:
-        specifier: workspace:^
-        version: link:../../genkit
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0
@@ -404,6 +404,9 @@ importers:
 
   plugins/express:
     dependencies:
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
       body-parser:
         specifier: ^1.20.3
         version: 1.20.3
@@ -450,6 +453,9 @@ importers:
 
   plugins/firebase:
     dependencies:
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
       '@genkit-ai/google-cloud':
         specifier: workspace:^
         version: link:../google-cloud
