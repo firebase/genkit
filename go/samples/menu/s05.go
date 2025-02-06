@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -76,7 +75,7 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 			presp, err := readMenuPrompt.Generate(ctx, g,
 				dotprompt.WithInput(&imageURLInput{
 					ImageURL: imageDataURL,
-				}), nil)
+				}))
 			if err != nil {
 				return "", err
 			}

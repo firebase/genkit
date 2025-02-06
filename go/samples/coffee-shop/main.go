@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // This program can be manually tested like so:
 //
 // In development mode (with the environment variable GENKIT_ENV="dev"):
@@ -84,9 +83,7 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "googleai/gemini-1.5-flash",
-	})
+	g, err := genkit.New(nil)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
