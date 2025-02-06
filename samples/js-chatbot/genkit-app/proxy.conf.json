@@ -1,7 +1,7 @@
 {
-    "/chatbotFlow": {
-      "target": "http://localhost:3400/",
-      "secure": false,
-      "logLevel": "debug"
-    }
+  "/chatbotFlow": {
+    "target": "http://localhost:3400/",
+    "secure": false,
+    "logLevel": "debug"
   }
+}
