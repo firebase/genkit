@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -28,7 +27,7 @@ func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
 }
 
 func setup02(g *genkit.Genkit, m ai.Model) error {
-	menuTool := genkit.DefineTool(g, "todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
+	// menuTool := genkit.DefineTool(g, "todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
 	dataMenuPrompt, err := dotprompt.Define(g, "s02_dataMenu",
 		`You are acting as a helpful AI assistant named Walt that can answer
@@ -43,7 +42,10 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 		 {{question}} ?`,
 		dotprompt.WithDefaultModel(m),
 		dotprompt.WithInputType(menuQuestionInput{}),
-		dotprompt.WithTools(menuTool),
+		// dotprompt.WithTools(menuTool),
+		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+			Temperature: 0.3,
+		}),
 	)
 	if err != nil {
 		return err
