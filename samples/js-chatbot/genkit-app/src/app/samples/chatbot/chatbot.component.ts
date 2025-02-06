@@ -33,7 +33,9 @@ import { MatRadioModule } from '@angular/material/radio';
 import { streamFlow } from 'genkit/beta/client';
 import { MarkdownModule } from 'ngx-markdown';
 
-const url = 'http://127.0.0.1:3400/chatbotFlow';
+// This sample uses an angular proxy to connect to the flow
+// see the config in genkit-app/proxy.conf.json
+const url = '/chatbotFlow';
 
 interface ToolResponse {
   name: string;
