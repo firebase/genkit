@@ -16,14 +16,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/dev-local-vectorstore": "^1.0.0-rc.17",
-    "@genkit-ai/evaluator": "^1.0.0-rc.17",
-    "@genkit-ai/firebase": "^1.0.0-rc.17",
-    "@genkit-ai/vertexai": "^1.0.0-rc.17",
-    "genkit": "^1.0.0-rc.17"
+    "@genkit-ai/dev-local-vectorstore": "^1.0.0-rc.18",
+    "@genkit-ai/evaluator": "^1.0.0-rc.18",
+    "@genkit-ai/firebase": "^1.0.0-rc.18",
+    "@genkit-ai/vertexai": "^1.0.0-rc.18",
+    "genkit": "^1.0.0-rc.18"
   },
   "devDependencies": {
-    "genkit-cli": "^1.0.0-rc.17",
+    "genkit-cli": "^1.0.0-rc.18",
     "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }

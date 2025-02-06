@@ -16,14 +16,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "^1.0.0-rc.17",
-    "@genkit-ai/googleai": "^1.0.0-rc.17",
+    "genkit": "^1.0.0-rc.18",
+    "@genkit-ai/googleai": "^1.0.0-rc.18",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
-    "genkit-cli": "^1.0.0-rc.17",
+    "genkit-cli": "^1.0.0-rc.18",
     "@types/pdf-parse": "^1.1.4",
     "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",
