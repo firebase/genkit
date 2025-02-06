@@ -125,6 +125,7 @@ export interface PromptConfig<
   toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
   context?: ActionContext;
+  prepare?: PromptPrepare<I, O, CustomOptions>;
 }
 
 /**
@@ -208,6 +209,34 @@ export type DocsResolver<I, S = any> = (
   }
 ) => DocumentData[] | Promise<DocumentData[]>;
 
+/**
+ * A function that can be passes to the prompt that can produce additional propmpt render options
+ * like context, docs, or any other propmpt option really:
+ *
+ * ```ts
+ * const ragPrompt = ai.definePrompt({
+ *   prepare: async (input, {context}) => ({
+ *     context: {...context, userInfo: await fetchUserInfo(context.auth.uid)},
+ *     docs: await myRetriever({query: input.query}),
+ *   })
+ * })
+ * ```
+ */
+export type PromptPrepare<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  S = any,
+> = (
+  input: I,
+  options: {
+    state?: S;
+    context: ActionContext;
+  }
+) =>
+  | PromptGenerateOptions<O, CustomOptions>
+  | PromiseLike<PromptGenerateOptions<O, CustomOptions>>;
+
 interface PromptCache {
   userPrompt?: PromptFunction;
   system?: PromptFunction;
@@ -250,9 +279,21 @@ function definePromptAsync<
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ): Promise<GenerateOptions> => {
     const messages: MessageData[] = [];
-    renderOptions = { ...renderOptions }; // make a copy, we will be trimming
     const session = getCurrentSession(registry);
     const resolvedOptions = await optionsPromise;
+
+    // if prepare option is set, invoke it and merge with renderOptions
+    const preparedOptions = resolvedOptions?.prepare
+      ? await resolvedOptions?.prepare(input, {
+          state: session?.state,
+          context: renderOptions?.context || getContext(registry) || {},
+        })
+      : {};
+    // make a copy of renderOptions, we will be trimming
+    renderOptions = {
+      ...renderOptions,
+      ...preparedOptions,
+    };
 
     // order of these matters:
     await renderSystemPrompt(
