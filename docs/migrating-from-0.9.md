@@ -58,7 +58,7 @@ import { runFlow, streamFlow } from 'genkit/beta/client';
 
 ## Introducing new `@genkit-ai/express` package
 
-This new package contains utilities to make it easier to build an express app using Express.js.
+This new package contains utilities to make it easier to build an Express.js server with Genkit.
 
 Refer to https://js.api.genkit.dev/modules/_genkit-ai_express.html for more details.
 
