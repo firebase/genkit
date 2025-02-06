@@ -104,3 +104,7 @@ cd $CURRENT
 cd  js/plugins/express
 pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
+
+cd  js/plugins/next
+pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT

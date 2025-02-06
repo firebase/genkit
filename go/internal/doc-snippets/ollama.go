@@ -29,17 +29,21 @@ func ollamaEx(ctx context.Context) error {
 	// [END init]
 
 	// [START definemodel]
+	name := "gemma2"
 	model := ollama.DefineModel(
 		g,
 		ollama.ModelDefinition{
-			Name: "gemma2",
+			Name: name,
 			Type: "chat", // "chat" or "generate"
 		},
-		&ai.ModelCapabilities{
-			Multiturn:  true,
-			SystemRole: true,
-			Tools:      false,
-			Media:      false,
+		&ai.ModelInfo{
+			Label: name,
+			Supports: &ai.ModelInfoSupports{
+				Multiturn:  true,
+				SystemRole: true,
+				Tools:      false,
+				Media:      false,
+			},
 		},
 	)
 	// [END definemodel]
