@@ -149,6 +149,81 @@ ai.defineFlow({name: 'banana'}, async (input, { context }) => {
 })
 ```
 
+also, if you've been using auth policies, they've been removed from `defineFlow` and are not handled depending on the server you're using:
+
+**Old:**
+
+```ts
+export const simpleFlow = ai.defineFlow(
+  {
+    name: 'simpleFlow',
+    inputSchema: z.object({ uid: z.string() }),
+    outputSchema: z.string(),
+    authPolicy: (auth, input) => {
+      if (!auth) {
+        throw new Error('Authorization required.');
+      }
+      if (input.uid !== auth.uid) {
+        throw new Error('You may only summarize your own profile data.');
+      }
+    },
+  },
+  async (input) => {
+    // Flow logic here...
+  }
+);
+```
+
+With express you would do something like this:
+
+**New:**
+
+```ts
+import { UserFacingError } from 'genkit';
+import { ContextProvider, RequestData } from 'genkit/context';
+import { expressHandler, startFlowServer } from '@genkit-ai/express';
+
+const context: ContextProvider<Context> = (req: RequestData) => {
+  return {
+    auth: parseAuthToken(req.headers['authorization']),
+  };
+};
+
+export const simpleFlow = ai.defineFlow(
+  {
+    name: 'simpleFlow',
+    inputSchema: z.object({ uid: z.string() }),
+    outputSchema: z.string(),
+  },
+  async (input, { context }) => {
+    if (!context.auth) {
+      throw new Error('Authorization required.');
+    }
+    if (input.uid !== context.auth.uid) {
+      throw new Error('You may only summarize your own profile data.');
+    }
+    // Flow logic here...
+  }
+);
+
+const app = express();
+app.use(express.json());
+app.post(
+  '/simpleFlow',
+  expressHandler(simpleFlow, { context })
+);
+app.listen(8080);
+
+// or
+
+startFlowServer(
+  flows: [withContextProvider(simpleFlow, context)],
+  port: 8080
+);
+
+```
+
+
 `onFlow` moved to `firebase-functions/https` package and got renamed to `onCallGenkit`. Here's how to use it:
 
 **Old**
