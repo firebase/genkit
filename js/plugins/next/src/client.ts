@@ -21,11 +21,11 @@ import {
 } from 'genkit/beta/client';
 
 type Input<A extends Action> =
-  A extends Action<infer I extends z.ZodAny, any, any> ? z.infer<I> : never;
+  A extends Action<infer I extends z.ZodTypeAny, any, any> ? z.infer<I> : never;
 type Output<A extends Action> =
-  A extends Action<any, infer O extends z.ZodAny, any> ? z.infer<O> : never;
+  A extends Action<any, infer O extends z.ZodTypeAny, any> ? z.infer<O> : never;
 type Stream<A extends Action> =
-  A extends Action<any, any, infer S extends z.ZodAny> ? z.infer<S> : never;
+  A extends Action<any, any, infer S extends z.ZodTypeAny> ? z.infer<S> : never;
 
 export interface RequestData<T> {
   url: string;

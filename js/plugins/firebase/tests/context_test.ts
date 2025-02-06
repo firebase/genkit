@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { RequestData } from 'genkit';
+import { RequestData } from 'genkit/context';
 import {
   FirebaseContext,
   fakeToken,

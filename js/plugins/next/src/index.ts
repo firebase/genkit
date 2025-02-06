@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
+import { z, type Action, type ActionContext } from 'genkit';
 import {
   RequestData,
   getCallableJSON,
   getHttpStatus,
-  z,
-  type Action,
-  type ActionContext,
   type ContextProvider,
-} from 'genkit';
+} from 'genkit/context';
 import { NextRequest, NextResponse } from 'next/server.js';
 export { NextRequest, NextResponse, z, type Action, type ActionContext };
 

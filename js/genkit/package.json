@@ -157,11 +157,11 @@
       "import": "./lib/client/index.mjs",
       "default": "./lib/client/index.js"
     },
-    "./authPolicy": {
-      "types": "./lib/authPolicy.d.ts",
-      "require": "./lib/authPolicy.js",
-      "import": "./lib/authPolicy.mjs",
-      "default": "./lib/authPolicy.js"
+    "./context": {
+      "types": "./lib/context.d.ts",
+      "require": "./lib/context.js",
+      "import": "./lib/context.mjs",
+      "default": "./lib/context.js"
     }
   },
   "typesVersions": {
@@ -223,8 +223,8 @@
       "beta/client": [
         "lib/client/index"
       ],
-      "authPolicy": [
-        "lib/authPolicy"
+      "context": [
+        "lib/context"
       ]
     }
   }

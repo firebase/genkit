@@ -16,7 +16,8 @@
 
 import { DecodedAppCheckToken, getAppCheck } from 'firebase-admin/app-check';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { ContextProvider, RequestData, UserFacingError } from 'genkit';
+import { UserFacingError } from 'genkit';
+import { ContextProvider, RequestData } from 'genkit/context';
 import { initializeAppIfNecessary } from './helpers.js';
 
 /**
