@@ -32,7 +32,6 @@
     "body-parser": "^1.20.3"
   },
   "peerDependencies": {
-    "@genkit-ai/core": "workspace:*",
     "genkit": "workspace:^",
     "express": "^4.21.1"
   },

@@ -25,10 +25,11 @@ import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
  * Flow is an observable, streamable, (optionally) strongly typed function.
  */
 export interface Flow<
+  C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-> extends Action<I, O, S> {}
+> extends Action<C, I, O, S> {}
 
 /**
  * Configuration for a streaming flow.
@@ -53,7 +54,7 @@ export interface FlowConfig<
  * side-channel context data. The context itself is a function, a short-cut
  * for streaming callback.
  */
-export interface FlowSideChannel<S> {
+export interface FlowSideChannel<C, S> {
   (chunk: S): void;
 
   /**
@@ -64,13 +65,14 @@ export interface FlowSideChannel<S> {
   /**
    * Additional runtime context data (ex. auth context data).
    */
-  context?: ActionContext;
+  context?: C;
 }
 
 /**
  * Function to be executed in the flow.
  */
 export type FlowFn<
+  C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
@@ -78,39 +80,41 @@ export type FlowFn<
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback: FlowSideChannel<z.infer<S>>
+  streamingCallback: FlowSideChannel<C, z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
  * Defines a non-streaming flow. This operates on the currently active registry.
  */
 export function defineFlow<
+  C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
   config: FlowConfig<I, O, S> | string,
-  fn: FlowFn<I, O, S>
-): Flow<I, O, S> {
+  fn: FlowFn<C, I, O, S>
+): Flow<C, I, O, S> {
   const resolvedConfig: FlowConfig<I, O, S> =
     typeof config === 'string' ? { name: config } : config;
 
-  return defineFlowAction(registry, resolvedConfig, fn);
+  return defineFlowAction<C, I, O, S>(registry, resolvedConfig, fn);
 }
 
 /**
  * Registers a flow as an action in the registry.
  */
 function defineFlowAction<
+  C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
   config: FlowConfig<I, O, S>,
-  fn: FlowFn<I, O, S>
-): Flow<I, O, S> {
+  fn: FlowFn<C, I, O, S>
+): Flow<C, I, O, S> {
   return defineAction(
     registry,
     {
@@ -123,9 +127,9 @@ function defineFlowAction<
     async (input, { sendChunk, context }) => {
       return await legacyRegistryAls.run(registry, () => {
         const ctx = sendChunk;
-        (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
-        (ctx as FlowSideChannel<z.infer<S>>).context = context;
-        return fn(input, ctx as FlowSideChannel<z.infer<S>>);
+        (ctx as FlowSideChannel<C, z.infer<S>>).sendChunk = sendChunk;
+        (ctx as FlowSideChannel<C, z.infer<S>>).context = context;
+        return fn(input, ctx as FlowSideChannel<C, z.infer<S>>);
       });
     }
   );

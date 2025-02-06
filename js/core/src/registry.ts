@@ -18,6 +18,7 @@ import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action, runOutsideActionRuntimeContext } from './action.js';
+import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
@@ -66,8 +67,8 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
 export class Registry {
   private actionsById: Record<
     string,
-    | Action<z.ZodTypeAny, z.ZodTypeAny>
-    | PromiseLike<Action<z.ZodTypeAny, z.ZodTypeAny>>
+    | Action<any, z.ZodTypeAny, z.ZodTypeAny>
+    | PromiseLike<Action<any, z.ZodTypeAny, z.ZodTypeAny>>
   > = {};
   private pluginsByName: Record<string, PluginProvider> = {};
   private schemasByName: Record<string, Schema> = {};
@@ -125,10 +126,11 @@ export class Registry {
    * @param type The type of the action to register.
    * @param action The action to register.
    */
-  registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    type: ActionType,
-    action: Action<I, O>
-  ) {
+  registerAction<
+    C extends ActionContext,
+    I extends z.ZodTypeAny,
+    O extends z.ZodTypeAny,
+  >(type: ActionType, action: Action<C, I, O>) {
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
     if (this.actionsById.hasOwnProperty(key)) {
@@ -143,11 +145,11 @@ export class Registry {
   /**
    * Registers an action promise in the registry.
    */
-  registerActionAsync<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    type: ActionType,
-    name: string,
-    action: PromiseLike<Action<I, O>>
-  ) {
+  registerActionAsync<
+    C extends ActionContext,
+    I extends z.ZodTypeAny,
+    O extends z.ZodTypeAny,
+  >(type: ActionType, name: string, action: PromiseLike<Action<C, I, O>>) {
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {

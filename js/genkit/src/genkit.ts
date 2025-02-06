@@ -173,13 +173,14 @@ export class Genkit implements HasRegistry {
    * @todo TODO: Improve this documentation (show snippets, etc).
    */
   defineFlow<
+    C extends ActionContext = ActionContext,
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     S extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     config: FlowConfig<I, O, S> | string,
-    fn: FlowFn<I, O, S>
-  ): Action<I, O, S> {
+    fn: FlowFn<C, I, O, S>
+  ): Action<C, I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
     this.flows.push(flow);
     return flow;

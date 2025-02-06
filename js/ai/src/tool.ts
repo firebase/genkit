@@ -39,9 +39,10 @@ import { ExecutablePrompt } from './prompt.js';
  * An action with a `tool` type.
  */
 export type ToolAction<
+  C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
+> = Action<C, I, O, z.ZodTypeAny, ToolRunOptions> & {
   __action: {
     metadata: {
       type: 'tool';
@@ -91,7 +92,8 @@ export type ToolAction<
   ): ToolRequestPart;
 };
 
-export interface ToolRunOptions extends ActionRunOptions<z.ZodTypeAny> {
+export interface ToolRunOptions
+  extends ActionRunOptions<ActionContext, z.ZodTypeAny> {
   /**
    * If resumed is supplied to a tool at runtime, that means that it was previously interrupted and this is a second
    * @beta
@@ -132,18 +134,19 @@ export type ToolArgument<
 /**
  * Converts an action to a tool action by setting the appropriate metadata.
  */
-export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  registry: Registry,
-  action: Action<I, O>
-): ToolAction<I, O> {
+export function asTool<
+  C extends ActionContext,
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+>(registry: Registry, action: Action<C, I, O>): ToolAction<C, I, O> {
   if (action.__action?.metadata?.type === 'tool') {
-    return action as ToolAction<I, O>;
+    return action as ToolAction<C, I, O>;
   }
 
   const fn = ((input) => {
     setCustomMetadataAttributes(registry, { subtype: 'tool' });
     return action(input);
-  }) as ToolAction<I, O>;
+  }) as ToolAction<C, I, O>;
   fn.__action = {
     ...action.__action,
     metadata: { ...action.__action.metadata, type: 'tool' },
@@ -154,26 +157,25 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 /**
  * Resolves a mix of various formats of tool references to a list of tool actions by looking them up in the registry.
  */
-export async function resolveTools<
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(
+export async function resolveTools(
   registry: Registry,
-  tools?: (ToolArgument | ToolDefinition)[]
-): Promise<ToolAction[]> {
+  tools?: ToolArgument[]
+): Promise<ToolAction>[] {
   if (!tools || tools.length === 0) {
     return [];
   }
 
   return await Promise.all(
-    tools.map(async (ref): Promise<ToolAction> => {
+    tools.map(async (ref): Promise<ToolAction<C, z.ZodAny, O>> => {
       if (typeof ref === 'string') {
+        // WARNING: type coercion. This assumes defineTool has been declared with the same C & O
         return await lookupToolByName(registry, ref);
       } else if ((ref as Action).__action) {
         return asTool(registry, ref as Action);
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
+        // WARNING: type coercion. This assumes defineTool has been declared with the same C & O
         return await lookupToolByName(
           registry,
           (ref as ToolDefinition).metadata?.originalName || ref.name
@@ -250,11 +252,15 @@ export type ToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
  *
  * A tool is an action that can be passed to a model to be called automatically if it so chooses.
  */
-export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+export function defineTool<
+  C extends ActionContext,
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+>(
   registry: Registry,
   config: ToolConfig<I, O>,
   fn: ToolFn<I, O>
-): ToolAction<I, O> {
+): ToolAction<C, I, O> {
   const a = defineAction(
     registry,
     {
@@ -270,7 +276,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       });
     }
   );
-  (a as ToolAction<I, O>).respond = (interrupt, responseData, options) => {
+  (a as ToolAction<C, I, O>).respond = (interrupt, responseData, options) => {
     assertUnstable(
       registry,
       'beta',
@@ -292,7 +298,11 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     };
   };
 
-  (a as ToolAction<I, O>).restart = (interrupt, resumedMetadata, options) => {
+  (a as ToolAction<C, I, O>).restart = (
+    interrupt,
+    resumedMetadata,
+    options
+  ) => {
     assertUnstable(
       registry,
       'beta',
@@ -319,7 +329,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       }),
     };
   };
-  return a as ToolAction<I, O>;
+  return a as ToolAction<C, I, O>;
 }
 
 /** InterruptConfig defines the options for configuring an interrupt. */
@@ -343,13 +353,14 @@ export function isToolResponse(part: Part): part is ToolResponsePart {
   return !!part.toolResponse;
 }
 
-export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  registry: Registry,
-  config: InterruptConfig<I, O>
-): ToolAction<I, O> {
+export function defineInterrupt<
+  C extends ActionContext,
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+>(registry: Registry, config: InterruptConfig<I, O>): ToolAction<C, I, O> {
   const { requestMetadata, ...toolConfig } = config;
 
-  return defineTool<I, O>(
+  return defineTool<C, I, O>(
     registry,
     toolConfig,
     async (input, { interrupt }) => {

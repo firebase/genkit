@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { RequestData } from '@genkit-ai/core';
 import * as assert from 'assert';
 import express from 'express';
 import {
   GenerateResponseData,
   Genkit,
+  RequestData,
   UserFacingError,
   genkit,
   z,

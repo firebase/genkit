@@ -21,6 +21,9 @@ import {
   Action,
   ActionContext,
   Flow,
+  RequestData,
+  getCallableJSON,
+  getHttpStatus,
   runWithStreamingCallback,
   z,
 } from 'genkit';

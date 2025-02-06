@@ -139,6 +139,7 @@ export type PromptGenerateOptions<
  * A prompt that can be executed as a function.
  */
 export interface ExecutablePrompt<
+  C extends ActionContext = ActionContext,
   I = undefined,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -180,7 +181,7 @@ export interface ExecutablePrompt<
   /**
    * Returns the prompt usable as a tool.
    */
-  asTool(): Promise<ToolAction>;
+  asTool(): Promise<ToolAction<C, I, O>>;
 }
 
 export type PartsResolver<I, S = any> = (
