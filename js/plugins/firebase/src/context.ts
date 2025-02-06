@@ -17,7 +17,7 @@
 import { ContextProvider, RequestData, UserFacingError } from '@genkit-ai/core';
 import { DecodedAppCheckToken, getAppCheck } from 'firebase-admin/app-check';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { initializeAppIfNecessary } from './helpers';
+import { initializeAppIfNecessary } from './helpers.js';
 
 /**
  * Debug features that can be enabled to simplify testing.
@@ -131,14 +131,14 @@ export interface DeclarativePolicy {
 }
 
 /**
- * Calling firebaseAuth() without any parameters merely parses firebase context data.
+ * Calling firebaseContext() without any parameters merely parses firebase context data.
  * It does not do any validation on the data found. To do automatic validation,
  * pass either an options object or function for freeform validation.
  */
 export function firebaseContext<I = any>(): FirebaseContextProvider<I>;
 
 /**
- * Calling firebaseAuth() with a declarative policy both parses and enforces context.
+ * Calling firebaseContext() with a declarative policy both parses and enforces context.
  * Honors the same environment variables that Cloud Functions for Firebase does to
  * mock token validation in preproduction environmets.
  */
@@ -147,8 +147,8 @@ export function firebaseContext<I = any>(
 ): FirebaseContextProvider<I>;
 
 /**
- * Calling firebaseAuth() with a policy context parses context but delegates enforcement.
- * To control the message sent to a user, throw UserFacingError from genkit/requestMiddleware.
+ * Calling firebaseContext() with a policy callback parses context but delegates enforcement.
+ * To control the message sent to a user, throw UserFacingError.
  * For security reasons, other error types will be returned as a 500 "internal error".
  */
 export function firebaseContext<I = any>(
