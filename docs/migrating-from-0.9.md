@@ -90,7 +90,7 @@ ai.defineFlow({name: 'banana'}, async (input) => {
     return 'something'
   });
 })
-```ts
+```
 
 **New**
 
@@ -213,9 +213,9 @@ export const tellJoke = onCallGenkit({ secrets: [apiKey] }, jokeTeller);
 
 ## Prompts
 
-We've make several improvements to prompts.
+We've make several changes and improvements to prompts.
 
-You can define separate templates for prompt, system and messages:
+You can define separate templates for prompt and system messages:
 
 ```ts
 const hello = ai.definePrompt({
