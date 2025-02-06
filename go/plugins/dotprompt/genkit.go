@@ -140,7 +140,7 @@ func (p *Prompt) Register(g *genkit.Genkit) error {
 	}
 
 	if p.ModelName != "" && p.Model != nil {
-		return errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
+		return errors.New("dotprompt.Register: config must specify exactly one of ModelName and Model")
 	}
 
 	name := p.Name
