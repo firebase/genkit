@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package dotprompt parses and renders dotprompt files.
 package dotprompt
 
@@ -421,7 +420,7 @@ func WithMetadata(metadata map[string]any) PromptOption {
 func WithDefaultModel(model ai.Model) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.ModelName != "" || p.Config.Model != nil {
-			return errors.New("dotprompt.WithDefaultModel: config must specify exactly once, either ModelName or Model")
+			p.Config.ModelName = ""
 		}
 		p.Config.Model = model
 		return nil
