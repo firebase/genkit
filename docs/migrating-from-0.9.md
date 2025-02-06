@@ -1,7 +1,7 @@
 # Migrating from 0.9
 
 Genkit 1.0 introduces many feature enhancements that improve overall functionality as well as some some breaking changes. If you have been developing applications with Genkit 0.9, you will need to update your application code when you upgrade to the latest version. This guide outlines the most significant changes and offers steps to migrate your existing applications smoothly.
-If you're using 0.5, use <> to upgrade to 0.9 first before upgrading to 1.0
+If you're using 0.5, use the [0.5 to 0.9 migration guide](https://firebase.google.com/docs/genkit/migrating-from-0.5) to upgrade to 0.9 first before upgrading to 1.0
 
 
 ## Streaming functions do not require an await
