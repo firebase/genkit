@@ -286,8 +286,8 @@ The prior example requires the `embedding` field to be indexed to work.
 To create the index:
 
 - Run the `gcloud` command described in the
-- [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes)
-- section of the Firestore docs.
+[Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes)
+section of the Firestore docs.
 
   The command looks like the following:
 
@@ -298,11 +298,11 @@ To create the index:
   ```
 
   However, the correct indexing configuration depends on the queries you
-- make and the embedding model you're using.
+  make and the embedding model you're using.
 
 
 - Alternatively, call `ai.retrieve()` and Firestore will throw an error with
-- the correct command to create the index.
+  the correct command to create the index.
 
 #### Learn more
 
