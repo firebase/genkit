@@ -85,7 +85,7 @@ startFlowServer({
 
 ## Changes to Flows
 
-`run` function for custom trace blocks has moving to `ai.run`
+The `run` function for custom trace blocks has moved to part of the `genkit` object, invoke it with `ai.run` instead
 
 **Old:**
 
