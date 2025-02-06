@@ -449,8 +449,6 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: false,
-        contentType: 'application/json',
-        format: 'json',
       },
       tools: [],
     });
@@ -502,8 +500,6 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: false,
-        contentType: 'application/json',
-        format: 'json',
       },
       tools: [],
     });
