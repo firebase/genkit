@@ -62,7 +62,7 @@ This new package contains utilities to make it easier to build an Express.js ser
 
 Refer to https://js.api.genkit.dev/modules/_genkit-ai_express.html for more details.
 
-`startFlowServer` has moved from part of the genkit object to the express package, to use startFlowServer, update your imports. 
+`startFlowServer` has moved from part of the genkit object to this new `@genkit-ai/express` package, to use startFlowServer, update your imports. 
 
 
 **Old:**
