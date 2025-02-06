@@ -15,7 +15,7 @@ Alternatively, Firebase also provides auth context into the flow where it can
 do its own  checks. For non-Functions flows, auth can be managed and set
 through middleware.
 
-## Basic flow authorization
+## Authorizing within a Flow
 
 Flows can check authorization in two ways: either the request binding
 (e.g. `onCallGenkit` for Cloud Functions for Firebase or `express`) can enforce
@@ -24,7 +24,7 @@ where the flow has access to the information for auth managed within the
 flow.
 
 ```ts
-import { genkit, z } from 'genkit';
+import { genkit, z, UserFacingError } from 'genkit';
 
 const ai = genkit({ ... });
 
@@ -34,10 +34,10 @@ export const selfSummaryFlow = ai.defineFlow( {
   outputSchema: z.string(),
 }, async (input, { context }) => {
   if (!context.auth) {
-    throw new Error('Authorization required.');
+    throw new UserFacingErrorError('UNAUTHENTICATED', 'Unauthenticated');
   }
   if (input.uid !== context.auth.uid) {
-    throw new Error('You may only summarize your own profile data.');
+    throw new UserFacingError('PERMISSION_DENIED', 'You may only summarize your own profile data.');
   }
   // Flow logic here...
 });
@@ -112,14 +112,13 @@ object in the UI, or on the command line with the `--context` flag:
 genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --context '{"auth": {"email_verified": true}}'
 ```
 
-## Cloud Functions for Firebase integration
+## Authorizing with Cloud Functions for Firebase
 
 The Cloud Functions for Firebase SDKs support Genkit including
 integration with Firebase Auth / Google Cloud Identity Platform, as well as
 built-in Firebase App Check support.
 
-### Authorization
-
+### User authentication
 The `onCallGenkit()` wrapper provided by the Firebase Functions library works
 natively with the Cloud Functions for Firebase
 [client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function).
@@ -192,7 +191,7 @@ export const selfSummary = onCallGenkit({
 }, selfSummaryFlow);
 ```
 
-### Client integrity
+#### Client integrity
 
 Authentication on its own goes a long way to protect your app. But it's also
 important to ensure that only your client apps are calling your functions. The
@@ -228,53 +227,74 @@ export const selfSummary = onCallGenkit({
 
 When deploying flows to a server context outside of Cloud Functions for
 Firebase, you'll want to have a way to set up your own authorization checks
-alongside the native flows. You have two options:
+alongside the native flows.
 
-1.  Use whatever server framework you like, and pass the auth context through
-    using the flow call as noted earlier.
+Use a `ContextProvider`, which both populates context values such as `auth` as well
+as allowing you to provide a declarative policy or a policy callback. The genkit
+SDK provides `ContextProvider` such as `apiKey`, and plugins may expose them as well,
+such as `@genkit-ai/firebase/context` which can be used to build Firebase apps with
+backends that are not Cloud Functions for Firebase.
 
-1.  Use `startFlowsServer()`, which the `@genkit-ai/express` plugin
-    exposes, and provide Express auth middleware in the flow server config:
+Given the snippet common to all kinds of applications:
 
-    ```ts
-    import { genkit, z } from 'genkit';
-    import { startFlowServer, withAuth } from '@genkit-ai/express';
+```ts
+// Express app with a simple API key
+import { genkit, z } from 'genkit';
 
-    const ai = genkit({ ... });;
+const ai = genkit({ ... });;
 
-    export const selfSummaryFlow = ai.defineFlow(
-      {
-        name: 'selfSummaryFlow',
-        inputSchema: z.object({ uid: z.string() }),
-        outputSchema: z.string(),
-      },
-      async (input) => {
-        // Flow logic here...
-      }
-    );
+export const selfSummaryFlow = ai.defineFlow(
+  {
+    name: 'selfSummaryFlow',
+    inputSchema: z.object({ uid: z.string() }),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    // Flow logic here...
+  }
+);
+```
 
-    const authProvider = (req, res, next) => {
-      const token = req.headers['authorization'];
-      const user = yourVerificationLibrary(token);
+You could secure a simple "flow server" express app with:
 
-      // Pass auth information to the flow
-      req.auth = user;
-      next();
-    };
+```ts
+import { apiKey } from "genkit";
+import { startFlowServer, withContext } from "@genkit-ai/express";
 
-    startFlowServer({
-      flows: [
-        withAuth(selfSummaryFlow, authProvider, ({ auth, action, input, request }) => {
-          if (!auth) {
-            throw new Error('Authorization required.');
-          }
-          if (input.uid !== auth.uid) {
-            throw new Error('You may only summarize your own profile data.');
-          }
-        })
-      ],
-    });  // Registers the auth provider middleware and policy
-    ```
+startFlowServer({
+  flows: [
+    withContext(selfSummaryFlow, apiKey(process.env.REQUIRED_API_KEY))
+  ],
+});
+```
 
-    For more information about using Express, see the
-    [Cloud Run](/genkit/cloud-run) instructions.
+Or you can build a custom express application using the same tools:
+
+```ts
+import { apiKey } from "genkit";
+import * as express from "express";
+import { expressHandler } from "@genkit-ai/express;
+
+const app = express();
+// Capture but don't validate the API key (or its absence)
+app.post('/summary', expressHandler(selfSummaryFlow, { contextProvider: apiKey()}))
+
+app.listen(process.env.PORT, () => {
+  console.log(`Listening on port ${process.env.PORT}`);
+})
+```
+
+`ContextProvider`s are intended to be abstract of any web framework, so these
+tools work in other frameworks like Next.js as well. Here is an example of a
+Firebase app built on Next.js.
+
+```ts
+import { appRoute } from "@genkit-ai/express";
+import { firebaseContext } from "@genkit-ai/firebase";
+
+export const POST = appRoute(selfSummaryFlow, { contextProvider: firebaseContext })
+```
+
+<!-- NOTE: Should we provide more docs? E.g. docs into various web frameworks and hosting services? -->
+For more information about using Express, see the
+[Cloud Run](/genkit/cloud-run) instructions.

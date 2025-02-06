@@ -156,6 +156,12 @@
       "require": "./lib/client/index.js",
       "import": "./lib/client/index.mjs",
       "default": "./lib/client/index.js"
+    },
+    "./context": {
+      "types": "./lib/context.d.ts",
+      "require": "./lib/context.js",
+      "import": "./lib/context.mjs",
+      "default": "./lib/context.js"
     }
   },
   "typesVersions": {
@@ -216,6 +222,9 @@
       ],
       "beta/client": [
         "lib/client/index"
+      ],
+      "context": [
+        "lib/context"
       ]
     }
   }

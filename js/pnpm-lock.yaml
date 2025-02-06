@@ -373,6 +373,9 @@ importers:
 
   plugins/express:
     dependencies:
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
       body-parser:
         specifier: ^1.20.3
         version: 1.20.3
@@ -428,9 +431,6 @@ importers:
       firebase-admin:
         specifier: '>=12.2'
         version: 12.3.1(encoding@0.1.13)
-      genkit:
-        specifier: workspace:^
-        version: link:../../genkit
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0
@@ -441,6 +441,9 @@ importers:
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5))
@@ -661,9 +664,12 @@ importers:
 
   plugins/next:
     devDependencies:
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
+      '@jest/globals':
+        specifier: ^29.7.0
+        version: 29.7.0
+      '@types/jest':
+        specifier: ^29.5.12
+        version: 29.5.13
       '@types/node':
         specifier: ^20.11.16
         version: 20.16.9
@@ -676,15 +682,21 @@ importers:
       genkit:
         specifier: workspace:*
         version: link:../../genkit
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
       next:
         specifier: ^15.0.0
-        version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.1.6(@babel/core@7.25.7)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      ts-jest:
+        specifier: ^29.1.2
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.0.2
         version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.7.0)
@@ -789,13 +801,6 @@ importers:
       openai:
         specifier: ^4.52.7
         version: 4.53.0(encoding@0.1.13)
-    optionalDependencies:
-      '@google-cloud/bigquery':
-        specifier: ^7.8.0
-        version: 7.8.0(encoding@0.1.13)
-      firebase-admin:
-        specifier: '>=12.2'
-        version: 12.3.1(encoding@0.1.13)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -818,6 +823,13 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
+    optionalDependencies:
+      '@google-cloud/bigquery':
+        specifier: ^7.8.0
+        version: 7.8.0(encoding@0.1.13)
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 12.3.1(encoding@0.1.13)
 
   testapps/basic-gemini:
     dependencies:
@@ -1029,6 +1041,9 @@ importers:
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
+      '@genkit-ai/express':
+        specifier: workspace:*
+        version: link:../../plugins/express
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -1038,6 +1053,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      '@genkit-ai/next':
+        specifier: workspace:^
+        version: link:../../plugins/next
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1361,7 +1379,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.15)(@genkit-ai/core@1.0.0-rc.15)
+        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.16)(@genkit-ai/core@1.0.0-rc.16)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1453,7 +1471,7 @@ importers:
         version: link:../../genkit
       next:
         specifier: ^15.1.6
-        version: 15.1.6(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 15.1.6(@babel/core@7.25.7)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zod:
         specifier: ^3.24.1
         version: 3.24.1
@@ -2283,11 +2301,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@1.0.0-rc.15':
-    resolution: {integrity: sha512-cCB0Lp1Q7umV3fAKvfydz99CEeSq8n5KBfp+3oAIwFWgRvRTBgw0Y5tLtuis4TptCD2ZqqnoiedPW+3JXQU+VQ==}
+  '@genkit-ai/ai@1.0.0-rc.16':
+    resolution: {integrity: sha512-8gfniKrDB4igHcHgyt2vmZmpwbPFXKKFeevoBjTQZOlkKrs6LnHRGrRYfpltRUITm/MLS11eW+2KmcTte5e0Tw==}
 
-  '@genkit-ai/core@1.0.0-rc.15':
-    resolution: {integrity: sha512-eq6nRTPELk7/wkhVXdaAgV1sVrLFgzcdiSeezTpsyhISH9gVWzcSHsNPwxdAR3K+szgo5PkomZQT6JIQKrlxsQ==}
+  '@genkit-ai/core@1.0.0-rc.16':
+    resolution: {integrity: sha512-xSc8cnOpwL7Add+XlWt4lEoSAXWpXmaEAOmmk+Qw4YXD4KDrN2k0q4r+e4QW7EhZPEXO5/ITe3SxdugU1AAP4w==}
 
   '@genkit-ai/firebase@0.9.12':
     resolution: {integrity: sha512-PbEAPO3GTENaJR5RUqrq88YIVxgkVi2pc82kOCrkJDpw/+PcyRIZcgvbQYSAzB932yVU0sy33zzdUfg9t2thMA==}
@@ -5589,10 +5607,6 @@ packages:
     resolution: {integrity: sha512-lKwV/1brpG6mBUFHtb7NUmtABCb2WZZmm2wNiOA5hAb8VdCS4B3dtMWyvcoViccwAW/COERjXLt0zP1zXUN26g==}
     engines: {node: '>=10'}
 
-  minimatch@9.0.4:
-    resolution: {integrity: sha512-KqWh+VchfxcMNRAJjj2tnsSJdNbHsVgnkBhTNrW7AjVo6OvLtxw8zfT9oLw1JSohlFzJ8jCoTgaoXvJ+kHt6fw==}
-    engines: {node: '>=16 || 14 >=14.17'}
-
   minimatch@9.0.5:
     resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -7290,9 +7304,9 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@genkit-ai/ai@1.0.0-rc.15':
+  '@genkit-ai/ai@1.0.0-rc.16':
     dependencies:
-      '@genkit-ai/core': 1.0.0-rc.15
+      '@genkit-ai/core': 1.0.0-rc.16
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.16.9
       colorette: 2.0.20
@@ -7304,7 +7318,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.0.0-rc.15':
+  '@genkit-ai/core@1.0.0-rc.16':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -7735,6 +7749,41 @@ snapshots:
       graceful-fs: 4.2.11
       jest-changed-files: 29.7.0
       jest-config: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5))
+      jest-haste-map: 29.7.0
+      jest-message-util: 29.7.0
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-resolve-dependencies: 29.7.0
+      jest-runner: 29.7.0
+      jest-runtime: 29.7.0
+      jest-snapshot: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      jest-watcher: 29.7.0
+      micromatch: 4.0.5
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-ansi: 6.0.1
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
+  '@jest/core@29.7.0(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))':
+    dependencies:
+      '@jest/console': 29.7.0
+      '@jest/reporters': 29.7.0
+      '@jest/test-result': 29.7.0
+      '@jest/transform': 29.7.0
+      '@jest/types': 29.6.3
+      '@types/node': 20.16.9
+      ansi-escapes: 4.3.2
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      exit: 0.1.2
+      graceful-fs: 4.2.11
+      jest-changed-files: 29.7.0
+      jest-config: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
       jest-regex-util: 29.6.3
@@ -8220,7 +8269,7 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/instrumentation': 0.52.1(@opentelemetry/api@1.9.0)
-      semver: 7.6.0
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
 
@@ -8287,7 +8336,7 @@ snapshots:
       '@opentelemetry/core': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/instrumentation': 0.52.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/semantic-conventions': 1.25.1
-      semver: 7.6.0
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
 
@@ -8642,7 +8691,7 @@ snapshots:
       '@opentelemetry/propagator-b3': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/propagator-jaeger': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-base': 1.25.1(@opentelemetry/api@1.9.0)
-      semver: 7.6.0
+      semver: 7.6.3
 
   '@opentelemetry/semantic-conventions@1.25.1': {}
 
@@ -9445,6 +9494,21 @@ snapshots:
       - supports-color
       - ts-node
 
+  create-jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)):
+    dependencies:
+      '@jest/types': 29.6.3
+      chalk: 4.1.2
+      exit: 0.1.2
+      graceful-fs: 4.2.11
+      jest-config: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
+      jest-util: 29.7.0
+      prompts: 2.4.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
   create-jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)):
     dependencies:
       '@jest/types': 29.6.3
@@ -10110,10 +10174,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.15)(@genkit-ai/core@1.0.0-rc.15):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.16)(@genkit-ai/core@1.0.0-rc.16):
     dependencies:
-      '@genkit-ai/ai': 1.0.0-rc.15
-      '@genkit-ai/core': 1.0.0-rc.15
+      '@genkit-ai/ai': 1.0.0-rc.16
+      '@genkit-ai/core': 1.0.0-rc.16
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
     transitivePeerDependencies:
@@ -10160,7 +10224,7 @@ snapshots:
     dependencies:
       foreground-child: 3.1.1
       jackspeak: 2.3.6
-      minimatch: 9.0.4
+      minimatch: 9.0.5
       minipass: 7.1.2
       path-scurry: 1.10.2
 
@@ -10671,6 +10735,25 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest-cli@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)):
+    dependencies:
+      '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
+      '@jest/test-result': 29.7.0
+      '@jest/types': 29.6.3
+      chalk: 4.1.2
+      create-jest: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
+      exit: 0.1.2
+      import-local: 3.2.0
+      jest-config: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      yargs: 17.7.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
   jest-cli@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)):
     dependencies:
       '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3))
@@ -10748,6 +10831,37 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.16.9
       ts-node: 10.9.2(@types/node@20.11.30)(typescript@4.9.5)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+
+  jest-config@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)):
+    dependencies:
+      '@babel/core': 7.25.7
+      '@jest/test-sequencer': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.25.7)
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      deepmerge: 4.3.1
+      glob: 7.2.3
+      graceful-fs: 4.2.11
+      jest-circus: 29.7.0
+      jest-environment-node: 29.7.0
+      jest-get-type: 29.6.3
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-runner: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      micromatch: 4.0.5
+      parse-json: 5.2.0
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 20.16.9
+      ts-node: 10.9.2(@types/node@20.16.9)(typescript@4.9.5)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -10958,7 +11072,7 @@ snapshots:
       jest-util: 29.7.0
       natural-compare: 1.4.0
       pretty-format: 29.7.0
-      semver: 7.6.0
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
 
@@ -11004,6 +11118,18 @@ snapshots:
       '@jest/types': 29.6.3
       import-local: 3.2.0
       jest-cli: 29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5))
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
+  jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)):
+    dependencies:
+      '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
+      '@jest/types': 29.6.3
+      import-local: 3.2.0
+      jest-cli: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -11385,10 +11511,6 @@ snapshots:
     dependencies:
       brace-expansion: 2.0.1
 
-  minimatch@9.0.4:
-    dependencies:
-      brace-expansion: 2.0.1
-
   minimatch@9.0.5:
     dependencies:
       brace-expansion: 2.0.1
@@ -11446,7 +11568,7 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  next@15.1.6(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  next@15.1.6(@babel/core@7.25.7)(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@next/env': 15.1.6
       '@swc/counter': 0.1.3
@@ -11456,7 +11578,7 @@ snapshots:
       postcss: 8.4.31
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      styled-jsx: 5.1.6(react@18.3.1)
+      styled-jsx: 5.1.6(@babel/core@7.25.7)(react@18.3.1)
     optionalDependencies:
       '@next/swc-darwin-arm64': 15.1.6
       '@next/swc-darwin-x64': 15.1.6
@@ -12249,10 +12371,12 @@ snapshots:
 
   stubs@3.0.0: {}
 
-  styled-jsx@5.1.6(react@18.3.1):
+  styled-jsx@5.1.6(@babel/core@7.25.7)(react@18.3.1):
     dependencies:
       client-only: 0.0.1
       react: 18.3.1
+    optionalDependencies:
+      '@babel/core': 7.25.7
 
   sucrase@3.35.0:
     dependencies:
@@ -12374,6 +12498,25 @@ snapshots:
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.25.7)
 
+  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)))(typescript@4.9.5):
+    dependencies:
+      bs-logger: 0.2.6
+      ejs: 3.1.10
+      fast-json-stable-stringify: 2.1.0
+      jest: 29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5))
+      jest-util: 29.7.0
+      json5: 2.2.3
+      lodash.memoize: 4.1.2
+      make-error: 1.3.6
+      semver: 7.6.3
+      typescript: 4.9.5
+      yargs-parser: 21.1.1
+    optionalDependencies:
+      '@babel/core': 7.25.7
+      '@jest/transform': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.25.7)
+
   ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)))(typescript@5.6.3):
     dependencies:
       bs-logger: 0.2.6
@@ -12403,6 +12546,25 @@ snapshots:
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
       '@types/node': 20.11.30
+      acorn: 8.11.3
+      acorn-walk: 8.3.4
+      arg: 4.1.3
+      create-require: 1.1.1
+      diff: 4.0.2
+      make-error: 1.3.6
+      typescript: 4.9.5
+      v8-compile-cache-lib: 3.0.1
+      yn: 3.1.1
+    optional: true
+
+  ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5):
+    dependencies:
+      '@cspotcode/source-map-support': 0.8.1
+      '@tsconfig/node10': 1.0.11
+      '@tsconfig/node12': 1.0.11
+      '@tsconfig/node14': 1.0.3
+      '@tsconfig/node16': 1.0.4
+      '@types/node': 20.16.9
       acorn: 8.11.3
       acorn-walk: 8.3.4
       arg: 4.1.3
