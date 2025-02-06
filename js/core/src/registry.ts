@@ -107,9 +107,10 @@ export class Registry {
    * @returns The action.
    */
   async lookupAction<
+    C extends ActionContext,
     I extends z.ZodTypeAny,
     O extends z.ZodTypeAny,
-    R extends Action<I, O>,
+    R extends Action<C, I, O>,
   >(key: string): Promise<R> {
     // If we don't see the key in the registry we try to initialize the plugin first.
     const pluginName = parsePluginName(key);

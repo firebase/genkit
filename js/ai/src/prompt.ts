@@ -62,11 +62,10 @@ import { ToolAction, ToolArgument } from './tool.js';
 /**
  * Prompt action.
  */
-export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
-  I,
-  typeof GenerateRequestSchema,
-  z.ZodNever
-> & {
+export type PromptAction<
+  C extends ActionContext = ActionContext,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+> = Action<C, I, typeof GenerateRequestSchema, z.ZodNever> & {
   __action: {
     metadata: {
       type: 'prompt';
@@ -75,6 +74,7 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   __executablePrompt: ExecutablePrompt<I>;
 };
 
+// TODO: maybe infer/forward types
 export function isPromptAction(action: Action): action is PromptAction {
   return action.__action.metadata?.type === 'prompt';
 }
@@ -140,7 +140,7 @@ export type PromptGenerateOptions<
  */
 export interface ExecutablePrompt<
   C extends ActionContext = ActionContext,
-  I = undefined,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
@@ -152,7 +152,7 @@ export interface ExecutablePrompt<
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
   (
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>>;
 
@@ -163,7 +163,7 @@ export interface ExecutablePrompt<
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
   stream(
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): GenerateStreamResponse<z.infer<O>>;
 
@@ -174,7 +174,7 @@ export interface ExecutablePrompt<
    * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
    */
   render(
-    input?: I,
+    input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateOptions<O, CustomOptions>>;
 
@@ -813,20 +813,21 @@ function registryLookupKey(name: string, variant?: string, ns?: string) {
 }
 
 async function lookupPrompt<
-  I = undefined,
+  C extends ActionContext = ActionContext,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
   name: string,
   variant?: string
-): Promise<ExecutablePrompt<I, O, CustomOptions>> {
+): Promise<ExecutablePrompt<C, I, O, CustomOptions>> {
   let registryPrompt = await registry.lookupAction(
     registryLookupKey(name, variant)
   );
   if (registryPrompt) {
     return (registryPrompt as PromptAction)
-      .__executablePrompt as never as ExecutablePrompt<I, O, CustomOptions>;
+      .__executablePrompt as never as ExecutablePrompt<C, I, O, CustomOptions>;
   }
   throw new GenkitError({
     status: 'NOT_FOUND',

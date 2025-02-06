@@ -42,7 +42,7 @@ export type ToolAction<
   C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<C, I, O, z.ZodTypeAny, ToolRunOptions> & {
+> = Action<C, I, O, z.ZodTypeAny, ToolRunOptions<C, z.infer<I>>> & {
   __action: {
     metadata: {
       type: 'tool';
@@ -92,8 +92,10 @@ export type ToolAction<
   ): ToolRequestPart;
 };
 
-export interface ToolRunOptions
-  extends ActionRunOptions<ActionContext, z.ZodTypeAny> {
+export interface ToolRunOptions<
+  C extends ActionContext = ActionContext,
+  S = undefined,
+> extends ActionRunOptions<C, S> {
   /**
    * If resumed is supplied to a tool at runtime, that means that it was previously interrupted and this is a second
    * @beta
@@ -159,23 +161,21 @@ export function asTool<
  */
 export async function resolveTools(
   registry: Registry,
-  tools?: ToolArgument[]
-): Promise<ToolAction>[] {
+  tools?: (ToolArgument | ToolDefinition)[]
+): Promise<ToolAction[]> {
   if (!tools || tools.length === 0) {
     return [];
   }
 
   return await Promise.all(
-    tools.map(async (ref): Promise<ToolAction<C, z.ZodAny, O>> => {
+    tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
-        // WARNING: type coercion. This assumes defineTool has been declared with the same C & O
         return await lookupToolByName(registry, ref);
       } else if ((ref as Action).__action) {
         return asTool(registry, ref as Action);
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return await (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
-        // WARNING: type coercion. This assumes defineTool has been declared with the same C & O
         return await lookupToolByName(
           registry,
           (ref as ToolDefinition).metadata?.originalName || ref.name
@@ -261,7 +261,7 @@ export function defineTool<
   config: ToolConfig<I, O>,
   fn: ToolFn<I, O>
 ): ToolAction<C, I, O> {
-  const a = defineAction(
+  const a = defineAction<C, I, O>(
     registry,
     {
       ...config,
@@ -275,8 +275,8 @@ export function defineTool<
         interrupt: interruptTool(registry),
       });
     }
-  );
-  (a as ToolAction<C, I, O>).respond = (interrupt, responseData, options) => {
+  ) as ToolAction<C, I, O>;
+  a.respond = (interrupt, responseData, options) => {
     assertUnstable(
       registry,
       'beta',
@@ -298,11 +298,7 @@ export function defineTool<
     };
   };
 
-  (a as ToolAction<C, I, O>).restart = (
-    interrupt,
-    resumedMetadata,
-    options
-  ) => {
+  a.restart = (interrupt, resumedMetadata, options) => {
     assertUnstable(
       registry,
       'beta',
@@ -329,7 +325,7 @@ export function defineTool<
       }),
     };
   };
-  return a as ToolAction<C, I, O>;
+  return a;
 }
 
 /** InterruptConfig defines the options for configuring an interrupt. */

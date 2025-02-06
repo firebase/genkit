@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
+import { ActionContext, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat.js';
@@ -144,7 +144,10 @@ export class Session<S = any> {
    * const { text } = await chat.send('my phone feels hot');
    * ```
    */
-  chat<I>(preamble: ExecutablePrompt<I>, options?: ChatOptions<I, S>): Chat;
+  chat<C extends ActionContext, I extends z.ZodTypeAny>(
+    preamble: ExecutablePrompt<C, I>,
+    options?: ChatOptions<z.infer<I>, S>
+  ): Chat;
 
   /**
    * Craete a separate chat conversation ("thread") within the given preamble.
@@ -161,10 +164,10 @@ export class Session<S = any> {
    * await pirateChat.send('tell me a joke');
    * ```
    */
-  chat<I>(
+  chat<C extends ActionContext, I extends z.ZodTypeAny>(
     threadName: string,
-    preamble: ExecutablePrompt<I>,
-    options?: ChatOptions<I, S>
+    preamble: ExecutablePrompt<C, I>,
+    options?: ChatOptions<z.infer<I>, S>
   ): Chat;
 
   /**
@@ -184,42 +187,44 @@ export class Session<S = any> {
    */
   chat<I>(threadName: string, options?: ChatOptions<I, S>): Chat;
 
-  chat<I>(
+  chat<C extends ActionContext, I extends z.ZodTypeAny>(
     optionsOrPreambleOrThreadName?:
-      | ChatOptions<I, S>
+      | ChatOptions<z.infer<I>, S>
       | string
-      | ExecutablePrompt<I>,
-    maybeOptionsOrPreamble?: ChatOptions<I, S> | ExecutablePrompt<I>,
-    maybeOptions?: ChatOptions<I, S>
+      | ExecutablePrompt<C, I>,
+    maybeOptionsOrPreamble?:
+      | ChatOptions<z.infer<I>, S>
+      | ExecutablePrompt<C, I>,
+    maybeOptions?: ChatOptions<z.infer<I>, S>
   ): Chat {
     return runWithSession(this.registry, this, () => {
       let options: ChatOptions<S> | undefined;
       let threadName = MAIN_THREAD;
-      let preamble: ExecutablePrompt<I> | undefined;
+      let preamble: ExecutablePrompt<C, I> | undefined;
 
       if (optionsOrPreambleOrThreadName) {
         if (typeof optionsOrPreambleOrThreadName === 'string') {
           threadName = optionsOrPreambleOrThreadName as string;
         } else if (isExecutablePrompt(optionsOrPreambleOrThreadName)) {
-          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<I>;
+          preamble = optionsOrPreambleOrThreadName as ExecutablePrompt<C, I>;
         } else {
-          options = optionsOrPreambleOrThreadName as ChatOptions<I, S>;
+          options = optionsOrPreambleOrThreadName as ChatOptions<z.infer<I>, S>;
         }
       }
       if (maybeOptionsOrPreamble) {
         if (isExecutablePrompt(maybeOptionsOrPreamble)) {
-          preamble = maybeOptionsOrPreamble as ExecutablePrompt<I>;
+          preamble = maybeOptionsOrPreamble as ExecutablePrompt<C, I>;
         } else {
-          options = maybeOptionsOrPreamble as ChatOptions<I, S>;
+          options = maybeOptionsOrPreamble as ChatOptions<z.infer<I>, S>;
         }
       }
       if (maybeOptions) {
-        options = maybeOptions as ChatOptions<I, S>;
+        options = maybeOptions as ChatOptions<z.infer<I>, S>;
       }
 
       let requestBase: Promise<BaseGenerateOptions>;
       if (preamble) {
-        const renderOptions = options as PromptRenderOptions<I>;
+        const renderOptions = options as PromptRenderOptions<z.infer<I>>;
         requestBase = preamble
           .render(renderOptions?.input, renderOptions as PromptGenerateOptions)
           .then((rb) => {

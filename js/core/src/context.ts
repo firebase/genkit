@@ -50,7 +50,7 @@ export function runWithContext<R>(
 /**
  * Gets the runtime context of the current flow.
  */
-export function getContext<C extends ActionContext>(
+export function getContext<C extends ActionContext = ActionContext>(
   registry: Registry | HasRegistry
 ): C | undefined {
   if ((registry as HasRegistry).registry) {
