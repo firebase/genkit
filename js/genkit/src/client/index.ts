@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,4 +16,36 @@
  * limitations under the License.
  */
 
-export { runFlow, streamFlow } from './client.js';
+/**
+ * A client library for remotely invoking deployed flows and other actions (e.g. models).
+ *
+ * ```ts
+ * import { defineRemoteAction } from 'genkit/beta/client';
+ *
+ * const myFlow = defineRemoteAction({
+ *   url: 'http://.../myFlow',
+ *   inputSchema: z.object({ foo: z.string() }),
+ *   outputSchema: z.string(),
+ *   streamSchema: z.string(),
+ * });
+ *
+ * const { stream } = myFlow.stream(
+ *   { foo: 'bar' },
+ *   { headers: { authentication: getAuthToken() } }
+ * );
+ *
+ * for await (const chunk of stream) {
+ *   console.log(chunk);
+ * }
+ * ```
+ *
+ * @module
+ */
+
+export {
+  RemoteAction,
+  StreamingResponse,
+  defineRemoteAction,
+  runFlow,
+  streamFlow,
+} from './client.js';

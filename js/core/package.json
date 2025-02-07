@@ -92,6 +92,12 @@
       "require": "./lib/schema.js",
       "import": "./lib/schema.mjs",
       "default": "./lib/schema.js"
+    },
+    "./zod": {
+      "types": "./lib/zod.d.ts",
+      "require": "./lib/zod.js",
+      "import": "./lib/zod.mjs",
+      "default": "./lib/zod.js"
     }
   },
   "typesVersions": {
@@ -116,6 +122,9 @@
       ],
       "schema": [
         "lib/schema"
+      ],
+      "zod": [
+        "lib/zod"
       ]
     }
   }
