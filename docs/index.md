@@ -179,6 +179,11 @@ See the following code samples for a concrete idea of how to use these capabilit
     model: gemini20Flash,
   });
 
+  // Define tools for your agents to use
+  const reservationTool = ai.defineTool( ... );
+  const reservationCancelationTool = ai.defineTool( ... );
+  const reservationListTool = ai.defineTool( ... );
+
   // Define prompts that represent specialist agents
   const reservationAgent = ai.definePrompt({
     name: 'reservationAgent',
@@ -186,9 +191,8 @@ See the following code samples for a concrete idea of how to use these capabilit
     tools: [reservationTool, reservationCancelationTool, reservationListTool],
     system: `Help guests make and manage reservations`
   });
-
-  const menuInfoAgent = ...
-  const complaintAgent = ...
+  const menuInfoAgent = ai.definePrompt( ... );
+  const complaintAgent = ai.definePrompt( ... );
 
   // Define a triage agent that routes to the proper specialist agent
   const triageAgent = ai.definePrompt({
@@ -201,7 +205,7 @@ See the following code samples for a concrete idea of how to use these capabilit
       the available tools, politely explain so.`
   });
 
-  // Create a chat to enable multi-turn agent interactions
+  // Create a chat to enable conversational agent interactions
   const chat = ai.chat(triageAgent);
 
   chat.send('I want a reservation at Pavel\'s Cafe for noon on Tuesday.');
