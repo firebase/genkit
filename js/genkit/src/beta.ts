@@ -1,3 +1,5 @@
+export * from './common.js';
+
 /**
  * Copyright 2025 Google LLC
  *
