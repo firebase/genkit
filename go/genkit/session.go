@@ -35,11 +35,11 @@ type SessionStore interface {
 
 type SessionData struct {
 	// Any state that should be stored
-	State map[string]any
+	State map[string]any `json:"state,omitempty"`
 	// Schema for state variables
-	StateSchema *jsonschema.Schema
+	StateSchema *jsonschema.Schema `json:"stateschema,omitempty"`
 	// The messages for each thread
-	Threads map[string][]*ai.Message
+	Threads map[string][]*ai.Message `json:"threads,omitempty"`
 }
 
 type Session struct {
