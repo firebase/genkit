@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 from typing import Any
 
-from genkit.core.schemas import GenerateRequest, Message, Role, TextPart
-from genkit.plugins.vertex_ai import gemini, vertex_ai
+from genkit.core.schemas import Message, TextPart, GenerateRequest, Role
+from genkit.plugins.vertex_ai import vertexAI, gemini, PluginOptions
+
 from genkit.veneer.veneer import Genkit
+
 from pydantic import BaseModel, Field
 
-ai = Genkit(plugins=[vertex_ai()], model=gemini('gemini-1.5-flash'))
+
+ai = Genkit(plugins=[vertexAI(PluginOptions())],
+            model=gemini('gemini-1.5-flash'))
+
 
 
 class MyInput(BaseModel):
@@ -24,7 +29,6 @@ def hi_fn(hi_input) -> GenerateRequest:
             )
         ]
     )
-
 
 # hi = ai.define_prompt(
 #     name="hi",

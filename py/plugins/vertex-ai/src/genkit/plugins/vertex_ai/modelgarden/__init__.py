@@ -8,7 +8,7 @@ Google Cloud Vertex AI Models for Genkit.
 
 
 def package_name() -> str:
-    return 'genkit.plugins.vertex_ai.models'
+    return 'genkit.plugins.vertex_ai.modelgarden'
 
 
 __all__ = ['package_name']

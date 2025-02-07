@@ -1,0 +1,10 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+"""Constants for VertexAI plugin."""
+GCLOUD_PROJECT = 'GCLOUD_PROJECT'
+GCLOUD_LOCATION = 'GCLOUD_LOCATION'
+GCLOUD_PLATFORM_OAUTH_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
+GCLOUD_SERVICE_ACCOUNT_CREDS = 'GCLOUD_SERVICE_ACCOUNT_CREDS'
+FIREBASE_CONFIG = 'FIREBASE_CONFIG'
+DEFAULT_REGION = 'us-central1'
