@@ -35,7 +35,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Formatter } from './formats';
 import { Genkit, GenkitOptions } from './genkit';
 
-export type { GenkitOptions };
+export type { GenkitOptions as GenkitBetaOptions }; // in case they drift later
 
 /**
  * WARNING: these APIs are considered unstable and subject to frequent breaking changes that may not honor semver.

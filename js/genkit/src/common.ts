@@ -16,15 +16,6 @@
  * limitations under the License.
  */
 
-/**
- * Main genkit import.
- *
- * ```ts
- * import { genkit } from 'genkit';
- * ```
- *
- * @module /
- */
 export {
   BaseDataPointSchema,
   Document,

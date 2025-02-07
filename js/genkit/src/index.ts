@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,5 +16,14 @@
  * limitations under the License.
  */
 
+/**
+ * Main genkit import.
+ *
+ * ```ts
+ * import { genkit } from 'genkit';
+ * ```
+ *
+ * @module /
+ */
 export * from './common.js';
 export { Genkit, genkit, type GenkitOptions } from './genkit.js';
