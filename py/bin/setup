@@ -14,6 +14,10 @@ fi
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 
+PNPM_VERSION="10.2.0"
+NODE_VERSION="23"
+NVM_VERSION="0.40.1"
+
 AUDIENCE="eng"
 while getopts ":a:" opt; do
   case ${opt} in
@@ -91,12 +95,21 @@ function genkit::install_prerequisites() {
       python3 \
       ripgrep
   elif [[ -x "$(command -v apt)" ]]; then
+    # Check if the OS is Ubuntu 22.04 (or a derivative) since some of our eng
+    # use it.
+    if lsb_release -a | grep -q "Description:.*Ubuntu 22.04"; then
+      sudo add-apt-repository -y ppa:longsleep/golang-backports
+      sudo apt update
+      sudo apt install -y golang-go
+    else
+      sudo apt install -y golang
+    fi
+
     # Debian-based systems.
     sudo apt install -y \
       curl \
       fd-find \
       gh \
-      golang \
       nodejs \
       python3 \
       ripgrep
@@ -114,20 +127,43 @@ function genkit::install_prerequisites() {
     echo "Unsupported OS. Please install protoc manually."
   fi
 
+  genkit::install_rust
+  genkit::install_uv
+  genkit::install_and_configure_nvm
+  genkit::install_pnpm
+}
+
+function genkit::install_rust() {
   # Install rust.
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   rustup update
+}
 
-  # Install uv for Python versioning, packaging, and workspace management.
+# Install uv for Python versioning, packaging, and workspace management.
+function genkit::install_uv() {
   curl -LsSf https://astral.sh/uv/install.sh | sh
+}
 
-  # Install pnpm for JavaScript package management.
-  # See: https://github.com/pnpm/pnpm/issues/6217
+# Install pnpm for JavaScript package management.
+# See: https://github.com/pnpm/pnpm/issues/6217
+function genkit::install_pnpm() {
   curl -fsSL https://get.pnpm.io/install.sh |
     env ENV="$HOME/.bashrc" \
       SHELL="$(which bash)" \
-      PNPM_VERSION=10.0.0 \
+      PNPM_VERSION="${PNPM_VERSION}" \
       bash -
+}
+
+# Install node version manager.
+function genkit::install_and_configure_nvm() {
+  export NVM_DIR="$HOME/.config/nvm"
+  mkdir -p "$NVM_DIR"
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh | bash
+  [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"                   # This loads nvm
+  [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion" # This loads nvm bash_completion
+  nvm install "${NODE_VERSION}"
+  nvm use "${NODE_VERSION}"
+  nvm alias default "${NODE_VERSION}"
 }
 
 # Install the Google Cloud SDK.
@@ -176,7 +212,6 @@ function genkit::install_pnpm_cli_tools() {
   # Biome: https://biomejs.dev/
   pnpm add -g \
     @biomejs/biome \
-    genkit-cli \
     prettier
 }
 
@@ -220,6 +255,7 @@ function genkit::setup_genkit() {
 
 # Install all the common packages.
 function genkit::install_common_packages() {
+  export PNPM_HOME="$HOME/.local/share/pnpm"
   genkit::install_prerequisites
   genkit::install_python_cli_tools
   genkit::install_docs_cli_tools
@@ -228,7 +264,6 @@ function genkit::install_common_packages() {
 
 # Install all the required tools for CI.
 function genkit::install_ci_packages() {
-  export PNPM_HOME="$HOME/.local/share/pnpm"
   genkit::install_common_packages
   genkit::install_go_cli_tools_ci
 }
@@ -261,5 +296,4 @@ function genkit::main() {
   echo "Please restart your shell."
 }
 
-# Let's go!
 genkit::main
