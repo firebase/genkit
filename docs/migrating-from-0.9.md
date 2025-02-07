@@ -15,7 +15,7 @@ We're introducing an unstable, Beta API channel, and leaving session, chat and G
  * `ai.defineFormat`
  * `ai.defineInterrupt`
 
-Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking chanhes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
+Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking changes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
 
 **Old:**
 
@@ -25,7 +25,7 @@ const ai = genkit({...})
 const session = ai.createSession({ ... })
 ```
 
-**New**
+**New:**
 
 ```ts
 import { genkit } from 'genkit/beta';
@@ -39,7 +39,7 @@ const session = ai.createSession({ ... })
 import { runFlow, streamFlow } from 'genkit/client';
 ```
 
-**New**
+**New:**
 
 ```ts
 import { runFlow, streamFlow } from 'genkit/beta/client';
@@ -51,7 +51,7 @@ This new package contains utilities to make it easier to build an Express.js ser
 
 Refer to https://js.api.genkit.dev/modules/_genkit-ai_express.html for more details.
 
-`startFlowServer` has moved from part of the genkit object to this new `@genkit-ai/express` package, to use startFlowServer, update your imports. 
+`startFlowServer` has moved from part of the genkit object to this new `@genkit-ai/express` package, to use startFlowServer, update your imports.
 
 
 **Old:**
@@ -63,7 +63,7 @@ ai.startFlowServer({
 });
 ```
 
-**New**
+**New:**
 
 ```ts
 import { startFlowServer } from '@genkit-ai/express';
@@ -79,7 +79,7 @@ There are several changes to flows in 1.0:
  - `onFlow` replaced by `onCallGenkit`,
  - `run` moved to `ai.run`,
  - changes to working with auth.
- 
+
 The `run` function for custom trace blocks has moved to part of the `genkit` object, invoke it with `ai.run` instead
 
 **Old:**
@@ -92,7 +92,7 @@ ai.defineFlow({name: 'banana'}, async (input) => {
 })
 ```
 
-**New**
+**New:**
 
 ```ts
 ai.defineFlow({name: 'banana'}, async (input) => {
@@ -117,7 +117,7 @@ for await (const chunk of stream) {
 }
 ```
 
-**New**
+**New:**
 
 ```ts
 const flow = ai.defineFlow({name: 'banana'}, async (input, {context, sendChunk}) => {
@@ -141,7 +141,7 @@ ai.defineFlow({name: 'banana'}, async (input) => {
 })
 ```
 
-**New**
+**New:**
 
 ```ts
 ai.defineFlow({name: 'banana'}, async (input, { context }) => {
@@ -251,7 +251,7 @@ export const generatePoem = onFlow(
 );
 ```
 
-**New**
+**New:**
 
 ```ts
 import { onCallGenkit } from "firebase-functions/https";
@@ -357,10 +357,30 @@ const { stream, response } = await ai.generateStream(`hi`);
 const { stream, output } = await myflow.stream(`hi`);
 ```
 
-**New**
+**New:**
 
 ```ts
 const { stream, response } = ai.generateStream(`hi`);
 const { stream, output } = myflow.stream(`hi`);
+```
+
+
+
+## Embed has a new return type
+
+We've added support for multimodal embeddings so now instead of returning just a single embedding vector,
+we return an array of embedding objects, each containing an embedding vector and metadata.
+
+**Old:**
+
+```ts
+const response = await ai.embed({embedder, content, options});  // returns number[]
+```
+
+**New:**
+
+```ts
+const response = await ai.embed(embedder, content, options}); // returns Embedding[]
+const firstEmbeddingVector = response[0].embedding;  // is number[]
 ```
 
