@@ -64,12 +64,12 @@ For example:
 ```ts
 'use server';
 
-import { gemini15Flash, googleAI } from "@genkit-ai/googleai";
+import { gemini20Flash, googleAI } from "@genkit-ai/googleai";
 import { genkit, z } from "genkit";
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash,
+  model: gemini20Flash,
 });
 
 export const menuSuggestionFlow = ai.defineFlow(
@@ -79,10 +79,7 @@ export const menuSuggestionFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (restaurantTheme) => {
-    const { text } = await ai.generate({
-      model: gemini15Flash,
-      prompt: `Invent a menu item for a ${restaurantTheme} themed restaurant.`,
-    });
+    const { text } = await ai.generate('Invent a menu item for a ${restaurantTheme} themed restaurant.');
     return text;
   }
 );

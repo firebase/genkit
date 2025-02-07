@@ -250,10 +250,10 @@ export const simpleFlow = ai.defineFlow(
   },
   async (input, { context }) => {
     if (!context.auth) {
-      throw new Error('Authorization required.');
+      throw new UserFacingError("UNAUTHORIZED", "Authorization required.");
     }
     if (input.uid !== context.auth.uid) {
-      throw new Error('You may only summarize your own profile data.');
+      throw new UserFacingError("UNAUTHORIZED", "You may only summarize your own profile data.");
     }
     // Flow logic here...
   }
