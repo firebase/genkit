@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package vertexai
 
 import (
@@ -29,10 +28,36 @@ const (
 )
 
 var (
-	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   gemini.BasicText,
-		"gemini-1.5-pro":   gemini.Multimodal,
-		"gemini-1.5-flash": gemini.Multimodal,
+	supportedModels = map[string]ai.ModelInfo{
+		"gemini-1.0-pro": {
+			Versions: []string{"gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro-001"},
+			Supports: &gemini.BasicText,
+		},
+
+		"gemini-1.5-flash": {
+			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-1.5-pro": {
+			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-2.0-flash-001": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-2.0-flash-lite-preview-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-2.0-pro-exp-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{
@@ -114,8 +139,8 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 		return err
 	}
 	state.initted = true
-	for model, caps := range knownCaps {
-		defineModel(g, model, caps)
+	for model, info := range supportedModels {
+		defineModel(g, model, info)
 	}
 	for _, e := range knownEmbedders {
 		defineEmbedder(g, e)
@@ -130,30 +155,32 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.Model, error) {
+func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	var mc ai.ModelCapabilities
-	if caps == nil {
+	var mi ai.ModelInfo
+	if info == nil {
 		var ok bool
-		mc, ok = knownCaps[name]
+		mi, ok = supportedModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelCapabilities", provider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
 		}
 	} else {
-		mc = *caps
+		// TODO: unknown models could also specify versions?
+		mi = *info
 	}
-	return defineModel(g, name, mc), nil
+	return defineModel(g, name, mi), nil
 }
 
 // requires state.mu
-func defineModel(g *genkit.Genkit, name string, caps ai.ModelCapabilities) ai.Model {
-	meta := &ai.ModelMetadata{
+func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
+	meta := &ai.ModelInfo{
 		Label:    labelPrefix + " - " + name,
-		Supports: caps,
+		Supports: info.Supports,
+		Versions: info.Versions,
 	}
 	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
@@ -323,7 +350,6 @@ func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*gena
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
 			return nil, err
-
 		}
 		// system prompts go into GenerativeModel.SystemInstruction field.
 		if m.Role == ai.RoleSystem {

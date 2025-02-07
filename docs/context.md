@@ -1,14 +1,16 @@
 # Passing information through context
 
-When working with LLMs, there are often different categories of information
-being handled simultaneously:
+There are different categories of information that a developer working
+with an LLM may be handling simultaneously:
 
 - **Input:** Information that is directly relevant to guide the LLM's response
-  for a particular call such as the text that needs to be summarized.
-- **Generation Context:** Information that is relevant to the LLM but isn't
-  specific to the call, such as the current time or a user's name.
+  for a particular call. An example of this is the text that needs to be
+  summarized.
+- **Generation Context:** Information that is relevant to the LLM, but isn't
+  specific to the call. An example of this is the current time or a user's name.
 - **Execution Context:** Information that is important to the code surrounding
-  the LLM call but not to the LLM itself, e.g. a user's current auth token.
+  the LLM call but not to the LLM itself. An example of this is  a user's
+  current auth token.
 
 Genkit provides a consistent `context` object that can propagate generation and
 execution context throughout the process. This context is made available to all
@@ -16,8 +18,8 @@ actions including [flows](flows), [tools](tool-calling), and
 [prompts](dotprompt).
 
 Context is automatically propagated to all actions called within the scope of
-execution - context passed to a flow will be made available to prompts executed
-within the flow. Context passed to the `generate()` method will be available to
+execution: Context passed to a flow is made available to prompts executed
+within the flow. Context passed to the `generate()` method is available to
 tools called within the generation loop.
 
 ## Why is context important?
@@ -27,7 +29,7 @@ LLM that it needs to complete a task. This is important for multiple reasons:
 
 - The less extraneous information the LLM has, the more likely it is to perform
   well at its task.
-- If an LLM needs to pass around information like user or account ids to tools,
+- If an LLM needs to pass around information like user or account IDs to tools,
   it can potentially be tricked into leaking information.
 
 Context gives you a side channel of information that can be used by any of your
@@ -37,7 +39,7 @@ allow you to restrict tool queries to the current user's available scope.
 ## Context structure
 
 Context must be an object, but its properties are yours to decide. In some
-situations Genkit will automatically populate context. For example, when using
+situations Genkit automatically populates context. For example, when using
 [persistent sessions](chat) the `state` property is automatically added to 
 context.
 
@@ -55,12 +57,12 @@ user. We recommend adding auth context in the following format:
 }
 ```
 
-The context object can store any information that you might need to know somewhere
-else in the flow of execution.
+The context object can store any information that you might need to know
+somewhere else in the flow of execution.
 
 ## Use context in an action
 
-To use context within an action, you can access the provided context helper
+To use context within an action, you can access the context helper
 that is automatically supplied to your function definition:
 
 *   {Flow}
@@ -149,7 +151,7 @@ when calling the action.
 
 By default, when you provide context it is automatically propagated to all
 actions called as a result of your original call. If your flow calls other
-flows, or your generation calls tools, the same context will be provided.
+flows, or your generation calls tools, the same context is provided.
 
 If you wish to override context within an action, you can pass a different
 context object to replace the existing one:
@@ -167,6 +169,6 @@ const myFlow = ai.defineFlow({
 }); 
 ```
 
-When context is replaced it propagates the same way. In the above example,
+When context is replaced, it propagates the same way. In this example,
 any actions that `otherFlow` called during its execution would inherit the
 overridden context.

@@ -105,7 +105,7 @@ const streamingFlow = ai.defineFlow(
   }
 );
 
-// onCallFlow automatically handles streaming when passed
+// onCallGenkit automatically handles streaming when passed
 // a flow that streams. This example sets invoker to "private",
 // which means that IAM enforces access.
 export const streamer = onCallGenkit(

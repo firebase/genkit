@@ -12,7 +12,7 @@ npm i --save genkitx-ollama
 ## Configuration
 
 This plugin requires that you first install and run the Ollama server. You can
-follow the instructions on: https://ollama.com/download
+follow the instructions on: [Download Ollama](https://ollama.com/download).
 
 You can use the Ollama CLI to download the model you are interested in. For
 example:
@@ -141,13 +141,14 @@ const ai = genkit({
 });
 
 async function getEmbeddings() {
-  const embeddings = await ai.embed({
+  const embeddings = (await ai.embed({
       embedder: 'ollama/nomic-embed-text',
       content: 'Some text to embed!',
   })
+  )[0].embedding;
 
   return embeddings;
 }
 
-getEmbedding().then((e) => console.log(e))
+getEmbeddings().then((e) => console.log(e))
 ```

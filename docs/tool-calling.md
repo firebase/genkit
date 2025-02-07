@@ -121,9 +121,9 @@ const getWeather = ai.defineTool(
 ```
 
 The syntax here looks just like the `defineFlow()` syntax; however, `name`,
-`description` and `inputSchema` parameters are required. When writing a tool
+`description`, and `inputSchema` parameters are required. When writing a tool
 definition, take special care with the wording and descriptiveness of these
-parameters, as they are vital for the LLM to effectively make use of the
+parameters. They are vital for the LLM to make effective use of the
 available tools.
 
 ### Using tools
@@ -199,8 +199,8 @@ Genkit will automatically handle the tool call if the LLM needs to use the
 ### Pause the tool loop by using interrupts
 
 By default, Genkit repeatedly calls the LLM until every tool call has been
-resolved. You may want to conditionally pause execution in situations where
-you want to, for example:
+resolved. You can conditionally pause execution in situations where you want
+to, for example:
 
 * Ask the user a question or display UI.
 * Confirm a potentially risky action with the user.

@@ -452,7 +452,10 @@
                 "string"
               ]
             },
-            "jsonSchema": {}
+            "jsonSchema": {},
+            "constrained": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         },
@@ -757,7 +760,12 @@
               "type": "boolean"
             },
             "constrained": {
-              "type": "boolean"
+              "type": "string",
+              "enum": [
+                "none",
+                "all",
+                "no-tools"
+              ]
             }
           },
           "additionalProperties": false

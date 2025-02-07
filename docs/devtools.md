@@ -33,7 +33,7 @@ npx genkit --help
 
 ### Genkit Developer UI
 
-The Genkit Developer UI is a local web app that allows you to interactively
+The Genkit Developer UI is a local web app that lets you interactively
 work with models, flows, prompts, and other elements in your Genkit project.
 
 The Developer UI is able to identify what Genkit components you have defined

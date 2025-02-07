@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { stripUndefinedProps } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { GenkitBeta, genkit } from '../src/beta';
@@ -24,14 +25,11 @@ describe('formats', () => {
 
   beforeEach(() => {
     ai = genkit({});
-    defineEchoModel(ai);
-  });
-
-  it('lets you define and use a custom output format', async () => {
     ai.defineFormat(
       {
         name: 'banana',
         format: 'banana',
+        constrained: true,
       },
       (schema) => {
         let instructions: string | undefined;
@@ -53,6 +51,10 @@ describe('formats', () => {
         };
       }
     );
+  });
+
+  it('lets you define and use a custom output format with native constrained generation', async () => {
+    defineEchoModel(ai, { supports: { constrained: 'all' } });
 
     const { output } = await ai.generate({
       model: 'echoModel',
@@ -73,5 +75,110 @@ describe('formats', () => {
     }
     assert.deepStrictEqual(chunks, ['banana: 3', 'banana: 2', 'banana: 1']);
     assert.strictEqual((await response).output, 'banana: Echo: hi');
+    assert.deepStrictEqual(stripUndefinedProps((await response).request), {
+      config: {},
+      messages: [
+        {
+          content: [{ text: 'hi' }],
+          role: 'user',
+        },
+      ],
+      output: {
+        constrained: true,
+        format: 'banana',
+        schema: {},
+      },
+      tools: [],
+    });
+  });
+
+  it('lets you define and use a custom output format with simulated constrained generation', async () => {
+    defineEchoModel(ai, { supports: { constrained: false } });
+
+    const { output } = await ai.generate({
+      model: 'echoModel',
+      prompt: 'hi',
+      output: { format: 'banana' },
+    });
+
+    assert.strictEqual(
+      output,
+      'banana: Echo: hi,Output should be in JSON format and conform to the following schema:\n' +
+        '\n' +
+        '```\n' +
+        '{}\n' +
+        '```\n'
+    );
+
+    const { response, stream } = await ai.generateStream({
+      model: 'echoModel',
+      prompt: 'hi',
+      output: { format: 'banana' },
+    });
+    const chunks: string[] = [];
+    for await (const chunk of stream) {
+      chunks.push(`${chunk.output}`);
+    }
+    assert.deepStrictEqual(chunks, ['banana: 3', 'banana: 2', 'banana: 1']);
+    assert.strictEqual(
+      (await response).output,
+      'banana: Echo: hi,Output should be in JSON format and conform to the following schema:\n' +
+        '\n' +
+        '```\n' +
+        '{}\n' +
+        '```\n'
+    );
+    assert.deepStrictEqual(stripUndefinedProps((await response).request), {
+      config: {},
+      messages: [
+        {
+          content: [{ text: 'hi' }],
+          role: 'user',
+        },
+      ],
+      output: {
+        constrained: true,
+        format: 'banana',
+        schema: {},
+      },
+      tools: [],
+    });
+  });
+
+  it('used explicitly specified output options overriding format options', async () => {
+    defineEchoModel(ai, { supports: { constrained: 'all' } });
+    const response = await ai.generate({
+      model: 'echoModel',
+      prompt: 'hi',
+      output: {
+        format: 'banana',
+        // Explicitly specified, should ignore whatever format sets
+        constrained: false,
+        jsonSchema: { type: 'string' },
+      },
+    });
+    assert.deepStrictEqual(stripUndefinedProps(response.request), {
+      config: {},
+      messages: [
+        {
+          content: [
+            { text: 'hi' },
+            {
+              text: 'Output should be in banana format',
+              metadata: { purpose: 'output' },
+            },
+          ],
+          role: 'user',
+        },
+      ],
+      output: {
+        constrained: false,
+        format: 'banana',
+        schema: {
+          type: 'string',
+        },
+      },
+      tools: [],
+    });
   });
 });
