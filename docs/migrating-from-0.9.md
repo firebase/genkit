@@ -15,7 +15,7 @@ We're introducing an unstable, Beta API channel, and leaving session, chat and G
  * `ai.defineFormat`
  * `ai.defineInterrupt`
 
-Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking chanhes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
+Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking changes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
 
 **Old:**
 
@@ -197,10 +197,10 @@ export const simpleFlow = ai.defineFlow(
   },
   async (input, { context }) => {
     if (!context.auth) {
-      throw new Error('Authorization required.');
+      throw new UserFacingError('Authorization required.');
     }
     if (input.uid !== context.auth.uid) {
-      throw new Error('You may only summarize your own profile data.');
+      throw new UserFacingError('You may only summarize your own profile data.');
     }
     // Flow logic here...
   }
@@ -257,12 +257,13 @@ export const generatePoem = onFlow(
 import { onCallGenkit } from "firebase-functions/https";
 import { defineSecret } from "firebase-functions/params";
 import { genkit, z } from "genkit";
+import { googleAI, gemini20Flash } from "@genkit-ai/googleai";
 
 const apiKey = defineSecret("GOOGLE_GENAI_API_KEY");
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash,
+  model: gemini20Flash,
 });
 
 export const jokeTeller = ai.defineFlow(
@@ -288,7 +289,7 @@ export const tellJoke = onCallGenkit({ secrets: [apiKey] }, jokeTeller);
 
 ## Prompts
 
-We've make several changes and improvements to prompts.
+We've made several changes and improvements to prompts.
 
 You can define separate templates for prompt and system messages:
 
