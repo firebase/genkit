@@ -15,4 +15,4 @@
  */
 
 export * from './common.js';
-export { GenkitBeta, genkit, type GenkitOptions } from './genkit-beta.js';
+export { GenkitBeta, genkit, type GenkitBetaOptions } from './genkit-beta.js';
