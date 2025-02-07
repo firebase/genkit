@@ -43,6 +43,21 @@ var (
 			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
 			Supports: &gemini.Multimodal,
 		},
+
+		"gemini-2.0-flash-001": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-2.0-flash-lite-preview-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-2.0-pro-exp-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{
