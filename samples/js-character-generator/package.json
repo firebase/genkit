@@ -11,12 +11,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "genkit-cli": "^1.0.0-rc.18",
+    "genkit-cli": "^1.0.4",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@genkit-ai/googleai": "^1.0.0-rc.18",
-    "genkit": "^1.0.0-rc.18"
+    "genkit": "^1.0.4",
+    "@genkit-ai/googleai": "^1.0.4"
   }
 }
