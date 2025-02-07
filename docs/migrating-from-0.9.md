@@ -380,7 +380,7 @@ const response = await ai.embed({embedder, content, options});  // returns numbe
 **New:**
 
 ```ts
-const response = await ai.embed(embedder, content, options}); // returns Embedding[]
+const response = await ai.embed({embedder, content, options}); // returns Embedding[]
 const firstEmbeddingVector = response[0].embedding;  // is number[]
 ```
 
