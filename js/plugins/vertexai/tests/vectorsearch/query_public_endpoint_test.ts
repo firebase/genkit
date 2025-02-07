@@ -20,7 +20,7 @@ import { queryPublicEndpoint } from '../../src/vectorsearch/vector_search/query_
 
 describe('queryPublicEndpoint', () => {
   // FIXME -- t.mock.method is not supported node above 20
-  it.skip('queryPublicEndpoint sends the correct request and retrieves neighbors', async (t) => {
+  it.skip('sends the correct request and retrieves neighbors', async (t) => {
     t.mock.method(global, 'fetch', async (url, options) => {
       return {
         ok: true,
@@ -67,18 +67,21 @@ describe('queryPublicEndpoint', () => {
     );
 
     const body = JSON.parse(options.body);
-    assert.deepStrictEqual(body, {
+    const expectedBody = {
       deployed_index_id: 'deployed-idx123',
       queries: [
         {
           datapoint: {
             datapoint_id: '0',
             feature_vector: [0.1, 0.2, 0.3],
+            restricts: [],
+            numeric_restricts: [],
           },
           neighbor_count: 5,
         },
       ],
-    });
+    };
+    assert.deepStrictEqual(body, expectedBody);
 
     // Verifying the response
     assert.deepStrictEqual(response, expectedResponse);

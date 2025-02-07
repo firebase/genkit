@@ -65,7 +65,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const queryEmbeddings = (
+        const queryEmbedding = (
           await ai.embed({
             embedder: embedderReference,
             options: embedderOptions,
@@ -94,7 +94,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
         }
 
         let res = await queryPublicEndpoint({
-          featureVector: queryEmbeddings,
+          featureVector: queryEmbedding,
           neighborCount: options?.k || DEFAULT_K,
           accessToken,
           projectId,
@@ -103,6 +103,8 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           projectNumber,
           indexEndpointId: vectorSearchOption.indexEndpointId,
           deployedIndexId: vectorSearchOption.deployedIndexId,
+          restricts: content.metadata?.restricts,
+          numericRestricts: content.metadata?.numericRestricts,
         });
         const nearestNeighbors = res.nearestNeighbors;
 

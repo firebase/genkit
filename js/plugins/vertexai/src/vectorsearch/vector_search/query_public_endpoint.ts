@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import { logger } from 'genkit/logging';
-import { FindNeighborsResponse } from './types';
+import {
+  FindNeighborsResponse,
+  INumericRestriction,
+  IRestriction,
+} from './types';
 
 interface QueryPublicEndpointParams {
   featureVector: number[];
@@ -27,6 +30,8 @@ interface QueryPublicEndpointParams {
   publicDomainName: string;
   projectNumber: string;
   deployedIndexId: string;
+  restricts?: IRestriction[];
+  numericRestricts?: INumericRestriction[];
 }
 /**
  * Queries a public index endpoint to find neighbors for a given feature vector.
@@ -58,6 +63,8 @@ export async function queryPublicEndpoint(
     projectNumber,
     deployedIndexId,
     location,
+    restricts,
+    numericRestricts,
   } = params;
   const url = new URL(
     `https://${publicDomainName}/v1/projects/${projectNumber}/locations/${location}/indexEndpoints/${indexEndpointId}:findNeighbors`
@@ -70,6 +77,34 @@ export async function queryPublicEndpoint(
         datapoint: {
           datapoint_id: '0',
           feature_vector: featureVector,
+          restricts:
+            restricts?.map((r) => ({
+              namespace: r.namespace,
+              allow_list: r.allowList,
+              deny_list: r.denyList,
+            })) || [],
+          numeric_restricts:
+            numericRestricts?.map((nr) => {
+              const newNR: Record<string, unknown> = {
+                namespace: nr.namespace,
+              };
+              // Exactly one of these should be set in a valid request.
+              // If there are more or less, vector search will complain
+              // and we can just pass the error on, rather than randomly
+              // selecting exactly one of them here (as that would be difficult
+              // to debug for the user)
+              if (nr.valueInt !== undefined) {
+                newNR.value_int = nr.valueInt;
+              }
+              if (nr.valueFloat !== undefined) {
+                newNR.value_float = nr.valueFloat;
+              }
+              if (nr.valueDouble !== undefined) {
+                newNR.value_double = nr.valueDouble;
+              }
+              newNR.op = nr.op;
+              return newNR;
+            }) || [],
         },
         neighbor_count: neighborCount,
       },
@@ -86,7 +121,8 @@ export async function queryPublicEndpoint(
   });
 
   if (!response.ok) {
-    logger.error('Error querying index: ', response.statusText);
+    const errMsg = (await response.json()).error?.message || '';
+    throw new Error(`Error querying index: ${response.statusText}. ${errMsg}`);
   }
-  return response.json() as FindNeighborsResponse;
+  return (await response.json()) as FindNeighborsResponse;
 }

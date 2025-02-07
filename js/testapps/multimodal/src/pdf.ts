@@ -116,7 +116,10 @@ const chunkingConfig = {
 export const indexMultimodalPdf = ai.defineFlow(
   {
     name: 'indexMultimodalPdf',
-    inputSchema: z.string().describe('PDF file path'),
+    inputSchema: z
+      .string()
+      .describe('PDF file path')
+      .default('./docs/BirthdayPets.pdf'),
   },
   async (filePath: string) => {
     let documents: Document[] = [];

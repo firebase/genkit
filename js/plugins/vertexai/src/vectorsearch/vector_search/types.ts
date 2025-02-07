@@ -61,33 +61,34 @@ export type SparseEmbedding = z.infer<typeof SparseEmbeddingSchema>;
 
 // Define the Zod schema for IRestriction
 export const RestrictionSchema = z.object({
-  namespace: z.string().optional(),
-  allowList: z.array(z.string()).optional(),
-  denyList: z.array(z.string()).optional(),
+  namespace: z.string(),
+  allowList: z.array(z.string()),
+  denyList: z.array(z.string()),
 });
 
 export type Restriction = z.infer<typeof RestrictionSchema>;
+
+export const NumericRestrictionOperatorSchema = z.enum([
+  'OPERATOR_UNSPECIFIED',
+  'LESS',
+  'LESS_EQUAL',
+  'EQUAL',
+  'GREATER_EQUAL',
+  'GREATER',
+  'NOT_EQUAL',
+]);
+
+export type NumericRestrictionOperator = z.infer<
+  typeof NumericRestrictionOperatorSchema
+>;
 
 // Define the Zod schema for INumericRestriction
 export const NumericRestrictionSchema = z.object({
   valueInt: z.union([z.number(), z.string()]).optional(),
   valueFloat: z.number().optional(),
   valueDouble: z.number().optional(),
-  namespace: z.string().optional(),
-  op: z
-    .union([
-      z.enum([
-        'OPERATOR_UNSPECIFIED',
-        'LESS',
-        'LESS_EQUAL',
-        'EQUAL',
-        'GREATER_EQUAL',
-        'GREATER',
-        'NOT_EQUAL',
-      ]),
-      z.null(),
-    ])
-    .optional(),
+  namespace: z.string(),
+  op: z.union([NumericRestrictionOperatorSchema, z.null()]).optional(),
 });
 
 export type NumericRestriction = z.infer<typeof NumericRestrictionSchema>;
