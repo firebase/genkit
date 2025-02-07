@@ -15,7 +15,7 @@ We're introducing an unstable, Beta API channel, and leaving session, chat and G
  * `ai.defineFormat`
  * `ai.defineInterrupt`
 
-Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking chanhes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
+Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking changes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
 
 **Old:**
 
@@ -149,81 +149,6 @@ ai.defineFlow({name: 'banana'}, async (input, { context }) => {
 })
 ```
 
-also, if you've been using auth policies, they've been removed from `defineFlow` and are not handled depending on the server you're using:
-
-**Old:**
-
-```ts
-export const simpleFlow = ai.defineFlow(
-  {
-    name: 'simpleFlow',
-    inputSchema: z.object({ uid: z.string() }),
-    outputSchema: z.string(),
-    authPolicy: (auth, input) => {
-      if (!auth) {
-        throw new Error('Authorization required.');
-      }
-      if (input.uid !== auth.uid) {
-        throw new Error('You may only summarize your own profile data.');
-      }
-    },
-  },
-  async (input) => {
-    // Flow logic here...
-  }
-);
-```
-
-With express you would do something like this:
-
-**New:**
-
-```ts
-import { UserFacingError } from 'genkit';
-import { ContextProvider, RequestData } from 'genkit/context';
-import { expressHandler, startFlowServer } from '@genkit-ai/express';
-
-const context: ContextProvider<Context> = (req: RequestData) => {
-  return {
-    auth: parseAuthToken(req.headers['authorization']),
-  };
-};
-
-export const simpleFlow = ai.defineFlow(
-  {
-    name: 'simpleFlow',
-    inputSchema: z.object({ uid: z.string() }),
-    outputSchema: z.string(),
-  },
-  async (input, { context }) => {
-    if (!context.auth) {
-      throw new Error('Authorization required.');
-    }
-    if (input.uid !== context.auth.uid) {
-      throw new Error('You may only summarize your own profile data.');
-    }
-    // Flow logic here...
-  }
-);
-
-const app = express();
-app.use(express.json());
-app.post(
-  '/simpleFlow',
-  expressHandler(simpleFlow, { context })
-);
-app.listen(8080);
-
-// or
-
-startFlowServer(
-  flows: [withContextProvider(simpleFlow, context)],
-  port: 8080
-);
-
-```
-
-
 `onFlow` moved to `firebase-functions/https` package and got renamed to `onCallGenkit`. Here's how to use it:
 
 **Old**
@@ -286,9 +211,95 @@ export const jokeTeller = ai.defineFlow(
 export const tellJoke = onCallGenkit({ secrets: [apiKey] }, jokeTeller);
 ```
 
+also, if you've been using auth policies, they've been removed from `defineFlow` and are now handled depending on the server you're using:
+
+**Old:**
+
+```ts
+export const simpleFlow = ai.defineFlow(
+  {
+    name: 'simpleFlow',
+    authPolicy: (auth, input) => {
+      // auth policy
+    },
+  },
+  async (input) => {
+    // Flow logic here...
+  }
+);
+```
+
+With express you would do something like this:
+
+**New:**
+
+```ts
+import { UserFacingError } from 'genkit';
+import { ContextProvider, RequestData } from 'genkit/context';
+import { expressHandler, startFlowServer } from '@genkit-ai/express';
+
+const context: ContextProvider<Context> = (req: RequestData) => {
+  return {
+    auth: parseAuthToken(req.headers['authorization']),
+  };
+};
+
+export const simpleFlow = ai.defineFlow(
+  {
+    name: 'simpleFlow',
+  },
+  async (input, { context }) => {
+    if (!context.auth) {
+      throw new Error('Authorization required.');
+    }
+    if (input.uid !== context.auth.uid) {
+      throw new Error('You may only summarize your own profile data.');
+    }
+    // Flow logic here...
+  }
+);
+
+const app = express();
+app.use(express.json());
+app.post(
+  '/simpleFlow',
+  expressHandler(simpleFlow, { context })
+);
+app.listen(8080);
+
+// or
+
+startFlowServer(
+  flows: [withContextProvider(simpleFlow, context)],
+  port: 8080
+);
+```
+
+Refer to [auth documentation](https://firebase.google.com/docs/genkit/auth) for more details.
+
+or with Cloud Functions for Firebase:
+
+```ts
+import { genkit } from 'genkit';
+import { onCallGenkit } from 'firebase-functions/https';
+
+const ai = genkit({ ... });;
+
+const simpleFlow = ai.defineFlow({
+  name: 'simpleFlow',
+}, async (input) => {
+  // Flow logic here...
+});
+
+export const selfSummary = onCallGenkit({
+  authPolicy: (auth, data) => auth?.token?.['email_verified'] && auth?.token?.['admin'],
+}, simpleFlow);
+```
+
+
 ## Prompts
 
-We've make several changes and improvements to prompts.
+We've made several changes and improvements to prompts.
 
 You can define separate templates for prompt and system messages:
 
@@ -311,7 +322,7 @@ or you can define multi-message prompts in the messages field
 ```ts
 const hello = ai.definePrompt({
   name: 'hello',
-  messages: '{{ role "system" }}talk like a pirate. {{ role "user" }} hello {{ name }}',
+  messages: '{{ role "system" }} talk like a pirate. {{ role "user" }} hello {{ name }}',
   input: {
     schema: z.object({
       name: z.string()
