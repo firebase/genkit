@@ -57,6 +57,10 @@ var (
 			Versions: []string{"gemini-1.5-flash-8b-latest", "gemini-1.5-flash-8b-001"},
 			Supports: &gemini.Multimodal,
 		},
+		"gemini-2.0-flash": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}

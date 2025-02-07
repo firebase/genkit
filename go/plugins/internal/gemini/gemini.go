@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package gemini contains code that is common to both the googleai and vertexai plugins.
 // Most most cannot be shared in this way because the import paths are different.
 package gemini

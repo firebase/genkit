@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -88,8 +87,7 @@ func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model
 
 			presp, err := ragDataMenuPrompt.Generate(
 				ctx, g,
-				dotprompt.WithInput(questionInput),
-				nil)
+				dotprompt.WithInput(questionInput))
 			if err != nil {
 				return nil, err
 			}
