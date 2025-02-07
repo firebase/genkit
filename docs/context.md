@@ -1,7 +1,7 @@
 # Passing information through context
 
-There are different categories of information that an LLM may be handling
-simultaneously:
+There are different categories of information that a developer working
+with an LLM may be handling simultaneously:
 
 - **Input:** Information that is directly relevant to guide the LLM's response
   for a particular call. An example of this is the text that needs to be
