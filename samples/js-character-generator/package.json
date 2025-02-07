@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npx tsc",
-    "dev": "npx genkit start -- npx tsx --watch index.ts"
+    "genkit:dev": "npx genkit start -- npx tsx --watch index.ts"
   },
   "keywords": [],
   "author": "",
