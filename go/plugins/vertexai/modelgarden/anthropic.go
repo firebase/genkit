@@ -4,25 +4,13 @@
 package modelgarden
 
 import (
-	"sync"
+	"log"
 
-	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 )
 
-const (
-	provider    = "vertexai"
-	labelPrefix = "Claude"
-)
-
-var state struct {
-	gclient, pclient *genai.Client
-	mu               sync.Mutex
-	initted          bool
-}
-
-var supportedModels = map[string]ai.ModelInfo{
+var AnthropicModels = map[string]ai.ModelInfo{
 	"claude-3-5-sonnet-v2": {
 		Label:    "Vertex AI Model Garden - Claude 3.5 Sonnet",
 		Supports: &gemini.Multimodal,
@@ -48,4 +36,21 @@ var supportedModels = map[string]ai.ModelInfo{
 		Supports: &gemini.Multimodal,
 		Versions: []string{"claude-3-opus@20240229"},
 	},
+}
+
+type AnthropicCloudClient struct {
+	region  string
+	project string
+}
+
+var AnthropicClient = func(region string, project string) (Client, error) {
+	return &AnthropicCloudClient{
+		region:  region,
+		project: project,
+	}, nil
+}
+
+func (a *AnthropicCloudClient) DefineModel(name string, info *ai.ModelInfo) error {
+	log.Printf("created an anthropic model: %s, versions: %#v", name, info.Versions)
+	return nil
 }
