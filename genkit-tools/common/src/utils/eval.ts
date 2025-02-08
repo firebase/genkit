@@ -37,9 +37,12 @@ import {
   EvaluationDatasetSchema,
   EvaluationSample,
   EvaluationSampleSchema,
+  GenerateRequest,
+  GenerateRequestSchema,
   InferenceDatasetSchema,
   InferenceSample,
   InferenceSampleSchema,
+  MessageData,
 } from '../types';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
@@ -329,4 +332,32 @@ export async function hasAction(params: {
   const actionsRecord = await manager.listActions();
 
   return actionsRecord.hasOwnProperty(actionRef);
+}
+
+/** Helper function that maps string data to GenerateRequest */
+export function getModelInput(data: any, modelConfig: any): GenerateRequest {
+  let message: MessageData;
+  if (typeof data === 'string') {
+    message = {
+      role: 'user',
+      content: [
+        {
+          text: data,
+        },
+      ],
+    } as MessageData;
+    return {
+      messages: message ? [message] : [],
+      config: modelConfig,
+    };
+  } else {
+    const maybeRequest = GenerateRequestSchema.safeParse(data);
+    if (maybeRequest.success) {
+      return maybeRequest.data;
+    } else {
+      throw new Error(
+        `Unable to parse model input as MessageSchema. Details: ${maybeRequest.error}`
+      );
+    }
+  }
 }

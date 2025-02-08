@@ -25,7 +25,6 @@ import {
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
-import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
@@ -227,10 +226,11 @@ async function generate(
   // check to make sure we don't have overlapping tool names *before* generation
   await assertValidToolNames(tools);
 
-  const { revisedRequest, interruptedResponse } = await resolveResumeOption(
-    registry,
-    rawRequest
-  );
+  const {
+    revisedRequest,
+    interruptedResponse,
+    toolMessage: resumedToolMessage,
+  } = await resolveResumeOption(registry, rawRequest);
   // NOTE: in the future we should make it possible to interrupt a restart, but
   // at the moment it's too complicated because it's not clear how to return a
   // response that amends history but doesn't generate a new message, so we throw
@@ -260,7 +260,7 @@ async function generate(
     role: Role,
     chunk: GenerateResponseChunkData
   ): GenerateResponseChunk => {
-    if (role !== chunkRole) messageIndex++;
+    if (role !== chunkRole && previousChunks.length) messageIndex++;
     chunkRole = role;
 
     const prevToSend = [...previousChunks];
@@ -275,6 +275,12 @@ async function generate(
   };
 
   const streamingCallback = getStreamingCallback(registry);
+
+  // if resolving the 'resume' option above generated a tool message, stream it.
+  if (resumedToolMessage && streamingCallback) {
+    streamingCallback(makeChunk('tool', resumedToolMessage));
+  }
+
   const response = await runWithStreamingCallback(
     registry,
     streamingCallback &&
@@ -393,12 +399,12 @@ async function actionToGenerateRequest(
     config: options.config,
     docs: options.docs,
     tools: resolvedTools?.map(toToolDefinition) || [],
-    output: {
-      ...(resolvedFormat?.config || {}),
-      schema: toJsonSchema({
-        jsonSchema: options.output?.jsonSchema,
-      }),
-    },
+    output: stripUndefinedProps({
+      constrained: options.output?.constrained,
+      contentType: options.output?.contentType,
+      format: options.output?.format,
+      schema: options.output?.jsonSchema,
+    }),
   };
   if (options.toolChoice) {
     out.toolChoice = options.toolChoice;

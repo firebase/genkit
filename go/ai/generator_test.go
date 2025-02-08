@@ -23,30 +23,46 @@ type GameCharacter struct {
 
 var r, _ = registry.New()
 
-var echoModel = DefineModel(r, "test", "echo", nil, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
-	if msc != nil {
-		msc(ctx, &ModelResponseChunk{
-			Content: []*Part{NewTextPart("stream!")},
-		})
+// echoModel attributes
+var (
+	modelName = "echo"
+	metadata  = ModelInfo{
+		Label: modelName,
+		Supports: &ModelInfoSupports{
+			Multiturn:  true,
+			Tools:      true,
+			SystemRole: true,
+			Media:      false,
+		},
+		Versions: []string{"echo-001", "echo-002"},
 	}
-	textResponse := ""
-	for _, m := range gr.Messages {
-		if m.Role == RoleUser {
-			textResponse += m.Content[0].Text
+
+	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+		if msc != nil {
+			msc(ctx, &ModelResponseChunk{
+				Content: []*Part{NewTextPart("stream!")},
+			})
 		}
-	}
-	return &ModelResponse{
-		Request: gr,
-		Message: NewUserTextMessage(textResponse),
-	}, nil
-})
+		textResponse := ""
+		for _, m := range gr.Messages {
+			if m.Role == RoleUser {
+				textResponse += m.Content[0].Text
+			}
+		}
+		return &ModelResponse{
+			Request: gr,
+			Message: NewUserTextMessage(textResponse),
+		}, nil
+	})
+)
 
 // with tools
 var gablorkenTool = DefineTool(r, "gablorken", "use when need to calculate a gablorken",
 	func(ctx *ToolContext, input struct {
 		Value float64
 		Over  float64
-	}) (float64, error) {
+	},
+	) (float64, error) {
 		return math.Pow(input.Value, input.Over), nil
 	},
 )
@@ -536,9 +552,36 @@ func TestGenerate(t *testing.T) {
 	})
 }
 
+func TestModelVersion(t *testing.T) {
+	t.Run("valid version", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(echoModel),
+			WithConfig(&GenerationCommonConfig{
+				Temperature: 1,
+				Version:     "echo-001",
+			}),
+			WithTextPrompt("tell a joke about batman"))
+		if err != nil {
+			t.Errorf("model version should be valid")
+		}
+	})
+	t.Run("invalid version", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(echoModel),
+			WithConfig(&GenerationCommonConfig{
+				Temperature: 1,
+				Version:     "echo-im-not-a-version",
+			}),
+			WithTextPrompt("tell a joke about batman"))
+		if err == nil {
+			t.Errorf("model version should be invalid: %v", err)
+		}
+	})
+}
+
 func TestIsDefinedModel(t *testing.T) {
 	t.Run("should return true", func(t *testing.T) {
-		if IsDefinedModel(r, "test", "echo") != true {
+		if IsDefinedModel(r, "test", modelName) != true {
 			t.Errorf("IsDefinedModel did not return true")
 		}
 	})
@@ -551,7 +594,7 @@ func TestIsDefinedModel(t *testing.T) {
 
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
-		if LookupModel(r, "test", "echo") == nil {
+		if LookupModel(r, "test", modelName) == nil {
 			t.Errorf("LookupModel did not return model")
 		}
 	})

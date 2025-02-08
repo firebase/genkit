@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -53,7 +52,6 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := dataMenuPrompt.Generate(ctx, g,
 				dotprompt.WithInput(input),
-				nil,
 			)
 			if err != nil {
 				return nil, err

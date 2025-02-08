@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
@@ -147,6 +146,10 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest,
 func (p *Prompt) Register(g *genkit.Genkit) error {
 	if p.prompt != nil {
 		return nil
+	}
+
+	if p.ModelName != "" && p.Model != nil {
+		return errors.New("dotprompt.Register: config must specify exactly one of ModelName and Model")
 	}
 
 	name := p.Name

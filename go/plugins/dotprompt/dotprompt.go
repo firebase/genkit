@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package dotprompt parses and renders dotprompt files.
 package dotprompt
 
@@ -267,7 +266,7 @@ func parseFrontmatter(g *genkit.Genkit, data []byte) (name string, c Config, res
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
 func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (*Prompt, error) {
-	p, err := New(name, templateText, Config{ModelName: g.Opts.DefaultModel})
+	p, err := New(name, templateText, Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -279,6 +278,11 @@ func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (
 		}
 	}
 
+	// fallback to default model name if no model was specified
+	if p.Config.ModelName == "" && p.Config.Model == nil {
+		p.Config.ModelName = g.Opts.DefaultModel
+	}
+
 	p.Register(g)
 	return p, nil
 }
@@ -287,9 +291,6 @@ func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
-	if cfg.ModelName != "" && cfg.Model != nil {
-		return nil, errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
-	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))
 	return newPrompt(name, templateText, hash, cfg)
 }

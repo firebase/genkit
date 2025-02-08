@@ -155,6 +155,10 @@ export class Genkit implements HasRegistry {
   /** List of flows that have been registered in this instance. */
   readonly flows: Action<any, any, any>[] = [];
 
+  get apiStability() {
+    return this.registry.apiStability;
+  }
+
   constructor(options?: GenkitOptions) {
     this.options = options || {};
     this.registry = new Registry();

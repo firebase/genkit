@@ -14,21 +14,49 @@
  * limitations under the License.
  */
 
+import { RequestData } from '@genkit-ai/core';
 import * as assert from 'assert';
 import express from 'express';
-import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
+import {
+  GenerateResponseData,
+  Genkit,
+  UserFacingError,
+  genkit,
+  z,
+} from 'genkit';
 import { runFlow, streamFlow } from 'genkit/beta/client';
+import { ContextProvider } from 'genkit/context';
 import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import * as http from 'http';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
   FlowServer,
-  RequestWithAuth,
   expressHandler,
   startFlowServer,
-  withAuth,
+  withContextProvider,
 } from '../src/index.js';
+
+interface Context {
+  auth: {
+    user: string;
+  };
+}
+
+const contextProvider: ContextProvider<Context> = (req: RequestData) => {
+  assert.ok(req.method, 'method must be set');
+  assert.ok(req.headers, 'headers must be set');
+  assert.ok(req.input, 'input must be set');
+
+  if (req.headers['authorization'] !== 'open sesame') {
+    throw new UserFacingError('PERMISSION_DENIED', 'not authorized');
+  }
+  return {
+    auth: {
+      user: 'Ali Baba',
+    },
+  };
+};
 
 describe('expressHandler', async () => {
   let server: http.Server;
@@ -82,7 +110,7 @@ describe('expressHandler', async () => {
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
-        return `${input.question} - ${JSON.stringify(context.auth)}`;
+        return `${input.question} - ${JSON.stringify(context!.auth)}`;
       }
     );
 
@@ -96,54 +124,13 @@ describe('expressHandler', async () => {
     app.post('/streamingFlow', expressHandler(streamingFlow));
     app.post(
       '/flowWithAuth',
-      async (req, resp, next) => {
-        (req as RequestWithAuth).auth = {
-          user:
-            req.header('authorization') === 'open sesame'
-              ? 'Ali Baba'
-              : '40 thieves',
-        };
-        next();
-      },
-      expressHandler(flowWithAuth, {
-        authPolicy: ({ auth, action, input, request }) => {
-          assert.ok(auth, 'auth must be set');
-          assert.ok(action, 'flow must be set');
-          assert.ok(input, 'input must be set');
-          assert.ok(request, 'request must be set');
-
-          if (auth.user !== 'Ali Baba') {
-            throw new Error('not authorized');
-          }
-        },
-      })
+      expressHandler(flowWithAuth, { contextProvider })
     );
-
     // Can also expose any action.
     app.post('/echoModel', expressHandler(echoModel));
     app.post(
       '/echoModelWithAuth',
-      async (req, resp, next) => {
-        (req as RequestWithAuth).auth = {
-          user:
-            req.header('authorization') === 'open sesame'
-              ? 'Ali Baba'
-              : '40 thieves',
-        };
-        next();
-      },
-      expressHandler(echoModel, {
-        authPolicy: ({ auth, action, input, request }) => {
-          assert.ok(auth, 'auth must be set');
-          assert.ok(action, 'flow must be set');
-          assert.ok(input, 'input must be set');
-          assert.ok(request, 'request must be set');
-
-          if (auth.user !== 'Ali Baba') {
-            throw new Error('not authorized');
-          }
-        },
-      })
+      expressHandler(echoModel, { contextProvider })
     );
 
     server = app.listen(port, () => {
@@ -213,7 +200,7 @@ describe('expressHandler', async () => {
           question: 'hello',
         },
         headers: {
-          Authorization: 'thieve #24',
+          Authorization: 'thief #24',
         },
       });
       await assert.rejects(result, (err) => {
@@ -264,7 +251,7 @@ describe('expressHandler', async () => {
           ],
         },
         headers: {
-          Authorization: 'thieve #24',
+          Authorization: 'thief #24',
         },
       });
       await assert.rejects(result, (err) => {
@@ -336,7 +323,7 @@ describe('startFlowServer', async () => {
 
   beforeEach(async () => {
     const ai = genkit({});
-    const echoModel = defineEchoModel(ai);
+    defineEchoModel(ai);
 
     const voidInput = ai.defineFlow('voidInput', async () => {
       return 'banana';
@@ -382,7 +369,7 @@ describe('startFlowServer', async () => {
         inputSchema: z.object({ question: z.string() }),
       },
       async (input, { context }) => {
-        return `${input.question} - ${JSON.stringify(context.auth)}`;
+        return `${input.question} - ${JSON.stringify(context!.auth)}`;
       }
     );
 
@@ -394,28 +381,7 @@ describe('startFlowServer', async () => {
         stringInput,
         objectInput,
         streamingFlow,
-        withAuth(
-          flowWithAuth,
-          async (req, resp, next) => {
-            (req as RequestWithAuth).auth = {
-              user:
-                req.header('authorization') === 'open sesame'
-                  ? 'Ali Baba'
-                  : '40 thieves',
-            };
-            return next();
-          },
-          ({ auth, action, input, request }) => {
-            assert.ok(auth, 'auth must be set');
-            assert.ok(action, 'flow must be set');
-            assert.ok(input, 'input must be set');
-            assert.ok(request, 'request must be set');
-
-            if (auth.user !== 'Ali Baba') {
-              throw new Error('not authorized');
-            }
-          }
-        ),
+        withContextProvider(flowWithAuth, contextProvider),
       ],
       port,
     });
@@ -483,7 +449,7 @@ describe('startFlowServer', async () => {
           question: 'hello',
         },
         headers: {
-          Authorization: 'thieve #24',
+          Authorization: 'thief #24',
         },
       });
       await assert.rejects(result, (err) => {

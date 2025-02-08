@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -76,7 +75,7 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 			presp, err := readMenuPrompt.Generate(ctx, g,
 				dotprompt.WithInput(&imageURLInput{
 					ImageURL: imageDataURL,
-				}), nil)
+				}))
 			if err != nil {
 				return "", err
 			}
@@ -90,7 +89,7 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 	// Just returns the LLM's text response to the question.
 	textMenuQuestionFlow := genkit.DefineFlow(g, "s05_textMenuQuestion",
 		func(ctx context.Context, input *textMenuQuestionInput) (*answerOutput, error) {
-			presp, err := textMenuPrompt.Generate(ctx, g, dotprompt.WithInput(input), nil)
+			presp, err := textMenuPrompt.Generate(ctx, g, dotprompt.WithInput(input))
 			if err != nil {
 				return nil, err
 			}

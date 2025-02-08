@@ -109,8 +109,8 @@ Here's an example of a flow that supports streaming:
 *   The `streamSchema` option specifies the type of values your flow streams.
     This does not necessarily need to be the same type as the `outputSchema`,
     which is the type of the flow's complete output.
-*   The second parameter to your flow definition is called "sideChannel". It provides
-    multiple useful features, such as request context and the `sendChunk` callback.
+*   The second parameter to your flow definition is called `sideChannel`. It
+    provides features such as request context and the `sendChunk` callback.
     The `sendChunk` callback takes a single parameter, of
     the type specified by `streamSchema`. Whenever data becomes available within
     your flow, send the data to the output stream by calling this function.
@@ -240,8 +240,9 @@ but this section gives brief overviews of your deployment options.
 
 ### Cloud Functions for Firebase
 
-To deploy flows with Cloud Functions for Firebase, use the `onCallGenkit` feature of `firebase-functions/https`.
-This will wrap your flow in a callable function. You may set an auth policy and configure App Check.
+To deploy flows with Cloud Functions for Firebase, use the `onCallGenkit`
+feature of `firebase-functions/https`. `onCallGenkit` wraps your flow in a
+callable function. You may set an auth policy and configure App Check.
 
 ```ts
 {% includecode github_path="firebase/genkit/js/doc-snippets/src/flows/firebase.ts" region_tag="ex" adjust_indentation="auto" %}

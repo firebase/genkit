@@ -121,7 +121,7 @@ export const ModelInfoSchema = z.object({
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
       /** Model can natively support constrained generation. */
-      constrained: z.boolean().optional(),
+      constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
     })
@@ -297,6 +297,7 @@ export const GenerateActionOptionsSchema = z.object({
       contentType: z.string().optional(),
       instructions: z.union([z.boolean(), z.string()]).optional(),
       jsonSchema: z.any().optional(),
+      constrained: z.boolean().optional(),
     })
     .optional(),
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
