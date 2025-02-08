@@ -13,7 +13,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
-func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
+func menu(ctx *ai.ToolContext, _ *any) ([]*menuItem, error) {
 	f, err := os.Open("testdata/menu.json")
 	if err != nil {
 		return nil, err
