@@ -15,7 +15,7 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-const provider = "local"
+const provider = ""
 
 // A ToolDef is an implementation of a single tool.
 type ToolDef[In, Out any] struct {
