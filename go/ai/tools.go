@@ -55,7 +55,7 @@ type InterruptOptions struct {
 
 // ToolContext provides context and utility functions for tool execution.
 type ToolContext struct {
-	Context   context.Context
+	context.Context
 	Interrupt func(opts *InterruptOptions) error
 }
 
