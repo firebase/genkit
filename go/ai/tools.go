@@ -153,5 +153,5 @@ func runAction(ctx context.Context, action Tool, input any) (any, error) {
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
 func LookupTool(r *registry.Registry, name string) Tool {
-	return &toolAction{action: r.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
+	return &toolAction{action: r.LookupAction(fmt.Sprintf("/tool/%s", name))}
 }
