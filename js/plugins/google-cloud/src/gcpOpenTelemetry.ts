@@ -198,17 +198,6 @@ export class GcpOpenTelemetry {
           )
         )
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
-    exporter.selectAggregation = (instrumentType: InstrumentType) => {
-      if (instrumentType === InstrumentType.HISTOGRAM) {
-        return new ExponentialHistogramAggregation();
-      }
-      return new DefaultAggregation();
-    };
-    exporter.selectAggregationTemporality = (
-      instrumentType: InstrumentType
-    ) => {
-      return AggregationTemporality.DELTA;
-    };
     return exporter;
   }
 }
@@ -218,7 +207,7 @@ export class GcpOpenTelemetry {
  * helpful information about how to set up metrics/telemetry in GCP.
  */
 class MetricExporterWrapper extends MetricExporter {
-  private inFlightExports = 0;
+  private promise = new Promise<void>((resolve) => resolve());
 
   constructor(
     options?: ExporterOptions,
@@ -227,20 +216,56 @@ class MetricExporterWrapper extends MetricExporter {
     super(options);
   }
 
-  export(
+  async export(
     metrics: ResourceMetrics,
     resultCallback: (result: ExportResult) => void
-  ): void {
-    this.inFlightExports++;
-    super.export(metrics, (result) => {
-      try {
-        if (this.errorHandler && result.error) {
-          this.errorHandler(result.error);
+  ): Promise<void> {
+    await this.promise;
+    this.modifyStartTimes(metrics);
+    this.promise = new Promise<void>((resolve) => {
+      super.export(metrics, (result) => {
+        try {
+          if (this.errorHandler && result.error) {
+            this.errorHandler(result.error);
+          }
+          resultCallback(result);
+        } finally {
+          resolve();
         }
-        resultCallback(result);
-      } finally {
-        this.inFlightExports--;
-      }
+      });
+    });
+  }
+
+  selectAggregation(instrumentType: InstrumentType) {
+    if (instrumentType === InstrumentType.HISTOGRAM) {
+      return new ExponentialHistogramAggregation();
+    }
+    return new DefaultAggregation();
+  }
+
+  selectAggregationTemporality(instrumentType: InstrumentType) {
+    return AggregationTemporality.DELTA;
+  }
+
+  /**
+   * Modify the start times of each data point to ensure no
+   * overlap with previous exports.
+   *
+   * Cloud metrics do not support delta metrics for custom metrics
+   * and will convert any DELTA aggregations to CUMULATIVE ones on
+   * export. There is implicit overlap in the start/end times that
+   * the Metric reader is sending -- the end_time of the previous
+   * export will become the start_time of the current export. This
+   * method adds a thousandth of a second to ensure discrete export
+   * timeframes.
+   */
+  private modifyStartTimes(metrics: ResourceMetrics): void {
+    metrics.scopeMetrics.forEach((scopeMetric) => {
+      scopeMetric.metrics.forEach((metric) => {
+        metric.dataPoints.forEach((dataPoint) => {
+          dataPoint.startTime[1] = dataPoint.startTime[1] + 1_000_000;
+        });
+      });
     });
   }
 
@@ -249,27 +274,7 @@ class MetricExporterWrapper extends MetricExporter {
   }
 
   async forceFlush(): Promise<void> {
-    const allExported = await this.waitForMetricsExport();
-    if (!allExported) {
-      logger.error(
-        'Timed out while waiting for metrics to export. Metrics may be incomplete.'
-      );
-    }
-  }
-
-  async waitForMetricsExport(): Promise<boolean> {
-    // Wait for 10 seconds before bailing.
-    var maxRetries = 20;
-    const retryInterval = 500;
-
-    while (maxRetries > 0) {
-      if (this.inFlightExports === 0) {
-        return true;
-      }
-      maxRetries--;
-      await new Promise((resolve) => setTimeout(resolve, retryInterval));
-    }
-    return false;
+    await this.promise;
   }
 }
 
