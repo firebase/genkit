@@ -31,12 +31,8 @@ const (
 	Anthropic string = "anthropic"
 )
 
-// Function type for creating clients from supported providers
-type ClientCreator func(region string, project string) (Client, error)
-
 // Basic client configuration
 type ClientConfig struct {
-	Creator  ClientCreator
 	Provider string
 	Project  string
 	Region   string

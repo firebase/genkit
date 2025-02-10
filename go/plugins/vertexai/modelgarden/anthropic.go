@@ -44,6 +44,7 @@ type AnthropicCloudClient struct {
 }
 
 var AnthropicClient = func(region string, project string) (Client, error) {
+	// TODO find a way to init Anthropic client (SDK)
 	return &AnthropicCloudClient{
 		region:  region,
 		project: project,
