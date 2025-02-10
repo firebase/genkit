@@ -28,16 +28,16 @@ Here is a minimal, console-based, chatbot application:
 
 ```ts
 import { genkit } from "genkit/beta";
-import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
+import { googleAI, gemini20Flash } from "@genkit-ai/googleai";
 
 import { createInterface } from "node:readline/promises";
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash,
+  model: gemini20Flash,
 });
 
-(async () => {
+async function main() {
   const chat = ai.chat();
   console.log("You're chatting with Gemini. Ctrl-C to quit.\n");
   const readline = createInterface(process.stdin, process.stdout);
@@ -46,7 +46,9 @@ const ai = genkit({
     const { text } = await chat.send(userInput);
     console.log(text);
   }
-})();
+}
+
+main();
 ```
 
 A chat session with this program looks something like the following example:
