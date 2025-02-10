@@ -1,6 +1,3 @@
-<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
-use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
-
 # Authorization and integrity
 
 When building any public-facing application, it's extremely important to protect
@@ -15,7 +12,7 @@ Alternatively, Firebase also provides auth context into the flow where it can
 do its own  checks. For non-Functions flows, auth can be managed and set
 through middleware.
 
-## Authorizing within a Flow
+## Authorize within a Flow {:# authorize-within-flow}
 
 Flows can check authorization in two ways: either the request binding
 (e.g. `onCallGenkit` for Cloud Functions for Firebase or `express`) can enforce
@@ -112,15 +109,15 @@ object in the UI, or on the command line with the `--context` flag:
 genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --context '{"auth": {"email_verified": true}}'
 ```
 
-## Authorizing with Cloud Functions for Firebase
+## Authorize using Cloud Functions for Firebase {:# authoring-using-cff}
 
 The Cloud Functions for Firebase SDKs support Genkit including
 integration with Firebase Auth / Google Cloud Identity Platform, as well as
 built-in Firebase App Check support.
 
 ### User authentication
-The `onCallGenkit()` wrapper provided by the Firebase Functions library works
-natively with the Cloud Functions for Firebase
+The `onCallGenkit()` wrapper provided by the Firebase Functions library has
+built-in support for the Cloud Functions for Firebase
 [client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function).
 When you use these SDKs, the Firebase Auth header is automatically included as
 long as your app client is also using the
@@ -227,15 +224,17 @@ export const selfSummary = onCallGenkit({
 
 When deploying flows to a server context outside of Cloud Functions for
 Firebase, you'll want to have a way to set up your own authorization checks
-alongside the native flows.
+alongside the built-in flows.
 
-Use a `ContextProvider`, which both populates context values such as `auth` as well
-as allowing you to provide a declarative policy or a policy callback. The genkit
-SDK provides `ContextProvider` such as `apiKey`, and plugins may expose them as well,
-such as `@genkit-ai/firebase/context` which can be used to build Firebase apps with
-backends that are not Cloud Functions for Firebase.
+Use a `ContextProvider` to populate context values such as `auth`, and to
+provide a declarative policy or a policy callback. The Genkit
+SDK provides `ContextProvider`s such as `apiKey`, and plugins may
+expose them as well. For example, the `@genkit-ai/firebase/context` plugin
+exposes a context provider for verifying Firebase Auth credentials and
+populating them into context.
 
-Given the snippet common to all kinds of applications:
+With code like the following, which might appear in a variety of
+applications:
 
 ```ts
 // Express app with a simple API key
@@ -255,7 +254,7 @@ export const selfSummaryFlow = ai.defineFlow(
 );
 ```
 
-You could secure a simple "flow server" express app with:
+You could secure a simple "flow server" express app by writing:
 
 ```ts
 import { apiKey } from "genkit";
@@ -268,7 +267,7 @@ startFlowServer({
 });
 ```
 
-Or you can build a custom express application using the same tools:
+Or you could build a custom express application using the same tools:
 
 ```ts
 import { apiKey } from "genkit";
@@ -284,7 +283,7 @@ app.listen(process.env.PORT, () => {
 })
 ```
 
-`ContextProvider`s are intended to be abstract of any web framework, so these
+`ContextProvider`s abstract out the web framework, so these
 tools work in other frameworks like Next.js as well. Here is an example of a
 Firebase app built on Next.js.
 
