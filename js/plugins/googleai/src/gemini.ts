@@ -61,7 +61,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
-import process from 'process';
+import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -591,11 +591,11 @@ export function defineGoogleAIModel(
   defaultConfig?: GeminiConfig
 ): ModelAction {
   if (!apiKey) {
-    apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
+    apiKey = getApiKeyFromEnvVar();
   }
   if (!apiKey) {
     throw new Error(
-      'Please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+      'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
         'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
     );
   }
