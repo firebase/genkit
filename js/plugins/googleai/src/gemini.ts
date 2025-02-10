@@ -336,7 +336,7 @@ function convertSchemaProperty(property) {
   }
 }
 
-function toGeminiTool(
+export function toGeminiTool(
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration {
   const declaration: FunctionDeclaration = {
@@ -833,7 +833,7 @@ export function defineGoogleAIModel(
 }
 
 /** Converts mode from the config, which follows Gemini naming convention. */
-function toFunctionModeEnum(
+export function toFunctionModeEnum(
   configEnum: string | undefined
 ): FunctionCallingMode | undefined {
   if (configEnum === undefined) {
@@ -858,7 +858,7 @@ function toFunctionModeEnum(
 }
 
 /** Converts mode from genkit tool choice. */
-function toGeminiFunctionModeEnum(
+export function toGeminiFunctionModeEnum(
   genkitMode: 'auto' | 'required' | 'none'
 ): FunctionCallingMode | undefined {
   if (genkitMode === undefined) {
