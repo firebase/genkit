@@ -315,6 +315,23 @@ export const gemini15Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini20Flash = modelRef({
+  name: 'vertexai/gemini-2.0-flash',
+  info: {
+    label: 'Vertex AI - Gemini 2.0 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini20Flash001 = modelRef({
   name: 'vertexai/gemini-2.0-flash-001',
   info: {
@@ -388,6 +405,7 @@ export const SUPPORTED_V1_MODELS = {
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
+  'gemini-2.0-flash': gemini20Flash,
   'gemini-2.0-flash-001': gemini20Flash001,
   'gemini-2.0-flash-lite-preview-02-05': gemini20FlashLitePreview0205,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
