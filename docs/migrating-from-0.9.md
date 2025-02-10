@@ -75,10 +75,14 @@ startFlowServer({
 ## Changes to Flows
 
 There are several changes to flows in 1.0:
- - `ai.defineStreamingFlow` consilidated into `ai.defineFlow`,
- - `onFlow` replaced by `onCallGenkit`,
- - `run` moved to `ai.run`,
- - changes to working with auth.
+
+<ul>
+  <li>`ai.defineStreamingFlow` consilidated into `ai.defineFlow`,</li>
+  <li>`onFlow` replaced by `onCallGenkit`,</li>
+  <li>`run` moved to `ai.run`,</li>
+  <li>changes to working with auth.</li>
+</ul>
+
 
 The `run` function for custom trace blocks has moved to part of the `genkit` object, invoke it with `ai.run` instead
 
