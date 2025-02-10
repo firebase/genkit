@@ -1,21 +1,25 @@
-# Migrating from 0.9
+# Migrate from 0.9 to 1.0
 
-Genkit 1.0 introduces many feature enhancements that improve overall functionality as well as some breaking changes. If you have been developing applications with Genkit 0.9, you will need to update your application code when you upgrade to the latest version. This guide outlines the most significant changes and offers steps to migrate your existing applications smoothly.
-If you're using 0.5, use the [0.5 to 0.9 migration guide](https://firebase.google.com/docs/genkit/migrating-from-0.5) to upgrade to 0.9 first before upgrading to 1.0
-
+Genkit 1.0 introduces many feature enhancements that improve overall
+functionality; it also has some breaking changes. If you have been developing
+applications with Genkit 0.9, you need to update your application code when you
+upgrade to the latest version of Genkit. This guide outlines the most
+significant changes, and explains how to migrate your existing applications
+smoothly.
 
 ## Beta APIs
 
-We're introducing an unstable, Beta API channel, and leaving session, chat and Genkit client APIs in beta as we continue to refine them. More specifically the following functions are currently in the beta namespace:
+We're introducing an unstable, Beta API channel, and leaving session, chat and Genkit client APIs in beta as we continue to refine them. More specifically, the following functions are currently in the `beta` namespace:
 
- * `ai.chat`
- * `ai.createSession`
- * `ai.loadSession`
- * `ai.currentSession`
- * `ai.defineFormat`
- * `ai.defineInterrupt`
+* `ai.chat`
+* `ai.createSession`
+* `ai.loadSession`
+* `ai.currentSession`
+* `ai.defineFormat`
+* `ai.defineInterrupt`
 
-Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking changes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
+Note: When using the APIs as part of the Beta API, you may experience breaking
+changes outside of SemVer. Breaking changes may occur on minor releases.
 
 **Old:**
 
@@ -47,12 +51,12 @@ import { runFlow, streamFlow } from 'genkit/beta/client';
 
 ## Introducing new `@genkit-ai/express` package
 
-This new package contains utilities to make it easier to build an Express.js server with Genkit.
+This new package contains utilities to make it easier to build an Express.js server with Genkit. You can find more details about this on
+[this page](https://js.api.genkit.dev/modules/_genkit-ai_express.html).
 
-Refer to https://js.api.genkit.dev/modules/_genkit-ai_express.html for more details.
-
-`startFlowServer` has moved from part of the genkit object to this new `@genkit-ai/express` package, to use startFlowServer, update your imports.
-
+`startFlowServer` has moved from part of the genkit object to this new
+`@genkit-ai/express` package; to use startFlowServer, you must
+update your imports.
 
 **Old:**
 
@@ -76,15 +80,12 @@ startFlowServer({
 
 There are several changes to flows in 1.0:
 
-<ul>
-  <li>`ai.defineStreamingFlow` consilidated into `ai.defineFlow`,</li>
-  <li>`onFlow` replaced by `onCallGenkit`,</li>
-  <li>`run` moved to `ai.run`,</li>
-  <li>changes to working with auth.</li>
-</ul>
+* `ai.defineStreamingFlow` has been consolidated into `ai.defineFlow`,
+* `onFlow` has been replaced by `onCallGenkit`,
+* `run` has moved to `ai.run`,
+* There are changes to working with auth.
 
-
-The `run` function for custom trace blocks has moved to part of the `genkit` object, invoke it with `ai.run` instead
+The `run` function for custom trace blocks has moved to part of the `genkit` object; use `ai.run` to invoke it instead.
 
 **Old:**
 
@@ -106,7 +107,9 @@ ai.defineFlow({name: 'banana'}, async (input) => {
 })
 ```
 
-`ai.defineStreamingFlow` has been removed. Use `ai.defineFlow` instead. Also, `streamingCallback` moved to a field inside the second argument of he flow function and is now called `sendChunk`.
+`ai.defineStreamingFlow` has been removed; use `ai.defineFlow` instead. Also,
+`streamingCallback` has moved to a field inside the second argument of the flow
+function and is now called `sendChunk`.
 
 **Old:**
 
@@ -153,7 +156,8 @@ ai.defineFlow({name: 'banana'}, async (input, { context }) => {
 })
 ```
 
-`onFlow` moved to `firebase-functions/https` package and got renamed to `onCallGenkit`. Here's how to use it:
+`onFlow` moved to `firebase-functions/https` package and has been renamed to
+`onCallGenkit`. The following snippet shows an example of how to use it.
 
 **Old**
 
@@ -215,7 +219,8 @@ export const jokeTeller = ai.defineFlow(
 export const tellJoke = onCallGenkit({ secrets: [apiKey] }, jokeTeller);
 ```
 
-also, if you've been using auth policies, they've been removed from `defineFlow` and are now handled depending on the server you're using:
+Auth policies have been removed from `defineFlow`. Handling of auth policies
+is now server-dependent.
 
 **Old:**
 
@@ -233,7 +238,7 @@ export const simpleFlow = ai.defineFlow(
 );
 ```
 
-With express you would do something like this:
+The following snippet shows an example of handling auth in Express.
 
 **New:**
 
@@ -279,9 +284,10 @@ startFlowServer(
 );
 ```
 
-Refer to [auth documentation](https://firebase.google.com/docs/genkit/auth) for more details.
+For more details, refer to the [auth documentation](/auth).
 
-or with Cloud Functions for Firebase:
+The following snippet shows an example of handling auth in Cloud Functions
+for Firebase:
 
 ```ts
 import { genkit } from 'genkit';
@@ -311,7 +317,7 @@ You can define separate templates for prompt and system messages:
 const hello = ai.definePrompt({
   name: 'hello',
   system: 'talk like a pirate.',
-  prompt: 'hello {{ name }}',
+  prompt: 'hello {% verbatim %}{{ name }}{% endverbatim %}',
   input: {
     schema: z.object({
       name: z.string()
@@ -321,12 +327,12 @@ const hello = ai.definePrompt({
 const { text } = await hello({name: 'Genkit'});
 ```
 
-or you can define multi-message prompts in the messages field
+Alternatively, you can define multi-message prompts in the messages field:
 
 ```ts
 const hello = ai.definePrompt({
   name: 'hello',
-  messages: '{{ role "system" }} talk like a pirate. {{ role "user" }} hello {{ name }}',
+  messages: '{% verbatim %}{{ role "system" }}{% endverbatim %} talk like a pirate. {% verbatim %}{{ role "user" }}{% endverbatim %} hello {% verbatim %}{{ name }}{% endverbatim %}',
   input: {
     schema: z.object({
       name: z.string()
@@ -335,7 +341,7 @@ const hello = ai.definePrompt({
 });
 ```
 
-instead of prompt templates you can use a function
+Instead of prompt templates you can use a function:
 
 ```ts
 ai.definePrompt({
@@ -351,18 +357,18 @@ ai.definePrompt({
 });
 ```
 
-Note that you can access the context (including auth information) from within the prompt:
+You can access the context (including auth information) from within the prompt:
 
 ```ts
 const hello = ai.definePrompt({
   name: 'hello',
-  messages: 'hello {{ @auth.email }}',
+  messages: 'hello {% verbatim %}{{ @auth.email }}{% endverbatim %}',
 });
 ```
 
 
 
-## Streaming functions do not require an await
+## Streaming functions do not require an `await`
 
 
 **Old:**
@@ -383,8 +389,9 @@ const { stream, output } = myflow.stream(`hi`);
 
 ## Embed has a new return type
 
-We've added support for multimodal embeddings so now instead of returning just a single embedding vector,
-we return an array of embedding objects, each containing an embedding vector and metadata.
+We've added support for multimodal embeddings. Instead of returning just a
+single embedding vector, Embed returns an array of embedding objects, each
+containing an embedding vector and metadata.
 
 **Old:**
 
@@ -398,4 +405,3 @@ const response = await ai.embed({embedder, content, options});  // returns numbe
 const response = await ai.embed({embedder, content, options}); // returns Embedding[]
 const firstEmbeddingVector = response[0].embedding;  // is number[]
 ```
-
