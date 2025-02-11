@@ -21,7 +21,11 @@
   "sort": ["kind", "instance-first", "alphabetical"],
   "sortEntryPoints": true,
   "readme": "index.typedoc.md",
-  "plugin": ["typedoc-plugin-zod", "typedoc-github-theme"],
+  "plugin": [
+    "typedoc-plugin-zod",
+    "typedoc-github-theme",
+    "./typedoc-ga.mjs"
+  ],
   "navigation": {
     "includeCategories": false,
     "includeGroups": false,
@@ -29,5 +33,6 @@
     "compactFolders": false,
     "excludeReferences": true
   },
-  "categorizeByGroup": false
+  "categorizeByGroup": false,
+  "gaID": "G-Y4X57D8XYG"
 }
