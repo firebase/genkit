@@ -21,11 +21,7 @@
   "sort": ["kind", "instance-first", "alphabetical"],
   "sortEntryPoints": true,
   "readme": "index.typedoc.md",
-  "plugin": [
-    "typedoc-plugin-zod",
-    "typedoc-github-theme",
-    "./typedoc-ga.mjs"
-  ],
+  "plugin": ["typedoc-plugin-zod", "typedoc-github-theme", "./typedoc-ga.mjs"],
   "navigation": {
     "includeCategories": false,
     "includeGroups": false,
