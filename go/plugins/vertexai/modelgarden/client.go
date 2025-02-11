@@ -37,14 +37,19 @@ type ClientConfig struct {
 	Region   string
 }
 
+// ClientCreator is a function type that will be defined on every provider in order to create its
+// client
 type ClientCreator func(config any) (Client, error)
 
+// Register adds the client creator function to a cache for later use
 func (f *ClientFactory) Register(provider string, creator ClientCreator) {
 	if _, ok := f.creators[provider]; !ok {
 		f.creators[provider] = creator
 	}
 }
 
+// CreateClient creates a client with the given configuration
+// A [ClientCreator] must have been previously registered
 func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
 	if config == nil {
 		return nil, errors.New("empty client config")
@@ -67,6 +72,7 @@ func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
 	var client Client
 	var err error
 	switch config.Provider {
+	// TODO: add providers when needed
 	case AnthropicProvider:
 		client, err = creator(&AnthropicClientConfig{
 			Region:  config.Region,
