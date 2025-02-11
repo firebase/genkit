@@ -931,8 +931,8 @@ importers:
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
-        specifier: ^0.9.12
-        version: 0.9.12(@google-cloud/firestore@7.11.0(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(firebase-functions@6.3.1(firebase-admin@12.3.1(encoding@0.1.13)))(genkit@genkit)
+        specifier: workspace:*
+        version: link:../../plugins/firebase
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
@@ -2306,19 +2306,6 @@ packages:
 
   '@genkit-ai/core@1.0.0-rc.16':
     resolution: {integrity: sha512-xSc8cnOpwL7Add+XlWt4lEoSAXWpXmaEAOmmk+Qw4YXD4KDrN2k0q4r+e4QW7EhZPEXO5/ITe3SxdugU1AAP4w==}
-
-  '@genkit-ai/firebase@0.9.12':
-    resolution: {integrity: sha512-PbEAPO3GTENaJR5RUqrq88YIVxgkVi2pc82kOCrkJDpw/+PcyRIZcgvbQYSAzB932yVU0sy33zzdUfg9t2thMA==}
-    peerDependencies:
-      '@google-cloud/firestore': ^7.6.0
-      firebase-admin: '>=12.2'
-      firebase-functions: '>=4.8'
-      genkit: 0.9.12
-
-  '@genkit-ai/google-cloud@0.9.12':
-    resolution: {integrity: sha512-hYDvdQmGdI/JC6hUa6hMs6+Kc04wmi+/54zJIB+EOiNLd6fJ193B+q/pHqI4UxvofJPsf9C6VTK5Q54+yyQm7w==}
-    peerDependencies:
-      genkit: 0.9.12
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -7410,43 +7397,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/firebase@0.9.12(@google-cloud/firestore@7.11.0(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(firebase-functions@6.3.1(firebase-admin@12.3.1(encoding@0.1.13)))(genkit@genkit)':
-    dependencies:
-      '@genkit-ai/google-cloud': 0.9.12(encoding@0.1.13)(genkit@genkit)
-      '@google-cloud/firestore': 7.11.0(encoding@0.1.13)
-      express: 4.21.1
-      firebase-admin: 12.3.1(encoding@0.1.13)
-      firebase-functions: 6.3.1(firebase-admin@12.3.1(encoding@0.1.13))
-      genkit: link:genkit
-      google-auth-library: 9.14.2(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@genkit-ai/google-cloud@0.9.12(encoding@0.1.13)(genkit@genkit)':
-    dependencies:
-      '@google-cloud/logging-winston': 6.0.0(encoding@0.1.13)(winston@3.13.0)
-      '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.19.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@1.25.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@google-cloud/opentelemetry-cloud-trace-exporter': 2.4.1(@opentelemetry/api@1.9.0)(@opentelemetry/core@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@1.26.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@google-cloud/opentelemetry-resource-util': 2.4.0(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/auto-instrumentations-node': 0.49.1(@opentelemetry/api@1.9.0)(encoding@0.1.13)
-      '@opentelemetry/core': 1.26.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation': 0.52.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation-pino': 0.41.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation-winston': 0.39.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.26.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-node': 0.52.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 1.26.0(@opentelemetry/api@1.9.0)
-      genkit: link:genkit
-      google-auth-library: 9.14.2(encoding@0.1.13)
-      node-fetch: 3.3.2
-      winston: 3.13.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@gerrit0/mini-shiki@1.24.4':
     dependencies:
       '@shikijs/engine-oniguruma': 1.24.2
@@ -7560,20 +7510,6 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.19.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@1.25.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@google-cloud/opentelemetry-resource-util': 2.4.0(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@google-cloud/precise-date': 4.0.0
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 1.26.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.26.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.0)
-      google-auth-library: 9.14.2(encoding@0.1.13)
-      googleapis: 137.1.0(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@google-cloud/opentelemetry-cloud-trace-exporter@2.4.1(@opentelemetry/api@1.9.0)(@opentelemetry/core@1.25.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@1.25.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
     dependencies:
       '@google-cloud/opentelemetry-resource-util': 2.4.0(@opentelemetry/resources@1.25.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
@@ -7588,32 +7524,9 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google-cloud/opentelemetry-cloud-trace-exporter@2.4.1(@opentelemetry/api@1.9.0)(@opentelemetry/core@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@1.26.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@google-cloud/opentelemetry-resource-util': 2.4.0(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@grpc/grpc-js': 1.10.10
-      '@grpc/proto-loader': 0.7.13
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 1.26.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.26.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 1.26.0(@opentelemetry/api@1.9.0)
-      google-auth-library: 9.14.2(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@google-cloud/opentelemetry-resource-util@2.4.0(@opentelemetry/resources@1.25.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
     dependencies:
       '@opentelemetry/resources': 1.25.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.26.0
-      gcp-metadata: 6.1.0(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@google-cloud/opentelemetry-resource-util@2.4.0(@opentelemetry/resources@1.26.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@opentelemetry/resources': 1.26.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/semantic-conventions': 1.26.0
       gcp-metadata: 6.1.0(encoding@0.1.13)
     transitivePeerDependencies:
