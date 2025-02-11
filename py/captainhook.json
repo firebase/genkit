@@ -34,6 +34,9 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
+          "run": "py/bin/generate_schema_types"
+        },
+        {
           "run": "py/bin/fmt"
         },
         {
@@ -80,6 +83,9 @@
         },
         {
           "run": "pnpm i --frozen-lockfile"
+        },
+        {
+          "run": "py/bin/generate_schema_types"
         },
         {
           "run": "py/bin/fmt"

@@ -26,6 +26,7 @@ dev = [
   "pytest-asyncio>=0.25.2",
   "pytest>=8.3.4",
   "pytest-cov>=6.0.0",
+  "datamodel-code-generator>=0.26.5",
 ]
 lint = ["mypy>=1.14.1", "ruff>=0.9.2"]
 
@@ -86,3 +87,19 @@ quote-style = "single"
 disallow_incomplete_defs = true
 disallow_untyped_defs    = true
 warn_unused_configs      = true
+
+[tool.datamodel-codegen]
+#strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
+#collapse-root-models = true # Don't use; produces Any as types.
+disable-timestamp        = true
+enable-version-header    = true
+field-constraints        = true
+input                    = "../genkit-tools/genkit-schema.json"
+input-file-type          = "jsonschema"
+output                   = "packages/genkit/src/genkit/core/schemas.py"
+output-model-type        = "pydantic_v2.BaseModel"
+strict-nullable          = true
+target-python-version    = "3.12"
+use-schema-description   = true
+use-standard-collections = true
+use-union-operator       = true
