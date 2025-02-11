@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -24,19 +25,25 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *ModelGardenOptions) error 
 	for _, m := range cfg.Models {
 		// ANTHROPIC
 		if info, ok := AnthropicModels[m]; ok {
+			clients.Register("anthropic", Anthropic)
+
 			anthropicClient, err := clients.CreateClient(&ClientConfig{
 				Provider: "anthropic",
-				Project:  "anthropic-project",
-				Region:   "us-west-1",
+				Project:  cfg.ProjectID,
+				Region:   cfg.Region,
 			})
 			if err != nil {
 				return fmt.Errorf("unable to create client: %v", err)
 			}
 
-			anthropicClient.DefineModel(m, &info)
+			anthropicClient.DefineModel(g, m, &info)
 			continue
 		}
 	}
 
 	return nil
+}
+
+func Model(g *genkit.Genkit, provider string, name string) ai.Model {
+	return genkit.LookupModel(g, provider, name)
 }
