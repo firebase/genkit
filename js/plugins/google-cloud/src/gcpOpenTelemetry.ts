@@ -255,7 +255,9 @@ class MetricExporterWrapper extends MetricExporter {
    * and will convert any DELTA aggregations to CUMULATIVE ones on
    * export. There is implicit overlap in the start/end times that
    * the Metric reader is sending -- the end_time of the previous
-   * export will become the start_time of the current export. This
+   * export will become the start_time of the current export. The
+   * overlap in times means that only one of those records will
+   * persist and the other will be overwritten. This
    * method adds a thousandth of a second to ensure discrete export
    * timeframes.
    */
