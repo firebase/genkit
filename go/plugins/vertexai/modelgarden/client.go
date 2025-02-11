@@ -40,7 +40,9 @@ type ClientConfig struct {
 type ClientCreator func(config any) (Client, error)
 
 func (f *ClientFactory) Register(provider string, creator ClientCreator) {
-	f.creators[provider] = creator
+	if _, ok := f.creators[provider]; !ok {
+		f.creators[provider] = creator
+	}
 }
 
 func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
@@ -65,7 +67,7 @@ func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
 	var client Client
 	var err error
 	switch config.Provider {
-	case "anthropic":
+	case AnthropicProvider:
 		client, err = creator(&AnthropicClientConfig{
 			Region:  config.Region,
 			Project: config.Project,

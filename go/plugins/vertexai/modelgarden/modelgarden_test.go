@@ -39,14 +39,14 @@ func TestModelGarden(t *testing.T) {
 	}
 
 	t.Run("invalid model", func(t *testing.T) {
-		m := modelgarden.Model(g, "anthropic", "claude-not-valid-v2")
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-not-valid-v2")
 		if m != nil {
 			t.Fatal("model should have been invalid")
 		}
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
-		m := modelgarden.Model(g, "anthropic", "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -60,7 +60,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
-		m := modelgarden.Model(g, "anthropic", "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -74,7 +74,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model", func(t *testing.T) {
-		m := modelgarden.Model(g, "anthropic", "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("What's your name?"), ai.WithModel(m))
 		if err != nil {
 			t.Fatal(err)
@@ -83,7 +83,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		m := modelgarden.Model(g, "anthropic", "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		out := ""
 		parts := 0
 

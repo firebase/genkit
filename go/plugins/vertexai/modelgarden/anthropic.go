@@ -16,6 +16,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/vertex"
 )
 
+// supported anthropic models
 var AnthropicModels = map[string]ai.ModelInfo{
 	"claude-3-5-sonnet-v2": {
 		Label:    "Vertex AI Model Garden - Claude 3.5 Sonnet",
@@ -70,14 +71,14 @@ var Anthropic = func(config any) (Client, error) {
 	return &AnthropicClient{c}, nil
 }
 
-// DefineModel adds
+// DefineModel adds the model to the registry
 func (a *AnthropicClient) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
 	var mi ai.ModelInfo
 	if info == nil {
 		var ok bool
 		mi, ok = AnthropicModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", "anthropic", name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", AnthropicProvider, name)
 		}
 	} else {
 		mi = *info
@@ -87,11 +88,11 @@ func (a *AnthropicClient) DefineModel(g *genkit.Genkit, name string, info *ai.Mo
 
 func defineModel(g *genkit.Genkit, client *AnthropicClient, name string, info ai.ModelInfo) ai.Model {
 	meta := &ai.ModelInfo{
-		Label:    "Anthropic" + "-" + name,
+		Label:    AnthropicProvider + "-" + name,
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, "anthropic", name, meta, func(
+	return genkit.DefineModel(g, AnthropicProvider, name, meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
@@ -100,6 +101,7 @@ func defineModel(g *genkit.Genkit, client *AnthropicClient, name string, info ai
 	})
 }
 
+// generate function defines how a generate request is done in Anthropic models
 func generate(
 	ctx context.Context,
 	client *AnthropicClient,

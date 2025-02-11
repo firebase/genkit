@@ -11,24 +11,31 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 )
 
+const (
+	AnthropicProvider = "anthropic"
+	MistralProvider   = "mistral"
+)
+
 type ModelGardenOptions struct {
 	ProjectID string
 	Region    string
 	Models    []string
 }
 
+// A cache where all clients and its creators will be stored
+var clients = NewClientFactory()
+
 // Init initializes the ModelGarden plugin
 // After calling Init, you may call [DefineModel] to create and register
 // any additional generative models
 func Init(ctx context.Context, g *genkit.Genkit, cfg *ModelGardenOptions) error {
-	clients := NewClientFactory()
 	for _, m := range cfg.Models {
 		// ANTHROPIC
 		if info, ok := AnthropicModels[m]; ok {
-			clients.Register("anthropic", Anthropic)
+			clients.Register(AnthropicProvider, Anthropic)
 
 			anthropicClient, err := clients.CreateClient(&ClientConfig{
-				Provider: "anthropic",
+				Provider: AnthropicProvider,
 				Project:  cfg.ProjectID,
 				Region:   cfg.Region,
 			})
