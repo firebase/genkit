@@ -610,11 +610,9 @@ function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
 
 // Converts vertex part to genkit part
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  // if (jsonMode && part.text !== undefined) {
-  //   return { data: JSON.parse(part.text) };
-  // }
-  if (part.text !== undefined) return { text: part.text };
+  // functionCall is first to work around https://github.com/googleapis/nodejs-vertexai/issues/494
   if (part.functionCall) return fromGeminiFunctionCallPart(part);
+  if (part.text !== undefined) return { text: part.text };
   if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
