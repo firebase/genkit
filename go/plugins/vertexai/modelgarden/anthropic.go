@@ -6,6 +6,7 @@ package modelgarden
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -109,44 +110,63 @@ func generate(
 	// TODO: create toAnthropicRequest functions to translate Genkit ->
 	// Anthropic and viceversa
 
-	// streaming off
+	log.Printf("%s", model)
+	log.Printf("%#v", input)
+	// parse configuration
+	reqParams := anthropic.MessageNewParams{}
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
+		if c.MaxOutputTokens != 0 {
+			reqParams.MaxTokens = anthropic.F(int64(c.MaxOutputTokens))
+		}
+		reqParams.Model = anthropic.F(anthropic.Model(model))
+		// TODO: check if Version is needed
+		if c.Version != "" {
+			reqParams.Model = anthropic.F(anthropic.Model(c.Version))
+		}
+		if c.Temperature != 0 {
+			reqParams.Temperature = anthropic.F(c.Temperature)
+		}
+		if c.TopK != 0 {
+			reqParams.TopK = anthropic.F(int64(c.TopK))
+		}
+		if c.TopP != 0 {
+			reqParams.TopP = anthropic.F(float64(c.TopP))
+		}
+		if len(c.StopSequences) > 0 {
+			reqParams.StopSequences = anthropic.F(c.StopSequences)
+		}
+	}
+	// system and user blocks
+	sysBlocks := []anthropic.TextBlockParam{}
+	userBlocks := []anthropic.TextBlockParam{}
+	for _, m := range input.Messages {
+		// TODO: convert messages to its types (text, media, toolResponse)
+		if m.Role == ai.RoleSystem {
+			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(m.Text()))
+		}
+		if m.Role == ai.RoleUser {
+			userBlocks = append(userBlocks, anthropic.NewTextBlock(m.Text()))
+		}
+	}
+	if len(sysBlocks) > 0 {
+		reqParams.System = anthropic.F(sysBlocks)
+	}
+	if len(userBlocks) > 0 {
+		messageParam := make([]anthropic.MessageParam, 0)
+		for _, u := range userBlocks {
+			messageParam = append(messageParam, anthropic.NewUserMessage(u))
+		}
+		reqParams.Messages = anthropic.F(messageParam)
+	}
+
+	// no streaming
 	if cb == nil {
-		msg, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-			Model:     anthropic.F(anthropic.ModelClaude3_5SonnetLatest),
-			MaxTokens: anthropic.F(int64(1024)),
-			Messages: anthropic.F([]anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock("What's a quaternion?")),
-			}),
-		})
+		msg, err := client.Messages.New(ctx, reqParams)
 		if err != nil {
 			return nil, err
 		}
 
 		fmt.Printf("%+v\n", msg.Content)
-	} else {
-		stream := client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
-			Model:     anthropic.F(anthropic.ModelClaude3_5SonnetLatest),
-			MaxTokens: anthropic.Int(1024),
-			Messages: anthropic.F([]anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock("What's purpose of life?")),
-			}),
-		})
-
-		message := anthropic.Message{}
-		for stream.Next() {
-			event := stream.Current()
-			message.Accumulate(event)
-
-			switch delta := event.Delta.(type) {
-			case anthropic.ContentBlockDeltaEventDelta:
-				if delta.Text != "" {
-					print(delta.Text)
-				}
-			}
-		}
-		if stream.Err() != nil {
-			return nil, stream.Err()
-		}
 	}
 
 	return nil, nil
