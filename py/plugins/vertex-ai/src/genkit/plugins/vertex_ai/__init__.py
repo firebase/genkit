@@ -33,8 +33,8 @@ def vertexAI(project_id: Optional[str] = None) -> Callable[[Genkit], None]:
             for m in request.messages:
                 geminiParts: list[Part] = []
                 for p in m.content:
-                    if p.text is not None:
-                        geminiParts.append(Part.from_text(p.text))
+                    if p.root.text is not None:
+                        geminiParts.append(Part.from_text(p.root.text))
                     else:
                         raise Exception('unsupported part type')
                 geminiMsgs.append(Content(role=m.role.value, parts=geminiParts))
