@@ -17,24 +17,38 @@ toc:
     path: /docs/genkit/
   - title: Get started
     path: /docs/genkit/get-started
+  - title: Migrate from Genkit 0.9 to 1.0
+    path: /docs/genkit/migrating-from-0.9
+  - title: API Stability Channels
+    path: /docs/genkit/api-stability.md
   - title: Developer tools
     path: /docs/genkit/devtools
+
+  - heading: API reference
+  - title: Genkit JS API reference
+    path: https://js.api.genkit.dev/
 
   - heading: Codelabs
   - title: Chat with a PDF file
     path: /docs/genkit/codelabs/codelab-chat-with-a-pdf
-  
+
   - heading: Building AI workflows
   - title: Generating content
     path: /docs/genkit/models
+  - title: Passing information through context
+    path: /docs/genkit/context
   - title: Creating flows
     path: /docs/genkit/flows
   - title: Managing prompts with Dotprompt
     path: /docs/genkit/dotprompt
   - title: Persistent chat sessions
     path: /docs/genkit/chat
-  - title: Tool calling
-    path: /docs/genkit/tool-calling
+  - title: Tools
+    section:
+      - title: Tool calling
+        path: /docs/genkit/tool-calling
+      - title: Pause generation using interrupts
+        path: /docs/genkit/interrupts
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
   - title: Multi-agent systems
@@ -43,7 +57,9 @@ toc:
     path: /docs/genkit/evaluation
   - title: Observability & monitoring
     path: /docs/genkit/monitoring
-  
+  - title: Error Types
+    path: /docs/genkit/errors/types.md
+
   - heading: Deploying AI workflows
   - title: Deploy with Firebase
     path: /docs/genkit/firebase
@@ -53,13 +69,19 @@ toc:
     path: /docs/genkit/deploy-node
   - title: Authorization and integrity
     path: /docs/genkit/auth
-  
+
+  - heading: Observing AI workflows
+  - title: Getting Started
+    path: /docs/genkit/observability/getting-started
+  - title: Troubleshooting
+    path: /docs/genkit/observability/troubleshooting
+
   - heading: Writing plugins
   - title: Overview
     path: /docs/genkit/plugin-authoring
   - title: Writing an Evaluator Plugin
     path: /docs/genkit/plugin-authoring-evaluator
-  
+
   - heading: Official plugins
   - title: Google AI for Developers
     path: /docs/genkit/plugins/google-genai
@@ -83,13 +105,9 @@ toc:
     path: /docs/genkit/nextjs
 
   - break: true
-  - title: Migrate from Genkit 0.5
+  - title: Migrate from Genkit 0.5 to 0.9
     path: /docs/genkit/migrating-from-0.5
 
   - break: true
   - title: Connect with us
     path: /docs/genkit/feedback
-
-# reference:
-#   - title: Resource summary
-#     path: /docs/genkit/reference/coming-soon
