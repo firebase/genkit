@@ -4,7 +4,6 @@
   {% setvar custom_project %}/docs/genkit/_project.yaml{% endsetvar %}
   {% setvar supportsNode %}true{% endsetvar %}
   {% setvar supportsGolang %}true{% endsetvar %}
-  {% setvar youtubeID %}vZ23UxcJ7Kk{% endsetvar %}
 {% endblock variables %}
 
 {% block extraMeta %}
@@ -18,7 +17,7 @@ Genkit is a framework designed to help you build AI-powered applications and fea
 
 This documentation covers Genkit for Node.js. If you're a Go developer, see the [Genkit Go documentation](/docs/genkit-go/get-started-go).
 
-You can deploy and run Genkit libraries anywhere Node.js is supported. It's designed to work with any generative AI model API or vector database. While we offer integrations for Firebase and Google Cloud, you can use Genkit independently of any Google services.
+You can deploy and run Genkit libraries anywhere Node.js is supported. It's designed to work with many AI model providers and vector databases. While we offer integrations for Firebase and Google Cloud, you can use Genkit independently of any Google services.
 
 [Get started](/docs/genkit/get-started){: .button}
 
@@ -65,11 +64,11 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   ```javascript
   import { genkit } from 'genkit';
-  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { googleAI, gemini20Flash } from '@genkit-ai/googleai';
 
   const ai = genkit({
     plugins: [googleAI()],
-    model: gemini15Flash,  // Set default model
+    model: gemini20Flash,  // Set default model
   });
 
   // Simple generation
@@ -77,7 +76,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   console.log(text);
 
   // Streamed generation 
-  const { stream } = await ai.generateStream('Tell me a story');
+  const { stream } = ai.generateStream('Tell me a story');
   for await (const chunk of stream) {
     console.log(chunk.text);
   }
@@ -87,11 +86,11 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   ```javascript
   import { genkit, z } from 'genkit';
-  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { googleAI, gemini20Flash } from '@genkit-ai/googleai';
 
   const ai = genkit({
     plugins: [googleAI()],
-    model: gemini15Flash,
+    model: gemini20Flash,
   });
 
   const { output } = await ai.generate({
@@ -110,15 +109,15 @@ See the following code samples for a concrete idea of how to use these capabilit
   console.log(output);
   ```
 
-- {Function calling}
+- {Tool calling}
 
   ```javascript
   import { genkit, z } from 'genkit';
-  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { googleAI, gemini20Flash } from '@genkit-ai/googleai';
 
   const ai = genkit({
     plugins: [googleAI()],
-    model: gemini15Flash,
+    model: gemini20Flash,
   });
 
   // Define tool to get current weather for a given location
@@ -129,7 +128,9 @@ See the following code samples for a concrete idea of how to use these capabilit
       inputSchema: z.object({ 
         location: z.string().describe('The location to get the current weather for')
       }),
-      outputSchema: z.string(),
+      outputSchema: z.object({ 
+        weatherReport: z.string().describe('Weather report of a particular location') 
+      }),
     },
     async (input) => {
       // Here, we would typically make an API call or database query. For this
@@ -149,12 +150,12 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Chat}
 
   ```javascript
-  import { genkit, z } from 'genkit';
-  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { genkit, z } from 'genkit/beta';
+  import { googleAI, gemini20Flash } from '@genkit-ai/googleai';
 
   const ai = genkit({
     plugins: [googleAI()],
-    model: gemini15Flash,
+    model: gemini20Flash,
   });
 
   const chat = ai.chat({ system: 'Talk like a pirate' });
@@ -169,52 +170,51 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Agents}
 
   ```javascript
-  import { genkit, z } from 'genkit';
-  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { genkit, z } from 'genkit/beta';
+  import { googleAI, gemini20Flash } from '@genkit-ai/googleai';
 
   const ai = genkit({
     plugins: [googleAI()],
-    model: gemini15Flash,
+    model: gemini20Flash,
   });
 
-  // Define prompts that represent specialist agents
-  const reservationAgent = ai.definePrompt(
-    {
-      name: 'reservationAgent',
-      description: 'Reservation Agent can help manage guest reservations',
-      tools: [reservationTool, reservationCancelationTool, reservationListTool],
-      
-    },
-    `{% verbatim %}{{role "system"}}{% endverbatim %} Help guests make and manage reservations`
-  );
+  // Define tools for your agents to use
+  const reservationTool = ai.defineTool( ... );
+  const reservationCancelationTool = ai.defineTool( ... );
+  const reservationListTool = ai.defineTool( ... );
 
-  const menuInfoAgent = ...
-  const complaintAgent = ...
+  // Define prompts that represent specialist agents
+  const reservationAgent = ai.definePrompt({
+    name: 'reservationAgent',
+    description: 'Reservation Agent can help manage guest reservations',
+    tools: [reservationTool, reservationCancelationTool, reservationListTool],
+    system: `Help guests make and manage reservations`
+  });
+  const menuInfoAgent = ai.definePrompt( ... );
+  const complaintAgent = ai.definePrompt( ... );
 
   // Define a triage agent that routes to the proper specialist agent
-  const triageAgent = ai.definePrompt(
-    {
-      name: 'triageAgent',
-      description: 'Triage Agent',
-      tools: [reservationAgent, menuInfoAgent, complaintAgent],
-    },
-    `{% verbatim %}{{role "system"}}{% endverbatim %} You are an AI customer service agent for Pavel's Cafe.
-    Greet the user and ask them how you can help. If appropriate, transfer to an
-    agent that can better handle the request. If you cannot help the customer with
-    the available tools, politely explain so.`
-  );
+  const triageAgent = ai.definePrompt({
+    name: 'triageAgent',
+    description: 'Triage Agent',
+    tools: [reservationAgent, menuInfoAgent, complaintAgent],
+    system: `You are an AI customer service agent for Pavel's Cafe.
+      Greet the user and ask them how you can help. If appropriate, transfer to an
+      agent that can better handle the request. If you cannot help the customer with
+      the available tools, politely explain so.`
+  });
 
-  // Create a chat to enable multi-turn agent interactions
+  // Create a chat to enable conversational agent interactions
   const chat = ai.chat(triageAgent);
 
-  chat.send('I want a reservation at Pavel\'s Cafe for noon on Tuesday.' );
+  chat.send('I want a reservation at Pavel\'s Cafe for noon on Tuesday.');
   ```
 
 - {Data retrieval}
 
   ```javascript
   import { genkit } from 'genkit';
-  import { googleAI, gemini15Flash, textEmbedding004 } from '@genkit-ai/googleai';
+  import { googleAI, gemini20Flash, textEmbedding004 } from '@genkit-ai/googleai';
   import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
 
   const ai = genkit({ 
@@ -227,7 +227,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         },
       ]),
     ],
-    model: gemini15Flash,
+    model: gemini20Flash,
   });
 
   // Reference to a local vector database storing Genkit documentation

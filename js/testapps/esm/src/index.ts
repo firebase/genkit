@@ -17,10 +17,12 @@
 import { checks } from '@genkit-ai/checks';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval } from '@genkit-ai/evaluator';
+import { expressHandler } from '@genkit-ai/express';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
+import { appRoute } from '@genkit-ai/next';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { vertexAIEvaluation } from '@genkit-ai/vertexai/evaluation';
 import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
@@ -30,6 +32,7 @@ import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
+firebaseContext();
 enableFirebaseTelemetry;
 enableGoogleCloudTelemetry;
 checks;
@@ -43,6 +46,8 @@ pinecone;
 chroma;
 devLocalVectorstore;
 genkitEval;
-firebaseAuth;
 
 export const ai = genkit({});
+const hello = ai.defineFlow('hello', () => 'hello');
+expressHandler(hello);
+appRoute(hello);

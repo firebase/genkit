@@ -42,7 +42,7 @@ import {
   ToolRequestPart,
   z,
 } from 'genkit';
-import { modelRef } from 'genkit/model';
+import { ModelAction, modelRef } from 'genkit/model';
 
 export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
@@ -124,6 +124,8 @@ function toMistralRole(role: Role): MistralRole {
       return 'tool';
     case 'system':
       return 'system';
+    default:
+      throw new Error(`Unknwon role ${role}`);
   }
 }
 function toMistralToolRequest(toolRequest: Record<string, any>): FunctionCall {
@@ -323,7 +325,7 @@ export function mistralModel(
   modelName: string,
   projectId: string,
   region: string
-) {
+): ModelAction {
   const getClient = createClientFactory(projectId);
 
   const model = SUPPORTED_MISTRAL_MODELS[modelName];
@@ -339,13 +341,13 @@ export function mistralModel(
       supports: model.info?.supports,
       versions: model.info?.versions,
     },
-    async (input, streamingCallback) => {
+    async (input, sendChunk) => {
       const client = getClient(input.config?.location || region);
 
       const versionedModel =
         input.config?.version ?? model.info?.versions?.[0] ?? model.name;
 
-      if (!streamingCallback) {
+      if (!sendChunk) {
         const mistralRequest = toMistralRequest(versionedModel, input);
 
         const response = await client.chat.complete(mistralRequest, {
@@ -370,7 +372,7 @@ export function mistralModel(
         for await (const event of stream) {
           const parts = fromMistralCompletionChunk(event.data);
           if (parts.length > 0) {
-            streamingCallback({
+            sendChunk({
               content: parts,
             });
           }

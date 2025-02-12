@@ -107,17 +107,6 @@ jobs:
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
           tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
-      - name: 'js/plugins/dotprompt version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/dotprompt
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
-          tag-prefix:  '@genkit-ai/dotprompt@'
       - name: 'js/plugins/evaluators version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -173,6 +162,17 @@ jobs:
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-langchain version to {{version}}'
           tag-prefix:  'genkitx-langchain@'
+      - name: 'js/plugins/next version bump'
+        uses: 'phips28/gh-action-bump-version@master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+          PACKAGEJSON_DIR: js/plugins/next
+        with:
+          default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
+          commit-message: 'chore: bump @genkit-ai/next version to {{version}}'
+          tag-prefix:  '@genkit-ai/next@'
       - name: 'js/plugins/ollama version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:

@@ -1,3 +1,7 @@
+<!-- 
+TODO: Add Next docs too. Maybe we need a web-hosting page that deploy-node
+and cloud-run links to, which links to express, next, and maybe cloud functions 
+-->
 # Deploy flows to any Node.js platform
 
 Firebase Genkit has built-in integrations that help you deploy your flows to
@@ -48,6 +52,7 @@ sample flow.
   ```typescript
   import { genkit } from 'genkit';
   import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { startFlowServer } from '@genkit-ai/express';
 
   const ai = genkit({
     plugins: [googleAI()],
@@ -66,7 +71,7 @@ sample flow.
     }
   );
 
-  ai.startFlowServer({
+  startFlowServer({
     flows: [menuSuggestionFlow],
   });
   ```

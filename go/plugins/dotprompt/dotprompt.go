@@ -1,16 +1,5 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package dotprompt parses and renders dotprompt files.
 package dotprompt
@@ -55,18 +44,13 @@ type Prompt struct {
 	// The name of the prompt. Optional unless the prompt is
 	// registered as an action.
 	Name string
-
 	Config
-
 	// The parsed prompt template.
 	Template *raymond.Template
-
 	// The original prompt template text.
 	TemplateText string
-
 	// A hash of the prompt contents.
 	hash string
-
 	// A prompt that renders the prompt.
 	prompt *ai.Prompt
 }
@@ -78,31 +62,29 @@ type Config struct {
 	// The name of the model for which the prompt is input.
 	// If this is non-empty, Model should be nil.
 	ModelName string
-
 	// The Model to use.
 	// If this is set, ModelName should be an empty string.
 	Model ai.Model
-
 	// TODO: document
 	Tools []ai.Tool
-
 	// Details for the model.
 	GenerationConfig *ai.GenerationCommonConfig
-
 	// Schema for input variables.
 	InputSchema *jsonschema.Schema
-
 	// Default input variable values
 	DefaultInput map[string]any
-
 	// Desired output format.
 	OutputFormat ai.OutputFormat
-
 	// Desired output schema, for JSON output.
 	OutputSchema *jsonschema.Schema
-
 	// Arbitrary metadata.
 	Metadata map[string]any
+	// ToolChoice is the tool choice to use.
+	ToolChoice ai.ToolChoice
+	// MaxTurns is the maximum number of turns.
+	MaxTurns int
+	// ReturnToolRequests is whether to return tool requests.
+	ReturnToolRequests bool
 }
 
 // PromptOption configures params for the prompt
@@ -164,7 +146,10 @@ type frontmatterYAML struct {
 		Format string `yaml:"format,omitempty"`
 		Schema any    `yaml:"schema,omitempty"`
 	} `yaml:"output,omitempty"`
-	Metadata map[string]any `yaml:"metadata,omitempty"`
+	Metadata           map[string]any `yaml:"metadata,omitempty"`
+	ToolChoice         string         `yaml:"toolChoice,omitempty"`
+	MaxTurns           int            `yaml:"maxTurns,omitempty"`
+	ReturnToolRequests bool           `yaml:"returnToolRequests,omitempty"`
 }
 
 // Parse parses the contents of a dotprompt file.
@@ -225,12 +210,15 @@ func parseFrontmatter(g *genkit.Genkit, data []byte) (name string, c Config, res
 	}
 
 	ret := Config{
-		Variant:          fy.Variant,
-		ModelName:        fy.Model,
-		Tools:            tools,
-		GenerationConfig: fy.Config,
-		DefaultInput:     fy.Input.Default,
-		Metadata:         fy.Metadata,
+		Variant:            fy.Variant,
+		ModelName:          fy.Model,
+		Tools:              tools,
+		GenerationConfig:   fy.Config,
+		DefaultInput:       fy.Input.Default,
+		Metadata:           fy.Metadata,
+		ToolChoice:         ai.ToolChoice(fy.ToolChoice),
+		MaxTurns:           fy.MaxTurns,
+		ReturnToolRequests: fy.ReturnToolRequests,
 	}
 
 	inputSchema, err := picoschemaToJSONSchema(fy.Input.Schema)
@@ -278,7 +266,7 @@ func parseFrontmatter(g *genkit.Genkit, data []byte) (name string, c Config, res
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
 func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (*Prompt, error) {
-	p, err := New(name, templateText, Config{ModelName: g.Opts.DefaultModel})
+	p, err := New(name, templateText, Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +278,11 @@ func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (
 		}
 	}
 
+	// fallback to default model name if no model was specified
+	if p.Config.ModelName == "" && p.Config.Model == nil {
+		p.Config.ModelName = g.Opts.DefaultModel
+	}
+
 	p.Register(g)
 	return p, nil
 }
@@ -298,9 +291,6 @@ func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
-	if cfg.ModelName != "" && cfg.Model != nil {
-		return nil, errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
-	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))
 	return newPrompt(name, templateText, hash, cfg)
 }
@@ -324,7 +314,7 @@ func sortSchemaSlices(s *jsonschema.Schema) {
 func WithTools(tools ...ai.Tool) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.Tools != nil {
-			return errors.New("dotprompt.WithTools: cannot set tools more than once")
+			return errors.New("dotprompt.WithTools: cannot set Tools more than once")
 		}
 
 		var toolSlice []ai.Tool
@@ -445,6 +435,42 @@ func WithDefaultModelName(name string) PromptOption {
 			return errors.New("dotprompt.WithDefaultModelName: config must specify exactly once, either ModelName or Model")
 		}
 		p.Config.ModelName = name
+		return nil
+	}
+}
+
+// WithDefaultMaxTurns sets the default maximum number of tool call iterations for the prompt.
+func WithDefaultMaxTurns(maxTurns int) PromptOption {
+	return func(p *Prompt) error {
+		if maxTurns <= 0 {
+			return fmt.Errorf("maxTurns must be greater than 0, got %d", maxTurns)
+		}
+		if p.Config.MaxTurns != 0 {
+			return errors.New("dotprompt.WithMaxTurns: cannot set MaxTurns more than once")
+		}
+		p.Config.MaxTurns = maxTurns
+		return nil
+	}
+}
+
+// WithDefaultReturnToolRequests configures whether by default to return tool requests instead of making the tool calls and continuing the generation.
+func WithDefaultReturnToolRequests(returnToolRequests bool) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.ReturnToolRequests {
+			return errors.New("dotprompt.WithReturnToolRequests: cannot set ReturnToolRequests more than once")
+		}
+		p.Config.ReturnToolRequests = returnToolRequests
+		return nil
+	}
+}
+
+// WithDefaultToolChoice configures whether by default tool calls are required, disabled, or optional for the prompt.
+func WithDefaultToolChoice(toolChoice ai.ToolChoice) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.ToolChoice != "" {
+			return errors.New("dotprompt.WithToolChoice: cannot set ToolChoice more than once")
+		}
+		p.Config.ToolChoice = toolChoice
 		return nil
 	}
 }

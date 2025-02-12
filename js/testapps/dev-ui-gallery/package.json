@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node lib/index.js",
     "dev": "tsx --watch src/index.ts",
-    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
@@ -30,6 +30,7 @@
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "firebase-admin": ">=12.2",
+    "firebase-functions": "^6.3.1",
     "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
     "genkitx-ollama": "workspace:*",

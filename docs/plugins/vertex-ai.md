@@ -6,6 +6,7 @@ The Vertex AI plugin provides interfaces to several AI services:
     *   Gemini text generation
     *   Imagen2 and Imagen3 image generation
     *   Text embedding generation
+    *   Multimodal embedding generation
 *   A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
     *   [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
     *   [ROUGE](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#rougeinput)
@@ -50,11 +51,11 @@ The plugin requires you to specify your Google Cloud project ID, the [region](ht
         *   On your local dev environment, do this by running:
 
             ```posix-terminal
-            gcloud auth application-default login
+            gcloud auth application-default login --project YOUR_PROJECT_ID
             ```
-
+            
         *   For other environments, see the [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) docs.
-    2. In addition, make sure the account is granted the Vertex AI User IAM role (`roles/aiplatform.user`). See the Vertex AI [access control](https://cloud.google.com/vertex-ai/generative-ai/docs/access-control) docs.
+    1. In addition, make sure the account is granted the Vertex AI User IAM role (`roles/aiplatform.user`). See the Vertex AI [access control](https://cloud.google.com/vertex-ai/generative-ai/docs/access-control) docs.
 
 ## Usage
 
@@ -130,16 +131,38 @@ const ai = genkit({
 });
 ```
 
-Or you can generate an embedding directly:
+Or you can generate embeddings directly:
 
 ```ts
 const ai = genkit({
   plugins: [vertexAI({ location: 'us-central1' })],
 });
 
-const embedding = await ai.embed({
+const embeddings = await ai.embed({
   embedder: textEmbedding004,
   content: 'How many widgets do you have in stock?',
+});
+```
+
+This plugin can also handle multimodal embeddings:
+
+```ts
+import { multimodalEmbedding001, vertexAI } from '@genkit-ai/vertexai';
+
+const ai = genkit({
+  plugins: [vertextAI({location: 'us-central1' })],
+});
+
+const embeddings = await ai.embed({
+  embedder: multimodalEmbedding001,
+  content: {
+    content: [{
+      "media": {
+        "url": "gs://cloud-samples-data/generative-ai/video/pixel8.mp4",
+        "contentType": "video/mp4"
+      }
+    }]
+  }
 });
 ```
 
@@ -198,7 +221,7 @@ Refer to [Imagen model documentation](https://cloud.google.com/vertex-ai/generat
 
 If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-haiku), [sonnet](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-sonnet) or [opus](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-opus)) in Vertex AI Model Garden you can use them with Genkit.
 
-Here's sample configuration for enabling Vertex AI Model Garden models:
+Here's a sample configuration for enabling Vertex AI Model Garden models:
 
 ```ts
 import { genkit } from 'genkit';
@@ -248,7 +271,7 @@ const ai = genkit({
 });
 ```
 
-Then use it as regular models:
+Then use it as a regular model:
 
 ```ts
 const llmResponse = await ai.generate({
@@ -261,7 +284,7 @@ const llmResponse = await ai.generate({
 
 If you have access to Mistral models ([Mistral Large](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-large), [Mistral Nemo](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/mistral-nemo), or [Codestral](https://console.cloud.google.com/vertex-ai/publishers/mistralai/model-garden/codestral)) in Vertex AI Model Garden, you can use them with Genkit.
 
-Here's sample configuration for enabling Vertex AI Model Garden models:
+Here's a sample configuration for enabling Vertex AI Model Garden models:
 
 ```ts
 import { genkit } from 'genkit';
@@ -368,9 +391,9 @@ Important: Pricing for Vector Search consists of both a charge for every gigabyt
 
 To use Vertex AI Vector Search:
 
-1. Choose an embedding model. This model is responsible for creating vector embeddings from text. Advanced users might use an embedding model optimized for their particular data sets, but for most users, Vertex AI's `text-embedding-004` model is a good choice for English text and the `text-multilingual-embedding-002` model is good for multilingual text.
+1. Choose an embedding model. This model is responsible for creating vector embeddings from text or media. Advanced users might use an embedding model optimized for their particular data sets, but for most users, Vertex AI's `text-embedding-004` model is a good choice for English text, the `text-multilingual-embedding-002` model is good for multilingual text, and the `multimodalEmbedding001` model is good for mixed text, images, and video.
 2. In the [Vector Search](https://console.cloud.google.com/vertex-ai/matching-engine/indexes) section of the Google Cloud console, create a new index. The most important settings are:
-    *   **Dimensions:** Specify the dimensionality of the vectors produced by your chosen embedding model. The `text-embedding-004` and `text-multilingual-embedding-002` models produce vectors of 768 dimensions.
+    *   **Dimensions:** Specify the dimensionality of the vectors produced by your chosen embedding model. The `text-embedding-004` and `text-multilingual-embedding-002` models produce vectors of 768 dimensions. The `multimodalEmbedding001` model can produce vectors of 128, 256, 512, or 1408 dimensions for text and image, and will produce vectors of 1408 dimensions for video.
     *   **Update method:** Select streaming updates.
 
     After you create the index, deploy it to a standard (public) endpoint.
@@ -573,6 +596,6 @@ const llmResponse = await ai.generate({
 
 Only specific models, such as `gemini15Flash` and `gemini15Pro`, support context caching, and currently only on version numbers `001`. If an unsupported model is used, an error will be raised, indicating that caching cannot be applied.
 
-### Further Reading 
+### Further Reading
 
 See more information regarding context caching on Vertex AI in their [documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-overview).

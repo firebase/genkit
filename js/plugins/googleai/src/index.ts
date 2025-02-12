@@ -32,7 +32,7 @@ import {
   gemini15Flash,
   gemini15Flash8b,
   gemini15Pro,
-  gemini20FlashExp,
+  gemini20Flash,
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
@@ -42,7 +42,7 @@ export {
   gemini15Flash,
   gemini15Flash8b,
   gemini15Pro,
-  gemini20FlashExp,
+  gemini20Flash,
   textEmbedding004,
   textEmbeddingGecko001,
   type GeminiConfig,

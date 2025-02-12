@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import { ModelReference } from 'genkit';
 import { GoogleAuthOptions } from 'google-auth-library';
+import { GeminiConfigSchema } from '../gemini';
 
 /** Common options for Vertex AI plugin configuration */
 export interface CommonPluginOptions {
@@ -27,4 +29,9 @@ export interface CommonPluginOptions {
 }
 
 /** Combined plugin options, extending common options with subplugin-specific options */
-export interface PluginOptions extends CommonPluginOptions {}
+export interface PluginOptions extends CommonPluginOptions {
+  models?: (
+    | ModelReference</** @ignore */ typeof GeminiConfigSchema>
+    | string
+  )[];
+}

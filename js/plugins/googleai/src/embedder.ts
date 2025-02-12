@@ -15,7 +15,7 @@
  */
 
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
-import { EmbedderReference, Genkit, z } from 'genkit';
+import { EmbedderAction, EmbedderReference, Genkit, z } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { PluginOptions } from './index.js';
 
@@ -81,7 +81,7 @@ export function defineGoogleAIEmbedder(
   ai: Genkit,
   name: string,
   options: PluginOptions
-) {
+): EmbedderAction<any> {
   let apiKey =
     options?.apiKey ||
     process.env.GOOGLE_GENAI_API_KEY ||

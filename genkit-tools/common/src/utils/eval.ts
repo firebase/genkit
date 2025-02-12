@@ -19,6 +19,7 @@ import { createReadStream } from 'fs';
 import { readFile } from 'fs/promises';
 import * as inquirer from 'inquirer';
 import { createInterface } from 'readline';
+import { RuntimeManager } from '../manager';
 import {
   EvalField,
   EvaluationExtractor,
@@ -29,12 +30,19 @@ import {
   isEvalField,
 } from '../plugin';
 import {
-  EvalInferenceInput,
-  EvalInferenceInputSchema,
-  EvalInferenceSampleSchema,
+  Dataset,
+  DatasetSchema,
   EvalInputDataset,
   EvalInputDatasetSchema,
-  EvalInputSchema,
+  EvaluationDatasetSchema,
+  EvaluationSample,
+  EvaluationSampleSchema,
+  GenerateRequest,
+  GenerateRequestSchema,
+  InferenceDatasetSchema,
+  InferenceSample,
+  InferenceSampleSchema,
+  MessageData,
 } from '../types';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
@@ -234,22 +242,27 @@ export function generateTestCaseId() {
   return randomUUID();
 }
 
-/** Load a {@link EvalInferenceInput} file. Supports JSON / JSONL */
-export async function loadEvalInference(
+/** Load a {@link Dataset} file. Supports JSON / JSONL */
+export async function loadInferenceDatasetFile(
   fileName: string
-): Promise<EvalInferenceInput> {
+): Promise<Dataset> {
   const isJsonl = fileName.endsWith('.jsonl');
 
   if (isJsonl) {
     return await readJsonlForInference(fileName);
   } else {
     const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
-    return EvalInferenceInputSchema.parse(parsedData);
+    let dataset = InferenceDatasetSchema.parse(parsedData);
+    dataset = dataset.map((sample: InferenceSample) => ({
+      ...sample,
+      testCaseId: sample.testCaseId ?? generateTestCaseId(),
+    }));
+    return DatasetSchema.parse(dataset);
   }
 }
 
-/** Load a {@link Eval} file. Supports JSON / JSONL */
-export async function loadEvalInputDataset(
+/** Load a {@link EvalInputDataset} file. Supports JSON / JSONL */
+export async function loadEvaluationDatasetFile(
   fileName: string
 ): Promise<EvalInputDataset> {
   const isJsonl = fileName.endsWith('.jsonl');
@@ -258,18 +271,25 @@ export async function loadEvalInputDataset(
     return await readJsonlForEvaluation(fileName);
   } else {
     const parsedData = JSON.parse(await readFile(fileName, 'utf8'));
-    return EvalInputDatasetSchema.parse(parsedData);
+    let evaluationInput = EvaluationDatasetSchema.parse(parsedData);
+    evaluationInput = evaluationInput.map((evalSample: EvaluationSample) => ({
+      ...evalSample,
+      testCaseId: evalSample.testCaseId ?? generateTestCaseId(),
+      traceIds: evalSample.traceIds ?? [],
+    }));
+    return EvalInputDatasetSchema.parse(evaluationInput);
   }
 }
 
-async function readJsonlForInference(
-  fileName: string
-): Promise<EvalInferenceInput> {
+async function readJsonlForInference(fileName: string): Promise<Dataset> {
   const lines = await readLines(fileName);
-  const samples: EvalInferenceInput = [];
+  const samples: Dataset = [];
   for (const line of lines) {
-    const parsedSample = EvalInferenceSampleSchema.parse(JSON.parse(line));
-    samples.push(parsedSample);
+    const parsedSample = InferenceSampleSchema.parse(JSON.parse(line));
+    samples.push({
+      ...parsedSample,
+      testCaseId: parsedSample.testCaseId ?? generateTestCaseId(),
+    });
   }
   return samples;
 }
@@ -280,8 +300,12 @@ async function readJsonlForEvaluation(
   const lines = await readLines(fileName);
   const inputs: EvalInputDataset = [];
   for (const line of lines) {
-    const parsedSample = EvalInputSchema.parse(JSON.parse(line));
-    inputs.push(parsedSample);
+    const parsedSample = EvaluationSampleSchema.parse(JSON.parse(line));
+    inputs.push({
+      ...parsedSample,
+      testCaseId: parsedSample.testCaseId ?? generateTestCaseId(),
+      traceIds: parsedSample.traceIds ?? [],
+    });
   }
   return inputs;
 }
@@ -298,4 +322,42 @@ async function readLines(fileName: string): Promise<string[]> {
     lines.push(line);
   }
   return lines;
+}
+
+export async function hasAction(params: {
+  manager: RuntimeManager;
+  actionRef: string;
+}): Promise<boolean> {
+  const { manager, actionRef } = { ...params };
+  const actionsRecord = await manager.listActions();
+
+  return actionsRecord.hasOwnProperty(actionRef);
+}
+
+/** Helper function that maps string data to GenerateRequest */
+export function getModelInput(data: any, modelConfig: any): GenerateRequest {
+  let message: MessageData;
+  if (typeof data === 'string') {
+    message = {
+      role: 'user',
+      content: [
+        {
+          text: data,
+        },
+      ],
+    } as MessageData;
+    return {
+      messages: message ? [message] : [],
+      config: modelConfig,
+    };
+  } else {
+    const maybeRequest = GenerateRequestSchema.safeParse(data);
+    if (maybeRequest.success) {
+      return maybeRequest.data;
+    } else {
+      throw new Error(
+        `Unable to parse model input as MessageSchema. Details: ${maybeRequest.error}`
+      );
+    }
+  }
 }

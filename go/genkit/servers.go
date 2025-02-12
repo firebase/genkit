@@ -1,16 +1,6 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
+
 
 // This file implements production and development servers.
 //
@@ -399,12 +389,13 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 			return err
 		}
 		var callback streamingCallback[json.RawMessage]
-		if stream {
+		if r.Header.Get("Accept") == "text/event-stream" || stream {
 			w.Header().Set("Content-Type", "text/plain")
 			w.Header().Set("Transfer-Encoding", "chunked")
-			// Stream results are newline-separated JSON.
+			// Event Stream results are in JSON format separated by two newline escape sequences
+			// including the `data` and `message` labels
 			callback = func(ctx context.Context, msg json.RawMessage) error {
-				_, err := fmt.Fprintf(w, "%s\n", msg)
+				_, err := fmt.Fprintf(w, "data: {\"message\": %s}\n\n", msg)
 				if err != nil {
 					return err
 				}
@@ -417,8 +408,19 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		// TODO: telemetry
 		out, err := f.runJSON(r.Context(), r.Header.Get("Authorization"), body.Data, callback)
 		if err != nil {
+			if r.Header.Get("Accept") == "text/event-stream" || stream {
+				_, err = fmt.Fprintf(w, "data: {\"error\": {\"status\": \"INTERNAL\", \"message\": \"stream flow error\", \"details\": \"%v\"}}\n\n", err)
+				return err
+			}
 			return err
 		}
+		// Responses for streaming, non-durable flows should be prefixed
+		// with "data"
+		if r.Header.Get("Accept") == "text/event-stream" || stream {
+			_, err = fmt.Fprintf(w, "data: {\"result\": %s}\n\n", out)
+			return err
+		}
+
 		// Responses for non-streaming, non-durable flows are passed back
 		// with the flow result stored in a field called "result."
 		_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)

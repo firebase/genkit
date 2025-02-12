@@ -1,4 +1,4 @@
-# Migrating from 0.5
+# Migrate from 0.5 to 0.9
 
 Genkit 0.9 introduces a number of breaking changes alongside feature enhancements that improve overall functionality. If you have been developing applications with Genkit 0.5, you will need to update your application code when you upgrade to the latest version. This guide outlines the most significant changes and offers steps to migrate your existing applications smoothly.
 

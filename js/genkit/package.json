@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.0.0-rc.2",
+  "version": "1.0.4",
   "type": "commonjs",
   "main": "./lib/cjs/index.js",
   "scripts": {
@@ -29,7 +29,6 @@
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
@@ -61,6 +60,12 @@
       "require": "./lib/registry.js",
       "import": "./lib/registry.mjs",
       "default": "./lib/registry.js"
+    },
+    "./beta": {
+      "types": "./lib/beta.d.ts",
+      "require": "./lib/beta.js",
+      "import": "./lib/beta.mjs",
+      "default": "./lib/beta.js"
     },
     "./tracing": {
       "types": "./lib/tracing.d.ts",
@@ -146,17 +151,26 @@
       "import": "./lib/plugin.mjs",
       "default": "./lib/plugin.js"
     },
-    "./client": {
+    "./beta/client": {
       "types": "./lib/client/index.d.ts",
       "require": "./lib/client/index.js",
       "import": "./lib/client/index.mjs",
       "default": "./lib/client/index.js"
+    },
+    "./context": {
+      "types": "./lib/context.d.ts",
+      "require": "./lib/context.js",
+      "import": "./lib/context.mjs",
+      "default": "./lib/context.js"
     }
   },
   "typesVersions": {
     "*": {
       "metrics": [
         "lib/metrics"
+      ],
+      "beta": [
+        "lib/beta"
       ],
       "registry": [
         "lib/registry"
@@ -206,8 +220,11 @@
       "plugin": [
         "lib/plugin"
       ],
-      "client": [
+      "beta/client": [
         "lib/client/index"
+      ],
+      "context": [
+        "lib/context"
       ]
     }
   }

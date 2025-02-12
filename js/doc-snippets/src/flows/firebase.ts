@@ -18,21 +18,26 @@ import { genkit } from 'genkit';
 const ai = genkit({});
 
 // [START ex]
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
-import { onFlow } from '@genkit-ai/firebase/functions';
+import { hasClaim, onCallGenkit } from 'firebase-functions/https';
+import { defineSecret } from 'firebase-functions/params';
 
-export const menuSuggestion = onFlow(
-  ai,
+const apiKey = defineSecret('GOOGLE_AI_API_KEY');
+
+const menuSuggestionFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
-    authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified) {
-        throw new Error('Verified email required to run flow');
-      }
-    }),
   },
   async (restaurantTheme) => {
     // ...
   }
 );
+
+export const menuSuggestion = onCallGenkit(
+  {
+    secrets: [apiKey],
+    authPolicy: hasClaim('email_verified'),
+  },
+  menuSuggestionFlow
+);
+
 // [END ex]

@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import { loadPromptFile } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
 import { Genkit, ModelArgument, z } from 'genkit';
 import { EmbedderArgument } from 'genkit/embedder';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
-import { getDirName } from './helper.js';
+import { getDirName, loadPromptFile, renderText } from './helper.js';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
@@ -61,13 +60,12 @@ export async function answerRelevancyScore<
     const context = dataPoint.context.map((i) => JSON.stringify(i));
 
     const prompt = await loadPromptFile(
-      ai.registry,
       path.resolve(getDirName(), '../../prompts/answer_relevancy.prompt')
     );
     const response = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: prompt.renderText({
+      prompt: await renderText(prompt, {
         question: input,
         answer: output,
         context: context.join(' '),
@@ -80,16 +78,20 @@ export async function answerRelevancyScore<
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
-    const questionEmbed = await ai.embed({
-      embedder,
-      content: input,
-      options: embedderOptions,
-    });
-    const genQuestionEmbed = await ai.embed({
-      embedder,
-      content: genQuestion,
-      options: embedderOptions,
-    });
+    const questionEmbed = (
+      await ai.embed({
+        embedder,
+        content: input,
+        options: embedderOptions,
+      })
+    )[0].embedding; // Single embedding for text
+    const genQuestionEmbed = (
+      await ai.embed({
+        embedder,
+        content: genQuestion,
+        options: embedderOptions,
+      })
+    )[0].embedding; // Single embedding for text
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
     const answered = response.output?.answered === '1' ? 1 : 0;
     const isNonCommittal = response.output?.noncommittal === '1' ? 1 : 0;

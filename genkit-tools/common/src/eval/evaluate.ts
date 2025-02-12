@@ -15,20 +15,18 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalInferenceInput, getDatasetStore, getEvalStore } from '.';
+import { getDatasetStore, getEvalStore } from '.';
 import { RuntimeManager } from '../manager/manager';
 import {
   Action,
   CandidateData,
-  EvalInferenceInputSchema,
+  Dataset,
+  DatasetSchema,
   EvalInput,
   EvalKeyAugments,
   EvalRun,
   EvalRunKey,
-  GenerateRequest,
-  GenerateRequestSchema,
   GenerateResponseSchema,
-  MessageData,
   RunNewEvaluationRequest,
   SpanData,
 } from '../types';
@@ -36,6 +34,8 @@ import {
   evaluatorName,
   generateTestCaseId,
   getEvalExtractors,
+  getModelInput,
+  hasAction,
   isEvaluator,
   logger,
   stackTraceSpans,
@@ -51,7 +51,7 @@ interface InferenceRunState {
   evalError?: string;
 }
 
-interface TestCase {
+interface FullInferenceSample {
   testCaseId: string;
   input: any;
   reference?: any;
@@ -72,8 +72,14 @@ export async function runNewEvaluation(
     throw new Error(`Either 'data' or 'datasetId' must be provided`);
   }
 
-  let evalInferenceInput: EvalInferenceInput;
+  const hasTargetAction = await hasAction({ manager, actionRef });
+  if (!hasTargetAction) {
+    throw new Error(`Cannot find action ${actionRef}.`);
+  }
+
+  let inferenceDataset: Dataset;
   let metadata = {};
+
   if (datasetId) {
     const datasetStore = await getDatasetStore();
     logger.info(`Fetching dataset ${datasetId}...`);
@@ -81,7 +87,7 @@ export async function runNewEvaluation(
     if (dataset.length === 0) {
       throw new Error(`Dataset ${datasetId} is empty`);
     }
-    evalInferenceInput = EvalInferenceInputSchema.parse(dataset);
+    inferenceDataset = DatasetSchema.parse(dataset);
 
     const datasetMetadatas = await datasetStore.listDatasets();
     const targetDatasetMetadata = datasetMetadatas.find(
@@ -90,15 +96,19 @@ export async function runNewEvaluation(
     const datasetVersion = targetDatasetMetadata?.version;
     metadata = { datasetId, datasetVersion };
   } else {
-    evalInferenceInput = data!;
+    const rawData = data!.map((sample) => ({
+      ...sample,
+      testCaseId: sample.testCaseId ?? generateTestCaseId(),
+    }));
+    inferenceDataset = DatasetSchema.parse(rawData);
   }
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalInferenceInput,
-    auth: request.options?.auth,
+    inferenceDataset,
+    context: request.options?.context,
     actionConfig: request.options?.actionConfig,
   });
   const evaluatorActions = await getMatchingEvaluatorActions(
@@ -123,11 +133,12 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalInferenceInput: EvalInferenceInput;
-  auth?: string;
+  inferenceDataset: Dataset;
+  context?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
+  const { manager, actionRef, inferenceDataset, context, actionConfig } =
+    params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
@@ -135,8 +146,8 @@ export async function runInference(params: {
   const evalDataset: EvalInput[] = await bulkRunAction({
     manager,
     actionRef,
-    evalInferenceInput,
-    auth,
+    inferenceDataset,
+    context,
     actionConfig,
   });
   return evalDataset;
@@ -222,31 +233,32 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalInferenceInput: EvalInferenceInput;
-  auth?: string;
+  inferenceDataset: Dataset;
+  context?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalInferenceInput, auth, actionConfig } = params;
+  const { manager, actionRef, inferenceDataset, context, actionConfig } =
+    params;
   const isModelAction = actionRef.startsWith('/model');
-  let testCases: TestCase[] = evalInferenceInput.map((c) => ({
-    input: c.input,
-    reference: c.reference,
-    testCaseId: c.testCaseId ?? generateTestCaseId(),
-  }));
-  if (testCases.length === 0) {
+  if (inferenceDataset.length === 0) {
     throw new Error('Cannot run inference, no data provided');
   }
 
+  // Convert to satisfy TS checks. `input` is required in `Dataset` type, but
+  // ZodAny also includes `undefined` in TS checks. This explcit conversion
+  // works around this.
+  const fullInferenceDataset = inferenceDataset as FullInferenceSample[];
+
   let states: InferenceRunState[] = [];
   let evalInputs: EvalInput[] = [];
-  for (const testCase of testCases) {
+  for (const sample of fullInferenceDataset) {
     logger.info(`Running inference '${actionRef}' ...`);
     if (isModelAction) {
       states.push(
         await runModelAction({
           manager,
           actionRef,
-          testCase,
+          sample,
           modelConfig: actionConfig,
         })
       );
@@ -255,8 +267,8 @@ async function bulkRunAction(params: {
         await runFlowAction({
           manager,
           actionRef,
-          testCase,
-          auth,
+          sample,
+          context,
         })
       );
     }
@@ -272,26 +284,26 @@ async function bulkRunAction(params: {
 async function runFlowAction(params: {
   manager: RuntimeManager;
   actionRef: string;
-  testCase: TestCase;
-  auth?: any;
+  sample: FullInferenceSample;
+  context?: any;
 }): Promise<InferenceRunState> {
-  const { manager, actionRef, testCase, auth } = { ...params };
+  const { manager, actionRef, sample, context } = { ...params };
   let state: InferenceRunState;
   try {
     const runActionResponse = await manager.runAction({
       key: actionRef,
-      input: testCase.input,
-      context: auth ? JSON.parse(auth) : undefined,
+      input: sample.input,
+      context: context ? JSON.parse(context) : undefined,
     });
     state = {
-      ...testCase,
+      ...sample,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
     state = {
-      ...testCase,
+      ...sample,
       traceId,
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
@@ -302,26 +314,26 @@ async function runFlowAction(params: {
 async function runModelAction(params: {
   manager: RuntimeManager;
   actionRef: string;
-  testCase: TestCase;
+  sample: FullInferenceSample;
   modelConfig?: any;
 }): Promise<InferenceRunState> {
-  const { manager, actionRef, modelConfig, testCase } = { ...params };
+  const { manager, actionRef, modelConfig, sample } = { ...params };
   let state: InferenceRunState;
   try {
-    const modelInput = getModelInput(testCase.input, modelConfig);
+    const modelInput = getModelInput(sample.input, modelConfig);
     const runActionResponse = await manager.runAction({
       key: actionRef,
       input: modelInput,
     });
     state = {
-      ...testCase,
+      ...sample,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
     state = {
-      ...testCase,
+      ...sample,
       traceId,
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
@@ -425,31 +437,4 @@ function isSupportedActionRef(actionRef: string) {
   return SUPPORTED_ACTION_TYPES.some((supportedType) =>
     actionRef.startsWith(`/${supportedType}`)
   );
-}
-
-function getModelInput(data: any, modelConfig: any): GenerateRequest {
-  let message: MessageData;
-  if (typeof data === 'string') {
-    message = {
-      role: 'user',
-      content: [
-        {
-          text: data,
-        },
-      ],
-    } as MessageData;
-    return {
-      messages: message ? [message] : [],
-      config: modelConfig,
-    };
-  } else {
-    const maybeRequest = GenerateRequestSchema.safeParse(data);
-    if (maybeRequest.success) {
-      return maybeRequest.data;
-    } else {
-      throw new Error(
-        `Unable to parse model input as MessageSchema as input. Details: ${maybeRequest.error}`
-      );
-    }
-  }
 }

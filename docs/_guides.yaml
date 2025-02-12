@@ -24,7 +24,7 @@ toc:
   - title: Chat with a PDF file
     path: /docs/genkit/codelabs/codelab-chat-with-a-pdf
   
-  - heading: Building AI workflows
+  - heading: Build AI workflows
   - title: Generating content
     path: /docs/genkit/models
   - title: Creating flows
@@ -41,10 +41,10 @@ toc:
     path: /docs/genkit/multi-agent
   - title: Evaluation
     path: /docs/genkit/evaluation
-  - title: Observability & monitoring
-    path: /docs/genkit/monitoring
+  - title: Local Observability
+    path: /docs/genkit/local-observability
   
-  - heading: Deploying AI workflows
+  - heading: Deploy AI workflows
   - title: Deploy with Firebase
     path: /docs/genkit/firebase
   - title: Deploy with Cloud Run
@@ -53,8 +53,14 @@ toc:
     path: /docs/genkit/deploy-node
   - title: Authorization and integrity
     path: /docs/genkit/auth
+
+  - heading: Observe AI workflows
+  - title: Getting Started
+    path: /docs/genkit/observability/getting-started
+  - title: Troubleshooting
+    path: /docs/genkit/observability/troubleshooting
   
-  - heading: Writing plugins
+  - heading: Write plugins
   - title: Overview
     path: /docs/genkit/plugin-authoring
   - title: Writing an Evaluator Plugin

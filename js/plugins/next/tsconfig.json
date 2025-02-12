@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src"],
+  "compilerOptions": {
+    // Open telemetry has a metric load of type errors when trying to import React DOM and @vercel/og/types
+    "skipLibCheck": true
+  }
+}

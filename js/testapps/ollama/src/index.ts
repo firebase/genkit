@@ -74,10 +74,12 @@ const pokemonList: PokemonInfo[] = [
 // Step 1: Embed each Pokemon's description
 async function embedPokemon() {
   for (const pokemon of pokemonList) {
-    pokemon.embedding = await ai.embed({
-      embedder: 'ollama/nomic-embed-text',
-      content: pokemon.description,
-    });
+    pokemon.embedding = (
+      await ai.embed({
+        embedder: 'ollama/nomic-embed-text',
+        content: pokemon.description,
+      })
+    )[0].embedding;
   }
 }
 
@@ -107,10 +109,12 @@ function cosineDistance(a: number[], b: number[]) {
 
 // Step 3: Generate response with RAG results in context
 async function generateResponse(question: string) {
-  const inputEmbedding = await ai.embed({
-    embedder: 'ollama/nomic-embed-text',
-    content: question,
-  });
+  const inputEmbedding = (
+    await ai.embed({
+      embedder: 'ollama/nomic-embed-text',
+      content: question,
+    })
+  )[0].embedding;
 
   const nearestPokemon = findNearestPokemon(inputEmbedding);
   const pokemonContext = nearestPokemon

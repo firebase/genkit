@@ -16,9 +16,9 @@
 
 import { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { GenkitBeta, genkit } from '../src/beta';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -26,7 +26,7 @@ import {
 } from './helpers';
 
 describe('chat', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
 
   beforeEach(() => {
     ai = genkit({
@@ -66,7 +66,7 @@ describe('chat', () => {
 
   it('maintains history in the session with streaming', async () => {
     const chat = ai.chat();
-    let { response, stream } = await chat.sendStream('hi');
+    let { response, stream } = chat.sendStream('hi');
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
@@ -75,7 +75,7 @@ describe('chat', () => {
     assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
-    ({ response, stream } = await chat.sendStream('bye'));
+    ({ response, stream } = chat.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
@@ -105,13 +105,15 @@ describe('chat', () => {
   });
 
   it('can init a session with a prompt', async () => {
-    const prompt = ai.definePrompt({ name: 'hi' }, 'hi {{ name }}');
+    const prompt = ai.definePrompt({ name: 'hi', prompt: 'hi {{ name }}' });
 
     const session = await ai.chat(
-      await prompt.render({
-        input: { name: 'Genkit' },
-        config: { temperature: 11 },
-      })
+      await prompt.render(
+        { name: 'Genkit' },
+        {
+          config: { temperature: 11 },
+        }
+      )
     );
     const response = await session.send('hi');
 
@@ -122,10 +124,11 @@ describe('chat', () => {
   });
 
   it('can start chat from a prompt', async () => {
-    const preamble = ai.definePrompt(
-      { name: 'hi', config: { version: 'abc' } },
-      'hi from template'
-    );
+    const preamble = ai.definePrompt({
+      name: 'hi',
+      config: { version: 'abc' },
+      messages: 'hi from template',
+    });
     const session = await ai.chat(preamble);
     const response = await session.send('send it');
 
@@ -136,10 +139,11 @@ describe('chat', () => {
   });
 
   it('can start chat from a prompt with input', async () => {
-    const preamble = ai.definePrompt(
-      { name: 'hi', config: { version: 'abc' } },
-      'hi {{ name }} from template'
-    );
+    const preamble = ai.definePrompt({
+      name: 'hi',
+      config: { version: 'abc' },
+      messages: 'hi {{ name }} from template',
+    });
     const session = await ai.chat(preamble, {
       input: { name: 'Genkit' },
     });
@@ -152,16 +156,19 @@ describe('chat', () => {
   });
 
   it('can send a rendered prompt to chat', async () => {
-    const prompt = ai.definePrompt(
-      { name: 'hi', config: { version: 'abc' } },
-      'hi {{ name }}'
-    );
+    const prompt = ai.definePrompt({
+      name: 'hi',
+      config: { version: 'abc' },
+      prompt: 'hi {{ name }}',
+    });
     const session = ai.chat();
     const response = await session.send(
-      await prompt.render({
-        input: { name: 'Genkit' },
-        config: { temperature: 11 },
-      })
+      await prompt.render(
+        { name: 'Genkit' },
+        {
+          config: { temperature: 11 },
+        }
+      )
     );
 
     assert.strictEqual(
@@ -172,7 +179,7 @@ describe('chat', () => {
 });
 
 describe('preamble', () => {
-  let ai: Genkit;
+  let ai: GenkitBeta;
   let pm: ProgrammableModel;
 
   beforeEach(() => {
@@ -184,48 +191,46 @@ describe('preamble', () => {
   });
 
   it('swaps out preamble on prompt tool invocation', async () => {
-    const agentB = ai.definePrompt(
-      {
-        name: 'agentB',
-        config: { temperature: 1 },
-        description: 'Agent B description',
-        tools: ['agentA'],
-      },
-      '{{role "system"}} agent b'
-    );
+    const agentB = ai.definePrompt({
+      name: 'agentB',
+      config: { temperature: 1 },
+      description: 'Agent B description',
+      tools: ['agentA'],
+      toolChoice: 'required',
+      system: 'agent b',
+    });
 
-    const agentA = ai.definePrompt(
-      {
-        name: 'agentA',
-        config: { temperature: 2 },
-        description: 'Agent A description',
-        tools: [agentB],
+    const agentA = ai.definePrompt({
+      name: 'agentA',
+      config: { temperature: 2 },
+      description: 'Agent A description',
+      tools: [agentB],
+      toolChoice: 'required',
+      messages: async () => {
+        return [
+          {
+            role: 'system',
+            content: [{ text: ' agent a' }],
+          },
+        ];
       },
-      async () => {
-        return {
-          messages: [
-            {
-              role: 'system',
-              content: [{ text: ' agent a' }],
-            },
-          ],
-        };
-      }
-    );
+    });
 
     // simple hi, nothing interesting...
     pm.handleResponse = async (req, sc) => {
       return {
         message: {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [
+            { text: `hi from agent a (toolChoice: ${req.toolChoice})` },
+          ],
         },
       };
     };
 
     const session = ai.chat(agentA);
     let { text } = await session.send('hi');
-    assert.strictEqual(text, 'hi from agent a');
+    assert.strictEqual(text, 'hi from agent a (toolChoice: required)');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         temperature: 2,
@@ -254,6 +259,7 @@ describe('preamble', () => {
           },
         },
       ],
+      toolChoice: 'required',
     });
 
     // transfer to agent B...
@@ -273,7 +279,7 @@ describe('preamble', () => {
                     ref: 'ref123',
                   },
                 }
-              : { text: 'hi from agent b' },
+              : { text: `hi from agent b (toolChoice: ${req.toolChoice})` },
           ],
         },
       };
@@ -281,7 +287,7 @@ describe('preamble', () => {
 
     ({ text } = await session.send('pls transfer to b'));
 
-    assert.deepStrictEqual(text, 'hi from agent b');
+    assert.deepStrictEqual(text, 'hi from agent b (toolChoice: required)');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         // TODO: figure out if config should be swapped out as well...
@@ -290,7 +296,7 @@ describe('preamble', () => {
       messages: [
         {
           role: 'system',
-          content: [{ text: ' agent b' }], // <--- NOTE: swapped out the preamble
+          content: [{ text: 'agent b' }], // <--- NOTE: swapped out the preamble
           metadata: { preamble: true },
         },
         {
@@ -299,7 +305,7 @@ describe('preamble', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: 'hi from agent a (toolChoice: required)' }],
         },
         {
           role: 'user',
@@ -343,6 +349,7 @@ describe('preamble', () => {
           },
         },
       ],
+      toolChoice: 'required',
     });
 
     // transfer back to to agent A...
@@ -387,7 +394,7 @@ describe('preamble', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent a' }],
+          content: [{ text: 'hi from agent a (toolChoice: required)' }],
         },
         {
           role: 'user',
@@ -419,7 +426,7 @@ describe('preamble', () => {
         },
         {
           role: 'model',
-          content: [{ text: 'hi from agent b' }],
+          content: [{ text: 'hi from agent b (toolChoice: required)' }],
         },
         {
           role: 'user',
@@ -463,18 +470,17 @@ describe('preamble', () => {
           },
         },
       ],
+      toolChoice: 'required',
     });
   });
 
   it('updates the preamble on fresh chat instance', async () => {
-    const agent = ai.definePrompt(
-      {
-        name: 'agent',
-        config: { temperature: 2 },
-        description: 'Agent A description',
-      },
-      '{{ role "system"}} greet {{ @state.name }}'
-    );
+    const agent = ai.definePrompt({
+      name: 'agent',
+      config: { temperature: 2 },
+      description: 'Agent A description',
+      messages: '{{ role "system"}} greet {{ @state.name }}',
+    });
 
     const session = ai.createSession({ initialState: { name: 'Pavel' } });
 
@@ -588,18 +594,17 @@ describe('preamble', () => {
   });
 
   it('initializes chat with history in preamble', async () => {
-    const hi = ai.definePrompt(
-      {
-        name: 'hi',
-        model: 'echoModel',
-        input: {
-          schema: z.object({
-            name: z.string(),
-          }),
-        },
+    const hi = ai.definePrompt({
+      name: 'hi',
+      model: 'echoModel',
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
       },
-      '{{ role "system"}}system instructions{{ history}}hi {{ name }}'
-    );
+      system: 'system instructions',
+      prompt: 'hi {{ name }}',
+    });
 
     const history: MessageData[] = [
       {
@@ -626,7 +631,6 @@ describe('preamble', () => {
         content: [{ text: 'hi' }],
         metadata: {
           preamble: true,
-          purpose: 'history',
         },
       },
       {
@@ -634,11 +638,10 @@ describe('preamble', () => {
         content: [{ text: 'bye' }],
         metadata: {
           preamble: true,
-          purpose: 'history',
         },
       },
       {
-        role: 'model',
+        role: 'user',
         content: [{ text: 'hi Genkit' }],
         metadata: {
           preamble: true,

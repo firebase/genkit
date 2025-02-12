@@ -1,21 +1,11 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package ai
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -33,30 +23,46 @@ type GameCharacter struct {
 
 var r, _ = registry.New()
 
-var echoModel = DefineModel(r, "test", "echo", nil, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
-	if msc != nil {
-		msc(ctx, &ModelResponseChunk{
-			Content: []*Part{NewTextPart("stream!")},
-		})
+// echoModel attributes
+var (
+	modelName = "echo"
+	metadata  = ModelInfo{
+		Label: modelName,
+		Supports: &ModelInfoSupports{
+			Multiturn:  true,
+			Tools:      true,
+			SystemRole: true,
+			Media:      false,
+		},
+		Versions: []string{"echo-001", "echo-002"},
 	}
-	textResponse := ""
-	for _, m := range gr.Messages {
-		if m.Role == RoleUser {
-			textResponse += m.Content[0].Text
+
+	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+		if msc != nil {
+			msc(ctx, &ModelResponseChunk{
+				Content: []*Part{NewTextPart("stream!")},
+			})
 		}
-	}
-	return &ModelResponse{
-		Request: gr,
-		Message: NewUserTextMessage(textResponse),
-	}, nil
-})
+		textResponse := ""
+		for _, m := range gr.Messages {
+			if m.Role == RoleUser {
+				textResponse += m.Content[0].Text
+			}
+		}
+		return &ModelResponse{
+			Request: gr,
+			Message: NewUserTextMessage(textResponse),
+		}, nil
+	})
+)
 
 // with tools
 var gablorkenTool = DefineTool(r, "gablorken", "use when need to calculate a gablorken",
-	func(ctx context.Context, input struct {
+	func(ctx *ToolContext, input struct {
 		Value float64
 		Over  float64
-	}) (float64, error) {
+	},
+	) (float64, error) {
 		return math.Pow(input.Value, input.Over), nil
 	},
 )
@@ -328,11 +334,254 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}
 	})
+
+	t.Run("handles tool interrupts", func(t *testing.T) {
+		interruptTool := DefineTool(r, "interruptor", "always interrupts",
+			func(ctx *ToolContext, input any) (any, error) {
+				return nil, ctx.Interrupt(&InterruptOptions{
+					Metadata: map[string]any{
+						"reason": "test interrupt",
+					},
+				})
+			},
+		)
+
+		interruptModel := DefineModel(r, "test", "interrupt", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewToolRequestPart(&ToolRequest{
+								Name:  "interruptor",
+								Input: nil,
+							}),
+						},
+					},
+				}, nil
+			})
+
+		res, err := Generate(context.Background(), r,
+			WithModel(interruptModel),
+			WithTextPrompt("trigger interrupt"),
+			WithTools(interruptTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.FinishReason != "interrupted" {
+			t.Errorf("expected finish reason 'interrupted', got %q", res.FinishReason)
+		}
+		if res.FinishMessage != "One or more tool calls resulted in interrupts." {
+			t.Errorf("unexpected finish message: %q", res.FinishMessage)
+		}
+
+		if len(res.Message.Content) != 1 {
+			t.Fatalf("expected 1 content part, got %d", len(res.Message.Content))
+		}
+
+		metadata := res.Message.Content[0].Metadata
+		if metadata == nil {
+			t.Fatal("expected metadata in content part")
+		}
+
+		interrupt, ok := metadata["interrupt"].(map[string]any)
+		if !ok {
+			t.Fatal("expected interrupt metadata")
+		}
+
+		reason, ok := interrupt["reason"].(string)
+		if !ok || reason != "test interrupt" {
+			t.Errorf("expected interrupt reason 'test interrupt', got %v", reason)
+		}
+	})
+
+	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
+		roundCount := 0
+		parallelModel := DefineModel(r, "test", "parallel", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				roundCount++
+				if roundCount == 1 {
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 2, "Over": 3},
+								}),
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 3, "Over": 2},
+								}),
+							},
+						},
+					}, nil
+				}
+				var sum float64
+				for _, msg := range gr.Messages {
+					if msg.Role == RoleTool {
+						for _, part := range msg.Content {
+							if part.ToolResponse != nil {
+								sum += part.ToolResponse.Output.(float64)
+							}
+						}
+					}
+				}
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewTextPart(fmt.Sprintf("Final result: %d", int(sum))),
+						},
+					},
+				}, nil
+			})
+
+		res, err := Generate(context.Background(), r,
+			WithModel(parallelModel),
+			WithTextPrompt("trigger parallel tools"),
+			WithTools(gablorkenTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finalPart := res.Message.Content[0]
+		if finalPart.Text != "Final result: 17" {
+			t.Errorf("expected final result text to be 'Final result: 17', got %q", finalPart.Text)
+		}
+	})
+
+	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
+		roundCount := 0
+		multiRoundModel := DefineModel(r, "test", "multiround", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				roundCount++
+				if roundCount == 1 {
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 2, "Over": 3},
+								}),
+							},
+						},
+					}, nil
+				}
+				if roundCount == 2 {
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "gablorken",
+									Input: map[string]any{"Value": 3, "Over": 2},
+								}),
+							},
+						},
+					}, nil
+				}
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewTextPart("Final result"),
+						},
+					},
+				}, nil
+			})
+
+		res, err := Generate(context.Background(), r,
+			WithModel(multiRoundModel),
+			WithTextPrompt("trigger multiple rounds"),
+			WithTools(gablorkenTool),
+			WithMaxTurns(2),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if roundCount != 3 {
+			t.Errorf("expected 3 rounds, got %d", roundCount)
+		}
+
+		if res.Text() != "Final result" {
+			t.Errorf("expected final message 'Final result', got %q", res.Text())
+		}
+	})
+
+	t.Run("exceeds maximum turns", func(t *testing.T) {
+		infiniteModel := DefineModel(r, "test", "infinite", nil,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewToolRequestPart(&ToolRequest{
+								Name:  "gablorken",
+								Input: map[string]any{"Value": 2, "Over": 2},
+							}),
+						},
+					},
+				}, nil
+			})
+
+		_, err := Generate(context.Background(), r,
+			WithModel(infiniteModel),
+			WithTextPrompt("trigger infinite loop"),
+			WithTools(gablorkenTool),
+			WithMaxTurns(2),
+		)
+
+		if err == nil {
+			t.Fatal("expected error for exceeding maximum turns")
+		}
+		if !strings.Contains(err.Error(), "exceeded maximum tool call iterations (2)") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+}
+
+func TestModelVersion(t *testing.T) {
+	t.Run("valid version", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(echoModel),
+			WithConfig(&GenerationCommonConfig{
+				Temperature: 1,
+				Version:     "echo-001",
+			}),
+			WithTextPrompt("tell a joke about batman"))
+		if err != nil {
+			t.Errorf("model version should be valid")
+		}
+	})
+	t.Run("invalid version", func(t *testing.T) {
+		_, err := Generate(context.Background(), r,
+			WithModel(echoModel),
+			WithConfig(&GenerationCommonConfig{
+				Temperature: 1,
+				Version:     "echo-im-not-a-version",
+			}),
+			WithTextPrompt("tell a joke about batman"))
+		if err == nil {
+			t.Errorf("model version should be invalid: %v", err)
+		}
+	})
 }
 
 func TestIsDefinedModel(t *testing.T) {
 	t.Run("should return true", func(t *testing.T) {
-		if IsDefinedModel(r, "test", "echo") != true {
+		if IsDefinedModel(r, "test", modelName) != true {
 			t.Errorf("IsDefinedModel did not return true")
 		}
 	})
@@ -345,7 +594,7 @@ func TestIsDefinedModel(t *testing.T) {
 
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
-		if LookupModel(r, "test", "echo") == nil {
+		if LookupModel(r, "test", modelName) == nil {
 			t.Errorf("LookupModel did not return model")
 		}
 	})

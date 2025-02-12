@@ -15,7 +15,8 @@
  */
 
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { genkit, run, z } from 'genkit';
+import { z } from 'genkit';
+import { genkit } from 'genkit/beta';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -84,26 +85,24 @@ export const menuSuggestionFlowMarkdown = ai.defineFlow(
 // [END ex03]
 
 // [START ex06]
-export const menuSuggestionStreamingFlow = ai.defineStreamingFlow(
+export const menuSuggestionStreamingFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     streamSchema: z.string(),
     outputSchema: z.object({ theme: z.string(), menuItem: z.string() }),
   },
-  async (restaurantTheme, streamingCallback) => {
+  async (restaurantTheme, { sendChunk }) => {
     const response = await ai.generateStream({
       model: gemini15Flash,
       prompt: `Invent a menu item for a ${restaurantTheme} themed restaurant.`,
     });
 
-    if (streamingCallback) {
-      for await (const chunk of response.stream) {
-        // Here, you could process the chunk in some way before sending it to
-        // the output stream via streamingCallback(). In this example, we output
-        // the text of the chunk, unmodified.
-        streamingCallback(chunk.text);
-      }
+    for await (const chunk of response.stream) {
+      // Here, you could process the chunk in some way before sending it to
+      // the output stream via streamingCallback(). In this example, we output
+      // the text of the chunk, unmodified.
+      sendChunk(chunk.text);
     }
 
     return {
@@ -159,22 +158,25 @@ export const menuQuestionFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input: string): Promise<string> => {
-    const menu = await run('retrieve-daily-menu', async (): Promise<string> => {
-      // Retrieve today's menu. (This could be a database access or simply
-      // fetching the menu from your website.)
+    const menu = await ai.run(
+      'retrieve-daily-menu',
+      async (): Promise<string> => {
+        // Retrieve today's menu. (This could be a database access or simply
+        // fetching the menu from your website.)
 
-      // [START_EXCLUDE]
-      const menu = `
+        // [START_EXCLUDE]
+        const menu = `
 Today's menu
 
 - Breakfast: spam and eggs
 - Lunch: spam sandwich with a cup of spam soup
 - Dinner: spam roast with a side of spammed potatoes
       `;
-      // [END_EXCLUDE]
+        // [END_EXCLUDE]
 
-      return menu;
-    });
+        return menu;
+      }
+    );
     const { text } = await ai.generate({
       model: gemini15Flash,
       system: "Help the user answer questions about today's menu.",
@@ -197,7 +199,7 @@ async function fn() {
   // [END ex05]
 
   // [START ex07]
-  const response = menuSuggestionStreamingFlow('Danube');
+  const response = menuSuggestionStreamingFlow.stream('Danube');
   // [END ex07]
   // [START ex08]
   for await (const chunk of response.stream) {

@@ -311,12 +311,12 @@ export function openaiCompatibleModel<C extends typeof OpenAIConfigSchema>(
     },
     async (
       request: GenerateRequest<C>,
-      streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+      sendChunk?: StreamingCallback<GenerateResponseChunkData>
     ): Promise<GenerateResponseData> => {
       let response: ChatCompletion;
       const client = await clientFactory(request);
       const body = toRequestBody(model, request);
-      if (streamingCallback) {
+      if (sendChunk) {
         const stream = client.beta.chat.completions.stream({
           ...body,
           stream: true,
@@ -324,7 +324,7 @@ export function openaiCompatibleModel<C extends typeof OpenAIConfigSchema>(
         for await (const chunk of stream) {
           chunk.choices?.forEach((chunk) => {
             const c = fromOpenAiChunkChoice(chunk);
-            streamingCallback({
+            sendChunk({
               index: c.index,
               content: c.message.content,
             });

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Channel } from '@genkit-ai/core/async';
+
 const __flowStreamDelimiter = '\n\n';
 
 /**
@@ -22,7 +24,7 @@ const __flowStreamDelimiter = '\n\n';
  * For example:
  *
  * ```js
- * import { streamFlow } from 'genkit/client';
+ * import { streamFlow } from 'genkit/beta/client';
  *
  * const response = streamFlow({
  *   url: 'https://my-flow-deployed-url',
@@ -43,61 +45,37 @@ export function streamFlow<O = any, S = any>({
   input?: any;
   headers?: Record<string, string>;
 }): {
-  output(): Promise<O>;
-  stream(): AsyncIterable<S>;
+  readonly output: Promise<O>;
+  readonly stream: AsyncIterable<S>;
 } {
-  let chunkStreamController: ReadableStreamDefaultController | undefined =
-    undefined;
-  const chunkStream = new ReadableStream({
-    start(controller) {
-      chunkStreamController = controller;
-    },
-    pull() {},
-    cancel() {},
-  });
+  const channel = new Channel<S>();
 
   const operationPromise = __flowRunEnvelope({
     url,
     input,
-    streamingCallback: (c) => {
-      chunkStreamController?.enqueue(c);
-    },
+    sendChunk: (c) => channel.send(c),
     headers,
   });
-  operationPromise.then((o) => {
-    chunkStreamController?.close();
-    return o;
-  });
+  operationPromise.then(
+    () => channel.close(),
+    (err) => channel.error(err)
+  );
 
   return {
-    output() {
-      return operationPromise;
-    },
-    async *stream() {
-      const reader = chunkStream.getReader();
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk?.value !== undefined) {
-          yield chunk.value;
-        }
-        if (chunk.done) {
-          break;
-        }
-      }
-      return await operationPromise;
-    },
+    output: operationPromise,
+    stream: channel,
   };
 }
 
 async function __flowRunEnvelope({
   url,
   input,
-  streamingCallback,
+  sendChunk,
   headers,
 }: {
   url: string;
   input: any;
-  streamingCallback: (chunk: any) => void;
+  sendChunk: (chunk: any) => void;
   headers?: Record<string, string>;
 }) {
   const response = await fetch(url, {
@@ -137,7 +115,7 @@ async function __flowRunEnvelope({
           .substring('data: '.length)
       );
       if (chunk.hasOwnProperty('message')) {
-        streamingCallback(chunk.message);
+        sendChunk(chunk.message);
       } else if (chunk.hasOwnProperty('result')) {
         return chunk.result;
       } else if (chunk.hasOwnProperty('error')) {
@@ -194,6 +172,19 @@ export async function runFlow<O = any>({
       `Server returned: ${response.status}: ${await response.text()}`
     );
   }
-  const wrappedDesult = await response.json();
-  return wrappedDesult.result;
+  const wrappedResult = (await response.json()) as
+    | { result: O }
+    | { error: unknown };
+  if ('error' in wrappedResult) {
+    if (typeof wrappedResult.error === 'string') {
+      throw new Error(wrappedResult.error);
+    }
+    // TODO: The callable protocol defines an HttpError that has a JSON format of
+    // details?: string
+    // httpErrorCode: { canonicalName: string }
+    // message: string
+    // Should we create a new error class that parses this and exposes it as fields?
+    throw new Error(JSON.stringify(wrappedResult.error));
+  }
+  return wrappedResult.result;
 }

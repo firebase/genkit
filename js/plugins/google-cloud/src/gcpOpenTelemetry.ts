@@ -128,7 +128,7 @@ export class GcpOpenTelemetry {
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
-      this.config.exportIO,
+      this.config.exportInputAndOutput,
       this.config.projectId,
       getErrorHandler(
         (err) => {
@@ -198,17 +198,6 @@ export class GcpOpenTelemetry {
           )
         )
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
-    exporter.selectAggregation = (instrumentType: InstrumentType) => {
-      if (instrumentType === InstrumentType.HISTOGRAM) {
-        return new ExponentialHistogramAggregation();
-      }
-      return new DefaultAggregation();
-    };
-    exporter.selectAggregationTemporality = (
-      instrumentType: InstrumentType
-    ) => {
-      return AggregationTemporality.DELTA;
-    };
     return exporter;
   }
 }
@@ -218,23 +207,76 @@ export class GcpOpenTelemetry {
  * helpful information about how to set up metrics/telemetry in GCP.
  */
 class MetricExporterWrapper extends MetricExporter {
+  private promise = new Promise<void>((resolve) => resolve());
+
   constructor(
-    private options?: ExporterOptions,
+    options?: ExporterOptions,
     private errorHandler?: (error: Error) => void
   ) {
     super(options);
   }
 
-  export(
+  async export(
     metrics: ResourceMetrics,
     resultCallback: (result: ExportResult) => void
-  ): void {
-    super.export(metrics, (result) => {
-      if (this.errorHandler && result.error) {
-        this.errorHandler(result.error);
-      }
-      resultCallback(result);
+  ): Promise<void> {
+    await this.promise;
+    this.modifyStartTimes(metrics);
+    this.promise = new Promise<void>((resolve) => {
+      super.export(metrics, (result) => {
+        try {
+          if (this.errorHandler && result.error) {
+            this.errorHandler(result.error);
+          }
+          resultCallback(result);
+        } finally {
+          resolve();
+        }
+      });
     });
+  }
+
+  selectAggregation(instrumentType: InstrumentType) {
+    if (instrumentType === InstrumentType.HISTOGRAM) {
+      return new ExponentialHistogramAggregation();
+    }
+    return new DefaultAggregation();
+  }
+
+  selectAggregationTemporality(instrumentType: InstrumentType) {
+    return AggregationTemporality.DELTA;
+  }
+
+  /**
+   * Modify the start times of each data point to ensure no
+   * overlap with previous exports.
+   *
+   * Cloud metrics do not support delta metrics for custom metrics
+   * and will convert any DELTA aggregations to CUMULATIVE ones on
+   * export. There is implicit overlap in the start/end times that
+   * the Metric reader is sending -- the end_time of the previous
+   * export will become the start_time of the current export. The
+   * overlap in times means that only one of those records will
+   * persist and the other will be overwritten. This
+   * method adds a thousandth of a second to ensure discrete export
+   * timeframes.
+   */
+  private modifyStartTimes(metrics: ResourceMetrics): void {
+    metrics.scopeMetrics.forEach((scopeMetric) => {
+      scopeMetric.metrics.forEach((metric) => {
+        metric.dataPoints.forEach((dataPoint) => {
+          dataPoint.startTime[1] = dataPoint.startTime[1] + 1_000_000;
+        });
+      });
+    });
+  }
+
+  async shutdown(): Promise<void> {
+    return await this.forceFlush();
+  }
+
+  async forceFlush(): Promise<void> {
+    await this.promise;
   }
 }
 
@@ -245,7 +287,7 @@ class MetricExporterWrapper extends MetricExporter {
 class AdjustingTraceExporter implements SpanExporter {
   constructor(
     private exporter: SpanExporter,
-    private logIO: boolean,
+    private logInputAndOutput: boolean,
     private projectId?: string,
     private errorHandler?: (error: Error) => void
   ) {}
@@ -307,6 +349,26 @@ class AdjustingTraceExporter implements SpanExporter {
       )
     );
 
+    // Check if we have a failure in the root span that requires special handling
+    const rootSpan = spans.find((s) =>
+      Object.keys(s.attributes).includes('genkit:isRoot')
+    );
+    if (rootSpan) {
+      const rootSpanFailed =
+        (rootSpan.attributes['genkit:state'] as string) === 'error';
+      const anotherFailedSpan = spans.find(
+        (s) =>
+          !Object.keys(s.attributes).includes('genkit:isRoot') &&
+          s.attributes['genkit:state'] === 'error'
+      );
+      if (rootSpanFailed && !anotherFailedSpan) {
+        rootSpan.attributes['genkit:failedSpan'] =
+          rootSpan.attributes['genkit:name'];
+        rootSpan.attributes['genkit:failedPath'] =
+          rootSpan.attributes['genkit:path'];
+      }
+    }
+
     return spans.map((span) => {
       this.tickTelemetry(span, allLeafPaths);
 
@@ -334,26 +396,46 @@ class AdjustingTraceExporter implements SpanExporter {
     if (isRoot) {
       // Report top level feature request and latency only for root spans
       // Log input to and output from to the feature
-      featuresTelemetry.tick(span, unused, this.logIO, this.projectId);
+      featuresTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
       // Report executions and latency for all flow paths only on the root span
-      pathsTelemetry.tick(span, paths, this.logIO, this.projectId);
+      pathsTelemetry.tick(span, paths, this.logInputAndOutput, this.projectId);
       // Set root status explicitly
       span.attributes['genkit:rootState'] = span.attributes['genkit:state'];
     }
     if (type === 'action' && subtype === 'model') {
       // Report generate metrics () for all model actions
-      generateTelemetry.tick(span, unused, this.logIO, this.projectId);
+      generateTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
     }
     if (type === 'action' && subtype === 'tool') {
       // TODO: Report input and output for tool actions
     }
     if (type === 'action' || type === 'flow' || type == 'flowStep') {
       // Report request and latency metrics for all actions
-      actionTelemetry.tick(span, unused, this.logIO, this.projectId);
+      actionTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
     }
     if (type === 'userEngagement') {
       // Report user acceptance and feedback metrics
-      engagementTelemetry.tick(span, unused, this.logIO, this.projectId);
+      engagementTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
     }
   }
 
@@ -389,8 +471,6 @@ class AdjustingTraceExporter implements SpanExporter {
         };
   }
 
-  // This is a workaround for GCP Trace to mark a span with a red
-  // exclamation mark indicating that it is an error.
   private normalizeLabels(span: ReadableSpan): ReadableSpan {
     const normalized = {} as Record<string, any>;
     for (const [key, value] of Object.entries(span.attributes)) {
@@ -406,9 +486,7 @@ class AdjustingTraceExporter implements SpanExporter {
   private markFailedSpan(span: ReadableSpan): ReadableSpan {
     if (
       span.attributes['genkit:state'] === 'error' &&
-      (span.attributes['genkit:type'] === 'action' ||
-        span.attributes['genkit:type'] === 'flowStep' ||
-        span.attributes['genkit:type'] === 'helper')
+      !span.attributes['genkit:isRoot']
     ) {
       if (!!span.attributes['genkit:name']) {
         span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];

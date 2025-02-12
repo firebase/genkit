@@ -1,10 +1,6 @@
 # Google Cloud plugin
 
-The Google Cloud plugin exports Firebase Genkit telemetry and logging data to
-the 
-[Cloud Observability](https://cloud.google.com/products/operations)
-suite, which powers the 
-[Firebase AI Monitoring](https://forms.gle/Lp5S1NxbZUXsWc457) dashboard.
+The Google Cloud plugin exports Firebase Genkit telemetry and logging data to the [Cloud Observability](https://cloud.google.com/products/operations) suite.
 
 ## Installation
 
@@ -62,7 +58,7 @@ automatically via
 
 You will need to apply the following roles to the service account that is 
 running your code (i.e. 'attached service account') via the 
-[IAM Console](https://pantheon.corp.google.com/iam-admin/iam):
+[IAM Console](https://console.cloud.google.com/iam-admin/iam):
 
 - `roles/monitoring.metricWriter`
 - `roles/cloudtrace.agent`
@@ -164,10 +160,10 @@ For cases where exporting all traces isn't practical, OpenTelemetry allows trace
 
 There are four preconfigured samplers:
 
-- [AlwaysOnSampler](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/samplers/AlwaysOnSampler.java) - samples all traces
-- [AlwaysOffSampler](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/samplers/AlwaysOffSampler.java) - samples no traces
-- [ParentBased](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/samplers/ParentBasedSampler.java) - samples based on parent span
-- [TraceIdRatioBased](https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk/trace/src/main/java/io/opentelemetry/sdk/trace/samplers/TraceIdRatioBasedSampler.java) - samples a configurable percentage of traces
+- [AlwaysOnSampler](https://github.com/open-telemetry/opentelemetry-js/blob/main/packages/opentelemetry-sdk-trace-base/src/sampler/AlwaysOnSampler.ts) - samples all traces
+- [AlwaysOffSampler](https://github.com/open-telemetry/opentelemetry-js/blob/main/packages/opentelemetry-sdk-trace-base/src/sampler/AlwaysOffSampler.ts) - samples no traces
+- [ParentBased](https://github.com/open-telemetry/opentelemetry-js/blob/main/packages/opentelemetry-sdk-trace-base/src/sampler/ParentBasedSampler.ts) - samples based on parent span
+- [TraceIdRatioBased](https://github.com/open-telemetry/opentelemetry-js/blob/main/packages/opentelemetry-sdk-trace-base/src/sampler/TraceIdRatioBasedSampler.ts) - samples a configurable percentage of traces
 
 #### autoInstrumentation & autoInstrumentationConfig
 
@@ -197,7 +193,7 @@ and logs.
 Provides an override that disables exporting traces while still exprting metrics
 and logs.
 
-#### disableLoggingIO
+#### disableLoggingInputAndOutput
 
 Provides an override that disables collecting input and output logs.
 

@@ -1,0 +1,27 @@
+{
+  "name": "prompts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node lib/index.js",
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "genkit": "^1.0.4",
+    "@genkit-ai/googleai": "^1.0.4",
+    "@genkit-ai/express": "^1.0.4",
+    "express": "^4.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "genkit-cli": "^1.0.4",
+    "typescript": "^5.5.4"
+  }
+}

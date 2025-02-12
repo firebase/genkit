@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';
@@ -35,36 +36,8 @@ export const start = new Command('start')
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
-    let runtimePromise = Promise.resolve();
-    if (start.args.length > 0) {
-      runtimePromise = new Promise((urlResolver, reject) => {
-        const appProcess = spawn(start.args[0], start.args.slice(1), {
-          env: { ...process.env, GENKIT_ENV: 'dev' },
-          shell: process.platform === 'win32',
-        });
-
-        const originalStdIn = process.stdin;
-        appProcess.stderr?.pipe(process.stderr);
-        appProcess.stdout?.pipe(process.stdout);
-        process.stdin?.pipe(appProcess.stdin);
-
-        appProcess.on('error', (error): void => {
-          console.log(`Error in app process: ${error}`);
-          reject(error);
-          process.exitCode = 1;
-        });
-        appProcess.on('exit', (code) => {
-          process.stdin?.pipe(originalStdIn);
-          if (code === 0) {
-            urlResolver(undefined);
-          } else {
-            reject(new Error(`app process exited with code ${code}`));
-          }
-        });
-      });
-    }
-
-    let uiPromise = Promise.resolve();
+    // Always start the manager.
+    let managerPromise: Promise<RuntimeManager> = startManager(true);
     if (!options.noui) {
       let port: number;
       if (options.port) {
@@ -76,12 +49,52 @@ export const start = new Command('start')
       } else {
         port = await getPort({ port: makeRange(4000, 4099) });
       }
-      uiPromise = startManager(true).then((manager) =>
-        startServer(manager, port)
-      );
+      managerPromise = managerPromise.then((manager) => {
+        startServer(manager, port);
+        return manager;
+      });
       if (options.open) {
         open(`http://localhost:${port}`);
       }
     }
-    await Promise.all([runtimePromise, uiPromise]);
+    await managerPromise.then((manager: RuntimeManager) => {
+      const telemetryServerUrl = manager?.telemetryServerUrl;
+      return startRuntime(telemetryServerUrl);
+    });
   });
+
+async function startRuntime(telemetryServerUrl?: string) {
+  let runtimePromise = Promise.resolve();
+  if (start.args.length > 0) {
+    runtimePromise = new Promise((urlResolver, reject) => {
+      const appProcess = spawn(start.args[0], start.args.slice(1), {
+        env: {
+          ...process.env,
+          GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
+          GENKIT_ENV: 'dev',
+        },
+        shell: process.platform === 'win32',
+      });
+
+      const originalStdIn = process.stdin;
+      appProcess.stderr?.pipe(process.stderr);
+      appProcess.stdout?.pipe(process.stdout);
+      process.stdin?.pipe(appProcess.stdin);
+
+      appProcess.on('error', (error): void => {
+        console.log(`Error in app process: ${error}`);
+        reject(error);
+        process.exitCode = 1;
+      });
+      appProcess.on('exit', (code) => {
+        process.stdin?.pipe(originalStdIn);
+        if (code === 0) {
+          urlResolver(undefined);
+        } else {
+          reject(new Error(`app process exited with code ${code}`));
+        }
+      });
+    });
+  }
+  return runtimePromise;
+}

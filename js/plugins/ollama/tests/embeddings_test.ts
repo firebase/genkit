@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import * as assert from 'assert';
 import { Genkit, genkit } from 'genkit';
-import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
 import { ollama } from '../src/index.js';
@@ -69,7 +69,7 @@ describe('defineOllamaEmbedder', () => {
       embedder,
       content: 'Hello, world!',
     });
-    assert.deepStrictEqual(result, [0.1, 0.2, 0.3]);
+    assert.deepStrictEqual(result, [{ embedding: [0.1, 0.2, 0.3] }]);
   });
 
   it('should handle API errors correctly', async () => {
@@ -87,7 +87,7 @@ describe('defineOllamaEmbedder', () => {
         });
       },
       (error) => {
-        assert(error instanceof Error);
+        assert.ok(error instanceof Error);
         assert.strictEqual(
           error.message,
           'Error fetching embedding from Ollama: Internal Server Error'

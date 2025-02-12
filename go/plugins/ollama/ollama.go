@@ -1,16 +1,5 @@
 // Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package ollama
 
@@ -36,41 +25,48 @@ import (
 
 const provider = "ollama"
 
-var mediaSupportedModels = []string{"llava"}
-var roleMapping = map[ai.Role]string{
-	ai.RoleUser:   "user",
-	ai.RoleModel:  "assistant",
-	ai.RoleSystem: "system",
-}
+var (
+	mediaSupportedModels = []string{"llava"}
+	roleMapping          = map[ai.Role]string{
+		ai.RoleUser:   "user",
+		ai.RoleModel:  "assistant",
+		ai.RoleSystem: "system",
+	}
+)
+
 var state struct {
-	mu            sync.Mutex
-	initted       bool
 	serverAddress string
+	initted       bool
+	mu            sync.Mutex
 }
 
-func DefineModel(g *genkit.Genkit, model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
+func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
-	var mc ai.ModelCapabilities
-	if caps != nil {
-		mc = *caps
+	var mi ai.ModelInfo
+	if info != nil {
+		mi = *info
 	} else {
-		mc = ai.ModelCapabilities{
-			Multiturn:  true,
-			SystemRole: true,
-			Media:      slices.Contains(mediaSupportedModels, model.Name),
+		mi = ai.ModelInfo{
+			Label: model.Name,
+			Supports: &ai.ModelInfoSupports{
+				Multiturn:  true,
+				SystemRole: true,
+				Media:      slices.Contains(mediaSupportedModels, model.Name),
+			},
+			Versions: []string{},
 		}
 	}
-	meta := &ai.ModelMetadata{
+	meta := &ai.ModelInfo{
 		Label:    "Ollama - " + model.Name,
-		Supports: mc,
+		Supports: mi.Supports,
+		Versions: []string{},
 	}
 	gen := &generator{model: model, serverAddress: state.serverAddress}
 	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)
-
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -170,7 +166,6 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 
 // Generate makes a request to the Ollama API and processes the response.
 func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
-
 	stream := cb != nil
 	var payload any
 	isChatModel := g.model.Type == "chat"

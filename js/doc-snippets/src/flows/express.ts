@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { startFlowServer } from '@genkit-ai/express';
 import { genkit } from 'genkit';
 
 const ai = genkit({});
@@ -28,7 +29,7 @@ export const menuSuggestionFlow = ai.defineFlow(
   }
 );
 
-ai.startFlowServer({
+startFlowServer({
   flows: [menuSuggestionFlow],
 });
 // [END ex01]
@@ -42,7 +43,7 @@ export const flowB = ai.defineFlow({ name: 'flowB' }, async (subject) => {
   // ...
 });
 
-ai.startFlowServer({
+startFlowServer({
   flows: [flowB],
   port: 4567,
   cors: {

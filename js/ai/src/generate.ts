@@ -16,12 +16,15 @@
 
 import {
   Action,
+  ActionContext,
   GenkitError,
   StreamingCallback,
+  runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { Channel } from '@genkit-ai/core/async';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
@@ -30,22 +33,28 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { GenerateUtilParamSchema, generateHelper } from './generate/action.js';
+import { generateHelper } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  GenerateActionOptions,
   GenerateRequest,
   GenerationCommonConfigSchema,
   MessageData,
   ModelArgument,
   ModelMiddleware,
   Part,
+  ToolRequestPart,
+  ToolResponsePart,
   resolveModel,
 } from './model.js';
 import { ExecutablePrompt } from './prompt.js';
 import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
+
+/** Specifies how tools should be called by the model. */
+export type ToolChoice = 'auto' | 'required' | 'none';
 
 export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   format?: string;
@@ -53,6 +62,33 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   instructions?: boolean | string;
   schema?: O;
   jsonSchema?: any;
+  constrained?: boolean;
+}
+
+/** ResumeOptions configure how to resume generation after an interrupt. */
+export interface ResumeOptions {
+  /**
+   * respond should contain a single or list of `toolResponse` parts corresponding
+   * to interrupt `toolRequest` parts from the most recent model message. Each
+   * entry must have a matching `name` and `ref` (if supplied) for its `toolRequest`
+   * counterpart.
+   *
+   * Tools have a `.respond` helper method to construct a reply ToolResponse and validate
+   * the data against its schema. Call `myTool.respond(interruptToolRequest, yourReplyData)`.
+   */
+  respond?: ToolResponsePart | ToolResponsePart[];
+  /**
+   * restart will run a tool again with additionally supplied metadata passed through as
+   * a `resumed` option in the second argument. This allows for scenarios like conditionally
+   * requesting confirmation of an LLM's tool request.
+   *
+   * Tools have a `.restart` helper method to construct a restart ToolRequest. Call
+   * `myTool.restart(interruptToolRequest, resumeMetadata)`.
+   *
+   */
+  restart?: ToolRequestPart | ToolRequestPart[];
+  /** Additional metadata to annotate the created tool message with in the "resume" key. */
+  metadata?: Record<string, any>;
 }
 
 export interface GenerateOptions<
@@ -71,10 +107,35 @@ export interface GenerateOptions<
   messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
+  /** Specifies how tools should be called by the model.  */
+  toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
   config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: OutputOptions<O>;
+  /**
+   * resume provides convenient capabilities for continuing generation
+   * after an interrupt is triggered. Example:
+   *
+   * ```ts
+   * const myInterrupt = ai.defineInterrupt({...});
+   *
+   * const response = await ai.generate({
+   *   tools: [myInterrupt],
+   *   prompt: "Call myInterrupt",
+   * });
+   *
+   * const interrupt = response.interrupts[0];
+   *
+   * const resumedResponse = await ai.generate({
+   *   messages: response.messages,
+   *   resume: myInterrupt.respond(interrupt, {note: "this is the reply data"}),
+   * });
+   * ```
+   *
+   * @beta
+   */
+  resume?: ResumeOptions;
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
@@ -89,13 +150,15 @@ export interface GenerateOptions<
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
+  /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
+  context?: ActionContext;
 }
 
 export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [];
+  let messages: MessageData[] = [];
   if (options.system) {
     messages.push({
       role: 'system',
@@ -115,6 +178,19 @@ export async function toGenerateRequest(
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: 'at least one message is required in generate request',
+    });
+  }
+  if (
+    options.resume &&
+    !(
+      messages.at(-1)?.role === 'model' &&
+      messages.at(-1)?.content.find((p) => !!p.toolRequest)
+    )
+  ) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Last message must be a 'model' role with at least one tool request to 'resume' generation.`,
+      detail: messages.at(-1),
     });
   }
   let tools: Action<any, any>[] | undefined;
@@ -142,9 +218,10 @@ export async function toGenerateRequest(
     output: {
       ...(resolvedFormat?.config || {}),
       schema: resolvedSchema,
+      ...options.output,
     },
-  };
-  if (!out.output.schema) delete out.output.schema;
+  } as GenerateRequest;
+  if (!out?.output?.schema) delete out?.output?.schema;
   return out;
 }
 
@@ -259,7 +336,10 @@ export async function generate<
   });
 
   // If is schema is set but format is not explicitly set, default to `json` format.
-  if (resolvedOptions.output?.schema && !resolvedOptions.output?.format) {
+  if (
+    (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) &&
+    !resolvedOptions.output?.format
+  ) {
     resolvedOptions.output.format = 'json';
   }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
@@ -269,19 +349,27 @@ export async function generate<
     resolvedOptions?.output?.instructions
   );
 
-  const params: z.infer<typeof GenerateUtilParamSchema> = {
+  const params: GenerateActionOptions = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
     messages: injectInstructions(messages, instructions),
     tools,
+    toolChoice: resolvedOptions.toolChoice,
     config: {
       version: resolvedModel.version,
       ...stripUndefinedOptions(resolvedModel.config),
       ...stripUndefinedOptions(resolvedOptions.config),
     },
     output: resolvedOptions.output && {
+      ...resolvedOptions.output,
       format: resolvedOptions.output.format,
       jsonSchema: resolvedSchema,
+    },
+    // coerce reply and restart into arrays for the action schema
+    resume: resolvedOptions.resume && {
+      respond: [resolvedOptions.resume.respond || []].flat(),
+      restart: [resolvedOptions.resume.restart || []].flat(),
+      metadata: resolvedOptions.resume.metadata,
     },
     returnToolRequests: resolvedOptions.returnToolRequests,
     maxTurns: resolvedOptions.maxTurns,
@@ -291,10 +379,14 @@ export async function generate<
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
     async () => {
-      const response = await generateHelper(
+      const response = await runWithContext(
         registry,
-        params,
-        resolvedOptions.use
+        resolvedOptions.context,
+        () =>
+          generateHelper(registry, {
+            rawRequest: params,
+            middleware: resolvedOptions.use,
+          })
       );
       const request = await toGenerateRequest(registry, {
         ...resolvedOptions,
@@ -355,17 +447,7 @@ export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
   get response(): Promise<GenerateResponse<O>>;
 }
 
-function createPromise<T>(): {
-  resolve: (result: T) => unknown;
-  reject: (err: unknown) => unknown;
-  promise: Promise<T>;
-} {
-  let resolve, reject;
-  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
-  return { resolve, reject, promise };
-}
-
-export async function generateStream<
+export function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
@@ -373,68 +455,24 @@ export async function generateStream<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<GenerateStreamResponse<O>> {
-  let firstChunkSent = false;
-  return new Promise<GenerateStreamResponse<O>>(
-    (initialResolve, initialReject) => {
-      const {
-        resolve: finalResolve,
-        reject: finalReject,
-        promise: finalPromise,
-      } = createPromise<GenerateResponse<O>>();
+): GenerateStreamResponse<O> {
+  let channel = new Channel<GenerateResponseChunk>();
 
-      let provideNextChunk, nextChunk;
-      ({ resolve: provideNextChunk, promise: nextChunk } =
-        createPromise<GenerateResponseChunk | null>());
-      async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
-        while (true) {
-          const next = await nextChunk;
-          if (!next) break;
-          yield next;
-        }
-      }
-
-      try {
-        generate<O, CustomOptions>(registry, {
-          ...options,
-          onChunk: (chunk) => {
-            firstChunkSent = true;
-            provideNextChunk(chunk);
-            ({ resolve: provideNextChunk, promise: nextChunk } =
-              createPromise<GenerateResponseChunk | null>());
-          },
-        })
-          .then((result) => {
-            provideNextChunk(null);
-            finalResolve(result);
-          })
-          .catch((e) => {
-            if (!firstChunkSent) {
-              initialReject(e);
-              return;
-            }
-            provideNextChunk(null);
-            finalReject(e);
-          });
-      } catch (e) {
-        if (!firstChunkSent) {
-          initialReject(e);
-          return;
-        }
-        provideNextChunk(null);
-        finalReject(e);
-      }
-
-      initialResolve({
-        get response() {
-          return finalPromise;
-        },
-        get stream() {
-          return chunkStream();
-        },
-      });
-    }
+  const generated = Promise.resolve(options).then((resolvedOptions) =>
+    generate<O, CustomOptions>(registry, {
+      ...resolvedOptions,
+      onChunk: (chunk) => channel.send(chunk),
+    })
   );
+  generated.then(
+    () => channel.close(),
+    (err) => channel.error(err)
+  );
+
+  return {
+    response: generated,
+    stream: channel,
+  };
 }
 
 export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {

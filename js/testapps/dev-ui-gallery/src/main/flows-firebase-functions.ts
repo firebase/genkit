@@ -14,91 +14,37 @@
  * limitations under the License.
  */
 
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
-import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { gemini15Flash } from '@genkit-ai/googleai';
-import { DecodedIdToken } from 'firebase-admin/auth';
-import { run, z } from 'genkit';
+import { onCallGenkit } from 'firebase-functions/https';
+import { defineSecret } from 'firebase-functions/params';
+import { z } from 'genkit';
 import { ai } from '../genkit.js';
 
-export const flowBasicAuth = ai.defineFlow(
+const apiKey = defineSecret('GOOGLE_GENAI_API_KEY');
+
+const greetFlow = ai.defineFlow(
   {
-    name: 'flowBasicAuth',
-    inputSchema: z.object({ language: z.string(), uid: z.string() }),
+    name: 'greet',
+    inputSchema: z.string(),
     outputSchema: z.string(),
-    authPolicy: (auth, input) => {
-      if (!auth) {
-        throw new Error('Authorization required.');
-      }
-      if (input.uid !== auth.uid) {
-        throw new Error('You may only summarize your own profile data.');
-      }
-    },
   },
-  async (input) => {
-    const prompt = `Say hello in language ${input.language}`;
-
-    return await run('call-llm', async () => {
-      const llmResponse = await ai.generate({
-        model: gemini15Flash,
-        prompt: prompt,
-      });
-
-      return llmResponse.text;
-    });
+  async (langauge: string) => {
+    const { output } = await ai.generate(`Say hello in language ${langauge}`);
+    return output;
   }
 );
 
-export const flowAuth = onFlow(
-  ai,
+export const greetNoAuth = onCallGenkit(
   {
-    name: 'flowAuth',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    httpsOptions: {
-      cors: '*',
-    },
-    authPolicy: firebaseAuth((user: DecodedIdToken) => {
-      if (!user.email_verified && !user.admin) {
-        throw new Error('Auth failed - email not verified');
-      }
-    }),
+    secrets: [apiKey],
   },
-  async (language) => {
-    const prompt = `Say hello in language ${language}`;
-
-    return await run('call-llm', async () => {
-      const llmResponse = await ai.generate({
-        model: gemini15Flash,
-        prompt: prompt,
-      });
-
-      return llmResponse.text;
-    });
-  }
+  greetFlow
 );
 
-export const flowAuthNone = onFlow(
-  ai,
+export const greetAuthAndAppCheck = onCallGenkit(
   {
-    name: 'flowAuthNone',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    httpsOptions: {
-      cors: '*',
-    },
-    authPolicy: noAuth(),
+    secrets: [apiKey],
+    authPolicy: (auth) => auth?.token?.email_verified && auth?.token?.admin,
+    enforceAppCheck: true,
   },
-  async (language) => {
-    const prompt = `Say hello in language ${language}`;
-
-    return await run('call-llm', async () => {
-      const llmResponse = await ai.generate({
-        model: gemini15Flash,
-        prompt: prompt,
-      });
-
-      return llmResponse.text;
-    });
-  }
+  greetFlow
 );

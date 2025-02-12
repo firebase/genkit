@@ -29,22 +29,31 @@ export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 export { z } from 'zod';
 export * from './action.js';
-export { getFlowAuth } from './context.js';
-export { GenkitError } from './error.js';
 export {
-  Flow,
-  FlowServer,
+  apiKey,
+  getContext,
+  runWithContext,
+  type ActionContext,
+  type ApiKeyContext,
+  type ContextProvider,
+  type RequestData,
+} from './context.js';
+export {
+  GenkitError,
+  UnstableApiError,
+  UserFacingError,
+  assertUnstable,
+  getCallableJSON,
+  getHttpStatus,
+  type StatusName,
+} from './error.js';
+export {
   defineFlow,
-  defineStreamingFlow,
   run,
-  type CallableFlow,
-  type FlowAuthPolicy,
+  type Flow,
   type FlowConfig,
   type FlowFn,
-  type FlowServerOptions,
-  type StreamableFlow,
-  type StreamingFlowConfig,
-  type __RequestWithAuth,
+  type FlowSideChannel,
 } from './flow.js';
 export * from './plugin.js';
 export * from './reflection.js';

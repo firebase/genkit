@@ -19,7 +19,7 @@ import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import path from 'path';
-import z from 'zod';
+import * as z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
@@ -226,9 +226,13 @@ export class ReflectionServer {
 
     server.post('/api/notify', async (request, response) => {
       const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
-      if (typeof telemetryServerUrl === 'string') {
-        setTelemetryServerUrl(telemetryServerUrl);
-        logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
+      if (!process.env.GENKIT_TELEMETRY_SERVER) {
+        if (typeof telemetryServerUrl === 'string') {
+          setTelemetryServerUrl(telemetryServerUrl);
+          logger.debug(
+            `Connected to telemetry server on ${telemetryServerUrl}`
+          );
+        }
       }
       if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
         if (

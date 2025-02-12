@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import assert from 'node:assert';
+import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
 import { configureFormats } from '../../src/formats/index.js';
+import { generate } from '../../src/generate.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -29,9 +31,11 @@ import {
   AugmentWithContextOptions,
   CONTEXT_PREFACE,
   augmentWithContext,
+  simulateConstrainedGeneration,
   simulateSystemPrompt,
   validateSupport,
 } from '../../src/model/middleware.js';
+import { defineProgrammableModel } from '../helpers.js';
 
 describe('validateSupport', () => {
   const examples: Record<string, GenerateRequest> = {
@@ -90,7 +94,7 @@ describe('validateSupport', () => {
     for (const example of Object.values(examples)) {
       runner(example, noopNext);
     }
-    assert(nextCalled, "next() wasn't called");
+    assert.ok(nextCalled, "next() wasn't called");
   });
 
   it('throws when media is supplied but not supported', async () => {
@@ -388,6 +392,167 @@ describe('augmentWithContext', () => {
     assert.deepEqual(result[0].content.at(-1), {
       text: `${CONTEXT_PREFACE}* (first) -- i am context\n* (second) -- i am more context\n\n`,
       metadata: { purpose: 'context' },
+    });
+  });
+});
+
+describe('simulateConstrainedGeneration', () => {
+  let registry: Registry;
+
+  beforeEach(() => {
+    registry = new Registry();
+    configureFormats(registry);
+  });
+
+  it('injects the instructions into the request', async () => {
+    let pm = defineProgrammableModel(registry);
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: '```\n{"foo": "bar"}\n```' }],
+        },
+      };
+    };
+
+    const { output } = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'generate json',
+      output: {
+        schema: z.object({
+          foo: z.string(),
+        }),
+        format: 'json',
+      },
+    });
+    assert.deepEqual(output, { foo: 'bar' });
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {},
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'generate json' },
+            {
+              metadata: {
+                purpose: 'output',
+              },
+              text:
+                'Output should be in JSON format and conform to the following schema:\n' +
+                '\n' +
+                '```\n' +
+                '{"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}\n' +
+                '```\n',
+            },
+          ],
+        },
+      ],
+      output: {
+        constrained: false,
+      },
+      tools: [],
+    });
+  });
+
+  it('injects the instructions into the request idempotently', async () => {
+    let pm = defineProgrammableModel(registry);
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: '```\n{"foo": "bar"}\n```' }],
+        },
+      };
+    };
+
+    const { output } = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'generate json',
+      use: [
+        simulateConstrainedGeneration({
+          instructionsRenderer: (schema) =>
+            `must be json: ${JSON.stringify(schema)}`,
+        }),
+      ],
+      output: {
+        schema: z.object({
+          foo: z.string(),
+        }),
+        format: 'json',
+      },
+    });
+    assert.deepEqual(output, { foo: 'bar' });
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {},
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'generate json' },
+            {
+              metadata: {
+                purpose: 'output',
+              },
+              text: 'must be json: {"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}',
+            },
+          ],
+        },
+      ],
+      output: {
+        constrained: false,
+      },
+      tools: [],
+    });
+  });
+
+  it('relies on native support -- no instructions', async () => {
+    let pm = defineProgrammableModel(registry, {
+      supports: { constrained: 'all' },
+    });
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: '```\n{"foo": "bar"}\n```' }],
+        },
+      };
+    };
+
+    const { output } = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'generate json',
+      output: {
+        schema: z.object({
+          foo: z.string(),
+        }),
+      },
+    });
+    assert.deepEqual(output, { foo: 'bar' });
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {},
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: 'generate json' }],
+        },
+      ],
+      output: {
+        constrained: true,
+        contentType: 'application/json',
+        format: 'json',
+        schema: {
+          $schema: 'http://json-schema.org/draft-07/schema#',
+          additionalProperties: true,
+          properties: {
+            foo: {
+              type: 'string',
+            },
+          },
+          required: ['foo'],
+          type: 'object',
+        },
+      },
+      tools: [],
     });
   });
 });
