@@ -64,12 +64,9 @@ var Anthropic = func(config any) (Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config for Anthropic %T", config)
 	}
-	fmt.Printf("%#v", cfg)
 	c := anthropic.NewClient(
 		vertex.WithGoogleAuth(context.Background(), cfg.Location, cfg.Project),
 	)
-
-	fmt.Printf("client: %#v", c)
 
 	return &AnthropicClient{c}, nil
 }
@@ -114,6 +111,10 @@ func generate(
 ) (*ai.ModelResponse, error) {
 	// parse configuration
 	reqParams := anthropic.MessageNewParams{}
+
+	reqParams.Model = anthropic.F(anthropic.Model(model))
+	reqParams.MaxTokens = anthropic.F(int64(1024))
+
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 
 		// defaulting to 1024 since this is a mandatory parameter

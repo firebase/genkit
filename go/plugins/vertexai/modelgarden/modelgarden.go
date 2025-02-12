@@ -44,7 +44,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if state.initted {
-		panic("modelgarden.init already called")
+		panic("modelgarden.Init already called")
 	}
 
 	state.projectID = cfg.ProjectID
@@ -64,6 +64,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 
 	state.clients = NewClientFactory()
+	state.initted = true
 	for _, m := range cfg.Models {
 		// ANTHROPIC
 		if info, ok := AnthropicModels[m]; ok {
