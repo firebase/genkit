@@ -37,7 +37,7 @@ var chatPrompt = getChatPrompt(chatGenkit)
 
 func getNameTool(g *Genkit) *ai.ToolDef[struct{ Name string }, string] {
 	return DefineTool(g, "updateName", "use this tool to update the name of the user",
-		func(ctx context.Context, input struct {
+		func(ctx *ai.ToolContext, input struct {
 			Name string
 		}) (string, error) {
 			// Set name in state
@@ -100,7 +100,7 @@ func getChatModel(g *Genkit) ai.Model {
 			}
 
 			if m.Role == ai.RoleTool {
-				contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output["response"].(string))
+				contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output.(string))
 			}
 
 			for _, c := range m.Content {

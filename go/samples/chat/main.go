@@ -85,7 +85,7 @@ func StatefulChat(ctx context.Context, g *genkit.Genkit) {
 		g,
 		"updateName",
 		"use this tool to update the name of the user",
-		func(ctx context.Context, input struct {
+		func(ctx *ai.ToolContext, input struct {
 			Name string
 		}) (string, error) {
 			// Set name in state
