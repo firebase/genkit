@@ -18,18 +18,16 @@ const (
 	MistralProvider   = "mistral"
 )
 
+// Config for Model Garden
 type Config struct {
 	ProjectID string
 	Location  string
 	Models    []string
 }
 
-// A cache where all clients and its creators will be stored
-var clients = NewClientFactory()
-
 var state struct {
 	initted   bool
-	clients   *ClientFactory
+	clients   *ClientFactory // cache for all clients for available providers
 	projectID string
 	location  string
 	mu        sync.Mutex
@@ -65,12 +63,13 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 		state.location = "us-central1"
 	}
 
+	state.clients = NewClientFactory()
 	for _, m := range cfg.Models {
 		// ANTHROPIC
 		if info, ok := AnthropicModels[m]; ok {
-			clients.Register(AnthropicProvider, Anthropic)
+			state.clients.Register(AnthropicProvider, Anthropic)
 
-			anthropicClient, err := clients.CreateClient(&ClientConfig{
+			anthropicClient, err := state.clients.CreateClient(&ClientConfig{
 				Provider: AnthropicProvider,
 				Project:  state.projectID,
 				Location: state.location,
