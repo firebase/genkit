@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -52,7 +51,7 @@ func DefineEmbedder(
 	provider, name string,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedderActionDef)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
+	return (*embedderActionDef)(core.DefineAction(r, provider, name, atype.Embedder, nil, nil, embed))
 }
 
 // IsDefinedEmbedder reports whether an embedder is defined.

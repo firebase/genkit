@@ -160,7 +160,7 @@ func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, provider, name, meta, func(
+	return genkit.DefineModel(g, provider, name, meta, nil, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

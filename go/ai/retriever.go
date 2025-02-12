@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -62,7 +61,7 @@ func DefineIndexer(r *registry.Registry, provider, name string, index func(conte
 	f := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	}
-	return (*indexerActionDef)(core.DefineAction(r, provider, name, atype.Indexer, nil, f))
+	return (*indexerActionDef)(core.DefineAction(r, provider, name, atype.Indexer, nil, nil, f))
 }
 
 // IsDefinedIndexer reports whether an [Indexer] is defined.
@@ -79,7 +78,7 @@ func LookupIndexer(r *registry.Registry, provider, name string) Indexer {
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
 func DefineRetriever(r *registry.Registry, provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *retrieverActionDef {
-	return (*retrieverActionDef)(core.DefineAction(r, provider, name, atype.Retriever, nil, ret))
+	return (*retrieverActionDef)(core.DefineAction(r, provider, name, atype.Retriever, nil, nil, ret))
 }
 
 // IsDefinedRetriever reports whether a [Retriever] is defined.

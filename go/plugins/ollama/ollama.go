@@ -66,7 +66,7 @@ func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai
 		Versions: []string{},
 	}
 	gen := &generator{model: model, serverAddress: state.serverAddress}
-	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)
+	return genkit.DefineModel(g, provider, model.Name, meta, nil, gen.generate)
 }
 
 // IsDefinedModel reports whether a model is defined.

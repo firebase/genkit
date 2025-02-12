@@ -24,8 +24,14 @@ type Model interface {
 	// Name returns the registry name of the model.
 	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
-	Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error)
+	Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error)
 }
+
+// ModelFunc is a function that generates a model response.
+type ModelFunc = core.Func[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+
+// ModelMiddleware is middleware for model generate requests.
+type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 type modelActionDef core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
@@ -44,7 +50,7 @@ type ToolConfig struct {
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, map[string]any{},
+	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, map[string]any{}, nil,
 		func(ctx context.Context, req *GenerateActionOptions, cb ModelStreamingCallback) (output *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", req))
@@ -53,9 +59,10 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"output", fmt.Sprintf("%#v", output),
 					"err", err)
 			}()
+
 			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, req,
 				func(ctx context.Context, input *GenerateActionOptions) (*ModelResponse, error) {
-					model := LookupModel(r, "default", req.Model)
+					model := LookupModel(r, "", req.Model)
 					if model == nil {
 						return nil, fmt.Errorf("model %q not found", req.Model)
 					}
@@ -95,17 +102,17 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 						ReturnToolRequests: req.ReturnToolRequests,
 					}
 
-					return model.Generate(ctx, r, modelReq, toolCfg, cb)
+					return model.Generate(ctx, r, modelReq, nil, toolCfg, cb)
 				})
 		}))
 }
 
-// DefineModel registers the given generate function as an action, and returns a
-// [Model] that runs it.
+// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(
 	r *registry.Registry,
 	provider, name string,
 	metadata *ModelInfo,
+	mw []ModelMiddleware,
 	generate func(context.Context, *ModelRequest, ModelStreamingCallback) (*ModelResponse, error),
 ) Model {
 	metadataMap := map[string]any{}
@@ -129,9 +136,9 @@ func DefineModel(
 	metadataMap["supports"] = supports
 	metadataMap["versions"] = metadata.Versions
 
-	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{
-		"model": metadataMap,
-	}, generate))
+	mw = append([]ModelMiddleware{ValidateSupport(name, metadata.Supports)}, mw...)
+
+	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{"model": metadataMap}, mw, generate))
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -158,6 +165,7 @@ type generateParams struct {
 	SystemPrompt       *Message
 	MaxTurns           int
 	ReturnToolRequests bool
+	Middleware         []ModelMiddleware
 }
 
 // GenerateOption configures params of the Generate call.
@@ -224,10 +232,13 @@ func WithConfig(config any) GenerateOption {
 	}
 }
 
-// WithContext adds provided context to ModelRequest.
-func WithContext(c ...any) GenerateOption {
+// WithContext adds provided documents to ModelRequest.
+func WithContext(docs ...*Document) GenerateOption {
 	return func(req *generateParams) error {
-		req.Request.Context = append(req.Request.Context, c...)
+		if req.Request.Context != nil {
+			return errors.New("generate.WithContext: cannot set context more than once")
+		}
+		req.Request.Context = docs
 		return nil
 	}
 }
@@ -320,6 +331,17 @@ func WithToolChoice(toolChoice ToolChoice) GenerateOption {
 	}
 }
 
+// WithMiddleware adds middleware to the generate request.
+func WithMiddleware(middleware ...ModelMiddleware) GenerateOption {
+	return func(req *generateParams) error {
+		if req.Middleware != nil {
+			return errors.New("generate.WithMiddleware: cannot set Middleware more than once")
+		}
+		req.Middleware = middleware
+		return nil
+	}
+}
+
 // Generate run generate request for this model. Returns ModelResponse struct.
 func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	req := &generateParams{
@@ -368,7 +390,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ReturnToolRequests: req.ReturnToolRequests,
 	}
 
-	return req.Model.Generate(ctx, r, req.Request, toolCfg, req.Stream)
+	return req.Model.Generate(ctx, r, req.Request, req.Middleware, toolCfg, req.Stream)
 }
 
 // validateModelVersion checks in the registry the action of the
@@ -435,7 +457,7 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 }
 
 // Generate applies the [Action] to provided request, handling tool requests and handles streaming.
-func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error) {
+func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -463,9 +485,18 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 		return nil, err
 	}
 
+	handler := (*modelAction)(m).Run
+	for i := len(mw) - 1; i >= 0; i-- {
+		currentHandler := handler
+		currentMiddleware := mw[i]
+		handler = func(ctx context.Context, in *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
+			return currentMiddleware(ctx, in, cb, currentHandler)
+		}
+	}
+
 	currentTurn := 0
 	for {
-		resp, err := (*modelAction)(m).Run(ctx, req, cb)
+		resp, err := handler(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}

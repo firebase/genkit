@@ -27,9 +27,11 @@ import (
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value. Otherwise, it should ignore the StreamingCallback and
 // just return a result.
-type Func[In, Out, Stream any] func(context.Context, In, func(context.Context, Stream) error) (Out, error)
+type Func[In, Out, Stream any] = func(context.Context, In, func(context.Context, Stream) error) (Out, error)
 
-// TODO: use a generic type alias for the above when they become available?
+// Middleware is a function that wraps an action execution, similar to HTTP middleware.
+// It can modify the input, output, and context, or perform side effects.
+type Middleware[In, Out, Stream any] = func(ctx context.Context, input In, cb func(context.Context, Stream) error, next Func[In, Out, Stream]) (Out, error)
 
 // An Action is a named, observable operation.
 // It consists of a function that takes an input of type I and returns an output
@@ -42,6 +44,7 @@ type Action[In, Out, Stream any] struct {
 	name         string
 	atype        atype.ActionType
 	fn           Func[In, Out, Stream]
+	middleware   []Middleware[In, Out, Stream]
 	tstate       *tracing.State
 	inputSchema  *jsonschema.Schema
 	outputSchema *jsonschema.Schema
@@ -60,9 +63,10 @@ func DefineAction[In, Out any](
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
+	mw []Middleware[In, Out, struct{}],
 	fn func(context.Context, In) (Out, error),
 ) *Action[In, Out, struct{}] {
-	return defineAction(r, provider, name, atype, metadata, nil,
+	return defineAction(r, provider, name, atype, metadata, nil, mw,
 		func(ctx context.Context, in In, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
@@ -74,9 +78,10 @@ func DefineStreamingAction[In, Out, Stream any](
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
+	mw []Middleware[In, Out, Stream],
 	fn Func[In, Out, Stream],
 ) *Action[In, Out, Stream] {
-	return defineAction(r, provider, name, atype, metadata, nil, fn)
+	return defineAction(r, provider, name, atype, metadata, nil, mw, fn)
 }
 
 // DefineCustomAction defines a streaming action with type Custom.
@@ -84,9 +89,10 @@ func DefineCustomAction[In, Out, Stream any](
 	r *registry.Registry,
 	provider, name string,
 	metadata map[string]any,
+	mw []Middleware[In, Out, Stream],
 	fn Func[In, Out, Stream],
 ) *Action[In, Out, Stream] {
-	return DefineStreamingAction(r, provider, name, atype.Custom, metadata, fn)
+	return DefineStreamingAction(r, provider, name, atype.Custom, metadata, mw, fn)
 }
 
 // DefineActionWithInputSchema creates a new Action and registers it.
@@ -99,9 +105,10 @@ func DefineActionWithInputSchema[Out any](
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
+	mw []Middleware[any, Out, struct{}],
 	fn func(context.Context, any) (Out, error),
 ) *Action[any, Out, struct{}] {
-	return defineAction(r, provider, name, atype, metadata, inputSchema,
+	return defineAction(r, provider, name, atype, metadata, inputSchema, mw,
 		func(ctx context.Context, in any, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
@@ -114,13 +121,14 @@ func defineAction[In, Out, Stream any](
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
+	mw []Middleware[In, Out, Stream],
 	fn Func[In, Out, Stream],
 ) *Action[In, Out, Stream] {
 	fullName := name
 	if provider != "" {
 		fullName = provider + "/" + name
 	}
-	a := newAction(fullName, atype, metadata, inputSchema, fn)
+	a := newAction(fullName, atype, metadata, inputSchema, mw, fn)
 	r.RegisterAction(atype, a)
 	return a
 }
@@ -132,6 +140,7 @@ func newAction[In, Out, Stream any](
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
+	mw []Middleware[In, Out, Stream],
 	fn Func[In, Out, Stream],
 ) *Action[In, Out, Stream] {
 	var i In
@@ -155,6 +164,7 @@ func newAction[In, Out, Stream any](
 		inputSchema:  inputSchema,
 		outputSchema: outputSchema,
 		metadata:     metadata,
+		middleware:   mw,
 	}
 }
 
@@ -163,6 +173,12 @@ func (a *Action[In, Out, Stream]) Name() string { return a.name }
 
 // setTracingState sets the action's tracing.State.
 func (a *Action[In, Out, Stream]) SetTracingState(tstate *tracing.State) { a.tstate = tstate }
+
+// Use adds middleware to the action with type inference
+func (a *Action[In, Out, Stream]) Use(middleware ...Middleware[In, Out, Stream]) *Action[In, Out, Stream] {
+	a.middleware = append(a.middleware, middleware...)
+	return a
+}
 
 // Run executes the Action's function in a new trace span.
 func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
@@ -175,28 +191,45 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
+
 	return tracing.RunInNewSpan(ctx, a.tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
-			var err error
-			if err = base.ValidateValue(input, a.inputSchema); err != nil {
-				err = fmt.Errorf("invalid input: %w", err)
+
+			if err := base.ValidateValue(input, a.inputSchema); err != nil {
+				return base.Zero[Out](), fmt.Errorf("invalid input: %w", err)
 			}
-			var output Out
-			if err == nil {
-				output, err = a.fn(ctx, input, cb)
-				if err == nil {
-					if err = base.ValidateValue(output, a.outputSchema); err != nil {
-						err = fmt.Errorf("invalid output: %w", err)
-					}
+
+			handler := func(ctx context.Context, in In, cb func(context.Context, Stream) error) (Out, error) {
+				out, err := a.fn(ctx, in, cb)
+				if err != nil {
+					return base.Zero[Out](), err
+				}
+
+				if err := base.ValidateValue(out, a.outputSchema); err != nil {
+					return base.Zero[Out](), fmt.Errorf("invalid output: %w", err)
+				}
+
+				return out, nil
+			}
+
+			for i := len(a.middleware) - 1; i >= 0; i-- {
+				currentHandler := handler
+				currentMiddleware := a.middleware[i]
+				handler = func(ctx context.Context, in In, cb func(context.Context, Stream) error) (Out, error) {
+					return currentMiddleware(ctx, in, cb, currentHandler)
 				}
 			}
+
+			output, err := handler(ctx, input, cb)
+
 			latency := time.Since(start)
 			if err != nil {
 				metrics.WriteActionFailure(ctx, a.name, latency, err)
 				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.name, latency)
+
 			return output, nil
 		})
 }
@@ -255,7 +288,12 @@ func (a *Action[I, O, S]) Desc() action.Desc {
 // or nil if there is none.
 // It panics if the action is of the wrong type.
 func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
-	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	var key string
+	if provider != "" {
+		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	} else {
+		key = fmt.Sprintf("/%s/%s", typ, name)
+	}
 	a := r.LookupAction(key)
 	if a == nil {
 		return nil

@@ -124,9 +124,9 @@ type ModelInfoSupports struct {
 
 // A ModelRequest is a request to generate completions from a model.
 type ModelRequest struct {
-	Config   any        `json:"config,omitempty"`
-	Context  []any      `json:"context,omitempty"`
-	Messages []*Message `json:"messages,omitempty"`
+	Config   any        	`json:"config,omitempty"`
+	Context  []*Document 	`json:"context,omitempty"`
+	Messages []*Message 	`json:"messages,omitempty"`
 	// Output describes the desired response format.
 	Output     *ModelRequestOutput `json:"output,omitempty"`
 	ToolChoice ToolChoice          `json:"toolChoice,omitempty"`

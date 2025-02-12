@@ -153,15 +153,15 @@ func (g *Genkit) Start(ctx context.Context, opts *StartOptions) error {
 	return shutdownServers(servers)
 }
 
-// DefineModel registers the given generate function as an action, and returns a
-// [Model] that runs it.
+// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(
 	g *Genkit,
 	provider, name string,
 	metadata *ai.ModelInfo,
+	mw []ai.ModelMiddleware,
 	generate func(context.Context, *ai.ModelRequest, ai.ModelStreamingCallback) (*ai.ModelResponse, error),
 ) ai.Model {
-	return ai.DefineModel(g.reg, provider, name, metadata, generate)
+	return ai.DefineModel(g.reg, provider, name, metadata, mw, generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -239,8 +239,8 @@ func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.Generate
 }
 
 // GenerateWithRequest runs the model with the given request and streaming callback.
-func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
-	return m.Generate(ctx, g.reg, req, toolCfg, cb)
+func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, mw []ai.ModelMiddleware, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+	return m.Generate(ctx, g.reg, req, mw, toolCfg, cb)
 }
 
 // DefineIndexer registers the given index function as an action, and returns an

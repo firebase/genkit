@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
@@ -33,7 +32,7 @@ var g, _ = genkit.New(&genkit.Options{
 	PromptDir: "testdata",
 })
 
-var testModel = genkit.DefineModel(g, "defineoptions", "test", nil, testGenerate)
+var testModel = genkit.DefineModel(g, "defineoptions", "test", nil, nil, testGenerate)
 
 func TestPrompts(t *testing.T) {
 	g, err := genkit.New(&genkit.Options{

@@ -80,7 +80,7 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 		return fn(toolCtx, input)
 	}
 
-	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, wrappedFn)
+	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, nil, wrappedFn)
 	return &ToolDef[In, Out]{
 		action: toolAction,
 	}

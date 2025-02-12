@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // This program doesn't do anything interesting.
 // It is used by go/tests/api_test.go.
 package main
@@ -30,7 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := genkit.DefineModel(g, "", "customReflector", nil, echo)
+	model := genkit.DefineModel(g, "", "customReflector", nil, nil, echo)
 	genkit.DefineFlow(g, "testFlow", func(ctx context.Context, in string) (string, error) {
 		res, err := genkit.Generate(ctx, g, ai.WithModel(model), ai.WithTextPrompt(in))
 		if err != nil {

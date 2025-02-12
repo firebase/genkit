@@ -24,8 +24,8 @@ type PromptRequest struct {
 	Input any `json:"input,omitempty"`
 	// Model configuration. If nil will be taken from the prompt config.
 	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
-	// Context to pass to model, if any.
-	Context []any `json:"context,omitempty"`
+	// Documents to pass to the model as context, if any.
+	Context []*ai.Document `json:"context,omitempty"`
 	// The model to use. This overrides any model specified by the prompt.
 	Model ai.Model `json:"model,omitempty"`
 	// The name of the model to use. This overrides any model specified by the prompt.
@@ -40,6 +40,8 @@ type PromptRequest struct {
 	IsReturnToolRequestsSet bool `json:"-"`
 	// Whether tool calls are required, disabled, or optional for the prompt.
 	ToolChoice ai.ToolChoice `json:"toolChoice,omitempty"`
+	// Middleware to apply to the prompt.
+	Middleware []ai.ModelMiddleware `json:"-"`
 }
 
 // GenerateOption configures params for Generate function
@@ -259,7 +261,7 @@ func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...Generat
 		ReturnToolRequests: returnToolRequests,
 	}
 
-	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, toolCfg, pr.Stream)
+	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, pr.Middleware, toolCfg, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
@@ -319,13 +321,13 @@ func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 	}
 }
 
-// WithContext add context to pass to model, if any.
-func WithContext(context []any) GenerateOption {
+// WithContext adds documents to pass to model as context, if any.
+func WithContext(docs ...*ai.Document) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Context != nil {
 			return errors.New("dotprompt.WithContext: cannot set Context more than once")
 		}
-		p.Context = context
+		p.Context = docs
 		return nil
 	}
 }
@@ -396,6 +398,17 @@ func WithToolChoice(toolChoice ai.ToolChoice) GenerateOption {
 			return errors.New("dotprompt.WithToolChoice: cannot set ToolChoice more than once")
 		}
 		p.ToolChoice = toolChoice
+		return nil
+	}
+}
+
+// WithMiddleware adds middleware to the prompt request.
+func WithMiddleware(middleware ...ai.ModelMiddleware) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.Middleware != nil {
+			return errors.New("dotprompt.WithMiddleware: cannot set Middleware more than once")
+		}
+		p.Middleware = middleware
 		return nil
 	}
 }

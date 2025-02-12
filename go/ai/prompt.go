@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -30,7 +29,7 @@ func DefinePrompt(r *registry.Registry, provider, name string, metadata map[stri
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	return (*Prompt)(core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, mm, inputSchema, render))
+	return (*Prompt)(core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, mm, inputSchema, nil, render))
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.

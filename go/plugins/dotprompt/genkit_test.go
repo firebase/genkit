@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
@@ -45,7 +44,7 @@ func TestExecute(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	testModel := genkit.DefineModel(g, "test", "test", nil, testGenerate)
+	testModel := genkit.DefineModel(g, "test", "test", nil, nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {
@@ -100,7 +99,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	testModel := genkit.DefineModel(g, "options", "test", nil, testGenerate)
+	testModel := genkit.DefineModel(g, "options", "test", nil, nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
 		p, err := Define(g, "TestExecute", "TestExecute", WithInputType(InputOutput{}))
@@ -120,7 +119,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 				return nil
 			}),
 			WithModel(testModel),
-			WithContext([]any{"context"}),
+			WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("context")}}),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -178,7 +177,7 @@ func TestGenerateOptions(t *testing.T) {
 		},
 		{
 			name: "WithContext",
-			with: WithContext([]any{"context"}),
+			with: WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("context")}}),
 		},
 		{
 			name: "WithModelName",
