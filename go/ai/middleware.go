@@ -32,6 +32,8 @@ func ValidateSupport(name string, supports *ModelInfoSupports) ModelMiddleware {
 			return nil, fmt.Errorf("model %q does not support multiple messages, but %d were provided. Request: %+v", name, len(input.Messages), input)
 		}
 
+		// TODO: Add validation for features that won't have simulated support via middleware.
+
 		return next(ctx, input, cb)
 	}
 }

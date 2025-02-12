@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package snippets
 
 import (
@@ -95,7 +94,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil)
+	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil, nil)
 	// [END pr03_2]
 
 	_ = response

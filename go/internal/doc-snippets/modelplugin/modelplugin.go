@@ -40,7 +40,10 @@ func Init() error {
 				Media:      false, // Can the model accept media input?
 				Tools:      false, // Does the model support function calling (tools)?
 			},
-			Versions: []string{},
+			Versions: []string{"my-model-001", "..."},
+		},
+		[]ai.ModelMiddleware{
+			// Add any middleware you want to apply to the model here.
 		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,
