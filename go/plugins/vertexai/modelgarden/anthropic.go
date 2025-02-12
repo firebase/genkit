@@ -5,8 +5,8 @@ package modelgarden
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -48,8 +48,8 @@ var AnthropicModels = map[string]ai.ModelInfo{
 // AnthropicClientConfig is the required configuration to create an Anthropic
 // client
 type AnthropicClientConfig struct {
-	Region  string
-	Project string
+	Location string
+	Project  string
 }
 
 // AnthropicClient is a mirror struct of Anthropic's client but implements
@@ -64,9 +64,12 @@ var Anthropic = func(config any) (Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config for Anthropic %T", config)
 	}
+	fmt.Printf("%#v", cfg)
 	c := anthropic.NewClient(
-		vertex.WithGoogleAuth(context.Background(), cfg.Region, cfg.Project),
+		vertex.WithGoogleAuth(context.Background(), cfg.Location, cfg.Project),
 	)
+
+	fmt.Printf("client: %#v", c)
 
 	return &AnthropicClient{c}, nil
 }
@@ -109,14 +112,12 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	// TODO: create toAnthropicRequest functions to translate Genkit ->
-	// Anthropic and viceversa
-
-	log.Printf("%s", model)
-	log.Printf("%#v", input)
 	// parse configuration
 	reqParams := anthropic.MessageNewParams{}
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
+
+		// defaulting to 1024 since this is a mandatory parameter
+		reqParams.MaxTokens = anthropic.F(int64(1024))
 		if c.MaxOutputTokens != 0 {
 			reqParams.MaxTokens = anthropic.F(int64(c.MaxOutputTokens))
 		}
@@ -141,7 +142,9 @@ func generate(
 	// system and user blocks
 	sysBlocks := []anthropic.TextBlockParam{}
 	userBlocks := []anthropic.TextBlockParam{}
+	fmt.Printf("input.Messages: %#v", input.Messages)
 	for _, m := range input.Messages {
+		fmt.Printf("input.Messages: %#v", input.Messages)
 		// TODO: convert messages to its types (text, media, toolResponse)
 		if m.Role == ai.RoleSystem {
 			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(m.Text()))
@@ -168,8 +171,47 @@ func generate(
 			return nil, err
 		}
 
-		fmt.Printf("%+v\n", msg.Content)
+		r := toGenkitResponse(msg)
+		r.Request = input
+		return r, nil
 	}
 
 	return nil, nil
+}
+
+func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
+	r := &ai.ModelResponse{}
+
+	switch m.StopReason {
+	case anthropic.MessageStopReasonMaxTokens:
+		r.FinishReason = ai.FinishReasonLength
+	case anthropic.MessageStopReasonStopSequence:
+		r.FinishReason = ai.FinishReasonStop
+	case anthropic.MessageStopReasonEndTurn:
+	case anthropic.MessageStopReasonToolUse:
+		r.FinishReason = ai.FinishReasonOther
+	}
+
+	msg := &ai.Message{}
+	msg.Role = ai.Role(m.Role)
+	for _, part := range m.Content {
+		var p *ai.Part
+		switch part.Type {
+		case anthropic.ContentBlockTypeText:
+			p = ai.NewTextPart(string(part.Text))
+		case anthropic.ContentBlockTypeToolUse:
+			t := &ai.ToolRequest{}
+			err := json.Unmarshal([]byte(part.Input), &t.Input)
+			if err != nil {
+				return nil
+			}
+			p = ai.NewToolRequestPart(t)
+		default:
+			panic(fmt.Sprintf("unknown part: %#v", part))
+		}
+		msg.Content = append(msg.Content, p)
+	}
+
+	r.Message = msg
+	return r
 }

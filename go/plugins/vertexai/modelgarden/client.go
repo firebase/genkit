@@ -34,7 +34,7 @@ func NewClientFactory() *ClientFactory {
 type ClientConfig struct {
 	Provider string
 	Project  string
-	Region   string
+	Location string
 }
 
 // ClientCreator is a function type that will be defined on every provider in order to create its
@@ -59,7 +59,7 @@ func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
 	defer f.mu.Unlock()
 
 	// every client will be identified by its provider-region combination
-	key := fmt.Sprintf("%s-%s", config.Provider, config.Region)
+	key := fmt.Sprintf("%s-%s", config.Provider, config.Location)
 	if client, ok := f.clients[key]; ok {
 		return client, nil // return from cache
 	}
@@ -75,8 +75,8 @@ func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
 	// TODO: add providers when needed
 	case AnthropicProvider:
 		client, err = creator(&AnthropicClientConfig{
-			Region:  config.Region,
-			Project: config.Project,
+			Location: config.Location,
+			Project:  config.Project,
 		})
 	}
 	if err != nil {
