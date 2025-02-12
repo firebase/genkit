@@ -26,7 +26,7 @@ import {
   setCustomMetadataAttributes,
 } from './tracing.js';
 
-export { type Status, StatusCodes, StatusSchema } from './statusTypes.js';
+export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
 export { JSONSchema7 };
 
 /**
