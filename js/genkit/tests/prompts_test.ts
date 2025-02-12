@@ -1369,10 +1369,7 @@ describe('asTool', () => {
 
     assert.deepStrictEqual(text, 'hi from agent b');
     assert.deepStrictEqual(pm.lastRequest, {
-      config: {
-        // TODO: figure out if config should be swapped out as well...
-        temperature: 2,
-      },
+      config: {},
       messages: [
         {
           role: 'system',

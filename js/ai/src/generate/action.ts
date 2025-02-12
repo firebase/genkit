@@ -200,6 +200,7 @@ function applyTransferPreamble(
     ],
     toolChoice: transferPreamble.toolChoice || rawRequest.toolChoice,
     tools: transferPreamble.tools || rawRequest.tools,
+    config: transferPreamble.config || rawRequest.config,
   });
 }
 
