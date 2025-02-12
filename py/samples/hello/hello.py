@@ -1,13 +1,13 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
+from typing import Any
 
-
-from genkit.core.schemas import Message, TextPart, GenerateRequest
-from genkit.plugins.vertex_ai import vertexAI, gemini
+from genkit.core.schemas import GenerateRequest, Message, Role, TextPart
+from genkit.plugins.vertex_ai import gemini, vertex_ai
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
-ai = Genkit(plugins=[vertexAI()], model=gemini('gemini-1.5-flash'))
+ai = Genkit(plugins=[vertex_ai()], model=gemini('gemini-1.5-flash'))
 
 
 class MyInput(BaseModel):
@@ -19,7 +19,7 @@ def hi_fn(hi_input) -> GenerateRequest:
     return GenerateRequest(
         messages=[
             Message(
-                role='user',
+                role=Role.user,
                 content=[TextPart(text='hi, my name is ' + hi_input)],
             )
         ]
@@ -39,12 +39,17 @@ def hi_fn(hi_input) -> GenerateRequest:
 @ai.flow()
 def say_hi(name: str):
     return ai.generate(
-        messages=[Message(role='user', content=[TextPart(text='hi ' + name)])]
+        messages=[
+            Message(
+                role=Role.user,
+                content=[TextPart(text='hi ' + name)],
+            )
+        ]
     )
 
 
 @ai.flow()
-def sum_two_numbers2(my_input: MyInput):
+def sum_two_numbers2(my_input: MyInput) -> Any:
     return my_input.a + my_input.b
 
 

@@ -48,7 +48,7 @@ class ModelConfigRemover(ast.NodeTransformer):
 
 def process_file(filename: str) -> None:
     """Process a Python file to remove model_config from RootModel classes."""
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         source = f.read()
 
     tree = ast.parse(source)

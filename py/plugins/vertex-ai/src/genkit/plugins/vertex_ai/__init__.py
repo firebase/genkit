@@ -6,49 +6,51 @@
 Google Cloud Vertex AI Plugin for Genkit.
 """
 
+from collections.abc import Callable
+
 import vertexai
-
-from typing import Callable, Optional
-from vertexai.generative_models import GenerativeModel, Content, Part
-
 from genkit.core.schemas import (
     GenerateRequest,
     GenerateResponse,
     Message,
+    Role,
     TextPart,
 )
 from genkit.veneer.veneer import Genkit
+from vertexai.generative_models import Content, GenerativeModel, Part
 
 
 def package_name() -> str:
     return 'genkit.plugins.vertex_ai'
 
 
-def vertexAI(project_id: Optional[str] = None) -> Callable[[Genkit], None]:
+def vertex_ai(project_id: str | None = None) -> Callable[[Genkit], None]:
     def plugin(ai: Genkit) -> None:
         vertexai.init(location='us-central1', project=project_id)
 
-        def gemini(request: GenerateRequest) -> GenerateResponse:
-            geminiMsgs: list[Content] = []
+        def handle_gemini_request(request: GenerateRequest) -> GenerateResponse:
+            gemini_msgs: list[Content] = []
             for m in request.messages:
-                geminiParts: list[Part] = []
+                gemini_parts: list[Part] = []
                 for p in m.content:
                     if p.root.text is not None:
-                        geminiParts.append(Part.from_text(p.root.text))
+                        gemini_parts.append(Part.from_text(p.root.text))
                     else:
                         raise Exception('unsupported part type')
-                geminiMsgs.append(Content(role=m.role.value, parts=geminiParts))
+                gemini_msgs.append(
+                    Content(role=m.role.value, parts=gemini_parts)
+                )
             model = GenerativeModel('gemini-1.5-flash-002')
-            response = model.generate_content(contents=geminiMsgs)
+            response = model.generate_content(contents=gemini_msgs)
             return GenerateResponse(
                 message=Message(
-                    role='model', content=[TextPart(text=response.text)]
+                    role=Role.model, content=[TextPart(text=response.text)]
                 )
             )
 
         ai.define_model(
             name='vertexai/gemini-1.5-flash',
-            fn=gemini,
+            fn=handle_gemini_request,
             metadata={
                 'model': {
                     'label': 'banana',
@@ -64,4 +66,4 @@ def gemini(name: str) -> str:
     return f'vertexai/{name}'
 
 
-__all__ = ['package_name', 'vertexAI', 'gemini']
+__all__ = ['package_name', 'vertex_ai', 'gemini']
