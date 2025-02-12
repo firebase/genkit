@@ -65,7 +65,7 @@ export const start = new Command('start')
 
 async function startRuntime(telemetryServerUrl?: string) {
   if (start.args.length > 0) {
-    const runtimePromise = new Promise((urlResolver, reject) => {
+    return new Promise((urlResolver, reject) => {
       const appProcess = spawn(start.args[0], start.args.slice(1), {
         env: {
           ...process.env,
