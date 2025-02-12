@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,12 @@
  * limitations under the License.
  */
 
-// [START mini]
-import { genkit } from 'genkit';
+import process from 'process';
 
-// Import the model plugins you want to use.
-import { googleAI } from '@genkit-ai/googleai';
-
-const ai = genkit({
-  // Initialize and configure the model plugins.
-  plugins: [
-    googleAI({
-      apiKey: 'your-api-key', // Or (preferred): export GEMINI_API_KEY=...
-    }),
-  ],
-});
-// [END mini]
+export function getApiKeyFromEnvVar(): string | undefined {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY
+  );
+}
