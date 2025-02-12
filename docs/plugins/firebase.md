@@ -68,7 +68,7 @@ To provide Firebase credentials, you also need to set up Google Cloud
 Application Default Credentials. To specify your credentials:
 
 - If you're running your flow from a Google Cloud environment (Cloud Functions,
-- Cloud Run, and so on), this is set automatically.
+  Cloud Run, and so on), this is set automatically.
 
 - For other environments:
 
