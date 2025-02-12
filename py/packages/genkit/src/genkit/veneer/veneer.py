@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 import atexit
 import datetime
 import json
+import logging
 import os
 import threading
 from collections.abc import Callable
@@ -16,11 +17,12 @@ from typing import Any
 from genkit.ai.model import ModelFn
 from genkit.ai.prompt import PromptFn
 from genkit.core.action import Action
+from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
 from genkit.core.schemas import GenerateRequest, GenerateResponse, Message
 
-Plugin = Callable[['Genkit'], None]
+logger = logging.getLogger(__name__)
 
 
 class Genkit:
@@ -66,9 +68,17 @@ class Genkit:
             self.thread = threading.Thread(target=self.start_server)
             self.thread.start()
 
-        if plugins is not None:
+        if not plugins:
+            logger.warning('No plugins provided to Genkit')
+        else:
             for plugin in plugins:
-                plugin(self)
+                if isinstance(plugin, Plugin):
+                    plugin.attach_to_veneer(veneer=self)
+                else:
+                    raise ValueError(
+                        f'Invalid {plugin=} provided to Genkit: '
+                        f'must be of type `genkit.core.plugin_abc.Plugin`'
+                    )
 
     def start_server(self) -> None:
         httpd = HTTPServer(

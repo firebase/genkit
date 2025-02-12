@@ -3,11 +3,11 @@
 from typing import Any
 
 from genkit.core.schemas import GenerateRequest, Message, Role, TextPart
-from genkit.plugins.vertex_ai import gemini, vertex_ai
+from genkit.plugins.vertex_ai import VertexAI
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
-ai = Genkit(plugins=[vertex_ai()], model=gemini('gemini-1.5-flash'))
+ai = Genkit(plugins=[VertexAI()], model=VertexAI.VERTEX_AI_MODEL_NAME)
 
 
 class MyInput(BaseModel):
