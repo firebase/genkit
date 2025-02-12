@@ -122,7 +122,6 @@ func generate(
 			reqParams.MaxTokens = anthropic.F(int64(c.MaxOutputTokens))
 		}
 		reqParams.Model = anthropic.F(anthropic.Model(model))
-		// TODO: check if Version is needed
 		if c.Version != "" {
 			reqParams.Model = anthropic.F(anthropic.Model(c.Version))
 		}
@@ -142,9 +141,7 @@ func generate(
 	// system and user blocks
 	sysBlocks := []anthropic.TextBlockParam{}
 	userBlocks := []anthropic.TextBlockParam{}
-	fmt.Printf("input.Messages: %#v", input.Messages)
 	for _, m := range input.Messages {
-		fmt.Printf("input.Messages: %#v", input.Messages)
 		// TODO: convert messages to its types (text, media, toolResponse)
 		if m.Role == ai.RoleSystem {
 			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(m.Text()))
@@ -175,10 +172,13 @@ func generate(
 		r.Request = input
 		return r, nil
 	}
+	// TODO: add streaming support
 
 	return nil, nil
 }
 
+// toGenkitResponse translates an Anthropic Message response to a Genkit
+// [ai.ModelResponse]
 func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 	r := &ai.ModelResponse{}
 
@@ -190,6 +190,8 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 	case anthropic.MessageStopReasonEndTurn:
 	case anthropic.MessageStopReasonToolUse:
 		r.FinishReason = ai.FinishReasonOther
+	default:
+		r.FinishReason = ai.FinishReasonUnknown
 	}
 
 	msg := &ai.Message{}
