@@ -65,8 +65,8 @@ your source code.
     The Gemini API provides a generous free-of-charge tier and does not require a
     credit card to get started.
 
-    After creating your API key, set the <code>GOOGLE_GENAI_API_KEY`</code>
-    environment variable to your key with the following command:
+    After creating your API key, set the `GOOGLE_GENAI_API_KEY` environment 
+    variable to your key with the following command:
 
     ```shell
     $ export GOOGLE_GENAI_API_KEY=<your API key>
@@ -75,9 +75,9 @@ your source code.
 > **Note:** Although this tutorial uses the Gemini API from AI Studio, Genkit
 > supports a wide variety of model providers, including:
 > 
-> * [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/> vertex-ai#generative_ai_models).
+> * [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models).
 > * Anthropic's Claude 3 models and Llama 3.1 through the
-> [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/> vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden),
+> [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden),
 > as well as community plugins.
 > * Open source models through
 > [Ollama](https://firebase.google.com/docs/genkit/plugins/ollama).
@@ -96,9 +96,14 @@ import fs from 'fs';
 import { createInterface } from "node:readline/promises";
 ```
 
-* The first line imports the `gemini20Flash` model and the `googleAI` plugin from the `@genkit-ai/googleai` package, enabling access to Google's Gemini models.
-* The next two lines import the `pdf-parse` library for parsing PDF files and the `fs` module for file system operations.
-* The final line imports the `createInterface` function from the `node:readline/promises` module, which is used to create a command-line interface for user interaction.
+* The first line imports the `gemini20Flash` model and the `googleAI` 
+  plugin from the `@genkit-ai/googleai` package, enabling access to 
+  Google's Gemini models.
+* The next two lines import the `pdf-parse` library for parsing PDF files 
+  and the `fs` module for file system operations.
+* The final line imports the `createInterface` function from the 
+  `node:readline/promises` module, which is used to create a command-line 
+  interface for user interaction.
 
 ### 3. Configure Genkit and the default model {:#configure-genkit}
 
