@@ -34,7 +34,7 @@ func main() {
 	}
 
 	cfg := &modelgarden.Config{
-		Location: "us-east5",
+		Location: "us-east5", // or us-central1
 		Models:   []string{"claude-3-5-sonnet-v2", "claude-3-5-sonnet"},
 	}
 	if err := modelgarden.Init(ctx, g, cfg); err != nil {
