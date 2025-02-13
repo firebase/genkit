@@ -172,13 +172,6 @@ function applyFormat(
     outRequest?.output?.instructions
   );
 
-  console.log(
-    '- - - - --  - ',
-    JSON.stringify(resolvedFormat?.config, undefined, 2),
-    '\n',
-    JSON.stringify(rawRequest.output, undefined, 2)
-  );
-
   if (resolvedFormat) {
     if (
       shouldInjectFormatInstruction(resolvedFormat.config, rawRequest?.output)
@@ -205,7 +198,7 @@ export function shouldInjectFormatInstruction(
 ) {
   return (
     formatConfig?.defaultInstruction !== false ||
-    rawRequestConfig?.instructions === true
+    rawRequestConfig?.instructions
   );
 }
 
