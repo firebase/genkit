@@ -20,6 +20,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 type VectorType int
@@ -44,7 +45,7 @@ type RetrieverOptions struct {
 	VectorType      VectorType
 }
 
-func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
+func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions) (ai.Retriever, error) {
 	if cfg.VectorType != Vector64 {
 		return nil, fmt.Errorf("DefineFirestoreRetriever: only Vector64 is supported")
 	}
@@ -53,7 +54,6 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 	}
 
 	Retrieve := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-
 		if req.Document == nil {
 			return nil, fmt.Errorf("DefineFirestoreRetriever: Request document is nil")
 		}
@@ -121,5 +121,5 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 		return &ai.RetrieverResponse{Documents: documents}, nil
 	}
 
-	return ai.DefineRetriever(provider, cfg.Name, Retrieve), nil
+	return genkit.DefineRetriever(g, provider, cfg.Name, Retrieve), nil
 }

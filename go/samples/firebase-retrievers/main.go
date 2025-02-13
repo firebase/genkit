@@ -61,8 +61,13 @@ func main() {
 		App: firebaseApp, // Pass the pre-initialized Firebase app
 	}
 
+	g, err := genkit.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Initialize Firebase plugin
-	if err := firebase.Init(ctx, firebaseConfig); err != nil {
+	if err := firebase.Init(ctx, g, firebaseConfig); err != nil {
 		log.Fatalf("Error initializing Firebase: %v", err)
 	}
 
@@ -84,7 +89,7 @@ func main() {
 	}
 
 	// Define the index flow: Insert 10 documents about famous films
-	genkit.DefineFlow("flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
+	genkit.DefineFlow(g, "flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
 		for i, filmText := range films {
 			docID := fmt.Sprintf("doc-%d", i+1)
 			embedding := []float64{float64(i+1) * 0.1, float64(i+1) * 0.2, float64(i+1) * 0.3}
@@ -117,13 +122,13 @@ func main() {
 	}
 
 	// Define Firestore Retriever
-	retriever, err := firebase.DefineFirestoreRetriever(retrieverOptions)
+	retriever, err := firebase.DefineFirestoreRetriever(g, retrieverOptions)
 	if err != nil {
 		log.Fatalf("Error defining Firestore retriever: %v", err)
 	}
 
 	// Define the retrieval flow: Retrieve documents based on user query
-	genkit.DefineFlow("flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
+	genkit.DefineFlow(g, "flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
 		// Perform Firestore retrieval based on user input
 		req := &ai.RetrieverRequest{
 			Document: ai.DocumentFromText(query, nil),
@@ -146,10 +151,10 @@ func main() {
 		}
 
 		return fmt.Sprintf("Retrieved document: %s", resp.Documents[0].Content[0].Text), nil
-	}, genkit.WithFlowAuth(nil)) // Removed the Firebase Auth requirement
+	})
 
 	// Initialize Genkit
-	if err := genkit.Init(ctx, nil); err != nil {
+	if err := g.Start(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

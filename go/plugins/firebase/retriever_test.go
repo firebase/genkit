@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/firestore"
 	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"google.golang.org/api/iterator"
 )
 
@@ -125,7 +126,6 @@ func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 // Warning: This test will delete all documents in the collection in cleanup.
 
 func TestFirestoreRetriever(t *testing.T) {
-
 	//  skip if flags aren't defined
 	if *testProjectID == "" {
 		t.Skip("Skipping test due to missing flags")
@@ -138,6 +138,11 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Initialize Firebase app
 	conf := &firebasev4.Config{ProjectID: *testProjectID}
@@ -230,7 +235,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	// Define the retriever
-	retriever, err := DefineFirestoreRetriever(retrieverOptions)
+	retriever, err := DefineFirestoreRetriever(g, retrieverOptions)
 	if err != nil {
 		t.Fatalf("Failed to define retriever: %v", err)
 	}
