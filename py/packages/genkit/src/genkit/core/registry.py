@@ -2,21 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+"""The registry is used to store and lookup resources."""
+
 from genkit.core.action import Action
-from typing import Dict
 
 
 class Registry:
-    actions: Dict[str, Dict[str, Action]] = {}
+    """Stores actions, trace stores, flow state stores, plugins, and schemas."""
 
-    def register_action(self, type: str, name: str, action: Action):
-        if type not in self.actions:
-            self.actions[type] = {}
-        self.actions[type][name] = action
+    actions: dict[str, dict[str, Action]] = {}
 
-    def lookup_action(self, type: str, name: str):
-        if type in self.actions and name in self.actions[type]:
-            return self.actions[type][name]
+    def register_action(self, action_type: str, name: str, action: Action):
+        if action_type not in self.actions:
+            self.actions[action_type] = {}
+        self.actions[action_type][name] = action
+
+    def lookup_action(self, action_type: str, name: str):
+        if action_type in self.actions and name in self.actions[action_type]:
+            return self.actions[action_type][name]
         return None
 
     def lookup_by_absolute_name(self, name: str):

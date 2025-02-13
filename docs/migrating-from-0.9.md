@@ -1,21 +1,25 @@
-# Migrating from 0.9
+# Migrate from 0.9 to 1.0
 
-Genkit 1.0 introduces many feature enhancements that improve overall functionality as well as some breaking changes. If you have been developing applications with Genkit 0.9, you will need to update your application code when you upgrade to the latest version. This guide outlines the most significant changes and offers steps to migrate your existing applications smoothly.
-If you're using 0.5, use the [0.5 to 0.9 migration guide](https://firebase.google.com/docs/genkit/migrating-from-0.5) to upgrade to 0.9 first before upgrading to 1.0
-
+Genkit 1.0 introduces many feature enhancements that improve overall
+functionality; it also has some breaking changes. If you have been developing
+applications with Genkit 0.9, you need to update your application code when you
+upgrade to the latest version of Genkit. This guide outlines the most
+significant changes, and explains how to migrate your existing applications
+smoothly.
 
 ## Beta APIs
 
-We're introducing an unstable, Beta API channel, and leaving session, chat and Genkit client APIs in beta as we continue to refine them. More specifically the following functions are currently in the beta namespace:
+We're introducing an unstable, Beta API channel, and leaving session, chat and Genkit client APIs in beta as we continue to refine them. More specifically, the following functions are currently in the `beta` namespace:
 
- * `ai.chat`
- * `ai.createSession`
- * `ai.loadSession`
- * `ai.currentSession`
- * `ai.defineFormat`
- * `ai.defineInterrupt`
+* `ai.chat`
+* `ai.createSession`
+* `ai.loadSession`
+* `ai.currentSession`
+* `ai.defineFormat`
+* `ai.defineInterrupt`
 
-Note: When using the APIs as part of the Beta API, you may experience breaking changes outside of SemVer. Breaking chanhes may occur on minor release (we'll try to avoid making breaking beta API changes on patch releases).
+Note: When using the APIs as part of the Beta API, you may experience breaking
+changes outside of SemVer. Breaking changes may occur on minor releases.
 
 **Old:**
 
@@ -25,7 +29,7 @@ const ai = genkit({...})
 const session = ai.createSession({ ... })
 ```
 
-**New**
+**New:**
 
 ```ts
 import { genkit } from 'genkit/beta';
@@ -39,7 +43,7 @@ const session = ai.createSession({ ... })
 import { runFlow, streamFlow } from 'genkit/client';
 ```
 
-**New**
+**New:**
 
 ```ts
 import { runFlow, streamFlow } from 'genkit/beta/client';
@@ -47,12 +51,12 @@ import { runFlow, streamFlow } from 'genkit/beta/client';
 
 ## Introducing new `@genkit-ai/express` package
 
-This new package contains utilities to make it easier to build an Express.js server with Genkit.
+This new package contains utilities to make it easier to build an Express.js server with Genkit. You can find more details about this on
+[this page](https://js.api.genkit.dev/modules/_genkit-ai_express.html).
 
-Refer to https://js.api.genkit.dev/modules/_genkit-ai_express.html for more details.
-
-`startFlowServer` has moved from part of the genkit object to this new `@genkit-ai/express` package, to use startFlowServer, update your imports. 
-
+`startFlowServer` has moved from part of the genkit object to this new
+`@genkit-ai/express` package; to use startFlowServer, you must
+update your imports.
 
 **Old:**
 
@@ -63,7 +67,7 @@ ai.startFlowServer({
 });
 ```
 
-**New**
+**New:**
 
 ```ts
 import { startFlowServer } from '@genkit-ai/express';
@@ -75,12 +79,13 @@ startFlowServer({
 ## Changes to Flows
 
 There are several changes to flows in 1.0:
- - `ai.defineStreamingFlow` consilidated into `ai.defineFlow`,
- - `onFlow` replaced by `onCallGenkit`,
- - `run` moved to `ai.run`,
- - changes to working with auth.
- 
-The `run` function for custom trace blocks has moved to part of the `genkit` object, invoke it with `ai.run` instead
+
+* `ai.defineStreamingFlow` has been consolidated into `ai.defineFlow`,
+* `onFlow` has been replaced by `onCallGenkit`,
+* `run` has moved to `ai.run`,
+* There are changes to working with auth.
+
+The `run` function for custom trace blocks has moved to part of the `genkit` object; use `ai.run` to invoke it instead.
 
 **Old:**
 
@@ -92,7 +97,7 @@ ai.defineFlow({name: 'banana'}, async (input) => {
 })
 ```
 
-**New**
+**New:**
 
 ```ts
 ai.defineFlow({name: 'banana'}, async (input) => {
@@ -102,7 +107,9 @@ ai.defineFlow({name: 'banana'}, async (input) => {
 })
 ```
 
-`ai.defineStreamingFlow` has been removed. Use `ai.defineFlow` instead. Also, `streamingCallback` moved to a field inside the second argument of he flow function and is now called `sendChunk`.
+`ai.defineStreamingFlow` has been removed; use `ai.defineFlow` instead. Also,
+`streamingCallback` has moved to a field inside the second argument of the flow
+function and is now called `sendChunk`.
 
 **Old:**
 
@@ -117,7 +124,7 @@ for await (const chunk of stream) {
 }
 ```
 
-**New**
+**New:**
 
 ```ts
 const flow = ai.defineFlow({name: 'banana'}, async (input, {context, sendChunk}) => {
@@ -141,7 +148,7 @@ ai.defineFlow({name: 'banana'}, async (input) => {
 })
 ```
 
-**New**
+**New:**
 
 ```ts
 ai.defineFlow({name: 'banana'}, async (input, { context }) => {
@@ -149,82 +156,8 @@ ai.defineFlow({name: 'banana'}, async (input, { context }) => {
 })
 ```
 
-also, if you've been using auth policies, they've been removed from `defineFlow` and are not handled depending on the server you're using:
-
-**Old:**
-
-```ts
-export const simpleFlow = ai.defineFlow(
-  {
-    name: 'simpleFlow',
-    inputSchema: z.object({ uid: z.string() }),
-    outputSchema: z.string(),
-    authPolicy: (auth, input) => {
-      if (!auth) {
-        throw new Error('Authorization required.');
-      }
-      if (input.uid !== auth.uid) {
-        throw new Error('You may only summarize your own profile data.');
-      }
-    },
-  },
-  async (input) => {
-    // Flow logic here...
-  }
-);
-```
-
-With express you would do something like this:
-
-**New:**
-
-```ts
-import { UserFacingError } from 'genkit';
-import { ContextProvider, RequestData } from 'genkit/context';
-import { expressHandler, startFlowServer } from '@genkit-ai/express';
-
-const context: ContextProvider<Context> = (req: RequestData) => {
-  return {
-    auth: parseAuthToken(req.headers['authorization']),
-  };
-};
-
-export const simpleFlow = ai.defineFlow(
-  {
-    name: 'simpleFlow',
-    inputSchema: z.object({ uid: z.string() }),
-    outputSchema: z.string(),
-  },
-  async (input, { context }) => {
-    if (!context.auth) {
-      throw new Error('Authorization required.');
-    }
-    if (input.uid !== context.auth.uid) {
-      throw new Error('You may only summarize your own profile data.');
-    }
-    // Flow logic here...
-  }
-);
-
-const app = express();
-app.use(express.json());
-app.post(
-  '/simpleFlow',
-  expressHandler(simpleFlow, { context })
-);
-app.listen(8080);
-
-// or
-
-startFlowServer(
-  flows: [withContextProvider(simpleFlow, context)],
-  port: 8080
-);
-
-```
-
-
-`onFlow` moved to `firebase-functions/https` package and got renamed to `onCallGenkit`. Here's how to use it:
+`onFlow` moved to `firebase-functions/https` package and has been renamed to
+`onCallGenkit`. The following snippet shows an example of how to use it.
 
 **Old**
 
@@ -251,7 +184,7 @@ export const generatePoem = onFlow(
 );
 ```
 
-**New**
+**New:**
 
 ```ts
 import { onCallGenkit } from "firebase-functions/https";
@@ -286,9 +219,97 @@ export const jokeTeller = ai.defineFlow(
 export const tellJoke = onCallGenkit({ secrets: [apiKey] }, jokeTeller);
 ```
 
+Auth policies have been removed from `defineFlow`. Handling of auth policies
+is now server-dependent.
+
+**Old:**
+
+```ts
+export const simpleFlow = ai.defineFlow(
+  {
+    name: 'simpleFlow',
+    authPolicy: (auth, input) => {
+      // auth policy
+    },
+  },
+  async (input) => {
+    // Flow logic here...
+  }
+);
+```
+
+The following snippet shows an example of handling auth in Express.
+
+**New:**
+
+```ts
+import { UserFacingError } from 'genkit';
+import { ContextProvider, RequestData } from 'genkit/context';
+import { expressHandler, startFlowServer } from '@genkit-ai/express';
+
+const context: ContextProvider<Context> = (req: RequestData) => {
+  return {
+    auth: parseAuthToken(req.headers['authorization']),
+  };
+};
+
+export const simpleFlow = ai.defineFlow(
+  {
+    name: 'simpleFlow',
+  },
+  async (input, { context }) => {
+    if (!context.auth) {
+      throw new UserFacingError("UNAUTHORIZED", "Authorization required.");
+    }
+    if (input.uid !== context.auth.uid) {
+      throw new UserFacingError("UNAUTHORIZED", "You may only summarize your own profile data.");
+    }
+    // Flow logic here...
+  }
+);
+
+const app = express();
+app.use(express.json());
+app.post(
+  '/simpleFlow',
+  expressHandler(simpleFlow, { context })
+);
+app.listen(8080);
+
+// or
+
+startFlowServer(
+  flows: [withContextProvider(simpleFlow, context)],
+  port: 8080
+);
+```
+
+For more details, refer to the [auth documentation](/auth).
+
+The following snippet shows an example of handling auth in Cloud Functions
+for Firebase:
+
+```ts
+import { genkit } from 'genkit';
+import { onCallGenkit } from 'firebase-functions/https';
+
+const ai = genkit({ ... });;
+
+const simpleFlow = ai.defineFlow({
+  name: 'simpleFlow',
+}, async (input) => {
+  // Flow logic here...
+});
+
+export const selfSummary = onCallGenkit({
+  authPolicy: (auth, data) => auth?.token?.['email_verified'] && auth?.token?.['admin'],
+}, simpleFlow);
+```
+
+
 ## Prompts
 
-We've make several changes and improvements to prompts.
+We've made several changes and improvements to prompts.
 
 You can define separate templates for prompt and system messages:
 
@@ -296,7 +317,7 @@ You can define separate templates for prompt and system messages:
 const hello = ai.definePrompt({
   name: 'hello',
   system: 'talk like a pirate.',
-  prompt: 'hello {{ name }}',
+  prompt: 'hello {% verbatim %}{{ name }}{% endverbatim %}',
   input: {
     schema: z.object({
       name: z.string()
@@ -306,12 +327,12 @@ const hello = ai.definePrompt({
 const { text } = await hello({name: 'Genkit'});
 ```
 
-or you can define multi-message prompts in the messages field
+Alternatively, you can define multi-message prompts in the messages field:
 
 ```ts
 const hello = ai.definePrompt({
   name: 'hello',
-  messages: '{{ role "system" }}talk like a pirate. {{ role "user" }} hello {{ name }}',
+  messages: '{% verbatim %}{{ role "system" }}{% endverbatim %} talk like a pirate. {% verbatim %}{{ role "user" }}{% endverbatim %} hello {% verbatim %}{{ name }}{% endverbatim %}',
   input: {
     schema: z.object({
       name: z.string()
@@ -320,7 +341,7 @@ const hello = ai.definePrompt({
 });
 ```
 
-instead of prompt templates you can use a function
+Instead of prompt templates you can use a function:
 
 ```ts
 ai.definePrompt({
@@ -336,18 +357,18 @@ ai.definePrompt({
 });
 ```
 
-Note that you can access the context (including auth information) from within the prompt:
+You can access the context (including auth information) from within the prompt:
 
 ```ts
 const hello = ai.definePrompt({
   name: 'hello',
-  messages: 'hello {{ @auth.email }}',
+  messages: 'hello {% verbatim %}{{ @auth.email }}{% endverbatim %}',
 });
 ```
 
 
 
-## Streaming functions do not require an await
+## Streaming functions do not require an `await`
 
 
 **Old:**
@@ -357,10 +378,30 @@ const { stream, response } = await ai.generateStream(`hi`);
 const { stream, output } = await myflow.stream(`hi`);
 ```
 
-**New**
+**New:**
 
 ```ts
 const { stream, response } = ai.generateStream(`hi`);
 const { stream, output } = myflow.stream(`hi`);
 ```
 
+
+
+## Embed has a new return type
+
+We've added support for multimodal embeddings. Instead of returning just a
+single embedding vector, Embed returns an array of embedding objects, each
+containing an embedding vector and metadata.
+
+**Old:**
+
+```ts
+const response = await ai.embed({embedder, content, options});  // returns number[]
+```
+
+**New:**
+
+```ts
+const response = await ai.embed({embedder, content, options}); // returns Embedding[]
+const firstEmbeddingVector = response[0].embedding;  // is number[]
+```

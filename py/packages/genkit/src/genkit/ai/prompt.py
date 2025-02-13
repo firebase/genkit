@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from genkit.core.types import GenerateRequest
-from typing import Callable, Optional, Any
+from collections.abc import Callable
+from typing import Any
 
-PromptFn = Callable[[Optional[Any]], GenerateRequest]
+from genkit.core.schemas import GenerateRequest
+
+PromptFn = Callable[[Any | None], GenerateRequest]

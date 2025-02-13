@@ -766,6 +766,9 @@
                 "all",
                 "no-tools"
               ]
+            },
+            "toolChoice": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

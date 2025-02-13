@@ -122,6 +122,8 @@ export const ModelInfoSchema = z.object({
       context: z.boolean().optional(),
       /** Model can natively support constrained generation. */
       constrained: z.enum(['none', 'all', 'no-tools']).optional(),
+      /** Model supports controlling tool choice, e.g. forced tool calling. */
+      toolChoice: z.boolean().optional(),
     })
     .optional(),
 });

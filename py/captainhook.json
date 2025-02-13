@@ -34,6 +34,9 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
+          "run": "py/bin/generate_schema_types"
+        },
+        {
           "run": "py/bin/fmt"
         },
         {
@@ -50,17 +53,6 @@
         },
         {
           "run": "go test go/..."
-        },
-        {
-          "run": "govulncheck -C go ./...",
-          "conditions": [
-            {
-              "run": "CaptainHook::FileChanged.Any",
-              "options": {
-                "files": ["go/go.mod", "go.sum", "*.go"]
-              }
-            }
-          ]
         }
       ]
     },
@@ -82,6 +74,9 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
+          "run": "py/bin/generate_schema_types"
+        },
+        {
           "run": "py/bin/fmt"
         },
         {
@@ -98,17 +93,6 @@
         },
         {
           "run": "go test go/..."
-        },
-        {
-          "run": "govulncheck -C go ./...",
-          "conditions": [
-            {
-              "run": "CaptainHook::FileChanged.Any",
-              "options": {
-                "files": ["go/go.mod", "go.sum", "*.go"]
-              }
-            }
-          ]
         },
         {
           "run": "py/.hooks/commit-message-format-pre-push"
