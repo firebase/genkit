@@ -5,7 +5,10 @@ package modelgarden_test
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -67,7 +70,6 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
-		t.Skipf("no -projectid provided")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
@@ -81,18 +83,30 @@ func TestModelGarden(t *testing.T) {
 		}
 	})
 
-	t.Run("model", func(t *testing.T) {
-		t.Skipf("no -projectid provided")
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
-		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("What's your name?"), ai.WithModel(m))
+	t.Run("media content", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal(resp.Message.Content[0].Text)
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystemPrompt("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to detect what's in the image"),
+			ai.WithModel(m),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewMediaPart("", "data:image/png;base64,"+i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("it should've said Bluey but got: %s", resp.Text())
+		}
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		t.Skipf("no -projectid provided")
+		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		out := ""
 		parts := 0
@@ -122,4 +136,27 @@ func TestModelGarden(t *testing.T) {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
 	})
+}
+
+// Bluey rocks
+func fetchImgAsBase64() (string, error) {
+	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	resp, err := http.Get(imgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	// keep the img in memory
+	imageBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	base64string := base64.StdEncoding.EncodeToString(imageBytes)
+	return base64string, nil
 }

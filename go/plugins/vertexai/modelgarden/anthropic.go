@@ -5,6 +5,7 @@ package modelgarden
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -216,7 +217,7 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 		case p.IsMedia():
 			// TODO: check this
 			contentType, data, _ := uri.Data(p)
-			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, string(data)))
+			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.StdEncoding.EncodeToString(data)))
 		case p.IsData():
 			// todo: what is this? is this related to ContentBlocks?
 			panic("data content is unsupported by anthropic models")
