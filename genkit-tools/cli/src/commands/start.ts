@@ -64,9 +64,8 @@ export const start = new Command('start')
   });
 
 async function startRuntime(telemetryServerUrl?: string) {
-  let runtimePromise = Promise.resolve();
   if (start.args.length > 0) {
-    runtimePromise = new Promise((urlResolver, reject) => {
+    return new Promise((urlResolver, reject) => {
       const appProcess = spawn(start.args[0], start.args.slice(1), {
         env: {
           ...process.env,
@@ -96,5 +95,5 @@ async function startRuntime(telemetryServerUrl?: string) {
       });
     });
   }
-  return runtimePromise;
+  return new Promise(() => {}); // no runtime, return a hanging promise.
 }
