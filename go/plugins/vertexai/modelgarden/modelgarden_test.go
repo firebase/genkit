@@ -6,6 +6,7 @@ package modelgarden_test
 import (
 	"context"
 	"flag"
+	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
@@ -47,16 +48,21 @@ func TestModelGarden(t *testing.T) {
 
 	t.Run("model version ok", func(t *testing.T) {
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
-		_, err := genkit.Generate(ctx, g,
+		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
 				Version:     "claude-3-5-sonnet-v2@20241022",
 			}),
 			ai.WithModel(m),
-			ai.WithTextPrompt("Hello there..."),
+			ai.WithSystemPrompt("talk to me like an evil pirate and say ARR several times"),
+			ai.WithMessages(ai.NewUserMessage(ai.NewTextPart("I'm a fish"))),
 		)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		if !strings.Contains(resp.Text(), "ARR") {
+			t.Fatalf("not a pirate :( :%s", resp.Text())
 		}
 	})
 
