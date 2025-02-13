@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { Action, GenkitError, defineAction, z } from '@genkit-ai/core';
+import {
+  Action,
+  ActionContext,
+  GenkitError,
+  defineAction,
+  z,
+} from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 import { EmbedderInfo } from './embedder.js';
@@ -78,10 +84,16 @@ export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
 /**
  * A retriever action type.
  */
-export type RetrieverAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
-  Action<typeof RetrieverRequestSchema, typeof RetrieverResponseSchema> & {
-    __configSchema?: CustomOptions;
-  };
+export type RetrieverAction<
+  Context extends ActionContext,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Action<
+  Context,
+  typeof RetrieverRequestSchema,
+  typeof RetrieverResponseSchema
+> & {
+  __configSchema?: CustomOptions;
+};
 
 /**
  * An indexer action type.
@@ -92,15 +104,17 @@ export type IndexerAction<IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   };
 
 function retrieverWithMetadata<
+  Context extends ActionContext,
   RetrieverOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   retriever: Action<
+    Context,
     typeof RetrieverRequestSchema,
     typeof RetrieverResponseSchema
   >,
   configSchema?: RetrieverOptions
-): RetrieverAction<RetrieverOptions> {
-  const withMeta = retriever as RetrieverAction<RetrieverOptions>;
+): RetrieverAction<Context, RetrieverOptions> {
+  const withMeta = retriever as RetrieverAction<Context, RetrieverOptions>;
   withMeta.__configSchema = configSchema;
   return withMeta;
 }
@@ -161,7 +175,10 @@ export function defineRetriever<
 /**
  *  Creates an indexer action for the provided {@link IndexerFn} implementation.
  */
-export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
+export function defineIndexer<
+  Context extends ActionContext,
+  IndexerOptions extends z.ZodTypeAny,
+>(
   registry: Registry,
   options: {
     name: string;
@@ -193,7 +210,7 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
       )
   );
   const iwm = indexerWithMetadata(
-    indexer as Action<typeof IndexerRequestSchema, z.ZodVoid>,
+    indexer as Action<Context, typeof IndexerRequestSchema, z.ZodVoid>,
     options.configSchema
   );
   return iwm;
@@ -217,11 +234,14 @@ export type RetrieverArgument<
 /**
  * Retrieves documents from a {@link RetrieverArgument} based on the provided query.
  */
-export async function retrieve<CustomOptions extends z.ZodTypeAny>(
+export async function retrieve<
+  Context extends ActionContext,
+  CustomOptions extends z.ZodTypeAny,
+>(
   registry: Registry,
   params: RetrieverParams<CustomOptions>
 ): Promise<Array<Document>> {
-  let retriever: RetrieverAction<CustomOptions>;
+  let retriever: RetrieverAction<Context, CustomOptions>;
   if (typeof params.retriever === 'string') {
     retriever = await registry.lookupAction(`/retriever/${params.retriever}`);
   } else if (Object.hasOwnProperty.call(params.retriever, 'info')) {
@@ -229,7 +249,7 @@ export async function retrieve<CustomOptions extends z.ZodTypeAny>(
       `/retriever/${params.retriever.name}`
     );
   } else {
-    retriever = params.retriever as RetrieverAction<CustomOptions>;
+    retriever = params.retriever as RetrieverAction<Context, CustomOptions>;
   }
   if (!retriever) {
     throw new Error('Unable to resolve the retriever');
@@ -280,7 +300,7 @@ export async function index<CustomOptions extends z.ZodTypeAny>(
   if (!indexer) {
     throw new Error('Unable to utilize the provided indexer');
   }
-  return await indexer({
+  await indexer({
     documents: params.documents,
     options: params.options,
   });
@@ -388,13 +408,13 @@ function itemToMetadata(
  * Simple retriever options.
  */
 export interface SimpleRetrieverOptions<
-  C extends z.ZodTypeAny = z.ZodTypeAny,
+  CS extends z.ZodTypeAny = z.ZodTypeAny,
   R = any,
 > {
   /** The name of the retriever you're creating. */
   name: string;
   /** A Zod schema containing any configuration info available beyond the query. */
-  configSchema?: C;
+  configSchema?: CS;
   /**
    * Specifies how to extract content from the returned items.
    *
@@ -427,7 +447,7 @@ export function defineSimpleRetriever<
   options: SimpleRetrieverOptions<C, R>,
   handler: (query: Document, config: z.infer<C>) => Promise<R[]>
 ) {
-  return defineRetriever(
+  return defineRetriever<C>(
     registry,
     {
       name: options.name,

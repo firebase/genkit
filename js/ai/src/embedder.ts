@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, z } from '@genkit-ai/core';
+import { Action, ActionContext, defineAction, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
@@ -61,10 +61,12 @@ type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
 /**
  * Embedder action -- a subtype of {@link Action} with input/output types for embedders.
  */
-export type EmbedderAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
-  Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema> & {
-    __configSchema?: CustomOptions;
-  };
+export type EmbedderAction<
+  Context extends ActionContext = ActionContext,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Action<Context, typeof EmbedRequestSchema, typeof EmbedResponseSchema> & {
+  __configSchema?: CustomOptions;
+};
 
 /**
  * Options of an `embed` function.
@@ -78,11 +80,18 @@ export interface EmbedderParams<
   options?: z.infer<CustomOptions>;
 }
 
-function withMetadata<CustomOptions extends z.ZodTypeAny>(
-  embedder: Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
+function withMetadata<
+  Context extends ActionContext,
+  CustomOptions extends z.ZodTypeAny,
+>(
+  embedder: Action<
+    Context,
+    typeof EmbedRequestSchema,
+    typeof EmbedResponseSchema
+  >,
   configSchema?: CustomOptions
-): EmbedderAction<CustomOptions> {
-  const withMeta = embedder as EmbedderAction<CustomOptions>;
+): EmbedderAction<Context, CustomOptions> {
+  const withMeta = embedder as EmbedderAction<Context, CustomOptions>;
   withMeta.__configSchema = configSchema;
   return withMeta;
 }
@@ -91,6 +100,7 @@ function withMetadata<CustomOptions extends z.ZodTypeAny>(
  * Creates embedder model for the provided {@link EmbedderFn} model implementation.
  */
 export function defineEmbedder<
+  Context extends ActionContext = ActionContext,
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
@@ -101,7 +111,7 @@ export function defineEmbedder<
   },
   runner: EmbedderFn<ConfigSchema>
 ) {
-  const embedder = defineAction(
+  const embedder = defineAction<Context>(
     registry,
     {
       actionType: 'embedder',
@@ -124,7 +134,11 @@ export function defineEmbedder<
       )
   );
   const ewm = withMetadata(
-    embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
+    embedder as Action<
+      Context,
+      typeof EmbedRequestSchema,
+      typeof EmbedResponseSchema
+    >,
     options.configSchema
   );
   return ewm;
