@@ -197,8 +197,7 @@ export function shouldInjectFormatInstruction(
   rawRequestConfig?: z.infer<typeof GenerateActionOutputConfig>
 ) {
   return (
-    formatConfig?.defaultInstruction !== false ||
-    rawRequestConfig?.instructions
+    formatConfig?.defaultInstruction !== false || rawRequestConfig?.instructions
   );
 }
 
