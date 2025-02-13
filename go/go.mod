@@ -9,28 +9,28 @@ retract (
 
 require (
 	cloud.google.com/go/aiplatform v1.68.0
-	cloud.google.com/go/firestore v1.17.0
+	cloud.google.com/go/firestore v1.16.0
 	cloud.google.com/go/logging v1.11.0
-	cloud.google.com/go/vertexai v0.7.1
-	firebase.google.com/go/v4 v4.13.0
+	cloud.google.com/go/vertexai v0.12.1-0.20240711230438-265963bd5b91
+	firebase.google.com/go/v4 v4.14.1
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/google/generative-ai-go v0.11.2
+	github.com/google/generative-ai-go v0.16.1-0.20240711222609-09946422abc6
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
 	github.com/pgvector/pgvector-go v0.2.0
-	github.com/weaviate/weaviate v1.25.2
-	github.com/weaviate/weaviate-go-client/v4 v4.14.0
+	github.com/weaviate/weaviate v1.26.0-rc.1
+	github.com/weaviate/weaviate-go-client/v4 v4.15.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.opentelemetry.io/otel v1.29.0
 	go.opentelemetry.io/otel/metric v1.29.0
 	go.opentelemetry.io/otel/sdk v1.29.0
-	go.opentelemetry.io/otel/sdk/metric v1.26.0
+	go.opentelemetry.io/otel/sdk/metric v1.29.0
 	go.opentelemetry.io/otel/trace v1.29.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
 	golang.org/x/tools v0.23.0
@@ -42,7 +42,7 @@ require (
 
 require (
 	cloud.google.com/go v0.115.1 // indirect
-	cloud.google.com/go/ai v0.4.1 // indirect
+	cloud.google.com/go/ai v0.8.1-0.20240711230438-265963bd5b91 // indirect
 	cloud.google.com/go/auth v0.9.3 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect

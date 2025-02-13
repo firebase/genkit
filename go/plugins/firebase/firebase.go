@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package firebase
 
 import (
@@ -13,6 +12,7 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 var state struct {
@@ -34,7 +34,7 @@ type FirebasePluginConfig struct {
 }
 
 // Init initializes the plugin with the provided configuration.
-func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
+func Init(ctx context.Context, g *genkit.Genkit, cfg *FirebasePluginConfig) error {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
@@ -51,7 +51,7 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 
 	var retrievers []ai.Retriever
 	for _, retrieverCfg := range cfg.Retrievers {
-		retriever, err := DefineFirestoreRetriever(retrieverCfg)
+		retriever, err := DefineFirestoreRetriever(g, retrieverCfg)
 		if err != nil {
 			return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", retrieverCfg.Name, err)
 		}

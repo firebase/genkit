@@ -19,12 +19,17 @@ import (
 	"testing"
 
 	firebase "firebase.google.com/go/v4"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 func TestInit(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+	g, err := genkit.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name          string
@@ -50,7 +55,7 @@ func TestInit(t *testing.T) {
 			expectedError: "",
 			setup: func() error {
 				// Initialize once
-				return Init(ctx, &FirebasePluginConfig{
+				return Init(ctx, g, &FirebasePluginConfig{
 					App: &firebase.App{}, // Mock Firebase app
 				})
 			},
@@ -75,7 +80,7 @@ func TestInit(t *testing.T) {
 				t.Fatalf("Setup failed: %v", err)
 			}
 
-			err := Init(ctx, tt.config)
+			err := Init(ctx, g, tt.config)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {
