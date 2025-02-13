@@ -23,7 +23,9 @@ export type OutputContentTypes = 'application/json' | 'text/plain';
 
 export interface Formatter<O = unknown, CO = unknown> {
   name: string;
-  config: ModelRequest['output'];
+  config: ModelRequest['output'] & {
+    defaultInstruction?: false;
+  };
   handler: (schema?: JSONSchema) => {
     parseMessage(message: Message): O;
     parseChunk?: (chunk: GenerateResponseChunk) => CO;

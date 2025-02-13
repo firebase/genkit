@@ -33,7 +33,10 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { generateHelper } from './generate/action.js';
+import {
+  generateHelper,
+  shouldInjectFormatInstruction,
+} from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
@@ -211,7 +214,12 @@ export async function toGenerateRequest(
   );
 
   const out = {
-    messages: injectInstructions(messages, instructions),
+    messages: shouldInjectFormatInstruction(
+      resolvedFormat?.config,
+      options.output
+    )
+      ? injectInstructions(messages, instructions)
+      : messages,
     config: options.config,
     docs: options.docs,
     tools: tools?.map(toToolDefinition) || [],
@@ -343,16 +351,11 @@ export async function generate<
     resolvedOptions.output.format = 'json';
   }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
-  const instructions = resolveInstructions(
-    resolvedFormat,
-    resolvedSchema,
-    resolvedOptions?.output?.instructions
-  );
 
   const params: GenerateActionOptions = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages: injectInstructions(messages, instructions),
+    messages: messages,
     tools,
     toolChoice: resolvedOptions.toolChoice,
     config: {
