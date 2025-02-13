@@ -21,10 +21,15 @@ const ai = genkit({
   ],
 });
 
-(async () => {
-  const { text } = ai.generate({prompt: 'hi Gemini!', model: 'ollama/gemma');
+async function main() {
+  const { text } = await ai.generate({
+    prompt: 'hi Gemini!',
+    model: 'ollama/gemma',
+  });
   console.log(text);
-});
+}
+
+main();
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
