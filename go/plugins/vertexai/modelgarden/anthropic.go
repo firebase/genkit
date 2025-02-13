@@ -12,6 +12,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/vertex"
@@ -171,27 +172,87 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) anthropic.MessageNewPa
 			req.StopSequences = anthropic.F(c.StopSequences)
 		}
 	}
-	// system and user blocks
-	sysBlocks := []anthropic.TextBlockParam{}
-	userBlocks := []anthropic.TextBlockParam{}
+
+	/*
+	 * // check all messages and split system and user in different blocks
+	 * for _, m := range i.Messages {
+	 *		parts, err := convertParts(m.Content)
+	 *		if err != nil {
+	 *			return nil, err
+	 *		}
+	 *
+	 *		if m.Role == system {
+	 *			systemBlocks = append(parts)
+	 *			continue
+	 *		}
+	 *
+	 *		userBlocks = append(parts)
+	 * }
+	 *
+	 * func convertParts(c []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) {
+	 *	parts := make([]anthropic.ContentBlockParamUnion, 0, len(c))
+	 *	for _, p := range c {
+	 *		switch {
+	 *			detect part type and append it to a list
+	 *		}
+	 *	}
+	 *
+	 *	return parts
+	 * }
+	 */
+	// find a way to make this generic for both user and system blocks
+	sysBlocks := []anthropic.ContentBlockParamUnion{}
 	for _, m := range i.Messages {
-		// TODO: convert messages to its types (text, media, toolResponse)
+		// system parts
 		if m.Role == ai.RoleSystem {
-			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(m.Text()))
-		}
-		if m.Role == ai.RoleUser {
-			userBlocks = append(userBlocks, anthropic.NewTextBlock(m.Text()))
+			for _, p := range m.Content {
+				switch {
+				case p.IsText():
+					// TODO: check this
+					sysBlocks = append(sysBlocks, anthropic.NewTextBlock(p.Text))
+				case p.IsMedia():
+					// TODO: check this
+					contentType, data, _ := uri.Data(p)
+					sysBlocks = append(sysBlocks, anthropic.NewImageBlockBase64(contentType, string(data)))
+				case p.IsData():
+					// todo: what is this? is this related to ContentBlocks?
+					panic("data content is unsupported by anthropic models")
+				case p.IsToolResponse():
+					// TODO: check this
+					toolResp := p.ToolResponse
+					if toolResp.Output == nil {
+						panic("tool response is empty")
+					}
+					data, err := json.Marshal(toolResp.Output)
+					if err != nil {
+						panic("unable to parse tool response")
+					}
+					sysBlocks = append(sysBlocks, anthropic.NewToolResultBlock(toolResp.Name, string(data), false))
+				case p.IsToolRequest():
+					// TODO: check this
+					toolReq := p.ToolRequest
+					sysBlocks = append(sysBlocks, anthropic.NewToolUseBlockParam(toolReq.Name, toolReq.Name, toolReq.Input))
+				default:
+					panic("unknown part type in the request")
+				}
+			}
 		}
 	}
-	if len(sysBlocks) > 0 {
-		req.System = anthropic.F(sysBlocks)
-	}
-	if len(userBlocks) > 0 {
-		messageParam := make([]anthropic.MessageParam, 0)
-		for _, u := range userBlocks {
-			messageParam = append(messageParam, anthropic.NewUserMessage(u))
+
+	if len(i.Messages) > 0 {
+		// check why this is required
+		last := i.Messages[len(i.Messages)-1]
+		for _, p := range last.Content {
+			switch {
+			case p.IsText():
+			case p.IsMedia():
+			case p.IsData():
+			case p.IsToolResponse():
+			case p.IsToolRequest():
+			default:
+				panic("unknown part type in the request")
+			}
 		}
-		req.Messages = anthropic.F(messageParam)
 	}
 
 	return req
