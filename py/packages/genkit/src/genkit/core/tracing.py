@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Any
 
 import requests  # type: ignore[import-untyped]
 from opentelemetry import trace as trace_api
@@ -37,7 +37,7 @@ class TelemetryServerSpanExporter(SpanExporter):
                 'startTime': span.start_time / 1000000,
                 'endTime': span.end_time / 1000000,
                 'attributes': convert_attributes(
-                    attributes=cast(span.attributes, dict),  # type: ignore
+                    attributes=span.attributes,  # type: ignore
                 ),
                 'displayName': span.name,
                 # "links": span.links,
