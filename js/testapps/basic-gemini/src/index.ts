@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { gemini20Flash, googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { genkit, z } from 'genkit';
 
@@ -40,11 +40,11 @@ export const jokeFlow = ai.defineFlow(
   },
   async () => {
     const llmResponse = await ai.generate({
-      model: gemini15Flash,
+      model: gemini20Flash,
       config: {
         temperature: 2,
         // if desired, model versions can be explicitly set
-        version: 'gemini-1.5-flash-002',
+        version: 'gemini-2.0-flash-001',
       },
       output: {
         schema: z.object({ jokeSubject: z.string() }),

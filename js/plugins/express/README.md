@@ -8,7 +8,7 @@ import express from 'express';
 
 const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: gemini15Flash,
+    model: gemini20Flash,
     prompt: input,
     onChunk: (c) => sendChunk(c.text),
   });

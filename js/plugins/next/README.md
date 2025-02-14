@@ -8,7 +8,7 @@ const simpleFlow = ai.defineFlow(
   'simpleFlow',
   async (input, streamingCallback) => {
     const { text } = await ai.generate({
-      model: gemini15Flash,
+      model: gemini20Flash,
       prompt: input,
       streamingCallback: (chunk) => streamingCallback(chunk.text),
     });

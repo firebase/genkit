@@ -16,7 +16,7 @@ npm i --save @genkit-ai/dev-local-vectorstore
 import { Document, genkit } from 'genkit';
 import {
   googleAI,
-  gemini20Flash, // Replaced gemini15Flash with gemini20Flash
+  gemini20Flash,
   textEmbeddingGecko001,
 } from '@genkit-ai/googleai';
 import {

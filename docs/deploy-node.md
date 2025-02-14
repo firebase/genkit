@@ -51,12 +51,12 @@ In `src/index.ts`, define a sample flow and configure the flow server:
 
   ```typescript
   import { genkit } from 'genkit';
-  import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+  import { googleAI, gemini20Flash } from '@genkit-ai/googleai';
   import { startFlowServer } from '@genkit-ai/express';
 
   const ai = genkit({
     plugins: [googleAI()],
-    model: gemini15Flash,
+    model: gemini20Flash,
   });
 
   const helloFlow = ai.defineFlow(

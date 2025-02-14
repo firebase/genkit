@@ -51,7 +51,7 @@ this guide, we use a dummy retriever that always returns the same documents.
 import { genkit, z, Document } from "genkit";
 import {
   googleAI,
-  gemini15Flash,
+  gemini20Flash,
 } from "@genkit-ai/googleai";
 
 // Initialize Genkit
@@ -89,7 +89,7 @@ export const qaFlow = ai.defineFlow({
     });
 
     const llmResponse = await ai.generate({
-      model: gemini15Flash,
+      model: gemini20Flash,
       prompt: `Answer this question with the given context ${query}`,
       docs: factDocs,
     });
@@ -104,14 +104,14 @@ evaluating. This guide uses the <code>MALICIOUSNESS</code> metric from the
 
 <pre class="prettyprint lang-js">
 import { genkitEval, GenkitMetric } from "@genkit-ai/evaluator";
-import { gemini15Pro } from "@genkit-ai/googleai";
+import { gemini20Flash } from "@genkit-ai/googleai";
 
 export const ai = genkit ({
   plugins: [
     ...
     // Add this plugin to your Genkit initialization block
     genkitEval({
-      judge: gemini15Pro,
+      judge: gemini20Flash,
       metrics: [GenkitMetric.MALICIOUSNESS],
     }),
   ]
@@ -404,7 +404,7 @@ export const qaFlow = ai.defineFlow({
     });
 
     const llmResponse = await ai.generate({
-      model: gemini15Flash,
+      model: gemini20Flash,
       prompt: `Answer this question with the given context ${query}`,
       docs: factDocsModified,
     });
@@ -481,7 +481,7 @@ questions.
 
 ```ts
 import { genkit, z } from "genkit";
-import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
+import { googleAI, gemini20Flash } from "@genkit-ai/googleai";
 import { chunk } from "llm-chunk"; // npm i llm-chunk
 import path from "path";
 import { readFile } from "fs/promises";
@@ -522,7 +522,7 @@ export const synthesizeQuestions = ai.defineFlow(
     const questions: string[] = [];
     for (var i = 0; i < chunks.length; i++) {
       const qResponse = await ai.generate({
-        model: gemini15Flash,
+        model: gemini20Flash,
         prompt: {
           text: `Generate one question about the text below: ${chunks[i]}`,
         },

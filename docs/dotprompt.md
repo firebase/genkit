@@ -546,11 +546,11 @@ side-by-side with existing versions. Dotprompt supports this through its
 variants feature.
 
 To create a variant, create a `[name].[variant].prompt` file. For instance, if
-you were using Gemini 1.5 Flash in your prompt but wanted to see if Gemini 1.5
-Pro would perform better, you might create two files:
+you were using Gemini 1.5 Pro in your prompt but wanted to see if Gemini 2.0
+Flash would perform better, you might create two files:
 
 *   `my_prompt.prompt`: the "baseline" prompt
-*   `my_prompt.gemini15pro.prompt`: a variant named `gemini15pro`
+*   `my_prompt.gemini20Flash.prompt`: a variant named `gemini20Flash`
 
 To use a prompt variant, specify the variant option when loading:
 

@@ -89,7 +89,7 @@ The `chat()` method accepts most of the same configuration options as
 
 ```ts
 const chat = ai.chat({
-  model: gemini15Pro,
+  model: gemini20Flash,
   system:
     "You're a pirate first mate. Address the user as Captain and assist " +
     "them however you can.",
@@ -148,7 +148,7 @@ const changeUserName = ai.defineTool(
 
 ```ts
 const chat = session.chat({
-  model: gemini15Pro,
+  model: gemini20Flash,
   tools: [changeUserName],
 });
 await chat.send('change user name to Kevin');
