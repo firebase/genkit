@@ -6,14 +6,14 @@
     "commit-msg": {
       "actions": [
         {
-          "run": "convco check -n 1"
+          "run": ".hooks/conventional-commit-msg {$MESSAGE_FILE}"
         }
       ]
     },
     "pre-commit": {
       "actions": [
         {
-          "run": "py/.hooks/no-commits-on-branches main"
+          "run": ".hooks/no-commits-on-branches main"
         },
         {
           "run": "CaptainHook::File.MaxSize",
@@ -37,13 +37,13 @@
           "run": "py/bin/generate_schema_types"
         },
         {
-          "run": "py/bin/fmt"
+          "run": "bin/fmt"
         },
         {
-          "run": "uvx --directory py ruff check --fix ."
+          "run": "uv run --directory py ruff check --fix ."
         },
         {
-          "run": "py/bin/run_tests"
+          "run": "py/bin/run_python_tests"
         },
         {
           "run": "uv run --directory py mkdocs build"
@@ -77,13 +77,13 @@
           "run": "py/bin/generate_schema_types"
         },
         {
-          "run": "py/bin/fmt"
+          "run": "bin/fmt"
         },
         {
-          "run": "uvx --directory py ruff check --fix ."
+          "run": "uv run --directory py ruff check --fix ."
         },
         {
-          "run": "py/bin/run_tests"
+          "run": "py/bin/run_python_tests"
         },
         {
           "run": "uv run --directory py mkdocs build"
@@ -95,7 +95,7 @@
           "run": "go test go/..."
         },
         {
-          "run": "py/.hooks/commit-message-format-pre-push"
+          "run": ".hooks/commit-message-format-pre-push"
         }
       ]
     }

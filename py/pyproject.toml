@@ -21,15 +21,15 @@ version = "0.1.0"
 [dependency-groups]
 dev = [
   "bpython>=0.25",
-  "ipython>=8.31.0",
+  "ipython>=8.32.0",
   "jupyter>=1.1.1",
-  "pytest-asyncio>=0.25.2",
+  "pytest-asyncio>=0.25.3",
   "pytest>=8.3.4",
   "pytest-cov>=6.0.0",
-  "datamodel-code-generator>=0.26.5",
+  "datamodel-code-generator>=0.27.3",
 ]
 
-lint = ["mypy~=1.15", "ruff~=0.9"]
+lint = ["mypy>=1.15", "ruff>=0.9"]
 
 [tool.hatch.build.targets.wheel]
 packages = []
@@ -97,6 +97,7 @@ exclude = [
   ".vscode",
   "__pypackages__",
   "_build",
+  "bazel-*",
   "buck-out",
   "build",
   "dist",
@@ -136,7 +137,6 @@ line-ending               = "lf"
 quote-style               = "single"
 skip-magic-trailing-comma = false
 
-
 # Static type checking.
 [tool.mypy]
 disallow_incomplete_defs = true
@@ -144,17 +144,21 @@ disallow_untyped_defs    = true
 warn_unused_configs      = true
 
 [tool.datamodel-codegen]
-#strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
 #collapse-root-models = true # Don't use; produces Any as types.
-disable-timestamp        = true
-enable-version-header    = true
-field-constraints        = true
-input                    = "../genkit-tools/genkit-schema.json"
-input-file-type          = "jsonschema"
-output                   = "packages/genkit/src/genkit/core/schemas.py"
-output-model-type        = "pydantic_v2.BaseModel"
+#strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
+#use-subclass-enum        = true
+capitalize-enum-members = true
+disable-timestamp       = true
+enable-version-header   = true
+field-constraints       = true
+input                   = "../genkit-tools/genkit-schema.json"
+input-file-type         = "jsonschema"
+output                  = "packages/genkit/src/genkit/core/schemas.py"
+output-model-type       = "pydantic_v2.BaseModel"
+#snake-case-field = true
 strict-nullable          = true
 target-python-version    = "3.12"
 use-schema-description   = true
 use-standard-collections = true
 use-union-operator       = true
+use-unique-items-as-set  = true
