@@ -116,7 +116,7 @@ dashboard.
 ## Step 5.  Re-build and deploy code
 
 Re-build, deploy, and invoke your Genkit feature to start collecting data.
-After Genkit Monitoring receives your metrics, youo can view them by
+After Genkit Monitoring receives your metrics, you can view them by
 visiting the
 [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring)
 
