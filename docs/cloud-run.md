@@ -1,8 +1,8 @@
 # Deploy flows using Cloud Run
 
 You can deploy Genkit flows as HTTPS endpoints using Cloud Run. Cloud Run has
-several deployment options, including container based deployment; this page will
-explain how to deploy your flows directly from code.
+several deployment options, including container based deployment; this page
+explains how to deploy your flows directly from code.
 
 ## Before you begin
 

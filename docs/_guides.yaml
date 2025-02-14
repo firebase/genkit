@@ -45,10 +45,10 @@ toc:
     path: /docs/genkit/chat
   - title: Tools
     section:
-      - title: Tool calling
-        path: /docs/genkit/tool-calling
-      - title: Pause generation using interrupts
-        path: /docs/genkit/interrupts
+    - title: Tool calling
+      path: /docs/genkit/tool-calling
+    - title: Pause generation using interrupts
+      path: /docs/genkit/interrupts
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
   - title: Multi-agent systems
@@ -56,7 +56,7 @@ toc:
   - title: Evaluation
     path: /docs/genkit/evaluation
   - title: Observe local metrics
-    path: /docs/genkit/observability/local-observability
+    path: /docs/genkit/local-observability
   - title: Error Types
     path: /docs/genkit/errors/types.md
 

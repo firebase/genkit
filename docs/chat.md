@@ -1,3 +1,7 @@
+Beta: This feature of Genkit is in **Beta,** which means it is not yet
+part of Genkit's stable API. APIs of beta features may change in minor
+version releases.
+
 # Creating persistent chat sessions
 
 Many of your users will have interacted with large language models for the first
