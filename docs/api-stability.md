@@ -12,7 +12,7 @@ been declared stable. The beta channel may include breaking changes on
 
 ## Using the Stable Channel
 
-To use the stable channel of Genkit, import from the standard `"genkit"`
+To use the stable channel of Genkit, import from the standard
 `"genkit"` entrypoint:
 
 ```ts
