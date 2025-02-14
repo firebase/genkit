@@ -118,7 +118,7 @@ dashboard.
 Re-build, deploy, and invoke your Genkit feature to start collecting data.
 After Genkit Monitoring receives your metrics, youo can view them by
 visiting the
-[Genkit Monitoring dashboard](https://firebase.google.com/project/_/genai_monitoring)
+[Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring)
 
 Note: It may take up to 5 minutes to collect the first metric (based on the default `metricExportIntervalMillis` setting in the telemetry configuration).
 
