@@ -66,6 +66,8 @@ type Config struct {
 	Messages []*ai.Message
 	// The messages function. If this is set, Messages should be an empty.
 	MessagesFn MessagesFn
+	// Override the render function
+	RenderFn RenderFn
 	// The tools to use.
 	Tools []ai.Tool
 	// Details for the model.
@@ -90,6 +92,7 @@ type Config struct {
 
 type PromptFn func(context.Context, any) (string, error)
 type MessagesFn func(context.Context, any) ([]*ai.Message, error)
+type RenderFn func(ctx context.Context, input any) (*ai.ModelRequest, error)
 
 // PromptOption configures params for the prompt
 type PromptOption func(p *Prompt) error
@@ -115,6 +118,11 @@ func Define(r *registry.Registry, provider, name string, opts ...PromptOption) (
 		name += "." + p.Variant
 	}
 
+	renderFn := p.buildRequest
+	if p.Config.RenderFn != nil {
+		renderFn = p.Config.RenderFn
+	}
+
 	// TODO: Undo clearing of the Version once Monaco Editor supports newer than JSON schema draft-07.
 	if p.InputSchema != nil {
 		p.InputSchema.Version = ""
@@ -129,7 +137,7 @@ func Define(r *registry.Registry, provider, name string, opts ...PromptOption) (
 		},
 	}
 
-	p.Action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, metadata, p.Config.InputSchema, p.buildRequest)
+	p.Action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, metadata, p.Config.InputSchema, renderFn)
 	return p, nil
 }
 
@@ -368,6 +376,16 @@ func WithDefaultToolChoice(toolChoice ai.ToolChoice) PromptOption {
 			return errors.New("prompt.WithToolChoice: cannot set ToolChoice more than once")
 		}
 		p.Config.ToolChoice = toolChoice
+		return nil
+	}
+}
+
+func WithRender(renderFn RenderFn) PromptOption {
+	return func(p *Prompt) error {
+		if p.Config.RenderFn != nil {
+			return errors.New("prompt.WithRender: cannot set WithRender more than once")
+		}
+		p.Config.RenderFn = renderFn
 		return nil
 	}
 }
