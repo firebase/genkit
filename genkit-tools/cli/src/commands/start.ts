@@ -16,7 +16,7 @@
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
-import { logger } from '@genkit-ai/tools-common/utils';
+import { logger, setDevUiUrl } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';
 import { Command } from 'commander';
 import getPort, { makeRange } from 'get-port';
@@ -56,6 +56,7 @@ export const start = new Command('start')
       if (options.open) {
         open(`http://localhost:${port}`);
       }
+      await setDevUiUrl(`http://localhost:${port}`);
     }
     await managerPromise.then((manager: RuntimeManager) => {
       const telemetryServerUrl = manager?.telemetryServerUrl;

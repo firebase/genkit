@@ -31,10 +31,12 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
+  getDevUiUrl,
   hasAction,
   loadInferenceDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
+import * as clc from 'colorette';
 import { Command } from 'commander';
 import { runWithManager } from '../utils/manager-utils';
 
@@ -167,9 +169,19 @@ export const evalFlow = new Command('eval:flow')
           await exportFn(evalRun, options.output);
         }
 
-        console.log(
-          `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
-        );
+        const devUiUrl = await getDevUiUrl();
+        console.log('---', devUiUrl);
+        if (devUiUrl) {
+          logger.info(
+            clc.green(
+              `\n  View the evaluation results at: ${devUiUrl}/evaluations/${evalRun.key.evalRunId}`
+            )
+          );
+        } else {
+          logger.info(
+            `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
+          );
+        }
       });
     }
   );

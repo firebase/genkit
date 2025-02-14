@@ -17,6 +17,14 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Runtime } from '../manager/types';
+import { logger } from './logger';
+
+export interface DevToolsInfo {
+  /** URL of the dev tools server. */
+  url: string;
+  /** Timestamp of when the dev tools server was started. */
+  timestamp: string;
+}
 
 /**
  * Finds the project root by looking for a `package.json` file.
@@ -213,5 +221,59 @@ export async function retriable<T>(
       }
     }
     attempt++;
+  }
+}
+
+/**
+ * Checks if the provided data is a valid dev tools server state file.
+ */
+export function isValidDevToolsInfo(data: any): data is DevToolsInfo {
+  return (
+    typeof data === 'object' &&
+    typeof data.url === 'string' &&
+    typeof data.timestamp === 'string'
+  );
+}
+
+/**
+ * Fetches the Genkit Dev UI URL if available
+ */
+export async function getDevUiUrl(
+  projectRoot?: string
+): Promise<string | undefined> {
+  const serversDir = await findServersDir(projectRoot);
+  const toolsJsonPath = path.join(serversDir, 'tools.json');
+  try {
+    const toolsJsonContent = await fs.readFile(toolsJsonPath, 'utf-8');
+    const serverInfo = JSON.parse(toolsJsonContent) as DevToolsInfo;
+    if (isValidDevToolsInfo(serverInfo)) {
+      return (await checkServerHealth(serverInfo.url))
+        ? serverInfo.url
+        : undefined;
+    }
+  } catch (error) {
+    logger.info('Error reading tools config', error);
+    return undefined;
+  }
+}
+
+/**
+ * Sets the Genkit Dev UI URL
+ */
+export async function setDevUiUrl(
+  url: string,
+  projectRoot?: string
+): Promise<void> {
+  const serversDir = await findServersDir(projectRoot);
+  const toolsJsonPath = path.join(serversDir, 'tools.json');
+  try {
+    const serverInfo = {
+      url,
+      timestamp: new Date().toISOString(),
+    } as DevToolsInfo;
+    await fs.mkdir(serversDir, { recursive: true });
+    await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
+  } catch (error) {
+    logger.info('Error writing tools config', error);
   }
 }
