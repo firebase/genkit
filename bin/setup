@@ -5,6 +5,15 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+# NOTE: This script is not specific to any particular runtime. It is intended to
+# be used as a convenience script for eng so that all the runtimes are set up in
+# a consistent manner so that pre-commit hooks run properly and the environment
+# is consistent.
+
+# TODO: This script is nowhere close to perfect. At a later date, we can replace
+# this with something like nix to have a reproducible environment. For now this
+# is a convenience script just to get eng started as quickly as possible.
+
 if ((EUID == 0)) && [[ -z ${DANGEROUSLY_RUN_AS_ROOT+x} ]]; then
   echo "Please do not run as root unless DANGEROUSLY_RUN_AS_ROOT is set."
   exit 1
@@ -95,6 +104,8 @@ function genkit::install_prerequisites() {
       python3 \
       ripgrep
   elif [[ -x "$(command -v apt)" ]]; then
+    sudo apt update -y && sudo apt upgrade -y
+
     # Check if the OS is Ubuntu 22.04 (or a derivative) since some of our eng
     # use it.
     if lsb_release -a | grep -q "Description:.*Ubuntu 22.04"; then
@@ -105,8 +116,13 @@ function genkit::install_prerequisites() {
       sudo apt install -y golang
     fi
 
+    if lsb_release -a | grep -q "Description:.*Ubuntu"; then
+      sudo apt install -y build-essential
+    fi
+
     # Debian-based systems.
     sudo apt install -y \
+      cmake \
       curl \
       fd-find \
       gh \
@@ -116,6 +132,7 @@ function genkit::install_prerequisites() {
   elif [[ -x "$(command -v dnf)" ]]; then
     # Fedora-based systems.
     sudo dnf install -y \
+      cmake \
       curl \
       fd-find \
       gh \
@@ -124,7 +141,7 @@ function genkit::install_prerequisites() {
       python3 \
       ripgrep
   else
-    echo "Unsupported OS. Please install protoc manually."
+    echo "Unsupported OS. Please install tools manually."
   fi
 
   genkit::install_rust
@@ -172,11 +189,10 @@ function genkit::install_google_cloud_sdk() {
   if command -v gcloud &>/dev/null; then
     gcloud config set disable_usage_reporting true
     gcloud components update
-    return 0
+  else
+    curl https://sdk.cloud.google.com | bash -s -- --disable-prompts
+    gcloud config set disable_usage_reporting true
   fi
-
-  curl https://sdk.cloud.google.com | bash -s -- --disable-prompts
-  gcloud config set disable_usage_reporting true
 }
 
 # Install all the required tools that have been written in Go.
@@ -202,6 +218,7 @@ function genkit::install_go_cli_tools_eng() {
 function genkit::install_cargo_cli_tools_eng() {
   cargo install --locked \
     convco \
+    pylyzer \
     rust-parallel \
     taplo-cli
 }
@@ -240,9 +257,17 @@ function genkit::install_docs_cli_tools() {
     --with mkdocstrings[python]
 }
 
+# Configure the commit message template.
+function genkit::configure_commit_template() {
+  echo "Setting up commit message template..."
+  ln -sf "${TOP_DIR}/COMMIT_MESSAGE_TEMPLATE" "${TOP_DIR}/.git/COMMIT_MESSAGE_TEMPLATE"
+  git config commit.template "${TOP_DIR}/.git/COMMIT_MESSAGE_TEMPLATE"
+}
+
 # Install pre-commit hooks.
 function genkit::install_pre_commit_hooks() {
-  captainhook install -f -c "${TOP_DIR}/py/captainhook.json"
+  genkit::configure_commit_template
+  captainhook install -f -c "${TOP_DIR}/captainhook.json"
 }
 
 # Setup genkit.
@@ -273,8 +298,8 @@ function genkit::install_eng_packages() {
   genkit::install_common_packages
   genkit::install_go_cli_tools_eng
   genkit::install_cargo_cli_tools_eng
-  genkit::install_google_cloud_sdk
   genkit::install_pre_commit_hooks
+  genkit::install_google_cloud_sdk
   genkit::setup_genkit
 }
 

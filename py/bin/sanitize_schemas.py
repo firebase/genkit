@@ -24,8 +24,9 @@ class ModelConfigRemover(ast.NodeTransformer):
                     return True
         return False
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
-        """Visit class definitions and remove model_config if class inherits from RootModel."""
+    def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:  # noqa: N802
+        """Visit class definitions and remove model_config if class
+        inherits from RootModel."""
         if self.is_rootmodel_class(node):
             # Filter out model_config assignments
             new_body = []

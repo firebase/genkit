@@ -1,3 +1,6 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
 # Add 'root' label to any root file changes
 # Quotation marks are required for the leading asterisk
 root:
