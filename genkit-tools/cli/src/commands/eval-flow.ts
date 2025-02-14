@@ -170,7 +170,6 @@ export const evalFlow = new Command('eval:flow')
         }
 
         const devUiUrl = await getDevUiUrl();
-        console.log('---', devUiUrl);
         if (devUiUrl) {
           logger.info(
             clc.green(

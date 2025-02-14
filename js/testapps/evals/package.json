@@ -11,7 +11,7 @@
     "build:watch": "tsc --watch",
     "build-and-run": "pnpm build && node lib/index.js",
     "dev": "tsx --watch src/index.ts",
-    "genkit:dev": "genkit start -- tsx --watch src/index.ts"
+    "genkit:dev": "tsx --watch src/index.ts"
   },
   "keywords": [],
   "author": "",

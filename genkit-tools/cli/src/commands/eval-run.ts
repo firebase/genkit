@@ -116,11 +116,10 @@ export const evalRun = new Command('eval:run')
       }
 
       const devUiUrl = await getDevUiUrl();
-      console.log('---', devUiUrl);
       if (devUiUrl) {
         logger.info(
           clc.green(
-            `\n  View the evaluation results at: ${devUiUrl}/evaluations/${evalRun.key.evalRunId}`
+            `\nView the evaluation results at: ${devUiUrl}/evaluations/${evalRun.key.evalRunId}`
           )
         );
       } else {
