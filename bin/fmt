@@ -39,13 +39,9 @@ fi
 popd
 
 # Format all TypeScript code.
-#
-# TODO: Re-enable once we have biome configured and enabled because that is
-# several times faster and compatible.
-#
-#pushd ${TOP_DIR}
-#pnpm run format
-#if [[ $? -ne 0 ]]; then
-#  exit 1
-#fi
-#popd
+pushd ${TOP_DIR}
+pnpm run format
+if [[ $? -ne 0 ]]; then
+  exit 1
+fi
+popd

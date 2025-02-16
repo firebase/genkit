@@ -1,16 +1,5 @@
 # Copyright 2024 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
 
 name: Build Check (Run npm run build everywhere locally if this fails)
 
@@ -22,21 +11,24 @@ env:
 
 jobs:
   build:
-    name: Run build tasks
+    name: Run build tasks (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['20', '21', '22']
     steps:
-    - uses: actions/checkout@v3
-    - uses: pnpm/action-setup@v3
-    - name: Set up node v20
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20.x
-        cache: pnpm
-    - name: Install dependencies
-      run: pnpm install
-    - name: Run build script
-      run: pnpm build
-    - name: Run js tests
-      run: pnpm test:js
-    - name: Validate working directory is clean
-      run: .github/workflows/scripts/ensure-clean-working-tree.sh
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v3
+      - name: Set up node v${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run build script
+        run: pnpm build
+      - name: Run js tests
+        run: pnpm test:js
+      - name: Validate working directory is clean
+        run: .github/workflows/scripts/ensure-clean-working-tree.sh

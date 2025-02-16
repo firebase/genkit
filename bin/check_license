@@ -45,6 +45,7 @@ $HOME/go/bin/addlicense \
   -ignore '**/dist/**/*' \
   -ignore '**/node_modules/**/*' \
   -ignore '**/pnpm-lock.yaml' \
+  -ignore '**/py/site/**/*.html' \
   -ignore '.nx/**/*' \
   -ignore '.trunk/**/*' \
   "$TOP_DIR"

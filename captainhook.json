@@ -40,6 +40,9 @@
           "run": "bin/fmt"
         },
         {
+          "run": "pnpm run format:check"
+        },
+        {
           "run": "uv run --directory py ruff check --fix ."
         },
         {
@@ -78,6 +81,9 @@
         },
         {
           "run": "bin/fmt"
+        },
+        {
+          "run": "pnpm run format:check"
         },
         {
           "run": "uv run --directory py ruff check --fix ."

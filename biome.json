@@ -31,7 +31,10 @@
       ".nx/**",
       ".trunk/**",
       "bazel-*/**",
+      "genkit-tools/genkit-schema.json",
+      "go/**",
       "node_modules/**",
+      "py/**",
       "third_party/**"
     ]
   },
@@ -46,7 +49,7 @@
   },
   "javascript": {
     "formatter": {
-      "arrowParentheses": "asNeeded",
+      "arrowParentheses": "always",
       "attributePosition": "auto",
       "bracketSpacing": true,
       "jsxQuoteStyle": "double",

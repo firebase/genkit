@@ -24,7 +24,7 @@ fi
 TOP_DIR=$(git rev-parse --show-toplevel)
 
 PNPM_VERSION="10.2.0"
-NODE_VERSION="23"
+NODE_VERSION="22" # See: https://github.com/firebase/genkit/issues/1995
 NVM_VERSION="0.40.1"
 
 AUDIENCE="eng"

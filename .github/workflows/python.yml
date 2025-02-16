@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.12"
+          - "3.12" # uv manages versions; this is base.
 
     steps:
       - uses: actions/checkout@v4
