@@ -8,7 +8,6 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "dotprompt",
     "genkit",
     "genkit-chroma-plugin",
     "genkit-firebase-plugin",
@@ -18,7 +17,6 @@ members = [
     "genkit-pinecone-plugin",
     "genkit-vertex-ai-plugin",
     "genkit-workspace",
-    "handlebarz",
     "hello",
 ]
 
@@ -501,14 +499,12 @@ wheels = [
 
 [[package]]
 name = "dotprompt"
-version = "0.1.0"
-source = { editable = "packages/dotprompt" }
-dependencies = [
-    { name = "handlebarz" },
+version = "0.1.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/72/c37abd54a6df1b0a2b99eae7bd703e78b1e6c431df3f009ef7f4b81b7399/dotprompt-0.1.10.tar.gz", hash = "sha256:8b1875cc8411a5b204667f6d930f169914abba64c6ed210eac73f5f066754fd7", size = 42048 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/da/41f67d1a05762eedadcdd4f5be92f30ac1f0ca21dda60aa7dba7b642eabb/dotprompt-0.1.10-py3-none-any.whl", hash = "sha256:5a2d10fed9bba237971d6b68f04040a018be23e3e56eb32fab165509d3443c01", size = 29211 },
 ]
-
-[package.metadata]
-requires-dist = [{ name = "handlebarz", editable = "packages/handlebarz" }]
 
 [[package]]
 name = "executing"
@@ -551,7 +547,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dotprompt", editable = "packages/dotprompt" },
+    { name = "dotprompt" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -644,7 +640,6 @@ name = "genkit-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "dotprompt" },
     { name = "genkit" },
     { name = "genkit-chroma-plugin" },
     { name = "genkit-firebase-plugin" },
@@ -653,7 +648,6 @@ dependencies = [
     { name = "genkit-ollama-plugin" },
     { name = "genkit-pinecone-plugin" },
     { name = "genkit-vertex-ai-plugin" },
-    { name = "handlebarz" },
 ]
 
 [package.dev-dependencies]
@@ -674,7 +668,6 @@ lint = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dotprompt", editable = "packages/dotprompt" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-chroma-plugin", editable = "plugins/chroma" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
@@ -683,7 +676,6 @@ requires-dist = [
     { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
     { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
     { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
-    { name = "handlebarz", editable = "packages/handlebarz" },
 ]
 
 [package.metadata.requires-dev]
@@ -971,11 +963,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/f5/38/3af3d3633a34a3316
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/04/ff642e65ad6b90db43e668d70ffb6736436c7ce41fcc549f4e9472234127/h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761", size = 58259 },
 ]
-
-[[package]]
-name = "handlebarz"
-version = "0.1.0"
-source = { editable = "packages/handlebarz" }
 
 [[package]]
 name = "hello"

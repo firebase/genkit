@@ -5,79 +5,74 @@
 # Quotation marks are required for the leading asterisk
 root:
   - changed-files:
-      - any-glob-to-any-file: '*'
+      - any-glob-to-any-file: "*"
 
 docs:
   - changed-files:
       - any-glob-to-any-file:
-          - '**/*.md'
-          - '**/*.rst'
-          - 'LICENSE'
-          - 'docs-go/**'
-          - 'docs/**'
-          - 'py/engdocs/**'
+          - "**/*.md"
+          - "**/*.rst"
+          - "LICENSE"
+          - "docs-go/**"
+          - "docs/**"
+          - "py/engdocs/**"
 
 go:
   - changed-files:
       - any-glob-to-any-file:
-          - '**/*.go'
-          - '**/go.mod'
-          - '**/go.sum'
-          - 'go/**'
+          - "**/*.go"
+          - "**/go.mod"
+          - "**/go.sum"
+          - "go/**"
 
 python:
   - changed-files:
       - any-glob-to-any-file:
-          - '**/*.py'
-          - '**/pyproject.toml'
-          - 'py/**'
+          - "**/*.py"
+          - "**/pyproject.toml"
+          - "py/**"
 
 js:
   - changed-files:
       - any-glob-to-any-file:
-          - '**/*.js'
-          - '**/*.jsx'
-          - '**/*.ts'
-          - '**/*.tsx'
-          - '**/package.json'
-          - 'js/**'
+          - "**/*.js"
+          - "**/*.jsx"
+          - "**/*.ts"
+          - "**/*.tsx"
+          - "**/package.json"
+          - "js/**"
 
 tooling:
   - changed-files:
       - any-glob-to-any-file:
-          - 'genkit-tools/**'
+          - "genkit-tools/**"
 
 config:
   - changed-files:
       - any-glob-to-any-file:
-          - '**/*.toml'
-          - '**/*.yaml'
-          - '**/*.yml'
-          - '**/.editorconfig'
-          - '**/.github/**'
-          - '**/.gitignore'
-          - '**/.npmignore'
-          - '**/.npmrc'
-          - '**/.prettierignore'
-          - '**/package.json'
-          - '**/tsconfig.*.json'
-          - '**/tsconfig.json'
-          - '**/typedoc.json'
+          - "**/*.toml"
+          - "**/*.yaml"
+          - "**/*.yml"
+          - "**/.editorconfig"
+          - "**/.github/**"
+          - "**/.gitignore"
+          - "**/.npmignore"
+          - "**/.npmrc"
+          - "**/.prettierignore"
+          - "**/package.json"
+          - "**/tsconfig.*.json"
+          - "**/tsconfig.json"
+          - "**/typedoc.json"
 
 sample:
   - changed-files:
       - any-glob-to-any-file:
-          - 'samples/**'
+          - "samples/**"
 
 dotprompt:
   - changed-files:
       - any-glob-to-any-file:
-          - '**/dotprompt/**'
-
-handlebarz:
-  - changed-files:
-      - any-glob-to-any-file:
-          - '**/handlebarz/**'
+          - "**/dotprompt/**"
 
 # Automatically add labels to any PR also based on branch naming conventions.
 build:
