@@ -17,3 +17,17 @@ uv run pytest .
 ## Run test app
 
 See the README.md in samples/hello.
+
+
+## Requests:
+
+Using httpie.
+
+### Reflection server
+
+#### To enlist all the actions
+
+``` bash
+http GET http://localhost:3100/api/actions
+```
+

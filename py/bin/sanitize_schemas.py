@@ -82,6 +82,39 @@ class ModelConfigRemover(ast.NodeTransformer):
                         return True
         return False
 
+    def create_model_config(
+        self, extra_forbid: bool = True, populate_by_name: bool = True
+    ) -> ast.Assign:
+        """Create a model_config assignment with the specified options."""
+        keywords = []
+        if extra_forbid:
+            keywords.append(
+                ast.keyword(arg='extra', value=ast.Constant(value='forbid'))
+            )
+        if populate_by_name:
+            keywords.append(
+                ast.keyword(
+                    arg='populate_by_name', value=ast.Constant(value=True)
+                )
+            )
+
+        return ast.Assign(
+            targets=[ast.Name(id='model_config')],
+            value=ast.Call(
+                func=ast.Name(id='ConfigDict'), args=[], keywords=keywords
+            ),
+        )
+
+    def has_model_config(self, node: ast.ClassDef) -> bool:
+        """Check if a class already has a model_config assignment."""
+        for item in node.body:
+            if isinstance(item, ast.Assign):
+                targets = item.targets
+                if len(targets) == 1 and isinstance(targets[0], ast.Name):
+                    if targets[0].id == 'model_config':
+                        return True
+        return False
+
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:  # noqa: N802
         """Visit class definitions and handle model_config based on class type."""
         if self.is_rootmodel_class(node):

@@ -19,15 +19,15 @@ class InstrumentationLibrary(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     version: str | None = None
-    schemaUrl: str | None = None
+    schema_url: str | None = Field(None, alias='schemaUrl')
 
 
 class SpanContext(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    traceId: str
-    spanId: str
-    isRemote: bool | None = None
-    traceFlags: float
+    trace_id: str = Field(..., alias='traceId')
+    span_id: str = Field(..., alias='spanId')
+    is_remote: bool | None = Field(None, alias='isRemote')
+    trace_flags: float = Field(..., alias='traceFlags')
 
 
 class SameProcessAsParentSpan(BaseModel):
@@ -46,7 +46,7 @@ class SpanMetadata(BaseModel):
     state: State | None = None
     input: Any | None = None
     output: Any | None = None
-    isRoot: bool | None = None
+    is_root: bool | None = Field(None, alias='isRoot')
     metadata: dict[str, str] | None = None
 
 
@@ -85,8 +85,8 @@ class DataPart(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Any | None = None
     media: Any | None = None
-    toolRequest: Any | None = None
-    toolResponse: Any | None = None
+    tool_request: Any | None = Field(None, alias='toolRequest')
+    tool_response: Any | None = Field(None, alias='toolResponse')
     data: Any | None = None
     metadata: dict[str, Any] | None = None
 
@@ -108,7 +108,7 @@ class Content(BaseModel):
 
 class Media(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    contentType: str | None = None
+    content_type: str | None = Field(None, alias='contentType')
     url: str
 
 
@@ -133,9 +133,9 @@ class ToolChoice(Enum):
 class Output(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     format: str | None = None
-    contentType: str | None = None
+    content_type: str | None = Field(None, alias='contentType')
     instructions: bool | str | None = None
-    jsonSchema: Any | None = None
+    json_schema: Any | None = Field(None, alias='jsonSchema')
     constrained: bool | None = None
 
 
@@ -155,25 +155,25 @@ class GenerationCommonConfig(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     version: str | None = None
     temperature: float | None = None
-    maxOutputTokens: float | None = None
-    topK: float | None = None
-    topP: float | None = None
-    stopSequences: list[str] | None = None
+    max_output_tokens: float | None = Field(None, alias='maxOutputTokens')
+    top_k: float | None = Field(None, alias='topK')
+    top_p: float | None = Field(None, alias='topP')
+    stop_sequences: list[str] | None = Field(None, alias='stopSequences')
 
 
 class GenerationUsage(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    inputTokens: float | None = None
-    outputTokens: float | None = None
-    totalTokens: float | None = None
-    inputCharacters: float | None = None
-    outputCharacters: float | None = None
-    inputImages: float | None = None
-    outputImages: float | None = None
-    inputVideos: float | None = None
-    outputVideos: float | None = None
-    inputAudioFiles: float | None = None
-    outputAudioFiles: float | None = None
+    input_tokens: float | None = Field(None, alias='inputTokens')
+    output_tokens: float | None = Field(None, alias='outputTokens')
+    total_tokens: float | None = Field(None, alias='totalTokens')
+    input_characters: float | None = Field(None, alias='inputCharacters')
+    output_characters: float | None = Field(None, alias='outputCharacters')
+    input_images: float | None = Field(None, alias='inputImages')
+    output_images: float | None = Field(None, alias='outputImages')
+    input_videos: float | None = Field(None, alias='inputVideos')
+    output_videos: float | None = Field(None, alias='outputVideos')
+    input_audio_files: float | None = Field(None, alias='inputAudioFiles')
+    output_audio_files: float | None = Field(None, alias='outputAudioFiles')
     custom: dict[str, float] | None = None
 
 
@@ -188,12 +188,12 @@ class Supports(BaseModel):
     multiturn: bool | None = None
     media: bool | None = None
     tools: bool | None = None
-    systemRole: bool | None = None
+    system_role: bool | None = Field(None, alias='systemRole')
     output: list[str] | None = None
-    contentType: list[str] | None = None
+    content_type: list[str] | None = Field(None, alias='contentType')
     context: bool | None = None
     constrained: Constrained | None = None
-    toolChoice: bool | None = None
+    tool_choice: bool | None = Field(None, alias='toolChoice')
 
 
 class ModelInfo(BaseModel):
@@ -214,11 +214,15 @@ class ToolDefinition(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     description: str
-    inputSchema: dict[str, Any] = Field(
-        ..., description='Valid JSON Schema representing the input of the tool.'
+    input_schema: dict[str, Any] = Field(
+        ...,
+        alias='inputSchema',
+        description='Valid JSON Schema representing the input of the tool.',
     )
-    outputSchema: dict[str, Any] | None = Field(
-        None, description='Valid JSON Schema describing the output of the tool.'
+    output_schema: dict[str, Any] | None = Field(
+        None,
+        alias='outputSchema',
+        description='Valid JSON Schema describing the output of the tool.',
     )
     metadata: dict[str, Any] | None = Field(
         None, description='additional metadata for this tool definition'
@@ -267,7 +271,7 @@ class Content2(BaseModel):
 
 class Media2(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    contentType: str | None = None
+    content_type: str | None = Field(None, alias='contentType')
     url: str
 
 
@@ -329,38 +333,44 @@ class Link(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     context: SpanContext | None = None
     attributes: dict[str, Any] | None = None
-    droppedAttributesCount: float | None = None
+    dropped_attributes_count: float | None = Field(
+        None, alias='droppedAttributesCount'
+    )
 
 
 class TimeEvents(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    timeEvent: list[TimeEvent] | None = None
+    time_event: list[TimeEvent] | None = Field(None, alias='timeEvent')
 
 
 class SpanData(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    spanId: str
-    traceId: str
-    parentSpanId: str | None = None
-    startTime: float
-    endTime: float
+    span_id: str = Field(..., alias='spanId')
+    trace_id: str = Field(..., alias='traceId')
+    parent_span_id: str | None = Field(None, alias='parentSpanId')
+    start_time: float = Field(..., alias='startTime')
+    end_time: float = Field(..., alias='endTime')
     attributes: dict[str, Any]
-    displayName: str
+    display_name: str = Field(..., alias='displayName')
     links: list[Link] | None = None
-    instrumentationLibrary: InstrumentationLibrary
-    spanKind: str
-    sameProcessAsParentSpan: SameProcessAsParentSpan | None = None
+    instrumentation_library: InstrumentationLibrary = Field(
+        ..., alias='instrumentationLibrary'
+    )
+    span_kind: str = Field(..., alias='spanKind')
+    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(
+        None, alias='sameProcessAsParentSpan'
+    )
     status: SpanStatus | None = None
-    timeEvents: TimeEvents | None = None
+    time_events: TimeEvents | None = Field(None, alias='timeEvents')
     truncated: bool | None = None
 
 
 class TraceData(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    traceId: str
-    displayName: str | None = None
-    startTime: float | None = None
-    endTime: float | None = None
+    trace_id: str = Field(..., alias='traceId')
+    display_name: str | None = Field(None, alias='displayName')
+    start_time: float | None = Field(None, alias='startTime')
+    end_time: float | None = Field(None, alias='endTime')
     spans: dict[str, SpanData]
 
 
@@ -368,8 +378,8 @@ class MediaPart(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: Media
-    toolRequest: ToolRequest | None = None
-    toolResponse: ToolResponse | None = None
+    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Any | None = None
     metadata: Metadata | None = None
 
@@ -378,8 +388,8 @@ class TextPart(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: str
     media: MediaModel | None = None
-    toolRequest: ToolRequest | None = None
-    toolResponse: ToolResponse | None = None
+    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
 
@@ -388,8 +398,8 @@ class ToolRequestPart(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    toolRequest: ToolRequest1
-    toolResponse: ToolResponse | None = None
+    tool_request: ToolRequest1 = Field(..., alias='toolRequest')
+    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
 
@@ -398,8 +408,8 @@ class ToolResponsePart(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    toolRequest: ToolRequest | None = None
-    toolResponse: ToolResponse1
+    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponse1 = Field(..., alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
 
@@ -456,8 +466,8 @@ class Candidate(BaseModel):
     index: float
     message: Message
     usage: GenerationUsage | None = None
-    finishReason: FinishReason
-    finishMessage: str | None = None
+    finish_reason: FinishReason = Field(..., alias='finishReason')
+    finish_message: str | None = Field(None, alias='finishMessage')
     custom: Any | None = None
 
 
@@ -467,11 +477,11 @@ class GenerateActionOptions(BaseModel):
     docs: list[Doc] | None = None
     messages: list[Message]
     tools: list[str] | None = None
-    toolChoice: ToolChoice | None = None
+    tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     config: Any | None = None
     output: Output | None = None
-    returnToolRequests: bool | None = None
-    maxTurns: float | None = None
+    return_tool_requests: bool | None = Field(None, alias='returnToolRequests')
+    max_turns: float | None = Field(None, alias='maxTurns')
 
 
 class GenerateRequest(BaseModel):
@@ -479,7 +489,7 @@ class GenerateRequest(BaseModel):
     messages: list[Message]
     config: Any | None = None
     tools: list[ToolDefinition] | None = None
-    toolChoice: ToolChoice | None = None
+    tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: Output1 | None = None
     context: list[Items] | None = None
     candidates: float | None = None
@@ -488,9 +498,9 @@ class GenerateRequest(BaseModel):
 class GenerateResponse(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     message: Message | None = None
-    finishReason: FinishReason | None = None
-    finishMessage: str | None = None
-    latencyMs: float | None = None
+    finish_reason: FinishReason | None = Field(None, alias='finishReason')
+    finish_message: str | None = Field(None, alias='finishMessage')
+    latency_ms: float | None = Field(None, alias='latencyMs')
     usage: GenerationUsage | None = None
     custom: Any | None = None
     request: GenerateRequest | None = None
@@ -502,7 +512,7 @@ class ModelRequest(BaseModel):
     messages: Messages
     config: Config | None = None
     tools: Tools | None = None
-    toolChoice: ToolChoice | None = None
+    tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputModel | None = None
     context: list[Items] | None = None
 
@@ -514,9 +524,9 @@ class Request(RootModel[GenerateRequest]):
 class ModelResponse(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     message: Message | None = None
-    finishReason: FinishReason
-    finishMessage: FinishMessage | None = None
-    latencyMs: LatencyMs | None = None
+    finish_reason: FinishReason = Field(..., alias='finishReason')
+    finish_message: FinishMessage | None = Field(None, alias='finishMessage')
+    latency_ms: LatencyMs | None = Field(None, alias='latencyMs')
     usage: Usage | None = None
     custom: Custom | None = None
     request: Request | None = None

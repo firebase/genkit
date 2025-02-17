@@ -131,6 +131,7 @@ select = [
 
 
 [tool.ruff.format]
+docstring-code-format     = true
 indent-style              = "space"
 line-ending               = "lf"
 quote-style               = "single"
@@ -154,9 +155,11 @@ input                   = "../genkit-tools/genkit-schema.json"
 input-file-type         = "jsonschema"
 output                  = "packages/genkit/src/genkit/core/schemas.py"
 output-model-type       = "pydantic_v2.BaseModel"
-#snake-case-field = true
-strict-nullable          = true
+snake-case-field        = true
+strict-nullable         = true
+#strip-default-none       = true
 target-python-version    = "3.12"
+use-default              = false
 use-schema-description   = true
 use-standard-collections = true
 use-union-operator       = true
