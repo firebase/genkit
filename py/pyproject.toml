@@ -1,6 +1,5 @@
 [project]
 dependencies = [
-  "dotprompt",
   "genkit",
   "genkit-chroma-plugin",
   "genkit-firebase-plugin",
@@ -9,7 +8,6 @@ dependencies = [
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
-  "handlebarz",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -60,7 +58,6 @@ fail_under = 70
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
-dotprompt                  = { workspace = true }
 genkit                     = { workspace = true }
 genkit-chroma-plugin       = { workspace = true }
 genkit-firebase-plugin     = { workspace = true }
@@ -69,7 +66,6 @@ genkit-google-cloud-plugin = { workspace = true }
 genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
-handlebarz                 = { workspace = true }
 hello                      = { workspace = true }
 
 [tool.uv.workspace]
