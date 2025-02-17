@@ -507,6 +507,14 @@ wheels = [
 ]
 
 [[package]]
+name = "dotpromptz"
+version = "0.1.0"
+source = { git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main#a17b7879cb1f7fa8f1111f7670da386a9304eeb2" }
+dependencies = [
+    { name = "handlebars" },
+]
+
+[[package]]
 name = "executing"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -640,6 +648,7 @@ name = "genkit-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "dotpromptz" },
     { name = "genkit" },
     { name = "genkit-chroma-plugin" },
     { name = "genkit-firebase-plugin" },
@@ -668,6 +677,7 @@ lint = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-chroma-plugin", editable = "plugins/chroma" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
@@ -965,6 +975,18 @@ wheels = [
 ]
 
 [[package]]
+name = "handlebars"
+version = "4.7.8.post20241027"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "js2py-wheel" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ce/5c/c096425ab6782dabbf9a7171db0a75565bdd5249d30cbc7e9972aebc7043/handlebars-4.7.8.post20241027.tar.gz", hash = "sha256:2e6e341b95d429b589fe9df881dedd34ac558c91b5c3412433968f85a289baff", size = 69704 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/05/05/bf995eda7d8a0d2f3b6ea249ffdd653ce8ce21e86914d9eeab691ab51e39/handlebars-4.7.8.post20241027-py3-none-any.whl", hash = "sha256:5cfa16cb0d6b3eefea7ed4909c603cfb06d69955141e523053b180821e925d91", size = 65981 },
+]
+
+[[package]]
 name = "hello"
 version = "0.1.0"
 source = { editable = "samples/hello" }
@@ -1173,6 +1195,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/20/d0/59b2b80e7a52d255f9e0ad040d2e826342d05580c4b1d7d7747cfb8db731/jinxed-1.3.0.tar.gz", hash = "sha256:1593124b18a41b7a3da3b078471442e51dbad3d77b4d4f2b0c26ab6f7d660dbf", size = 80981 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/27/e3/0e0014d6ab159d48189e92044ace13b1e1fe9aa3024ba9f4e8cf172aa7c2/jinxed-1.3.0-py2.py3-none-any.whl", hash = "sha256:b993189f39dc2d7504d802152671535b06d380b26d78070559551cbf92df4fc5", size = 33085 },
+]
+
+[[package]]
+name = "js2py-wheel"
+version = "0.74"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyjsparser-wheel" },
+    { name = "six" },
+    { name = "tzlocal" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/30/59/e080d8eb641f2ceea89677ab0c56d7a2a0858a0c4bb95813bad712b8d3e3/js2py_wheel-0.74.tar.gz", hash = "sha256:8670d73abf22b211173cfe70cf92f94aa36be61f43d44c65131f1d20bb26be04", size = 567467 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/58/9485878e03c64247fa37da9380acc6019be7f63059052d1f19b3699a5a6e/Js2Py_wheel-0.74-py3-none-any.whl", hash = "sha256:c5b4af26ce0a16c26190031ddafb495a998b35c46bf5959c7feb72f581d23ca7", size = 608306 },
 ]
 
 [[package]]
@@ -1942,6 +1978,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjsparser-wheel"
+version = "2.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/a5/1ddb97c0e5c416d41f2391cfca773edc26e7632a286e6d49e14af0922c6d/pyjsparser_wheel-2.7.1.tar.gz", hash = "sha256:79e011ee4a2fc2e607e3a584e73a4f9c7091d23817513d19aa39b1c4e55e9e58", size = 25623 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/0b/bc29d3c773e3317384c7fe9362fd35d45628d7d62efce28974e49608e70f/pyjsparser_wheel-2.7.1-py3-none-any.whl", hash = "sha256:c249f326979de310b76fb0cf565ab572daa2eb3fb0544a52fbcc482cd4ef2d6c", size = 27071 },
+]
+
+[[package]]
 name = "pytest"
 version = "8.3.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2401,6 +2446,27 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/df/db/f35a00659bc03fec321ba8bce9420de607a1d37f8342eee1863174c69557/typing_extensions-4.12.2.tar.gz", hash = "sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8", size = 85321 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/26/9f/ad63fc0248c5379346306f8668cda6e2e2e9c95e01216d2b8ffd9ff037d0/typing_extensions-4.12.2-py3-none-any.whl", hash = "sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d", size = 37438 },
+]
+
+[[package]]
+name = "tzdata"
+version = "2025.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/0f/fa4723f22942480be4ca9527bbde8d43f6c3f2fe8412f00e7f5f6746bc8b/tzdata-2025.1.tar.gz", hash = "sha256:24894909e88cdb28bd1636c6887801df64cb485bd593f2fd83ef29075a81d694", size = 194950 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/dd/84f10e23edd882c6f968c21c2434fe67bd4a528967067515feca9e611e5e/tzdata-2025.1-py2.py3-none-any.whl", hash = "sha256:7e127113816800496f027041c570f50bcd464a020098a3b6b199517772303639", size = 346762 },
+]
+
+[[package]]
+name = "tzlocal"
+version = "5.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/cc/11360404b20a6340b9b4ed39a3338c4af47bc63f87f6cea94dbcbde07029/tzlocal-5.3.tar.gz", hash = "sha256:2fafbfc07e9d8b49ade18f898d6bcd37ae88ce3ad6486842a2e4f03af68323d2", size = 30480 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/9f/1c0b69d3abf4c65acac051ad696b8aea55afbb746dea8017baab53febb5e/tzlocal-5.3-py3-none-any.whl", hash = "sha256:3814135a1bb29763c6e4f08fd6e41dbb435c7a60bfbb03270211bcc537187d8c", size = 17920 },
 ]
 
 [[package]]

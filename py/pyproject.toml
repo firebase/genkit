@@ -1,5 +1,6 @@
 [project]
 dependencies = [
+  "dotpromptz",
   "genkit",
   "genkit-chroma-plugin",
   "genkit-firebase-plugin",
@@ -58,6 +59,7 @@ fail_under = 70
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+dotpromptz                 = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 genkit                     = { workspace = true }
 genkit-chroma-plugin       = { workspace = true }
 genkit-firebase-plugin     = { workspace = true }
