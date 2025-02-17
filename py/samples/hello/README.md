@@ -1,6 +1,7 @@
 # Hello world
 
 ## Setup environment
+Use `gcloud auth application-default login` to connect to the VertexAI.
 
 ```bash
 uv venv

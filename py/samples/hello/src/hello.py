@@ -10,7 +10,9 @@ from genkit.plugins.vertex_ai import VertexAI
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
-ai = Genkit(plugins=[VertexAI()], model=VertexAI.VERTEX_AI_MODEL_NAME)
+ai = Genkit(
+    plugins=[VertexAI()], model=VertexAI.VERTEX_AI_GENERATIVE_MODEL_NAME
+)
 
 
 class MyInput(BaseModel):
