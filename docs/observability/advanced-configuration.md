@@ -3,8 +3,8 @@
 This guide focuses on advanced configuration options for deployed features using Firebase Genkit 
 Monitoring. Detailed descriptions of each configuration option can be found in our 
 [JS API reference documentation](https://js.api.genkit.dev/interfaces/_genkit-ai_google-cloud.GcpTelemetryConfigOptions.html).
-This documentation will describe how to fine-tune GCP configuration options for more control over
-which telemetry is collected, how often, and from what environments.
+
+This documentation will describe how to fine-tune which telemetry is collected, how often, and from what environments.
 
 ## Default Configuration
 
@@ -39,7 +39,9 @@ import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 enableFirebaseTelemetry({forceDevExport: true});
 ```
 
-To see more realtime results, also adjust the export interval and timeout.
+During development and testing, you can decrease latency by adjusting the export interval and/or timeout. 
+
+Note: you should not ship to production with these reduced values.
 
 ```typescript
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
@@ -53,12 +55,11 @@ enableFirebaseTelemetry({
 
 ## Adjust auto instrumentation
 
-Auto instrumentation provides metric, trace, and log collection for many popular frameworks and 
-libraries with no additional code. Read more about OTEL zero-code instrumentation [here](https://opentelemetry.io/docs/zero-code/js/) and check out
-the full list of auto-instrumentation options
-[here](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#supported-instrumentations).
+The Firebase telemetry plugin will automatically collect traces and metrics for popular frameworks, via by OpenTelemetry [zero-code instrumentation](https://opentelemetry.io/docs/zero-code/js/).
 
-To modify the list of instrumentations that are eligible for auto instrumentation, update the `autoInstrumentationConfig` field:
+A full list of available instrumentations can be found in the [auto-instrumentations-node](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#supported-instrumentations) documentation.
+
+To selectively disable or enable instrumentations that are eligible for auto instrumentation, update the `autoInstrumentationConfig` field:
 
 ```typescript
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
@@ -72,7 +73,7 @@ enableFirebaseTelemetry({
 });
 ```
 
-## Disabling telemetry
+## Disable telemetry
 
 Firebase Genkit Monitoring leverages a combination of logging, tracing, and metrics to capture
 a holistic view of your Genkit interactions, however, you can also disable each of these elements
@@ -80,7 +81,9 @@ independently if needed.
 
 ### Disable input and output logging
 
-To disable logging input and output from model interactions add the following to your configuration:
+By default, the Firebase telemetry plugin will capture inputs and outputs for each Genkit feature and/or step. 
+
+To help you control how customer data is stored, you can disable the logging of input and output by adding the following to your configuration:
 
 ```typescript
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';

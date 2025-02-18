@@ -75,7 +75,7 @@ toc:
     path: /docs/genkit/observability/getting-started
   - title: Authentication
     path: /docs/genkit/observability/authentication
-  - title: Advance Configuration
+  - title: Advanced Configuration
     path: /docs/genkit/observability/advanced-configuration
   - title: Telemetry Collection
     path: /docs/genkit/observability/telemetry-collection

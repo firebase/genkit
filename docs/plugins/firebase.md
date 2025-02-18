@@ -84,9 +84,15 @@ Application Default Credentials. To specify your credentials:
 
 ### Telemetry
 
-The Firebase plugin includes an implementation for sending telemetry data,
-including metrics, traces, and logs to Firebase Genkit Monitoring. To get started,
-visit [../observability/getting-started.md].
+The Firebase plugin provides a telemetry implementation for sending metrics, traces, and logs to Firebase Genkit Monitoring and Cloud Observability.
+
+To get started, visit the [Getting started guide](../observability/getting-started.md) for installation and configuration instructions.
+
+See the [Authentication and authorization guide](../observability/authentication.md) to authenticate with Google Cloud.
+
+See the [Advanced configuration guide](../observability/advanced-configuration.md) for configuration options.
+
+See the [Telemetry collection](../observability/telemetry-collection.md) for details on which Genkit metrics, traces, and logs collected.
 
 ### Cloud Firestore vector search
 

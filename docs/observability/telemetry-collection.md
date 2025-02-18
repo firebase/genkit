@@ -6,9 +6,7 @@ latency, quotas, and cost.
 
 ## Telemetry delay
 
-There may be a slight delay before telemetry for a particular execution of a
-flow is available in Firebase or Google Cloud. This is dependent on your export
-interval and by default within 5 to 10 minutes.
+There may be a slight delay before telemetry from a given invocation is available in Firebase. This is dependent on your export interval (5 minutes by default).
 
 ## Quotas and limits
 
