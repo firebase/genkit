@@ -174,7 +174,7 @@ function applyFormat(
 
   if (resolvedFormat) {
     if (
-      shouldInjectFormatInstruction(resolvedFormat.config, rawRequest?.output)
+      shouldInjectFormatInstructions(resolvedFormat.config, rawRequest?.output)
     ) {
       outRequest.messages = injectInstructions(
         outRequest.messages,
@@ -192,12 +192,13 @@ function applyFormat(
   return outRequest;
 }
 
-export function shouldInjectFormatInstruction(
+export function shouldInjectFormatInstructions(
   formatConfig?: Formatter['config'],
   rawRequestConfig?: z.infer<typeof GenerateActionOutputConfig>
 ) {
   return (
-    formatConfig?.defaultInstruction !== false || rawRequestConfig?.instructions
+    formatConfig?.defaultInstructions !== false ||
+    rawRequestConfig?.instructions
   );
 }
 

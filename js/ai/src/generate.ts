@@ -35,7 +35,7 @@ import {
 } from './formats/index.js';
 import {
   generateHelper,
-  shouldInjectFormatInstruction,
+  shouldInjectFormatInstructions,
 } from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
@@ -214,7 +214,7 @@ export async function toGenerateRequest(
   );
 
   const out = {
-    messages: shouldInjectFormatInstruction(
+    messages: shouldInjectFormatInstructions(
       resolvedFormat?.config,
       options.output
     )
@@ -225,8 +225,8 @@ export async function toGenerateRequest(
     tools: tools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
-      schema: resolvedSchema,
       ...options.output,
+      schema: resolvedSchema,
     },
   } as GenerateRequest;
   if (!out?.output?.schema) delete out?.output?.schema;

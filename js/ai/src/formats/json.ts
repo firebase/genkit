@@ -23,7 +23,7 @@ export const jsonFormatter: Formatter<unknown, unknown> = {
     format: 'json',
     contentType: 'application/json',
     constrained: true,
-    defaultInstruction: false,
+    defaultInstructions: false,
   },
   handler: (schema) => {
     let instructions: string | undefined;
