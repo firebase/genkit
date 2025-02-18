@@ -25,18 +25,18 @@ def package_name() -> str:
     return 'genkit.plugins.vertex_ai'
 
 
-def gemini(name: str) -> str:
-    return f'vertexai/{name}'
-
-
 class VertexAI(Plugin):
     LOCATION = 'us-central1'
-    VERTEX_AI_MODEL_NAME = gemini('gemini-1.5-flash')
+    VERTEX_AI_MODEL_NAME = 'vertexai/gemini-1.5-flash'
     VERTEX_AI_GENERATIVE_MODEL_NAME = 'gemini-1.5-flash-002'
 
     def __init__(self, project_id: str | None = None):
         self.project_id = project_id
         vertexai.init(location=self.LOCATION, project=self.project_id)
+
+    @property
+    def registry_prefix(self) -> str:
+        return 'vertexai'
 
     def attach_to_veneer(self, veneer: Genkit) -> None:
         self._add_model_to_veneer(veneer=veneer)
@@ -87,4 +87,4 @@ class VertexAI(Plugin):
         return GenerativeModel(self.VERTEX_AI_GENERATIVE_MODEL_NAME)
 
 
-__all__ = ['package_name', 'VertexAI', 'gemini']
+__all__ = ['package_name', 'VertexAI']

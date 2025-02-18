@@ -22,6 +22,16 @@ class Plugin(abc.ABC):
     NOTE: Any plugin defined for the Genkit must inherit from this class
     """
 
+    @property
+    @abc.abstractmethod
+    def registry_prefix(self) -> str:
+        pass
+
+    def get_registry_key_for_model(self, model_name: str) -> str:
+        if not model_name.startswith(self.registry_prefix + '/'):
+            return f'{self.registry_prefix}/{model_name}'
+        return model_name
+
     @abc.abstractmethod
     def attach_to_veneer(self, veneer: Genkit) -> None:
         """
@@ -57,7 +67,9 @@ class Plugin(abc.ABC):
         if not metadata:
             metadata = {}
         veneer.define_model(
-            name=name, fn=self._model_callback, metadata=metadata
+            name=self.get_registry_key_for_model(model_name=name),
+            fn=self._model_callback,
+            metadata=metadata,
         )
 
     @abc.abstractmethod
