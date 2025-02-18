@@ -8,17 +8,17 @@ The Google Cloud plugin exports Firebase Genkit telemetry and logging data to th
 npm i --save @genkit-ai/google-cloud
 ```
 
-When running Genkit code locally that includes this plugin, you will also need 
+When running Genkit code locally that includes this plugin, you will also need
 the [Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install)
 installed.
 
 ## Set up a Google Cloud account
 
 This plugin requires a Google Cloud account/project. All Firebase projects
-include one by default ([GCP Console](https://console.cloud.google.com)), 
+include one by default ([GCP Console](https://console.cloud.google.com)),
 or you can sign up at https://cloud.google.com.
 
-Prior to adding the plugin, make sure that the following APIs are enabled for 
+Prior to adding the plugin, make sure that the following APIs are enabled for
 your GCP project:
 
 - [Cloud Logging API](https://console.cloud.google.com/apis/library/logging.googleapis.com)
@@ -26,15 +26,15 @@ your GCP project:
 - [Cloud Monitoring API](https://console.cloud.google.com/apis/library/monitoring.googleapis.com)
 
 These APIs should be listed in the
-[API dashboard](https://console.cloud.google.com/apis/dashboard) for your 
+[API dashboard](https://console.cloud.google.com/apis/dashboard) for your
 project.
 
-Click [here](https://support.google.com/googleapi/answer/6158841) to learn more 
+Click [here](https://support.google.com/googleapi/answer/6158841) to learn more
 about enabling and disabling APIs.
 
 ## Genkit configuration
 
-To enable Cloud Tracing, Logging, and Monitoring (metrics), simply call 
+To enable Cloud Tracing, Logging, and Monitoring (metrics), simply call
 `enableGoogleCloudTelemetry()`:
 
 ```ts
@@ -47,7 +47,7 @@ When running in production, telemetry will be exported automatically.
 
 ### Authentication and authorization
 
-The plugin requires a Google Cloud project ID and application credentials. 
+The plugin requires a Google Cloud project ID and application credentials.
 
 #### Google Cloud
 
@@ -56,8 +56,8 @@ Functions, Cloud Run, etc), the project ID and credentials will be discovered
 automatically via
 [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc).
 
-You will need to apply the following roles to the service account that is 
-running your code (i.e. 'attached service account') via the 
+You will need to apply the following roles to the service account that is
+running your code (i.e. 'attached service account') via the
 [IAM Console](https://console.cloud.google.com/iam-admin/iam):
 
 - `roles/monitoring.metricWriter`
@@ -79,32 +79,32 @@ to the plugin, additional steps are required.
 
 #### Production environments outside of Google Cloud
 
-If possible, it is still recommended to leverage the 
-[Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) 
+If possible, it is still recommended to leverage the
+[Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)
 process to make credentials available to the plugin.
 
 Typically this involves generating a service account key/pair and deploying
-those credentials to your production environment. 
+those credentials to your production environment.
 
-1. Follow the instructions to set up a 
-[service account key](https://cloud.google.com/iam/docs/keys-create-delete#creating).
+1. Follow the instructions to set up a
+   [service account key](https://cloud.google.com/iam/docs/keys-create-delete#creating).
 
 2. Ensure the service account has the following roles:
-    - `roles/monitoring.metricWriter`
-    - `roles/cloudtrace.agent`
-    - `roles/logging.logWriter`
+   - `roles/monitoring.metricWriter`
+   - `roles/cloudtrace.agent`
+   - `roles/logging.logWriter`
 
 3. Deploy the credential file to production (**do not** check into source code)
 
 4. Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable as the path to
-the credential file.
+   the credential file.
 
     ```
     GOOGLE_APPLICATION_CREDENTIALS = "path/to/your/key/file"
     ```
 
 In some serverless environments, you may not be able to deploy a credential
-file. In this case, as an alternative to steps 3 & 4 above, you can set the 
+file. In this case, as an alternative to steps 3 & 4 above, you can set the
 `GCLOUD_SERVICE_ACCOUNT_CREDS` environment variable with the contents of the
 credential file as follows:
 
@@ -214,7 +214,7 @@ Explorer to view telemetry.
 # Google Cloud Observability suite
 
 Once your code (e.g. flow) is deployed, navigate to the
-[Cloud Monitoring](https://console.cloud.google.com/monitoring/) dashboard and 
+[Cloud Monitoring](https://console.cloud.google.com/monitoring/) dashboard and
 select your project. From here, you can easily navigate between the Logs,
 Metrics and Trace explorers for production monitoring.
 
@@ -226,11 +226,11 @@ From the left hand side menu, click 'Logs explorer' under the 'Explore' heading.
 
 <img src="../resources/cloud-ops-logs-explorer-menu.png" width="750">
 
-Here, you will see all logs that are associated with your deployed Genkit code, 
-including `console.log()`. Any log which has the prefix `[genkit]` is a 
+Here, you will see all logs that are associated with your deployed Genkit code,
+including `console.log()`. Any log which has the prefix `[genkit]` is a
 Genkit-internal log that contains information that may be interesting for
 debugging purposes. For example, Genkit logs in the format `Config[...]` contain
-metadata such as the temperature and topK values for specific LLM inferences. 
+metadata such as the temperature and topK values for specific LLM inferences.
 Logs in the format `Output[...]` contain LLM responses while `Input[...]` logs
 contain the prompts. Cloud Logging has robust ACLs that allow fine grained
 control over access to sensitive logs.
@@ -272,20 +272,20 @@ trace, including prompts and LLM responses.
 
 ## Metrics
 
-Viewing all metrics exported by Genkit can be done by clicking on 
+Viewing all metrics exported by Genkit can be done by clicking on
 'Metrics management' under the 'Configure' heading in the left hand side menu.
 
 <img src="../resources/cloud-ops-metrics-mgmt.png" width="750">
 
 The metrics management console contains a tabular view of all collected metrics,
 including those that pertain to Cloud Run and its surrounding environment.
-Clicking on the 'Workload' option will reveal a list that includes 
+Clicking on the 'Workload' option will reveal a list that includes
 Genkit-collected metrics. Any metric with the `genkit` prefix constitutes an
 internal Genkit metric.
 
 <img src="../resources/cloud-ops-metrics-table.png" width="750">
 
-Genkit collects several categories of metrics including: feature, action, and 
+Genkit collects several categories of metrics including: feature, action, and
 generate. Each metric has several useful dimensions facilitating robust
 filtering and grouping.
 
@@ -372,7 +372,7 @@ Each generate metric contains the following dimensions:
 | source          | The Genkit source language. Eg. 'ts'                                                                 |
 | sourceVersion   | The Genkit framework version                                                                         |
 
-Visualizing metrics can be done through the Metrics Explorer. Using the left 
+Visualizing metrics can be done through the Metrics Explorer. Using the left
 hand side menu, click 'Metrics explorer' under the 'Explore' heading.
 
 <img src="../resources/cloud-ops-metrics-explorer.png" width="750">
@@ -404,8 +404,8 @@ There are several quotas that are important to keep in mind:
 
 ## Cost
 
-Cloud Logging, Cloud Trace, and Cloud Monitoring have generous free tiers.
-Specific pricing can be found at the following links:
+Cloud Logging, Cloud Trace, and Cloud Monitoring have generous free-of-charge
+tiers. Specific pricing can be found at the following links:
 
 - [Cloud Logging Pricing](http://cloud.google.com/stackdriver/pricing#google-cloud-observability-pricing)
 - [Cloud Trace Pricing](https://cloud.google.com/trace#pricing)
