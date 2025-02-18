@@ -93,7 +93,7 @@ describe('formats', () => {
   });
 
   it('lets you define and use a custom output format with simulated constrained generation', async () => {
-    defineEchoModel(ai, { supports: { constrained: false } });
+    defineEchoModel(ai, { supports: { constrained: 'none' } });
 
     const { output } = await ai.generate({
       model: 'echoModel',

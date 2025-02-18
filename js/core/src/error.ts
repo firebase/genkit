@@ -15,7 +15,7 @@
  */
 
 import { Registry } from './registry.js';
-import { httpStatusCode, StatusName } from './statusTypes.js';
+import { httpStatusCode, type StatusName } from './statusTypes.js';
 
 export { StatusName };
 
