@@ -6,19 +6,23 @@ package modelgarden
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/invopop/jsonschema"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/vertex"
 )
 
-const MaxNumberOfTokens = 8192
+const (
+	MaxNumberOfTokens = 8192
+	ToolNameRegex     = `^[a-zA-Z0-9_-]{1,64}$`
+)
 
 // supported anthropic models
 var AnthropicModels = map[string]ai.ModelInfo{
@@ -126,20 +130,6 @@ func generate(
 		r := toGenkitResponse(msg)
 		r.Request = input
 		return r, nil
-	} else {
-		stream := client.Messages.NewStreaming(ctx, req)
-		msg := anthropic.Message{}
-		for stream.Next() {
-			event := stream.Current()
-			msg.Accumulate(event)
-
-			switch delta := event.Delta.(type) {
-			case anthropic.ContentBlockDeltaEventDelta:
-				if delta.Text != "" {
-					fmt.Print(delta.Text)
-				}
-			}
-		}
 	}
 
 	return nil, nil
@@ -189,6 +179,8 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) anthropic.MessageNewPa
 				return req
 			}
 			userBlocks = append(userBlocks, parts...)
+		case ai.RoleTool:
+			fmt.Printf("toAnthropicRequest: ai.RoleTool message found: %s\n", m.Text())
 		}
 	}
 
@@ -203,7 +195,46 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) anthropic.MessageNewPa
 		req.Messages = anthropic.F(messageParam)
 	}
 
+	// check tools
+	tools, err := convertTools(i.Tools)
+	if err != nil {
+		return req
+	}
+	req.Tools = anthropic.F(tools)
+
 	return req
+}
+
+// convertTools translates [ai.ToolDefinition] to an anthropic.ToolParam type
+func convertTools(tools []*ai.ToolDefinition) ([]anthropic.ToolParam, error) {
+	resp := make([]anthropic.ToolParam, 0)
+	regex := regexp.MustCompile(ToolNameRegex)
+
+	for _, t := range tools {
+		if t.Name == "" {
+			return nil, fmt.Errorf("tool name is required")
+		}
+		if !regex.MatchString(t.Name) {
+			return nil, fmt.Errorf("tool name must match regex: %s", ToolNameRegex)
+		}
+
+		resp = append(resp, anthropic.ToolParam{
+			Name:        anthropic.F(t.Name),
+			Description: anthropic.F(t.Description),
+			InputSchema: anthropic.F(generateSchema[map[string]any]()),
+		})
+	}
+
+	return resp, nil
+}
+
+func generateSchema[T any]() interface{} {
+	reflector := jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+	var v T
+	return reflector.Reflect(v)
 }
 
 // convertParts translates [ai.Part] to an anthropic.ContentBlockParamUnion type
@@ -215,27 +246,11 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 		case p.IsText():
 			blocks = append(blocks, anthropic.NewTextBlock(p.Text))
 		case p.IsMedia():
-			// TODO: check this
 			contentType, data, _ := uri.Data(p)
 			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.StdEncoding.EncodeToString(data)))
 		case p.IsData():
 			// todo: what is this? is this related to ContentBlocks?
 			panic("data content is unsupported by anthropic models")
-		case p.IsToolResponse():
-			// TODO: check this
-			toolResp := p.ToolResponse
-			if toolResp.Output == nil {
-				panic("tool response is empty")
-			}
-			data, err := json.Marshal(toolResp.Output)
-			if err != nil {
-				panic("unable to parse tool response")
-			}
-			blocks = append(blocks, anthropic.NewToolResultBlock(toolResp.Name, string(data), false))
-		case p.IsToolRequest():
-			// TODO: check this
-			toolReq := p.ToolRequest
-			blocks = append(blocks, anthropic.NewToolUseBlockParam(toolReq.Name, toolReq.Name, toolReq.Input))
 		default:
 			panic("unknown part type in the request")
 		}
@@ -268,12 +283,10 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 		case anthropic.ContentBlockTypeText:
 			p = ai.NewTextPart(string(part.Text))
 		case anthropic.ContentBlockTypeToolUse:
-			t := &ai.ToolRequest{}
-			err := json.Unmarshal([]byte(part.Input), &t.Input)
-			if err != nil {
-				return nil
-			}
-			p = ai.NewToolRequestPart(t)
+			p = ai.NewToolResponsePart(&ai.ToolResponse{
+				Name:   part.Name,
+				Output: part.JSON,
+			})
 		default:
 			panic(fmt.Sprintf("unknown part: %#v", part))
 		}
@@ -281,5 +294,9 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 	}
 
 	r.Message = msg
+	r.Usage = &ai.GenerationUsage{
+		InputTokens:  int(m.Usage.InputTokens),
+		OutputTokens: int(m.Usage.OutputTokens),
+	}
 	return r
 }

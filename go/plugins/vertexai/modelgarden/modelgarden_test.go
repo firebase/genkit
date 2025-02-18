@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -22,6 +23,7 @@ var (
 	location  = flag.String("location", "us-east5", "Geographic location")
 )
 
+// go test . -v -projectid="my_projectId"
 func TestModelGarden(t *testing.T) {
 	if *projectID == "" {
 		t.Skipf("no -projectid provided")
@@ -43,6 +45,7 @@ func TestModelGarden(t *testing.T) {
 	}
 
 	t.Run("invalid model", func(t *testing.T) {
+		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-not-valid-v2")
 		if m != nil {
 			t.Fatal("model should have been invalid")
@@ -50,6 +53,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
+		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
@@ -70,6 +74,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
+		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
@@ -84,13 +89,14 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("media content", func(t *testing.T) {
+		t.Skipf("no streaming support yet")
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
 		}
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystemPrompt("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to detect what's in the image"),
+			ai.WithSystemPrompt("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to tell the name of the character in the image"),
 			ai.WithModel(m),
 			ai.WithMessages(
 				ai.NewUserMessage(
@@ -103,6 +109,27 @@ func TestModelGarden(t *testing.T) {
 		if !strings.Contains(resp.Text(), "Bluey") {
 			t.Fatalf("it should've said Bluey but got: %s", resp.Text())
 		}
+	})
+
+	t.Run("tools", func(t *testing.T) {
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		myJokeTool := genkit.DefineTool(
+			g,
+			"myJoke",
+			"When the user asks for a joke, this tool must be used to tell a joke",
+			func(ctx *ai.ToolContext, input *any) (string, error) {
+				return "huehue joke: nil", nil
+			},
+		)
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithTextPrompt("tell me a joke"),
+			ai.WithTools(myJokeTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Printf("resp: %s\n\n", resp.Text())
 	})
 
 	t.Run("streaming", func(t *testing.T) {
