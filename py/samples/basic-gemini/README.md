@@ -12,5 +12,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/hello/main.py
+genkit start -- uv run --directory py samples/basic-gemini/main.py
 ```

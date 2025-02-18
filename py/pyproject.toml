@@ -59,7 +59,11 @@ fail_under = 80
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+basic-gemini               = { workspace = true }
+coffee-shop                = { workspace = true }
+context-caching            = { workspace = true }
 dotpromptz                 = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
+flow-sample1               = { workspace = true }
 genkit                     = { workspace = true }
 genkit-chroma-plugin       = { workspace = true }
 genkit-firebase-plugin     = { workspace = true }
@@ -69,6 +73,13 @@ genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
 hello                      = { workspace = true }
+menu                       = { workspace = true }
+prompt-file                = { workspace = true }
+rag                        = { workspace = true }
+vertex-ai-model-garden     = { workspace = true }
+vertex-ai-reranker         = { workspace = true }
+vertex-ai-vector-search    = { workspace = true }
+
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
@@ -143,7 +154,17 @@ mypy_path = [
   "plugins/ollama/src",
   "plugins/pinecone/src",
   "plugins/vertex-ai/src",
+  "samples/basic-gemini",
+  "samples/coffee-shop",
+  "samples/context-caching",
+  "samples/flow-sample1",
   "samples/hello",
+  "samples/menu",
+  "samples/prompt-file",
+  "samples/rag",
+  "samples/vertex-ai-model-garden",
+  "samples/vertex-ai-reranker",
+  "samples/vertex-ai-vector-search",
 ]
 namespace_packages = true
 warn_unused_configs = true
