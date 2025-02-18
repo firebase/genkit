@@ -100,7 +100,6 @@ function genkit::install_prerequisites() {
       fd \
       gh \
       go \
-      node \
       python3 \
       ripgrep
   elif [[ -x "$(command -v apt)" ]]; then
