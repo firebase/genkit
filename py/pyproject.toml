@@ -52,7 +52,7 @@ testpaths = ["packages", "plugins", "samples"]
 addopts = "--cov"
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 80
 
 # uv based package management.
 [tool.uv]
@@ -131,6 +131,7 @@ select = [
 
 
 [tool.ruff.format]
+docstring-code-format     = true
 indent-style              = "space"
 line-ending               = "lf"
 quote-style               = "single"
@@ -146,17 +147,18 @@ warn_unused_configs      = true
 #collapse-root-models = true # Don't use; produces Any as types.
 #strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
 #use-subclass-enum        = true
-capitalize-enum-members = true
-disable-timestamp       = true
-enable-version-header   = true
-field-constraints       = true
-input                   = "../genkit-tools/genkit-schema.json"
-input-file-type         = "jsonschema"
-output                  = "packages/genkit/src/genkit/core/schemas.py"
-output-model-type       = "pydantic_v2.BaseModel"
-#snake-case-field = true
+capitalize-enum-members  = true
+disable-timestamp        = true
+enable-version-header    = true
+field-constraints        = true
+input                    = "../genkit-tools/genkit-schema.json"
+input-file-type          = "jsonschema"
+output                   = "packages/genkit/src/genkit/core/schemas.py"
+output-model-type        = "pydantic_v2.BaseModel"
+snake-case-field         = true
 strict-nullable          = true
 target-python-version    = "3.12"
+use-default              = false
 use-schema-description   = true
 use-standard-collections = true
 use-union-operator       = true
