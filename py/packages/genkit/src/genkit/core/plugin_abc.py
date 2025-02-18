@@ -8,6 +8,7 @@ from __future__ import annotations
 import abc
 import typing
 
+from genkit.core.action import ActionExecutionContext
 from genkit.core.schema_types import GenerateRequest, GenerateResponse
 
 if typing.TYPE_CHECKING:
@@ -38,7 +39,11 @@ class Plugin(abc.ABC):
         pass
 
     def _add_model_to_veneer(
-        self, veneer: Genkit, name: str, metadata: dict | None = None
+        self,
+        veneer: Genkit,
+        name: str,
+        metadata: dict | None = None,
+        fn_context: ActionExecutionContext | None = None,
     ) -> None:
         """
         Defines plugin's model in the Genkit Registry
@@ -57,11 +62,16 @@ class Plugin(abc.ABC):
         if not metadata:
             metadata = {}
         veneer.define_model(
-            name=name, fn=self._model_callback, metadata=metadata
+            name=name,
+            fn=self._model_callback,
+            metadata=metadata,
+            fn_context=fn_context,
         )
 
     @abc.abstractmethod
-    def _model_callback(self, request: GenerateRequest) -> GenerateResponse:
+    def _model_callback(
+        self, request: GenerateRequest, context: ActionExecutionContext | None
+    ) -> GenerateResponse:
         """
         Wrapper around any plugin's model callback.
 
@@ -71,6 +81,7 @@ class Plugin(abc.ABC):
         Args:
             request: incoming request as generic
                      `genkit.core.schemas.GenerateRequest` instance
+            context: Action's execution context data if any
 
         Returns:
             Model response represented as generic

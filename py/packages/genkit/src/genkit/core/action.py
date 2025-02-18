@@ -45,6 +45,12 @@ class ActionMetadataKey(StrEnum):
     RETURN = 'return'
 
 
+class ActionExecutionContext(BaseModel):
+    """The context to the action callback."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+
 def parse_action_key(key: str) -> tuple[ActionKind, str]:
     """Parse an action key into its kind and name components.
 
@@ -99,6 +105,7 @@ class Action:
         description: str | None = None,
         metadata: dict[ActionMetadataKey, Any] | None = None,
         span_metadata: dict[str, str] | None = None,
+        fn_context: ActionExecutionContext | None = None,
     ):
         """Initialize an action.
 
@@ -113,6 +120,7 @@ class Action:
         # TODO(Tatsiana Havina): separate a long constructor into methods.
         self.kind: ActionKind = kind
         self.name = name
+        self.fn_context = fn_context
 
         def tracing_wrapper(*args, **kwargs):
             """Wraps the callable function in a tracing span and adds metadata
@@ -133,6 +141,14 @@ class Action:
                         span.set_attribute('genkit:input', encoded)
                     else:
                         span.set_attribute('genkit:input', json.dumps(args[0]))
+
+                if self.fn_context is not None:
+                    if not isinstance(fn_context, ActionExecutionContext):
+                        raise TypeError(
+                            'Action Execution context must be of type '
+                            "'ActionExecutionContext'"
+                        )
+                    kwargs['context'] = self.fn_context
 
                 output = fn(*args, **kwargs)
 
@@ -155,8 +171,6 @@ class Action:
             k for k in input_spec.annotations if k != ActionMetadataKey.RETURN
         ]
 
-        if len(action_args) > 1:
-            raise Exception('can only have one arg')
         if len(action_args) > 0:
             type_adapter = TypeAdapter(input_spec.annotations[action_args[0]])
             self.input_schema = type_adapter.json_schema()

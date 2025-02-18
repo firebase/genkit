@@ -4,9 +4,14 @@
 """The registry is used to store and lookup resources such as actions and
 flows."""
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
-from genkit.core.action import Action, ActionKind, parse_action_key
+from genkit.core.action import (
+    Action,
+    ActionExecutionContext,
+    ActionKind,
+    parse_action_key,
+)
 
 """Stores actions, trace stores, flow state stores, plugins, and schemas."""
 
@@ -24,6 +29,7 @@ class Registry:
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         span_metadata: dict[str, str] | None = None,
+        fn_context: ActionExecutionContext | None = None,
     ) -> Action:
         """Register an action.
 
@@ -34,6 +40,7 @@ class Registry:
             description: The description of the action.
             metadata: The metadata of the action.
             span_metadata: The span metadata of the action.
+            fn_context: the context for the action execution.
 
         Returns:
             The registered action.
@@ -45,6 +52,7 @@ class Registry:
             description=description,
             metadata=metadata,
             span_metadata=span_metadata,
+            fn_context=fn_context,
         )
         if kind not in self.actions:
             self.actions[kind] = {}

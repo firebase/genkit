@@ -11,4 +11,6 @@ def package_name() -> str:
     return 'genkit.plugins.vertex_ai.models'
 
 
-__all__ = ['package_name']
+__all__ = [
+    'package_name',
+]
