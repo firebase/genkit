@@ -3,6 +3,6 @@
 
 from collections.abc import Callable
 
-from genkit.core.schemas import GenerateRequest, GenerateResponse
+from genkit.core.schema_types import GenerateRequest, GenerateResponse
 
 ModelFn = Callable[[GenerateRequest], GenerateResponse]

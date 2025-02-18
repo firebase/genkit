@@ -10,7 +10,7 @@ from typing import Any
 
 import vertexai
 from genkit.core.plugin_abc import Plugin
-from genkit.core.schemas import (
+from genkit.core.schema_types import (
     GenerateRequest,
     GenerateResponse,
     Message,
