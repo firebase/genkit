@@ -125,7 +125,6 @@ function genkit::install_prerequisites() {
       curl \
       fd-find \
       gh \
-      nodejs \
       python3 \
       ripgrep
   elif [[ -x "$(command -v dnf)" ]]; then
@@ -136,7 +135,6 @@ function genkit::install_prerequisites() {
       fd-find \
       gh \
       go \
-      node \
       python3 \
       ripgrep
   else

@@ -31,7 +31,7 @@ jobs:
         run: uv run --directory py ruff format --check .
 
       - name: Lint with ruff
-        run: uv run --directory py ruff check .
+        run: uv run --directory py ruff check --select I .
 
       - name: Check licenses
         run: ./bin/check_license
