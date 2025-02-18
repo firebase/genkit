@@ -119,7 +119,7 @@ export const evalRun = new Command('eval:run')
       if (devUiUrl) {
         logger.info(
           clc.green(
-            `\nView the evaluation results at: ${devUiUrl}/evaluations/${evalRun.key.evalRunId}`
+            `\nView the evaluation results at: ${devUiUrl}/evaluate/${evalRun.key.evalRunId}`
           )
         );
       } else {

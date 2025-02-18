@@ -173,7 +173,7 @@ export const evalFlow = new Command('eval:flow')
         if (devUiUrl) {
           logger.info(
             clc.green(
-              `\n  View the evaluation results at: ${devUiUrl}/evaluations/${evalRun.key.evalRunId}`
+              `\nView the evaluation results at: ${devUiUrl}/evaluate/${evalRun.key.evalRunId}`
             )
           );
         } else {
