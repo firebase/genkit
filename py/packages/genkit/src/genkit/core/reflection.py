@@ -5,11 +5,11 @@
 """Exposes an API for inspecting and interacting with Genkit in development."""
 
 import json
-
 from http.server import BaseHTTPRequestHandler
-from pydantic import BaseModel
 
+from genkit.core.headers import HttpHeader
 from genkit.core.registry import Registry
+from pydantic import BaseModel
 
 
 def make_reflection_server(registry: Registry):
@@ -20,7 +20,7 @@ def make_reflection_server(registry: Registry):
 
         ENCODING = 'utf-8'
 
-        def do_GET(self):
+        def do_GET(self) -> None:  # noqa: N802
             """Handles GET requests."""
             if self.path == '/api/__health':
                 self.send_response(200)
@@ -38,8 +38,8 @@ def make_reflection_server(registry: Registry):
                         actions[key] = {
                             'key': key,
                             'name': action.name,
-                            'inputSchema': action.inputSchema,
-                            'outputSchema': action.outputSchema,
+                            'inputSchema': action.input_schema,
+                            'outputSchema': action.output_schema,
                             'metadata': action.metadata,
                         }
 
@@ -49,32 +49,31 @@ def make_reflection_server(registry: Registry):
                 self.send_response(404)
                 self.end_headers()
 
-        def do_POST(self):
+        def do_POST(self) -> None:  # noqa: N802
             """Handles POST requests."""
             if self.path == '/api/notify':
                 self.send_response(200)
                 self.end_headers()
 
             elif self.path == '/api/runAction':
-                content_len = int(self.headers.get('Content-Length'))
+                content_len = int(self.headers.get('Content-Length') or 0)
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=self.ENCODING))
-                print(payload)
-                action = registry.lookup_by_absolute_name(payload['key'])
+                action = registry.lookup_action_by_key(payload['key'])
                 if '/flow/' in payload['key']:
-                    input_action = action.inputType.validate_python(
+                    input_action = action.input_type.validate_python(
                         payload['input']['start']['input']
                     )
                 else:
-                    input_action = action.inputType.validate_python(
+                    input_action = action.input_type.validate_python(
                         payload['input']
                     )
 
                 output = action.fn(input_action)
 
                 self.send_response(200)
-                self.send_header('x-genkit-version', '0.9.1')
-                self.send_header('Content-type', 'application/json')
+                self.send_header(HttpHeader.X_GENKIT_VERSION, '0.9.1')
+                self.send_header(HttpHeader.CONTENT_TYPE, 'application/json')
                 self.end_headers()
 
                 if isinstance(output.response, BaseModel):
@@ -83,7 +82,7 @@ def make_reflection_server(registry: Registry):
                             '{"result":  '
                             + output.response.model_dump_json()
                             + ', "traceId": "'
-                            + output.traceId
+                            + output.trace_id
                             + '"}',
                             self.ENCODING,
                         )
@@ -94,7 +93,7 @@ def make_reflection_server(registry: Registry):
                             json.dumps(
                                 {
                                     'result': output.response,
-                                    'telemetry': {'traceId': output.traceId},
+                                    'telemetry': {'traceId': output.trace_id},
                                 }
                             ),
                             self.ENCODING,

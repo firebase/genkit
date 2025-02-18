@@ -47,7 +47,7 @@ sample flow.
 
 1. **Set up a sample flow and server:**
 
-  In `src/index.ts`, define a sample flow and configure the flow server:
+In `src/index.ts`, define a sample flow and configure the flow server:
 
   ```typescript
   import { genkit } from 'genkit';
@@ -76,33 +76,33 @@ sample flow.
   });
   ```
 
-  There are also some optional parameters for `startFlowServer` you can specify:
+There are also some optional parameters for `startFlowServer` you can specify:
 
-  - `port`: the network port to listen on. If unspecified, the server listens on
+- `port`: the network port to listen on. If unspecified, the server listens on
   the port defined in the PORT environment variable, and if PORT is not set,
   defaults to 3400.
-  - `cors`: the flow server's
+- `cors`: the flow server's
   [CORS policy](https://www.npmjs.com/package/cors#configuration-options).
   If you will be accessing these endpoints from a web application, you likely
   need to specify this.
-  - `pathPrefix`: an optional path prefix to add before your flow endpoints.
-  - `jsonParserOptions`: options to pass to Express's
+- `pathPrefix`: an optional path prefix to add before your flow endpoints.
+- `jsonParserOptions`: options to pass to Express's
   [JSON body parser](https://www.npmjs.com/package/body-parser#bodyparserjsonoptions)
 
 1. **Set up model provider credentials:**
 
-  Configure the required environment variables for your model provider. In this guide, we'll use the Gemini API from Google AI Studio as an example.
+Configure the required environment variables for your model provider. In this guide, we'll use the Gemini API from Google AI Studio as an example.
 
-  [Get an API key from Google AI Studio](https://makersuite.google.com/app/apikey)
+[Get an API key from Google AI Studio](https://makersuite.google.com/app/apikey)
 
-  After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment
-  variable to your key with the following command:
+After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment
+variable to your key with the following command:
 
   ```posix-terminal
   export GOOGLE_GENAI_API_KEY=<your API key>
   ```
 
-  Different providers for deployment will have different ways of securing your API key in their environment. For security, ensure that your API key is not publicly exposed.
+Different providers for deployment will have different ways of securing your API key in their environment. For security, ensure that your API key is not publicly exposed.
 
 ## 3. Prepare your Node.js project for deployment
 

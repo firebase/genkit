@@ -41,6 +41,7 @@ import {
 import {
   GenerateActionOptions,
   GenerateActionOptionsSchema,
+  GenerateActionOutputConfig,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkData,
@@ -172,7 +173,14 @@ function applyFormat(
   );
 
   if (resolvedFormat) {
-    outRequest.messages = injectInstructions(outRequest.messages, instructions);
+    if (
+      shouldInjectFormatInstructions(resolvedFormat.config, rawRequest?.output)
+    ) {
+      outRequest.messages = injectInstructions(
+        outRequest.messages,
+        instructions
+      );
+    }
     outRequest.output = {
       // use output config from the format
       ...resolvedFormat.config,
@@ -182,6 +190,16 @@ function applyFormat(
   }
 
   return outRequest;
+}
+
+export function shouldInjectFormatInstructions(
+  formatConfig?: Formatter['config'],
+  rawRequestConfig?: z.infer<typeof GenerateActionOutputConfig>
+) {
+  return (
+    formatConfig?.defaultInstructions !== false ||
+    rawRequestConfig?.instructions
+  );
 }
 
 function applyTransferPreamble(

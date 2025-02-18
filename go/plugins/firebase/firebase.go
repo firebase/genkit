@@ -1,36 +1,95 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package firebase
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"sync"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
+var state struct {
+	mu         sync.Mutex     // Ensures thread-safe access to state
+	initted    bool           // Tracks if the plugin has been initialized
+	app        *firebase.App  // Holds the Firebase app instance
+	retrievers []ai.Retriever // Holds the list of initialized retrievers
+}
+
+// FirebaseApp is an interface to represent the Firebase App object
 type FirebaseApp interface {
 	Auth(ctx context.Context) (*auth.Client, error)
 }
 
-var (
-	app   *firebase.App
-	mutex sync.Mutex
-)
+// FirebasePluginConfig is the configuration for the Firebase plugin.
+type FirebasePluginConfig struct {
+	App        *firebase.App      // Pre-initialized Firebase app
+	Retrievers []RetrieverOptions // Array of retriever options
+}
 
-// app returns a cached Firebase app.
-func App(ctx context.Context) (FirebaseApp, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	if app == nil {
-		newApp, err := firebase.NewApp(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-		app = newApp
+// Init initializes the plugin with the provided configuration.
+func Init(ctx context.Context, g *genkit.Genkit, cfg *FirebasePluginConfig) error {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if state.initted {
+		log.Println("firebase.Init: plugin already initialized, returning without reinitializing")
+		return nil
 	}
-	return app, nil
+
+	if cfg.App == nil {
+		return fmt.Errorf("firebase.Init: no Firebase app provided")
+	}
+
+	state.app = cfg.App
+
+	var retrievers []ai.Retriever
+	for _, retrieverCfg := range cfg.Retrievers {
+		retriever, err := DefineFirestoreRetriever(g, retrieverCfg)
+		if err != nil {
+			return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", retrieverCfg.Name, err)
+		}
+		retrievers = append(retrievers, retriever)
+	}
+
+	state.retrievers = retrievers
+	state.initted = true
+	return nil
+}
+
+// unInit clears the initialized plugin state.
+func unInit() {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.initted = false
+	state.app = nil
+	state.retrievers = nil
+}
+
+// App returns the cached Firebase app.
+func App(ctx context.Context) (*firebase.App, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if !state.initted {
+		return nil, fmt.Errorf("firebase.App: Firebase app not initialized. Call Init first")
+	}
+	return state.app, nil
+}
+
+// Retrievers returns the cached list of retrievers.
+func Retrievers(ctx context.Context) ([]ai.Retriever, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if !state.initted {
+		return nil, fmt.Errorf("firebase.Retrievers: Plugin not initialized. Call Init first")
+	}
+	return state.retrievers, nil
 }

@@ -173,7 +173,7 @@ describe('definePrompt', () => {
   });
 });
 
-describe.only('definePrompt', () => {
+describe('definePrompt', () => {
   describe('default model', () => {
     let ai: GenkitBeta;
 
@@ -310,7 +310,7 @@ describe.only('definePrompt', () => {
     });
   });
 
-  describe.only('default model ref', () => {
+  describe('default model ref', () => {
     let ai: GenkitBeta;
 
     beforeEach(() => {

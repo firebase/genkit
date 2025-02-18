@@ -25,7 +25,7 @@ const ai = genkit({
   plugins: [vertexAI({ location: 'us-central1' })],
 });
 
-(async () => {
+async function main() {
   const { media } = await ai.generate({
     model: imagen3Fast,
     prompt: 'photo of a meal fit for a pirate',
@@ -38,5 +38,7 @@ const ai = genkit({
   if (data === null) throw new Error('Invalid "data:" URL.');
 
   await writeFile(`output.${data.mimeType.subtype}`, data.body);
-})();
+}
+
+main();
 // [END imagen]

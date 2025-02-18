@@ -654,3 +654,85 @@ ai.defineFlow('blockingMiddleware', async () => {
   });
   return text;
 });
+
+ai.defineFlow('formatJson', async (input, { sendChunk }) => {
+  const { output, text } = await ai.generate({
+    prompt: `generate an RPG game character of type ${input || 'archer'}`,
+    output: {
+      constrained: false,
+      instructions: true,
+      schema: z
+        .object({
+          name: z.string(),
+          weapon: z.string(),
+        })
+        .strict(),
+    },
+    onChunk: (c) => sendChunk(c.output),
+  });
+  return { output, text };
+});
+
+ai.defineFlow('formatJsonManualSchema', async (input, { sendChunk }) => {
+  const { output, text } = await ai.generate({
+    prompt: `generate one RPG game character of type ${input || 'archer'} and generated JSON must match this interface
+    
+    \`\`\`typescript
+    interface Character {
+      name: string;
+      weapon: string;
+    }
+    \`\`\`
+    `,
+    output: {
+      constrained: true,
+      instructions: false,
+      schema: z
+        .object({
+          name: z.string(),
+          weapon: z.string(),
+        })
+        .strict(),
+    },
+    onChunk: (c) => sendChunk(c.output),
+  });
+  return { output, text };
+});
+
+ai.defineFlow('testArray', async (input, { sendChunk }) => {
+  const { output } = await ai.generate({
+    prompt: `10 different weapons for ${input}`,
+    output: {
+      format: 'array',
+      schema: z.array(z.string()),
+    },
+    onChunk: (c) => sendChunk(c.output),
+  });
+  return output;
+});
+
+ai.defineFlow('formatEnum', async (input, { sendChunk }) => {
+  const { output } = await ai.generate({
+    prompt: `classify the denger level of sky diving`,
+    output: {
+      format: 'enum',
+      schema: z.enum(['safe', 'dangerous', 'medium']),
+    },
+    onChunk: (c) => sendChunk(c.output),
+  });
+  return output;
+});
+
+ai.defineFlow('formatJsonl', async (input, { sendChunk }) => {
+  const { output } = await ai.generate({
+    prompt: `generate 5 randon persons`,
+    output: {
+      format: 'jsonl',
+      schema: z.array(
+        z.object({ name: z.string(), surname: z.string() }).strict()
+      ),
+    },
+    onChunk: (c) => sendChunk(c.output),
+  });
+  return output;
+});
