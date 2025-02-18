@@ -1,12 +1,8 @@
-"""A layer that provides a flat library structure for a user.
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
 
-Copyright 2025 Google LLC
-SPDX-License-Identifier: Apache-2.0
-"""
+"""Veneer user-facing API for application developers who use the SDK."""
 
-import atexit
-import datetime
-import json
 import logging
 import os
 import threading
@@ -16,20 +12,22 @@ from typing import Any
 
 from genkit.ai.model import ModelFn
 from genkit.ai.prompt import PromptFn
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionKind
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
 from genkit.core.schemas import GenerateRequest, GenerateResponse, Message
+from genkit.veneer import server
+
+DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
+    scheme='http', host='127.0.0.1', port=3100
+)
 
 logger = logging.getLogger(__name__)
 
 
 class Genkit:
-    """An entrypoint for a user that encapsulate the SDK functionality."""
-
-    MODEL = 'model'
-    FLOW = 'flow'
+    """Veneer user-facing API for application developers who use the SDK."""
 
     registry: Registry = Registry()
 
@@ -37,35 +35,24 @@ class Genkit:
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
+        reflection_server_spec=DEFAULT_REFLECTION_SERVER_SPEC,
     ) -> None:
         self.model = model
-        if os.getenv('GENKIT_ENV') == 'dev':
-            cwd = os.getcwd()
-            runtimes_dir = os.path.join(cwd, '.genkit/runtimes')
-            current_datetime = datetime.datetime.now()
-            if not os.path.exists(runtimes_dir):
-                os.makedirs(runtimes_dir)
-            runtime_file_path = os.path.join(
-                runtimes_dir, f'{current_datetime.isoformat()}.json'
+
+        if server.is_dev_environment():
+            runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
+            server.create_runtime(
+                runtime_dir=runtimes_dir,
+                reflection_server_spec=reflection_server_spec,
+                at_exit_fn=os.remove,
             )
-            with open(runtime_file_path, 'w', encoding='utf-8') as rf:
-                rf.write(
-                    json.dumps(
-                        {
-                            'id': f'{os.getpid()}',
-                            'pid': os.getpid(),
-                            'reflectionServerUrl': 'http://localhost:3100',
-                            'timestamp': f'{current_datetime.isoformat()}',
-                        }
-                    )
-                )
-
-            def delete_runtime_file() -> None:
-                os.remove(runtime_file_path)
-
-            atexit.register(delete_runtime_file)
-
-            self.thread = threading.Thread(target=self.start_server)
+            self.thread = threading.Thread(
+                target=self.start_server,
+                args=(
+                    reflection_server_spec.host,
+                    reflection_server_spec.port,
+                ),
+            )
             self.thread.start()
 
         if not plugins:
@@ -80,10 +67,8 @@ class Genkit:
                         f'must be of type `genkit.core.plugin_abc.Plugin`'
                     )
 
-    def start_server(self) -> None:
-        httpd = HTTPServer(
-            ('127.0.0.1', 3100), make_reflection_server(self.registry)
-        )
+    def start_server(self, host, port) -> None:
+        httpd = HTTPServer((host, port), make_reflection_server(self.registry))
         httpd.serve_forever()
 
     def generate(
@@ -98,7 +83,7 @@ class Genkit:
         if model is None:
             raise Exception('No model configured.')
 
-        model_action = self.registry.lookup_action(self.MODEL, model)
+        model_action = self.registry.lookup_action(ActionKind.MODEL, model)
 
         return model_action.fn(GenerateRequest(messages=messages)).response
 
@@ -107,13 +92,11 @@ class Genkit:
             flow_name = name if name is not None else func.__name__
             action = Action(
                 name=flow_name,
-                action_type=self.FLOW,
+                kind=ActionKind.FLOW,
                 fn=func,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
-            self.registry.register_action(
-                action_type=self.FLOW, name=flow_name, action=action
-            )
+            self.registry.register_action(action)
 
             def decorator(*args: Any, **kwargs: Any) -> GenerateResponse:
                 return action.fn(*args, **kwargs).response
@@ -129,9 +112,9 @@ class Genkit:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         action = Action(
-            name=name, action_type=self.MODEL, fn=fn, metadata=metadata
+            name=name, kind=ActionKind.MODEL, fn=fn, metadata=metadata
         )
-        self.registry.register_action(self.MODEL, name, action)
+        self.registry.register_action(action)
 
     def define_prompt(
         self,
@@ -143,8 +126,8 @@ class Genkit:
             req = fn(input_prompt)
             return self.generate(messages=req.messages, model=model)
 
-        action = Action(self.MODEL, name, prompt)
-        self.registry.register_action(self.MODEL, name, action)
+        action = Action(ActionKind.MODEL, name, prompt)
+        self.registry.register_action(action)
 
         def wrapper(input_prompt: Any | None = None) -> GenerateResponse:
             return action.fn(input_prompt)

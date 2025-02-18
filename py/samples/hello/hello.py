@@ -1,5 +1,8 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
+
+"""A hello world sample that just calls some flows."""
+
 from typing import Any
 
 from genkit.core.schemas import GenerateRequest, Message, Role, TextPart
