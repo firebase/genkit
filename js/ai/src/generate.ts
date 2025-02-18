@@ -377,6 +377,10 @@ export async function generate<
     returnToolRequests: resolvedOptions.returnToolRequests,
     maxTurns: resolvedOptions.maxTurns,
   };
+  // if config is empty and it was not explicitly passed in, we delete it, don't want {}
+  if (Object.keys(params.config).length === 0 && !resolvedOptions.config) {
+    delete params.config;
+  }
 
   return await runWithStreamingCallback(
     registry,
