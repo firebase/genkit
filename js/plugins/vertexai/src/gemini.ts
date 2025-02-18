@@ -25,13 +25,20 @@ import {
   GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
+  Schema,
   StartChatParams,
   ToolConfig,
   VertexAI,
   type GoogleSearchRetrieval,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
-import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
+import {
+  GENKIT_CLIENT_HEADER,
+  Genkit,
+  GenkitError,
+  JSONSchema,
+  z,
+} from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -424,7 +431,8 @@ function toGeminiRole(
   }
 }
 
-const toGeminiTool = (
+/** @hidden */
+export const toGeminiTool = (
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration => {
   const declaration: FunctionDeclaration = {
@@ -645,31 +653,65 @@ export function fromGeminiCandidate(
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
-const convertSchemaProperty = (property) => {
+function convertSchemaProperty(property) {
   if (!property || !property.type) {
-    return null;
+    return undefined;
   }
-  if (property.type === 'object') {
+  const baseSchema = {} as Schema;
+  if (property.description) {
+    baseSchema.description = property.description;
+  }
+  if (property.enum) {
+    baseSchema.enum = property.enum;
+  }
+  if (property.nullable) {
+    baseSchema.nullable = property.nullable;
+  }
+  let propertyType;
+  // nullable schema can ALSO be defined as, for example, type=['string','null']
+  if (Array.isArray(property.type)) {
+    const types = property.type as string[];
+    if (types.includes('null')) {
+      baseSchema.nullable = true;
+    }
+    // grab the type that's not `null`
+    propertyType = types.find((t) => t !== 'null');
+  } else {
+    propertyType = property.type;
+  }
+  if (propertyType === 'object') {
     const nestedProperties = {};
     Object.keys(property.properties).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
+      ...baseSchema,
       type: FunctionDeclarationSchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
-  } else if (property.type === 'array') {
+  } else if (propertyType === 'array') {
     return {
+      ...baseSchema,
       type: FunctionDeclarationSchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
+    const schemaType = FunctionDeclarationSchemaType[
+      propertyType.toUpperCase()
+    ] as FunctionDeclarationSchemaType;
+    if (!schemaType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Unsupported property type ${propertyType.toUpperCase()}`,
+      });
+    }
     return {
-      type: FunctionDeclarationSchemaType[property.type.toUpperCase()],
+      ...baseSchema,
+      type: schemaType,
     };
   }
-};
+}
 
 export function cleanSchema(schema: JSONSchema): JSONSchema {
   const out = structuredClone(schema);
