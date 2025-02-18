@@ -21,7 +21,11 @@ import {
   googleAI,
   gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+import {
+  textEmbedding004,
+  vertexAI,
+  gemini15Flash as vertexGemini15Flash,
+} from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
@@ -386,12 +390,33 @@ const gablorkenTool = ai.defineTool(
   {
     name: 'gablorkenTool',
     inputSchema: z.object({
-      value: z.number(),
+      value: z
+        .number()
+        .describe(
+          'always add 1 to the value (it is 1 based, but upstream it is zero based)'
+        ),
     }),
     description: 'can be used to calculate gablorken value',
   },
   async (input) => {
     return input.value * 3 - 4;
+  }
+);
+
+const characterGenerator = ai.defineTool(
+  {
+    name: 'characterGenerator',
+    inputSchema: z.object({
+      age: z.number().describe('must be between 23 and 27'),
+      type: z.enum(['archer', 'banana']),
+      name: z.string().describe('can only be Bob or John'),
+      surname: z.string(),
+    }),
+    description:
+      'can be used to generate a character. Seed it with some input.',
+  },
+  async (input) => {
+    return input;
   }
 );
 
@@ -441,7 +466,7 @@ export const forcedToolCaller = ai.defineFlow(
   },
   async (input, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: vertexGemini15Flash,
       config: {
         temperature: 1,
       },
@@ -455,6 +480,31 @@ export const forcedToolCaller = ai.defineFlow(
     }
 
     return (await response).text;
+  }
+);
+
+export const toolCallerCharacterGenerator = ai.defineFlow(
+  {
+    name: 'toolCallerCharacterGenerator',
+    inputSchema: z.number(),
+    streamSchema: z.any(),
+  },
+  async (input, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: vertexGemini15Flash,
+      config: {
+        temperature: 1,
+      },
+      tools: [characterGenerator, exitTool],
+      toolChoice: 'required',
+      prompt: `generate an archer character`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return await response;
   }
 );
 
@@ -657,9 +707,10 @@ ai.defineFlow('blockingMiddleware', async () => {
 
 ai.defineFlow('formatJson', async (input, { sendChunk }) => {
   const { output, text } = await ai.generate({
+    model: gemini15Flash,
     prompt: `generate an RPG game character of type ${input || 'archer'}`,
     output: {
-      constrained: false,
+      constrained: true,
       instructions: true,
       schema: z
         .object({
@@ -675,6 +726,7 @@ ai.defineFlow('formatJson', async (input, { sendChunk }) => {
 
 ai.defineFlow('formatJsonManualSchema', async (input, { sendChunk }) => {
   const { output, text } = await ai.generate({
+    model: gemini15Flash,
     prompt: `generate one RPG game character of type ${input || 'archer'} and generated JSON must match this interface
     
     \`\`\`typescript

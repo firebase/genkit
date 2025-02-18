@@ -29,6 +29,7 @@ import {
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
+  Schema,
   SchemaType,
   StartChatParams,
   Tool,
@@ -330,31 +331,64 @@ function toGeminiRole(
 
 function convertSchemaProperty(property) {
   if (!property || !property.type) {
-    return null;
+    return undefined;
   }
-  if (property.type === 'object') {
+  const baseSchema = {} as Schema;
+  if (property.description) {
+    baseSchema.description = property.description;
+  }
+  if (property.enum) {
+    baseSchema.enum = property.enum;
+  }
+  if (property.nullable) {
+    baseSchema.nullable = property.nullable;
+  }
+  let propertyType;
+  // nullable schema can ALSO be defined as, for example, type=['string','null']
+  if (Array.isArray(property.type)) {
+    const types = property.type as string[];
+    if (types.includes('null')) {
+      baseSchema.nullable = true;
+    }
+    // grab the type that's not `null`
+    propertyType = types.find((t) => t !== 'null');
+  } else {
+    propertyType = property.type;
+  }
+  if (propertyType === 'object') {
     const nestedProperties = {};
     Object.keys(property.properties).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
+      ...baseSchema,
       type: SchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
-  } else if (property.type === 'array') {
+  } else if (propertyType === 'array') {
     return {
+      ...baseSchema,
       type: SchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
+    const schemaType = SchemaType[propertyType.toUpperCase()] as SchemaType;
+    if (!schemaType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Unsupported property type ${propertyType.toUpperCase()}`,
+      });
+    }
     return {
-      type: SchemaType[property.type.toUpperCase()],
+      ...baseSchema,
+      type: schemaType,
     };
   }
 }
 
-function toGeminiTool(
+/** @hidden */
+export function toGeminiTool(
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration {
   const declaration: FunctionDeclaration = {
