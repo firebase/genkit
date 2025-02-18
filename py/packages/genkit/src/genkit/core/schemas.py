@@ -16,14 +16,14 @@ class Model(RootModel[Any]):
 
 
 class InstrumentationLibrary(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     version: str | None = None
     schemaUrl: str | None = None
 
 
 class SpanContext(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     traceId: str
     spanId: str
     isRemote: bool | None = None
@@ -31,7 +31,7 @@ class SpanContext(BaseModel):
 
 
 class SameProcessAsParentSpan(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     value: bool
 
 
@@ -41,7 +41,7 @@ class State(Enum):
 
 
 class SpanMetadata(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     state: State | None = None
     input: Any | None = None
@@ -51,19 +51,19 @@ class SpanMetadata(BaseModel):
 
 
 class SpanStatus(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     code: float
     message: str | None = None
 
 
 class Annotation(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     attributes: dict[str, Any]
     description: str
 
 
 class TimeEvent(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     time: float
     annotation: Annotation
 
@@ -75,14 +75,14 @@ class Code(Enum):
 
 
 class CandidateError(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     index: float
     code: Code
     message: str | None = None
 
 
 class DataPart(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Any | None = None
     media: Any | None = None
     toolRequest: Any | None = None
@@ -101,25 +101,25 @@ class FinishReason(Enum):
 
 
 class Content(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: str
     media: Any | None = None
 
 
 class Media(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     contentType: str | None = None
     url: str
 
 
 class Content1(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Any | None = None
     media: Media
 
 
 class Doc(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content: list[Content | Content1]
     metadata: dict[str, Any] | None = None
 
@@ -131,7 +131,7 @@ class ToolChoice(Enum):
 
 
 class Output(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     format: str | None = None
     contentType: str | None = None
     instructions: bool | str | None = None
@@ -146,13 +146,13 @@ class Format(Enum):
 
 
 class Output1(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     format: Format | None = None
     schema_: dict[str, Any] | None = Field(None, alias='schema')
 
 
 class GenerationCommonConfig(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     version: str | None = None
     temperature: float | None = None
     maxOutputTokens: float | None = None
@@ -162,7 +162,7 @@ class GenerationCommonConfig(BaseModel):
 
 
 class GenerationUsage(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     inputTokens: float | None = None
     outputTokens: float | None = None
     totalTokens: float | None = None
@@ -184,7 +184,7 @@ class Constrained(Enum):
 
 
 class Supports(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     multiturn: bool | None = None
     media: bool | None = None
     tools: bool | None = None
@@ -197,7 +197,7 @@ class Supports(BaseModel):
 
 
 class ModelInfo(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     versions: list[str] | None = None
     label: str | None = None
     supports: Supports | None = None
@@ -211,7 +211,7 @@ class Role(Enum):
 
 
 class ToolDefinition(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     description: str
     inputSchema: dict[str, Any] = Field(
@@ -226,14 +226,14 @@ class ToolDefinition(BaseModel):
 
 
 class ToolRequest1(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     ref: str | None = None
     name: str
     input: Any | None = None
 
 
 class ToolResponse1(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     ref: str | None = None
     name: str
     output: Any | None = None
@@ -260,25 +260,25 @@ class ToolResponse(RootModel[Any]):
 
 
 class Content2(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: str
     media: Any | None = None
 
 
 class Media2(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     contentType: str | None = None
     url: str
 
 
 class Content3(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Any | None = None
     media: Media2
 
 
 class Items(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content: list[Content2 | Content3]
     metadata: dict[str, Any] | None = None
 
@@ -288,7 +288,7 @@ class Config(RootModel[Any]):
 
 
 class OutputModel(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     format: Format | None = None
     schema_: dict[str, Any] | None = Field(None, alias='schema')
 
@@ -326,19 +326,19 @@ class Data(RootModel[Any]):
 
 
 class Link(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     context: SpanContext | None = None
     attributes: dict[str, Any] | None = None
     droppedAttributesCount: float | None = None
 
 
 class TimeEvents(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     timeEvent: list[TimeEvent] | None = None
 
 
 class SpanData(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     spanId: str
     traceId: str
     parentSpanId: str | None = None
@@ -356,7 +356,7 @@ class SpanData(BaseModel):
 
 
 class TraceData(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     traceId: str
     displayName: str | None = None
     startTime: float | None = None
@@ -365,7 +365,7 @@ class TraceData(BaseModel):
 
 
 class MediaPart(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: Media
     toolRequest: ToolRequest | None = None
@@ -375,7 +375,7 @@ class MediaPart(BaseModel):
 
 
 class TextPart(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: str
     media: MediaModel | None = None
     toolRequest: ToolRequest | None = None
@@ -385,7 +385,7 @@ class TextPart(BaseModel):
 
 
 class ToolRequestPart(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
     toolRequest: ToolRequest1
@@ -395,7 +395,7 @@ class ToolRequestPart(BaseModel):
 
 
 class ToolResponsePart(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
     toolRequest: ToolRequest | None = None
@@ -417,13 +417,13 @@ class ContentModel(RootModel[list[Part]]):
 
 
 class DocumentData(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content: list[Part]
     metadata: dict[str, Any] | None = None
 
 
 class GenerateResponseChunk(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     role: Role | None = None
     index: float | None = None
     content: list[Part]
@@ -432,14 +432,14 @@ class GenerateResponseChunk(BaseModel):
 
 
 class Message(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     role: Role
     content: list[Part]
     metadata: dict[str, Any] | None = None
 
 
 class ModelResponseChunk(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     role: Role | None = None
     index: Index | None = None
     content: ContentModel
@@ -452,7 +452,7 @@ class Messages(RootModel[list[Message]]):
 
 
 class Candidate(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     index: float
     message: Message
     usage: GenerationUsage | None = None
@@ -462,7 +462,7 @@ class Candidate(BaseModel):
 
 
 class GenerateActionOptions(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     model: str
     docs: list[Doc] | None = None
     messages: list[Message]
@@ -475,7 +475,7 @@ class GenerateActionOptions(BaseModel):
 
 
 class GenerateRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     messages: list[Message]
     config: Any | None = None
     tools: list[ToolDefinition] | None = None
@@ -486,7 +486,7 @@ class GenerateRequest(BaseModel):
 
 
 class GenerateResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     message: Message | None = None
     finishReason: FinishReason | None = None
     finishMessage: str | None = None
@@ -498,7 +498,7 @@ class GenerateResponse(BaseModel):
 
 
 class ModelRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     messages: Messages
     config: Config | None = None
     tools: Tools | None = None
@@ -512,7 +512,7 @@ class Request(RootModel[GenerateRequest]):
 
 
 class ModelResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     message: Message | None = None
     finishReason: FinishReason
     finishMessage: FinishMessage | None = None

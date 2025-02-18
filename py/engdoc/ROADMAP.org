@@ -218,3 +218,8 @@
   - [ ] Acquire from current owner
 - [ ] PyPi project for genkit https://pypi.org/project/genkit/
   - [ ] Acquire from current owner
+
+** Integration Tests [/]
+  - [ ] Go
+  - [ ] Python
+  - [X] JS
