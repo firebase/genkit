@@ -67,7 +67,7 @@ class Genkit:
                         f'must be of type `genkit.core.plugin_abc.Plugin`'
                     )
 
-    def start_server(self, host, port) -> None:
+    def start_server(self, host: str, port: int) -> None:
         httpd = HTTPServer((host, port), make_reflection_server(self.registry))
         httpd.serve_forever()
 
@@ -126,7 +126,7 @@ class Genkit:
             req = fn(input_prompt)
             return self.generate(messages=req.messages, model=model)
 
-        action = Action(ActionKind.MODEL, name, prompt)
+        action = Action(kind=ActionKind.PROMPT, name=name, fn=fn)
         self.registry.register_action(action)
 
         def wrapper(input_prompt: Any | None = None) -> GenerateResponse:

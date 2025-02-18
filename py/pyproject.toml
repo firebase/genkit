@@ -140,8 +140,21 @@ skip-magic-trailing-comma = false
 # Static type checking.
 [tool.mypy]
 disallow_incomplete_defs = true
-disallow_untyped_defs    = true
-warn_unused_configs      = true
+disallow_untyped_defs = true
+explicit_package_bases = true
+mypy_path = [
+  "packages/genkit/src",
+  "plugins/chroma/src",
+  "plugins/firebase/src",
+  "plugins/google-ai/src",
+  "plugins/google-cloud/src",
+  "plugins/ollama/src",
+  "plugins/pinecone/src",
+  "plugins/vertex-ai/src",
+  "samples/hello",
+]
+namespace_packages = true
+warn_unused_configs = true
 
 [tool.datamodel-codegen]
 #collapse-root-models = true # Don't use; produces Any as types.
