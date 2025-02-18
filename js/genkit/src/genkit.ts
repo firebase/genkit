@@ -231,7 +231,7 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Looks up a prompt by `name` (and optional `variant`). Can be used to lookup
+   * Looks up a prompt by `name` (and optionally `variant`). Can be used to lookup
    * .prompt files or prompts previously defined with {@link Genkit.definePrompt}
    */
   prompt<
