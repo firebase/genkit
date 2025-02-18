@@ -16,7 +16,7 @@ from genkit.core.action import Action, ActionKind
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
-from genkit.core.schemas import GenerateRequest, GenerateResponse, Message
+from genkit.core.schema_types import GenerateRequest, GenerateResponse, Message
 from genkit.veneer import server
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(

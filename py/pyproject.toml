@@ -111,14 +111,6 @@ target-version = "py312"
 
 [tool.ruff.lint]
 fixable = ["ALL"]
-per-file-ignores = { "schemas.py" = [
-  "N815",
-  "E501",
-], "sanitize_schemas.py" = [
-  "N802",
-  "N815",
-  "E501",
-] }
 select = [
   "E",  # pycodestyle (errors)
   "W",  # pycodestyle (warnings)
@@ -166,7 +158,7 @@ enable-version-header    = true
 field-constraints        = true
 input                    = "../genkit-tools/genkit-schema.json"
 input-file-type          = "jsonschema"
-output                   = "packages/genkit/src/genkit/core/schemas.py"
+output                   = "packages/genkit/src/genkit/core/schema_types.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true

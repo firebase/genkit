@@ -8,7 +8,7 @@ from __future__ import annotations
 import abc
 import typing
 
-from genkit.core.schemas import GenerateRequest, GenerateResponse
+from genkit.core.schema_types import GenerateRequest, GenerateResponse
 
 if typing.TYPE_CHECKING:
     from genkit.veneer import Genkit

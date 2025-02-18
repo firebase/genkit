@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from genkit.core.schemas import GenerateRequest, Message, Role, TextPart
+from genkit.core.schema_types import GenerateRequest, Message, Role, TextPart
 from genkit.plugins.vertex_ai import VertexAI
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field

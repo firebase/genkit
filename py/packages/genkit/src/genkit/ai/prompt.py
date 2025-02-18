@@ -5,6 +5,6 @@
 from collections.abc import Callable
 from typing import Any
 
-from genkit.core.schemas import GenerateRequest
+from genkit.core.schema_types import GenerateRequest
 
 PromptFn = Callable[[Any | None], GenerateRequest]
