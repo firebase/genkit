@@ -26,7 +26,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, MessageSchema, genkit, z } from 'genkit';
+import { GenerateResponseData, MessageSchema, genkit, z } from 'genkit/beta';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
@@ -52,7 +52,10 @@ enableGoogleCloudTelemetry({
 });
 
 const ai = genkit({
-  plugins: [googleAI(), vertexAI()],
+  plugins: [
+    googleAI({ debugTraces: false }),
+    vertexAI({ location: 'us-central1', debugTraces: false }),
+  ],
 });
 
 const math: PluginProvider = {
@@ -427,8 +430,8 @@ const exitTool = ai.defineTool(
     }),
     description: 'call this tool when you have the final answer',
   },
-  async (input) => {
-    throw new Error(`Answer: ${input.answer}`);
+  async (input, { interrupt }) => {
+    interrupt();
   }
 );
 
@@ -436,7 +439,6 @@ export const forcedToolCaller = ai.defineFlow(
   {
     name: 'forcedToolCaller',
     inputSchema: z.number(),
-    outputSchema: z.string(),
     streamSchema: z.any(),
   },
   async (input, { sendChunk }) => {
@@ -454,7 +456,7 @@ export const forcedToolCaller = ai.defineFlow(
       sendChunk(chunk);
     }
 
-    return (await response).text;
+    return await response;
   }
 );
 

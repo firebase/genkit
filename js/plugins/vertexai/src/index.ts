@@ -87,10 +87,16 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       imagenModel(ai, name, authClient, { projectId, location })
     );
     Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-      defineGeminiKnownModel(ai, name, vertexClientFactory, {
-        projectId,
-        location,
-      })
+      defineGeminiKnownModel(
+        ai,
+        name,
+        vertexClientFactory,
+        {
+          projectId,
+          location,
+        },
+        options?.debugTraces
+      )
     );
     if (options?.models) {
       for (const modelOrRef of options?.models) {
@@ -101,17 +107,18 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
               modelOrRef.name.split('/')[1];
         const modelRef =
           typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-        defineGeminiModel(
+        defineGeminiModel({
           ai,
-          modelRef.name,
-          modelName,
-          modelRef.info,
+          modelName: modelRef.name,
+          version: modelName,
+          modelInfo: modelRef.info,
           vertexClientFactory,
-          {
+          options: {
             projectId,
             location,
-          }
-        );
+          },
+          debugTraces: options.debugTraces,
+        });
       }
     }
 
