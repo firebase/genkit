@@ -24,7 +24,8 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-# Format all Python code.
+# Format all Python code while organizing imports.
+uv run --directory "${TOP_DIR}/py" ruff check --select I --fix .
 uv run --directory "${TOP_DIR}/py" ruff format .
 if [[ $? -ne 0 ]]; then
   exit 1

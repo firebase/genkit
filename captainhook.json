@@ -40,7 +40,7 @@
           "run": "bin/fmt"
         },
         {
-          "run": "uv run --directory py ruff check --fix ."
+          "run": "uv run --directory py ruff check --select I --fix ."
         },
         {
           "run": "py/bin/run_python_tests"
@@ -80,7 +80,7 @@
           "run": "bin/fmt"
         },
         {
-          "run": "uv run --directory py ruff check --fix ."
+          "run": "uv run --directory py ruff check --select I --fix ."
         },
         {
           "run": "py/bin/run_python_tests"
