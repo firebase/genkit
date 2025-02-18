@@ -252,7 +252,7 @@ given prompt
 *   Maliciousness -- Measures whether the generated output intends to deceive,
 harm, or exploit
 
-For more details on how each specific metric is computed, please refer to the 
+For more details on how each metric is computed, please refer to the 
 [RAGAS metrics documentation](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/){: .external}.
 
 ### Evaluator plugins
