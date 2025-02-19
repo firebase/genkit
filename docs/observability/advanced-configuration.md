@@ -1,7 +1,6 @@
 # Advanced Configuration
 
-This guide focuses on advanced configuration options for deployed features using Firebase Genkit 
-Monitoring. Detailed descriptions of each configuration option can be found in our 
+This guide focuses on advanced configuration options for deployed features using the Firebase telemetry plugin. Detailed descriptions of each configuration option can be found in our 
 [JS API reference documentation](https://js.api.genkit.dev/interfaces/_genkit-ai_google-cloud.GcpTelemetryConfigOptions.html).
 
 This documentation will describe how to fine-tune which telemetry is collected, how often, and from what environments.
@@ -10,24 +9,24 @@ This documentation will describe how to fine-tune which telemetry is collected, 
 
 Firebase Genkit Monitoring provides default options, out of the box, to get you up and running quickly.
 
-  * [autoInstrumentation](https://opentelemetry.io/docs/zero-code/js/): `true`
-  * [autoInstrumentationConfig](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#supported-instrumentations):
-    
-    ```
-    {
-      '@opentelemetry/instrumentation-dns': { enabled: false },
-    },
-    ```
+* [autoInstrumentation](https://opentelemetry.io/docs/zero-code/js/): `true`
+* [autoInstrumentationConfig](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/metapackages/auto-instrumentations-node/README.md#supported-instrumentations):
 
-  * credentials: pulled from chosen [authentication strategy](./authentication.md)
-  * disableMetrics: `false`
-  * disableTraces: `false`
-  * disableLoggingInputAndOutput: `false`
-  * forceDevExport: `false`
-  * metricExportIntervalMillis: 5 minutes
-  * metricExportTimeoutMillis: 5 minutes
-  * projectId: pulled from [authentication strategy](./authentication.md)
-  * sampler: [AlwaysOnSampler](https://js.api.genkit.dev/interfaces/_genkit-ai_google-cloud.GcpTelemetryConfigOptions.html#sampler)
+```typescript
+{
+  '@opentelemetry/instrumentation-dns': { enabled: false },
+},
+```
+
+* credentials: pulled from chosen [authentication strategy](./authentication.md)
+* disableMetrics: `false`
+* disableTraces: `false`
+* disableLoggingInputAndOutput: `false`
+* forceDevExport: `false`
+* metricExportIntervalMillis: 5 minutes
+* metricExportTimeoutMillis: 5 minutes
+* projectId: pulled from [authentication strategy](./authentication.md)
+* sampler: [AlwaysOnSampler](https://js.api.genkit.dev/interfaces/_genkit-ai_google-cloud.GcpTelemetryConfigOptions.html#sampler)
 
 ## Export local telemetry
 

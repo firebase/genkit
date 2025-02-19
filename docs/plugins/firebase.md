@@ -275,7 +275,7 @@ section of the Firestore docs.
 
   The command looks like the following:
 
-  ```
+  ```posix-terminal
   gcloud alpha firestore indexes composite create --project=your-project-id \
     --collection-group=yourCollectionName --query-scope=COLLECTION \
     --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
@@ -283,7 +283,6 @@ section of the Firestore docs.
 
   However, the correct indexing configuration depends on the queries you
   make and the embedding model you're using.
-
 
 - Alternatively, call `ai.retrieve()` and Firestore will throw an error with
   the correct command to create the index.
@@ -327,6 +326,6 @@ export const example = onCallGenkit({ secrets: [apiKey] }, exampleFlow);
 
 Deploy your flow using the Firebase CLI:
 
-```
+```posix-terminal
 firebase deploy --only functions
 ```
