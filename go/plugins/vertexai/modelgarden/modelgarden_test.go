@@ -158,6 +158,47 @@ func TestModelGarden(t *testing.T) {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
 	})
+
+	t.Run("tools streaming", func(t *testing.T) {
+		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		out := ""
+		parts := 0
+
+		myStoryTool := genkit.DefineTool(
+			g,
+			"myStory",
+			"When the user asks for a story, create a story about a frog and a fox that are good friends",
+			func(ctx *ai.ToolContext, input *any) (string, error) {
+				return "the fox is named Goph and the frog is called Fred", nil
+			},
+		)
+
+		final, err := genkit.Generate(ctx, g,
+			ai.WithTextPrompt("Tell me a short story about a frog and a princess"),
+			ai.WithModel(m),
+			ai.WithTools(myStoryTool),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				parts++
+				out += c.Content[0].Text
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out2 := ""
+		for _, p := range final.Message.Content {
+			out2 += p.Text
+		}
+
+		if out != out2 {
+			t.Fatalf("streaming and final should contain the same text.\nstreaming: %s\nfinal:%s\n", out, out2)
+		}
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 {
+			t.Fatalf("empty usage stats: %#v", *final.Usage)
+		}
+	})
 }
 
 // Bluey rocks
