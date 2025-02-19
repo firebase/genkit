@@ -676,7 +676,6 @@ describe('definePrompt', () => {
       const response = await hi.render({ name: 'Genkit' });
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
-        config: {},
         messages: [{ content: [{ text: 'hi Genkit' }], role: 'user' }],
       });
     });
@@ -978,7 +977,6 @@ describe('definePrompt', () => {
       const response = await hi.render({ name: 'Genkit' });
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
-        config: {},
         messages: [
           {
             content: [
@@ -1369,8 +1367,8 @@ describe('asTool', () => {
 
     assert.deepStrictEqual(text, 'hi from agent b');
     assert.deepStrictEqual(pm.lastRequest, {
+      // Original config, toolPrompt has no config.
       config: {
-        // TODO: figure out if config should be swapped out as well...
         temperature: 2,
       },
       messages: [
