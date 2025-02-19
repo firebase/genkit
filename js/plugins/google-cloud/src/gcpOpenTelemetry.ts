@@ -155,12 +155,17 @@ export class GcpOpenTelemetry {
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
+    let instrumentations: Instrumentation[] = [];
+
     if (this.config.autoInstrumentation) {
-      return getNodeAutoInstrumentations(
+      instrumentations = getNodeAutoInstrumentations(
         this.config.autoInstrumentationConfig
-      ).concat(this.getDefaultLoggingInstrumentations());
+      );
     }
-    return this.getDefaultLoggingInstrumentations();
+
+    return instrumentations
+      .concat(this.getDefaultLoggingInstrumentations())
+      .concat(this.config.instrumentations ?? []);
   }
 
   private shouldExportTraces(): boolean {
