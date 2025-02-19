@@ -185,20 +185,21 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 
 	// configure system prompt (if given)
 	sysBlocks := []anthropic.TextBlockParam{}
-	// userBlocks := []anthropic.ContentBlockParamUnion{}
-	toolBlocks := []anthropic.ContentBlockParamUnion{}
 	for _, message := range i.Messages {
 		if message.Role == ai.RoleSystem {
 			// only text is supported for system messages
 			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(message.Text()))
 		} else if message.Content[len(message.Content)-1].IsToolResponse() {
+			// if the last message is a ToolResponse, the conversation must continue
+			// and the ToolResponse message must be sent as a user
+			// see: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#handling-tool-use-and-tool-result-content-blocks
 			parts, err := convertParts(message.Content)
 			if err != nil {
 				return req, err
 			}
-			toolBlocks = append(toolBlocks, parts...)
-			messages = append(messages, anthropic.NewUserMessage(toolBlocks...))
+			messages = append(messages, anthropic.NewUserMessage(parts...))
 		} else {
+			// handle the rest of the messages
 			parts, err := convertParts(message.Content)
 			if err != nil {
 				return req, err
@@ -311,7 +312,6 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 		switch part.Type {
 		case anthropic.ContentBlockTypeText:
 			p = ai.NewTextPart(string(part.Text))
-			fmt.Printf("part: %#v\n\n", p.Text)
 		case anthropic.ContentBlockTypeToolUse:
 			p = ai.NewToolRequestPart(&ai.ToolRequest{
 				Ref:   part.ID,
@@ -325,7 +325,6 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 	}
 
 	r.Message = msg
-	fmt.Printf("r.Message: %#v\n\n", r.Message)
 	r.Usage = &ai.GenerationUsage{
 		InputTokens:  int(m.Usage.InputTokens),
 		OutputTokens: int(m.Usage.OutputTokens),
