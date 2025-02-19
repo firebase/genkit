@@ -53,8 +53,8 @@ enableGoogleCloudTelemetry({
 
 const ai = genkit({
   plugins: [
-    googleAI({ debugTraces: false }),
-    vertexAI({ location: 'us-central1', debugTraces: false }),
+    googleAI({ experimental_debugTraces: true }),
+    vertexAI({ location: 'us-central1', experimental_debugTraces: true }),
   ],
 });
 

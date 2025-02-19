@@ -758,7 +758,7 @@ export function defineGeminiModel({
       configSchema: GeminiConfigSchema,
       use: middlewares,
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       const vertex = vertexClientFactory(request);
 
       // Make a copy of messages to avoid side-effects
@@ -898,7 +898,7 @@ export function defineGeminiModel({
 
       const callGemini = async () => {
         // Handle streaming and non-streaming responses
-        if (streamingCallback) {
+        if (sendChunk) {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessageStream(msg.parts);
@@ -907,7 +907,7 @@ export function defineGeminiModel({
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
                 const c = fromGeminiCandidate(candidate, jsonMode);
-                streamingCallback({
+                sendChunk({
                   index: c.index,
                   content: c.message.content,
                 });
@@ -956,9 +956,16 @@ export function defineGeminiModel({
       return debugTraces
         ? await runInNewSpan(
             ai.registry,
-            { metadata: { name: version } },
+            {
+              metadata: {
+                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
             async (metadata) => {
               metadata.input = {
+                sdk: '@google-cloud/vertexai',
+                cache: cache,
+                model: genModel.getModelName(),
                 chatOptions: updatedChatRequest,
                 parts: msg.parts,
                 options,

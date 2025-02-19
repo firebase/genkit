@@ -59,7 +59,7 @@ export interface PluginOptions {
     | ModelReference</** @ignore */ typeof GeminiConfigSchema>
     | string
   )[];
-  debugTraces?: boolean;
+  experimental_debugTraces?: boolean;
 }
 
 /**
@@ -85,7 +85,7 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
           apiKey: options?.apiKey,
           apiVersion: 'v1beta',
           baseUrl: options?.baseUrl,
-          debugTraces: options?.debugTraces,
+          debugTraces: options?.experimental_debugTraces,
         })
       );
     }
@@ -97,7 +97,7 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
           apiKey: options?.apiKey,
           apiVersion: undefined,
           baseUrl: options?.baseUrl,
-          debugTraces: options?.debugTraces,
+          debugTraces: options?.experimental_debugTraces,
         })
       );
       Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
@@ -107,7 +107,7 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
           apiKey: options?.apiKey,
           apiVersion: undefined,
           baseUrl: options?.baseUrl,
-          debugTraces: options?.debugTraces,
+          debugTraces: options?.experimental_debugTraces,
         })
       );
       Object.keys(EMBEDDER_MODELS).forEach((name) =>
@@ -133,7 +133,7 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
             ...modelRef.info,
             label: `Google AI - ${modelName}`,
           },
-          debugTraces: options?.debugTraces,
+          debugTraces: options?.experimental_debugTraces,
         });
       }
     }

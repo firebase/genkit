@@ -95,7 +95,7 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
           projectId,
           location,
         },
-        options?.debugTraces
+        options?.experimental_debugTraces
       )
     );
     if (options?.models) {
@@ -117,7 +117,7 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
             projectId,
             location,
           },
-          debugTraces: options.debugTraces,
+          debugTraces: options.experimental_debugTraces,
         });
       }
     }

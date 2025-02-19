@@ -866,9 +866,16 @@ export function defineGoogleAIModel({
       return debugTraces
         ? await runInNewSpan(
             ai.registry,
-            { metadata: { name } },
+            {
+              metadata: {
+                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
             async (metadata) => {
               metadata.input = {
+                sdk: '@google/generative-ai',
+                cache: cache,
+                model: genModel.model,
                 chatOptions: updatedChatRequest,
                 parts: msg.parts,
                 options,
