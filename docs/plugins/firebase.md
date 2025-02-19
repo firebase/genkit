@@ -84,7 +84,7 @@ Application Default Credentials. To specify your credentials:
 
 ### Telemetry
 
-The Firebase plugin provides a telemetry implementation for sending metrics, traces, and logs to Firebase Genkit Monitoring and Cloud Observability.
+The Firebase plugin provides a telemetry implementation for sending metrics, traces, and logs to Firebase Genkit Monitoring.
 
 To get started, visit the [Getting started guide](../observability/getting-started.md) for installation and configuration instructions.
 

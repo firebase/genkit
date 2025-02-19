@@ -103,8 +103,6 @@ toc:
     path: /docs/genkit/templates/pgvector
   - title: Firebase
     path: /docs/genkit/plugins/firebase
-  - title: Google Cloud
-    path: /docs/genkit/plugins/google-cloud
 
   - break: true
   - title: Using Genkit with Next.js

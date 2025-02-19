@@ -1,8 +1,6 @@
 # Telemetry Collection
 
-Firebase Genkit Monitoring leverages Google Cloud metrics, traces, and logs to capture telemetry. This 
-document details which metrics, trace attributes, and logs will be collected and what you can expect for 
-latency, quotas, and cost.
+The Firebase telemetry plugin exports a combination of metrics, traces, and logs to Google Cloud Observability. This document details which metrics, trace attributes, and logs will be collected and what you can expect in terms of latency, quotas, and cost.
 
 ## Telemetry delay
 

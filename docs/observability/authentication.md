@@ -1,6 +1,6 @@
 # Authentication and authorization
 
-Firebase Genkit Monitoring requires a Google Cloud project ID and application credentials. 
+The Firebase telemetry plugin requires a Google Cloud project ID and application credentials. 
 
 If you don't have a Google Cloud project and account, you can set one up in the [Firebase Console](https://console.firebase.google.com/) or in the [Google Cloud Console](https://cloud.google.com). All Firebase project IDs are Google Cloud project IDs.
 
