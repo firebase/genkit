@@ -134,6 +134,34 @@ func generate(
 		r.Request = input
 
 		return r, nil
+	} else {
+		stream := client.Messages.NewStreaming(ctx, req)
+		message := anthropic.Message{}
+		for stream.Next() {
+			event := stream.Current()
+			err := message.Accumulate(event)
+			if err != nil {
+				panic(err)
+			}
+
+			switch event := event.AsUnion().(type) {
+			case anthropic.ContentBlockDeltaEvent:
+				cb(ctx, &ai.ModelResponseChunk{
+					Content: []*ai.Part{
+						{
+							Text: event.Delta.Text,
+						},
+					},
+				})
+			case anthropic.MessageStopEvent:
+				r := toGenkitResponse(&message)
+				r.Request = input
+				return r, nil
+			}
+		}
+		if stream.Err() != nil {
+			panic(stream.Err())
+		}
 	}
 
 	return nil, nil

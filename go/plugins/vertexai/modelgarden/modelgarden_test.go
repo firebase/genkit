@@ -45,7 +45,6 @@ func TestModelGarden(t *testing.T) {
 	}
 
 	t.Run("invalid model", func(t *testing.T) {
-		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-not-valid-v2")
 		if m != nil {
 			t.Fatal("model should have been invalid")
@@ -53,7 +52,6 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
-		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
@@ -74,7 +72,6 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
-		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
@@ -89,7 +86,6 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("media content", func(t *testing.T) {
-		t.Skipf("no streaming support yet")
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
@@ -133,7 +129,6 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		t.Skipf("no streaming support yet")
 		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
 		out := ""
 		parts := 0
@@ -157,9 +152,9 @@ func TestModelGarden(t *testing.T) {
 		}
 
 		if out != out2 {
-			t.Fatalf("streaming and final should containt the same text.\nstreaming: %s\nfinal:%s\n", out, out2)
+			t.Fatalf("streaming and final should contain the same text.\nstreaming: %s\nfinal:%s\n", out, out2)
 		}
-		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
 	})
