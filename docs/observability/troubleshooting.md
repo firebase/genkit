@@ -39,7 +39,7 @@
    serviceAccountTokenCreator` IAM role applied to your user account in order
    to impersonate service accounts:
 
-    ```
+    ```posix-terminal
     gcloud auth application-default login --impersonate-service-account <SERVICE_ACCT_EMAIL>
     ```
 

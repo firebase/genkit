@@ -41,12 +41,11 @@ and on the Google Cloud Console.
    2. [Deploy flows using Cloud Run](../cloud-run)
    3. [Deploy flows to any Node.js platform](../deploy-node)
 
-
 ## Step 1. Add the Firebase plugin
 
 Install the `@genkit-ai/firebase` plugin in your project:
 
-```
+```posix-terminal
 npm i –save @genkit-ai/firebase
 ```
 
@@ -95,15 +94,16 @@ dashboard.
 2. Use your service account to authenticate and test your configuration.
 
    Tip: In order to impersonate the service account, you will need to have
-   the `roles/iam.serviceAccountTokenCreator` [IAM role](https://console.
+   the `roles/iam.serviceAccountTokenCreator` [IAM role](<https://console>.
    cloud.google.com/iam-admin/iam) applied to your user account.
 
    With the
    [Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install?authuser=0), authenticate using the service account:
 
-    ```
+    ```posix-terminal
     gcloud auth application-default login --impersonate-service-account <SERVICE_ACCT_EMAIL>
     ```
+
 3. Run and invoke your Genkit feature, and then view metrics on the
    [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring).
    Allow for up to 5 minutes to collect the first metric. You can reduce this
