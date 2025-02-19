@@ -60,7 +60,7 @@ class Genkit:
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.attach_to_veneer(veneer=self)
+                    plugin.initialize(self)
                 else:
                     raise ValueError(
                         f'Invalid {plugin=} provided to Genkit: '

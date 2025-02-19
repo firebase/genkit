@@ -37,23 +37,13 @@ class VertexAI(Plugin):
         self._gemini = Gemini(self.VERTEX_AI_GENERATIVE_MODEL_NAME)
         vertexai.init(project=project_id, location=location)
 
-    def attach_to_veneer(self, veneer: Genkit) -> None:
-        self._add_model_to_veneer(veneer=veneer)
-
-    def _add_model_to_veneer(self, veneer: Genkit, **kwargs) -> None:
-        return super()._add_model_to_veneer(
-            veneer=veneer,
+    def initialize(self, ai: Genkit) -> None:
+        ai.define_model(
             name=vertexai_name(self.VERTEX_AI_GENERATIVE_MODEL_NAME),
-            metadata=self.vertex_ai_model_metadata,
+            fn=self._gemini.handle_request,
+            metadata={
+                'model': {
+                    'supports': {'multiturn': True},
+                }
+            },
         )
-
-    @property
-    def vertex_ai_model_metadata(self) -> dict[str, dict[str, Any]]:
-        return {
-            'model': {
-                'supports': {'multiturn': True},
-            }
-        }
-
-    def _model_callback(self, request: GenerateRequest) -> GenerateResponse:
-        return self._gemini.handle_request(request=request)
