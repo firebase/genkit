@@ -7,6 +7,7 @@
 import json
 from http.server import BaseHTTPRequestHandler
 
+from genkit.core.headers import HttpHeader
 from genkit.core.registry import Registry
 from pydantic import BaseModel
 
@@ -58,8 +59,7 @@ def make_reflection_server(registry: Registry):
                 content_len = int(self.headers.get('Content-Length') or 0)
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=self.ENCODING))
-                print(payload)
-                action = registry.lookup_by_absolute_name(payload['key'])
+                action = registry.lookup_action_by_key(payload['key'])
                 if '/flow/' in payload['key']:
                     input_action = action.input_type.validate_python(
                         payload['input']['start']['input']
@@ -72,8 +72,8 @@ def make_reflection_server(registry: Registry):
                 output = action.fn(input_action)
 
                 self.send_response(200)
-                self.send_header('x-genkit-version', '0.9.1')
-                self.send_header('Content-type', 'application/json')
+                self.send_header(HttpHeader.X_GENKIT_VERSION, '0.9.1')
+                self.send_header(HttpHeader.CONTENT_TYPE, 'application/json')
                 self.end_headers()
 
                 if isinstance(output.response, BaseModel):

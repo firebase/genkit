@@ -29,6 +29,7 @@ import {
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
+  Schema,
   SchemaType,
   StartChatParams,
   Tool,
@@ -61,6 +62,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
+import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
@@ -330,31 +332,64 @@ function toGeminiRole(
 
 function convertSchemaProperty(property) {
   if (!property || !property.type) {
-    return null;
+    return undefined;
   }
-  if (property.type === 'object') {
+  const baseSchema = {} as Schema;
+  if (property.description) {
+    baseSchema.description = property.description;
+  }
+  if (property.enum) {
+    baseSchema.enum = property.enum;
+  }
+  if (property.nullable) {
+    baseSchema.nullable = property.nullable;
+  }
+  let propertyType;
+  // nullable schema can ALSO be defined as, for example, type=['string','null']
+  if (Array.isArray(property.type)) {
+    const types = property.type as string[];
+    if (types.includes('null')) {
+      baseSchema.nullable = true;
+    }
+    // grab the type that's not `null`
+    propertyType = types.find((t) => t !== 'null');
+  } else {
+    propertyType = property.type;
+  }
+  if (propertyType === 'object') {
     const nestedProperties = {};
     Object.keys(property.properties).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
+      ...baseSchema,
       type: SchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
-  } else if (property.type === 'array') {
+  } else if (propertyType === 'array') {
     return {
+      ...baseSchema,
       type: SchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
+    const schemaType = SchemaType[propertyType.toUpperCase()] as SchemaType;
+    if (!schemaType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Unsupported property type ${propertyType.toUpperCase()}`,
+      });
+    }
     return {
-      type: SchemaType[property.type.toUpperCase()],
+      ...baseSchema,
+      type: schemaType,
     };
   }
 }
 
-function toGeminiTool(
+/** @hidden */
+export function toGeminiTool(
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration {
   const declaration: FunctionDeclaration = {
@@ -599,15 +634,25 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 /**
  * Defines a new GoogleAI model.
  */
-export function defineGoogleAIModel(
-  ai: Genkit,
-  name: string,
-  apiKey?: string,
-  apiVersion?: string,
-  baseUrl?: string,
-  info?: ModelInfo,
-  defaultConfig?: GeminiConfig
-): ModelAction {
+export function defineGoogleAIModel({
+  ai,
+  name,
+  apiKey,
+  apiVersion,
+  baseUrl,
+  info,
+  defaultConfig,
+  debugTraces,
+}: {
+  ai: Genkit;
+  name: string;
+  apiKey?: string;
+  apiVersion?: string;
+  baseUrl?: string;
+  info?: ModelInfo;
+  defaultConfig?: GeminiConfig;
+  debugTraces?: boolean;
+}): ModelAction {
   if (!apiKey) {
     apiKey = getApiKeyFromEnvVar();
   }
@@ -798,54 +843,83 @@ export function defineGoogleAIModel(
         );
       }
 
-      if (sendChunk) {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessageStream(msg.parts, options);
-        for await (const item of result.stream) {
-          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
-            const c = fromJSONModeScopedGeminiCandidate(candidate);
-            sendChunk({
-              index: c.index,
-              content: c.message.content,
+      const callGemini = async () => {
+        if (sendChunk) {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessageStream(msg.parts, options);
+          for await (const item of result.stream) {
+            (item as GenerateContentResponse).candidates?.forEach(
+              (candidate) => {
+                const c = fromJSONModeScopedGeminiCandidate(candidate);
+                sendChunk({
+                  index: c.index,
+                  content: c.message.content,
+                });
+              }
+            );
+          }
+          const response = await result.response;
+          const candidates = response.candidates || [];
+          if (response.candidates?.['undefined']) {
+            candidates.push(response.candidates['undefined']);
+          }
+          if (!candidates.length) {
+            throw new GenkitError({
+              status: 'FAILED_PRECONDITION',
+              message: 'No valid candidates returned.',
             });
-          });
+          }
+          return {
+            candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
+            custom: response,
+          };
+        } else {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessage(msg.parts, options);
+          if (!result.response.candidates?.length)
+            throw new Error('No valid candidates returned.');
+          const responseCandidates =
+            result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
+            [];
+          return {
+            candidates: responseCandidates,
+            custom: result.response,
+            usage: {
+              ...getBasicUsageStats(request.messages, responseCandidates),
+              inputTokens: result.response.usageMetadata?.promptTokenCount,
+              outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+              totalTokens: result.response.usageMetadata?.totalTokenCount,
+            },
+          };
         }
-        const response = await result.response;
-        const candidates = response.candidates || [];
-        if (response.candidates?.['undefined']) {
-          candidates.push(response.candidates['undefined']);
-        }
-        if (!candidates.length) {
-          throw new GenkitError({
-            status: 'FAILED_PRECONDITION',
-            message: 'No valid candidates returned.',
-          });
-        }
-        return {
-          candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
-          custom: response,
-        };
-      } else {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessage(msg.parts, options);
-        if (!result.response.candidates?.length)
-          throw new Error('No valid candidates returned.');
-        const responseCandidates =
-          result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
-          [];
-        return {
-          candidates: responseCandidates,
-          custom: result.response,
-          usage: {
-            ...getBasicUsageStats(request.messages, responseCandidates),
-            inputTokens: result.response.usageMetadata?.promptTokenCount,
-            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-            totalTokens: result.response.usageMetadata?.totalTokenCount,
-          },
-        };
-      }
+      };
+      // If debugTraces is enable, we wrap the actual model call with a span, add raw
+      // API params as for input.
+      return debugTraces
+        ? await runInNewSpan(
+            ai.registry,
+            {
+              metadata: {
+                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
+            async (metadata) => {
+              metadata.input = {
+                sdk: '@google/generative-ai',
+                cache: cache,
+                model: genModel.model,
+                chatOptions: updatedChatRequest,
+                parts: msg.parts,
+                options,
+              };
+              const response = await callGemini();
+              metadata.output = response.custom;
+              return response;
+            }
+          )
+        : await callGemini();
     }
   );
 }
