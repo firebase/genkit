@@ -55,10 +55,10 @@ export class GcpLogger {
     transports.push(
       this.shouldExport(env)
         ? new LoggingWinston({
-            projectId: this.config.projectId,
             labels: { module: 'genkit' },
             prefix: 'genkit',
             logName: 'genkit_log',
+            projectId: this.config.projectId,
             credentials: this.config.credentials,
             autoRetry: true,
             defaultCallback: await this.getErrorHandler(),
