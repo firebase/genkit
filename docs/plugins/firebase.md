@@ -84,31 +84,15 @@ Application Default Credentials. To specify your credentials:
 
 ### Telemetry
 
-Firebase Genkit Monitoring is powered by Google's Cloud operation suite. This
-requires telemetry related API's to be enabled for your project. Please refer
-to the [Google Cloud plugin](google-cloud.md#set-up-a-google-cloud-account)
-documentation for more details.
+The Firebase plugin provides a telemetry implementation for sending metrics, traces, and logs to Firebase Genkit Monitoring.
 
-Grant the following roles to the **"Default compute service account"** within
-the [Google Cloud IAM Console](https://console.cloud.google.com/iam-admin/iam):
+To get started, visit the [Getting started guide](../observability/getting-started.md) for installation and configuration instructions.
 
-- **Monitoring Metric Writer** (roles/monitoring.metricWriter)
-- **Cloud Trace Agent** (roles/cloudtrace.agent)
-- **Logs Writer** (roles/logging.logWriter)
+See the [Authentication and authorization guide](../observability/authentication.md) to authenticate with Google Cloud.
 
-To enable telemetry export call `enableFirebaseTelemetry()`:
+See the [Advanced configuration guide](../observability/advanced-configuration.md) for configuration options.
 
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-
-enableFirebaseTelemetry({
-  forceDevExport: false, // Set this to true to export telemetry for local runs
-});
-```
-
-This plugin shares [configuration options](google-cloud.md#plugin-configuration) with the [Google Cloud plugin](google-cloud.md).
+See the [Telemetry collection](../observability/telemetry-collection.md) for details on which Genkit metrics, traces, and logs collected.
 
 ### Cloud Firestore vector search
 
