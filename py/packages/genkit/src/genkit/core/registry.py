@@ -35,6 +35,7 @@ class Registry:
         """
         if kind in self.actions and name in self.actions[kind]:
             return self.actions[kind][name]
+        return None
 
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Lookup an action by its key.
@@ -60,5 +61,11 @@ class Registry:
                 'Expected format: `<kind>/<name>`'
             )
             raise ValueError(msg)
-        kind, name = tokens
+        kind_str, name = tokens
+
+        try:
+            kind = ActionKind[kind_str]
+        except KeyError as err:
+            raise ValueError(f'Invalid action kind: `{kind_str}`') from err
+
         return self.lookup_action(kind, name)

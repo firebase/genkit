@@ -3,9 +3,8 @@
 
 import inspect
 import json
-from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -62,7 +61,7 @@ class Action:
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable,
+        fn: Callable[..., Any],
         description: str | None = None,
         metadata: dict[ActionMetadataKey, Any] | None = None,
         span_metadata: dict[str, str] | None = None,
@@ -81,7 +80,7 @@ class Action:
         self.kind: ActionKind = kind
         self.name = name
 
-        def tracing_wrapper(*args, **kwargs):
+        def tracing_wrapper(*args: Any, **kwargs: Any) -> ActionResponse:
             """Wraps the callable function in a tracing span and adds metadata
             to it."""
 
@@ -111,7 +110,7 @@ class Action:
                 else:
                     span.set_attribute('genkit:output', json.dumps(output))
 
-                return ActionResponse(response=output, trace_id=trace_id)
+                return ActionResponse(response=output, traceId=trace_id)
 
         self.fn = tracing_wrapper
         self.description = description

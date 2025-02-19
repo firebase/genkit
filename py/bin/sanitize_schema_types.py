@@ -87,7 +87,7 @@ class ModelConfigRemover(ast.NodeTransformer):
         type."""
         if self.is_rootmodel_class(node):
             # Filter out model_config assignments for RootModel classes
-            new_body = []
+            new_body: list[ast.stmt] = []
             for item in node.body:
                 if isinstance(item, ast.Assign):
                     targets = item.targets

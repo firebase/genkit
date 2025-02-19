@@ -6,11 +6,11 @@
 from __future__ import annotations
 
 import abc
-import typing
+from typing import TYPE_CHECKING, Any
 
 from genkit.core.schema_types import GenerateRequest, GenerateResponse
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from genkit.veneer import Genkit
 
 
@@ -38,7 +38,7 @@ class Plugin(abc.ABC):
         pass
 
     def _add_model_to_veneer(
-        self, veneer: Genkit, name: str, metadata: dict | None = None
+        self, veneer: Genkit, name: str, metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Defines plugin's model in the Genkit Registry

@@ -9,7 +9,10 @@ from genkit.core.action import ActionKind
 def test_action_enum_behaves_like_str() -> None:
     """Ensure the ActionType behaves like a string and to ensure we're using the
     correct variants."""
-    assert ActionKind.CHATLLM == 'chat-llm'
+    assert isinstance(ActionKind.CHATLLM, str)
+    """Mypy treats enums as distinct types even when they inherit str.
+    Suppressed strict equality check for enums."""
+    assert ActionKind.CHATLLM == 'chat-llm' # type: ignore[comparison-overlap]
     assert ActionKind.CUSTOM == 'custom'
     assert ActionKind.EMBEDDER == 'embedder'
     assert ActionKind.EVALUATOR == 'evaluator'
