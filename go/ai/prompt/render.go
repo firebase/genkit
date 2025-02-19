@@ -46,8 +46,6 @@ func RenderSystemPrompt(ctx context.Context, config *Config, messages []*ai.Mess
 		})
 	}
 
-	// fmt.Print(base.PrettyJSONString(messages))
-
 	return messages, nil
 }
 
@@ -70,10 +68,12 @@ func RenderUserPrompt(ctx context.Context, config *Config, messages []*ai.Messag
 		return nil, err
 	}
 
-	messages = append(messages, &ai.Message{
-		Role:    ai.RoleUser,
-		Content: []*ai.Part{ai.NewTextPart(rendered)},
-	})
+	if rendered != "" {
+		messages = append(messages, &ai.Message{
+			Role:    ai.RoleUser,
+			Content: []*ai.Part{ai.NewTextPart(rendered)},
+		})
+	}
 
 	return messages, nil
 }
