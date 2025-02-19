@@ -1,7 +1,7 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package modelgarden
+package anthropic
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/client"
 	"github.com/invopop/jsonschema"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -21,6 +22,7 @@ import (
 )
 
 const (
+	ProviderName      = "anthropic"
 	MaxNumberOfTokens = 8192
 	ToolNameRegex     = `^[a-zA-Z0-9_-]{1,64}$`
 )
@@ -57,8 +59,8 @@ var AnthropicModels = map[string]ai.ModelInfo{
 // AnthropicClientConfig is the required configuration to create an Anthropic
 // client
 type AnthropicClientConfig struct {
-	Location string
-	Project  string
+	client.ClientConfig
+	// expand configuration as required
 }
 
 // AnthropicClient is a mirror struct of Anthropic's client but implements
@@ -68,8 +70,8 @@ type AnthropicClient struct {
 }
 
 // Anthropic defines how an Anthropic client is created
-var Anthropic = func(config any) (Client, error) {
-	cfg, ok := config.(*AnthropicClientConfig)
+var Anthropic = func(config any) (client.Client, error) {
+	cfg, ok := config.(*client.ClientConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config for Anthropic %T", config)
 	}
@@ -87,7 +89,7 @@ func (a *AnthropicClient) DefineModel(g *genkit.Genkit, name string, info *ai.Mo
 		var ok bool
 		mi, ok = AnthropicModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", AnthropicProvider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", ProviderName, name)
 		}
 	} else {
 		mi = *info
@@ -97,11 +99,11 @@ func (a *AnthropicClient) DefineModel(g *genkit.Genkit, name string, info *ai.Mo
 
 func defineModel(g *genkit.Genkit, client *AnthropicClient, name string, info ai.ModelInfo) ai.Model {
 	meta := &ai.ModelInfo{
-		Label:    AnthropicProvider + "-" + name,
+		Label:    ProviderName + "-" + name,
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, AnthropicProvider, name, meta, func(
+	return genkit.DefineModel(g, ProviderName, name, meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

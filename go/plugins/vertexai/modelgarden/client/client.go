@@ -1,7 +1,7 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package modelgarden
+package client
 
 import (
 	"errors"
@@ -69,16 +69,7 @@ func (f *ClientFactory) CreateClient(config *ClientConfig) (Client, error) {
 		return nil, fmt.Errorf("unknown client type: %s", key)
 	}
 
-	var client Client
-	var err error
-	switch config.Provider {
-	// TODO: add providers when needed
-	case AnthropicProvider:
-		client, err = creator(&AnthropicClientConfig{
-			Location: config.Location,
-			Project:  config.Project,
-		})
-	}
+	client, err := creator(config)
 	if err != nil {
 		return nil, err
 	}

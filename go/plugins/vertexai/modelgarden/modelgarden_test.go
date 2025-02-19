@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/anthropic"
 )
 
 var (
@@ -45,14 +45,14 @@ func TestModelGarden(t *testing.T) {
 	}
 
 	t.Run("invalid model", func(t *testing.T) {
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-not-valid-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-not-valid-v2")
 		if m != nil {
 			t.Fatal("model should have been invalid")
 		}
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -72,7 +72,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -90,7 +90,7 @@ func TestModelGarden(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithSystemPrompt("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to tell the name of the character in the image but be very short"),
 			ai.WithModel(m),
@@ -108,7 +108,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("tools", func(t *testing.T) {
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
 		myJokeTool := genkit.DefineTool(
 			g,
 			"myJoke",
@@ -125,11 +125,13 @@ func TestModelGarden(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Printf("resp: %s\n\n", resp.Text())
+		if len(resp.Text()) == 0 {
+			t.Fatal("expected a response but nothing was returned")
+		}
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
 		out := ""
 		parts := 0
 
@@ -160,7 +162,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("tools streaming", func(t *testing.T) {
-		m := modelgarden.Model(g, modelgarden.AnthropicProvider, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
 		out := ""
 		parts := 0
 

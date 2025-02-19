@@ -11,11 +11,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-)
-
-const (
-	AnthropicProvider = "anthropic"
-	MistralProvider   = "mistral"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/anthropic"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/client"
 )
 
 // Config for Model Garden
@@ -27,7 +24,7 @@ type Config struct {
 
 var state struct {
 	initted   bool
-	clients   *ClientFactory // cache for all clients for available providers
+	clients   *client.ClientFactory // cache for all clients for available providers
 	projectID string
 	location  string
 	mu        sync.Mutex
@@ -63,15 +60,15 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 		state.location = "us-central1"
 	}
 
-	state.clients = NewClientFactory()
+	state.clients = client.NewClientFactory()
 	state.initted = true
 	for _, m := range cfg.Models {
 		// ANTHROPIC
-		if info, ok := AnthropicModels[m]; ok {
-			state.clients.Register(AnthropicProvider, Anthropic)
+		if info, ok := anthropic.AnthropicModels[m]; ok {
+			state.clients.Register(anthropic.ProviderName, anthropic.Anthropic)
 
-			anthropicClient, err := state.clients.CreateClient(&ClientConfig{
-				Provider: AnthropicProvider,
+			anthropicClient, err := state.clients.CreateClient(&client.ClientConfig{
+				Provider: anthropic.ProviderName,
 				Project:  state.projectID,
 				Location: state.location,
 			})
