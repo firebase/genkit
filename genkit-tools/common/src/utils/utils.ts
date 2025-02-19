@@ -236,7 +236,7 @@ export function isValidDevToolsInfo(data: any): data is DevToolsInfo {
 }
 
 /**
- * Fetches the Genkit Dev UI URL if available
+ * Finds the URL of the currently running Genkit Dev UI instance (if available).
  */
 export async function getDevUiUrl(
   projectRoot?: string
