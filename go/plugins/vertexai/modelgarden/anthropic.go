@@ -6,6 +6,7 @@ package modelgarden
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -117,8 +118,10 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	// parse configuration
-	req := toAnthropicRequest(model, input)
+	req, err := toAnthropicRequest(model, input)
+	if err != nil {
+		panic(fmt.Sprintf("unable to generate anthropic request: %v", err))
+	}
 
 	// no streaming
 	if cb == nil {
@@ -129,15 +132,30 @@ func generate(
 
 		r := toGenkitResponse(msg)
 		r.Request = input
+
 		return r, nil
 	}
 
 	return nil, nil
 }
 
+func toAnthropicRole(role ai.Role) anthropic.MessageParamRole {
+	switch role {
+	case ai.RoleUser:
+		return anthropic.MessageParamRoleUser
+	case ai.RoleModel:
+		return anthropic.MessageParamRoleAssistant
+	case ai.RoleTool:
+		return anthropic.MessageParamRoleAssistant
+	default:
+		panic(fmt.Sprintf("unsupported role type: %v", role))
+	}
+}
+
 // toAnthropicRequest translates [ai.ModelRequest] to an Anthropic request
-func toAnthropicRequest(model string, i *ai.ModelRequest) anthropic.MessageNewParams {
+func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewParams, error) {
 	req := anthropic.MessageNewParams{}
+	messages := make([]anthropic.MessageParam, 0)
 
 	// minimum required data to perform a request
 	req.Model = anthropic.F(anthropic.Model(model))
@@ -165,44 +183,44 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) anthropic.MessageNewPa
 		}
 	}
 
-	// check user and system messages
+	// configure system prompt (if given)
 	sysBlocks := []anthropic.TextBlockParam{}
-	userBlocks := []anthropic.ContentBlockParamUnion{}
-	for _, m := range i.Messages {
-		switch m.Role {
-		case ai.RoleSystem:
-			// text blocks only supported for system messages
-			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(m.Text()))
-		case ai.RoleUser:
-			parts, err := convertParts(m.Content)
+	// userBlocks := []anthropic.ContentBlockParamUnion{}
+	toolBlocks := []anthropic.ContentBlockParamUnion{}
+	for _, message := range i.Messages {
+		if message.Role == ai.RoleSystem {
+			// only text is supported for system messages
+			sysBlocks = append(sysBlocks, anthropic.NewTextBlock(message.Text()))
+		} else if message.Content[len(message.Content)-1].IsToolResponse() {
+			parts, err := convertParts(message.Content)
 			if err != nil {
-				return req
+				return req, err
 			}
-			userBlocks = append(userBlocks, parts...)
-		case ai.RoleTool:
-			fmt.Printf("toAnthropicRequest: ai.RoleTool message found: %s\n", m.Text())
+			toolBlocks = append(toolBlocks, parts...)
+			messages = append(messages, anthropic.NewUserMessage(toolBlocks...))
+		} else {
+			parts, err := convertParts(message.Content)
+			if err != nil {
+				return req, err
+			}
+			messages = append(messages, anthropic.MessageParam{
+				Role:    anthropic.F(toAnthropicRole(message.Role)),
+				Content: anthropic.F(parts),
+			})
 		}
 	}
 
-	if len(sysBlocks) > 0 {
-		req.System = anthropic.F(sysBlocks)
-	}
-	if len(userBlocks) > 0 {
-		messageParam := make([]anthropic.MessageParam, 0, len(userBlocks))
-		for _, m := range userBlocks {
-			messageParam = append(messageParam, anthropic.NewUserMessage(m))
-		}
-		req.Messages = anthropic.F(messageParam)
-	}
+	req.System = anthropic.F(sysBlocks)
+	req.Messages = anthropic.F(messages)
 
 	// check tools
 	tools, err := convertTools(i.Tools)
 	if err != nil {
-		return req
+		return req, err
 	}
 	req.Tools = anthropic.F(tools)
 
-	return req
+	return req, nil
 }
 
 // convertTools translates [ai.ToolDefinition] to an anthropic.ToolParam type
@@ -251,6 +269,16 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 		case p.IsData():
 			// todo: what is this? is this related to ContentBlocks?
 			panic("data content is unsupported by anthropic models")
+		case p.IsToolRequest():
+			toolReq := p.ToolRequest
+			blocks = append(blocks, anthropic.NewToolUseBlockParam(toolReq.Ref, toolReq.Name, toolReq.Input))
+		case p.IsToolResponse():
+			toolResp := p.ToolResponse
+			output, err := json.Marshal(toolResp.Output)
+			if err != nil {
+				panic(fmt.Sprintf("unable to parse tool response: %v", err))
+			}
+			blocks = append(blocks, anthropic.NewToolResultBlock(toolResp.Ref, string(output), false))
 		default:
 			panic("unknown part type in the request")
 		}
@@ -269,23 +297,26 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 	case anthropic.MessageStopReasonStopSequence:
 		r.FinishReason = ai.FinishReasonStop
 	case anthropic.MessageStopReasonEndTurn:
+		r.FinishReason = ai.FinishReasonStop
 	case anthropic.MessageStopReasonToolUse:
-		r.FinishReason = ai.FinishReasonOther
+		r.FinishReason = ai.FinishReasonStop
 	default:
 		r.FinishReason = ai.FinishReasonUnknown
 	}
 
 	msg := &ai.Message{}
-	msg.Role = ai.Role(m.Role)
+	msg.Role = ai.RoleModel
 	for _, part := range m.Content {
 		var p *ai.Part
 		switch part.Type {
 		case anthropic.ContentBlockTypeText:
 			p = ai.NewTextPart(string(part.Text))
+			fmt.Printf("part: %#v\n\n", p.Text)
 		case anthropic.ContentBlockTypeToolUse:
-			p = ai.NewToolResponsePart(&ai.ToolResponse{
-				Name:   part.Name,
-				Output: part.JSON,
+			p = ai.NewToolRequestPart(&ai.ToolRequest{
+				Ref:   part.ID,
+				Input: part.Input,
+				Name:  part.Name,
 			})
 		default:
 			panic(fmt.Sprintf("unknown part: %#v", part))
@@ -294,6 +325,7 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 	}
 
 	r.Message = msg
+	fmt.Printf("r.Message: %#v\n\n", r.Message)
 	r.Usage = &ai.GenerationUsage{
 		InputTokens:  int(m.Usage.InputTokens),
 		OutputTokens: int(m.Usage.OutputTokens),
