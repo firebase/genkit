@@ -58,6 +58,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
+import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
@@ -742,36 +743,47 @@ export function defineGeminiKnownModel(
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
   ) => VertexAI,
-  options: PluginOptions
+  options: PluginOptions,
+  debugTraces?: boolean
 ): ModelAction {
   const modelName = `vertexai/${name}`;
 
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
-  return defineGeminiModel(
+  return defineGeminiModel({
     ai,
     modelName,
-    name,
-    model?.info,
+    version: name,
+    modelInfo: model?.info,
     vertexClientFactory,
-    options
-  );
+    options,
+    debugTraces,
+  });
 }
 
 /**
  * Define a Vertex AI Gemini model.
  */
-export function defineGeminiModel(
-  ai: Genkit,
-  modelName: string,
-  version: string,
-  modelInfo: ModelInfo | undefined,
+export function defineGeminiModel({
+  ai,
+  modelName,
+  version,
+  modelInfo,
+  vertexClientFactory,
+  options,
+  debugTraces,
+}: {
+  ai: Genkit;
+  modelName: string;
+  version: string;
+  modelInfo: ModelInfo | undefined;
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
-  ) => VertexAI,
-  options: PluginOptions
-): ModelAction {
+  ) => VertexAI;
+  options: PluginOptions;
+  debugTraces?: boolean;
+}): ModelAction {
   const middlewares: ModelMiddleware[] = [];
   if (SUPPORTED_V1_MODELS[version]) {
     middlewares.push(simulateSystemPrompt());
@@ -788,7 +800,7 @@ export function defineGeminiModel(
       configSchema: GeminiConfigSchema,
       use: middlewares,
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       const vertex = vertexClientFactory(request);
 
       // Make a copy of messages to avoid side-effects
@@ -926,57 +938,86 @@ export function defineGeminiModel(
         );
       }
 
-      // Handle streaming and non-streaming responses
-      if (streamingCallback) {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessageStream(msg.parts);
+      const callGemini = async () => {
+        // Handle streaming and non-streaming responses
+        if (sendChunk) {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessageStream(msg.parts);
 
-        for await (const item of result.stream) {
-          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
-            const c = fromGeminiCandidate(candidate, jsonMode);
-            streamingCallback({
-              index: c.index,
-              content: c.message.content,
-            });
-          });
-        }
+          for await (const item of result.stream) {
+            (item as GenerateContentResponse).candidates?.forEach(
+              (candidate) => {
+                const c = fromGeminiCandidate(candidate, jsonMode);
+                sendChunk({
+                  index: c.index,
+                  content: c.message.content,
+                });
+              }
+            );
+          }
 
-        const response = await result.response;
-        if (!response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
-        }
+          const response = await result.response;
+          if (!response.candidates?.length) {
+            throw new Error('No valid candidates returned.');
+          }
 
-        return {
-          candidates: response.candidates.map((c) =>
+          return {
+            candidates: response.candidates.map((c) =>
+              fromGeminiCandidate(c, jsonMode)
+            ),
+            custom: response,
+          };
+        } else {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessage(msg.parts);
+
+          if (!result?.response.candidates?.length) {
+            throw new Error('No valid candidates returned.');
+          }
+
+          const responseCandidates = result.response.candidates.map((c) =>
             fromGeminiCandidate(c, jsonMode)
-          ),
-          custom: response,
-        };
-      } else {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessage(msg.parts);
+          );
 
-        if (!result?.response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
+          return {
+            candidates: responseCandidates,
+            custom: result.response,
+            usage: {
+              ...getBasicUsageStats(request.messages, responseCandidates),
+              inputTokens: result.response.usageMetadata?.promptTokenCount,
+              outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+              totalTokens: result.response.usageMetadata?.totalTokenCount,
+            },
+          };
         }
-
-        const responseCandidates = result.response.candidates.map((c) =>
-          fromGeminiCandidate(c, jsonMode)
-        );
-
-        return {
-          candidates: responseCandidates,
-          custom: result.response,
-          usage: {
-            ...getBasicUsageStats(request.messages, responseCandidates),
-            inputTokens: result.response.usageMetadata?.promptTokenCount,
-            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-            totalTokens: result.response.usageMetadata?.totalTokenCount,
-          },
-        };
-      }
+      };
+      // If debugTraces is enable, we wrap the actual model call with a span, add raw
+      // API params as for input.
+      return debugTraces
+        ? await runInNewSpan(
+            ai.registry,
+            {
+              metadata: {
+                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
+            async (metadata) => {
+              metadata.input = {
+                sdk: '@google-cloud/vertexai',
+                cache: cache,
+                model: genModel.getModelName(),
+                chatOptions: updatedChatRequest,
+                parts: msg.parts,
+                options,
+              };
+              const response = await callGemini();
+              metadata.output = response.custom;
+              return response;
+            }
+          )
+        : await callGemini();
     }
   );
 }
