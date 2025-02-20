@@ -8,13 +8,18 @@ from typing import Any
 
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import GenerateRequest, Message, Role, TextPart
-from genkit.plugins.vertex_ai import VertexAI, vertexai_name
+from genkit.plugins.vertex_ai import (
+    EmbeddingModels,
+    GeminiVersion,
+    VertexAI,
+    vertexai_name,
+)
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model=vertexai_name(VertexAI.VERTEX_AI_GENERATIVE_MODEL_NAME),
+    model=vertexai_name(GeminiVersion.GEMINI_1_5_FLASH),
 )
 
 
@@ -72,6 +77,22 @@ async def say_hi(name: str):
 
 
 @ai.flow()
+async def embed_docs(docs: list[str]):
+    """Generate an embedding for the words in a list.
+
+    Args:
+        docs: list of texts (string)
+
+    Returns:
+        The generated embedding.
+    """
+    return await ai.embed(
+        model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
+        documents=docs,
+    )
+
+
+@ai.flow()
 def sum_two_numbers2(my_input: MyInput) -> Any:
     """Add two numbers together.
 
@@ -85,7 +106,8 @@ def sum_two_numbers2(my_input: MyInput) -> Any:
 
 
 @ai.flow()
-def streamingSyncFlow(input: str, ctx: ActionRunContext):
+def streaming_sync_flow(inp: str, ctx: ActionRunContext):
+    """Example of sync flow."""
     ctx.send_chunk(1)
     ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
@@ -93,7 +115,8 @@ def streamingSyncFlow(input: str, ctx: ActionRunContext):
 
 
 @ai.flow()
-async def streamingAsyncFlow(input: str, ctx: ActionRunContext):
+async def streaming_async_flow(inp: str, ctx: ActionRunContext):
+    """Example of async flow."""
     ctx.send_chunk(1)
     ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
@@ -108,6 +131,9 @@ async def main() -> None:
     """
     print(await say_hi('John Doe'))
     print(sum_two_numbers2(MyInput(a=1, b=3)))
+    print(
+        await embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
+    )
 
 
 if __name__ == '__main__':

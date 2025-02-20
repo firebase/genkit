@@ -9,6 +9,7 @@ definitions and a client class for making requests to Gemini models.
 """
 
 from enum import StrEnum
+from typing import Any
 
 from genkit.core.typing import (
     GenerateRequest,
@@ -89,7 +90,7 @@ class Gemini:
             version: The version of the Gemini model to use, should be
                 one of the values from GeminiVersion.
         """
-        self.version = version
+        self._version = version
 
     @property
     def gemini_model(self) -> GenerativeModel:
@@ -98,7 +99,7 @@ class Gemini:
         Returns:
             A configured GenerativeModel instance for the specified version.
         """
-        return GenerativeModel(self.version)
+        return GenerativeModel(self._version)
 
     def handle_request(self, request: GenerateRequest) -> GenerateResponse:
         """Handle a generation request using the Gemini model.
@@ -125,3 +126,12 @@ class Gemini:
                 content=[TextPart(text=response.text)],
             )
         )
+
+    @property
+    def model_metadata(self) -> dict[str, dict[str, Any]]:
+        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
+        return {
+            'model': {
+                'supports': supports,
+            }
+        }
