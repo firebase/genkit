@@ -35,9 +35,10 @@
    Doing so can help diagnose enabled/disabled APIs, but does not test the
    gcloud auth application-default login.
 
-   Alternatively, impersonating the service account allows you to test production-like access. You must have the `roles/iam.
-   serviceAccountTokenCreator` IAM role applied to your user account in order
-   to impersonate service accounts:
+   Alternatively, impersonating the service account allows you to test
+   production-like access. You must have the
+   `roles/iam. serviceAccountTokenCreator` IAM role applied to your user account
+   in order to impersonate service accounts:
 
     ```posix-terminal
     gcloud auth application-default login --impersonate-service-account <SERVICE_ACCT_EMAIL>

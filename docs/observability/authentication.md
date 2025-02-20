@@ -1,8 +1,12 @@
 # Authentication and authorization
 
-The Firebase telemetry plugin requires a Google Cloud project ID and application credentials.
+The Firebase telemetry plugin requires a Google Cloud project ID and application
+credentials.
 
-If you don't have a Google Cloud project and account, you can set one up in the [Firebase Console](https://console.firebase.google.com/) or in the [Google Cloud Console](https://cloud.google.com). All Firebase project IDs are Google Cloud project IDs.
+If you don't have a Google Cloud project and account, you can set one up in the
+[Firebase Console](https://console.firebase.google.com/) or in the
+[Google Cloud Console](https://cloud.google.com). All Firebase project IDs are
+Google Cloud project IDs.
 
 ## Enable APIs
 
@@ -21,9 +25,12 @@ about enabling and disabling APIs.
 
 ## User Authentication
 
-To export telemetry from your local development environment to Firebase Genkit Monitoring, you will need to authenticate yourself with Google Cloud.
+To export telemetry from your local development environment to Firebase Genkit
+Monitoring, you will need to authenticate yourself with Google Cloud.
 
-The easiest way to authenticate as yourself is via the gcloud CLI, which will automatically make your credentials available to the framework via [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
+The easiest way to authenticate as yourself is via the gcloud CLI, which will
+automatically make your credentials available to the framework via
+[Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
 
 If you don't have the gcloud CLI installed, first follow the [installation instructions](https://cloud.google.com/sdk/docs/install#installation_instructions).
 
@@ -54,7 +61,9 @@ running your code (i.e. 'attached service account') via the
 - `roles/cloudtrace.agent`
 - `roles/logging.logWriter`
 
-Not sure which service account is the right one? See the [Find or create your service account](#find-or-create-your-service-account) section below.
+Not sure which service account is the right one? See the
+[Find or create your service account](#find-or-create-your-service-account)
+section below.
 
 ## Deploy outside of Google Cloud (with ADC)
 
@@ -82,7 +91,9 @@ those credentials to your production environment.
     GOOGLE_APPLICATION_CREDENTIALS = "path/to/your/key/file"
     ```
 
-Not sure which service account is the right one? See the [Find or create your service account](#find-or-create-your-service-account) section below.
+Not sure which service account is the right one? See the
+[Find or create your service account](#find-or-create-your-service-account)
+section below.
 
 ## Deploy outside of Google Cloud (without ADC)
 
@@ -99,7 +110,8 @@ file.
 
 3. Download the credential file.
 
-4. Assign the contents of the credential file to the `GCLOUD_SERVICE_ACCOUNT_CREDS` environment variable as follows:
+4. Assign the contents of the credential file to the
+`GCLOUD_SERVICE_ACCOUNT_CREDS` environment variable as follows:
 
 ```posix-terminal
 GCLOUD_SERVICE_ACCOUNT_CREDS='{
@@ -116,13 +128,16 @@ GCLOUD_SERVICE_ACCOUNT_CREDS='{
 }'
 ```
 
-Not sure which service account is the right one? See the [Find or create your service account](#find-or-create-your-service-account) section below.
+Not sure which service account is the right one? See the
+[Find or create your service account](#find-or-create-your-service-account)
+section below.
 
 ## Find or create your service account
 
 To find the appropriate service account:
 
-1. Navigate to the [service accounts page](https://console.cloud.google.com/iam-admin/serviceaccounts) in the Google Cloud Console
+1. Navigate to the [service accounts page](https://console.cloud.google.com/iam-admin/serviceaccounts)
+   in the Google Cloud Console
 2. Select your project
 3. Find the appropriate service account. Common default service accounts are as follows:
 
@@ -138,4 +153,7 @@ To find the appropriate service account:
   
     <code>firebase-app-hosting-compute@<var>PROJECT ID</var>.iam.gserviceaccount.com</code>
 
-If you are deploying outside of the Google ecosystem or don't want to use a default service account, you can [create a service account](https://cloud.google.com/iam/docs/service-accounts-create#creating) in the Google Cloud console.
+If you are deploying outside of the Google ecosystem or don't want to use a
+default service account, you can
+[create a service account](https://cloud.google.com/iam/docs/service-accounts-create#creating)
+in the Google Cloud console.
