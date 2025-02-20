@@ -4,14 +4,14 @@
 import inspect
 import json
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
-class ActionKind(str, Enum):
+class ActionKind(StrEnum):
     """Enumerates all the types of action that can be registered."""
 
     CHATLLM = 'chat-llm'
@@ -37,12 +37,45 @@ class ActionResponse(BaseModel):
     trace_id: str = Field(alias='traceId')
 
 
-class ActionMetadataKey(str, Enum):
+class ActionMetadataKey(StrEnum):
     """Enumerates all the keys of the action metadata."""
 
     INPUT_KEY = 'inputSchema'
     OUTPUT_KEY = 'outputSchema'
     RETURN = 'return'
+
+
+def parse_action_key(key: str) -> tuple[ActionKind, str]:
+    """Parse an action key into its kind and name components.
+
+    The key format is `<kind>/<name>`.  Examples include:
+    - `prompt/my-prompt`
+    - `model/gpt-4`.
+
+    Args:
+        key: The action key to parse.
+
+    Returns:
+        A tuple of (kind, name).
+
+    Raises:
+        ValueError: If the key format is invalid or if the kind is not a valid ActionKind.
+    """
+    tokens = key.split('/')
+    if len(tokens) != 2 or not tokens[0] or not tokens[1]:
+        msg = (
+            f'Invalid action key format: `{key}`. '
+            'Expected format: `<kind>/<name>`'
+        )
+        raise ValueError(msg)
+
+    kind_str, name = tokens
+    try:
+        kind = ActionKind(kind_str)
+    except ValueError as e:
+        msg = f'Invalid action kind: `{kind_str}`'
+        raise ValueError(msg) from e
+    return kind, name
 
 
 class Action:
