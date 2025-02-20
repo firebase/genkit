@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from enum import StrEnum
+from typing import Any
 
 from genkit.core.schema_types import (
     GenerateRequest,
@@ -87,3 +88,8 @@ class Gemini:
                 content=[TextPart(text=response.text)],
             )
         )
+
+    @property
+    def model_metadata(self) -> dict[str, dict[str, Any]]:
+        supports = SUPPORTED_MODELS[self.version].supports
+        return {'model': {'supports': supports.model_dump()}}

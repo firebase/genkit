@@ -8,8 +8,6 @@ from __future__ import annotations
 import abc
 import typing
 
-from genkit.core.schema_types import GenerateRequest, GenerateResponse
-
 if typing.TYPE_CHECKING:
     from genkit.veneer import Genkit
 
@@ -22,7 +20,6 @@ class Plugin(abc.ABC):
     NOTE: Any plugin defined for the Genkit must inherit from this class
     """
 
-    @abc.abstractmethod
     def attach_to_veneer(self, veneer: Genkit) -> None:
         """
         Entrypoint for attaching the plugin to the requested Genkit Veneer
@@ -35,11 +32,11 @@ class Plugin(abc.ABC):
         Returns:
             None
         """
-        pass
+        self._add_models_to_veneer(veneer=veneer)
+        self._add_embedders_to_veneer(veneer=veneer)
 
-    def _add_model_to_veneer(
-        self, veneer: Genkit, name: str, metadata: dict | None = None
-    ) -> None:
+    @abc.abstractmethod
+    def _add_models_to_veneer(self, veneer: Genkit) -> None:
         """
         Defines plugin's model in the Genkit Registry
 
@@ -47,33 +44,18 @@ class Plugin(abc.ABC):
 
         Args:
             veneer: requested `genkit.veneer.Genkit` instance
-            name: name of the model to attach
-            metadata: metadata information associated
-                      with the provided model (optional)
 
         Returns:
             None
         """
-        if not metadata:
-            metadata = {}
-        veneer.define_model(
-            name=name, fn=self._model_callback, metadata=metadata
-        )
 
     @abc.abstractmethod
-    def _model_callback(self, request: GenerateRequest) -> GenerateResponse:
-        """
-        Wrapper around any plugin's model callback.
-
-        Is considered an entrypoint for any model's request.
-        Implementation must be provided for any inheriting plugin.
+    def _add_embedders_to_veneer(self, veneer: Genkit) -> None:
+        """Defines plugin's embedders in the Genkit Registry.
 
         Args:
-            request: incoming request as generic
-                     `genkit.core.schemas.GenerateRequest` instance
+            veneer: requested `genkit.veneer.Genkit` instance
 
         Returns:
-            Model response represented as generic
-            `genkit.core.schemas.GenerateResponse` instance
+            None
         """
-        pass
