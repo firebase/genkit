@@ -101,15 +101,17 @@ Each generate metric contains the following dimensions:
 
 ## Traces
 
-All Genkit actions are automatically instrumented to provide detailed traces for your AI features. Locally, traces are visible in
-the Developer UI. For deployed apps enable Firebase Genkit Monitoring to get the same level of visibility.
+All Genkit actions are automatically instrumented to provide detailed traces for
+your AI features. Locally, traces are visible in the Developer UI. For deployed 
+apps enable Firebase Genkit Monitoring to get the same level of visibility.
 
-The following sections describe what trace attributes you can expect based on the Genkit action type for a particular span in the
-trace.
+The following sections describe what trace attributes you can expect based on the
+Genkit action type for a particular span in the trace.
 
 ### Root Spans
 
-Root spans have special attributes to help disambiguate the state attributes for the whole trace versus an individual span.
+Root spans have special attributes to help disambiguate the state attributes for 
+the whole trace versus an individual span.
 
 | Attribute name          | Description                                                                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -167,8 +169,9 @@ Root spans have special attributes to help disambiguate the state attributes for
 
 ## Logs
 
-For deployed apps with Firebase Genkit Monitoring, logs are used to capture input, output, and configuration metadata that provides
-rich detail about each step in your AI feature.
+For deployed apps with Firebase Genkit Monitoring, logs are used to capture 
+input, output, and configuration metadata that provides rich detail about 
+each step in your AI feature.
 
 All logs will include the following shared metadata fields:
 

@@ -1,5 +1,6 @@
-<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
-use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into 
+Firebase Functions which use 
+https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
 
 # Firebase plugin
 
@@ -9,8 +10,8 @@ build intelligent and scalable AI applications. Key features include:
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval
 with vector embeddings.
 - **Telemetry**: Export telemetry to
-[Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit
-Monitoring console.
+[Google's Cloud operations suite](https://cloud.google.com/products/operations)
+that powers the Firebase Genkit Monitoring console.
 
 ## Installation
 
@@ -78,21 +79,27 @@ Application Default Credentials. To specify your credentials:
   page of the Firebase console.
   1. Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
   path of the JSON file that contains your service account key, or you can set
-  the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the JSON file.
+  the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the
+  JSON file.
 
 ## Features and usage
 
 ### Telemetry
 
-The Firebase plugin provides a telemetry implementation for sending metrics, traces, and logs to Firebase Genkit Monitoring.
+The Firebase plugin provides a telemetry implementation for sending metrics,
+traces, and logs to Firebase Genkit Monitoring.
 
-To get started, visit the [Getting started guide](../observability/getting-started.md) for installation and configuration instructions.
+To get started, visit the [Getting started guide](../observability/getting-started.md)
+for installation and configuration instructions.
 
-See the [Authentication and authorization guide](../observability/authentication.md) to authenticate with Google Cloud.
+See the [Authentication and authorization guide](../observability/authentication.md)
+to authenticate with Google Cloud.
 
-See the [Advanced configuration guide](../observability/advanced-configuration.md) for configuration options.
+See the [Advanced configuration guide](../observability/advanced-configuration.md)
+for configuration options.
 
-See the [Telemetry collection](../observability/telemetry-collection.md) for details on which Genkit metrics, traces, and logs collected.
+See the [Telemetry collection](../observability/telemetry-collection.md) for
+details on which Genkit metrics, traces, and logs collected.
 
 ### Cloud Firestore vector search
 
@@ -291,8 +298,8 @@ section of the Firestore docs.
 
 - See the [Retrieval-augmented generation](http://../rag.md) page for a general discussion
 on indexers and retrievers in Genkit.
-- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search) in the Cloud Firestore docs for more
-on the vector search feature.
+- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
+in the Cloud Firestore docs for more on the vector search feature.
 
 ### Deploy flows as Cloud Functions
 
