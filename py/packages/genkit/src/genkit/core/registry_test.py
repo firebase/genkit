@@ -4,15 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from genkit.core.action import Action, ActionKind
+from genkit.core.action import ActionKind
 from genkit.core.registry import Registry
 
 
 def test_register_action_with_name_and_kind() -> None:
     """Ensure we can register an action with a name and kind."""
     registry = Registry()
-    action = Action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
-    registry.register_action(action)
+    action = registry.register_action(
+        name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
+    )
     got = registry.lookup_action(ActionKind.CUSTOM, 'test_action')
 
     assert got == action
@@ -23,8 +24,9 @@ def test_register_action_with_name_and_kind() -> None:
 def test_lookup_action_by_key() -> None:
     """Ensure we can lookup an action by its key."""
     registry = Registry()
-    action = Action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
-    registry.register_action(action)
+    action = registry.register_action(
+        name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
+    )
     got = registry.lookup_action_by_key('custom/test_action')
 
     assert got == action

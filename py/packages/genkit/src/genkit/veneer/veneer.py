@@ -90,13 +90,12 @@ class Genkit:
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
         def wrapper(func: Callable) -> Callable:
             flow_name = name if name is not None else func.__name__
-            action = Action(
+            action = self.registry.register_action(
                 name=flow_name,
                 kind=ActionKind.FLOW,
                 fn=func,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
-            self.registry.register_action(action)
 
             def decorator(*args: Any, **kwargs: Any) -> GenerateResponse:
                 return action.fn(*args, **kwargs).response
@@ -111,10 +110,12 @@ class Genkit:
         fn: ModelFn,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        action = Action(
-            name=name, kind=ActionKind.MODEL, fn=fn, metadata=metadata
+        self.registry.register_action(
+            name=name,
+            kind=ActionKind.MODEL,
+            fn=fn,
+            metadata=metadata,
         )
-        self.registry.register_action(action)
 
     def define_prompt(
         self,
@@ -126,8 +127,11 @@ class Genkit:
             req = fn(input_prompt)
             return self.generate(messages=req.messages, model=model)
 
-        action = Action(kind=ActionKind.PROMPT, name=name, fn=fn)
-        self.registry.register_action(action)
+        action = self.registry.register_action(
+            kind=ActionKind.PROMPT,
+            name=name,
+            fn=fn,
+        )
 
         def wrapper(input_prompt: Any | None = None) -> GenerateResponse:
             return action.fn(input_prompt)
