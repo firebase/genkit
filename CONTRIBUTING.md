@@ -195,7 +195,7 @@ cd js && pnpm build && pnpm typedoc-html && open api-refs-js/index.html
 
 ## Send it
 
-Once done coding you will want to send a PR. Always do things in a separate branch (by convention name the branch `your_name-feature-something`).
+Once done coding you will want to send a PR. Always do things in a separate branch (by convention name the branch `your-name/feature-something`).
 
 Before sending the PR, always run:
 
