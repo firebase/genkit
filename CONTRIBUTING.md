@@ -37,6 +37,7 @@ information on using pull requests.
 Genkit supports JavaScript, Go, and Python. Before contributing in any of these languages, complete these prerequisites:
 
 1. Install Node.js 20 or later using [nvm](https://nodejs.org/en/download)
+
    > **Note:** Node.js v20 or greater is required. Earlier versions may not work properly.
 
 2. Install the Genkit CLI globally:
@@ -53,20 +54,22 @@ After completing these prerequisites, follow the language-specific setup instruc
 
 2. Configure your AI model
    Most samples use Google's Gemini model. You'll need to generate an API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
-   
+
    Once you have your key, set it in your environment:
+
    ```bash
    export GOOGLE_GENAI_API_KEY=<your-api-key>
    ```
 
 3. Run a sample application
+
    ```bash
    cd go/samples          # Navigate to samples directory
    cd <sample-name>       # Choose a sample to run
    go mod tidy            # Install Go dependencies
    genkit start -- go run .  # Start the Genkit server and run the application
    ```
-   
+
    Once running, visit http://localhost:4000 to access the Developer UI.
 
 4. Run tests
@@ -76,7 +79,9 @@ After completing these prerequisites, follow the language-specific setup instruc
    ```
 
 ## JS Guide
+
 ### Install dependencies
+
 Run `corepack enable pnpm` to enable pnpm.
 
 ```
