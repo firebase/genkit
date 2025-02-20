@@ -4,7 +4,8 @@
 """The registry is used to store and lookup resources such as actions and
 flows."""
 
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 from genkit.core.action import Action, ActionKind, parse_action_key
 
@@ -14,7 +15,8 @@ from genkit.core.action import Action, ActionKind, parse_action_key
 class Registry:
     """Stores actions, trace stores, flow state stores, plugins, and schemas."""
 
-    actions: dict[ActionKind, dict[str, Action]] = {}
+    def __init__(self):
+        self.actions: dict[ActionKind, dict[str, Action]] = {}
 
     def register_action(
         self,

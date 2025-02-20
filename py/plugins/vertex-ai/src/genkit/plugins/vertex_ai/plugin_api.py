@@ -5,14 +5,13 @@
 
 import logging
 import os
-from typing import Any
 
 import vertexai
+from genkit.core.action import ActionKind
 from genkit.core.plugin_abc import Plugin
-from genkit.core.schema_types import GenerateRequest, GenerateResponse
+from genkit.core.registry import Registry
 from genkit.plugins.vertex_ai import constants as const
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
-from genkit.veneer.veneer import Genkit
 
 LOG = logging.getLogger(__name__)
 
@@ -37,8 +36,9 @@ class VertexAI(Plugin):
         self._gemini = Gemini(self.VERTEX_AI_GENERATIVE_MODEL_NAME)
         vertexai.init(project=project_id, location=location)
 
-    def initialize(self, ai: Genkit) -> None:
-        ai.define_model(
+    def initialize(self, registry: Registry) -> None:
+        registry.register_action(
+            kind=ActionKind.MODEL,
             name=vertexai_name(self.VERTEX_AI_GENERATIVE_MODEL_NAME),
             fn=self._gemini.handle_request,
             metadata={

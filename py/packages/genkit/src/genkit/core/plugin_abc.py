@@ -3,25 +3,25 @@
 
 """Abstract base class for Genkit plugins."""
 
-from __future__ import annotations
-
 import abc
-import typing
 
-if typing.TYPE_CHECKING:
-    # TODO: Must point to an abstraction, not an actual implementation,
-    #       which should resolve the circular import problem.
-    from genkit.veneer import Genkit
+from genkit.core.registry import Registry
 
 
 class Plugin(abc.ABC):
     """
-    Abstract base class for plugins.
+    Abstract class defining common interface
+    for the Genkit Plugin implementation
+
+    NOTE: Any plugin defined for the Genkit must inherit from this class
     """
 
     @abc.abstractmethod
-    def initialize(self, ai: Genkit) -> None:
+    def initialize(self, registry: Registry) -> None:
         """
-        Entrypoint for attaching the plugin to the Genkit Veneer.
+        Entrypoint for initializing the plugin instance in Genkit
+
+        Returns:
+            None
         """
         pass
