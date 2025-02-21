@@ -24,7 +24,10 @@ import { genkit, z } from 'genkit'; // Import Genkit framework and Zod for schem
 import { logger } from 'genkit/logging'; // Import logging utility from Genkit
 
 const ai = genkit({
-  plugins: [vertexAI(), googleAI()], // Initialize Genkit with the Google AI plugin
+  plugins: [
+    vertexAI({ experimental_debugTraces: true, location: 'us-central1' }),
+    googleAI({ experimental_debugTraces: true }),
+  ], // Initialize Genkit with the Google AI plugin
 });
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
@@ -38,7 +41,7 @@ export const lotrFlowVertex = ai.defineFlow(
     }),
     outputSchema: z.string(), // Define the expected output as a string
   },
-  async ({ query, textFilePath }) => {
+  async ({ query, textFilePath }, { sendChunk }) => {
     const defaultQuery = 'What is the text i provided you with?'; // Default query to use if none is provided
 
     // Read the content from the file if the path is provided
@@ -69,6 +72,7 @@ export const lotrFlowVertex = ai.defineFlow(
       },
       model: gemini15Flash, // Specify the model (gemini15Flash) to use for generation
       prompt: query || defaultQuery, // Use the provided query or fall back to the default query
+      onChunk: sendChunk,
     });
 
     return llmResponse.text; // Return the generated text from the model
@@ -84,7 +88,7 @@ export const lotrFlowGoogleAI = ai.defineFlow(
     }),
     outputSchema: z.string(), // Define the expected output as a string
   },
-  async ({ query, textFilePath }) => {
+  async ({ query, textFilePath }, { sendChunk }) => {
     const defaultQuery = 'What is the text i provided you with?'; // Default query to use if none is provided
 
     // Read the content from the file if the path is provided
@@ -115,6 +119,7 @@ export const lotrFlowGoogleAI = ai.defineFlow(
       },
       model: gemini15FlashGoogleAI, // Specify the model (gemini15Flash) to use for generation
       prompt: query || defaultQuery, // Use the provided query or fall back to the default query
+      onChunk: sendChunk,
     });
 
     return llmResponse.text; // Return the generated text from the model

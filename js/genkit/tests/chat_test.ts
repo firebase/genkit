@@ -290,8 +290,7 @@ describe('preamble', () => {
     assert.deepStrictEqual(text, 'hi from agent b (toolChoice: required)');
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
-        // TODO: figure out if config should be swapped out as well...
-        temperature: 2,
+        temperature: 1,
       },
       messages: [
         {

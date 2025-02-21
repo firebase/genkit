@@ -52,7 +52,7 @@ testpaths = ["packages", "plugins", "samples"]
 addopts = "--cov"
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 82
 
 # uv based package management.
 [tool.uv]
@@ -154,19 +154,20 @@ mypy_path = [
   "plugins/ollama/src",
   "plugins/pinecone/src",
   "plugins/vertex-ai/src",
-  "samples/basic-gemini",
-  "samples/coffee-shop",
-  "samples/context-caching",
-  "samples/flow-sample1",
-  "samples/hello",
-  "samples/menu",
-  "samples/prompt-file",
-  "samples/rag",
-  "samples/vertex-ai-model-garden",
-  "samples/vertex-ai-reranker",
-  "samples/vertex-ai-vector-search",
+  "samples/basic-gemini/src",
+  "samples/coffee-shop/src",
+  "samples/context-caching/src",
+  "samples/flow-sample1/src",
+  "samples/hello/src",
+  "samples/menu/src",
+  "samples/prompt-file/src",
+  "samples/rag/src",
+  "samples/vertex-ai-model-garden/src",
+  "samples/vertex-ai-reranker/src",
+  "samples/vertex-ai-vector-search/src",
 ]
 namespace_packages = true
+strict = true
 warn_unused_configs = true
 
 [tool.datamodel-codegen]

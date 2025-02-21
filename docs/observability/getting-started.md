@@ -41,12 +41,11 @@ and on the Google Cloud Console.
    2. [Deploy flows using Cloud Run](../cloud-run)
    3. [Deploy flows to any Node.js platform](../deploy-node)
 
-
 ## Step 1. Add the Firebase plugin
 
 Install the `@genkit-ai/firebase` plugin in your project:
 
-```
+```posix-terminal
 npm i –save @genkit-ai/firebase
 ```
 
@@ -67,7 +66,8 @@ Make sure that the following APIs are enabled for your GCP project:
 * [Cloud Trace API](https://console.cloud.google.com/apis/library/cloudtrace.googleapis.com)
 * [Cloud Monitoring API](https://console.cloud.google.com/apis/library/monitoring.googleapis.com)
 
-These APIs should be listed in the [API dashboard](https://console.cloud.google.com/apis/dashboard) for your project.
+These APIs should be listed in the
+[API dashboard](https://console.cloud.google.com/apis/dashboard) for your project.
 
 ## Step 3. Set up permissions
 
@@ -90,20 +90,23 @@ Before deploying, you can run your Genkit code locally to confirm that
 telemetry data is being collected, and is viewable in the Genkit Monitoring
 dashboard.
 
-1. In your Genkit code, set `forceDevExport` to `true` to send telemetry from your local environment.
+1. In your Genkit code, set `forceDevExport` to `true` to send telemetry from
+   your local environment.
 
 2. Use your service account to authenticate and test your configuration.
 
    Tip: In order to impersonate the service account, you will need to have
-   the `roles/iam.serviceAccountTokenCreator` [IAM role](https://console.
+   the `roles/iam.serviceAccountTokenCreator` [IAM role](<https://console>.
    cloud.google.com/iam-admin/iam) applied to your user account.
 
    With the
-   [Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install?authuser=0), authenticate using the service account:
+   [Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install?authuser=0),
+   authenticate using the service account:
 
-    ```
+    ```posix-terminal
     gcloud auth application-default login --impersonate-service-account <SERVICE_ACCT_EMAIL>
     ```
+
 3. Run and invoke your Genkit feature, and then view metrics on the
    [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring).
    Allow for up to 5 minutes to collect the first metric. You can reduce this
@@ -120,7 +123,8 @@ After Genkit Monitoring receives your metrics, youo can view them by
 visiting the
 [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring)
 
-Note: It may take up to 5 minutes to collect the first metric (based on the default `metricExportIntervalMillis` setting in the telemetry configuration).
+Note: It may take up to 5 minutes to collect the first metric (based on the default
+`metricExportIntervalMillis` setting in the telemetry configuration).
 
 <!--
 ## Next Steps:

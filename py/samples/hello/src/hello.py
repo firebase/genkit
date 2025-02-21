@@ -6,11 +6,14 @@
 from typing import Any
 
 from genkit.core.schema_types import GenerateRequest, Message, Role, TextPart
-from genkit.plugins.vertex_ai import VertexAI
+from genkit.plugins.vertex_ai import VertexAI, vertexai_name
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
-ai = Genkit(plugins=[VertexAI()], model=VertexAI.VERTEX_AI_MODEL_NAME)
+ai = Genkit(
+    plugins=[VertexAI()],
+    model=vertexai_name(VertexAI.VERTEX_AI_GENERATIVE_MODEL_NAME),
+)
 
 
 class MyInput(BaseModel):
