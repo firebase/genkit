@@ -116,7 +116,7 @@ class Genkit:
         Returns:
             The generated text response.
         """
-        model = model if model is not None else self.registry.defaultModel
+        model = model if model is not None else self.registry.default_model
         if model is None:
             raise Exception('No model configured.')
         if config and not isinstance(config, GenerationCommonConfig):
