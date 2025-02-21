@@ -80,7 +80,7 @@ export const streamy = ai.defineFlow(
   }
 );
 
-// genkit flow:run streamy 5 -s
+// genkit flow:run streamyThrowy 5 -s
 export const streamyThrowy = ai.defineFlow(
   {
     name: 'streamyThrowy',
