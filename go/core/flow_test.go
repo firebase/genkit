@@ -1,16 +1,18 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package genkit
+package core
 
 import (
 	"context"
 	"slices"
 	"testing"
+
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 func TestRunInFlow(t *testing.T) {
-	g, err := New(nil)
+	r, err := registry.New()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +22,7 @@ func TestRunInFlow(t *testing.T) {
 		return n, nil
 	}
 
-	flow := DefineFlow(g, "run", func(ctx context.Context, _ any) ([]int, error) {
+	flow := DefineFlow(r, "run", func(ctx context.Context, _ any) ([]int, error) {
 		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
@@ -42,11 +44,11 @@ func TestRunInFlow(t *testing.T) {
 }
 
 func TestRunFlow(t *testing.T) {
-	g, err := New(nil)
+	r, err := registry.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := DefineFlow(g, "inc", func(ctx context.Context, i int) (int, error) {
+	f := DefineFlow(r, "inc", func(ctx context.Context, i int) (int, error) {
 		return i + 1, nil
 	})
 	got, err := f.Run(context.Background(), 2)

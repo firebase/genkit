@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package googleai_test
 
 import (
@@ -39,9 +38,7 @@ func TestLive(t *testing.T) {
 	if *testAll {
 		t.Skip("-all provided")
 	}
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "googleai/gemini-1.5-flash",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -148,9 +145,7 @@ func TestLive(t *testing.T) {
 }
 
 func TestHeader(t *testing.T) {
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "googleai/gemini-1.5-flash",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
 	if err != nil {
 		log.Fatal(err)
 	}

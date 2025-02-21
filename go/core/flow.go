@@ -1,27 +1,22 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package genkit
+package core
 
 import (
 	"context"
 	"errors"
 	"fmt"
 
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/internal/registry"
 )
-
-// streamingCallback is the type of streaming callbacks.
-type streamingCallback[Stream any] func(context.Context, Stream) error
-
-type noStream = func(context.Context, struct{}) error
 
 // A Flow is a user-defined Action. A Flow[In, Out, Stream] represents a function from In to Out. The Stream parameter is for flows that support streaming: providing their results incrementally.
 type Flow[In, Out, Stream any] struct {
-	action *core.Action[In, Out, Stream]
+	action *Action[In, Out, Stream]
 }
 
 // StreamFlowValue is either a streamed value or a final output of a flow.
@@ -41,12 +36,12 @@ type flowContext struct {
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](
-	g *Genkit,
+	r *registry.Registry,
 	name string,
-	fn func(context.Context, In) (Out, error),
+	fn Func[In, Out],
 ) *Flow[In, Out, struct{}] {
-	a := core.DefineAction(g.reg, "", name, atype.Flow, nil, func(ctx context.Context, input In) (Out, error) {
-		fc := &flowContext{tracingState: g.reg.TracingState()}
+	a := DefineAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In) (Out, error) {
+		fc := &flowContext{tracingState: r.TracingState()}
 		return fn(flowContextKey.NewContext(ctx, fc), input)
 	})
 	return &Flow[In, Out, struct{}]{action: a}
@@ -62,12 +57,12 @@ func DefineFlow[In, Out any](
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](
-	g *Genkit,
+	r *registry.Registry,
 	name string,
-	fn func(context.Context, In, func(context.Context, Stream) error) (Out, error),
+	fn StreamingFunc[In, Out, Stream],
 ) *Flow[In, Out, Stream] {
-	a := core.DefineStreamingAction(g.reg, "", name, atype.Flow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
-		fc := &flowContext{tracingState: g.reg.TracingState()}
+	a := DefineStreamingAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+		fc := &flowContext{tracingState: r.TracingState()}
 		return fn(flowContextKey.NewContext(ctx, fc), input, cb)
 	})
 	return &Flow[In, Out, Stream]{action: a}

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package registry
 
 import (
@@ -25,7 +24,6 @@ type Registry struct {
 	mu      sync.Mutex
 	frozen  bool // when true, no more additions
 	actions map[string]action.Action
-	flows   []Flow
 }
 
 func New() (*Registry, error) {
@@ -33,6 +31,9 @@ func New() (*Registry, error) {
 		actions: map[string]action.Action{},
 	}
 	r.tstate = tracing.NewState()
+	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
+		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
+	}
 	return r, nil
 }
 
@@ -51,7 +52,6 @@ func (r *Registry) RegisterAction(typ atype.ActionType, a action.Action) {
 	if _, ok := r.actions[key]; ok {
 		panic(fmt.Sprintf("action %q is already registered", key))
 	}
-	a.SetTracingState(r.tstate)
 	r.actions[key] = a
 	slog.Debug("RegisterAction",
 		"type", typ,
@@ -86,25 +86,6 @@ func (r *Registry) ListActions() []action.Desc {
 		ads = append(ads, ad)
 	}
 	return ads
-}
-
-// Flow is the type for the flows stored in a registry.
-// Since a registry just remembers flows and returns them,
-// this interface is empty.
-type Flow interface{}
-
-// RegisterFlow stores the flow for use by the production server (see [NewFlowServeMux]).
-// It doesn't check for duplicates because registerAction will do that.
-func (r *Registry) RegisterFlow(f Flow) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.flows = append(r.flows, f)
-}
-
-func (r *Registry) ListFlows() []Flow {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.flows
 }
 
 func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {

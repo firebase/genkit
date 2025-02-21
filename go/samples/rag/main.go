@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // This program can be manually tested like so:
 //
 // In development mode (with the environment variable GENKIT_ENV="dev"):
@@ -56,7 +55,8 @@ type simpleQaPromptInput struct {
 }
 
 func main() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,7 +121,5 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	if err := g.Start(context.Background(), nil); err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }

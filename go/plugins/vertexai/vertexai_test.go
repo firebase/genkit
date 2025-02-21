@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package vertexai_test
 
 import (
@@ -27,9 +26,7 @@ func TestLive(t *testing.T) {
 		t.Skipf("no -projectid provided")
 	}
 	ctx := context.Background()
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "vertexai/gemini-1.5-flash",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
 	if err != nil {
 		t.Fatal(err)
 	}

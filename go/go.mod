@@ -1,10 +1,10 @@
 module github.com/firebase/genkit/go
 
-go 1.22.0
+go 1.24.0
 
 retract (
-	v0.1.3 // This shold have been a minor release.
 	v0.1.4 // Retraction only.
+	v0.1.3 // This shold have been a minor release.
 )
 
 require (
@@ -17,7 +17,6 @@ require (
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/google/generative-ai-go v0.16.1-0.20240711222609-09946422abc6
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
@@ -74,6 +73,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

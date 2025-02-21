@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package weaviate
 
 import (
@@ -32,7 +31,7 @@ func TestGenkit(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
