@@ -399,7 +399,7 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
       input: {
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
-      name: options.name,
+      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
       model: modelName(options.model),
     },
     type: 'prompt',
