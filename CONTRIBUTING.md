@@ -49,7 +49,7 @@ After completing these prerequisites, follow the language-specific setup instruc
 
 ## Go Guide
 
-1. Install Go 1.22 or later
+1. Install Go 1.24 or later
    Follow the [official Go installation guide](https://golang.org/doc/install).
 
 2. Configure your AI model
