@@ -34,15 +34,55 @@ information on using pull requests.
 
 ## Setup
 
-### Environment
+Genkit supports JavaScript, Go, and Python. Before contributing in any of these languages, complete these prerequisites:
 
-1. [Install node v20](https://nodejs.org/en/download)
-2. Run `corepack enable pnpm` to enable pnpm.
+1. Install Node.js 20 or later using [nvm](https://nodejs.org/en/download)
 
-Note: We recommend using Node v20 or greater when compiling and running Genkit.
-Any older versions of Node may not work properly.
+   > **Note:** Node.js v20 or greater is required. Earlier versions may not work properly.
+
+2. Install the Genkit CLI globally:
+   ```bash
+   npm install -g genkit
+   ```
+
+After completing these prerequisites, follow the language-specific setup instructions below.
+
+## Go Guide
+
+1. Install Go 1.24 or later
+   Follow the [official Go installation guide](https://golang.org/doc/install).
+
+2. Configure your AI model
+   Most samples use Google's Gemini model. You'll need to generate an API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+
+   Once you have your key, set it in your environment:
+
+   ```bash
+   export GOOGLE_GENAI_API_KEY=<your-api-key>
+   ```
+
+3. Run a sample application
+
+   ```bash
+   cd go/samples          # Navigate to samples directory
+   cd <sample-name>       # Choose a sample to run
+   go mod tidy            # Install Go dependencies
+   genkit start -- go run .  # Start the Genkit server and run the application
+   ```
+
+   Once running, visit http://localhost:4000 to access the Developer UI.
+
+4. Run tests
+   ```bash
+   cd <test-directory>    # Navigate to test directory
+   go test .              # Run tests in current directory
+   ```
+
+## JS Guide
 
 ### Install dependencies
+
+Run `corepack enable pnpm` to enable pnpm.
 
 ```
 pnpm i
@@ -160,7 +200,7 @@ cd js && pnpm build && pnpm typedoc-html && open api-refs-js/index.html
 
 ## Send it
 
-Once done coding you will want to send a PR. Always do things in a separate branch (by convention name the branch `your_name-feature-something`).
+Once done coding you will want to send a PR. Always do things in a separate branch (by convention name the branch `your-name/feature-something`).
 
 Before sending the PR, always run:
 
