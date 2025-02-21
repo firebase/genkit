@@ -199,7 +199,7 @@ func WithMessages(messages ...*Message) GenerateOption {
 	}
 }
 
-// WithHistory adds provided history messages to the begining of ModelRequest.Messages.
+// WithHistory adds provided history messages to the beginning of ModelRequest.Messages.
 // History messages will always be put first in the list of messages, with the
 // exception of system prompt which will always be first.
 // [WithMessages] and [WithTextPrompt] will insert messages after system prompt and history.
