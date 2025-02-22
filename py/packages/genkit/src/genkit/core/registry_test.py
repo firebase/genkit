@@ -3,6 +3,12 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tests for the registry module.
+
+This module contains unit tests for the Registry class and its associated
+functionality, ensuring proper registration and management of Genkit resources.
+"""
+
 import pytest
 from genkit.core.action import ActionKind
 from genkit.core.registry import Registry

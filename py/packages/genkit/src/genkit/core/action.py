@@ -1,5 +1,12 @@
 # Copyright 2025 Google LLC
-# SPDX-License-Identifier: Apache-2.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Action module for defining and managing RPC-over-HTTP functions.
+
+This module provides the core functionality for creating and managing actions in
+the Genkit framework. Actions are strongly-typed, named, observable,
+uninterrupted operations that can operate in streaming or non-streaming mode.
+"""
 
 import inspect
 import json
@@ -12,7 +19,11 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
 class ActionKind(StrEnum):
-    """Enumerates all the types of action that can be registered."""
+    """Enumerates all the types of action that can be registered.
+
+    This enum defines the various types of actions supported by the framework,
+    including chat models, embedders, evaluators, and other utility functions.
+    """
 
     CHATLLM = 'chat-llm'
     CUSTOM = 'custom'
@@ -29,7 +40,12 @@ class ActionKind(StrEnum):
 
 
 class ActionResponse(BaseModel):
-    """The response from an action."""
+    """The response from an action.
+
+    Attributes:
+        response: The actual response data from the action execution.
+        trace_id: A unique identifier for tracing the action execution.
+    """
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
@@ -38,7 +54,13 @@ class ActionResponse(BaseModel):
 
 
 class ActionMetadataKey(StrEnum):
-    """Enumerates all the keys of the action metadata."""
+    """Enumerates all the keys of the action metadata.
+
+    Attributes:
+        INPUT_KEY: Key for the input schema metadata.
+        OUTPUT_KEY: Key for the output schema metadata.
+        RETURN: Key for the return type metadata.
+    """
 
     INPUT_KEY = 'inputSchema'
     OUTPUT_KEY = 'outputSchema'
@@ -48,28 +70,25 @@ class ActionMetadataKey(StrEnum):
 def parse_action_key(key: str) -> tuple[ActionKind, str]:
     """Parse an action key into its kind and name components.
 
-    The key format is `<kind>/<name>`.  Examples include:
-    - `prompt/my-prompt`
-    - `model/gpt-4`.
-
     Args:
-        key: The action key to parse.
+        key: The action key to parse, in the format "kind/name".
 
     Returns:
-        A tuple of (kind, name).
+        A tuple containing the ActionKind and name.
 
     Raises:
-        ValueError: If the key format is invalid or if the kind is not a valid ActionKind.
+        ValueError: If the key format is invalid or if the kind is not a valid
+            ActionKind.
     """
     tokens = key.split('/')
     if len(tokens) != 2 or not tokens[0] or not tokens[1]:
         msg = (
-            f'Invalid action key format: `{key}`. '
-            'Expected format: `<kind>/<name>`'
+            f'Invalid action key format: `{key}`. Expected format: `<kind>/<n>`'
         )
         raise ValueError(msg)
 
-    kind_str, name = tokens
+    kind_str = tokens[0]
+    name = tokens[1]
     try:
         kind = ActionKind(kind_str)
     except ValueError as e:
@@ -79,45 +98,50 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
 
 
 class Action:
-    """An action is a Typed JSON-based RPC-over-HTTP remote-callable function
-    that supports metadata, streaming, reflection and discovery.
+    """An action is a Typed JSON-based RPC-over-HTTP remote-callable function.
 
-    It is strongly-typed, named, observable, uninterrupted operation that can be
-    in streaming or non-streaming mode. It wraps a function that takes an input,
-    and returns an output, optionally streaming values incrementally by invoking
-    a streaming callback.
-
-    An action can be registered in the registry and then be used in a flow.
-    It can be of different kinds as defined by the ActionKind enum.
+    Actions support metadata, streaming, reflection and discovery. They are
+    strongly-typed, named, observable, uninterrupted operations that can operate
+    in streaming or non-streaming mode. An action wraps a function that takes an
+    input and returns an output, optionally streaming values incrementally by
+    invoking a streaming callback.
     """
 
     def __init__(
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable,
+        fn: Callable[..., Any],
         description: str | None = None,
-        metadata: dict[ActionMetadataKey, Any] | None = None,
-        span_metadata: dict[str, str] | None = None,
-    ):
-        """Initialize an action.
+        metadata: dict[str, Any] | None = None,
+        span_metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize an Action.
 
         Args:
-            kind: The kind of the action.
-            name: The name of the action.
+            kind: The kind of action (e.g., TOOL, MODEL, etc.).
+            name: Unique name identifier for this action.
             fn: The function to call when the action is executed.
-            description: The description of the action.
-            metadata: The metadata of the action.
-            span_metadata: The span metadata of the action.
+            description: Optional human-readable description of the action.
+            metadata: Optional dictionary of metadata about the action.
+            span_metadata: Optional dictionary of tracing span metadata.
         """
-        # TODO(Tatsiana Havina): separate a long constructor into methods.
-        self.kind: ActionKind = kind
+        self.kind = kind
         self.name = name
 
         def tracing_wrapper(*args, **kwargs):
-            """Wraps the callable function in a tracing span and adds metadata
-            to it."""
+            """Wrap the callable function in a tracing span and add metadata.
 
+            This wrapper creates a tracing span around the function call and
+            adds metadata about the action to the span.
+
+            Args:
+                *args: Positional arguments to pass to the wrapped function.
+                **kwargs: Keyword arguments to pass to the wrapped function.
+
+            Returns:
+                The result of calling the wrapped function.
+            """
             with tracer.start_as_current_span(name) as span:
                 trace_id = str(span.get_span_context().trace_id)
                 span.set_attribute('genkit:type', kind)

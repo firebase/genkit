@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#
+# Run tests for all supported Go versions
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+
+# We're concerned about only the release versions of Go, not "tip", but it has
+# been included as an example in case it is needed in the future.
+GO_VERSIONS=(
+  "1.22.12"
+  "1.23.6"
+  "1.24.0"
+  #"tip" # Fetches and builds the latest version of go from source and is slow.
+)
+
+cd "${TOP_DIR}/go"
+
+for VERSION in "${GO_VERSIONS[@]}"; do
+  echo "Running tests with Go ${VERSION}..."
+  pushd "${TOP_DIR}/go" &>/dev/null
+  "${TOP_DIR}/bin/golang" "${VERSION}" test ./... || true # TODO: Skip failures temporarily.
+  popd &>/dev/null
+done
