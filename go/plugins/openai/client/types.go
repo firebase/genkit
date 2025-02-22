@@ -16,8 +16,20 @@ type ChatCompletionRequest struct {
 	TopP        float64       `json:"top_p,omitempty"`
 }
 
+// Role defines the possible roles in a chat conversation
+// These roles are explictly defined in OpenAI's API
+// https://platform.openai.com/docs/guides/text-generation#messages-and-roles
+type Role string
+
+const (
+	RoleSystem    Role = "system"
+	RoleUser      Role = "user"
+	RoleAssistant Role = "assistant"
+)
+
+// ChatMessage represents a message in the conversation
 type ChatMessage struct {
-	Role    string `json:"role"`
+	Role    Role   `json:"role"`
 	Content string `json:"content"`
 }
 
