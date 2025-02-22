@@ -5,15 +5,20 @@ import (
 	"net/http"
 )
 
-// ChatCompletionRequest represents a request to the chat completions API
-type ChatCompletionRequest struct {
-	Model       string        `json:"model"`
-	Messages    []ChatMessage `json:"messages"`
-	Temperature float64       `json:"temperature,omitempty"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
-	Stream      bool          `json:"stream,omitempty"`
-	Stop        []string      `json:"stop,omitempty"`
-	TopP        float64       `json:"top_p,omitempty"`
+// ChatRequest represents a request to the chat completions API
+// See: https://platform.openai.com/docs/api-reference/chat/create
+type ChatRequest struct {
+	// Required
+	Model    string        `json:"model"`
+	Messages []ChatMessage `json:"messages"`
+
+	// Optional
+	Temperature float64  `json:"temperature,omitempty"` // Default: 1. Range: 0-2
+	TopP        float64  `json:"top_p,omitempty"`       // Default: 1. Range: 0-1
+	N           int      `json:"n,omitempty"`           // Default: 1
+	Stream      bool     `json:"stream,omitempty"`      // Default: false
+	Stop        []string `json:"stop,omitempty"`        // Default: null
+	MaxTokens   int      `json:"max_tokens,omitempty"`  // Default: inf
 }
 
 // Role defines the possible roles in a chat conversation
@@ -33,17 +38,40 @@ type ChatMessage struct {
 	Content string `json:"content"`
 }
 
-// ChatCompletionResponse represents a response from the chat completions API
-type ChatCompletionResponse struct {
-	ID      string       `json:"id"`
-	Choices []ChatChoice `json:"choices"`
-	Usage   Usage        `json:"usage"`
+// ChatResponse represents a response from the chat completions API
+// https://platform.openai.com/docs/api-reference/chat/object
+type ChatResponse struct {
+	ID                string       `json:"id"`
+	Object            string       `json:"object"`  // "chat.completion"
+	Created           int64        `json:"created"` // unix timestamp in seconds
+	Model             string       `json:"model"`   // model used
+	SystemFingerprint string       `json:"system_fingerprint"`
+	Choices           []ChatChoice `json:"choices"`
+	Usage             Usage        `json:"usage"`
 }
 
 type ChatChoice struct {
 	Index        int         `json:"index"`
 	Message      ChatMessage `json:"message"`
-	FinishReason string      `json:"finish_reason"`
+	LogProbs     *LogProbs   `json:"logprobs,omitempty"`
+	FinishReason string      `json:"finish_reason"` // "stop", "length", "content_filter", "tool_calls", "function_call"
+}
+
+type LogProbs struct {
+	Content []ContentLogProb `json:"content"`
+}
+
+type ContentLogProb struct {
+	Token       string    `json:"token"`
+	LogProb     float64   `json:"logprob"`
+	Bytes       []int     `json:"bytes,omitempty"`
+	TopLogProbs []TopProb `json:"top_logprobs,omitempty"`
+}
+
+type TopProb struct {
+	Token   string  `json:"token"`
+	LogProb float64 `json:"logprob"`
+	Bytes   []int   `json:"bytes,omitempty"`
 }
 
 type Usage struct {
