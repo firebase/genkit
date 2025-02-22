@@ -12,7 +12,7 @@ from typing import Any
 
 from genkit.ai.model import ModelFn
 from genkit.ai.prompt import PromptFn
-from genkit.core.action import Action, ActionKind
+from genkit.core.action import ActionKind
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 class Genkit:
     """Veneer user-facing API for application developers who use the SDK."""
 
-    registry: Registry = Registry()
-
     def __init__(
         self,
         plugins: list[Plugin] | None = None,
@@ -38,6 +36,7 @@ class Genkit:
         reflection_server_spec=DEFAULT_REFLECTION_SERVER_SPEC,
     ) -> None:
         self.model = model
+        self.registry = Registry()
 
         if server.is_dev_environment():
             runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
@@ -60,7 +59,7 @@ class Genkit:
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.initialize(self)
+                    plugin.initialize(registry=self.registry)
                 else:
                     raise ValueError(
                         f'Invalid {plugin=} provided to Genkit: '
@@ -68,7 +67,10 @@ class Genkit:
                     )
 
     def start_server(self, host: str, port: int) -> None:
-        httpd = HTTPServer((host, port), make_reflection_server(self.registry))
+        httpd = HTTPServer(
+            (host, port),
+            make_reflection_server(registry=self.registry),
+        )
         httpd.serve_forever()
 
     def generate(
