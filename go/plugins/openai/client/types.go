@@ -54,7 +54,7 @@ type ChatChoice struct {
 	Index        int         `json:"index"`
 	Message      ChatMessage `json:"message"`
 	LogProbs     *LogProbs   `json:"logprobs,omitempty"`
-	FinishReason string      `json:"finish_reason"` // "stop", "length", "content_filter", "tool_calls", "function_call"
+	FinishReason string      `json:"finish_reason"`
 }
 
 type LogProbs struct {
