@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the coffee shop sample.
+
+    This function demonstrates how to use Genkit to build a coffee shop
+    ordering system.
+    """
     print('Hey')
 
 

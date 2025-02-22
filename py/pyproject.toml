@@ -52,7 +52,7 @@ testpaths = ["packages", "plugins", "samples"]
 addopts = "--cov"
 
 [tool.coverage.report]
-fail_under = 82
+fail_under = 83
 
 # uv based package management.
 [tool.uv]
@@ -117,7 +117,9 @@ exclude = [
 ]
 indent-width = 4
 line-length = 80
+preview = true
 target-version = "py312"
+unsafe-fixes = true
 
 
 [tool.ruff.lint]
@@ -130,15 +132,19 @@ select = [
   "UP", # pyupgrade (Python version upgrades)
   "B",  # flake8-bugbear (common bugs)
   "N",  # pep8-naming (naming conventions)
+  "D",  # pydocstyle
 ]
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
-docstring-code-format     = true
-indent-style              = "space"
-line-ending               = "lf"
-quote-style               = "single"
-skip-magic-trailing-comma = false
+docstring-code-format      = true
+docstring-code-line-length = 80
+indent-style               = "space"
+line-ending                = "lf"
+quote-style                = "single"
+skip-magic-trailing-comma  = false
 
 # Static type checking.
 [tool.mypy]
@@ -174,7 +180,7 @@ warn_unused_configs = true
 #collapse-root-models = true # Don't use; produces Any as types.
 #strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
 #use-subclass-enum        = true
-capitalize-enum-members  = true
+capitalise-enum-members  = true
 disable-timestamp        = true
 enable-version-header    = true
 field-constraints        = true
@@ -188,5 +194,6 @@ target-python-version    = "3.12"
 use-default              = false
 use-schema-description   = true
 use-standard-collections = true
+use-subclass-enum        = true
 use-union-operator       = true
 use-unique-items-as-set  = true

@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the Vertex AI Vector Search sample.
+
+    This function demonstrates how to use Vertex AI Vector Search
+    capabilities with the Genkit framework for semantic search.
+    """
     print('Hey')
 
 

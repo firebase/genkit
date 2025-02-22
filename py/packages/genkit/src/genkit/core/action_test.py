@@ -3,13 +3,18 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tests for the action module."""
+
 import pytest
 from genkit.core.action import ActionKind, parse_action_key
 
 
 def test_action_enum_behaves_like_str() -> None:
-    """Ensure the ActionType behaves like a string and to ensure we're using the
-    correct variants."""
+    """Ensure the ActionType behaves like a string.
+
+    This test verifies that the ActionType enum values can be compared
+    directly with strings and that the correct variants are used.
+    """
     assert ActionKind.CHATLLM == 'chat-llm'
     assert ActionKind.CUSTOM == 'custom'
     assert ActionKind.EMBEDDER == 'embedder'

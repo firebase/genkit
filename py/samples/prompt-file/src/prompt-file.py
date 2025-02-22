@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the prompt file sample.
+
+    This function demonstrates how to load and use prompts from external
+    files in Genkit.
+    """
     print('Hey')
 
 

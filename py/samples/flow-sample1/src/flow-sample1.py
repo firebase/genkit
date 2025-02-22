@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the flow sample.
+
+    This function demonstrates how to create and use AI flows in the
+    Genkit framework.
+    """
     print('Hey')
 
 

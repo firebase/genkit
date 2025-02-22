@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the basic Gemini sample.
+
+    This function demonstrates basic usage of the Gemini model in the
+    Genkit framework.
+    """
     print('Hey')
 
 

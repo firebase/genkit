@@ -21,4 +21,6 @@ python3 "${TOP_DIR}/py/bin/sanitize_schema_types.py" "${SCHEMA_FILE}"
 uv run --directory "${TOP_DIR}/py" \
   ruff format "${TOP_DIR}"
 uv run --directory "${TOP_DIR}/py" \
-  ruff check --select I --fix "${SCHEMA_FILE}"
+  ruff check --fix "${SCHEMA_FILE}"
+uv run --directory "${TOP_DIR}/py" \
+  ruff format "${TOP_DIR}"
