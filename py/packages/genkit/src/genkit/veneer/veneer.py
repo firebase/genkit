@@ -16,7 +16,12 @@ from genkit.core.action import ActionKind
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
-from genkit.core.schema_types import GenerateRequest, GenerateResponse, Message
+from genkit.core.schema_types import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerationCommonConfig,
+    Message,
+)
 from genkit.veneer import server
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
@@ -80,14 +85,22 @@ class Genkit:
         messages: list[Message] | None = None,
         system: str | None = None,
         tools: list[str] | None = None,
+        config: GenerationCommonConfig | None = None,
     ) -> GenerateResponse:
         model = model if model is not None else self.model
         if model is None:
             raise Exception('No model configured.')
+        if config and not isinstance(config, GenerationCommonConfig):
+            raise AttributeError('Invalid generate config provided')
 
         model_action = self.registry.lookup_action(ActionKind.MODEL, model)
 
-        return model_action.fn(GenerateRequest(messages=messages)).response
+        return model_action.fn(
+            GenerateRequest(
+                messages=messages,
+                config=config,
+            )
+        ).response
 
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
         def wrapper(func: Callable) -> Callable:
