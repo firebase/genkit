@@ -108,7 +108,7 @@ func mockSuccessResponse(w http.ResponseWriter, _ *http.Request) {
 		Choices: []ChatChoice{
 			{
 				Message: ChatMessage{
-					Role:    RoleAssistant,
+					Role:    "assistant",
 					Content: "Hello!",
 				},
 			},
@@ -145,7 +145,7 @@ func TestChatBuilder(t *testing.T) {
 			name: "successful chat completion",
 			setupChat: func(c *Client) *ChatBuilder {
 				return c.NewChat("gpt-3.5-turbo").
-					AddMessage(RoleUser, "Hi").
+					AddMessage("user", "Hi").
 					WithTemperature(0.7).
 					WithMaxCompletionTokens(100)
 			},
@@ -172,7 +172,7 @@ func TestChatBuilder(t *testing.T) {
 			name: "invalid role",
 			setupChat: func(c *Client) *ChatBuilder {
 				return c.NewChat("gpt-3.5-turbo").
-					AddMessage("invalid", "content")
+					AddMessage("invalid-role", "content")
 			},
 			wantErr: true,
 		},
@@ -187,7 +187,7 @@ func TestChatBuilder(t *testing.T) {
 			name: "server error",
 			setupChat: func(c *Client) *ChatBuilder {
 				return c.NewChat("gpt-3.5-turbo").
-					AddMessage(RoleUser, "Hi")
+					AddMessage("user", "Hi")
 			},
 			wantErr:       true,
 			serverHandler: mockErrorResponse,

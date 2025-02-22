@@ -14,6 +14,7 @@ import (
 const (
 	defaultBaseURL = "https://api.openai.com/v1"
 	defaultTimeout = 30 * time.Second
+	chatEndpoint   = "/chat/completions"
 )
 
 // Client handles communication with OpenAI API
@@ -152,10 +153,8 @@ type ChatBuilder struct {
 //
 // Example:
 //
-//	client := client.NewClient("sk-1234567890")
-//	builder := client.NewChat("gpt-3.5-turbo")
-//	builder.AddMessage(client.RoleUser, "Hello, how are you?")
-//	response, err := builder.Execute(context.Background())
+//	client := client.NewClient("OPENAI_API_KEY")
+//	response, err := client.NewChat("gpt-3.5-turbo").AddMessage("user", "Hello, how are you?").Execute(context.Background())
 func (c *Client) NewChat(model string) *ChatBuilder {
 	if model == "" {
 		return &ChatBuilder{err: fmt.Errorf("model is required")}
@@ -276,7 +275,7 @@ func (b *ChatBuilder) Execute(ctx context.Context) (*ChatResponse, error) {
 		return nil, fmt.Errorf("at least one message is required")
 	}
 
-	resp, err := b.client.sendRequest(ctx, "/chat/completions", b.request)
+	resp, err := b.client.sendRequest(ctx, chatEndpoint, b.request)
 	if err != nil {
 		return nil, err
 	}
