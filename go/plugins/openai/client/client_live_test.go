@@ -3,6 +3,7 @@ package client_test
 import (
 	"context"
 	"flag"
+	"os"
 	"testing"
 
 	"github.com/firebase/genkit/go/plugins/openai/client"
@@ -16,12 +17,18 @@ func TestLiveChat(t *testing.T) {
 		t.Skip("skipping live OpenAI API test. Use -test-live flag to run")
 	}
 
-	if *apiKey == "" {
-		t.Skip("skipping live test: no API key provided. Use -api-key flag")
+	// Get API key from flag or environment variable
+	key := *apiKey
+	if key == "" {
+		key = os.Getenv("OPENAI_API_KEY")
+	}
+
+	if key == "" {
+		t.Skip("skipping live test: no API key provided. Use -api-key flag or set OPENAI_API_KEY environment variable")
 	}
 
 	// Create a new client
-	c, err := client.NewClient(*apiKey).Build()
+	c, err := client.NewClient(key).Build()
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
