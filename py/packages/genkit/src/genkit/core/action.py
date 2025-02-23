@@ -8,14 +8,18 @@ the Genkit framework. Actions are strongly-typed, named, observable,
 uninterrupted operations that can operate in streaming or non-streaming mode.
 """
 
-import inspect
 import json
-from collections.abc import Callable
+import asyncio
+import inspect
 from enum import StrEnum
-from typing import Any
-
+from typing import Any, Callable, Dict
 from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from .utils import dump_json
+import sys
+
+# TODO: add typing, generics
+StreamingCallback = Callable[[Any], None]
 
 
 class ActionKind(StrEnum):
@@ -81,20 +85,33 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
             ActionKind.
     """
     tokens = key.split('/')
-    if len(tokens) != 2 or not tokens[0] or not tokens[1]:
+    if len(tokens) < 3 or not tokens[1] or not tokens[2]:
         msg = (
             f'Invalid action key format: `{key}`. Expected format: `<kind>/<n>`'
         )
         raise ValueError(msg)
 
-    kind_str = tokens[0]
-    name = tokens[1]
+    kind_str = tokens[1]
+    name = tokens[2]
     try:
         kind = ActionKind(kind_str)
     except ValueError as e:
         msg = f'Invalid action kind: `{kind_str}`'
         raise ValueError(msg) from e
     return kind, name
+
+def NOOP_STREAMING_CALLBACK(chunk: Any):
+    pass
+
+
+class ActionRunContext:
+    def __init__(self, on_chunk: StreamingCallback = None, context: Any = None):
+        self.__on_chunk = on_chunk if on_chunk != None else NOOP_STREAMING_CALLBACK
+        self.context = context if context != None else {}
+
+    def send_chunk(self, chunk: Any):
+        self.__on_chunk(chunk)
+
 
 
 class Action:
@@ -129,7 +146,14 @@ class Action:
         self.kind = kind
         self.name = name
 
-        def tracing_wrapper(*args, **kwargs):
+        input_spec = inspect.getfullargspec(fn)
+        action_args = [
+            k for k in input_spec.annotations if k != ActionMetadataKey.RETURN
+        ]
+
+        afn = ensure_async(fn)
+
+        async def tracing_wrapper(input: Any | None, ctx: ActionRunContext):
             """Wrap the callable function in a tracing span and add metadata.
 
             This wrapper creates a tracing span around the function call and
@@ -151,35 +175,28 @@ class Action:
                     for meta_key in span_metadata:
                         span.set_attribute(meta_key, span_metadata[meta_key])
 
-                if len(args) > 0:
-                    if isinstance(args[0], BaseModel):
-                        encoded = args[0].model_dump_json(by_alias=True)
+                if len(action_args) > 0:
+                    if isinstance(input, BaseModel):
+                        encoded = input.model_dump_json(by_alias=True)
                         span.set_attribute('genkit:input', encoded)
                     else:
-                        span.set_attribute('genkit:input', json.dumps(args[0]))
+                        span.set_attribute('genkit:input', json.dumps(input))
 
-                output = fn(*args, **kwargs)
+                match len(action_args):
+                    case 0: output = await afn()
+                    case 1: output = await afn(input)
+                    case 2: output = await afn(input, ctx)
+                    case _: raise ValueError('action fn must have 0-2 args...')
 
                 span.set_attribute('genkit:state', 'success')
-
-                if isinstance(output, BaseModel):
-                    encoded = output.model_dump_json(by_alias=True)
-                    span.set_attribute('genkit:output', encoded)
-                else:
-                    span.set_attribute('genkit:output', json.dumps(output))
-
+                span.set_attribute('genkit:output', dump_json(output))
                 return ActionResponse(response=output, trace_id=trace_id)
 
-        self.fn = tracing_wrapper
+        self.__fn = tracing_wrapper
         self.description = description
         self.metadata = metadata if metadata else {}
 
-        input_spec = inspect.getfullargspec(fn)
-        action_args = [
-            k for k in input_spec.annotations if k != ActionMetadataKey.RETURN
-        ]
-
-        if len(action_args) > 1:
+        if len(action_args) > 2:
             raise Exception('can only have one arg')
         if len(action_args) > 0:
             type_adapter = TypeAdapter(input_spec.annotations[action_args[0]])
@@ -199,3 +216,23 @@ class Action:
         else:
             self.output_schema = TypeAdapter(Any).json_schema()
             self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
+
+    async def arun(self, input: Any = None, on_chunk: StreamingCallback = None, context: Dict[str, Any] = None, telemetry_labels: Dict[str, Any] = None) -> ActionResponse:
+        # TODO: handle telemetry_labels
+        # TODO: propagate context down the callstack via contextvars
+        return await self.__fn(input, ActionRunContext(on_chunk=on_chunk, context=context))
+
+    async def arun_raw(self, raw_input: Any, on_chunk: StreamingCallback = None, context: Dict[str, Any] = None, telemetry_labels: Dict[str, Any] = None):
+        input_action = self.input_type.validate_python(raw_input)
+        return await self.arun(input=input_action, on_chunk=on_chunk, context=context, telemetry_labels=telemetry_labels)
+
+
+def ensure_async(fn: Callable) -> Callable:
+    is_async = asyncio.iscoroutinefunction(fn)
+    if is_async:
+        return fn
+
+    async def asyn_wrapper(*args, **kwargs):
+        return fn(*args, **kwargs)
+
+    return asyn_wrapper

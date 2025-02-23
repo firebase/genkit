@@ -59,7 +59,7 @@ def say_hi(name: str):
     Returns:
         The generated greeting response.
     """
-    return ai.generate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,

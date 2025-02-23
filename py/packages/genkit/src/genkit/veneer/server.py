@@ -66,6 +66,7 @@ def create_runtime(
     runtime_file_name = f'{current_datetime.isoformat()}.json'
     runtime_file_path = Path(os.path.join(runtime_dir, runtime_file_name))
     metadata = json.dumps({
+        'reflectionApiSpecVersion': 1,
         'id': f'{os.getpid()}',
         'pid': os.getpid(),
         'reflectionServerUrl': reflection_server_spec.url,

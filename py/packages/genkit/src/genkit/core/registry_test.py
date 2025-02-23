@@ -33,7 +33,7 @@ def test_lookup_action_by_key() -> None:
     action = registry.register_action(
         name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
     )
-    got = registry.lookup_action_by_key('custom/test_action')
+    got = registry.lookup_action_by_key('/custom/test_action')
 
     assert got == action
     assert got.name == 'test_action'
@@ -45,5 +45,3 @@ def test_lookup_action_by_key_invalid_format() -> None:
     registry = Registry()
     with pytest.raises(ValueError, match='Invalid action key format'):
         registry.lookup_action_by_key('invalid_key')
-    with pytest.raises(ValueError, match='Invalid action key format'):
-        registry.lookup_action_by_key('too/many/parts')

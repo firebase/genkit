@@ -16,9 +16,8 @@ Example:
 
 from collections.abc import Callable
 from typing import Any
-
 from genkit.core.action import Action, ActionKind, parse_action_key
-
+import asyncio
 
 class Registry:
     """Central repository for Genkit resources.
@@ -32,6 +31,9 @@ class Registry:
         actions: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
     """
+
+    actions: dict[ActionKind, dict[str, Action]] = {}
+    loop = asyncio.new_event_loop()
 
     def __init__(self):
         """Initialize an empty Registry instance."""

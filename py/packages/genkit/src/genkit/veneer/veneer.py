@@ -6,6 +6,8 @@
 import logging
 import os
 import threading
+import asyncio
+from functools import wraps
 from collections.abc import Callable
 from http.server import HTTPServer
 from typing import Any
@@ -93,7 +95,7 @@ class Genkit:
         )
         httpd.serve_forever()
 
-    def generate(
+    async def generate(
         self,
         model: str | None = None,
         prompt: str | None = None,
@@ -122,13 +124,8 @@ class Genkit:
             raise AttributeError('Invalid generate config provided')
 
         model_action = self.registry.lookup_action(ActionKind.MODEL, model)
-
-        return model_action.fn(
-            GenerateRequest(
-                messages=messages,
-                config=config,
-            )
-        ).response
+        return (await model_action.arun(GenerateRequest(messages=messages,
+                config=config))).response
 
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.
@@ -150,10 +147,17 @@ class Genkit:
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
 
-            def decorator(*args: Any, **kwargs: Any) -> GenerateResponse:
-                return action.fn(*args, **kwargs).response
+            is_async = asyncio.iscoroutinefunction(func)
 
-            return decorator
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                return (await action.arun(*args, **kwargs)).response
+
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                return (self.registry.loop.run_until_complete(action.arun(*args, **kwargs))).response
+
+            return async_wrapper if is_async else sync_wrapper
 
         return wrapper
 
@@ -176,35 +180,3 @@ class Genkit:
             fn=fn,
             metadata=metadata,
         )
-
-    def define_prompt(
-        self,
-        name: str,
-        fn: PromptFn,
-        model: str | None = None,
-    ) -> Callable[[Any | None], GenerateResponse]:
-        """Define a custom prompt action.
-
-        Args:
-            name: Name of the prompt.
-            fn: Function implementing the prompt behavior.
-            model: Optional model name to use.
-
-        Returns:
-            A function that generates text using the prompt.
-        """
-
-        def prompt(input_prompt: Any | None = None) -> GenerateResponse:
-            req = fn(input_prompt)
-            return self.generate(messages=req.messages, model=model)
-
-        action = self.registry.register_action(
-            kind=ActionKind.PROMPT,
-            name=name,
-            fn=fn,
-        )
-
-        def wrapper(input_prompt: Any | None = None) -> GenerateResponse:
-            return action.fn(input_prompt)
-
-        return wrapper
