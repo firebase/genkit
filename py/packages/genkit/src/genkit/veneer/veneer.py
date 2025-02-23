@@ -3,7 +3,6 @@
 
 """Veneer user-facing API for application developers who use the SDK."""
 
-import asyncio
 import logging
 import os
 import threading
@@ -13,7 +12,6 @@ from http.server import HTTPServer
 from typing import Any
 
 from genkit.ai.model import ModelFn
-from genkit.ai.prompt import PromptFn
 from genkit.core.action import ActionKind
 from genkit.core.environment import is_dev_environment
 from genkit.core.plugin_abc import Plugin
