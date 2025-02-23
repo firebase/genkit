@@ -17,7 +17,7 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
-from genkit.core.schema_types import (
+from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerationCommonConfig,

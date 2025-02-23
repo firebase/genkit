@@ -10,7 +10,7 @@ definitions and a client class for making requests to Gemini models.
 
 from enum import StrEnum
 
-from genkit.core.schema_types import (
+from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     Message,

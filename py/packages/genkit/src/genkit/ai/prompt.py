@@ -12,7 +12,7 @@ generation and management across different parts of the application.
 from collections.abc import Callable
 from typing import Any
 
-from genkit.core.schema_types import GenerateRequest
+from genkit.core.typing import GenerateRequest
 
 # Type alias for a function that takes optional context and returns
 # a GenerateRequest

@@ -17,7 +17,7 @@ Example:
 
 from collections.abc import Callable
 
-from genkit.core.schema_types import GenerateRequest, GenerateResponse
+from genkit.core.typing import GenerateRequest, GenerateResponse
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse
