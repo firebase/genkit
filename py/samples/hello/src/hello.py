@@ -3,8 +3,9 @@
 
 """A hello world sample that just calls some flows."""
 
+import asyncio
 from typing import Any
-
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import GenerateRequest, Message, Role, TextPart
 from genkit.plugins.vertex_ai import VertexAI, vertexai_name
 from genkit.veneer.veneer import Genkit
@@ -50,7 +51,7 @@ def hi_fn(hi_input) -> GenerateRequest:
 
 
 @ai.flow()
-def say_hi(name: str):
+async def say_hi(name: str):
     """Generate a greeting for the given name.
 
     Args:
@@ -82,15 +83,31 @@ def sum_two_numbers2(my_input: MyInput) -> Any:
     return my_input.a + my_input.b
 
 
-def main() -> None:
+@ai.flow()
+def streamingSyncFlow(input: str, ctx: ActionRunContext):
+    ctx.send_chunk(1)
+    ctx.send_chunk({"chunk": "blah"})
+    ctx.send_chunk(3)
+    return "streamingSyncFlow 4"
+
+
+@ai.flow()
+async def streamingAsyncFlow(input: str, ctx: ActionRunContext):
+    ctx.send_chunk(1)
+    ctx.send_chunk({"chunk": "blah"})
+    ctx.send_chunk(3)
+    return "streamingAsyncFlow 4"
+
+
+async def main() -> None:
     """Main entry point for the hello sample.
 
     This function demonstrates the usage of the AI flow by generating
     greetings and performing simple arithmetic operations.
     """
-    print(say_hi('John Doe'))
+    print(await say_hi('John Doe'))
     print(sum_two_numbers2(MyInput(a=1, b=3)))
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())

@@ -11,7 +11,6 @@ from functools import wraps
 from collections.abc import Callable
 from http.server import HTTPServer
 from typing import Any
-
 from genkit.ai.model import ModelFn
 from genkit.ai.prompt import PromptFn
 from genkit.core.action import ActionKind
@@ -147,17 +146,15 @@ class Genkit:
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
 
-            is_async = asyncio.iscoroutinefunction(func)
-
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
                 return (await action.arun(*args, **kwargs)).response
 
             @wraps(func)
             def sync_wrapper(*args, **kwargs):
-                return (self.registry.loop.run_until_complete(action.arun(*args, **kwargs))).response
+                return action.run(*args, **kwargs).response
 
-            return async_wrapper if is_async else sync_wrapper
+            return async_wrapper if action.is_async else sync_wrapper
 
         return wrapper
 
