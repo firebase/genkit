@@ -288,3 +288,44 @@ func (b *ChatBuilder) Execute(ctx context.Context) (*ChatResponse, error) {
 
 	return &result, nil
 }
+
+// ExecuteStream initiates a streaming chat completion request
+// Example:
+//
+//	stream, err := client.NewChat("gpt-3.5-turbo").
+//	    AddMessage(RoleUser, "Count to 5").
+//	    ExecuteStream(context.Background())
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer stream.Close()
+//
+//	for {
+//	    content, err := stream.Recv()
+//	    if err == io.EOF {
+//	        break
+//	    }
+//	    if err != nil {
+//	        log.Fatal(err)
+//	    }
+//	    fmt.Print(content)
+//	}
+func (b *ChatBuilder) ExecuteStream(ctx context.Context) (*ChatCompletionStream, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	if len(b.request.Messages) == 0 {
+		return nil, fmt.Errorf("at least one message is required")
+	}
+
+	b.request.Stream = true
+	resp, err := b.client.sendRequest(ctx, chatEndpoint, b.request)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ChatCompletionStream{
+		reader: resp.Body,
+		resp:   resp,
+	}, nil
+}
