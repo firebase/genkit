@@ -5,6 +5,7 @@
 
 import asyncio
 from typing import Any
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import GenerateRequest, Message, Role, TextPart
 from genkit.plugins.vertex_ai import VertexAI, vertexai_name
@@ -86,17 +87,17 @@ def sum_two_numbers2(my_input: MyInput) -> Any:
 @ai.flow()
 def streamingSyncFlow(input: str, ctx: ActionRunContext):
     ctx.send_chunk(1)
-    ctx.send_chunk({"chunk": "blah"})
+    ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
-    return "streamingSyncFlow 4"
+    return 'streamingSyncFlow 4'
 
 
 @ai.flow()
 async def streamingAsyncFlow(input: str, ctx: ActionRunContext):
     ctx.send_chunk(1)
-    ctx.send_chunk({"chunk": "blah"})
+    ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
-    return "streamingAsyncFlow 4"
+    return 'streamingAsyncFlow 4'
 
 
 async def main() -> None:

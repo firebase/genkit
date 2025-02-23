@@ -9,14 +9,16 @@ during development. It exposes endpoints for health checks, action discovery,
 and action execution.
 """
 
-import json
 import asyncio
+import json
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
+from typing import Any
+
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.headers import HTTPHeader
 from genkit.core.registry import Registry
-from typing import Any
+
 from .utils import dump_json
 
 
@@ -107,6 +109,7 @@ def make_reflection_server(
                 query = urllib.parse.urlparse(self.path).query
                 query = urllib.parse.parse_qs(query)
                 if 'stream' in query != None and query['stream'][0] == 'true':
+
                     def send_chunk(chunk):
                         self.wfile.write(
                             bytes(
@@ -114,45 +117,51 @@ def make_reflection_server(
                                 encoding,
                             )
                         )
-                        self.wfile.write(bytes("\n", encoding))
+                        self.wfile.write(bytes('\n', encoding))
 
                     self.send_response(200)
                     self.send_header(HTTPHeader.X_GENKIT_VERSION, '0.0.1')
-                    self.send_header(HTTPHeader.CONTENT_TYPE,
-                                     'application/json')
+                    self.send_header(
+                        HTTPHeader.CONTENT_TYPE, 'application/json'
+                    )
                     self.end_headers()
 
-                    output = asyncio.run(action.arun_raw(
-                        raw_input=payload['input'], on_chunk=send_chunk, context=context))
+                    output = asyncio.run(
+                        action.arun_raw(
+                            raw_input=payload['input'],
+                            on_chunk=send_chunk,
+                            context=context,
+                        )
+                    )
                     self.wfile.write(
                         bytes(
-                            json.dumps(
-                                {
-                                    'result': dump_json(output.response),
-                                    'telemetry': {'traceId': output.trace_id},
-                                }
-                            ),
+                            json.dumps({
+                                'result': dump_json(output.response),
+                                'telemetry': {'traceId': output.trace_id},
+                            }),
                             encoding,
                         )
                     )
                 else:
-                    output = asyncio.run(action.arun_raw(
-                        raw_input=payload['input'], context=context))
+                    output = asyncio.run(
+                        action.arun_raw(
+                            raw_input=payload['input'], context=context
+                        )
+                    )
 
                     self.send_response(200)
                     self.send_header(HTTPHeader.X_GENKIT_VERSION, '0.0.1')
-                    self.send_header(HTTPHeader.CONTENT_TYPE,
-                                     'application/json')
+                    self.send_header(
+                        HTTPHeader.CONTENT_TYPE, 'application/json'
+                    )
                     self.end_headers()
 
                     self.wfile.write(
                         bytes(
-                            json.dumps(
-                                {
-                                    'result': dump_json(output.response),
-                                    'telemetry': {'traceId': output.trace_id},
-                                }
-                            ),
+                            json.dumps({
+                                'result': dump_json(output.response),
+                                'telemetry': {'traceId': output.trace_id},
+                            }),
                             encoding,
                         )
                     )

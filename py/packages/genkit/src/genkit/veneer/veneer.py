@@ -3,14 +3,15 @@
 
 """Veneer user-facing API for application developers who use the SDK."""
 
+import asyncio
 import logging
 import os
 import threading
-import asyncio
-from functools import wraps
 from collections.abc import Callable
+from functools import wraps
 from http.server import HTTPServer
 from typing import Any
+
 from genkit.ai.model import ModelFn
 from genkit.ai.prompt import PromptFn
 from genkit.core.action import ActionKind
@@ -123,8 +124,11 @@ class Genkit:
             raise AttributeError('Invalid generate config provided')
 
         model_action = self.registry.lookup_action(ActionKind.MODEL, model)
-        return (await model_action.arun(GenerateRequest(messages=messages,
-                config=config))).response
+        return (
+            await model_action.arun(
+                GenerateRequest(messages=messages, config=config)
+            )
+        ).response
 
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.

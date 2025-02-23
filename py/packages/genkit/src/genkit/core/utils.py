@@ -1,9 +1,9 @@
-
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.
 
 import json
 from typing import Any
+
 from pydantic import BaseModel
 
 

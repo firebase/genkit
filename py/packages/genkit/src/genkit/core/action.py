@@ -8,15 +8,17 @@ the Genkit framework. Actions are strongly-typed, named, observable,
 uninterrupted operations that can operate in streaming or non-streaming mode.
 """
 
-import json
 import asyncio
 import inspect
+import json
+import sys
 from enum import StrEnum
 from typing import Any, Callable, Dict
+
 from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
 from .utils import dump_json
-import sys
 
 # TODO: add typing, generics
 StreamingCallback = Callable[[Any], None]
@@ -107,7 +109,9 @@ def NOOP_STREAMING_CALLBACK(chunk: Any):
 
 class ActionRunContext:
     def __init__(self, on_chunk: StreamingCallback = None, context: Any = None):
-        self.__on_chunk = on_chunk if on_chunk != None else NOOP_STREAMING_CALLBACK
+        self.__on_chunk = (
+            on_chunk if on_chunk != None else NOOP_STREAMING_CALLBACK
+        )
         self.context = context if context != None else {}
 
     def send_chunk(self, chunk: Any):
@@ -154,17 +158,28 @@ class Action:
         afn = ensure_async(fn)
         self.is_async = asyncio.iscoroutinefunction(fn)
 
-        async def async_tracing_wrapper(input: Any | None, ctx: ActionRunContext):
+        async def async_tracing_wrapper(
+            input: Any | None, ctx: ActionRunContext
+        ):
             with tracer.start_as_current_span(name) as span:
                 trace_id = str(span.get_span_context().trace_id)
                 record_input_metadata(
-                    span=span, kind=kind, name=name, span_metadata=span_metadata, input=input)
+                    span=span,
+                    kind=kind,
+                    name=name,
+                    span_metadata=span_metadata,
+                    input=input,
+                )
 
                 match len(action_args):
-                    case 0: output = await afn()
-                    case 1: output = await afn(input)
-                    case 2: output = await afn(input, ctx)
-                    case _: raise ValueError('action fn must have 0-2 args...')
+                    case 0:
+                        output = await afn()
+                    case 1:
+                        output = await afn(input)
+                    case 2:
+                        output = await afn(input, ctx)
+                    case _:
+                        raise ValueError('action fn must have 0-2 args...')
 
                 record_output_metadata(span, output=output)
                 return ActionResponse(response=output, trace_id=trace_id)
@@ -173,13 +188,22 @@ class Action:
             with tracer.start_as_current_span(name) as span:
                 trace_id = str(span.get_span_context().trace_id)
                 record_input_metadata(
-                    span=span, kind=kind, name=name, span_metadata=span_metadata, input=input)
+                    span=span,
+                    kind=kind,
+                    name=name,
+                    span_metadata=span_metadata,
+                    input=input,
+                )
 
                 match len(action_args):
-                    case 0: output = fn()
-                    case 1: output = fn(input)
-                    case 2: output = fn(input, ctx)
-                    case _: raise ValueError('action fn must have 0-2 args...')
+                    case 0:
+                        output = fn()
+                    case 1:
+                        output = fn(input)
+                    case 2:
+                        output = fn(input, ctx)
+                    case _:
+                        raise ValueError('action fn must have 0-2 args...')
 
                 record_output_metadata(span, output=output)
                 return ActionResponse(response=output, trace_id=trace_id)
@@ -210,19 +234,46 @@ class Action:
             self.output_schema = TypeAdapter(Any).json_schema()
             self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
 
-    def run(self, input: Any = None, on_chunk: StreamingCallback = None, context: Dict[str, Any] = None, telemetry_labels: Dict[str, Any] = None) -> ActionResponse:
+    def run(
+        self,
+        input: Any = None,
+        on_chunk: StreamingCallback = None,
+        context: Dict[str, Any] = None,
+        telemetry_labels: Dict[str, Any] = None,
+    ) -> ActionResponse:
         # TODO: handle telemetry_labels
         # TODO: propagate context down the callstack via contextvars
-        return self.__fn(input, ActionRunContext(on_chunk=on_chunk, context=context))
+        return self.__fn(
+            input, ActionRunContext(on_chunk=on_chunk, context=context)
+        )
 
-    async def arun(self, input: Any = None, on_chunk: StreamingCallback = None, context: Dict[str, Any] = None, telemetry_labels: Dict[str, Any] = None) -> ActionResponse:
+    async def arun(
+        self,
+        input: Any = None,
+        on_chunk: StreamingCallback = None,
+        context: Dict[str, Any] = None,
+        telemetry_labels: Dict[str, Any] = None,
+    ) -> ActionResponse:
         # TODO: handle telemetry_labels
         # TODO: propagate context down the callstack via contextvars
-        return await self.__afn(input, ActionRunContext(on_chunk=on_chunk, context=context))
+        return await self.__afn(
+            input, ActionRunContext(on_chunk=on_chunk, context=context)
+        )
 
-    async def arun_raw(self, raw_input: Any, on_chunk: StreamingCallback = None, context: Dict[str, Any] = None, telemetry_labels: Dict[str, Any] = None):
+    async def arun_raw(
+        self,
+        raw_input: Any,
+        on_chunk: StreamingCallback = None,
+        context: Dict[str, Any] = None,
+        telemetry_labels: Dict[str, Any] = None,
+    ):
         input_action = self.input_type.validate_python(raw_input)
-        return await self.arun(input=input_action, on_chunk=on_chunk, context=context, telemetry_labels=telemetry_labels)
+        return await self.arun(
+            input=input_action,
+            on_chunk=on_chunk,
+            context=context,
+            telemetry_labels=telemetry_labels,
+        )
 
 
 def record_input_metadata(span, kind, name, span_metadata, input):

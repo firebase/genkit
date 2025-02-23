@@ -16,6 +16,7 @@ Example:
 
 from collections.abc import Callable
 from typing import Any
+
 from genkit.core.action import Action, ActionKind, parse_action_key
 
 
