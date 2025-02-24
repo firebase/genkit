@@ -14,8 +14,8 @@ from collections.abc import Callable
 from enum import StrEnum
 from typing import Any
 
+from genkit.core.codec import dump_json
 from genkit.core.tracing import tracer
-from genkit.core.utils import dump_json
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 # TODO: add typing, generics
