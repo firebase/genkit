@@ -64,8 +64,10 @@ class VertexAI(Plugin):
 
         Args:
             registry: The registry to register actions with.
-        """
 
+        Returns:
+            None
+        """
         for model_version in GeminiVersion:
             gemini = Gemini(model_version)
             registry.register_action(
