@@ -13,12 +13,12 @@ type ChatRequest struct {
 	Messages []ChatMessage `json:"messages"`
 
 	// Optional
-	Temperature         float64  `json:"temperature,omitempty"`           // Default: 1. Range: 0-2
-	TopP                float64  `json:"top_p,omitempty"`                 // Default: 1. Range: 0-1
-	N                   int      `json:"n,omitempty"`                     // Default: 1
-	Stream              bool     `json:"stream,omitempty"`                // Default: false
-	Stop                []string `json:"stop,omitempty"`                  // Default: null
-	MaxCompletionTokens int      `json:"max_completion_tokens,omitempty"` // Default: inf
+	Temperature         float64  `json:"temperature,omitempty"`
+	TopP                float64  `json:"top_p,omitempty"`
+	N                   int      `json:"n,omitempty"`
+	Stream              bool     `json:"stream,omitempty"`
+	Stop                []string `json:"stop,omitempty"`
+	MaxCompletionTokens int      `json:"max_completion_tokens,omitempty"`
 }
 
 // Role defines the possible roles in a chat conversation
