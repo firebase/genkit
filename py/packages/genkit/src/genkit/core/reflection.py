@@ -17,8 +17,8 @@ from typing import Any
 
 from genkit.core.codec import dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
-from genkit.core.headers import HTTPHeader
 from genkit.core.registry import Registry
+from genkit.core.web import HTTPHeader
 
 
 def make_reflection_server(
@@ -60,22 +60,8 @@ def make_reflection_server(
                 self.send_response(200)
                 self.send_header(HTTPHeader.CONTENT_TYPE, 'application/json')
                 self.end_headers()
-
-                actions = {}
-                for action_type in registry.actions:
-                    for name in registry.actions[action_type]:
-                        action = registry.lookup_action(action_type, name)
-                        key = f'/{action_type.value}/{name}'
-                        actions[key] = {
-                            'key': key,
-                            'name': action.name,
-                            'inputSchema': action.input_schema,
-                            'outputSchema': action.output_schema,
-                            'metadata': action.metadata,
-                        }
-
+                actions = registry.list_serializable_actions()
                 self.wfile.write(bytes(json.dumps(actions), encoding))
-
             else:
                 self.send_response(404)
                 self.end_headers()

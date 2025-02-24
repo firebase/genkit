@@ -42,7 +42,7 @@ Genkit supports JavaScript, Go, and Python. Before contributing in any of these 
 
 2. Install the Genkit CLI globally:
    ```bash
-   npm install -g genkit
+   npm install -g genkit-cli
    ```
 
 After completing these prerequisites, follow the language-specific setup instructions below.

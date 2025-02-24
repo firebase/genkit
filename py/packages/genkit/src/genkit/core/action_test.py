@@ -10,6 +10,7 @@ from genkit.core.action import (
     Action,
     ActionKind,
     ActionRunContext,
+    create_action_key,
     parse_action_key,
 )
 
@@ -64,9 +65,23 @@ def test_parse_action_key_invalid_format() -> None:
             parse_action_key(key)
 
 
+def test_create_action_key() -> None:
+    """Test that create_action_key returns the correct action key."""
+    assert create_action_key(ActionKind.CUSTOM, 'foo') == '/custom/foo'
+    assert create_action_key(ActionKind.MODEL, 'foo') == '/model/foo'
+    assert create_action_key(ActionKind.PROMPT, 'foo') == '/prompt/foo'
+    assert create_action_key(ActionKind.RETRIEVER, 'foo') == '/retriever/foo'
+    assert create_action_key(ActionKind.TEXTLLM, 'foo') == '/text-llm/foo'
+    assert create_action_key(ActionKind.TOOL, 'foo') == '/tool/foo'
+    assert create_action_key(ActionKind.UTIL, 'foo') == '/util/foo'
+
+
 @pytest.mark.asyncio
 async def test_define_sync_action() -> None:
+    """Test that a sync action can be defined and run."""
+
     def syncFoo():
+        """A sync action that returns 'syncFoo'."""
         return 'syncFoo'
 
     syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
@@ -78,7 +93,10 @@ async def test_define_sync_action() -> None:
 @pytest.mark.asyncio
 @pytest.mark.skip('bug, action ignores args without type annotation')
 async def test_define_sync_action_with_input_without_type_annotation() -> None:
+    """Test that a sync action can be defined and run with an input without a type annotation."""
+
     def syncFoo(input):
+        """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
     syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
@@ -89,7 +107,10 @@ async def test_define_sync_action_with_input_without_type_annotation() -> None:
 
 @pytest.mark.asyncio
 async def test_define_sync_action_with_input() -> None:
+    """Test that a sync action can be defined and run with an input."""
+
     def syncFoo(input: str):
+        """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
     syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
@@ -100,7 +121,10 @@ async def test_define_sync_action_with_input() -> None:
 
 @pytest.mark.asyncio
 async def test_define_sync_action_with_input_and_context() -> None:
+    """Test that a sync action can be defined and run with an input and context."""
+
     def syncFoo(input: str, ctx: ActionRunContext):
+        """A sync action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
     syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
@@ -116,7 +140,10 @@ async def test_define_sync_action_with_input_and_context() -> None:
 
 @pytest.mark.asyncio
 async def test_define_sync_streaming_action() -> None:
+    """Test that a sync action can be defined and run with streaming output."""
+
     def syncFoo(input: str, ctx: ActionRunContext):
+        """A sync action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
         return 3
@@ -138,7 +165,10 @@ async def test_define_sync_streaming_action() -> None:
 
 @pytest.mark.asyncio
 async def test_define_async_action() -> None:
+    """Test that an async action can be defined and run."""
+
     async def asyncFoo():
+        """An async action that returns 'asyncFoo'."""
         return 'asyncFoo'
 
     asyncFooAction = Action(
@@ -151,7 +181,10 @@ async def test_define_async_action() -> None:
 
 @pytest.mark.asyncio
 async def test_define_async_action_with_input() -> None:
+    """Test that an async action can be defined and run with an input."""
+
     async def asyncFoo(input: str):
+        """An async action that returns 'asyncFoo' with an input."""
         return f'syncFoo {input}'
 
     asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
@@ -162,7 +195,10 @@ async def test_define_async_action_with_input() -> None:
 
 @pytest.mark.asyncio
 async def test_define_async_action_with_input_and_context() -> None:
+    """Test that an async action can be defined and run with an input and context."""
+
     async def asyncFoo(input: str, ctx: ActionRunContext):
+        """An async action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
     asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
@@ -177,7 +213,10 @@ async def test_define_async_action_with_input_and_context() -> None:
 
 @pytest.mark.asyncio
 async def test_define_async_streaming_action() -> None:
+    """Test that an async action can be defined and run with streaming output."""
+
     async def asyncFoo(input: str, ctx: ActionRunContext):
+        """An async action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
         return 3

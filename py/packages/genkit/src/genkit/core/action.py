@@ -75,7 +75,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     """Parse an action key into its kind and name components.
 
     Args:
-        key: The action key to parse, in the format "kind/name".
+        key: The action key to parse, in the format "/kind/name".
 
     Returns:
         A tuple containing the ActionKind and name.
@@ -87,7 +87,8 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     tokens = key.split('/')
     if len(tokens) < 3 or not tokens[1] or not tokens[2]:
         msg = (
-            f'Invalid action key format: `{key}`. Expected format: `<kind>/<n>`'
+            f'Invalid action key format: `{key}`.'
+            'Expected format: `/<kind>/<name>`'
         )
         raise ValueError(msg)
 
@@ -101,18 +102,52 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     return kind, name
 
 
-def NOOP_STREAMING_CALLBACK(chunk: Any):
+def create_action_key(kind: ActionKind, name: str) -> str:
+    """Create an action key from its kind and name components.
+
+    Args:
+        kind: The kind of action.
+        name: The name of the action.
+
+    Returns:
+        The action key in the format `/<kind>/<name>`.
+    """
+    return f'/{kind}/{name}'
+
+
+def noop_streaming_callback(chunk: Any) -> None:
+    """A no-op streaming callback.
+
+    This callback does nothing and is used when no streaming is desired.
+    """
     pass
 
 
 class ActionRunContext:
-    def __init__(self, on_chunk: StreamingCallback = None, context: Any = None):
+    """Context for an action execution."""
+
+    def __init__(
+        self,
+        on_chunk: StreamingCallback | None = None,
+        context: Any | None = None,
+    ):
+        """Initialize an ActionRunContext.
+
+        Args:
+            on_chunk: The callback to invoke when a chunk is received.
+            context: The context to pass to the action.
+        """
         self.__on_chunk = (
-            on_chunk if on_chunk != None else NOOP_STREAMING_CALLBACK
+            on_chunk if on_chunk is not None else noop_streaming_callback
         )
-        self.context = context if context != None else {}
+        self.context = context if context is not None else {}
 
     def send_chunk(self, chunk: Any):
+        """Send a chunk to from the action to the client.
+
+        Args:
+            chunk: The chunk to send to the client.
+        """
         self.__on_chunk(chunk)
 
 
@@ -158,7 +193,16 @@ class Action:
 
         async def async_tracing_wrapper(
             input: Any | None, ctx: ActionRunContext
-        ):
+        ) -> ActionResponse:
+            """Wrap the function in an async tracing wrapper.
+
+            Args:
+                input: The input to the action.
+                ctx: The context to pass to the action.
+
+            Returns:
+                The action response.
+            """
             with tracer.start_as_current_span(name) as span:
                 trace_id = str(span.get_span_context().trace_id)
                 record_input_metadata(
@@ -182,7 +226,18 @@ class Action:
                 record_output_metadata(span, output=output)
                 return ActionResponse(response=output, trace_id=trace_id)
 
-        def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext):
+        def sync_tracing_wrapper(
+            input: Any | None, ctx: ActionRunContext
+        ) -> ActionResponse:
+            """Wrap the function in a sync tracing wrapper.
+
+            Args:
+                input: The input to the action.
+                ctx: The context to pass to the action.
+
+            Returns:
+                The action response.
+            """
             with tracer.start_as_current_span(name) as span:
                 trace_id = str(span.get_span_context().trace_id)
                 record_input_metadata(
@@ -235,10 +290,21 @@ class Action:
     def run(
         self,
         input: Any = None,
-        on_chunk: StreamingCallback = None,
-        context: dict[str, Any] = None,
-        telemetry_labels: dict[str, Any] = None,
+        on_chunk: StreamingCallback | None = None,
+        context: dict[str, Any] | None = None,
+        telemetry_labels: dict[str, Any] | None = None,
     ) -> ActionResponse:
+        """Run the action with input.
+
+        Args:
+            input: The input to the action.
+            on_chunk: The callback to invoke when a chunk is received.
+            context: The context to pass to the action.
+            telemetry_labels: The telemetry labels to pass to the action.
+
+        Returns:
+            The action response.
+        """
         # TODO: handle telemetry_labels
         # TODO: propagate context down the callstack via contextvars
         return self.__fn(
@@ -248,10 +314,21 @@ class Action:
     async def arun(
         self,
         input: Any = None,
-        on_chunk: StreamingCallback = None,
-        context: dict[str, Any] = None,
-        telemetry_labels: dict[str, Any] = None,
+        on_chunk: StreamingCallback | None = None,
+        context: dict[str, Any] | None = None,
+        telemetry_labels: dict[str, Any] | None = None,
     ) -> ActionResponse:
+        """Run the action with raw input.
+
+        Args:
+            input: The input to the action.
+            on_chunk: The callback to invoke when a chunk is received.
+            context: The context to pass to the action.
+            telemetry_labels: The telemetry labels to pass to the action.
+
+        Returns:
+            The action response.
+        """
         # TODO: handle telemetry_labels
         # TODO: propagate context down the callstack via contextvars
         return await self.__afn(
@@ -261,10 +338,21 @@ class Action:
     async def arun_raw(
         self,
         raw_input: Any,
-        on_chunk: StreamingCallback = None,
-        context: dict[str, Any] = None,
-        telemetry_labels: dict[str, Any] = None,
+        on_chunk: StreamingCallback | None = None,
+        context: dict[str, Any] | None = None,
+        telemetry_labels: dict[str, Any] | None = None,
     ):
+        """Run the action with raw input.
+
+        Args:
+            raw_input: The raw input to the action.
+            on_chunk: The callback to invoke when a chunk is received.
+            context: The context to pass to the action.
+            telemetry_labels: The telemetry labels to pass to the action.
+
+        Returns:
+            The action response.
+        """
         input_action = self.input_type.validate_python(raw_input)
         return await self.arun(
             input=input_action,
@@ -275,10 +363,18 @@ class Action:
 
 
 def record_input_metadata(span, kind, name, span_metadata, input):
+    """Record the input metadata for the action.
+
+    Args:
+        span: The span to record the metadata for.
+        kind: The kind of action.
+        name: The name of the action.
+        span_metadata: The span metadata to record.
+        input: The input to the action.
+    """
     span.set_attribute('genkit:type', kind)
     span.set_attribute('genkit:name', name)
-
-    if input != None:
+    if input is not None:
         span.set_attribute('genkit:input', dump_json(input))
 
     if span_metadata is not None:
@@ -286,17 +382,40 @@ def record_input_metadata(span, kind, name, span_metadata, input):
             span.set_attribute(meta_key, span_metadata[meta_key])
 
 
-def record_output_metadata(span, output):
+def record_output_metadata(span, output) -> None:
+    """Record the output metadata for the action.
+
+    Args:
+        span: The span to record the metadata for.
+        output: The output to the action.
+    """
     span.set_attribute('genkit:state', 'success')
     span.set_attribute('genkit:output', dump_json(output))
 
 
 def ensure_async(fn: Callable) -> Callable:
+    """Ensure the function is async.
+
+    Args:
+        fn: The function to ensure is async.
+
+    Returns:
+        The async function.
+    """
     is_async = asyncio.iscoroutinefunction(fn)
     if is_async:
         return fn
 
-    async def asyn_wrapper(*args, **kwargs):
+    async def async_wrapper(*args, **kwargs):
+        """Wrap the function in an async function.
+
+        Args:
+            *args: The arguments to the function.
+            **kwargs: The keyword arguments to the function.
+
+        Returns:
+            The result of the function.
+        """
         return fn(*args, **kwargs)
 
-    return asyn_wrapper
+    return async_wrapper

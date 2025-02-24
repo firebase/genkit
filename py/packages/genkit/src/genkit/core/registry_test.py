@@ -10,7 +10,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 """
 
 import pytest
-from genkit.core.action import ActionKind
+from genkit.core.action import ActionKind, ActionMetadataKey
 from genkit.core.registry import Registry
 
 
@@ -45,3 +45,25 @@ def test_lookup_action_by_key_invalid_format() -> None:
     registry = Registry()
     with pytest.raises(ValueError, match='Invalid action key format'):
         registry.lookup_action_by_key('invalid_key')
+
+
+def test_list_serializable_actions() -> None:
+    """Ensure we can list serializable actions."""
+    registry = Registry()
+    registry.register_action(
+        name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
+    )
+
+    got = registry.list_serializable_actions()
+    assert got == {
+        '/custom/test_action': {
+            'key': '/custom/test_action',
+            'name': 'test_action',
+            'inputSchema': {},
+            'outputSchema': {},
+            'metadata': {
+                ActionMetadataKey.INPUT_KEY: {},
+                ActionMetadataKey.OUTPUT_KEY: {},
+            },
+        },
+    }

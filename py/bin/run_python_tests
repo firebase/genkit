@@ -15,5 +15,5 @@ PYTHON_VERSIONS=(
 
 for VERSION in "${PYTHON_VERSIONS[@]}"; do
   echo "Running tests with Python ${VERSION}..."
-  uv run --python "python${VERSION}" --directory "${TOP_DIR}/py" pytest .
+  uv run --python "python${VERSION}" --directory "${TOP_DIR}/py" pytest -vv .
 done

@@ -17,7 +17,14 @@ Example:
 from collections.abc import Callable
 from typing import Any
 
-from genkit.core.action import Action, ActionKind, parse_action_key
+from genkit.core.action import (
+    Action,
+    ActionKind,
+    create_action_key,
+    parse_action_key,
+)
+
+type ActionName = str
 
 
 class Registry:
@@ -35,7 +42,7 @@ class Registry:
 
     def __init__(self):
         """Initialize an empty Registry instance."""
-        self.actions: dict[ActionKind, dict[str, Action]] = {}
+        self.entries: dict[ActionKind, dict[ActionName, Action]] = {}
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -72,9 +79,9 @@ class Registry:
             metadata=metadata,
             span_metadata=span_metadata,
         )
-        if kind not in self.actions:
-            self.actions[kind] = {}
-        self.actions[kind][name] = action
+        if kind not in self.entries:
+            self.entries[kind] = {}
+        self.entries[kind][name] = action
         return action
 
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
@@ -87,8 +94,8 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
-        if kind in self.actions and name in self.actions[kind]:
-            return self.actions[kind][name]
+        if kind in self.entries and name in self.entries[kind]:
+            return self.entries[kind][name]
 
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
@@ -108,3 +115,24 @@ class Registry:
         """
         kind, name = parse_action_key(key)
         return self.lookup_action(kind, name)
+
+    def list_serializable_actions(self) -> dict[str, Action] | None:
+        """Enlist all the actions into a dictionary.
+
+        Returns:
+            A dictionary of serializable Actions.
+        """
+        actions = {}
+        for kind in self.entries:
+            for name in self.entries[kind]:
+                action = self.lookup_action(kind, name)
+                key = create_action_key(kind, name)
+                # TODO: Serialize the Action instance
+                actions[key] = {
+                    'key': key,
+                    'name': action.name,
+                    'inputSchema': action.input_schema,
+                    'outputSchema': action.output_schema,
+                    'metadata': action.metadata,
+                }
+        return actions
