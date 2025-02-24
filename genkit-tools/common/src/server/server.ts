@@ -23,6 +23,7 @@ import os from 'os';
 import path from 'path';
 import { GenkitToolsError } from '../manager';
 import { RuntimeManager } from '../manager/manager';
+import { writeToolsInfoFile } from '../utils';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
@@ -162,9 +163,10 @@ export function startServer(manager: RuntimeManager, port: number) {
   };
   app.use(errorHandler);
 
-  server = app.listen(port, () => {
+  server = app.listen(port, async () => {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
+    await writeToolsInfoFile(uiUrl);
   });
 
   return new Promise<void>((resolve) => {

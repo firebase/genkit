@@ -236,36 +236,11 @@ export function isValidDevToolsInfo(data: any): data is DevToolsInfo {
 }
 
 /**
- * Finds the URL of the currently running Genkit Dev UI instance (if available).
+ * Writes the toolsInfo file to the project root
  */
-export async function getDevUiUrl(
-  projectRoot?: string
-): Promise<string | undefined> {
+export async function writeToolsInfoFile(url: string, projectRoot?: string) {
   const serversDir = await findServersDir(projectRoot);
-  const toolsJsonPath = path.join(serversDir, 'tools.json');
-  try {
-    const toolsJsonContent = await fs.readFile(toolsJsonPath, 'utf-8');
-    const serverInfo = JSON.parse(toolsJsonContent) as DevToolsInfo;
-    if (isValidDevToolsInfo(serverInfo)) {
-      return (await checkServerHealth(serverInfo.url))
-        ? serverInfo.url
-        : undefined;
-    }
-  } catch (error) {
-    logger.info('Error reading tools config', error);
-    return undefined;
-  }
-}
-
-/**
- * Sets the Genkit Dev UI URL
- */
-export async function setDevUiUrl(
-  url: string,
-  projectRoot?: string
-): Promise<void> {
-  const serversDir = await findServersDir(projectRoot);
-  const toolsJsonPath = path.join(serversDir, 'tools.json');
+  const toolsJsonPath = path.join(serversDir, `tools-${process.pid}.json`);
   try {
     const serverInfo = {
       url,
@@ -273,7 +248,22 @@ export async function setDevUiUrl(
     } as DevToolsInfo;
     await fs.mkdir(serversDir, { recursive: true });
     await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
+    logger.debug(`Runtime file written: ${toolsJsonPath}`);
   } catch (error) {
     logger.info('Error writing tools config', error);
+  }
+}
+
+/**
+ * Removes the toolsInfo file.
+ */
+export async function removeToolsInfoFile(fileName: string) {
+  try {
+    const serversDir = await findServersDir();
+    const filePath = path.join(serversDir, fileName);
+    await fs.unlink(filePath);
+    logger.debug(`Removed unhealthy toolsInfo file ${fileName} from manager.`);
+  } catch (error) {
+    logger.debug(`Failed to delete toolsInfo file: ${error}`);
   }
 }

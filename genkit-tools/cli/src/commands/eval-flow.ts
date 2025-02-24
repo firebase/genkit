@@ -31,7 +31,6 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
-  getDevUiUrl,
   hasAction,
   loadInferenceDatasetFile,
   logger,
@@ -169,11 +168,11 @@ export const evalFlow = new Command('eval:flow')
           await exportFn(evalRun, options.output);
         }
 
-        const devUiUrl = await getDevUiUrl();
-        if (devUiUrl) {
+        const toolsInfo = manager.getMostRecentDevUI();
+        if (toolsInfo) {
           logger.info(
             clc.green(
-              `\nView the evaluation results at: ${devUiUrl}/evaluate/${evalRun.key.evalRunId}`
+              `\nView the evaluation results at: ${toolsInfo.url}/evaluate/${evalRun.key.evalRunId}`
             )
           );
         } else {
