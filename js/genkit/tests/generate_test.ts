@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai';
+import { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -120,7 +120,7 @@ describe('generate', () => {
   });
 
   describe('explicit model', () => {
-    let ai: Genkit;
+    let ai: GenkitBeta;
 
     beforeEach(() => {
       ai = genkit({});
@@ -953,6 +953,63 @@ describe('generate', () => {
         ],
         'resuming generates a tool message containing all expected responses'
       );
+    });
+
+    it('streams a generated tool message when resumed', async () => {
+      pm.handleResponse = async (request, sendChunk) => {
+        sendChunk?.({
+          role: 'model',
+          index: 0,
+          content: [{ text: 'final response' }],
+        });
+        return {
+          message: { role: 'model', content: [{ text: 'final response' }] },
+        };
+      };
+
+      const chunks: GenerateResponseChunkData[] = [];
+      await ai.generate({
+        onChunk: (chunk) => chunks.push(chunk.toJSON()),
+        messages: [
+          { role: 'user', content: [{ text: 'use the doThing tool' }] },
+          {
+            role: 'model',
+            content: [
+              {
+                toolRequest: { name: 'doThing', input: {} },
+                metadata: { interrupt: true },
+              },
+            ],
+          },
+        ],
+        resume: {
+          respond: { toolResponse: { name: 'doThing', output: 'did thing' } },
+        },
+      });
+
+      assert.deepStrictEqual(chunks, [
+        {
+          content: [
+            {
+              toolResponse: {
+                name: 'doThing',
+                output: 'did thing',
+              },
+            },
+          ],
+          index: 0,
+          role: 'tool',
+        },
+        {
+          content: [
+            {
+              text: 'final response',
+            },
+          ],
+          index: 1,
+          role: 'model',
+        },
+      ]);
     });
   });
 });

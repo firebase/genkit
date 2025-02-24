@@ -1,0 +1,26 @@
+{
+  "name": "genkit-samples",
+  "private": true,
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "build:js-angular": "cd js-angular && npm run setup && npm run build",
+    "build:js-character-generator": "cd js-character-generator && npm install && npm run build",
+    "build:js-chatbot": "cd js-chatbot && npm install && npm run setup && npm run build",
+    "build:js-coffee-shop": "cd js-coffee-shop && npm install && npm run build",
+    "build:js-menu": "cd js-menu && npm install && npm run build",
+    "build:js-prompts": "cd js-prompts && npm install && npm run build",
+    "build:js-schoolAgent": "cd js-schoolAgent && npm install && npm run build",
+    "build:all-samples": "concurrently npm:build:js-*"
+  },
+  "pre-commit": [
+    "format:check"
+  ],
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "concurrently": "^8.2.2",
+    "only-allow": "^1.2.1",
+    "pre-commit": "^1.2.2",
+    "prettier": "^3.2.5",
+    "tsx": "^4.19.2"
+  }
+}

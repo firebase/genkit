@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -14,7 +13,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
-func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
+func menu(ctx *ai.ToolContext, _ *any) ([]*menuItem, error) {
 	f, err := os.Open("testdata/menu.json")
 	if err != nil {
 		return nil, err
@@ -53,7 +52,6 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := dataMenuPrompt.Generate(ctx, g,
 				dotprompt.WithInput(input),
-				nil,
 			)
 			if err != nil {
 				return nil, err

@@ -5,7 +5,8 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
-    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
+    "genkit:dev": "npx genkit start -- tsx --watch src/index.ts",
+    "setup": "npm i",
     "compile": "tsc",
     "build": "npm run build:clean && npm run compile",
     "build:clean": "rimraf ./lib",
@@ -16,19 +17,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "^1.0.0-rc.12",
-    "genkitx-chromadb": "^1.0.0-rc.12",
-    "@genkit-ai/dev-local-vectorstore": "^1.0.0-rc.12",
-    "@genkit-ai/firebase": "^1.0.0-rc.12",
-    "@genkit-ai/googleai": "^1.0.0-rc.12",
-    "genkitx-ollama": "^1.0.0-rc.12",
-    "genkitx-pinecone": "^1.0.0-rc.12",
-    "@genkit-ai/evaluator": "^1.0.0-rc.12",
-    "@genkit-ai/vertexai": "^1.0.0-rc.12",
+    "genkit": "^1.0.4",
+    "genkitx-chromadb": "^1.0.4",
+    "@genkit-ai/dev-local-vectorstore": "^1.0.4",
+    "@genkit-ai/firebase": "^1.0.4",
+    "@genkit-ai/googleai": "^1.0.4",
+    "genkitx-ollama": "^1.0.4",
+    "genkitx-pinecone": "^1.0.4",
+    "@genkit-ai/evaluator": "^1.0.4",
+    "@genkit-ai/vertexai": "^1.0.4",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "genkit-cli": "^1.0.0-rc.12",
+    "genkit-cli": "^1.0.4",
     "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }

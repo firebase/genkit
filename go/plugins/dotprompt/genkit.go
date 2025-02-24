@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
@@ -33,6 +32,14 @@ type PromptRequest struct {
 	ModelName string `json:"modelname,omitempty"`
 	// Streaming callback function
 	Stream ai.ModelStreamingCallback
+	// Maximum number of tool call iterations for the prompt.
+	MaxTurns int `json:"maxTurns,omitempty"`
+	// Whether to return tool requests instead of making the tool calls and continuing the generation.
+	ReturnToolRequests bool `json:"returnToolRequests,omitempty"`
+	// Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
+	IsReturnToolRequestsSet bool `json:"-"`
+	// Whether tool calls are required, disabled, or optional for the prompt.
+	ToolChoice ai.ToolChoice `json:"toolChoice,omitempty"`
 }
 
 // GenerateOption configures params for Generate function
@@ -107,6 +114,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest,
 	}
 
 	req.Config = p.GenerationConfig
+	req.ToolChoice = p.ToolChoice
 
 	var outputSchema map[string]any
 	if p.OutputSchema != nil {
@@ -138,6 +146,10 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest,
 func (p *Prompt) Register(g *genkit.Genkit) error {
 	if p.prompt != nil {
 		return nil
+	}
+
+	if p.ModelName != "" && p.Model != nil {
+		return errors.New("dotprompt.Register: config must specify exactly one of ModelName and Model")
 	}
 
 	name := p.Name
@@ -200,6 +212,9 @@ func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...Generat
 	if len(pr.Context) > 0 {
 		mr.Context = pr.Context
 	}
+	if pr.ToolChoice != "" {
+		mr.ToolChoice = pr.ToolChoice
+	}
 
 	// Setting the model on generate, overrides the model defined on the prompt
 	var model ai.Model
@@ -229,7 +244,22 @@ func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...Generat
 		}
 	}
 
-	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, pr.Stream)
+	maxTurns := p.Config.MaxTurns
+	if pr.MaxTurns != 0 {
+		maxTurns = pr.MaxTurns
+	}
+
+	returnToolRequests := p.Config.ReturnToolRequests
+	if pr.IsReturnToolRequestsSet {
+		returnToolRequests = pr.ReturnToolRequests
+	}
+
+	toolCfg := &ai.ToolConfig{
+		MaxTurns:           maxTurns,
+		ReturnToolRequests: returnToolRequests,
+	}
+
+	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, toolCfg, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
@@ -324,11 +354,48 @@ func WithModelName(model string) GenerateOption {
 
 // WithStreaming adds a streaming callback to the generate request.
 func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
-	return func(g *PromptRequest) error {
-		if g.Stream != nil {
+	return func(p *PromptRequest) error {
+		if p.Stream != nil {
 			return errors.New("dotprompt.WithStreaming: cannot set Stream more than once")
 		}
-		g.Stream = cb
+		p.Stream = cb
+		return nil
+	}
+}
+
+// WithMaxTurns sets the maximum number of tool call iterations for the prompt.
+func WithMaxTurns(maxTurns int) GenerateOption {
+	return func(p *PromptRequest) error {
+		if maxTurns <= 0 {
+			return fmt.Errorf("maxTurns must be greater than 0, got %d", maxTurns)
+		}
+		if p.MaxTurns != 0 {
+			return errors.New("dotprompt.WithMaxTurns: cannot set MaxTurns more than once")
+		}
+		p.MaxTurns = maxTurns
+		return nil
+	}
+}
+
+// WithReturnToolRequests configures whether to return tool requests instead of making the tool calls and continuing the generation.
+func WithReturnToolRequests(returnToolRequests bool) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.IsReturnToolRequestsSet {
+			return errors.New("dotprompt.WithReturnToolRequests: cannot set ReturnToolRequests more than once")
+		}
+		p.ReturnToolRequests = returnToolRequests
+		p.IsReturnToolRequestsSet = true
+		return nil
+	}
+}
+
+// WithToolChoice configures whether tool calls are required, disabled, or optional for the prompt.
+func WithToolChoice(toolChoice ai.ToolChoice) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.ToolChoice != "" {
+			return errors.New("dotprompt.WithToolChoice: cannot set ToolChoice more than once")
+		}
+		p.ToolChoice = toolChoice
 		return nil
 	}
 }

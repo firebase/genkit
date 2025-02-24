@@ -23,29 +23,27 @@ app.post('/simpleFlow', expressHandler(simpleFlow));
 app.listen(8080);
 ```
 
-You can also set auth policies:
+You can also handle auth using context providers:
 
 ```ts
-// middleware for handling auth headers.
-const authMiddleware = async (req, resp, next) => {
-  // parse auth headers and convert to auth object.
-  (req as RequestWithAuth).auth = {
-    user:
-      req.header('authorization') === 'open sesame' ? 'Ali Baba' : '40 thieves',
+import { UserFacingError } from 'genkit';
+import { ContextProvider, RequestData } from 'genkit/context';
+
+const context: ContextProvider<Context> = (req: RequestData) => {
+  if (req.headers['authorization'] !== 'open sesame') {
+    throw new UserFacingError('PERMISSION_DENIED', 'not authorized');
+  }
+  return {
+    auth: {
+      user: 'Ali Baba',
+    },
   };
-  next();
 };
 
 app.post(
   '/simpleFlow',
   authMiddleware,
-  expressHandler(simpleFlow, {
-    authPolicy: ({ auth }) => {
-      if (auth.user !== 'Ali Baba') {
-        throw new Error('not authorized');
-      }
-    },
-  })
+  expressHandler(simpleFlow, { context })
 );
 ```
 

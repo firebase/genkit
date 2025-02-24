@@ -155,6 +155,10 @@ export class Genkit implements HasRegistry {
   /** List of flows that have been registered in this instance. */
   readonly flows: Action<any, any, any>[] = [];
 
+  get apiStability() {
+    return this.registry.apiStability;
+  }
+
   constructor(options?: GenkitOptions) {
     this.options = options || {};
     this.registry = new Registry();
@@ -168,9 +172,7 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Defines and registers a non-streaming flow.
-   *
-   * @todo TODO: Improve this documentation (show snippets, etc).
+   * Defines and registers a flow function.
    */
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -229,9 +231,8 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Looks up a prompt by `name` and optional `variant`.
-   *
-   * @todo TODO: Show an example of a name and variant.
+   * Looks up a prompt by `name` (and optionally `variant`). Can be used to lookup
+   * .prompt files or prompts previously defined with {@link Genkit.definePrompt}
    */
   prompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,

@@ -335,6 +335,7 @@ export async function resolveResumeOption(
 ): Promise<{
   revisedRequest?: GenerateActionOptions;
   interruptedResponse?: GenerateResponseData;
+  toolMessage?: MessageData;
 }> {
   if (!rawRequest.resume) return { revisedRequest: rawRequest }; // no-op if no resume option
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
@@ -411,6 +412,7 @@ export async function resolveResumeOption(
       resume: undefined,
       messages: [...messages, toolMessage],
     },
+    toolMessage,
   });
 }
 

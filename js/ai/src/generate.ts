@@ -33,7 +33,10 @@ import {
   resolveFormat,
   resolveInstructions,
 } from './formats/index.js';
-import { generateHelper } from './generate/action.js';
+import {
+  generateHelper,
+  shouldInjectFormatInstructions,
+} from './generate/action.js';
 import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
@@ -62,6 +65,7 @@ export interface OutputOptions<O extends z.ZodTypeAny = z.ZodTypeAny> {
   instructions?: boolean | string;
   schema?: O;
   jsonSchema?: any;
+  constrained?: boolean;
 }
 
 /** ResumeOptions configure how to resume generation after an interrupt. */
@@ -210,16 +214,22 @@ export async function toGenerateRequest(
   );
 
   const out = {
-    messages: injectInstructions(messages, instructions),
+    messages: shouldInjectFormatInstructions(
+      resolvedFormat?.config,
+      options.output
+    )
+      ? injectInstructions(messages, instructions)
+      : messages,
     config: options.config,
     docs: options.docs,
     tools: tools?.map(toToolDefinition) || [],
     output: {
       ...(resolvedFormat?.config || {}),
+      ...options.output,
       schema: resolvedSchema,
     },
-  };
-  if (!out.output.schema) delete out.output.schema;
+  } as GenerateRequest;
+  if (!out?.output?.schema) delete out?.output?.schema;
   return out;
 }
 
@@ -341,16 +351,11 @@ export async function generate<
     resolvedOptions.output.format = 'json';
   }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
-  const instructions = resolveInstructions(
-    resolvedFormat,
-    resolvedSchema,
-    resolvedOptions?.output?.instructions
-  );
 
   const params: GenerateActionOptions = {
     model: resolvedModel.modelAction.__action.name,
     docs: resolvedOptions.docs,
-    messages: injectInstructions(messages, instructions),
+    messages: messages,
     tools,
     toolChoice: resolvedOptions.toolChoice,
     config: {
@@ -359,6 +364,7 @@ export async function generate<
       ...stripUndefinedOptions(resolvedOptions.config),
     },
     output: resolvedOptions.output && {
+      ...resolvedOptions.output,
       format: resolvedOptions.output.format,
       jsonSchema: resolvedSchema,
     },
@@ -371,6 +377,10 @@ export async function generate<
     returnToolRequests: resolvedOptions.returnToolRequests,
     maxTurns: resolvedOptions.maxTurns,
   };
+  // if config is empty and it was not explicitly passed in, we delete it, don't want {}
+  if (Object.keys(params.config).length === 0 && !resolvedOptions.config) {
+    delete params.config;
+  }
 
   return await runWithStreamingCallback(
     registry,

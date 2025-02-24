@@ -1,13 +1,17 @@
 version = 1
 requires-python = ">=3.12"
 resolution-markers = [
-    "python_full_version >= '3.13'",
+    "python_full_version >= '4.0'",
+    "python_full_version >= '3.13' and python_full_version < '4.0'",
     "python_full_version < '3.13'",
 ]
 
 [manifest]
 members = [
-    "dotprompt",
+    "basic-gemini",
+    "coffee-shop",
+    "context-caching",
+    "flow-sample1",
     "genkit",
     "genkit-chroma-plugin",
     "genkit-firebase-plugin",
@@ -17,8 +21,13 @@ members = [
     "genkit-pinecone-plugin",
     "genkit-vertex-ai-plugin",
     "genkit-workspace",
-    "handlebarz",
     "hello",
+    "menu",
+    "prompt-file",
+    "rag",
+    "vertex-ai-model-garden",
+    "vertex-ai-reranker",
+    "vertex-ai-vector-search",
 ]
 
 [[package]]
@@ -60,6 +69,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/35/5d/752690df9ef5b76e169e68d6a129fa6d08a7100ca7f754c89495db3c6019/appnope-0.1.4.tar.gz", hash = "sha256:1de3860566df9caf38f01f86f65e0e13e379af54f9e4bee1e66b48f2efffd1ee", size = 4170 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/29/5ecc3a15d5a33e31b26c11426c45c501e439cb865d0bff96315d86443b78/appnope-0.1.4-py2.py3-none-any.whl", hash = "sha256:502575ee11cd7a28c0205f379b525beefebab9d161b7c964670864014ed7213c", size = 4321 },
+]
+
+[[package]]
+name = "argcomplete"
+version = "3.5.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/be/6c23d80cb966fb8f83fb1ebfb988351ae6b0554d0c3a613ee4531c026597/argcomplete-3.5.3.tar.gz", hash = "sha256:c12bf50eded8aebb298c7b7da7a5ff3ee24dffd9f5281867dfe1424b58c55392", size = 72999 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/08/2a4db06ec3d203124c967fc89295e85a202e5cbbcdc08fd6a64b65217d1e/argcomplete-3.5.3-py3-none-any.whl", hash = "sha256:2ab2c4a215c59fd6caaff41a869480a23e8f6a5f910b266c1808037f4e375b61", size = 43569 },
 ]
 
 [[package]]
@@ -145,6 +163,33 @@ wheels = [
 ]
 
 [[package]]
+name = "basic-gemini"
+version = "0.1.0"
+source = { editable = "samples/basic-gemini" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.12.3"
 source = { registry = "https://pypi.org/simple" }
@@ -154,6 +199,30 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b3/ca/824b1195773ce6166d388573fc106ce56d4a805bd7427b624e063596ec58/beautifulsoup4-4.12.3.tar.gz", hash = "sha256:74e3d1928edc070d21748185c46e3fb33490f22f52a3addee9aee0f4f7781051", size = 581181 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b1/fe/e8c672695b37eecc5cbf43e1d0638d88d66ba3a44c4d321c796f4e59167f/beautifulsoup4-4.12.3-py3-none-any.whl", hash = "sha256:b80878c9f40111313e55da8ba20bdba06d8fa3969fc68304167741bbf9e082ed", size = 147925 },
+]
+
+[[package]]
+name = "black"
+version = "25.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "mypy-extensions" },
+    { name = "packaging" },
+    { name = "pathspec" },
+    { name = "platformdirs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/94/49/26a7b0f3f35da4b5a65f081943b7bcd22d7002f5f0fb8098ec1ff21cb6ef/black-25.1.0.tar.gz", hash = "sha256:33496d5cd1222ad73391352b4ae8da15253c5de89b93a80b3e2c8d9a19ec2666", size = 649449 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/71/3fe4741df7adf015ad8dfa082dd36c94ca86bb21f25608eb247b4afb15b2/black-25.1.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:4b60580e829091e6f9238c848ea6750efed72140b91b048770b64e74fe04908b", size = 1650988 },
+    { url = "https://files.pythonhosted.org/packages/13/f3/89aac8a83d73937ccd39bbe8fc6ac8860c11cfa0af5b1c96d081facac844/black-25.1.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1e2978f6df243b155ef5fa7e558a43037c3079093ed5d10fd84c43900f2d8ecc", size = 1453985 },
+    { url = "https://files.pythonhosted.org/packages/6f/22/b99efca33f1f3a1d2552c714b1e1b5ae92efac6c43e790ad539a163d1754/black-25.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3b48735872ec535027d979e8dcb20bf4f70b5ac75a8ea99f127c106a7d7aba9f", size = 1783816 },
+    { url = "https://files.pythonhosted.org/packages/18/7e/a27c3ad3822b6f2e0e00d63d58ff6299a99a5b3aee69fa77cd4b0076b261/black-25.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:ea0213189960bda9cf99be5b8c8ce66bb054af5e9e861249cd23471bd7b0b3ba", size = 1440860 },
+    { url = "https://files.pythonhosted.org/packages/98/87/0edf98916640efa5d0696e1abb0a8357b52e69e82322628f25bf14d263d1/black-25.1.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:8f0b18a02996a836cc9c9c78e5babec10930862827b1b724ddfe98ccf2f2fe4f", size = 1650673 },
+    { url = "https://files.pythonhosted.org/packages/52/e5/f7bf17207cf87fa6e9b676576749c6b6ed0d70f179a3d812c997870291c3/black-25.1.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:afebb7098bfbc70037a053b91ae8437c3857482d3a690fefc03e9ff7aa9a5fd3", size = 1453190 },
+    { url = "https://files.pythonhosted.org/packages/e3/ee/adda3d46d4a9120772fae6de454c8495603c37c4c3b9c60f25b1ab6401fe/black-25.1.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:030b9759066a4ee5e5aca28c3c77f9c64789cdd4de8ac1df642c40b708be6171", size = 1782926 },
+    { url = "https://files.pythonhosted.org/packages/cc/64/94eb5f45dcb997d2082f097a3944cfc7fe87e071907f677e80788a2d7b7a/black-25.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:a22f402b410566e2d1c950708c77ebf5ebd5d0d88a6a2e87c86d9fb48afa0d18", size = 1442613 },
+    { url = "https://files.pythonhosted.org/packages/09/71/54e999902aed72baf26bca0d50781b01838251a462612966e9fc4891eadd/black-25.1.0-py3-none-any.whl", hash = "sha256:95e8176dae143ba9097f351d174fdaf0ccd29efb414b362ae3fd72bf0f710717", size = 207646 },
 ]
 
 [[package]]
@@ -291,6 +360,45 @@ wheels = [
 ]
 
 [[package]]
+name = "click"
+version = "8.1.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl", hash = "sha256:63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2", size = 98188 },
+]
+
+[[package]]
+name = "coffee-shop"
+version = "0.1.0"
+source = { editable = "samples/coffee-shop" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -309,6 +417,33 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e9/a8/fb783cb0abe2b5fded9f55e5703015cdf1c9c85b3669087c538dd15a6a86/comm-0.2.2.tar.gz", hash = "sha256:3fd7a84065306e07bea1773df6eb8282de51ba82f77c72f9c85716ab11fe980e", size = 6210 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/75/49e5bfe642f71f272236b5b2d2691cf915a7283cc0ceda56357b61daa538/comm-0.2.2-py3-none-any.whl", hash = "sha256:e6fb86cb70ff661ee8c9c14e7d36d6de3b4066f1441be4063df9c5009f0a64d3", size = 7180 },
+]
+
+[[package]]
+name = "context-caching"
+version = "0.1.0"
+source = { editable = "samples/context-caching" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -378,6 +513,26 @@ wheels = [
 ]
 
 [[package]]
+name = "datamodel-code-generator"
+version = "0.27.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "argcomplete" },
+    { name = "black" },
+    { name = "genson" },
+    { name = "inflect" },
+    { name = "isort" },
+    { name = "jinja2" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/53/17/53cec24a4edb2021c3b89a3c50c83a9a8dd0e506495d5f7ce486be4a24fa/datamodel_code_generator-0.27.3.tar.gz", hash = "sha256:01e928c00b800aec8d2ee77b5d4b47e1bc159a3a1c32f0f405df0a442d9ab5e7", size = 440612 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/08/28/a72154c09d09b4c331fee613bb43451a8c43860b52f349777db7935dde04/datamodel_code_generator-0.27.3-py3-none-any.whl", hash = "sha256:ddef49e66e2b90a4c9b238f6ce42dc5a2a23f6ab1b8370eaca08576777921e43", size = 116023 },
+]
+
+[[package]]
 name = "debugpy"
 version = "1.8.12"
 source = { registry = "https://pypi.org/simple" }
@@ -435,14 +590,20 @@ wheels = [
 
 [[package]]
 name = "dotprompt"
-version = "0.1.0"
-source = { editable = "packages/dotprompt" }
-dependencies = [
-    { name = "handlebarz" },
+version = "0.1.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/72/c37abd54a6df1b0a2b99eae7bd703e78b1e6c431df3f009ef7f4b81b7399/dotprompt-0.1.10.tar.gz", hash = "sha256:8b1875cc8411a5b204667f6d930f169914abba64c6ed210eac73f5f066754fd7", size = 42048 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/da/41f67d1a05762eedadcdd4f5be92f30ac1f0ca21dda60aa7dba7b642eabb/dotprompt-0.1.10-py3-none-any.whl", hash = "sha256:5a2d10fed9bba237971d6b68f04040a018be23e3e56eb32fab165509d3443c01", size = 29211 },
 ]
 
-[package.metadata]
-requires-dist = [{ name = "handlebarz", editable = "packages/handlebarz" }]
+[[package]]
+name = "dotpromptz"
+version = "0.1.0"
+source = { git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main#a17b7879cb1f7fa8f1111f7670da386a9304eeb2" }
+dependencies = [
+    { name = "handlebars" },
+]
 
 [[package]]
 name = "executing"
@@ -460,6 +621,33 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8b/50/4b769ce1ac4071a1ef6d86b1a3fb56cdc3a37615e8c5519e1af96cdac366/fastjsonschema-2.21.1.tar.gz", hash = "sha256:794d4f0a58f848961ba16af7b9c85a3e88cd360df008c59aac6fc5ae9323b5d4", size = 373939 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/90/2b/0817a2b257fe88725c25589d89aec060581aabf668707a8d03b2e9e0cb2a/fastjsonschema-2.21.1-py3-none-any.whl", hash = "sha256:c9e5b7e908310918cf494a434eeb31384dd84a98b57a30bcb1f535015b554667", size = 23924 },
+]
+
+[[package]]
+name = "flow-sample1"
+version = "0.1.0"
+source = { editable = "samples/flow-sample1" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -485,7 +673,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dotprompt", editable = "packages/dotprompt" },
+    { name = "dotprompt" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -578,7 +766,7 @@ name = "genkit-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "dotprompt" },
+    { name = "dotpromptz" },
     { name = "genkit" },
     { name = "genkit-chroma-plugin" },
     { name = "genkit-firebase-plugin" },
@@ -587,17 +775,18 @@ dependencies = [
     { name = "genkit-ollama-plugin" },
     { name = "genkit-pinecone-plugin" },
     { name = "genkit-vertex-ai-plugin" },
-    { name = "handlebarz" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "bpython" },
+    { name = "datamodel-code-generator" },
     { name = "ipython" },
     { name = "jupyter" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pytest-watcher" },
 ]
 lint = [
     { name = "mypy" },
@@ -606,7 +795,7 @@ lint = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dotprompt", editable = "packages/dotprompt" },
+    { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-chroma-plugin", editable = "plugins/chroma" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
@@ -615,21 +804,31 @@ requires-dist = [
     { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
     { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
     { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
-    { name = "handlebarz", editable = "packages/handlebarz" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "bpython", specifier = ">=0.25" },
-    { name = "ipython", specifier = ">=8.31.0" },
+    { name = "datamodel-code-generator", specifier = ">=0.27.3" },
+    { name = "ipython", specifier = ">=8.32.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=8.3.4" },
-    { name = "pytest-asyncio", specifier = ">=0.25.2" },
+    { name = "pytest-asyncio", specifier = ">=0.25.3" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "pytest-watcher", specifier = ">=0.4.3" },
 ]
 lint = [
-    { name = "mypy", specifier = ">=1.14.1" },
-    { name = "ruff", specifier = ">=0.9.2" },
+    { name = "mypy", specifier = ">=1.15" },
+    { name = "ruff", specifier = ">=0.9" },
+]
+
+[[package]]
+name = "genson"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/cf/2303c8ad276dcf5ee2ad6cf69c4338fd86ef0f471a5207b069adf7a393cf/genson-1.3.0.tar.gz", hash = "sha256:e02db9ac2e3fd29e65b5286f7135762e2cd8a986537c075b06fc5f1517308e37", size = 34919 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f8/5c/e226de133afd8bb267ec27eead9ae3d784b95b39a287ed404caab39a5f50/genson-1.3.0-py3-none-any.whl", hash = "sha256:468feccd00274cc7e4c09e84b08704270ba8d95232aa280f65b986139cec67f7", size = 21470 },
 ]
 
 [[package]]
@@ -894,9 +1093,16 @@ wheels = [
 ]
 
 [[package]]
-name = "handlebarz"
-version = "0.1.0"
-source = { editable = "packages/handlebarz" }
+name = "handlebars"
+version = "4.7.8.post20241027"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "js2py-wheel" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ce/5c/c096425ab6782dabbf9a7171db0a75565bdd5249d30cbc7e9972aebc7043/handlebars-4.7.8.post20241027.tar.gz", hash = "sha256:2e6e341b95d429b589fe9df881dedd34ac558c91b5c3412433968f85a289baff", size = 69704 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/05/05/bf995eda7d8a0d2f3b6ea249ffdd653ce8ce21e86914d9eeab691ab51e39/handlebars-4.7.8.post20241027-py3-none-any.whl", hash = "sha256:5cfa16cb0d6b3eefea7ed4909c603cfb06d69955141e523053b180821e925d91", size = 65981 },
+]
 
 [[package]]
 name = "hello"
@@ -975,6 +1181,15 @@ wheels = [
 ]
 
 [[package]]
+name = "inflect"
+version = "5.6.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/db/cae5d8524c4b5e574c281895b212062f3b06d0e14186904ed71c538b4e90/inflect-5.6.2.tar.gz", hash = "sha256:aadc7ed73928f5e014129794bbac03058cca35d0a973a5fc4eb45c7fa26005f9", size = 69378 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/d8/3e1a32d305215166f5c32652c473aa766bd7809cd10b34c544dbc31facb5/inflect-5.6.2-py3-none-any.whl", hash = "sha256:b45d91a4a28a4e617ff1821117439b06eaa86e2a4573154af0149e9be6687238", size = 33704 },
+]
+
+[[package]]
 name = "iniconfig"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1009,7 +1224,7 @@ wheels = [
 
 [[package]]
 name = "ipython"
-version = "8.31.0"
+version = "8.32.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -1022,9 +1237,9 @@ dependencies = [
     { name = "stack-data" },
     { name = "traitlets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/35/6f90fdddff7a08b7b715fccbd2427b5212c9525cd043d26fdc45bee0708d/ipython-8.31.0.tar.gz", hash = "sha256:b6a2274606bec6166405ff05e54932ed6e5cfecaca1fc05f2cacde7bb074d70b", size = 5501011 }
+sdist = { url = "https://files.pythonhosted.org/packages/36/80/4d2a072e0db7d250f134bc11676517299264ebe16d62a8619d49a78ced73/ipython-8.32.0.tar.gz", hash = "sha256:be2c91895b0b9ea7ba49d33b23e2040c352b33eb6a519cca7ce6e0c743444251", size = 5507441 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/60/d0feb6b6d9fe4ab89fe8fe5b47cbf6cd936bfd9f1e7ffa9d0015425aeed6/ipython-8.31.0-py3-none-any.whl", hash = "sha256:46ec58f8d3d076a61d128fe517a51eb730e3aaf0c184ea8c17d16e366660c6a6", size = 821583 },
+    { url = "https://files.pythonhosted.org/packages/e7/e1/f4474a7ecdb7745a820f6f6039dc43c66add40f1bcc66485607d93571af6/ipython-8.32.0-py3-none-any.whl", hash = "sha256:cae85b0c61eff1fc48b0a8002de5958b6528fa9c8defb1894da63f42613708aa", size = 825524 },
 ]
 
 [[package]]
@@ -1053,6 +1268,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7c/1a/3c8edc664e06e6bd06cce40c6b22da5f1429aa4224d0c590f3be21c91ead/isoduration-20.11.0.tar.gz", hash = "sha256:ac2f9015137935279eac671f94f89eb00584f940f5dc49462a0c4ee692ba1bd9", size = 11649 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/55/e5326141505c5d5e34c5e0935d2908a74e4561eca44108fbfb9c13d2911a/isoduration-20.11.0-py3-none-any.whl", hash = "sha256:b2904c2a4228c3d44f409c8ae8e2370eb21a26f7ac2ec5446df141dde3452042", size = 11321 },
+]
+
+[[package]]
+name = "isort"
+version = "5.13.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/87/f9/c1eb8635a24e87ade2efce21e3ce8cd6b8630bb685ddc9cdaca1349b2eb5/isort-5.13.2.tar.gz", hash = "sha256:48fdfcb9face5d58a4f6dde2e72a1fb8dcaf8ab26f95ab49fab84c2ddefb0109", size = 175303 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/b3/8def84f539e7d2289a02f0524b944b15d7c75dab7628bedf1c4f0992029c/isort-5.13.2-py3-none-any.whl", hash = "sha256:8ca5e72a8d85860d5a3fa69b8745237f2939afe12dbf656afbcb47fe72d947a6", size = 92310 },
 ]
 
 [[package]]
@@ -1089,6 +1313,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/20/d0/59b2b80e7a52d255f9e0ad040d2e826342d05580c4b1d7d7747cfb8db731/jinxed-1.3.0.tar.gz", hash = "sha256:1593124b18a41b7a3da3b078471442e51dbad3d77b4d4f2b0c26ab6f7d660dbf", size = 80981 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/27/e3/0e0014d6ab159d48189e92044ace13b1e1fe9aa3024ba9f4e8cf172aa7c2/jinxed-1.3.0-py2.py3-none-any.whl", hash = "sha256:b993189f39dc2d7504d802152671535b06d380b26d78070559551cbf92df4fc5", size = 33085 },
+]
+
+[[package]]
+name = "js2py-wheel"
+version = "0.74"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyjsparser-wheel" },
+    { name = "six" },
+    { name = "tzlocal" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/30/59/e080d8eb641f2ceea89677ab0c56d7a2a0858a0c4bb95813bad712b8d3e3/js2py_wheel-0.74.tar.gz", hash = "sha256:8670d73abf22b211173cfe70cf92f94aa36be61f43d44c65131f1d20bb26be04", size = 567467 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/58/9485878e03c64247fa37da9380acc6019be7f63059052d1f19b3699a5a6e/Js2Py_wheel-0.74-py3-none-any.whl", hash = "sha256:c5b4af26ce0a16c26190031ddafb495a998b35c46bf5959c7feb72f581d23ca7", size = 608306 },
 ]
 
 [[package]]
@@ -1398,6 +1636,33 @@ wheels = [
 ]
 
 [[package]]
+name = "menu"
+version = "0.1.0"
+source = { editable = "samples/menu" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
 name = "mistune"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1408,27 +1673,27 @@ wheels = [
 
 [[package]]
 name = "mypy"
-version = "1.14.1"
+version = "1.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mypy-extensions" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b9/eb/2c92d8ea1e684440f54fa49ac5d9a5f19967b7b472a281f419e69a8d228e/mypy-1.14.1.tar.gz", hash = "sha256:7ec88144fe9b510e8475ec2f5f251992690fcf89ccb4500b214b4226abcd32d6", size = 3216051 }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/43/d5e49a86afa64bd3839ea0d5b9c7103487007d728e1293f52525d6d5486a/mypy-1.15.0.tar.gz", hash = "sha256:404534629d51d3efea5c800ee7c42b72a6554d6c400e6a79eafe15d11341fd43", size = 3239717 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/1b/b38c079609bb4627905b74fc6a49849835acf68547ac33d8ceb707de5f52/mypy-1.14.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:30ff5ef8519bbc2e18b3b54521ec319513a26f1bba19a7582e7b1f58a6e69f14", size = 11266668 },
-    { url = "https://files.pythonhosted.org/packages/6b/75/2ed0d2964c1ffc9971c729f7a544e9cd34b2cdabbe2d11afd148d7838aa2/mypy-1.14.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:cb9f255c18052343c70234907e2e532bc7e55a62565d64536dbc7706a20b78b9", size = 10254060 },
-    { url = "https://files.pythonhosted.org/packages/a1/5f/7b8051552d4da3c51bbe8fcafffd76a6823779101a2b198d80886cd8f08e/mypy-1.14.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:8b4e3413e0bddea671012b063e27591b953d653209e7a4fa5e48759cda77ca11", size = 11933167 },
-    { url = "https://files.pythonhosted.org/packages/04/90/f53971d3ac39d8b68bbaab9a4c6c58c8caa4d5fd3d587d16f5927eeeabe1/mypy-1.14.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:553c293b1fbdebb6c3c4030589dab9fafb6dfa768995a453d8a5d3b23784af2e", size = 12864341 },
-    { url = "https://files.pythonhosted.org/packages/03/d2/8bc0aeaaf2e88c977db41583559319f1821c069e943ada2701e86d0430b7/mypy-1.14.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:fad79bfe3b65fe6a1efaed97b445c3d37f7be9fdc348bdb2d7cac75579607c89", size = 12972991 },
-    { url = "https://files.pythonhosted.org/packages/6f/17/07815114b903b49b0f2cf7499f1c130e5aa459411596668267535fe9243c/mypy-1.14.1-cp312-cp312-win_amd64.whl", hash = "sha256:8fa2220e54d2946e94ab6dbb3ba0a992795bd68b16dc852db33028df2b00191b", size = 9879016 },
-    { url = "https://files.pythonhosted.org/packages/9e/15/bb6a686901f59222275ab228453de741185f9d54fecbaacec041679496c6/mypy-1.14.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:92c3ed5afb06c3a8e188cb5da4984cab9ec9a77ba956ee419c68a388b4595255", size = 11252097 },
-    { url = "https://files.pythonhosted.org/packages/f8/b3/8b0f74dfd072c802b7fa368829defdf3ee1566ba74c32a2cb2403f68024c/mypy-1.14.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:dbec574648b3e25f43d23577309b16534431db4ddc09fda50841f1e34e64ed34", size = 10239728 },
-    { url = "https://files.pythonhosted.org/packages/c5/9b/4fd95ab20c52bb5b8c03cc49169be5905d931de17edfe4d9d2986800b52e/mypy-1.14.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:8c6d94b16d62eb3e947281aa7347d78236688e21081f11de976376cf010eb31a", size = 11924965 },
-    { url = "https://files.pythonhosted.org/packages/56/9d/4a236b9c57f5d8f08ed346914b3f091a62dd7e19336b2b2a0d85485f82ff/mypy-1.14.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d4b19b03fdf54f3c5b2fa474c56b4c13c9dbfb9a2db4370ede7ec11a2c5927d9", size = 12867660 },
-    { url = "https://files.pythonhosted.org/packages/40/88/a61a5497e2f68d9027de2bb139c7bb9abaeb1be1584649fa9d807f80a338/mypy-1.14.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:0c911fde686394753fff899c409fd4e16e9b294c24bfd5e1ea4675deae1ac6fd", size = 12969198 },
-    { url = "https://files.pythonhosted.org/packages/54/da/3d6fc5d92d324701b0c23fb413c853892bfe0e1dbe06c9138037d459756b/mypy-1.14.1-cp313-cp313-win_amd64.whl", hash = "sha256:8b21525cb51671219f5307be85f7e646a153e5acc656e5cebf64bfa076c50107", size = 9885276 },
-    { url = "https://files.pythonhosted.org/packages/a0/b5/32dd67b69a16d088e533962e5044e51004176a9952419de0370cdaead0f8/mypy-1.14.1-py3-none-any.whl", hash = "sha256:b66a60cc4073aeb8ae00057f9c1f64d49e90f918fbcef9a977eb121da8b8f1d1", size = 2752905 },
+    { url = "https://files.pythonhosted.org/packages/98/3a/03c74331c5eb8bd025734e04c9840532226775c47a2c39b56a0c8d4f128d/mypy-1.15.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:aea39e0583d05124836ea645f412e88a5c7d0fd77a6d694b60d9b6b2d9f184fd", size = 10793981 },
+    { url = "https://files.pythonhosted.org/packages/f0/1a/41759b18f2cfd568848a37c89030aeb03534411eef981df621d8fad08a1d/mypy-1.15.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2f2147ab812b75e5b5499b01ade1f4a81489a147c01585cda36019102538615f", size = 9749175 },
+    { url = "https://files.pythonhosted.org/packages/12/7e/873481abf1ef112c582db832740f4c11b2bfa510e829d6da29b0ab8c3f9c/mypy-1.15.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ce436f4c6d218a070048ed6a44c0bbb10cd2cc5e272b29e7845f6a2f57ee4464", size = 11455675 },
+    { url = "https://files.pythonhosted.org/packages/b3/d0/92ae4cde706923a2d3f2d6c39629134063ff64b9dedca9c1388363da072d/mypy-1.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8023ff13985661b50a5928fc7a5ca15f3d1affb41e5f0a9952cb68ef090b31ee", size = 12410020 },
+    { url = "https://files.pythonhosted.org/packages/46/8b/df49974b337cce35f828ba6fda228152d6db45fed4c86ba56ffe442434fd/mypy-1.15.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:1124a18bc11a6a62887e3e137f37f53fbae476dc36c185d549d4f837a2a6a14e", size = 12498582 },
+    { url = "https://files.pythonhosted.org/packages/13/50/da5203fcf6c53044a0b699939f31075c45ae8a4cadf538a9069b165c1050/mypy-1.15.0-cp312-cp312-win_amd64.whl", hash = "sha256:171a9ca9a40cd1843abeca0e405bc1940cd9b305eaeea2dda769ba096932bb22", size = 9366614 },
+    { url = "https://files.pythonhosted.org/packages/6a/9b/fd2e05d6ffff24d912f150b87db9e364fa8282045c875654ce7e32fffa66/mypy-1.15.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:93faf3fdb04768d44bf28693293f3904bbb555d076b781ad2530214ee53e3445", size = 10788592 },
+    { url = "https://files.pythonhosted.org/packages/74/37/b246d711c28a03ead1fd906bbc7106659aed7c089d55fe40dd58db812628/mypy-1.15.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:811aeccadfb730024c5d3e326b2fbe9249bb7413553f15499a4050f7c30e801d", size = 9753611 },
+    { url = "https://files.pythonhosted.org/packages/a6/ac/395808a92e10cfdac8003c3de9a2ab6dc7cde6c0d2a4df3df1b815ffd067/mypy-1.15.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:98b7b9b9aedb65fe628c62a6dc57f6d5088ef2dfca37903a7d9ee374d03acca5", size = 11438443 },
+    { url = "https://files.pythonhosted.org/packages/d2/8b/801aa06445d2de3895f59e476f38f3f8d610ef5d6908245f07d002676cbf/mypy-1.15.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c43a7682e24b4f576d93072216bf56eeff70d9140241f9edec0c104d0c515036", size = 12402541 },
+    { url = "https://files.pythonhosted.org/packages/c7/67/5a4268782eb77344cc613a4cf23540928e41f018a9a1ec4c6882baf20ab8/mypy-1.15.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:baefc32840a9f00babd83251560e0ae1573e2f9d1b067719479bfb0e987c6357", size = 12494348 },
+    { url = "https://files.pythonhosted.org/packages/83/3e/57bb447f7bbbfaabf1712d96f9df142624a386d98fb026a761532526057e/mypy-1.15.0-cp313-cp313-win_amd64.whl", hash = "sha256:b9378e2c00146c44793c98b8d5a61039a048e31f429fb0eb546d93f4b000bedf", size = 9373648 },
+    { url = "https://files.pythonhosted.org/packages/09/4e/a7d65c7322c510de2c409ff3828b03354a7c43f5a8ed458a7a131b41c7b9/mypy-1.15.0-py3-none-any.whl", hash = "sha256:5469affef548bd1895d86d3bf10ce2b44e33d86923c29e4d675b3e323437ea3e", size = 2221777 },
 ]
 
 [[package]]
@@ -1647,6 +1912,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pathspec"
+version = "0.12.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/bc/f35b8446f4531a7cb215605d100cd88b7ac6f44ab3fc94870c120ab3adbf/pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712", size = 51043 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cc/20/ff623b09d963f88bfde16306a54e12ee5ea43e9b597108672ff3a408aad6/pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08", size = 31191 },
+]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1683,6 +1957,33 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/62/14/7d0f567991f3a9af8d1cd4f619040c93b68f09a02b6d0b6ab1b2d1ded5fe/prometheus_client-0.21.1.tar.gz", hash = "sha256:252505a722ac04b0456be05c05f75f45d760c2911ffc45f2a06bcaed9f3ae3fb", size = 78551 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/c2/ab7d37426c179ceb9aeb109a85cda8948bb269b7561a0be870cc656eefe4/prometheus_client-0.21.1-py3-none-any.whl", hash = "sha256:594b45c410d6f4f8888940fe80b5cc2521b305a1fafe1c58609ef715a001f301", size = 54682 },
+]
+
+[[package]]
+name = "prompt-file"
+version = "0.1.0"
+source = { editable = "samples/prompt-file" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -1849,6 +2150,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjsparser-wheel"
+version = "2.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/a5/1ddb97c0e5c416d41f2391cfca773edc26e7632a286e6d49e14af0922c6d/pyjsparser_wheel-2.7.1.tar.gz", hash = "sha256:79e011ee4a2fc2e607e3a584e73a4f9c7091d23817513d19aa39b1c4e55e9e58", size = 25623 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/0b/bc29d3c773e3317384c7fe9362fd35d45628d7d62efce28974e49608e70f/pyjsparser_wheel-2.7.1-py3-none-any.whl", hash = "sha256:c249f326979de310b76fb0cf565ab572daa2eb3fb0544a52fbcc482cd4ef2d6c", size = 27071 },
+]
+
+[[package]]
 name = "pytest"
 version = "8.3.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1865,14 +2175,14 @@ wheels = [
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.25.2"
+version = "0.25.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/df/adcc0d60f1053d74717d21d58c0048479e9cab51464ce0d2965b086bd0e2/pytest_asyncio-0.25.2.tar.gz", hash = "sha256:3f8ef9a98f45948ea91a0ed3dc4268b5326c0e7bce73892acc654df4262ad45f", size = 53950 }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/a8/ecbc8ede70921dd2f544ab1cadd3ff3bf842af27f87bbdea774c7baa1d38/pytest_asyncio-0.25.3.tar.gz", hash = "sha256:fc1da2cf9f125ada7e710b4ddad05518d4cee187ae9412e9ac9271003497f07a", size = 54239 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/d8/defa05ae50dcd6019a95527200d3b3980043df5aa445d40cb0ef9f7f98ab/pytest_asyncio-0.25.2-py3-none-any.whl", hash = "sha256:0d0bb693f7b99da304a0634afc0a4b19e49d5e0de2d670f38dc4bfa5727c5075", size = 19400 },
+    { url = "https://files.pythonhosted.org/packages/67/17/3493c5624e48fd97156ebaec380dcaafee9506d7e2c46218ceebbb57d7de/pytest_asyncio-0.25.3-py3-none-any.whl", hash = "sha256:9e89518e0f9bd08928f97a3482fdc4e244df17529460bc038291ccaf8f85c7c3", size = 19467 },
 ]
 
 [[package]]
@@ -1886,6 +2196,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/be/45/9b538de8cef30e17c7b45ef42f538a94889ed6a16f2387a6c89e73220651/pytest-cov-6.0.0.tar.gz", hash = "sha256:fde0b595ca248bb8e2d76f020b465f3b107c9632e6a1d1705f17834c89dcadc0", size = 66945 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/36/3b/48e79f2cd6a61dbbd4807b4ed46cb564b4fd50a76166b1c4ea5c1d9e2371/pytest_cov-6.0.0-py3-none-any.whl", hash = "sha256:eee6f1b9e61008bd34975a4d5bab25801eb31898b032dd55addc93e96fcaaa35", size = 22949 },
+]
+
+[[package]]
+name = "pytest-watcher"
+version = "0.4.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "watchdog" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/72/a2a1e81f1b272ddd9a1848af4959c87c39aa95c0bbfb3007cacb86c47fa9/pytest_watcher-0.4.3.tar.gz", hash = "sha256:0cb0e4661648c8c0ff2b2d25efa5a8e421784b9e4c60fcecbf9b7c30b2d731b3", size = 10386 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/3a/c44a76c6bb5e9e896d9707fb1c704a31a0136950dec9514373ced0684d56/pytest_watcher-0.4.3-py3-none-any.whl", hash = "sha256:d59b1e1396f33a65ea4949b713d6884637755d641646960056a90b267c3460f9", size = 11852 },
 ]
 
 [[package]]
@@ -2009,6 +2331,33 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/9a/10ed3c7f72b4c24e719c59359fbadd1a27556a28b36cdf1cd9e4fb7845d5/pyzmq-26.2.0-cp313-cp313t-musllinux_1_1_aarch64.whl", hash = "sha256:25bf2374a2a8433633c65ccb9553350d5e17e60c8eb4de4d92cc6bd60f01d306", size = 1183489 },
     { url = "https://files.pythonhosted.org/packages/72/2d/8660892543fabf1fe41861efa222455811adac9f3c0818d6c3170a1153e3/pyzmq-26.2.0-cp313-cp313t-musllinux_1_1_i686.whl", hash = "sha256:007137c9ac9ad5ea21e6ad97d3489af654381324d5d3ba614c323f60dab8fae6", size = 1492932 },
     { url = "https://files.pythonhosted.org/packages/7b/d6/32fd69744afb53995619bc5effa2a405ae0d343cd3e747d0fbc43fe894ee/pyzmq-26.2.0-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:470d4a4f6d48fb34e92d768b4e8a5cc3780db0d69107abf1cd7ff734b9766eb0", size = 1392485 },
+]
+
+[[package]]
+name = "rag"
+version = "0.1.0"
+source = { editable = "samples/rag" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -2299,6 +2648,27 @@ wheels = [
 ]
 
 [[package]]
+name = "tzdata"
+version = "2025.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/0f/fa4723f22942480be4ca9527bbde8d43f6c3f2fe8412f00e7f5f6746bc8b/tzdata-2025.1.tar.gz", hash = "sha256:24894909e88cdb28bd1636c6887801df64cb485bd593f2fd83ef29075a81d694", size = 194950 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/dd/84f10e23edd882c6f968c21c2434fe67bd4a528967067515feca9e611e5e/tzdata-2025.1-py2.py3-none-any.whl", hash = "sha256:7e127113816800496f027041c570f50bcd464a020098a3b6b199517772303639", size = 346762 },
+]
+
+[[package]]
+name = "tzlocal"
+version = "5.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/cc/11360404b20a6340b9b4ed39a3338c4af47bc63f87f6cea94dbcbde07029/tzlocal-5.3.tar.gz", hash = "sha256:2fafbfc07e9d8b49ade18f898d6bcd37ae88ce3ad6486842a2e4f03af68323d2", size = 30480 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/9f/1c0b69d3abf4c65acac051ad696b8aea55afbb746dea8017baab53febb5e/tzlocal-5.3-py3-none-any.whl", hash = "sha256:3814135a1bb29763c6e4f08fd6e41dbb435c7a60bfbb03270211bcc537187d8c", size = 17920 },
+]
+
+[[package]]
 name = "uri-template"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2314,6 +2684,111 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/aa/63/e53da845320b757bf29ef6a9062f5c669fe997973f966045cb019c3f4b66/urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d", size = 307268 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/19/4ec628951a74043532ca2cf5d97b7b14863931476d117c471e8e2b1eb39f/urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df", size = 128369 },
+]
+
+[[package]]
+name = "vertex-ai-model-garden"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-vector-search" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
+name = "vertex-ai-reranker"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-reranker" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
+name = "vertex-ai-vector-search"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-model-garden" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
+name = "watchdog"
+version = "6.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/7d/7f3d619e951c88ed75c6037b246ddcf2d322812ee8ea189be89511721d54/watchdog-6.0.0.tar.gz", hash = "sha256:9ddf7c82fda3ae8e24decda1338ede66e1c99883db93711d8fb941eaa2d8c282", size = 131220 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/39/ea/3930d07dafc9e286ed356a679aa02d777c06e9bfd1164fa7c19c288a5483/watchdog-6.0.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:bdd4e6f14b8b18c334febb9c4425a878a2ac20efd1e0b231978e7b150f92a948", size = 96471 },
+    { url = "https://files.pythonhosted.org/packages/12/87/48361531f70b1f87928b045df868a9fd4e253d9ae087fa4cf3f7113be363/watchdog-6.0.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c7c15dda13c4eb00d6fb6fc508b3c0ed88b9d5d374056b239c4ad1611125c860", size = 88449 },
+    { url = "https://files.pythonhosted.org/packages/5b/7e/8f322f5e600812e6f9a31b75d242631068ca8f4ef0582dd3ae6e72daecc8/watchdog-6.0.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6f10cb2d5902447c7d0da897e2c6768bca89174d0c6e1e30abec5421af97a5b0", size = 89054 },
+    { url = "https://files.pythonhosted.org/packages/68/98/b0345cabdce2041a01293ba483333582891a3bd5769b08eceb0d406056ef/watchdog-6.0.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:490ab2ef84f11129844c23fb14ecf30ef3d8a6abafd3754a6f75ca1e6654136c", size = 96480 },
+    { url = "https://files.pythonhosted.org/packages/85/83/cdf13902c626b28eedef7ec4f10745c52aad8a8fe7eb04ed7b1f111ca20e/watchdog-6.0.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:76aae96b00ae814b181bb25b1b98076d5fc84e8a53cd8885a318b42b6d3a5134", size = 88451 },
+    { url = "https://files.pythonhosted.org/packages/fe/c4/225c87bae08c8b9ec99030cd48ae9c4eca050a59bf5c2255853e18c87b50/watchdog-6.0.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:a175f755fc2279e0b7312c0035d52e27211a5bc39719dd529625b1930917345b", size = 89057 },
+    { url = "https://files.pythonhosted.org/packages/a9/c7/ca4bf3e518cb57a686b2feb4f55a1892fd9a3dd13f470fca14e00f80ea36/watchdog-6.0.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:7607498efa04a3542ae3e05e64da8202e58159aa1fa4acddf7678d34a35d4f13", size = 79079 },
+    { url = "https://files.pythonhosted.org/packages/5c/51/d46dc9332f9a647593c947b4b88e2381c8dfc0942d15b8edc0310fa4abb1/watchdog-6.0.0-py3-none-manylinux2014_armv7l.whl", hash = "sha256:9041567ee8953024c83343288ccc458fd0a2d811d6a0fd68c4c22609e3490379", size = 79078 },
+    { url = "https://files.pythonhosted.org/packages/d4/57/04edbf5e169cd318d5f07b4766fee38e825d64b6913ca157ca32d1a42267/watchdog-6.0.0-py3-none-manylinux2014_i686.whl", hash = "sha256:82dc3e3143c7e38ec49d61af98d6558288c415eac98486a5c581726e0737c00e", size = 79076 },
+    { url = "https://files.pythonhosted.org/packages/ab/cc/da8422b300e13cb187d2203f20b9253e91058aaf7db65b74142013478e66/watchdog-6.0.0-py3-none-manylinux2014_ppc64.whl", hash = "sha256:212ac9b8bf1161dc91bd09c048048a95ca3a4c4f5e5d4a7d1b1a7d5752a7f96f", size = 79077 },
+    { url = "https://files.pythonhosted.org/packages/2c/3b/b8964e04ae1a025c44ba8e4291f86e97fac443bca31de8bd98d3263d2fcf/watchdog-6.0.0-py3-none-manylinux2014_ppc64le.whl", hash = "sha256:e3df4cbb9a450c6d49318f6d14f4bbc80d763fa587ba46ec86f99f9e6876bb26", size = 79078 },
+    { url = "https://files.pythonhosted.org/packages/62/ae/a696eb424bedff7407801c257d4b1afda455fe40821a2be430e173660e81/watchdog-6.0.0-py3-none-manylinux2014_s390x.whl", hash = "sha256:2cce7cfc2008eb51feb6aab51251fd79b85d9894e98ba847408f662b3395ca3c", size = 79077 },
+    { url = "https://files.pythonhosted.org/packages/b5/e8/dbf020b4d98251a9860752a094d09a65e1b436ad181faf929983f697048f/watchdog-6.0.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:20ffe5b202af80ab4266dcd3e91aae72bf2da48c0d33bdb15c66658e685e94e2", size = 79078 },
+    { url = "https://files.pythonhosted.org/packages/07/f6/d0e5b343768e8bcb4cda79f0f2f55051bf26177ecd5651f84c07567461cf/watchdog-6.0.0-py3-none-win32.whl", hash = "sha256:07df1fdd701c5d4c8e55ef6cf55b8f0120fe1aef7ef39a1c6fc6bc2e606d517a", size = 79065 },
+    { url = "https://files.pythonhosted.org/packages/db/d9/c495884c6e548fce18a8f40568ff120bc3a4b7b99813081c8ac0c936fa64/watchdog-6.0.0-py3-none-win_amd64.whl", hash = "sha256:cbafb470cf848d93b5d013e2ecb245d4aa1c8fd0504e863ccefa32445359d680", size = 79070 },
+    { url = "https://files.pythonhosted.org/packages/33/e8/e40370e6d74ddba47f002a32919d91310d6074130fe4e17dabcafc15cbf1/watchdog-6.0.0-py3-none-win_ia64.whl", hash = "sha256:a1914259fa9e1454315171103c6a30961236f508b9b623eae470268bbcc6a22f", size = 79067 },
 ]
 
 [[package]]

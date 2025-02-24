@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package localvec is a local vector database for development and testing.
 // The database is stored in a file in the local file system.
 // Production code should use a real vector database.

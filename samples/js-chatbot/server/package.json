@@ -2,7 +2,7 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
-    "genkit:dev": "genkit start -- npm run dev",
+    "genkit:dev": "npx genkit start -- npm run dev",
     "dev": "tsx --watch src/index.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -15,15 +15,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "^1.0.0-rc.15",
-    "@genkit-ai/vertexai": "^1.0.0-rc.15",
-    "@genkit-ai/express": "^1.0.0-rc.15",
+    "genkit": "^1.0.0-rc.18",
+    "@genkit-ai/vertexai": "^1.0.4",
+    "@genkit-ai/express": "^1.0.4",
     "express": "^4.21.0",
     "partial-json": "^0.1.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "genkit-cli": "^1.0.0-rc.15",
+    "genkit-cli": "^1.0.4",
     "typescript": "^5.4.5",
     "tsx": "^4.19.2"
   }

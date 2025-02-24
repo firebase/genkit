@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package core
 
 import (
@@ -142,6 +141,10 @@ func newAction[In, Out, Stream any](
 			inputSchema = base.InferJSONSchema(i)
 		}
 	}
+	var outputSchema *jsonschema.Schema
+	if reflect.ValueOf(o).Kind() != reflect.Invalid {
+		outputSchema = base.InferJSONSchema(o)
+	}
 	return &Action[In, Out, Stream]{
 		name:  name,
 		atype: atype,
@@ -150,7 +153,7 @@ func newAction[In, Out, Stream any](
 			return fn(ctx, input, sc)
 		},
 		inputSchema:  inputSchema,
-		outputSchema: base.InferJSONSchema(o),
+		outputSchema: outputSchema,
 		metadata:     metadata,
 	}
 }

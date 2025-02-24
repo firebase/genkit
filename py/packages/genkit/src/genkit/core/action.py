@@ -1,54 +1,103 @@
 # Copyright 2025 Google LLC
-# SPDX-License-Identifier: Apache-2.0
-
+# SPDX-License-Identifier: Apache-2.
 
 import inspect
 import json
-
-from typing import Dict, Optional, Callable, Any
-
-from pydantic import ConfigDict, BaseModel, TypeAdapter
+from collections.abc import Callable
+from enum import Enum
+from typing import Any
 
 from genkit.core.tracing import tracer
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+
+class ActionKind(str, Enum):
+    """Enumerates all the types of action that can be registered."""
+
+    CHATLLM = 'chat-llm'
+    CUSTOM = 'custom'
+    EMBEDDER = 'embedder'
+    EVALUATOR = 'evaluator'
+    FLOW = 'flow'
+    INDEXER = 'indexer'
+    MODEL = 'model'
+    PROMPT = 'prompt'
+    RETRIEVER = 'retriever'
+    TEXTLLM = 'text-llm'
+    TOOL = 'tool'
+    UTIL = 'util'
 
 
 class ActionResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    """The response from an action."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
     response: Any
-    traceId: str
+    trace_id: str = Field(alias='traceId')
+
+
+class ActionMetadataKey(str, Enum):
+    """Enumerates all the keys of the action metadata."""
+
+    INPUT_KEY = 'inputSchema'
+    OUTPUT_KEY = 'outputSchema'
+    RETURN = 'return'
 
 
 class Action:
+    """An action is a Typed JSON-based RPC-over-HTTP remote-callable function
+    that supports metadata, streaming, reflection and discovery.
+
+    It is strongly-typed, named, observable, uninterrupted operation that can be
+    in streaming or non-streaming mode. It wraps a function that takes an input,
+    and returns an output, optionally streaming values incrementally by invoking
+    a streaming callback.
+
+    An action can be registered in the registry and then be used in a flow.
+    It can be of different kinds as defined by the ActionKind enum.
+    """
+
     def __init__(
         self,
-        type: str,
+        kind: ActionKind,
         name: str,
         fn: Callable,
         description: str | None = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        spanMetadata: Optional[Dict[str, str]] = None,
+        metadata: dict[ActionMetadataKey, Any] | None = None,
+        span_metadata: dict[str, str] | None = None,
     ):
-        self.type = type
+        """Initialize an action.
+
+        Args:
+            kind: The kind of the action.
+            name: The name of the action.
+            fn: The function to call when the action is executed.
+            description: The description of the action.
+            metadata: The metadata of the action.
+            span_metadata: The span metadata of the action.
+        """
+        # TODO(Tatsiana Havina): separate a long constructor into methods.
+        self.kind: ActionKind = kind
         self.name = name
 
-        def fnToCall(*args, **kwargs):
+        def tracing_wrapper(*args, **kwargs):
+            """Wraps the callable function in a tracing span and adds metadata
+            to it."""
+
             with tracer.start_as_current_span(name) as span:
-                traceId = str(span.get_span_context().trace_id)
-                span.set_attribute('genkit:type', type)
+                trace_id = str(span.get_span_context().trace_id)
+                span.set_attribute('genkit:type', kind)
                 span.set_attribute('genkit:name', name)
 
-                if spanMetadata is not None:
-                    for spanMetaKey in spanMetadata:
-                        span.set_attribute(
-                            spanMetaKey, spanMetadata[spanMetaKey]
-                        )
+                if span_metadata is not None:
+                    for meta_key in span_metadata:
+                        span.set_attribute(meta_key, span_metadata[meta_key])
 
                 if len(args) > 0:
                     if isinstance(args[0], BaseModel):
-                        span.set_attribute(
-                            'genkit:input', args[0].model_dump_json()
-                        )
+                        encoded = args[0].model_dump_json(by_alias=True)
+                        span.set_attribute('genkit:input', encoded)
                     else:
                         span.set_attribute('genkit:input', json.dumps(args[0]))
 
@@ -57,39 +106,39 @@ class Action:
                 span.set_attribute('genkit:state', 'success')
 
                 if isinstance(output, BaseModel):
-                    span.set_attribute(
-                        'genkit:output', output.model_dump_json()
-                    )
+                    encoded = output.model_dump_json(by_alias=True)
+                    span.set_attribute('genkit:output', encoded)
                 else:
                     span.set_attribute('genkit:output', json.dumps(output))
 
-                return ActionResponse(response=output, traceId=traceId)
+                return ActionResponse(response=output, trace_id=trace_id)
 
-        self.fn = fnToCall
+        self.fn = tracing_wrapper
         self.description = description
-        self.metadata = metadata
-        if self.metadata is None:
-            self.metadata = {}
+        self.metadata = metadata if metadata else {}
 
-        inputSpec = inspect.getfullargspec(fn)
-        actionArgs = list(
-            filter(lambda k: k != 'return', inputSpec.annotations)
-        )
-        if len(actionArgs) > 1:
+        input_spec = inspect.getfullargspec(fn)
+        action_args = [
+            k for k in input_spec.annotations if k != ActionMetadataKey.RETURN
+        ]
+
+        if len(action_args) > 1:
             raise Exception('can only have one arg')
-        if len(actionArgs) > 0:
-            ta = TypeAdapter(inputSpec.annotations[actionArgs[0]])
-            self.inputSchema = ta.json_schema()
-            self.inputType = ta
-            self.metadata['inputSchema'] = self.inputSchema
+        if len(action_args) > 0:
+            type_adapter = TypeAdapter(input_spec.annotations[action_args[0]])
+            self.input_schema = type_adapter.json_schema()
+            self.input_type = type_adapter
+            self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
         else:
-            self.inputSchema = TypeAdapter(Any).json_schema()
-            self.metadata['inputSchema'] = self.inputSchema
+            self.input_schema = TypeAdapter(Any).json_schema()
+            self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
 
-        if 'return' in inputSpec.annotations:
-            ta = TypeAdapter(inputSpec.annotations['return'])
-            self.outputSchema = ta.json_schema()
-            self.metadata['outputSchema'] = self.outputSchema
+        if ActionMetadataKey.RETURN in input_spec.annotations:
+            type_adapter = TypeAdapter(
+                input_spec.annotations[ActionMetadataKey.RETURN]
+            )
+            self.output_schema = type_adapter.json_schema()
+            self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
         else:
-            self.outputSchema = TypeAdapter(Any).json_schema()
-            self.metadata['outputSchema'] = self.outputSchema
+            self.output_schema = TypeAdapter(Any).json_schema()
+            self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema

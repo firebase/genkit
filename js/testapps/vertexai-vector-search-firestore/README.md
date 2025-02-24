@@ -21,7 +21,7 @@ the core packages. This sample uses `workspace:*` dependencies, so they will nee
 Then
 
 ```bash
-cd js/testapps/vertex-vector-search-bigquery && pnpm i
+cd js/testapps/vertexai-vector-search-firestore && pnpm i
 ```
 
 ### Step 3: Set Up Environment Variables

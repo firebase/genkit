@@ -15,6 +15,7 @@
  */
 
 import { runInActionRuntimeContext } from './action.js';
+import { UserFacingError } from './error.js';
 import { HasRegistry, Registry } from './registry.js';
 
 const contextAlsKey = 'core.auth.context';
@@ -57,4 +58,68 @@ export function getContext(
   }
   registry = registry as Registry;
   return registry.asyncStore.getStore<ActionContext>(contextAlsKey);
+}
+
+/**
+ * A universal type that request handling extensions (e.g. express, next) can map their request to.
+ * This allows ContextProviders to build consistent interfacese on any web framework.
+ * Headers must be lowercase to ensure portability.
+ */
+export interface RequestData<T = any> {
+  method: 'GET' | 'PUT' | 'POST' | 'DELETE' | 'OPTIONS' | 'QUERY';
+  headers: Record<string, string>;
+  input: T;
+}
+
+/**
+ * Middleware can read request data and add information to the context that will
+ * be passed to the Action. If middleware throws an error, that error will fail
+ * the request and the Action will not be invoked. Expected cases should return a
+ * UserFacingError, which allows the request handler to know what data is safe to
+ * return to end users.
+ *
+ * Middleware can provide validation in addition to parsing. For example, an auth
+ * middleware can have policies for validating auth in addition to passing auth context
+ * to the Action.
+ */
+export type ContextProvider<
+  C extends ActionContext = ActionContext,
+  T = any,
+> = (request: RequestData<T>) => C | Promise<C>;
+
+export interface ApiKeyContext extends ActionContext {
+  auth: {
+    apiKey: string | undefined;
+  };
+}
+
+export function apiKey(
+  policy: (context: ApiKeyContext) => void | Promise<void>
+): ContextProvider<ApiKeyContext>;
+export function apiKey(value?: string): ContextProvider<ApiKeyContext>;
+export function apiKey(
+  valueOrPolicy?: ((context: ApiKeyContext) => void | Promise<void>) | string
+): ContextProvider<ApiKeyContext> {
+  return async function (request: RequestData): Promise<ApiKeyContext> {
+    const context: ApiKeyContext = {
+      auth: { apiKey: request.headers['authorization'] },
+    };
+    if (typeof valueOrPolicy === 'string') {
+      if (!context.auth?.apiKey) {
+        console.error('THROWING UNAUTHENTICATED');
+        throw new UserFacingError('UNAUTHENTICATED', 'Unauthenticated');
+      }
+      if (context.auth?.apiKey != valueOrPolicy) {
+        console.error('Throwing PERMISSION_DENIED');
+        throw new UserFacingError('PERMISSION_DENIED', 'Permission Denied');
+      }
+    } else if (typeof valueOrPolicy === 'function') {
+      await valueOrPolicy(context);
+    } else if (typeof valueOrPolicy !== 'undefined') {
+      throw new Error(
+        `Invalid type ${typeof valueOrPolicy} passed to apiKey()`
+      );
+    }
+    return context;
+  };
 }

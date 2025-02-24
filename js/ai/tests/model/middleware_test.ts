@@ -396,7 +396,7 @@ describe('augmentWithContext', () => {
   });
 });
 
-describe('simulateConstrainedGeneration', () => {
+describe.only('simulateConstrainedGeneration', () => {
   let registry: Registry;
 
   beforeEach(() => {
@@ -449,8 +449,6 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: false,
-        contentType: 'application/json',
-        format: 'json',
       },
       tools: [],
     });
@@ -502,8 +500,6 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: false,
-        contentType: 'application/json',
-        format: 'json',
       },
       tools: [],
     });
@@ -511,7 +507,7 @@ describe('simulateConstrainedGeneration', () => {
 
   it('relies on native support -- no instructions', async () => {
     let pm = defineProgrammableModel(registry, {
-      supports: { constrained: true },
+      supports: { constrained: 'all' },
     });
     pm.handleResponse = async (req, sc) => {
       return {
@@ -542,6 +538,72 @@ describe('simulateConstrainedGeneration', () => {
       ],
       output: {
         constrained: true,
+        contentType: 'application/json',
+        format: 'json',
+        schema: {
+          $schema: 'http://json-schema.org/draft-07/schema#',
+          additionalProperties: true,
+          properties: {
+            foo: {
+              type: 'string',
+            },
+          },
+          required: ['foo'],
+          type: 'object',
+        },
+      },
+      tools: [],
+    });
+  });
+
+  it('uses format instructions when instructions is explicitly set to true', async () => {
+    let pm = defineProgrammableModel(registry, {
+      supports: { constrained: 'all' },
+    });
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: '```\n{"foo": "bar"}\n```' }],
+        },
+      };
+    };
+
+    const { output } = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'generate json',
+      output: {
+        instructions: true,
+        constrained: false,
+        schema: z.object({
+          foo: z.string(),
+        }),
+      },
+    });
+    assert.deepEqual(output, { foo: 'bar' });
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {},
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'generate json' },
+            {
+              metadata: {
+                purpose: 'output',
+              },
+              text:
+                'Output should be in JSON format and conform to the following schema:\n' +
+                '\n' +
+                '```\n' +
+                '{"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"],"additionalProperties":true,"$schema":"http://json-schema.org/draft-07/schema#"}\n' +
+                '```\n',
+            },
+          ],
+        },
+      ],
+      output: {
+        constrained: false,
         contentType: 'application/json',
         format: 'json',
         schema: {

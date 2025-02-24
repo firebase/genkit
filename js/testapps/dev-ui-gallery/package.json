@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node lib/index.js",
     "dev": "tsx --watch src/index.ts",
-    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
@@ -25,7 +25,7 @@
   "dependencies": {
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/firebase": "^0.9.12",
+    "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",

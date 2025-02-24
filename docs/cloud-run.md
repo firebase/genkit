@@ -1,8 +1,8 @@
 # Deploy flows using Cloud Run
 
 You can deploy Genkit flows as HTTPS endpoints using Cloud Run. Cloud Run has
-several deployment options, including container based deployment; this page will
-explain how to deploy your flows directly from code.
+several deployment options, including container based deployment; this page
+explains how to deploy your flows directly from code.
 
 ## Before you begin
 
@@ -33,7 +33,7 @@ If you don't already have a Google Cloud project set up, follow these steps:
 For your flows to be deployable, you will need to make some small changes to
 your project code:
 
-### Add start and build scripts to package.json 
+### Add start and build scripts to package.json
 
 When deploying a Node.js project to Cloud Run, the deployment tools expect your
 project to have a `start` script and, optionally, a `build` script. For a
@@ -53,6 +53,8 @@ This method will start an Express server set up to serve your flows as web
 endpoints.
 
 When you make the call, specify the flows you want to serve:
+
+There is also:
 
 ```ts
 import { startFlowServer } from '@genkit-ai/express';
@@ -83,13 +85,14 @@ When you deploy your flows with Cloud Run, you have two options for
 authorization:
 
 - **Cloud IAM-based authorization**: Use Google Cloud's native access management
-  facilities to gate access to your endpoints. See
+  facilities to gate access to your endpoints. For information on providing
+  these credentials, see
   [Authentication](https://cloud.google.com/run/docs/authenticating/overview)
-  in the Cloud Run docs for information on providing these credentials.
+  in the Cloud Run docs.
 
 - **Authorization policy defined in code**: Use the authorization policy feature
-  of Genkit express plugin to verify authorization info using custom code. This is often,
-  but not necessarily, token-based authorization.
+  of the Genkit express plugin to verify authorization info using custom code.
+  This is often, but not necessarily, token-based authorization.
 
 If you want to define an authorization policy in code, use the `authPolicy`
 parameter in the flow definition:
@@ -125,7 +128,7 @@ See
 Refer to [express plugin documentation](https://js.api.genkit.dev/modules/_genkit-ai_express.html)
 for more details.
 
-### Make API credentials available to deployed flows 
+### Make API credentials available to deployed flows
 
 Once deployed, your flows need some way to authenticate with any remote services
 they rely on. Most flows will at a minimum need credentials for accessing the
@@ -136,35 +139,35 @@ chose:
 
 - {Gemini (Google AI)}
 
-  1.  Make sure Google AI is
-      [available in your region](https://ai.google.dev/available_regions).
+    1.  Make sure Google AI is
+        [available in your region](https://ai.google.dev/available_regions).
 
-  1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
-      Gemini API using Google AI Studio.
+    1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
+        Gemini API using Google AI Studio.
 
-  1.  Make the API key available in the Cloud Run environment:
+    1.  Make the API key available in the Cloud Run environment:
 
-      1.  In the Cloud console, enable the
-          [Secret Manager API](https://console.cloud.google.com/apis/library/secretmanager.googleapis.com?project=_).
-      1.  On the [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=_)
-          page, create a new secret containing your API key.
-      1.  After you create the secret, on the same page, grant your default
-          compute service account access to the secret with the **Secret
-          Manager Secret Accessor** role. (You can look up the name of the
-          default compute service account on the IAM page.)
+        1.  In the Cloud console, enable the
+            [Secret Manager API](https://console.cloud.google.com/apis/library/secretmanager.googleapis.com?project=_).
+        1.  On the [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=_)
+            page, create a new secret containing your API key.
+        1.  After you create the secret, on the same page, grant your default
+            compute service account access to the secret with the **Secret
+            Manager Secret Accessor** role. (You can look up the name of the
+            default compute service account on the IAM page.)
 
-      In a later step, when you deploy your service, you will need to
-      reference the name of this secret.
+        In a later step, when you deploy your service, you will need to
+        reference the name of this secret.
 
 - {Gemini (Vertex AI)}
 
-  1.  In the Cloud console,
-      [Enable the Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=_)
-      for your project.
+    1.  In the Cloud console,
+        [Enable the Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com?project=_)
+        for your project.
 
-  1.  On the [IAM](https://console.cloud.google.com/iam-admin/iam?project=_)
-      page, ensure that the **Default compute service account** is granted the
-      **Vertex AI User** role.
+    1.  On the [IAM](https://console.cloud.google.com/iam-admin/iam?project=_)
+        page, ensure that the **Default compute service account** is granted the
+        **Vertex AI User** role.
 
 The only secret you need to set up for this tutorial is for the model provider,
 but in general, you must do something similar for each service your flow uses.

@@ -47,3 +47,4 @@ last_recording.mp4
 next-env.d.ts
 
 !samples/chatbot/server/genkit-ai-vertexai-*.tgz
+.idea/

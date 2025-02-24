@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --port $PORT",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -26,7 +26,7 @@
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3",
-    "genkit": "^1.0.0-rc.15"
+    "genkit": "^1.0.4"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^18.0.2",

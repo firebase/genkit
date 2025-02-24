@@ -29,6 +29,7 @@ import {
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
+  Schema,
   SchemaType,
   StartChatParams,
   Tool,
@@ -61,7 +62,8 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
-import process from 'process';
+import { runInNewSpan } from 'genkit/tracing';
+import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -105,7 +107,7 @@ export const gemini10Pro = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
   },
   configSchema: GeminiConfigSchema,
@@ -121,7 +123,7 @@ export const gemini15Pro = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
     versions: [
       'gemini-1.5-pro-latest',
@@ -142,7 +144,7 @@ export const gemini15Flash = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
       // @ts-ignore
       contextCache: true,
     },
@@ -165,17 +167,17 @@ export const gemini15Flash8b = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
     versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
   },
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20FlashExp = modelRef({
-  name: 'googleai/gemini-2.0-flash-exp',
+export const gemini20Flash = modelRef({
+  name: 'googleai/gemini-2.0-flash',
   info: {
-    label: 'Google AI - Gemini 2.0 Flash (Experimental)',
+    label: 'Google AI - Gemini 2.0 Flash',
     versions: [],
     supports: {
       multiturn: true,
@@ -183,7 +185,24 @@ export const gemini20FlashExp = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini20ProExp0205 = modelRef({
+  name: 'googleai/gemini-2.0-pro-exp-02-05',
+  info: {
+    label: 'Google AI - Gemini 2.0 Pro Exp 02-05',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
     },
   },
   configSchema: GeminiConfigSchema,
@@ -197,7 +216,8 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
-  'gemini-2.0-flash-exp': gemini20FlashExp,
+  'gemini-2.0-flash': gemini20Flash,
+  'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -211,7 +231,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      constrained: true,
+      constrained: 'no-tools',
     },
   },
 });
@@ -312,31 +332,64 @@ function toGeminiRole(
 
 function convertSchemaProperty(property) {
   if (!property || !property.type) {
-    return null;
+    return undefined;
   }
-  if (property.type === 'object') {
+  const baseSchema = {} as Schema;
+  if (property.description) {
+    baseSchema.description = property.description;
+  }
+  if (property.enum) {
+    baseSchema.enum = property.enum;
+  }
+  if (property.nullable) {
+    baseSchema.nullable = property.nullable;
+  }
+  let propertyType;
+  // nullable schema can ALSO be defined as, for example, type=['string','null']
+  if (Array.isArray(property.type)) {
+    const types = property.type as string[];
+    if (types.includes('null')) {
+      baseSchema.nullable = true;
+    }
+    // grab the type that's not `null`
+    propertyType = types.find((t) => t !== 'null');
+  } else {
+    propertyType = property.type;
+  }
+  if (propertyType === 'object') {
     const nestedProperties = {};
     Object.keys(property.properties).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
+      ...baseSchema,
       type: SchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
-  } else if (property.type === 'array') {
+  } else if (propertyType === 'array') {
     return {
+      ...baseSchema,
       type: SchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
+    const schemaType = SchemaType[propertyType.toUpperCase()] as SchemaType;
+    if (!schemaType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Unsupported property type ${propertyType.toUpperCase()}`,
+      });
+    }
     return {
-      type: SchemaType[property.type.toUpperCase()],
+      ...baseSchema,
+      type: schemaType,
     };
   }
 }
 
-function toGeminiTool(
+/** @hidden */
+export function toGeminiTool(
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration {
   const declaration: FunctionDeclaration = {
@@ -581,21 +634,31 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 /**
  * Defines a new GoogleAI model.
  */
-export function defineGoogleAIModel(
-  ai: Genkit,
-  name: string,
-  apiKey?: string,
-  apiVersion?: string,
-  baseUrl?: string,
-  info?: ModelInfo,
-  defaultConfig?: GeminiConfig
-): ModelAction {
+export function defineGoogleAIModel({
+  ai,
+  name,
+  apiKey,
+  apiVersion,
+  baseUrl,
+  info,
+  defaultConfig,
+  debugTraces,
+}: {
+  ai: Genkit;
+  name: string;
+  apiKey?: string;
+  apiVersion?: string;
+  baseUrl?: string;
+  info?: ModelInfo;
+  defaultConfig?: GeminiConfig;
+  debugTraces?: boolean;
+}): ModelAction {
   if (!apiKey) {
-    apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
+    apiKey = getApiKeyFromEnvVar();
   }
   if (!apiKey) {
     throw new Error(
-      'Please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+      'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
         'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
     );
   }
@@ -710,9 +773,9 @@ export function defineGoogleAIModel(
 
       // Cannot use tools with JSON mode
       const jsonMode =
-        (request.output?.format === 'json' ||
-          request.output?.contentType === 'application/json') &&
-        tools.length === 0;
+        request.output?.format === 'json' ||
+        (request.output?.contentType === 'application/json' &&
+          tools.length === 0);
 
       const generationConfig: GenerationConfig = {
         candidateCount: request.candidates || undefined,
@@ -780,54 +843,83 @@ export function defineGoogleAIModel(
         );
       }
 
-      if (sendChunk) {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessageStream(msg.parts, options);
-        for await (const item of result.stream) {
-          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
-            const c = fromJSONModeScopedGeminiCandidate(candidate);
-            sendChunk({
-              index: c.index,
-              content: c.message.content,
+      const callGemini = async () => {
+        if (sendChunk) {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessageStream(msg.parts, options);
+          for await (const item of result.stream) {
+            (item as GenerateContentResponse).candidates?.forEach(
+              (candidate) => {
+                const c = fromJSONModeScopedGeminiCandidate(candidate);
+                sendChunk({
+                  index: c.index,
+                  content: c.message.content,
+                });
+              }
+            );
+          }
+          const response = await result.response;
+          const candidates = response.candidates || [];
+          if (response.candidates?.['undefined']) {
+            candidates.push(response.candidates['undefined']);
+          }
+          if (!candidates.length) {
+            throw new GenkitError({
+              status: 'FAILED_PRECONDITION',
+              message: 'No valid candidates returned.',
             });
-          });
+          }
+          return {
+            candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
+            custom: response,
+          };
+        } else {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessage(msg.parts, options);
+          if (!result.response.candidates?.length)
+            throw new Error('No valid candidates returned.');
+          const responseCandidates =
+            result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
+            [];
+          return {
+            candidates: responseCandidates,
+            custom: result.response,
+            usage: {
+              ...getBasicUsageStats(request.messages, responseCandidates),
+              inputTokens: result.response.usageMetadata?.promptTokenCount,
+              outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+              totalTokens: result.response.usageMetadata?.totalTokenCount,
+            },
+          };
         }
-        const response = await result.response;
-        const candidates = response.candidates || [];
-        if (response.candidates?.['undefined']) {
-          candidates.push(response.candidates['undefined']);
-        }
-        if (!candidates.length) {
-          throw new GenkitError({
-            status: 'FAILED_PRECONDITION',
-            message: 'No valid candidates returned.',
-          });
-        }
-        return {
-          candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
-          custom: response,
-        };
-      } else {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessage(msg.parts, options);
-        if (!result.response.candidates?.length)
-          throw new Error('No valid candidates returned.');
-        const responseCandidates =
-          result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
-          [];
-        return {
-          candidates: responseCandidates,
-          custom: result.response,
-          usage: {
-            ...getBasicUsageStats(request.messages, responseCandidates),
-            inputTokens: result.response.usageMetadata?.promptTokenCount,
-            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-            totalTokens: result.response.usageMetadata?.totalTokenCount,
-          },
-        };
-      }
+      };
+      // If debugTraces is enable, we wrap the actual model call with a span, add raw
+      // API params as for input.
+      return debugTraces
+        ? await runInNewSpan(
+            ai.registry,
+            {
+              metadata: {
+                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
+            async (metadata) => {
+              metadata.input = {
+                sdk: '@google/generative-ai',
+                cache: cache,
+                model: genModel.model,
+                chatOptions: updatedChatRequest,
+                parts: msg.parts,
+                options,
+              };
+              const response = await callGemini();
+              metadata.output = response.custom;
+              return response;
+            }
+          )
+        : await callGemini();
     }
   );
 }

@@ -42,7 +42,9 @@ import {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
-  gemini20FlashExp,
+  gemini20Flash001,
+  gemini20FlashLitePreview0205,
+  gemini20ProExp0205,
   type GeminiConfig,
 } from './gemini.js';
 import {
@@ -58,7 +60,9 @@ export {
   gemini10Pro,
   gemini15Flash,
   gemini15Pro,
-  gemini20FlashExp,
+  gemini20Flash001,
+  gemini20FlashLitePreview0205,
+  gemini20ProExp0205,
   imagen2,
   imagen3,
   imagen3Fast,
@@ -83,10 +87,16 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       imagenModel(ai, name, authClient, { projectId, location })
     );
     Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-      defineGeminiKnownModel(ai, name, vertexClientFactory, {
-        projectId,
-        location,
-      })
+      defineGeminiKnownModel(
+        ai,
+        name,
+        vertexClientFactory,
+        {
+          projectId,
+          location,
+        },
+        options?.experimental_debugTraces
+      )
     );
     if (options?.models) {
       for (const modelOrRef of options?.models) {
@@ -97,17 +107,18 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
               modelOrRef.name.split('/')[1];
         const modelRef =
           typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-        defineGeminiModel(
+        defineGeminiModel({
           ai,
-          modelRef.name,
-          modelName,
-          modelRef.info,
+          modelName: modelRef.name,
+          version: modelName,
+          modelInfo: modelRef.info,
           vertexClientFactory,
-          {
+          options: {
             projectId,
             location,
-          }
-        );
+          },
+          debugTraces: options.experimental_debugTraces,
+        });
       }
     }
 

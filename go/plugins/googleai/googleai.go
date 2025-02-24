@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Parts of this file are copied into vertexai, because the code is identical
 // except for the import path of the Gemini SDK.
 //go:generate go run ../../internal/cmd/copy -dest ../vertexai googleai.go
@@ -31,17 +30,41 @@ const (
 )
 
 var state struct {
-	mu      sync.Mutex
-	initted bool
 	// These happen to be the same.
 	gclient, pclient *genai.Client
+	mu               sync.Mutex
+	initted          bool
 }
 
 var (
-	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   gemini.BasicText,
-		"gemini-1.5-pro":   gemini.Multimodal,
-		"gemini-1.5-flash": gemini.Multimodal,
+	supportedModels = map[string]ai.ModelInfo{
+		"gemini-1.0-pro": {
+			Versions: []string{"gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro-001"},
+			Supports: &gemini.BasicText,
+		},
+
+		"gemini-1.5-flash": {
+			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-1.5-pro": {
+			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
+			Supports: &gemini.Multimodal,
+		},
+
+		"gemini-1.5-flash-8b": {
+			Versions: []string{"gemini-1.5-flash-8b-latest", "gemini-1.5-flash-8b-001"},
+			Supports: &gemini.Multimodal,
+		},
+		"gemini-2.0-flash": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
+		"gemini-2.0-pro-exp-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
@@ -88,7 +111,8 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 
 	opts := append([]option.ClientOption{
 		option.WithAPIKey(apiKey),
-		genai.WithClientInfo("genkit-go", internal.Version)},
+		genai.WithClientInfo("genkit-go", internal.Version),
+	},
 		cfg.ClientOptions...,
 	)
 	client, err := genai.NewClient(ctx, opts...)
@@ -98,8 +122,8 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 	state.gclient = client
 	state.pclient = client
 	state.initted = true
-	for model, caps := range knownCaps {
-		defineModel(g, model, caps)
+	for model, details := range supportedModels {
+		defineModel(g, model, details)
 	}
 	for _, e := range knownEmbedders {
 		defineEmbedder(g, e)
@@ -113,30 +137,32 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(g *genkit.Genkit, name string, caps *ai.ModelCapabilities) (ai.Model, error) {
+func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	var mc ai.ModelCapabilities
-	if caps == nil {
+	var mi ai.ModelInfo
+	if info == nil {
 		var ok bool
-		mc, ok = knownCaps[name]
+		mi, ok = supportedModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelCapabilities", provider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
 		}
 	} else {
-		mc = *caps
+		// TODO: unknown models could also specify versions?
+		mi = *info
 	}
-	return defineModel(g, name, mc), nil
+	return defineModel(g, name, mi), nil
 }
 
 // requires state.mu
-func defineModel(g *genkit.Genkit, name string, caps ai.ModelCapabilities) ai.Model {
-	meta := &ai.ModelMetadata{
+func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
+	meta := &ai.ModelInfo{
 		Label:    labelPrefix + " - " + name,
-		Supports: caps,
+		Supports: info.Supports,
+		Versions: info.Versions,
 	}
 	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
@@ -317,7 +343,6 @@ func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*gena
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
 			return nil, err
-
 		}
 		// system prompts go into GenerativeModel.SystemInstruction field.
 		if m.Role == ai.RoleSystem {
@@ -361,7 +386,7 @@ func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
 		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
-		if err != err {
+		if err != nil {
 			return nil, err
 		}
 		fd := &genai.FunctionDeclaration{
@@ -393,7 +418,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 		schema.Type = genai.TypeNumber
 	case "number":
 		schema.Type = genai.TypeNumber
-	case "int":
+	case "integer":
 		schema.Type = genai.TypeInteger
 	case "bool":
 		schema.Type = genai.TypeBoolean
@@ -549,16 +574,33 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 		panic(fmt.Sprintf("%s does not support Data parts", provider))
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
+		var output map[string]any
+		if m, ok := toolResp.Output.(map[string]any); ok {
+			output = m
+		} else {
+			output = map[string]any{
+				"name":    toolResp.Name,
+				"content": toolResp.Output,
+			}
+		}
 		fr := genai.FunctionResponse{
 			Name:     toolResp.Name,
-			Response: toolResp.Output,
+			Response: output,
 		}
 		return fr, nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
+		var input map[string]any
+		if m, ok := toolReq.Input.(map[string]any); ok {
+			input = m
+		} else {
+			input = map[string]any{
+				"input": toolReq.Input,
+			}
+		}
 		fc := genai.FunctionCall{
 			Name: toolReq.Name,
-			Args: toolReq.Input,
+			Args: input,
 		}
 		return fc, nil
 	default:

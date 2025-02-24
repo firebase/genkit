@@ -17,5 +17,5 @@ These are also available in IDX, Google's Cloud-Based IDE, for you to try.
   <img
     height="32"
     alt="Try in IDX"
-    src="https://cdn.idx.dev/btn/try_light_32.svg">
+    src="https://cdn.idx.dev/btn/try_purple_32.svg">
 </a>

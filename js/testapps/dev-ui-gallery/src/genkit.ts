@@ -46,7 +46,8 @@ logger.setLogLevel('info');
 
 enableFirebaseTelemetry({
   forceDevExport: false,
-  metricExportIntervalMillis: 5000,
+  metricExportIntervalMillis: 5_000,
+  metricExportTimeoutMillis: 5_000,
   autoInstrumentation: true,
   autoInstrumentationConfig: {
     '@opentelemetry/instrumentation-fs': { enabled: false },

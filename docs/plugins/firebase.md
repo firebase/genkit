@@ -1,18 +1,17 @@
-<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
-use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into 
+Firebase Functions which use 
+https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
 
 # Firebase plugin
 
-The Firebase plugin provides integrations with Firebase services, allowing you to build intelligent and scalable AI applications. Key features include:
+The Firebase plugin provides integrations with Firebase services, so you can
+build intelligent and scalable AI applications. Key features include:
 
-<<<<<<< HEAD
-- **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.  
-=======
-- **Firestore Vector Store**: Use Firestore for indexing and retrieval with vector embeddings.
-- **Cloud Functions**: Deploy flows as HTTPS-triggered functions.
-- **Firebase Authentication**: Implement authorization policies.
->>>>>>> origin/main
-- **Telemetry**: Export telemetry to [Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit Monitoring console.
+- **Firestore Vector Store**: Use Firestore for indexing and retrieval
+with vector embeddings.
+- **Telemetry**: Export telemetry to
+[Google's Cloud operations suite](https://cloud.google.com/products/operations)
+that powers the Firebase Genkit Monitoring console.
 
 ## Installation
 
@@ -26,13 +25,19 @@ npm install @genkit-ai/firebase
 
 ### Firebase Project Setup
 
-1. All Firebase products require a Firebase project. You can create a new project or enable Firebase in an existing Google Cloud project using the [Firebase console](https://console.firebase.google.com/).
-2. If deploying flows with Cloud Functions, [upgrade your Firebase project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered) to the Blaze plan.
-3. If you want to run code locally that exports telemetry, you need the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) tool installed.
+1. All Firebase products require a Firebase project. You can create a new
+   project or enable Firebase in an existing Google Cloud project using the
+   [Firebase console](https://console.firebase.google.com/).
+1. If deploying flows with Cloud functions,
+   [upgrade your Firebase project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered)
+   to the Blaze plan.
+1. If you want to run code locally that exports telemetry, you need the
+   [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) tool installed.
 
 ### Firebase Admin SDK Initialization
 
-You must initialize the Firebase Admin SDK in your application. This is not handled automatically by the plugin.
+You must initialize the Firebase Admin SDK in your application.
+This is not handled automatically by the plugin.
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
@@ -44,60 +49,74 @@ initializeApp({
 });
 ```
 
-The plugin requires you to specify your Firebase project ID. You can specify your Firebase project ID in either of the following ways:
+The plugin requires you to specify your Firebase project ID. You can specify
+your Firebase project ID in either of the following ways:
 
-- Set `projectId` in the `initializeApp()` configuration object as shown in the snippet above.
+- Set `projectId` in the `initializeApp()` configuration object as shown
+in the snippet above.
 
-- Set the `GCLOUD_PROJECT` environment variable. If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), `GCLOUD_PROJECT` is automatically set to the project ID of the environment.
+- Set the `GCLOUD_PROJECT` environment variable. If you're running your
+  flow from a Google Cloud environment (Cloud Functions, Cloud Run, and
+  so on), `GCLOUD_PROJECT` is automatically set to the project ID of the
+  environment.
 
-  If you set `GCLOUD_PROJECT`, you can omit the configuration parameter in `initializeApp()`.
+  If you set `GCLOUD_PROJECT`, you can omit the configuration
+  parameter in `initializeApp()`.
 
 ### Credentials
 
-To provide Firebase credentials, you also need to set up Google Cloud Application Default Credentials. To specify your credentials:
+To provide Firebase credentials, you also need to set up Google Cloud
+Application Default Credentials. To specify your credentials:
 
-- If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, and so on), this is set automatically.
+- If you're running your flow from a Google Cloud environment (Cloud Functions,
+  Cloud Run, and so on), this is set automatically.
 
 - For other environments:
 
-  1. Generate service account credentials for your Firebase project and download the JSON key file. You can do so on the [Service account](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk) page of the Firebase console.
-  2. Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file path of the JSON file that contains your service account key, or you can set the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the JSON file.
+  1. Generate service account credentials for your Firebase project and
+  download the JSON key file. You can do so on the
+ [Service account](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
+  page of the Firebase console.
+  1. Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
+  path of the JSON file that contains your service account key, or you can set
+  the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the
+  JSON file.
 
 ## Features and usage
 
 ### Telemetry
 
-Firebase Genkit Monitoring is powered by Google's Cloud operation suite. This requires telemetry related API's to be enabled for your project. Please refer to the [Google Cloud plugin](google-cloud.md#set-up-a-google-cloud-account) documentation for more details.
+The Firebase plugin provides a telemetry implementation for sending metrics,
+traces, and logs to Firebase Genkit Monitoring.
 
-Grant the following roles to the **"Default compute service account"** within the [Google Cloud IAM Console](https://console.cloud.google.com/iam-admin/iam):
+To get started, visit the [Getting started guide](../observability/getting-started.md)
+for installation and configuration instructions.
 
-- **Monitoring Metric Writer** (roles/monitoring.metricWriter)
-- **Cloud Trace Agent** (roles/cloudtrace.agent)
-- **Logs Writer** (roles/logging.logWriter)
+See the [Authentication and authorization guide](../observability/authentication.md)
+to authenticate with Google Cloud.
 
-To enable telemetry export call `enableFirebaseTelemetry()`:
+See the [Advanced configuration guide](../observability/advanced-configuration.md)
+for configuration options.
 
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-
-enableFirebaseTelemetry({
-  forceDevExport: false, // Set this to true to export telemetry for local runs
-});
-```
-
-This plugin shares [configuration options](google-cloud.md#plugin-configuration) with the [Google Cloud plugin](google-cloud.md).
+See the [Telemetry collection](../observability/telemetry-collection.md) for
+details on which Genkit metrics, traces, and logs collected.
 
 ### Cloud Firestore vector search
 
 You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 
-This section contains information specific to the `firebase` plugin and Cloud Firestore's vector search feature. See the [Retrieval-augmented generation](/../rag.md) page for a more detailed discussion on implementing RAG using Genkit.
+This section contains information specific to the `firebase` plugin and Cloud
+Firestore's vector search feature. See the
+[Retrieval-augmented generation](/../rag.md) page for a more detailed
+discussion on implementing RAG using Genkit.
 
-#### Using GCLOUD_SERVICE_ACCOUNT_CREDS and Firestore
+#### Using `GCLOUD_SERVICE_ACCOUNT_CREDS` and Firestore
 
-If you are using service account credentials by passing credentials directly via `GCLOUD_SERVICE_ACCOUNT_CREDS` and are also using Firestore as a vector store, you will need to pass credentials directly to the Firestore instance during initialization or the singleton may be initialized with application default credentials depending on plugin initialization order.
+If you are using service account credentials by passing credentials directly
+via `GCLOUD_SERVICE_ACCOUNT_CREDS` and are also using Firestore as a vector
+store, you need to pass credentials directly to the Firestore instance
+during initialization or the singleton may be initialized with application
+default credentials depending on plugin initialization order.
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
@@ -117,7 +136,8 @@ if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
 
 #### Define a Firestore retriever
 
-Use `defineFirestoreRetriever()` to create a retriever for Firestore vector-based queries.
+Use `defineFirestoreRetriever()` to create a retriever for Firestore
+vector-based queries.
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
@@ -142,7 +162,8 @@ const retriever = defineFirestoreRetriever(ai, {
 
 #### Retrieve documents
 
-To retrieve documents using the defined retriever, pass the retriever instance and query options to `ai.retrieve`.
+To retrieve documents using the defined retriever, pass the retriever instance
+and query options to `ai.retrieve`.
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
@@ -173,11 +194,16 @@ The following options can be passed to the `options` field in `ai.retrieve`:
   ```
 
 - **`collection`**: *(string)*
-  Override the default collection specified in the retriever configuration. This is useful for querying subcollections or dynamically switching between collections.
+  Override the default collection specified in the retriever configuration.
+- This is useful for querying subcollections or dynamically switching between
+- collections.
 
 #### Populate Firestore with Embeddings
 
-To populate your Firestore collection, use an embedding generator along with the Admin SDK. For example, the menu ingestion script from the [Retrieval-augmented generation](http://../rag.md) page could be adapted for Firestore in the following way:
+To populate your Firestore collection, use an embedding generator along with
+the Admin SDK. For example, the menu ingestion script from the
+[Retrieval-augmented generation](http://../rag.md) page could be adapted for
+Firestore in the following way:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
@@ -243,35 +269,47 @@ async function extractTextFromPdf(filePath: string) {
 }
 ```
 
-Firestore depends on indexes to provide fast and efficient querying on collections. (Note that "index" here refers to database indexes, and not Genkit's indexer and retriever abstractions.)
+Firestore depends on indexes to provide fast and efficient querying on
+collections. (Note that "index" here refers to database indexes, and not
+Genkit's indexer and retriever abstractions.)
 
-The prior example requires the `embedding` field to be indexed to work. To create the index:
+The prior example requires the `embedding` field to be indexed to work.
+To create the index:
 
-- Run the `gcloud` command described in the [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes) section of the Firestore docs.
+- Run the `gcloud` command described in the
+[Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes)
+section of the Firestore docs.
 
   The command looks like the following:
 
-  ```
+  ```posix-terminal
   gcloud alpha firestore indexes composite create --project=your-project-id \
     --collection-group=yourCollectionName --query-scope=COLLECTION \
     --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
   ```
 
-  However, the correct indexing configuration depends on the queries you will make and the embedding model you're using.
+  However, the correct indexing configuration depends on the queries you
+  make and the embedding model you're using.
 
-
-- Alternatively, call `ai.retrieve()` and Firestore will throw an error with the correct command to create the index.
+- Alternatively, call `ai.retrieve()` and Firestore will throw an error with
+  the correct command to create the index.
 
 #### Learn more
 
-- See the [Retrieval-augmented generation](http://../rag.md) page for a general discussion on indexers and retrievers in Genkit.
-- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search) in the Cloud Firestore docs for more on the vector search feature.
+- See the [Retrieval-augmented generation](http://../rag.md) page for a general discussion
+on indexers and retrievers in Genkit.
+- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
+in the Cloud Firestore docs for more on the vector search feature.
 
 ### Deploy flows as Cloud Functions
 
-To deploy a flow with Cloud Functions, use the Firebase Functions library's native support for genkit. The `onCallGenkit` method allows
-you to create a [callable function](https://firebase.google.com/docs/functions/callable?gen=2nd) from a flow. It will automatically support
-streaming and JSON requests. You can use the [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function) to call them.
+To deploy a flow with Cloud Functions, use the Firebase Functions library's
+built-in support for genkit. The `onCallGenkit` method lets
+you to create a [callable function](https://firebase.google.com/docs/functions/callable?gen=2nd)
+from a flow. It automatically supports
+streaming and JSON requests. You can use the
+[Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function)
+to call them.
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
@@ -295,6 +333,6 @@ export const example = onCallGenkit({ secrets: [apiKey] }, exampleFlow);
 
 Deploy your flow using the Firebase CLI:
 
-```
+```posix-terminal
 firebase deploy --only functions
 ```

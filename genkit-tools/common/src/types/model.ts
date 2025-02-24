@@ -121,7 +121,9 @@ export const ModelInfoSchema = z.object({
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
       /** Model can natively support constrained generation. */
-      constrained: z.boolean().optional(),
+      constrained: z.enum(['none', 'all', 'no-tools']).optional(),
+      /** Model supports controlling tool choice, e.g. forced tool calling. */
+      toolChoice: z.boolean().optional(),
     })
     .optional(),
 });
@@ -283,7 +285,7 @@ export const GenerateActionOptionsSchema = z.object({
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
-  tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
+  tools: z.array(z.string()).optional(),
   /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   /** Configuration for the generation request. */
@@ -295,6 +297,7 @@ export const GenerateActionOptionsSchema = z.object({
       contentType: z.string().optional(),
       instructions: z.union([z.boolean(), z.string()]).optional(),
       jsonSchema: z.any().optional(),
+      constrained: z.boolean().optional(),
     })
     .optional(),
   /** When true, return tool calls for manual processing instead of automatically resolving them. */

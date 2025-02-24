@@ -20,7 +20,11 @@ import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
-import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
+import {
+  StatusCodes,
+  runWithStreamingCallback,
+  type Status,
+} from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry } from './registry.js';

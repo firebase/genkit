@@ -425,14 +425,7 @@
         "tools": {
           "type": "array",
           "items": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "$ref": "#/$defs/ToolDefinition"
-              }
-            ]
+            "type": "string"
           }
         },
         "toolChoice": {
@@ -459,7 +452,10 @@
                 "string"
               ]
             },
-            "jsonSchema": {}
+            "jsonSchema": {},
+            "constrained": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         },
@@ -764,6 +760,14 @@
               "type": "boolean"
             },
             "constrained": {
+              "type": "string",
+              "enum": [
+                "none",
+                "all",
+                "no-tools"
+              ]
+            },
+            "toolChoice": {
               "type": "boolean"
             }
           },

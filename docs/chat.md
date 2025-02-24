@@ -1,3 +1,7 @@
+Beta: This feature of Genkit is in **Beta,** which means it is not yet
+part of Genkit's stable API. APIs of beta features may change in minor
+version releases.
+
 # Creating persistent chat sessions
 
 Many of your users will have interacted with large language models for the first
@@ -19,7 +23,7 @@ If you want to run the code examples on this page, first complete the steps in
 the [Getting started](get-started) guide. All of the examples assume that you
 have already installed Genkit as a dependency in your project.
 
-Please note that the chat API is currently in beta and must be used from the
+Note that the chat API is currently in beta and must be used from the
 `genkit/beta` package.
 
 ## Chat session basics 
@@ -28,16 +32,16 @@ Here is a minimal, console-based, chatbot application:
 
 ```ts
 import { genkit } from "genkit/beta";
-import { googleAI, gemini15Flash } from "@genkit-ai/googleai";
+import { googleAI, gemini20Flash } from "@genkit-ai/googleai";
 
 import { createInterface } from "node:readline/promises";
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash,
+  model: gemini20Flash,
 });
 
-(async () => {
+async function main() {
   const chat = ai.chat();
   console.log("You're chatting with Gemini. Ctrl-C to quit.\n");
   const readline = createInterface(process.stdin, process.stdout);
@@ -46,7 +50,9 @@ const ai = genkit({
     const { text } = await chat.send(userInput);
     console.log(text);
   }
-})();
+}
+
+main();
 ```
 
 A chat session with this program looks something like the following example:

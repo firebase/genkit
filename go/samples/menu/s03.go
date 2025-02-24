@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package main
 
 import (
@@ -72,7 +71,7 @@ func setup03(g *genkit.Genkit, m ai.Model) error {
 		return err
 	}
 
-	menuData, err := menu(context.Background(), nil)
+	menuData, err := menu(&ai.ToolContext{Context: context.Background()}, nil)
 	if err != nil {
 		return err
 	}
