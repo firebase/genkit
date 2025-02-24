@@ -17,7 +17,7 @@
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
 import { gemini15Flash } from '@genkit-ai/vertexai';
 import { z } from 'genkit';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 
 // Define the retriever reference
 export const menuRetriever = devLocalRetrieverRef('menuQA');
