@@ -345,7 +345,7 @@ export class RuntimeManager {
   }
 
   /**
-   * Sets up a watcher for the runtimes directory.
+   * Sets up a watcher for the servers directory.
    */
   private async setupDevUiWatcher() {
     try {
@@ -364,7 +364,7 @@ export class RuntimeManager {
         await this.handleNewDevUi(path.resolve(serversDir, toolsInfo));
       }
     } catch (error) {
-      logger.error('Failed to set up runtimes watcher:', error);
+      logger.error('Failed to set up tools server watcher:', error);
     }
   }
 

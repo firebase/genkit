@@ -248,7 +248,7 @@ export async function writeToolsInfoFile(url: string, projectRoot?: string) {
     } as DevToolsInfo;
     await fs.mkdir(serversDir, { recursive: true });
     await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
-    logger.debug(`Runtime file written: ${toolsJsonPath}`);
+    logger.debug(`Tools Info file written: ${toolsJsonPath}`);
   } catch (error) {
     logger.info('Error writing tools config', error);
   }
