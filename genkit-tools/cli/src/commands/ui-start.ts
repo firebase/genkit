@@ -15,7 +15,9 @@
  */
 
 import {
+  DevToolsInfo,
   findServersDir,
+  isValidDevToolsInfo,
   logger,
   waitUntilHealthy,
 } from '@genkit-ai/tools-common/utils';
@@ -31,24 +33,6 @@ import path from 'path';
 interface StartOptions {
   port: string;
   open?: boolean;
-}
-
-export interface DevToolsInfo {
-  /** URL of the dev tools server. */
-  url: string;
-  /** Timestamp of when the dev tools server was started. */
-  timestamp: string;
-}
-
-/**
- * Checks if the provided data is a valid dev tools server state file.
- */
-export function isValidDevToolsInfo(data: any): data is DevToolsInfo {
-  return (
-    typeof data === 'object' &&
-    typeof data.url === 'string' &&
-    typeof data.timestamp === 'string'
-  );
 }
 
 /** Command to start the Genkit Developer UI. */
