@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -227,6 +228,98 @@ func TestChatBuilder(t *testing.T) {
 				if resp.Choices[0].Message.Content != tt.wantResponse {
 					t.Errorf("expected response content %q, got %q", tt.wantResponse, resp.Choices[0].Message.Content)
 				}
+			}
+		})
+	}
+}
+
+func TestChatBuilderStream(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupChat     func(*Client) *ChatBuilder
+		wantErr       bool
+		serverHandler http.HandlerFunc
+	}{
+		{
+			name: "successful stream",
+			setupChat: func(c *Client) *ChatBuilder {
+				return c.NewChat("gpt-3.5-turbo").
+					AddMessage("user", "Hi")
+			},
+			serverHandler: func(w http.ResponseWriter, r *http.Request) {
+				// Verify request headers and stream flag
+				verifyHeaders(t, r)
+
+				var req struct {
+					Stream bool `json:"stream"`
+				}
+				json.NewDecoder(r.Body).Decode(&req)
+				if !req.Stream {
+					t.Error("expected stream flag to be true")
+				}
+
+				// Write format response
+				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprintf(w, "data: {\"id\":\"1\",\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n")
+				fmt.Fprintf(w, "data: {\"id\":\"1\",\"choices\":[{\"delta\":{\"content\":\"!\"}}]}\n\n")
+				fmt.Fprintf(w, "data: [DONE]\n\n")
+			},
+		},
+		{
+			name: "empty model",
+			setupChat: func(c *Client) *ChatBuilder {
+				return c.NewChat("")
+			},
+			wantErr: true,
+		},
+		{
+			name: "no messages",
+			setupChat: func(c *Client) *ChatBuilder {
+				return c.NewChat("gpt-3.5-turbo")
+			},
+			wantErr: true,
+		},
+		{
+			name: "server error",
+			setupChat: func(c *Client) *ChatBuilder {
+				return c.NewChat("gpt-3.5-turbo").
+					AddMessage("user", "Hi")
+			},
+			wantErr:       true,
+			serverHandler: mockErrorResponse,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := tt.serverHandler
+			if handler == nil {
+				handler = func(w http.ResponseWriter, r *http.Request) {
+					verifyHeaders(t, r)
+				}
+			}
+			server := httptest.NewServer(http.HandlerFunc(handler))
+			defer server.Close()
+
+			client, err := NewClient("test-key").
+				WithBaseURL(server.URL).
+				Build()
+			if err != nil {
+				t.Fatalf("failed to create client: %v", err)
+			}
+
+			stream, err := tt.setupChat(client).ExecuteStream(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExecuteStream() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && stream == nil {
+				t.Error("expected non-nil stream")
+			}
+
+			if stream != nil {
+				stream.Close()
 			}
 		})
 	}
