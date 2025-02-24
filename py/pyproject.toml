@@ -9,6 +9,7 @@ dependencies = [
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
+  "genkit-compat-oai-plugin",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -73,6 +74,7 @@ genkit-google-cloud-plugin = { workspace = true }
 genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
+genkit-compat-oai-plugin   = { workspace = true }
 hello                      = { workspace = true }
 menu                       = { workspace = true }
 prompt-file                = { workspace = true }
@@ -162,6 +164,7 @@ mypy_path = [
   "plugins/ollama/src",
   "plugins/pinecone/src",
   "plugins/vertex-ai/src",
+  "plugins/compat-oai/src",
   "samples/basic-gemini/src",
   "samples/coffee-shop/src",
   "samples/context-caching/src",
