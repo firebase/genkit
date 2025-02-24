@@ -36,6 +36,8 @@ class Registry:
     def __init__(self):
         """Initialize an empty Registry instance."""
         self.actions: dict[ActionKind, dict[str, Action]] = {}
+        # TODO: Figure out how to set this.
+        self.api_stability: str = 'stable'
 
     def register_action(
         self,
