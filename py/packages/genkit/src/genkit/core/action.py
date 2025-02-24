@@ -8,14 +8,18 @@ the Genkit framework. Actions are strongly-typed, named, observable,
 uninterrupted operations that can operate in streaming or non-streaming mode.
 """
 
+import asyncio
 import inspect
-import json
 from collections.abc import Callable
 from enum import StrEnum
 from typing import Any
 
 from genkit.core.tracing import tracer
+from genkit.core.utils import dump_json
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+# TODO: add typing, generics
+StreamingCallback = Callable[[Any], None]
 
 
 class ActionKind(StrEnum):
@@ -81,20 +85,35 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
             ActionKind.
     """
     tokens = key.split('/')
-    if len(tokens) != 2 or not tokens[0] or not tokens[1]:
+    if len(tokens) < 3 or not tokens[1] or not tokens[2]:
         msg = (
             f'Invalid action key format: `{key}`. Expected format: `<kind>/<n>`'
         )
         raise ValueError(msg)
 
-    kind_str = tokens[0]
-    name = tokens[1]
+    kind_str = tokens[1]
+    name = tokens[2]
     try:
         kind = ActionKind(kind_str)
     except ValueError as e:
         msg = f'Invalid action kind: `{kind_str}`'
         raise ValueError(msg) from e
     return kind, name
+
+
+def NOOP_STREAMING_CALLBACK(chunk: Any):
+    pass
+
+
+class ActionRunContext:
+    def __init__(self, on_chunk: StreamingCallback = None, context: Any = None):
+        self.__on_chunk = (
+            on_chunk if on_chunk != None else NOOP_STREAMING_CALLBACK
+        )
+        self.context = context if context != None else {}
+
+    def send_chunk(self, chunk: Any):
+        self.__on_chunk(chunk)
 
 
 class Action:
@@ -129,57 +148,70 @@ class Action:
         self.kind = kind
         self.name = name
 
-        def tracing_wrapper(*args, **kwargs):
-            """Wrap the callable function in a tracing span and add metadata.
-
-            This wrapper creates a tracing span around the function call and
-            adds metadata about the action to the span.
-
-            Args:
-                *args: Positional arguments to pass to the wrapped function.
-                **kwargs: Keyword arguments to pass to the wrapped function.
-
-            Returns:
-                The result of calling the wrapped function.
-            """
-            with tracer.start_as_current_span(name) as span:
-                trace_id = str(span.get_span_context().trace_id)
-                span.set_attribute('genkit:type', kind)
-                span.set_attribute('genkit:name', name)
-
-                if span_metadata is not None:
-                    for meta_key in span_metadata:
-                        span.set_attribute(meta_key, span_metadata[meta_key])
-
-                if len(args) > 0:
-                    if isinstance(args[0], BaseModel):
-                        encoded = args[0].model_dump_json(by_alias=True)
-                        span.set_attribute('genkit:input', encoded)
-                    else:
-                        span.set_attribute('genkit:input', json.dumps(args[0]))
-
-                output = fn(*args, **kwargs)
-
-                span.set_attribute('genkit:state', 'success')
-
-                if isinstance(output, BaseModel):
-                    encoded = output.model_dump_json(by_alias=True)
-                    span.set_attribute('genkit:output', encoded)
-                else:
-                    span.set_attribute('genkit:output', json.dumps(output))
-
-                return ActionResponse(response=output, trace_id=trace_id)
-
-        self.fn = tracing_wrapper
-        self.description = description
-        self.metadata = metadata if metadata else {}
-
         input_spec = inspect.getfullargspec(fn)
         action_args = [
             k for k in input_spec.annotations if k != ActionMetadataKey.RETURN
         ]
 
-        if len(action_args) > 1:
+        afn = ensure_async(fn)
+        self.is_async = asyncio.iscoroutinefunction(fn)
+
+        async def async_tracing_wrapper(
+            input: Any | None, ctx: ActionRunContext
+        ):
+            with tracer.start_as_current_span(name) as span:
+                trace_id = str(span.get_span_context().trace_id)
+                record_input_metadata(
+                    span=span,
+                    kind=kind,
+                    name=name,
+                    span_metadata=span_metadata,
+                    input=input,
+                )
+
+                match len(action_args):
+                    case 0:
+                        output = await afn()
+                    case 1:
+                        output = await afn(input)
+                    case 2:
+                        output = await afn(input, ctx)
+                    case _:
+                        raise ValueError('action fn must have 0-2 args...')
+
+                record_output_metadata(span, output=output)
+                return ActionResponse(response=output, trace_id=trace_id)
+
+        def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext):
+            with tracer.start_as_current_span(name) as span:
+                trace_id = str(span.get_span_context().trace_id)
+                record_input_metadata(
+                    span=span,
+                    kind=kind,
+                    name=name,
+                    span_metadata=span_metadata,
+                    input=input,
+                )
+
+                match len(action_args):
+                    case 0:
+                        output = fn()
+                    case 1:
+                        output = fn(input)
+                    case 2:
+                        output = fn(input, ctx)
+                    case _:
+                        raise ValueError('action fn must have 0-2 args...')
+
+                record_output_metadata(span, output=output)
+                return ActionResponse(response=output, trace_id=trace_id)
+
+        self.__fn = sync_tracing_wrapper
+        self.__afn = async_tracing_wrapper
+        self.description = description
+        self.metadata = metadata if metadata else {}
+
+        if len(action_args) > 2:
             raise Exception('can only have one arg')
         if len(action_args) > 0:
             type_adapter = TypeAdapter(input_spec.annotations[action_args[0]])
@@ -199,3 +231,72 @@ class Action:
         else:
             self.output_schema = TypeAdapter(Any).json_schema()
             self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
+
+    def run(
+        self,
+        input: Any = None,
+        on_chunk: StreamingCallback = None,
+        context: dict[str, Any] = None,
+        telemetry_labels: dict[str, Any] = None,
+    ) -> ActionResponse:
+        # TODO: handle telemetry_labels
+        # TODO: propagate context down the callstack via contextvars
+        return self.__fn(
+            input, ActionRunContext(on_chunk=on_chunk, context=context)
+        )
+
+    async def arun(
+        self,
+        input: Any = None,
+        on_chunk: StreamingCallback = None,
+        context: dict[str, Any] = None,
+        telemetry_labels: dict[str, Any] = None,
+    ) -> ActionResponse:
+        # TODO: handle telemetry_labels
+        # TODO: propagate context down the callstack via contextvars
+        return await self.__afn(
+            input, ActionRunContext(on_chunk=on_chunk, context=context)
+        )
+
+    async def arun_raw(
+        self,
+        raw_input: Any,
+        on_chunk: StreamingCallback = None,
+        context: dict[str, Any] = None,
+        telemetry_labels: dict[str, Any] = None,
+    ):
+        input_action = self.input_type.validate_python(raw_input)
+        return await self.arun(
+            input=input_action,
+            on_chunk=on_chunk,
+            context=context,
+            telemetry_labels=telemetry_labels,
+        )
+
+
+def record_input_metadata(span, kind, name, span_metadata, input):
+    span.set_attribute('genkit:type', kind)
+    span.set_attribute('genkit:name', name)
+
+    if input != None:
+        span.set_attribute('genkit:input', dump_json(input))
+
+    if span_metadata is not None:
+        for meta_key in span_metadata:
+            span.set_attribute(meta_key, span_metadata[meta_key])
+
+
+def record_output_metadata(span, output):
+    span.set_attribute('genkit:state', 'success')
+    span.set_attribute('genkit:output', dump_json(output))
+
+
+def ensure_async(fn: Callable) -> Callable:
+    is_async = asyncio.iscoroutinefunction(fn)
+    if is_async:
+        return fn
+
+    async def asyn_wrapper(*args, **kwargs):
+        return fn(*args, **kwargs)
+
+    return asyn_wrapper

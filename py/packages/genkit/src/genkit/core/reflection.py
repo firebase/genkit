@@ -9,13 +9,17 @@ during development. It exposes endpoints for health checks, action discovery,
 and action execution.
 """
 
+import asyncio
 import json
+import urllib.parse
 from http.server import BaseHTTPRequestHandler
+from typing import Any
 
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.headers import HTTPHeader
 from genkit.core.registry import Registry
-from pydantic import BaseModel
+
+from .utils import dump_json
 
 
 def make_reflection_server(
@@ -55,14 +59,14 @@ def make_reflection_server(
 
             elif self.path == '/api/actions':
                 self.send_response(200)
-                self.send_header(HTTPHeader.ContentType, 'application/json')
+                self.send_header(HTTPHeader.CONTENT_TYPE, 'application/json')
                 self.end_headers()
 
                 actions = {}
                 for action_type in registry.actions:
                     for name in registry.actions[action_type]:
                         action = registry.lookup_action(action_type, name)
-                        key = f'/{action_type}/{name}'
+                        key = f'/{action_type.value}/{name}'
                         actions[key] = {
                             'key': key,
                             'name': action.name,
@@ -93,45 +97,69 @@ def make_reflection_server(
                 self.send_response(200)
                 self.end_headers()
 
-            elif self.path == '/api/runAction':
+            elif self.path.startswith('/api/runAction'):
                 content_len = int(
-                    self.headers.get(HTTPHeader.ContentLength) or 0
+                    self.headers.get(HTTPHeader.CONTENT_LENGTH) or 0
                 )
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=encoding))
                 action = registry.lookup_action_by_key(payload['key'])
-                if '/flow/' in payload['key']:
-                    input_action = action.input_type.validate_python(
-                        payload['input']['start']['input']
+                context = payload['context'] if 'context' in payload else {}
+
+                query = urllib.parse.urlparse(self.path).query
+                query = urllib.parse.parse_qs(query)
+                if 'stream' in query != None and query['stream'][0] == 'true':
+
+                    def send_chunk(chunk):
+                        self.wfile.write(
+                            bytes(
+                                dump_json(chunk),
+                                encoding,
+                            )
+                        )
+                        self.wfile.write(bytes('\n', encoding))
+
+                    self.send_response(200)
+                    self.send_header(HTTPHeader.X_GENKIT_VERSION, '0.0.1')
+                    self.send_header(
+                        HTTPHeader.CONTENT_TYPE, 'application/json'
                     )
-                else:
-                    input_action = action.input_type.validate_python(
-                        payload['input']
+                    self.end_headers()
+
+                    output = asyncio.run(
+                        action.arun_raw(
+                            raw_input=payload['input'],
+                            on_chunk=send_chunk,
+                            context=context,
+                        )
                     )
-
-                output = action.fn(input_action)
-
-                self.send_response(200)
-                self.send_header(HTTPHeader.X_GENKIT_VERSION, version)
-                self.send_header(HTTPHeader.CONTENT_TYPE, 'application/json')
-                self.end_headers()
-
-                if isinstance(output.response, BaseModel):
                     self.wfile.write(
                         bytes(
-                            '{"result":  '
-                            + output.response.model_dump_json()
-                            + ', "traceId": "'
-                            + output.trace_id
-                            + '"}',
+                            json.dumps({
+                                'result': dump_json(output.response),
+                                'telemetry': {'traceId': output.trace_id},
+                            }),
                             encoding,
                         )
                     )
                 else:
+                    output = asyncio.run(
+                        action.arun_raw(
+                            raw_input=payload['input'], context=context
+                        )
+                    )
+
+                    self.send_response(200)
+                    self.send_header(HTTPHeader.X_GENKIT_VERSION, '0.0.1')
+                    self.send_header(
+                        HTTPHeader.CONTENT_TYPE, 'application/json'
+                    )
+                    self.end_headers()
+
                     self.wfile.write(
                         bytes(
                             json.dumps({
-                                'result': output.response,
+                                'result': dump_json(output.response),
                                 'telemetry': {'traceId': output.trace_id},
                             }),
                             encoding,
