@@ -15,11 +15,10 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
+from genkit.core.codec import dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.headers import HTTPHeader
 from genkit.core.registry import Registry
-
-from .utils import dump_json
 
 
 def make_reflection_server(
