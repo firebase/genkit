@@ -11,6 +11,7 @@ from functools import wraps
 from http.server import HTTPServer
 from typing import Any
 
+from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.model import ModelFn
 from genkit.core.action import ActionKind
 from genkit.core.environment import is_dev_environment
@@ -126,6 +127,24 @@ class Genkit:
             await model_action.arun(
                 GenerateRequest(messages=messages, config=config)
             )
+        ).response
+
+    async def embed(
+        self, model: str | None = None, documents: list[str] | None = None
+    ) -> EmbedResponse:
+        """Calculates embeddings for the given texts.
+
+        Args:
+            model: Optional embedder model name to use.
+            documents: Texts to embed.
+
+        Returns:
+            The generated response with embeddings.
+        """
+        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
+
+        return (
+            await embed_action.arun(EmbedRequest(documents=documents))
         ).response
 
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
