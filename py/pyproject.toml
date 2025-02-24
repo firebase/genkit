@@ -52,7 +52,7 @@ testpaths = ["packages", "plugins", "samples"]
 addopts = "--cov"
 
 [tool.coverage.report]
-fail_under = 83
+fail_under = 85
 
 # uv based package management.
 [tool.uv]
