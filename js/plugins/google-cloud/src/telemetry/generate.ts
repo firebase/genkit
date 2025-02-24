@@ -251,7 +251,7 @@ class GenerateTelemetry implements Telemetry {
       topK: input.config?.topK,
       topP: input.config?.topP,
       maxOutputTokens: input.config?.maxOutputTokens,
-      stopSequences: truncate(input.config?.stopSequences, 1024),
+      stopSequences: input.config?.stopSequences, // array
       source: 'ts',
       sourceVersion: GENKIT_VERSION,
     });
