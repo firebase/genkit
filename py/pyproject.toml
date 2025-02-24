@@ -9,6 +9,7 @@ dependencies = [
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
+  "genkit-openai-compat-plugin",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -60,27 +61,28 @@ fail_under = 85
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
-basic-gemini               = { workspace = true }
-coffee-shop                = { workspace = true }
-context-caching            = { workspace = true }
-dotpromptz                 = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
-flow-sample1               = { workspace = true }
-genkit                     = { workspace = true }
-genkit-chroma-plugin       = { workspace = true }
-genkit-firebase-plugin     = { workspace = true }
-genkit-google-ai-plugin    = { workspace = true }
-genkit-google-cloud-plugin = { workspace = true }
-genkit-ollama-plugin       = { workspace = true }
-genkit-pinecone-plugin     = { workspace = true }
-genkit-vertex-ai-plugin    = { workspace = true }
-hello                      = { workspace = true }
-menu                       = { workspace = true }
-prompt-file                = { workspace = true }
-rag                        = { workspace = true }
-vertex-ai-imagen           = { workspace = true }
-vertex-ai-model-garden     = { workspace = true }
-vertex-ai-reranker         = { workspace = true }
-vertex-ai-vector-search    = { workspace = true }
+basic-gemini                = { workspace = true }
+coffee-shop                 = { workspace = true }
+context-caching             = { workspace = true }
+dotpromptz                  = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
+flow-sample1                = { workspace = true }
+genkit                      = { workspace = true }
+genkit-chroma-plugin        = { workspace = true }
+genkit-firebase-plugin      = { workspace = true }
+genkit-google-ai-plugin     = { workspace = true }
+genkit-google-cloud-plugin  = { workspace = true }
+genkit-ollama-plugin        = { workspace = true }
+genkit-pinecone-plugin      = { workspace = true }
+genkit-vertex-ai-plugin     = { workspace = true }
+genkit-openai-compat-plugin = { workspace = true }
+hello                       = { workspace = true }
+menu                        = { workspace = true }
+prompt-file                 = { workspace = true }
+rag                         = { workspace = true }
+vertex-ai-imagen            = { workspace = true }
+vertex-ai-model-garden      = { workspace = true }
+vertex-ai-reranker          = { workspace = true }
+vertex-ai-vector-search     = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
