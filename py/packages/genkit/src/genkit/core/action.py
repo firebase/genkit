@@ -10,15 +10,13 @@ uninterrupted operations that can operate in streaming or non-streaming mode.
 
 import asyncio
 import inspect
-import json
-import sys
+from collections.abc import Callable
 from enum import StrEnum
-from typing import Any, Callable, Dict
+from typing import Any
 
 from genkit.core.tracing import tracer
+from genkit.core.utils import dump_json
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
-
-from .utils import dump_json
 
 # TODO: add typing, generics
 StreamingCallback = Callable[[Any], None]
@@ -238,8 +236,8 @@ class Action:
         self,
         input: Any = None,
         on_chunk: StreamingCallback = None,
-        context: Dict[str, Any] = None,
-        telemetry_labels: Dict[str, Any] = None,
+        context: dict[str, Any] = None,
+        telemetry_labels: dict[str, Any] = None,
     ) -> ActionResponse:
         # TODO: handle telemetry_labels
         # TODO: propagate context down the callstack via contextvars
@@ -251,8 +249,8 @@ class Action:
         self,
         input: Any = None,
         on_chunk: StreamingCallback = None,
-        context: Dict[str, Any] = None,
-        telemetry_labels: Dict[str, Any] = None,
+        context: dict[str, Any] = None,
+        telemetry_labels: dict[str, Any] = None,
     ) -> ActionResponse:
         # TODO: handle telemetry_labels
         # TODO: propagate context down the callstack via contextvars
@@ -264,8 +262,8 @@ class Action:
         self,
         raw_input: Any,
         on_chunk: StreamingCallback = None,
-        context: Dict[str, Any] = None,
-        telemetry_labels: Dict[str, Any] = None,
+        context: dict[str, Any] = None,
+        telemetry_labels: dict[str, Any] = None,
     ):
         input_action = self.input_type.validate_python(raw_input)
         return await self.arun(
