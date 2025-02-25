@@ -55,8 +55,9 @@ async def generate_action(
     def make_chunk(
         role: Role, chunk: GenerateResponseChunk
     ) -> GenerateResponseChunk:
-        """convenience method to create a full chunk from role and data, append the chunk
-        to the previousChunks array, and increment the message index as needed"""
+        """convenience method to create a full chunk from role and data, append
+        the chunk to the previousChunks array, and increment the message index
+        as needed"""
         nonlocal chunk_role, message_index
 
         if role != chunk_role and len(prev_chunks.length) > 0:
@@ -155,7 +156,7 @@ def resolve_parameters(
     model = (
         request.model if request.model is not None else registry.default_model
     )
-    if model is None:
+    if not model:
         raise Exception('No model configured.')
 
     model_action = registry.lookup_action(ActionKind.MODEL, model)
