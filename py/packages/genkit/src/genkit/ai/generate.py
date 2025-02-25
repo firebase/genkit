@@ -23,7 +23,7 @@ from genkit.core.typing import (
     ToolResponse1,
     ToolResponsePart,
 )
-from genkit.core.utils import dump_dict
+from genkit.core.codec import dump_dict
 
 logger = logging.getLogger(__name__)
 

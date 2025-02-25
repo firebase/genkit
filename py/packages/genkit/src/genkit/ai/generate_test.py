@@ -19,7 +19,7 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-from genkit.core.utils import dump_dict, dump_json
+from genkit.core.codec import dump_dict, dump_json
 from genkit.veneer.veneer import Genkit
 from pydantic import TypeAdapter
 

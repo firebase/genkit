@@ -8,9 +8,8 @@ from typing import Any
 
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import GenerateRequest, Message, Role, TextPart
+from genkit.core.typing import GenerateRequest, Message, Role, TextPart, GenerateActionOptions
 from genkit.plugins.vertex_ai import (
-    GenerateActionOptions,
     EmbeddingModels,
     GeminiVersion,
     VertexAI,
