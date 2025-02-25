@@ -197,7 +197,8 @@ func findProjectRoot() (string, error) {
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("could not find project root (go.mod not found)")
+			slog.Warn("could not find project root (go.mod not found)")
+			return os.Getwd()
 		}
 		dir = parent
 	}
@@ -207,12 +208,12 @@ func findProjectRoot() (string, error) {
 func serveMux(r *registry.Registry) *http.ServeMux {
 	mux := http.NewServeMux()
 	// Skip wrapHandler here to avoid logging constant polling requests.
-	mux.HandleFunc("/api/__health", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("/api/actions", wrapHandler(handleListActions(r)))
-	mux.HandleFunc("/api/runAction", wrapHandler(handleRunAction(r)))
-	mux.HandleFunc("/api/notify", wrapHandler(handleNotify(r)))
+	mux.HandleFunc("GET /api/actions", wrapHandler(handleListActions(r)))
+	mux.HandleFunc("POST /api/runAction", wrapHandler(handleRunAction(r)))
+	mux.HandleFunc("POST /api/notify", wrapHandler(handleNotify(r)))
 	return mux
 }
 

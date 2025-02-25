@@ -87,7 +87,7 @@ func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
 			return nil, err
 		}
 	}
-  
+
 	if params.DefaultModel != "" {
 		_, err := modelRefParts(params.DefaultModel)
 		if err != nil {
