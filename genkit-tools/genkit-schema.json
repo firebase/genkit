@@ -334,6 +334,28 @@
       },
       "additionalProperties": false
     },
+    "EmptyPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/DataPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/DataPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/DataPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/DataPart/properties/toolResponse"
+        },
+        "data": {},
+        "metadata": {
+          "$ref": "#/$defs/DataPart/properties/metadata"
+        }
+      },
+      "additionalProperties": false
+    },
     "FinishReason": {
       "type": "string",
       "enum": [
@@ -497,22 +519,7 @@
           ]
         },
         "output": {
-          "type": "object",
-          "properties": {
-            "format": {
-              "type": "string",
-              "enum": [
-                "json",
-                "text",
-                "media"
-              ]
-            },
-            "schema": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/$defs/OutputConfig"
         },
         "context": {
           "type": "array",
@@ -684,7 +691,9 @@
         "toolResponse": {
           "$ref": "#/$defs/DataPart/properties/toolResponse"
         },
-        "data": {},
+        "data": {
+          "$ref": "#/$defs/EmptyPart/properties/data"
+        },
         "metadata": {
           "$ref": "#/$defs/DataPart/properties/metadata"
         }
@@ -860,6 +869,33 @@
       ],
       "additionalProperties": false
     },
+    "OutputConfig": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/OutputFormat"
+        },
+        "schema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "constrained": {
+          "type": "boolean"
+        },
+        "contentType": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "OutputFormat": {
+      "type": "string",
+      "enum": [
+        "json",
+        "text",
+        "media"
+      ]
+    },
     "Part": {
       "anyOf": [
         {
@@ -904,7 +940,7 @@
           "$ref": "#/$defs/DataPart/properties/toolResponse"
         },
         "data": {
-          "$ref": "#/$defs/MediaPart/properties/data"
+          "$ref": "#/$defs/EmptyPart/properties/data"
         },
         "metadata": {
           "$ref": "#/$defs/DataPart/properties/metadata"
@@ -976,7 +1012,7 @@
           "$ref": "#/$defs/DataPart/properties/toolResponse"
         },
         "data": {
-          "$ref": "#/$defs/MediaPart/properties/data"
+          "$ref": "#/$defs/EmptyPart/properties/data"
         },
         "metadata": {
           "$ref": "#/$defs/DataPart/properties/metadata"
@@ -1016,7 +1052,7 @@
           "additionalProperties": false
         },
         "data": {
-          "$ref": "#/$defs/MediaPart/properties/data"
+          "$ref": "#/$defs/EmptyPart/properties/data"
         },
         "metadata": {
           "$ref": "#/$defs/DataPart/properties/metadata"

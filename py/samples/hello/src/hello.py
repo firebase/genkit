@@ -6,9 +6,11 @@
 import asyncio
 from typing import Any
 
+from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import GenerateRequest, Message, Role, TextPart
 from genkit.plugins.vertex_ai import (
+    GenerateActionOptions,
     EmbeddingModels,
     GeminiVersion,
     VertexAI,
@@ -91,6 +93,65 @@ async def embed_docs(docs: list[str]):
         documents=docs,
     )
 
+@ai.flow()
+async def simple_generate_action_flow(name: str) -> Any:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: The name of the person to greet.
+
+    Returns:
+        The generated greeting response.
+    """
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='vertexai/gemini-1.5-flash',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text=f'Say hi to {name}')],
+                ),
+            ],
+        ),
+    )
+    return response.text()
+
+
+class GablorkenInput(BaseModel):
+    value: int = Field(description='value to calculate gablorken for')
+
+
+@ai.tool('calculates a gablorken')
+def gablorkenTool(input: GablorkenInput):
+    return input.value * 3 - 5
+
+
+@ai.flow()
+async def simple_generate_action_with_tools_flow(value: int) -> Any:
+    """Generate a greeting for the given name.
+
+    Args:
+        name: The name of the person to greet.
+
+    Returns:
+        The generated greeting response.
+    """
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='vertexai/gemini-1.5-flash',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text=f'what is a gablorken of {value}')],
+                ),
+            ],
+            tools=['gablorkenTool'],
+        ),
+    )
+    return response.text()
+
 
 @ai.flow()
 def sum_two_numbers2(my_input: MyInput) -> Any:
@@ -136,5 +197,5 @@ async def main() -> None:
     )
 
 
-if __name__ == '__main__':
-    asyncio.run(main())
+# if __name__ == '__main__':
+#    asyncio.run(main())

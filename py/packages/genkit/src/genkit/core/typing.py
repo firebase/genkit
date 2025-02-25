@@ -141,8 +141,8 @@ class Content(BaseModel):
     media: Any | None = None
 
 
-class Media(BaseModel):
-    """Model for media data."""
+class Media1(BaseModel):
+    """Model for media1 data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content_type: str | None = Field(None, alias='contentType')
@@ -154,7 +154,7 @@ class Content1(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Any | None = None
-    media: Media
+    media: Media1
 
 
 class Doc(BaseModel):
@@ -182,22 +182,6 @@ class Output(BaseModel):
     instructions: bool | str | None = None
     json_schema: Any | None = Field(None, alias='jsonSchema')
     constrained: bool | None = None
-
-
-class Format(StrEnum):
-    """Enumeration of format values."""
-
-    JSON = 'json'
-    TEXT = 'text'
-    MEDIA = 'media'
-
-
-class Output1(BaseModel):
-    """Model for output1 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    format: Format | None = None
-    schema_: dict[str, Any] | None = Field(None, alias='schema')
 
 
 class GenerationCommonConfig(BaseModel):
@@ -262,6 +246,14 @@ class ModelInfo(BaseModel):
     supports: Supports | None = None
 
 
+class OutputFormat(StrEnum):
+    """Enumeration of outputformat values."""
+
+    JSON = 'json'
+    TEXT = 'text'
+    MEDIA = 'media'
+
+
 class Role(StrEnum):
     """Enumeration of role values."""
 
@@ -310,8 +302,8 @@ class ToolResponse1(BaseModel):
     output: Any | None = None
 
 
-class MediaModel(RootModel[Any]):
-    """MediaModel data type class."""
+class Media(RootModel[Any]):
+    """Media data type class."""
 
     root: Any
 
@@ -340,6 +332,12 @@ class ToolResponse(RootModel[Any]):
     root: Any
 
 
+class Data(RootModel[Any]):
+    """Data data type class."""
+
+    root: Any
+
+
 class Content2(BaseModel):
     """Model for content2 data."""
 
@@ -348,8 +346,8 @@ class Content2(BaseModel):
     media: Any | None = None
 
 
-class Media2(BaseModel):
-    """Model for media2 data."""
+class Media3(BaseModel):
+    """Model for media3 data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content_type: str | None = Field(None, alias='contentType')
@@ -361,7 +359,7 @@ class Content3(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Any | None = None
-    media: Media2
+    media: Media3
 
 
 class Items(BaseModel):
@@ -376,14 +374,6 @@ class Config(RootModel[Any]):
     """Config data type class."""
 
     root: Any
-
-
-class OutputModel(BaseModel):
-    """Model for outputmodel data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    format: Format | None = None
-    schema_: dict[str, Any] | None = Field(None, alias='schema')
 
 
 class Tools(RootModel[list[ToolDefinition]]):
@@ -426,12 +416,6 @@ class Index(RootModel[float]):
     """Index data type class."""
 
     root: float
-
-
-class Data(RootModel[Any]):
-    """Data data type class."""
-
-    root: Any
 
 
 class Link(BaseModel):
@@ -487,16 +471,38 @@ class TraceData(BaseModel):
     spans: dict[str, SpanData]
 
 
+class EmptyPart(BaseModel):
+    """Model for emptypart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: Media | None = None
+    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
+    data: Any | None = None
+    metadata: Metadata | None = None
+
+
 class MediaPart(BaseModel):
     """Model for mediapart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: Media
+    media: Media1
     tool_request: ToolRequest | None = Field(None, alias='toolRequest')
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
-    data: Any | None = None
+    data: Data | None = None
     metadata: Metadata | None = None
+
+
+class OutputConfig(BaseModel):
+    """Model for outputconfig data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    format: OutputFormat | None = None
+    schema_: dict[str, Any] | None = Field(None, alias='schema')
+    constrained: bool | None = None
+    content_type: str | None = Field(None, alias='contentType')
 
 
 class TextPart(BaseModel):
@@ -504,7 +510,7 @@ class TextPart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: str
-    media: MediaModel | None = None
+    media: Media | None = None
     tool_request: ToolRequest | None = Field(None, alias='toolRequest')
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
@@ -516,7 +522,7 @@ class ToolRequestPart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: MediaModel | None = None
+    media: Media | None = None
     tool_request: ToolRequest1 = Field(..., alias='toolRequest')
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
@@ -528,11 +534,17 @@ class ToolResponsePart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: MediaModel | None = None
+    media: Media | None = None
     tool_request: ToolRequest | None = Field(None, alias='toolRequest')
     tool_response: ToolResponse1 = Field(..., alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
+
+
+class OutputModel(RootModel[OutputConfig]):
+    """OutputModel data type class."""
+
+    root: OutputConfig
 
 
 class Part(
@@ -631,7 +643,7 @@ class GenerateRequest(BaseModel):
     config: Any | None = None
     tools: list[ToolDefinition] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
-    output: Output1 | None = None
+    output: OutputConfig | None = None
     context: list[Items] | None = None
     candidates: float | None = None
 

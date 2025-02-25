@@ -14,6 +14,8 @@ Example:
     >>> action = registry.get_action('my_action')
 """
 
+import asyncio
+import sys
 from collections.abc import Callable
 from typing import Any
 

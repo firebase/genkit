@@ -50,8 +50,8 @@ class Genkit:
             reflection_server_spec: Optional server spec for the reflection
                 server.
         """
-        self.model = model
         self.registry = Registry()
+        self.registry.defaultModel = model
 
         if is_dev_environment():
             runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
@@ -116,7 +116,7 @@ class Genkit:
         Returns:
             The generated text response.
         """
-        model = model if model is not None else self.model
+        model = model if model is not None else self.registry.defaultModel
         if model is None:
             raise Exception('No model configured.')
         if config and not isinstance(config, GenerationCommonConfig):
@@ -165,6 +165,40 @@ class Genkit:
                 kind=ActionKind.FLOW,
                 fn=func,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
+            )
+
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                return (await action.arun(*args, **kwargs)).response
+
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                return action.run(*args, **kwargs).response
+
+            return async_wrapper if action.is_async else sync_wrapper
+
+        return wrapper
+
+    def tool(
+        self, description: str, name: str | None = None
+    ) -> Callable[[Callable], Callable]:
+        """Decorator to register a function as a tool.
+
+        Args:
+            description: Description for the tool to be passed to the model.
+            name: Optional name for the flow. If not provided, uses the function name.
+
+        Returns:
+            A decorator function that registers the tool.
+        """
+
+        def wrapper(func: Callable) -> Callable:
+            tool_name = name if name is not None else func.__name__
+            action = self.registry.register_action(
+                name=tool_name,
+                kind=ActionKind.TOOL,
+                description=description,
+                fn=func,
             )
 
             @wraps(func)
