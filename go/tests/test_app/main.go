@@ -14,6 +14,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 func main() {
@@ -53,7 +54,7 @@ func main() {
 	for _, a := range genkit.ListFlows(g) {
 		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
 	}
-	log.Fatal(genkit.StartServer(ctx, "127.0.0.1:3400", mux))
+	log.Fatal(server.Start(ctx, "127.0.0.1:3400", mux))
 }
 
 func echo(ctx context.Context, req *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
