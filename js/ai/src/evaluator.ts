@@ -38,6 +38,15 @@ export const BaseEvalDataPointSchema = BaseDataPointSchema.extend({
 });
 export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
 
+const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
+
 export const ScoreSchema = z.object({
   id: z
     .string()
@@ -46,7 +55,7 @@ export const ScoreSchema = z.object({
     )
     .optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
-  // TODO: use StatusSchema
+  status: EvalStatusEnumSchema.optional(),
   error: z.string().optional(),
   details: z
     .object({
@@ -76,13 +85,28 @@ export const EvalResponseSchema = z.object({
 });
 export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 
-export const EvalResponsesSchema = z.array(EvalResponseSchema);
-export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
+const StatusOverrideFnSchema = z
+  .function()
+  .args(ScoreSchema)
+  .returns(EvalStatusEnumSchema);
+export type StatusOverrideFn = z.infer<typeof StatusOverrideFnSchema>;
+// Base options object
+export const BaseEvalOptionsSchema = z
+  .object({
+    statusOverrideFn: StatusOverrideFnSchema.optional(),
+  })
+  .passthrough()
+  .optional();
+export type BaseEvalOptions = z.infer<typeof BaseEvalOptionsSchema>;
+
+export const EvalActionResponseSchema = z.array(EvalResponseSchema);
+export type EvalResponses = z.infer<typeof EvalActionResponseSchema>;
 
 export type EvaluatorFn<
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends
+    typeof BaseEvalOptionsSchema = typeof BaseEvalOptionsSchema,
 > = (
   input: z.infer<EvalDataPoint>,
   evaluatorOptions?: z.infer<CustomOptions>
@@ -91,7 +115,7 @@ export type EvaluatorFn<
 export type EvaluatorAction<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<typeof EvalRequestSchema, typeof EvalResponsesSchema> & {
+> = Action<typeof EvalRequestSchema, typeof EvalActionResponseSchema> & {
   __dataPointType?: DataPoint;
   __configSchema?: CustomOptions;
 };
@@ -100,7 +124,7 @@ function withMetadata<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  evaluator: Action<typeof EvalRequestSchema, typeof EvalResponsesSchema>,
+  evaluator: Action<typeof EvalRequestSchema, typeof EvalActionResponseSchema>,
   dataPointType?: DataPoint,
   configSchema?: CustomOptions
 ): EvaluatorAction<DataPoint, CustomOptions> {
@@ -133,7 +157,8 @@ export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  EvaluatorOptions extends
+    typeof BaseEvalOptionsSchema = typeof BaseEvalOptionsSchema,
 >(
   registry: Registry,
   options: {
@@ -160,10 +185,10 @@ export function defineEvaluator<
         dataset: options.dataPointType
           ? z.array(options.dataPointType)
           : z.array(BaseDataPointSchema),
-        options: options.configSchema ?? z.unknown(),
+        options: options.configSchema ?? BaseEvalOptionsSchema.optional(),
         evalRunId: z.string(),
       }),
-      outputSchema: EvalResponsesSchema,
+      outputSchema: EvalActionResponseSchema,
       metadata: metadata,
     },
     async (i) => {
@@ -199,7 +224,14 @@ export function defineEvaluator<
                 testCaseOutput.spanId = spanId;
                 testCaseOutput.traceId = traceId;
                 metadata.output = testCaseOutput;
-                evalResponses.push(testCaseOutput);
+                evalResponses.push(
+                  i.options?.statusOverrideFn
+                    ? augementStatus(
+                        testCaseOutput,
+                        i.options?.statusOverrideFn
+                      )
+                    : testCaseOutput
+                );
                 return testCaseOutput;
               } catch (e) {
                 evalResponses.push({
@@ -209,8 +241,10 @@ export function defineEvaluator<
                   testCaseId: datapoint.testCaseId,
                   evaluation: {
                     error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
+                    status: EvalStatusEnum.FAIL,
                   },
                 });
+                // Throw to mark the span as failed.
                 throw e;
               }
             }
@@ -228,7 +262,7 @@ export function defineEvaluator<
   const ewm = withMetadata(
     evaluator as any as Action<
       typeof EvalRequestSchema,
-      typeof EvalResponsesSchema
+      typeof EvalActionResponseSchema
     >,
     options.dataPointType,
     options.configSchema
@@ -296,4 +330,21 @@ export function evaluatorRef<
   options: EvaluatorReference<CustomOptionsSchema>
 ): EvaluatorReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+function augementStatus(
+  response: EvalResponse,
+  statusOverrideFn: StatusOverrideFn
+): EvalResponse {
+  let scores = Array.isArray(response.evaluation)
+    ? response.evaluation
+    : [response.evaluation];
+  const newScores = scores.map((s) => ({
+    ...s,
+    status: statusOverrideFn(s) ?? EvalStatusEnum.UNKNOWN,
+  }));
+  return {
+    ...response,
+    evaluation: newScores.length == 1 ? newScores[0] : newScores,
+  };
 }

@@ -14,8 +14,50 @@
  * limitations under the License.
  */
 
+import { EmbedderReference, ModelReference, z } from 'genkit';
+import { StatusOverrideFn } from 'genkit/evaluator';
+
 export enum GenkitMetric {
   FAITHFULNESS = 'FAITHFULNESS',
   ANSWER_RELEVANCY = 'ANSWER_RELEVANCY',
   MALICIOUSNESS = 'MALICIOUSNESS',
 }
+
+export interface BaseGenkitMetricConfig {
+  type: GenkitMetric;
+  statusOverrideFn?: StatusOverrideFn;
+}
+
+export interface FaithfulnessGenkitMetricConfig<
+  ModelCustomOptions extends z.ZodTypeAny,
+> extends BaseGenkitMetricConfig {
+  type: GenkitMetric.FAITHFULNESS;
+  judge: ModelReference<ModelCustomOptions>;
+  judgeConfig?: z.infer<ModelCustomOptions>;
+}
+
+export interface MaliciousnessGenkitMetricConfig<
+  ModelCustomOptions extends z.ZodTypeAny,
+> extends BaseGenkitMetricConfig {
+  type: GenkitMetric.MALICIOUSNESS;
+  judge: ModelReference<ModelCustomOptions>;
+  judgeConfig?: z.infer<ModelCustomOptions>;
+}
+
+export interface AnswerRelevancyGenkitMetricConfig<
+  ModelCustomOptions extends z.ZodTypeAny,
+  EmbedderCustomOptions extends z.ZodTypeAny,
+> extends BaseGenkitMetricConfig {
+  type: GenkitMetric.ANSWER_RELEVANCY;
+  judge: ModelReference<ModelCustomOptions>;
+  judgeConfig?: z.infer<ModelCustomOptions>;
+  embedder: EmbedderReference<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}
+export type GenkitMetricConfig<
+  M extends z.ZodTypeAny,
+  E extends z.ZodTypeAny,
+> =
+  | FaithfulnessGenkitMetricConfig<M>
+  | MaliciousnessGenkitMetricConfig<M>
+  | AnswerRelevancyGenkitMetricConfig<M, E>;
