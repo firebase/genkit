@@ -5,9 +5,10 @@
 
 """Tests for the action module."""
 
+import pathlib
+
 import pytest
 import yaml
-import pathlib
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
