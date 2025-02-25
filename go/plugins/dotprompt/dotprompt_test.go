@@ -4,7 +4,6 @@
 package dotprompt
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"testing"
@@ -21,7 +20,7 @@ type InputOutput struct {
 
 func testTool(g *genkit.Genkit, name string) *ai.ToolDef[struct{ Test string }, string] {
 	return genkit.DefineTool(g, name, "use when need to execute a test",
-		func(ctx context.Context, input struct {
+		func(ctx *ai.ToolContext, input struct {
 			Test string
 		}) (string, error) {
 			return input.Test, nil

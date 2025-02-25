@@ -2,51 +2,77 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import json
-import os
-import requests
-import sys
+"""Telemetry and tracing functionality for the Genkit framework.
 
-from typing import Any, Dict, Sequence
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
+This module provides functionality for collecting and exporting telemetry data
+from Genkit operations. It uses OpenTelemetry for tracing and exports span
+data to a telemetry server for monitoring and debugging purposes.
+
+The module includes:
+    - A custom span exporter for sending trace data to a telemetry server
+    - Utility functions for converting and formatting trace attributes
+    - Configuration for development environment tracing
+"""
+
+import json
+import sys
+from collections.abc import Sequence
+from typing import Any
+
+import requests  # type: ignore[import-untyped]
+from genkit.core.environment import is_dev_environment
+from opentelemetry import trace as trace_api
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import (
+    SimpleSpanProcessor,
     SpanExporter,
     SpanExportResult,
-    SimpleSpanProcessor,
 )
-from opentelemetry import trace as trace_api
-from opentelemetry.sdk.trace import ReadableSpan
 
 
 class TelemetryServerSpanExporter(SpanExporter):
-    """Implementation of :class:`SpanExporter` that prints spans to the
-    console.
+    """SpanExporter implementation that exports spans to a telemetry server.
 
-    This class can be used for diagnostic purposes. It prints the exported
-    spans to the console STDOUT.
+    This exporter sends span data to a telemetry server (default:
+    http://localhost:4033) for monitoring and debugging.  Each span is converted
+    to a JSON format that includes trace ID, span ID, timing information,
+    attributes, and other metadata about the operation.
     """
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        """Export the spans to the telemetry server.
+
+        This method processes each span in the sequence, converts it to the
+        required JSON format, and sends it to the telemetry server via HTTP
+        POST.
+
+        Args:
+            spans: A sequence of ReadableSpan objects to export.
+
+        Returns:
+            SpanExportResult.SUCCESS if the export was successful.
+        """
         for span in spans:
-            spanData = {'traceId': f'{span.context.trace_id}', 'spans': {}}
-            spanData['spans'][span.context.span_id] = {
+            span_data = {'traceId': f'{span.context.trace_id}', 'spans': {}}
+            span_data['spans'][span.context.span_id] = {
                 'spanId': f'{span.context.span_id}',
                 'traceId': f'{span.context.trace_id}',
                 'startTime': span.start_time / 1000000,
                 'endTime': span.end_time / 1000000,
-                'attributes': convert_attributes(span.attributes),
+                'attributes': convert_attributes(
+                    attributes=span.attributes,  # type: ignore
+                ),
                 'displayName': span.name,
                 # "links": span.links,
                 'spanKind': trace_api.SpanKind(span.kind).name,
                 'parentSpanId': f'{span.parent.span_id}'
-                if span.parent is not None
+                if span.parent
                 else None,
                 'status': {
                     'code': trace_api.StatusCode(span.status.status_code).value,
                     'description': span.status.description,
                 }
-                if span.status is not None
+                if span.status
                 else None,
                 'instrumentationLibrary': {
                     'name': 'genkit-tracer',
@@ -62,18 +88,19 @@ class TelemetryServerSpanExporter(SpanExporter):
                 #     })),
                 # },
             }
-            if spanData['spans'][span.context.span_id]['parentSpanId'] is None:
-                del spanData['spans'][span.context.span_id]['parentSpanId']
+            if not span_data['spans'][span.context.span_id]['parentSpanId']:  # type: ignore
+                del span_data['spans'][span.context.span_id]['parentSpanId']  # type: ignore
 
-            if span.parent is None:
-                spanData['displayName'] = span.name
-                spanData['startTime'] = span.start_time
-                spanData['endTime'] = span.end_time
+            if not span.parent:
+                span_data['displayName'] = span.name
+                span_data['startTime'] = span.start_time
+                span_data['endTime'] = span.end_time
 
-            # TODO: telemetry server URL must be dynamic, whatever tools notification says
+            # TODO: telemetry server URL must be dynamic,
+            # whatever tools notification says
             requests.post(
                 'http://localhost:4033/api/traces',
-                data=json.dumps(spanData),
+                data=json.dumps(span_data),
                 headers={
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
@@ -84,22 +111,41 @@ class TelemetryServerSpanExporter(SpanExporter):
         return SpanExportResult.SUCCESS
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
+        """Force flush any pending spans to the telemetry server.
+
+        Args:
+            timeout_millis: Maximum time to wait for the flush to complete.
+
+        Returns:
+            True if the flush was successful, False otherwise.
+        """
         return True
 
 
-def convert_attributes(attributes: Dict[str, Any]) -> Dict[str, Any]:
-    attrs: Dict[str, Any] = {}
+def convert_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
+    """Convert span attributes to a format suitable for export.
+
+    This function creates a new dictionary containing the span attributes,
+    ensuring they are in a format that can be properly serialized.
+
+    Args:
+        attributes: Dictionary of span attributes to convert.
+
+    Returns:
+        A new dictionary containing the converted attributes.
+    """
+    attrs: dict[str, Any] = {}
     for key in attributes:
         attrs[key] = attributes[key]
     return attrs
 
 
-if 'GENKIT_ENV' in os.environ and os.environ['GENKIT_ENV'] == 'dev':
+if is_dev_environment():
     provider = TracerProvider()
     processor = SimpleSpanProcessor(TelemetryServerSpanExporter())
     provider.add_span_processor(processor)
     # Sets the global default tracer provider
-    trace.set_tracer_provider(provider)
-    tracer = trace.get_tracer('genkit-tracer', 'v1', provider)
+    trace_api.set_tracer_provider(provider)
+    tracer = trace_api.get_tracer('genkit-tracer', 'v1', provider)
 else:
-    tracer = trace.get_tracer('genkit-tracer', 'v1')
+    tracer = trace_api.get_tracer('genkit-tracer', 'v1')

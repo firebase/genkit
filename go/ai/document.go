@@ -1,12 +1,13 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
 	"encoding/json"
 	"fmt"
+
+	"gopkg.in/yaml.v3"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -21,11 +22,12 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	Kind         PartKind      `json:"kind,omitempty"`
-	ContentType  string        `json:"contentType,omitempty"` // valid for kind==blob
-	Text         string        `json:"text,omitempty"`        // valid for kind∈{text,blob}
-	ToolRequest  *ToolRequest  `json:"toolreq,omitempty"`     // valid for kind==partToolRequest
-	ToolResponse *ToolResponse `json:"toolresp,omitempty"`    // valid for kind==partToolResponse
+	Kind         PartKind       `json:"kind,omitempty"`
+	ContentType  string         `json:"contentType,omitempty"`  // valid for kind==blob
+	Text         string         `json:"text,omitempty"`         // valid for kind∈{text,blob}
+	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty"`  // valid for kind==partToolRequest
+	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"` // valid for kind==partToolResponse
+	Metadata     map[string]any `json:"metadata,omitempty"`     // valid for all kinds
 }
 
 type PartKind int8
@@ -105,7 +107,8 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	switch p.Kind {
 	case PartText:
 		v := textPart{
-			Text: p.Text,
+			Text:     p.Text,
+			Metadata: p.Metadata,
 		}
 		return json.Marshal(v)
 	case PartMedia:
@@ -114,28 +117,25 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 				ContentType: p.ContentType,
 				Url:         p.Text,
 			},
+			Metadata: p.Metadata,
 		}
 		return json.Marshal(v)
 	case PartData:
 		v := dataPart{
-			Data: p.Text,
+			Data:     p.Text,
+			Metadata: p.Metadata,
 		}
 		return json.Marshal(v)
 	case PartToolRequest:
-		// TODO: make sure these types marshal/unmarshal nicely
-		// between Go and javascript. At the very least the
-		// field name needs to change (here and in UnmarshalJSON).
-		v := struct {
-			ToolReq *ToolRequest `json:"toolreq,omitempty"`
-		}{
-			ToolReq: p.ToolRequest,
+		v := toolRequestPart{
+			ToolRequest: p.ToolRequest,
+			Metadata:    p.Metadata,
 		}
 		return json.Marshal(v)
 	case PartToolResponse:
-		v := struct {
-			ToolResp *ToolResponse `json:"toolresp,omitempty"`
-		}{
-			ToolResp: p.ToolResponse,
+		v := toolResponsePart{
+			ToolResponse: p.ToolResponse,
+			Metadata:     p.Metadata,
 		}
 		return json.Marshal(v)
 	default:
@@ -144,34 +144,27 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 }
 
 type partSchema struct {
-	Text     string          `json:"text,omitempty"`
-	Media    *mediaPartMedia `json:"media,omitempty"`
-	Data     string          `json:"data,omitempty"`
-	ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
-	ToolResp *ToolResponse   `json:"toolresp,omitempty"`
+	Text         string          `json:"text,omitempty" yaml:"text,omitempty"`
+	Media        *mediaPartMedia `json:"media,omitempty" yaml:"media,omitempty"`
+	Data         string          `json:"data,omitempty" yaml:"data,omitempty"`
+	ToolRequest  *ToolRequest    `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
+	ToolResponse *ToolResponse   `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
+	Metadata     map[string]any  `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
-// UnmarshalJSON is called by the JSON unmarshaler to read a Part.
-func (p *Part) UnmarshalJSON(b []byte) error {
-	// This is not handled by the schema generator because
-	// Part is defined in TypeScript as a union.
-
-	var s partSchema
-	if err := json.Unmarshal(b, &s); err != nil {
-		return err
-	}
-
+// unmarshalPartFromSchema updates Part p based on the schema s.
+func (p *Part) unmarshalPartFromSchema(s partSchema) {
 	switch {
 	case s.Media != nil:
 		p.Kind = PartMedia
 		p.Text = s.Media.Url
 		p.ContentType = s.Media.ContentType
-	case s.ToolReq != nil:
+	case s.ToolRequest != nil:
 		p.Kind = PartToolRequest
-		p.ToolRequest = s.ToolReq
-	case s.ToolResp != nil:
+		p.ToolRequest = s.ToolRequest
+	case s.ToolResponse != nil:
 		p.Kind = PartToolResponse
-		p.ToolResponse = s.ToolResp
+		p.ToolResponse = s.ToolResponse
 	default:
 		p.Kind = PartText
 		p.Text = s.Text
@@ -182,6 +175,26 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 			p.Text = s.Data
 		}
 	}
+	p.Metadata = s.Metadata
+}
+
+// UnmarshalJSON is called by the JSON unmarshaler to read a Part.
+func (p *Part) UnmarshalJSON(b []byte) error {
+	var s partSchema
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	p.unmarshalPartFromSchema(s)
+	return nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler for Part.
+func (p *Part) UnmarshalYAML(value *yaml.Node) error {
+	var s partSchema
+	if err := value.Decode(&s); err != nil {
+		return err
+	}
+	p.unmarshalPartFromSchema(s)
 	return nil
 }
 

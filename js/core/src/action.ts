@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { JSONSchema7 } from 'json-schema';
+import { type JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
 import { lazy } from './async.js';
 import { ActionContext, getContext, runWithContext } from './context.js';
@@ -26,7 +26,7 @@ import {
   setCustomMetadataAttributes,
 } from './tracing.js';
 
-export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
+export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
 export { JSONSchema7 };
 
 /**
@@ -273,6 +273,7 @@ export function action<
     inputJsonSchema: config.inputJsonSchema,
     outputSchema: config.outputSchema,
     outputJsonSchema: config.outputJsonSchema,
+    streamSchema: config.streamSchema,
     metadata: config.metadata,
   } as ActionMetadata<I, O, S>;
   actionFn.run = async (

@@ -123,8 +123,9 @@ export class GcpOpenTelemetry {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
-            // Creds for non-GCP environments; otherwise credentials will be
-            // automatically detected via ADC
+            // provided projectId should take precedence over env vars, etc
+            projectId: this.config.projectId,
+            // creds for non-GCP environments, in lieu of using ADC.
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
@@ -154,12 +155,17 @@ export class GcpOpenTelemetry {
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
+    let instrumentations: Instrumentation[] = [];
+
     if (this.config.autoInstrumentation) {
-      return getNodeAutoInstrumentations(
+      instrumentations = getNodeAutoInstrumentations(
         this.config.autoInstrumentationConfig
-      ).concat(this.getDefaultLoggingInstrumentations());
+      );
     }
-    return this.getDefaultLoggingInstrumentations();
+
+    return instrumentations
+      .concat(this.getDefaultLoggingInstrumentations())
+      .concat(this.config.instrumentations ?? []);
   }
 
   private shouldExportTraces(): boolean {
@@ -186,8 +192,9 @@ export class GcpOpenTelemetry {
               product: 'genkit',
               version: GENKIT_VERSION,
             },
-            // Creds for non-GCP environments; otherwise credentials will be
-            // automatically detected via ADC
+            // provided projectId should take precedence over env vars, etc
+            projectId: this.config.projectId,
+            // creds for non-GCP environments, in lieu of using ADC.
             credentials: this.config.credentials,
           },
           getErrorHandler(
@@ -198,17 +205,6 @@ export class GcpOpenTelemetry {
           )
         )
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
-    exporter.selectAggregation = (instrumentType: InstrumentType) => {
-      if (instrumentType === InstrumentType.HISTOGRAM) {
-        return new ExponentialHistogramAggregation();
-      }
-      return new DefaultAggregation();
-    };
-    exporter.selectAggregationTemporality = (
-      instrumentType: InstrumentType
-    ) => {
-      return AggregationTemporality.DELTA;
-    };
     return exporter;
   }
 }
@@ -218,6 +214,8 @@ export class GcpOpenTelemetry {
  * helpful information about how to set up metrics/telemetry in GCP.
  */
 class MetricExporterWrapper extends MetricExporter {
+  private promise = new Promise<void>((resolve) => resolve());
+
   constructor(
     options?: ExporterOptions,
     private errorHandler?: (error: Error) => void
@@ -225,16 +223,67 @@ class MetricExporterWrapper extends MetricExporter {
     super(options);
   }
 
-  export(
+  async export(
     metrics: ResourceMetrics,
     resultCallback: (result: ExportResult) => void
-  ): void {
-    super.export(metrics, (result) => {
-      if (this.errorHandler && result.error) {
-        this.errorHandler(result.error);
-      }
-      resultCallback(result);
+  ): Promise<void> {
+    await this.promise;
+    this.modifyStartTimes(metrics);
+    this.promise = new Promise<void>((resolve) => {
+      super.export(metrics, (result) => {
+        try {
+          if (this.errorHandler && result.error) {
+            this.errorHandler(result.error);
+          }
+          resultCallback(result);
+        } finally {
+          resolve();
+        }
+      });
     });
+  }
+
+  selectAggregation(instrumentType: InstrumentType) {
+    if (instrumentType === InstrumentType.HISTOGRAM) {
+      return new ExponentialHistogramAggregation();
+    }
+    return new DefaultAggregation();
+  }
+
+  selectAggregationTemporality(instrumentType: InstrumentType) {
+    return AggregationTemporality.DELTA;
+  }
+
+  /**
+   * Modify the start times of each data point to ensure no
+   * overlap with previous exports.
+   *
+   * Cloud metrics do not support delta metrics for custom metrics
+   * and will convert any DELTA aggregations to CUMULATIVE ones on
+   * export. There is implicit overlap in the start/end times that
+   * the Metric reader is sending -- the end_time of the previous
+   * export will become the start_time of the current export. The
+   * overlap in times means that only one of those records will
+   * persist and the other will be overwritten. This
+   * method adds a thousandth of a second to ensure discrete export
+   * timeframes.
+   */
+  private modifyStartTimes(metrics: ResourceMetrics): void {
+    metrics.scopeMetrics.forEach((scopeMetric) => {
+      scopeMetric.metrics.forEach((metric) => {
+        metric.dataPoints.forEach((dataPoint) => {
+          dataPoint.startTime[1] = dataPoint.startTime[1] + 1_000_000;
+        });
+      });
+    });
+  }
+
+  async shutdown(): Promise<void> {
+    return await this.forceFlush();
+  }
+
+  async forceFlush(): Promise<void> {
+    await this.promise;
   }
 }
 

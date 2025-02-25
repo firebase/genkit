@@ -41,8 +41,11 @@ export function streamFlow<O = any, S = any>({
   input,
   headers,
 }: {
+  /** URL of the deployed flow. */
   url: string;
+  /** Flow input. */
   input?: any;
+  /** A map of HTTP headers to be added to the HTTP call. */
   headers?: Record<string, string>;
 }): {
   readonly output: Promise<O>;
@@ -139,7 +142,7 @@ async function __flowRunEnvelope({
  * For example:
  *
  * ```js
- * import { runFlow } from '@genkit-ai/core/flow-client';
+ * import { runFlow } from 'genkit/beta/client';
  *
  * const response = await runFlow({
  *   url: 'https://my-flow-deployed-url',
@@ -153,8 +156,11 @@ export async function runFlow<O = any>({
   input,
   headers,
 }: {
+  /** URL of the deployed flow. */
   url: string;
+  /** Flow input. */
   input?: any;
+  /** A map of HTTP headers to be added to the HTTP call. */
   headers?: Record<string, string>;
 }): Promise<O> {
   const response = await fetch(url, {
