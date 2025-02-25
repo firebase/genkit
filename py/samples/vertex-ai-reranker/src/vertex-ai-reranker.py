@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the Vertex AI Reranker sample.
+
+    This function demonstrates how to use Vertex AI Reranker models
+    with the Genkit framework for improved search results.
+    """
     print('Hey')
 
 

@@ -24,7 +24,7 @@ fi
 TOP_DIR=$(git rev-parse --show-toplevel)
 
 PNPM_VERSION="10.2.0"
-NODE_VERSION="22"
+NODE_VERSION="23"
 NVM_VERSION="0.40.1"
 
 AUDIENCE="eng"
@@ -96,6 +96,7 @@ function genkit::install_prerequisites() {
   if [[ ${OS_NAME} == "Darwin" && -x "$(command -v brew)" ]]; then
     # Darwin-based systems.
     brew install \
+      cmake \
       curl \
       fd \
       gh \

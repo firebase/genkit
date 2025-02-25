@@ -5,55 +5,83 @@
 
 import logging
 import os
-from typing import Any
 
 import vertexai
+from genkit.core.action import ActionKind
 from genkit.core.plugin_abc import Plugin
-from genkit.core.schema_types import GenerateRequest, GenerateResponse
+from genkit.core.registry import Registry
 from genkit.plugins.vertex_ai import constants as const
+from genkit.plugins.vertex_ai.embedding import Embedder, EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
-from genkit.veneer.veneer import Genkit
 
 LOG = logging.getLogger(__name__)
 
 
 def vertexai_name(name: str) -> str:
+    """Create a Vertex AI action name.
+
+    Args:
+        name: Base name for the action.
+
+    Returns:
+        The fully qualified Vertex AI action name.
+    """
     return f'vertexai/{name}'
 
 
 class VertexAI(Plugin):
-    # This is 'gemini-1.5-pro' - the latest stable model
-    VERTEX_AI_GENERATIVE_MODEL_NAME: str = GeminiVersion.GEMINI_1_5_FLASH.value
+    """Vertex AI plugin for Genkit.
+
+    This plugin provides integration with Google Cloud's Vertex AI platform,
+    enabling the use of Vertex AI models and services within the Genkit
+    framework. It handles initialization of the Vertex AI client and
+    registration of model actions.
+    """
 
     def __init__(
         self, project_id: str | None = None, location: str | None = None
     ):
+        """Initialize the Vertex AI plugin.
+
+        Args:
+            project_id: Optional Google Cloud project ID. If not provided,
+                will attempt to detect from environment.
+            location: Optional Google Cloud region. If not provided, will
+                use a default region.
+        """
         # If not set, projectId will be read by plugin
         project_id = (
             project_id if project_id else os.getenv(const.GCLOUD_PROJECT)
         )
         location = location if location else const.DEFAULT_REGION
-
-        self._gemini = Gemini(self.VERTEX_AI_GENERATIVE_MODEL_NAME)
         vertexai.init(project=project_id, location=location)
 
-    def attach_to_veneer(self, veneer: Genkit) -> None:
-        self._add_model_to_veneer(veneer=veneer)
+    def initialize(self, registry: Registry) -> None:
+        """Initialize the plugin by registering actions with the registry.
 
-    def _add_model_to_veneer(self, veneer: Genkit, **kwargs) -> None:
-        return super()._add_model_to_veneer(
-            veneer=veneer,
-            name=vertexai_name(self.VERTEX_AI_GENERATIVE_MODEL_NAME),
-            metadata=self.vertex_ai_model_metadata,
-        )
+        This method registers the Vertex AI model actions with the provided
+        registry, making them available for use in the Genkit framework.
 
-    @property
-    def vertex_ai_model_metadata(self) -> dict[str, dict[str, Any]]:
-        return {
-            'model': {
-                'supports': {'multiturn': True},
-            }
-        }
+        Args:
+            registry: The registry to register actions with.
 
-    def _model_callback(self, request: GenerateRequest) -> GenerateResponse:
-        return self._gemini.handle_request(request=request)
+        Returns:
+            None
+        """
+        for model_version in GeminiVersion:
+            gemini = Gemini(model_version)
+            registry.register_action(
+                kind=ActionKind.MODEL,
+                name=vertexai_name(model_version),
+                fn=gemini.handle_request,
+                metadata=gemini.model_metadata,
+            )
+
+        for embed_model in EmbeddingModels:
+            embedder = Embedder(embed_model)
+            registry.register_action(
+                kind=ActionKind.EMBEDDER,
+                name=vertexai_name(embed_model),
+                fn=embedder.handle_request,
+                metadata=embedder.model_metadata,
+            )

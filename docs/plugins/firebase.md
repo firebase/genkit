@@ -1,6 +1,5 @@
-<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into 
-Firebase Functions which use 
-https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
+use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
 
 # Firebase plugin
 

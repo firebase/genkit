@@ -1,9 +1,17 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-from enum import StrEnum
+"""Gemini model integration for Vertex AI plugin.
 
-from genkit.core.schema_types import (
+This module provides classes and utilities for working with Google's
+Gemini models through the Vertex AI platform. It includes version
+definitions and a client class for making requests to Gemini models.
+"""
+
+from enum import StrEnum
+from typing import Any
+
+from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     Message,
@@ -16,6 +24,12 @@ from vertexai.generative_models import Content, GenerativeModel, Part
 
 
 class GeminiVersion(StrEnum):
+    """Available versions of the Gemini model.
+
+    This enum defines the available versions of the Gemini model that
+    can be used through Vertex AI.
+    """
+
     GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
     GEMINI_2_0_FLASH_001 = 'gemini-2.0-flash-001'
@@ -63,14 +77,39 @@ SUPPORTED_MODELS = {
 
 
 class Gemini:
-    def __init__(self, version):
-        self.version = version
+    """Client for interacting with Gemini models via Vertex AI.
+
+    This class provides methods for making requests to Gemini models,
+    handling message formatting and response processing.
+    """
+
+    def __init__(self, version: str):
+        """Initialize a Gemini client.
+
+        Args:
+            version: The version of the Gemini model to use, should be
+                one of the values from GeminiVersion.
+        """
+        self._version = version
 
     @property
     def gemini_model(self) -> GenerativeModel:
-        return GenerativeModel(self.version)
+        """Get the Vertex AI GenerativeModel instance.
+
+        Returns:
+            A configured GenerativeModel instance for the specified version.
+        """
+        return GenerativeModel(self._version)
 
     def handle_request(self, request: GenerateRequest) -> GenerateResponse:
+        """Handle a generation request using the Gemini model.
+
+        Args:
+            request: The generation request containing messages and parameters.
+
+        Returns:
+            The model's response to the generation request.
+        """
         messages: list[Content] = []
         for m in request.messages:
             parts: list[Part] = []
@@ -83,7 +122,16 @@ class Gemini:
         response = self.gemini_model.generate_content(contents=messages)
         return GenerateResponse(
             message=Message(
-                role=Role.model,
+                role=Role.MODEL,
                 content=[TextPart(text=response.text)],
             )
         )
+
+    @property
+    def model_metadata(self) -> dict[str, dict[str, Any]]:
+        supports = SUPPORTED_MODELS[self._version].supports.model_dump()
+        return {
+            'model': {
+                'supports': supports,
+            }
+        }

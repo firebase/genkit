@@ -1,12 +1,17 @@
-# Telemetry Collection
+# Telemetry Collection {: #telemetry-collection }
 
-The Firebase telemetry plugin exports a combination of metrics, traces, and logs to Google Cloud Observability. This document details which metrics, trace attributes, and logs will be collected and what you can expect in terms of latency, quotas, and cost.
+The Firebase telemetry plugin exports a combination of metrics, traces, and
+logs to Google Cloud Observability. This document details which metrics, trace
+attributes, and logs will be collected and what you can expect in terms of
+latency, quotas, and cost.
 
-## Telemetry delay
+## Telemetry delay {: #telemetry-delay }
 
-There may be a slight delay before telemetry from a given invocation is available in Firebase. This is dependent on your export interval (5 minutes by default).
+There may be a slight delay before telemetry from a given invocation is
+available in Firebase. This is dependent on your export interval (5 minutes
+by default).
 
-## Quotas and limits
+## Quotas and limits {: #quotas-and-limits }
 
 There are several quotas that are important to keep in mind:
 
@@ -14,7 +19,7 @@ There are several quotas that are important to keep in mind:
 - [Cloud Logging Quotas](http://cloud.google.com/logging/quotas)
 - [Cloud Monitoring Quotas](http://cloud.google.com/monitoring/quotas)
 
-## Cost
+## Cost {: #cost }
 
 Cloud Logging, Cloud Trace, and Cloud Monitoring have generous free-of-charge
 tiers. Specific pricing can be found at the following links:
@@ -23,9 +28,12 @@ tiers. Specific pricing can be found at the following links:
 - [Cloud Trace Pricing](https://cloud.google.com/trace#pricing)
 - [Cloud Monitoring Pricing](https://cloud.google.com/stackdriver/pricing#monitoring-pricing-summary)
 
-## Metrics
+## Metrics {: #metrics }
 
-### Feature metrics
+The Firebase telemetry plugin collects a number of different metrics to support
+the various Genkit action types detailed in the following sections.
+
+### Feature metrics {: #feature-metrics }
 
 Features are the top-level entry-point to your Genkit code. In most cases, this
 will be a flow. Otherwise, this will be the top-most span in a trace.
@@ -45,7 +53,7 @@ Each feature metric contains the following dimensions:
 | source        | The Genkit source language. Eg. 'ts'                                             |
 | sourceVersion | The Genkit framework version                                                     |
 
-### Action metrics
+### Action metrics {: #action-metrics }
 
 Actions represent a generic step of execution within Genkit. Each of these steps
 will have the following metrics tracked:
@@ -67,7 +75,7 @@ Each action metric contains the following dimensions:
 | source        | The Genkit source language. Eg. 'ts'                                                                 |
 | sourceVersion | The Genkit framework version                                                                         |
 
-### Generate metrics
+### Generate metrics {: #generate-metrics }
 
 These are special action metrics relating to actions that interact with a model.
 In addition to requests and latency, input and output are also tracked, with
@@ -99,18 +107,18 @@ Each generate metric contains the following dimensions:
 | source          | The Genkit source language. Eg. 'ts'                                                                 |
 | sourceVersion   | The Genkit framework version                                                                         |
 
-## Traces
+## Traces {: #traces }
 
 All Genkit actions are automatically instrumented to provide detailed traces for
-your AI features. Locally, traces are visible in the Developer UI. For deployed 
+your AI features. Locally, traces are visible in the Developer UI. For deployed
 apps enable Firebase Genkit Monitoring to get the same level of visibility.
 
-The following sections describe what trace attributes you can expect based on the
-Genkit action type for a particular span in the trace.
+The following sections describe what trace attributes you can expect based on
+the Genkit action type for a particular span in the trace.
 
-### Root Spans
+### Root Spans {: #root-spans }
 
-Root spans have special attributes to help disambiguate the state attributes for 
+Root spans have special attributes to help disambiguate the state attributes for
 the whole trace versus an individual span.
 
 | Attribute name          | Description                                                                                                                       |
@@ -119,7 +127,7 @@ the whole trace versus an individual span.
 | genkit/isRoot           | Marked true if this span is the root span                                                                                         |
 | genkit/rootState        | The state of the overall execution as `success` or `error`. This does not indicate that this step failed in particular.           |
 
-### Flow
+### Flow {: #flow }
 
 | Attribute name          | Description                                                                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -131,7 +139,7 @@ the whole trace versus an individual span.
 | genkit/state            | The state of this span's execution as `success` or `error`.                                                                       |
 | genkit/type             | The type of Genkit primitive that corresponds to this span. For flows, this will be `action`.                                     |
 
-### Util
+### Util {: #util }
 
 | Attribute name          | Description                                                                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -142,7 +150,7 @@ the whole trace versus an individual span.
 | genkit/state            | The state of this span's execution as `success` or `error`.                                                                       |
 | genkit/type             | The type of Genkit primitive that corresponds to this span. For flows, this will be `util`.                                       |
 
-### Model
+### Model {: #model }
 
 | Attribute name          | Description                                                                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -155,7 +163,7 @@ the whole trace versus an individual span.
 | genkit/state            | The state of this span's execution as `success` or `error`.                                                                       |
 | genkit/type             | The type of Genkit primitive that corresponds to this span. For flows, this will be `action`.                                     |
 
-### Tool
+### Tool {: #tool }
 
 | Attribute name          | Description                                                                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -167,10 +175,10 @@ the whole trace versus an individual span.
 | genkit/state            | The state of this span's execution as `success` or `error`.                                                                       |
 | genkit/type             | The type of Genkit primitive that corresponds to this span. For flows, this will be `action`.                                     |
 
-## Logs
+## Logs {: #logs }
 
-For deployed apps with Firebase Genkit Monitoring, logs are used to capture 
-input, output, and configuration metadata that provides rich detail about 
+For deployed apps with Firebase Genkit Monitoring, logs are used to capture
+input, output, and configuration metadata that provides rich detail about
 each step in your AI feature.
 
 All logs will include the following shared metadata fields:
@@ -189,15 +197,15 @@ All logs will include the following shared metadata fields:
 | trace             | Identifier for the trace of the format `projects/<project-id>/traces/<trace-id>`                                                  |
 | traceSampled      | Boolean representing whether the trace was sampled. Logs are not sampled.                                                         |
 
-Each log type will have a different json payload described below.
+Each log type will have a different json payload described in each section.
 
-### Input
+### Input {: #input }
 
 JSON payload:
 
 | Field name        | Description                                                                                                                       |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| message           | `[genkit] Input[<path>, <featureName>` including `(message X of N)` for multi-part messages                                       |
+| message           | `[genkit] Input[<path>, <featureName>]` including `(message X of N)` for multi-part messages                                       |
 | metadata          | Additional context including the input message sent to the action                                                                 |
 
 Metadata:
@@ -216,13 +224,13 @@ Metadata:
 
 (*) Starred items are only present on Input logs for model interactions.
 
-### Output
+### Output {: #output }
 
 JSON payload:
 
 | Field name        | Description                                                                                                                       |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| message           | `[genkit] Output[<path>, <featureName>` including `(message X of N)` for multi-part messages                                      |
+| message           | `[genkit] Output[<path>, <featureName>]` including `(message X of N)` for multi-part messages                                      |
 | metadata          | Additional context including the input message sent to the action                                                                 |
 
 Metadata:
@@ -242,13 +250,13 @@ Metadata:
 
 (*) Starred items are only present on Output logs for model interactions.
 
-### Config
+### Config {: #config }
 
 JSON payload:
 
 | Field name        | Description                                                                                                                       |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| message           | `[genkit] Config[<path>, <featureName>`                                                                                           |
+| message           | `[genkit] Config[<path>, <featureName>]`                                                                                           |
 | metadata          | Additional context including the input message sent to the action                                                                 |
 
 Metadata:
@@ -263,13 +271,13 @@ Metadata:
 | sourceVersion     | The Genkit library version.                                                                                                                                     |
 | temperature       | Model temperature used.                                                                                                                                         |
 
-### Paths
+### Paths {: #paths }
 
 JSON payload:
 
 | Field name        | Description                                                                                                                       |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| message           | `[genkit] Paths[<path>, <featureName>`                                                                                            |
+| message           | `[genkit] Paths[<path>, <featureName>]`                                                                                            |
 | metadata          | Additional context including the input message sent to the action                                                                 |
 
 Metadata:

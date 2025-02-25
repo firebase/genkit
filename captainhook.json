@@ -34,13 +34,10 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
-          "run": "py/bin/generate_schema_types"
+          "run": "py/bin/generate_schema_typing"
         },
         {
           "run": "bin/fmt"
-        },
-        {
-          "run": "uv run --directory py ruff check --select I --fix ."
         },
         {
           "run": "py/bin/run_python_tests"
@@ -52,7 +49,7 @@
           "run": "py/bin/build_dists"
         },
         {
-          "run": "go test go/..."
+          "run": "bin/run_go_tests"
         }
       ]
     },
@@ -74,13 +71,10 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
-          "run": "py/bin/generate_schema_types"
+          "run": "py/bin/generate_schema_typing"
         },
         {
           "run": "bin/fmt"
-        },
-        {
-          "run": "uv run --directory py ruff check --select I --fix ."
         },
         {
           "run": "py/bin/run_python_tests"
@@ -92,7 +86,7 @@
           "run": "py/bin/build_dists"
         },
         {
-          "run": "go test go/..."
+          "run": "bin/run_go_tests"
         },
         {
           "run": ".hooks/commit-message-format-pre-push"

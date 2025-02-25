@@ -273,6 +273,7 @@ export function action<
     inputJsonSchema: config.inputJsonSchema,
     outputSchema: config.outputSchema,
     outputJsonSchema: config.outputJsonSchema,
+    streamSchema: config.streamSchema,
     metadata: config.metadata,
   } as ActionMetadata<I, O, S>;
   actionFn.run = async (

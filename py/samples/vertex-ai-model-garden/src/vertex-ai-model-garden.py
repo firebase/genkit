@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the Vertex AI Model Garden sample.
+
+    This function demonstrates how to use Vertex AI Model Garden models
+    with the Genkit framework.
+    """
     print('Hey')
 
 

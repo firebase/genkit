@@ -25,10 +25,23 @@ from genkit.plugins.vertex_ai.models import (
 
 
 def square(n: int | float) -> int | float:
+    """Calculates the square of a number.
+
+    Args:
+        n: The number to square.
+
+    Returns:
+        The square of n.
+    """
     return n * n
 
 
 def test_package_names() -> None:
+    """A test that ensure that the package imports work correctly.
+
+    This test verifies that the package imports work correctly from the
+    end-user perspective.
+    """
     assert ai_package_name() == 'genkit.ai'
     assert chroma_package_name() == 'genkit.plugins.chroma'
     assert core_package_name() == 'genkit.core'
@@ -44,6 +57,7 @@ def test_package_names() -> None:
 
 
 def test_square() -> None:
+    """Tests whether the square function works correctly."""
     assert square(2) == 4
     assert square(3) == 9
     assert square(4) == 16

@@ -56,7 +56,7 @@ var textMenuQuestionInputSchema = jsonschema.Reflect(textMenuQuestionInput{})
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
@@ -96,7 +96,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := g.Start(ctx, nil); err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }

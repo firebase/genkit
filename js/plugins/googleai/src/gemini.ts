@@ -15,6 +15,7 @@
  */
 
 import {
+  EnhancedGenerateContentResponse,
   FileDataPart,
   FunctionCallingMode,
   FunctionCallPart,
@@ -844,10 +845,13 @@ export function defineGoogleAIModel({
       }
 
       const callGemini = async () => {
+        let response: EnhancedGenerateContentResponse;
+
         if (sendChunk) {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessageStream(msg.parts, options);
+
           for await (const item of result.stream) {
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
@@ -859,42 +863,42 @@ export function defineGoogleAIModel({
               }
             );
           }
-          const response = await result.response;
-          const candidates = response.candidates || [];
-          if (response.candidates?.['undefined']) {
-            candidates.push(response.candidates['undefined']);
-          }
-          if (!candidates.length) {
-            throw new GenkitError({
-              status: 'FAILED_PRECONDITION',
-              message: 'No valid candidates returned.',
-            });
-          }
-          return {
-            candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
-            custom: response,
-          };
+
+          response = await result.response;
         } else {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessage(msg.parts, options);
-          if (!result.response.candidates?.length)
-            throw new Error('No valid candidates returned.');
-          const responseCandidates =
-            result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
-            [];
-          return {
-            candidates: responseCandidates,
-            custom: result.response,
-            usage: {
-              ...getBasicUsageStats(request.messages, responseCandidates),
-              inputTokens: result.response.usageMetadata?.promptTokenCount,
-              outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-              totalTokens: result.response.usageMetadata?.totalTokenCount,
-            },
-          };
+
+          response = result.response;
         }
+
+        const candidates = response.candidates || [];
+        if (response.candidates?.['undefined']) {
+          candidates.push(response.candidates['undefined']);
+        }
+        if (!candidates.length) {
+          throw new GenkitError({
+            status: 'FAILED_PRECONDITION',
+            message: 'No valid candidates returned.',
+          });
+        }
+
+        const candidateData =
+          candidates.map(fromJSONModeScopedGeminiCandidate) || [];
+
+        return {
+          candidates: candidateData,
+          custom: response,
+          usage: {
+            ...getBasicUsageStats(request.messages, candidateData),
+            inputTokens: response.usageMetadata?.promptTokenCount,
+            outputTokens: response.usageMetadata?.candidatesTokenCount,
+            totalTokens: response.usageMetadata?.totalTokenCount,
+          },
+        };
       };
+
       // If debugTraces is enable, we wrap the actual model call with a span, add raw
       // API params as for input.
       return debugTraces
