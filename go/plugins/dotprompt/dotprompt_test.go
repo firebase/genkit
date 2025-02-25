@@ -4,6 +4,7 @@
 package dotprompt
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"testing"

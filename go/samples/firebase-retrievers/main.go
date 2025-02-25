@@ -61,7 +61,7 @@ func main() {
 		App: firebaseApp, // Pass the pre-initialized Firebase app
 	}
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -153,10 +153,7 @@ func main() {
 		return fmt.Sprintf("Retrieved document: %s", resp.Documents[0].Content[0].Text), nil
 	})
 
-	// Initialize Genkit
-	if err := g.Start(ctx, nil); err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }
 
 // MockEmbedder is used to simulate an AI embedder for testing purposes.
