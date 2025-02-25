@@ -51,7 +51,7 @@ async def generate_action(
 
     prev_chunks: list[GenerateResponseChunk] = []
 
-    chunk_role: Role = 'model'
+    chunk_role: Role = Role.MODEL
 
     def make_chunk(
         role: Role, chunk: GenerateResponseChunk
