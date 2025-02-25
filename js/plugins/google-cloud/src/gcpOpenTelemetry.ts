@@ -123,8 +123,9 @@ export class GcpOpenTelemetry {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
-            // Creds for non-GCP environments; otherwise credentials will be
-            // automatically detected via ADC
+            // provided projectId should take precedence over env vars, etc
+            projectId: this.config.projectId,
+            // creds for non-GCP environments, in lieu of using ADC.
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
@@ -154,12 +155,17 @@ export class GcpOpenTelemetry {
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
+    let instrumentations: Instrumentation[] = [];
+
     if (this.config.autoInstrumentation) {
-      return getNodeAutoInstrumentations(
+      instrumentations = getNodeAutoInstrumentations(
         this.config.autoInstrumentationConfig
-      ).concat(this.getDefaultLoggingInstrumentations());
+      );
     }
-    return this.getDefaultLoggingInstrumentations();
+
+    return instrumentations
+      .concat(this.getDefaultLoggingInstrumentations())
+      .concat(this.config.instrumentations ?? []);
   }
 
   private shouldExportTraces(): boolean {
@@ -186,8 +192,9 @@ export class GcpOpenTelemetry {
               product: 'genkit',
               version: GENKIT_VERSION,
             },
-            // Creds for non-GCP environments; otherwise credentials will be
-            // automatically detected via ADC
+            // provided projectId should take precedence over env vars, etc
+            projectId: this.config.projectId,
+            // creds for non-GCP environments, in lieu of using ADC.
             credentials: this.config.credentials,
           },
           getErrorHandler(

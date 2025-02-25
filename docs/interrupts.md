@@ -1,3 +1,7 @@
+Beta: This feature of Genkit is in **Beta,** which means it is not yet
+part of Genkit's stable API. APIs of beta features may change in minor
+version releases.
+
 # Pause generation using interrupts
 
 _Interrupts_ are a special kind of [tool](tool-calling) that can pause the
