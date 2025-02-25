@@ -939,6 +939,8 @@ export function defineGeminiModel({
       }
 
       const callGemini = async () => {
+        let response: GenerateContentResponse;
+
         // Handle streaming and non-streaming responses
         if (sendChunk) {
           const result = await genModel
@@ -957,42 +959,38 @@ export function defineGeminiModel({
             );
           }
 
-          const response = await result.response;
-          if (!response.candidates?.length) {
-            throw new Error('No valid candidates returned.');
-          }
-
-          return {
-            candidates: response.candidates.map((c) =>
-              fromGeminiCandidate(c, jsonMode)
-            ),
-            custom: response,
-          };
+          response = await result.response;
         } else {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessage(msg.parts);
 
-          if (!result?.response.candidates?.length) {
-            throw new Error('No valid candidates returned.');
-          }
-
-          const responseCandidates = result.response.candidates.map((c) =>
-            fromGeminiCandidate(c, jsonMode)
-          );
-
-          return {
-            candidates: responseCandidates,
-            custom: result.response,
-            usage: {
-              ...getBasicUsageStats(request.messages, responseCandidates),
-              inputTokens: result.response.usageMetadata?.promptTokenCount,
-              outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-              totalTokens: result.response.usageMetadata?.totalTokenCount,
-            },
-          };
+          response = result.response;
         }
+
+        if (!response.candidates?.length) {
+          throw new GenkitError({
+            status: 'FAILED_PRECONDITION',
+            message: 'No valid candidates returned.',
+          });
+        }
+
+        const candidateData = response.candidates.map((c) =>
+          fromGeminiCandidate(c, jsonMode)
+        );
+
+        return {
+          candidates: candidateData,
+          custom: response,
+          usage: {
+            ...getBasicUsageStats(request.messages, candidateData),
+            inputTokens: response.usageMetadata?.promptTokenCount,
+            outputTokens: response.usageMetadata?.candidatesTokenCount,
+            totalTokens: response.usageMetadata?.totalTokenCount,
+          },
+        };
       };
+
       // If debugTraces is enable, we wrap the actual model call with a span, add raw
       // API params as for input.
       return debugTraces
