@@ -38,7 +38,7 @@ func TestModelGarden(t *testing.T) {
 	err = modelgarden.Init(ctx, g, &modelgarden.Config{
 		ProjectID: *projectID,
 		Location:  *location,
-		Models:    []string{"claude-3-5-sonnet-v2"},
+		Models:    []string{"claude-3-7-sonnet"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -52,11 +52,11 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
-		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-7-sonnet")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
-				Version:     "claude-3-5-sonnet-v2@20241022",
+				Version:     "claude-3-7-sonnet@20250219",
 			}),
 			ai.WithModel(m),
 			ai.WithSystemPrompt("talk to me like an evil pirate and say ARR several times but be very short"),
@@ -90,7 +90,7 @@ func TestModelGarden(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-7-sonnet")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithSystemPrompt("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to tell the name of the character in the image but be very short"),
 			ai.WithModel(m),
@@ -108,7 +108,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("tools", func(t *testing.T) {
-		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-7-sonnet")
 		myJokeTool := genkit.DefineTool(
 			g,
 			"myJoke",
@@ -131,7 +131,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-7-sonnet")
 		out := ""
 		parts := 0
 
@@ -162,7 +162,7 @@ func TestModelGarden(t *testing.T) {
 	})
 
 	t.Run("tools streaming", func(t *testing.T) {
-		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-5-sonnet-v2")
+		m := modelgarden.Model(g, anthropic.ProviderName, "claude-3-7-sonnet")
 		out := ""
 		parts := 0
 

@@ -54,6 +54,11 @@ var AnthropicModels = map[string]ai.ModelInfo{
 		Supports: &gemini.Multimodal,
 		Versions: []string{"claude-3-opus@20240229"},
 	},
+	"claude-3-7-sonnet": {
+		Label:    "Vertex AI Model Garden - Claude 3.7 Sonnet",
+		Supports: &gemini.Multimodal,
+		Versions: []string{"claude-3-7-sonnet@20250219"},
+	},
 }
 
 // AnthropicClientConfig is the required configuration to create an Anthropic
