@@ -32,42 +32,43 @@ StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 
 async def generate_action(
     registry: Registry,
-    rawRequest: GenerateActionOptions,
+    raw_request: GenerateActionOptions,
     on_chunk: StreamingCallback | None = None,
-    messageIndex: int = 0,
-    currentTurn: int = 0,
+    message_index: int = 0,
+    current_turn: int = 0,
 ) -> GenerateResponseWrapper:
     # TODO: formats
     # TODO: middleware
 
-    model, tools = resolve_parameters(registry, rawRequest)
+    model, tools = resolve_parameters(registry, raw_request)
 
     assert_valid_tool_names(tools)
 
     # TODO: interrupts
 
-    request = await action_to_generate_request(rawRequest, tools, model)
+    request = await action_to_generate_request(raw_request, tools, model)
 
-    previousChunks: List[GenerateResponseChunk] = []
+    prev_chunks: List[GenerateResponseChunk] = []
 
-    chunkRole: Role = 'model'
+    chunk_role: Role = 'model'
 
-    def makeChunk(
+    def make_chunk(
         role: Role, chunk: GenerateResponseChunk
     ) -> GenerateResponseChunk:
         """convenience method to create a full chunk from role and data, append the chunk
         to the previousChunks array, and increment the message index as needed"""
+        nonlocal chunk_role, message_index
 
-        if role != chunkRole and len(previousChunks.length) > 0:
-            messageIndex += 1
+        if role != chunk_role and len(prev_chunks.length) > 0:
+            message_index += 1
 
-        chunkRole = role
+        chunk_role = role
 
-        prevToSend = copy.copy(previousChunks)
-        previousChunks.append(chunk)
+        prev_to_send = copy.copy(prev_chunks)
+        prev_chunks.append(chunk)
 
         return GenerateResponseChunkWrapper(
-            chunk, index=messageIndex, previousChunks=prevToSend
+            chunk, index=message_index, previous_chunks=prev_to_send
         )
 
     model_response = (
@@ -76,76 +77,74 @@ async def generate_action(
     response = GenerateResponseWrapper(model_response, request)
 
     response.assert_valid()
-    generatedMessage = response.message
+    generated_msg = response.message
 
-    toolRequests = [
+    tool_requests = [
         x for x in response.message.content if x.root.tool_request != None
     ]
 
-    if rawRequest.return_tool_requests or len(toolRequests) == 0:
-        if len(toolRequests) == 0:
+    if raw_request.return_tool_requests or len(tool_requests) == 0:
+        if len(tool_requests) == 0:
             response.assert_valid_schema()
         return response
 
-    maxIterations = rawRequest.max_turns if rawRequest.max_turns != None else 5
+    max_iters = raw_request.max_turns if raw_request.max_turns != None else 5
 
-    if currentTurn + 1 > maxIterations:
+    if current_turn + 1 > max_iters:
         raise GenerationResponseError(
             response=response,
-            message=f'Exceeded maximum tool call iterations ({maxIterations})',
+            message=f'Exceeded maximum tool call iterations ({max_iters})',
             status='ABORTED',
             details={'request': request},
         )
 
     (
-        revisedModelMessage,
-        toolMessage,
-        transferPreamble,
-    ) = await resolve_tool_requests(registry, rawRequest, generatedMessage)
+        revised_model_msg,
+        tool_msg,
+        transfer_preamble,
+    ) = await resolve_tool_requests(registry, raw_request, generated_msg)
 
     # if an interrupt message is returned, stop the tool loop and return a response
-    if revisedModelMessage != None:
-        interruptedResponse = GenerateResponseWrapper(response, request)
-        interruptedResponse.finish_reason = 'interrupted'
-        interruptedResponse.finish_message = (
+    if revised_model_msg != None:
+        interrupted_resp = GenerateResponseWrapper(response, request)
+        interrupted_resp.finish_reason = 'interrupted'
+        interrupted_resp.finish_message = (
             'One or more tool calls resulted in interrupts.'
         )
-        interruptedResponse.message = revisedModelMessage
-        return interruptedResponse
+        interrupted_resp.message = revised_model_msg
+        return interrupted_resp
 
     # if the loop will continue, stream out the tool response message...
     if on_chunk != None:
         on_chunk(
-            makeChunk(
-                'tool', GenerateResponseChunk(content=toolMessage.content)
-            )
+            make_chunk('tool', GenerateResponseChunk(content=tool_msg.content))
         )
 
-    nextRequest = copy.copy(rawRequest)
-    nextMessages = copy.copy(rawRequest.messages)
-    nextMessages.append(generatedMessage)
-    nextMessages.append(toolMessage)
-    nextRequest.messages = nextMessages
-    nextRequest = apply_transfer_preamble(nextRequest, transferPreamble)
+    next_request = copy.copy(raw_request)
+    nextMessages = copy.copy(raw_request.messages)
+    nextMessages.append(generated_msg)
+    nextMessages.append(tool_msg)
+    next_request.messages = nextMessages
+    next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
     # then recursively call for another loop
     return await generate_action(
         registry,
-        rawRequest=nextRequest,
+        raw_request=next_request,
         # middleware: middleware,
-        currentTurn=currentTurn + 1,
-        messageIndex=messageIndex + 1,
+        current_turn=current_turn + 1,
+        message_index=message_index + 1,
     )
 
 
 def apply_transfer_preamble(
-    nextRequest: GenerateActionOptions, preamble: GenerateActionOptions
+    next_request: GenerateActionOptions, preamble: GenerateActionOptions
 ) -> GenerateActionOptions:
     # TODO: implement me
-    return nextRequest
+    return next_request
 
 
-def assert_valid_tool_names(rawRequest: GenerateActionOptions):
+def assert_valid_tool_names(raw_request: GenerateActionOptions):
     # TODO: implement me
     pass
 
@@ -154,7 +153,7 @@ def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> Tuple[Action, list[Action]]:
     model = (
-        request.model if request.model is not None else registry.defaultModel
+        request.model if request.model is not None else registry.default_model
     )
     if model is None:
         raise Exception('No model configured.')
@@ -165,10 +164,10 @@ def resolve_parameters(
 
     tools: list[Action] = []
     if request.tools != None:
-        for toolName in request.tools:
-            tool_action = registry.lookup_action(ActionKind.TOOL, toolName)
+        for tool_name in request.tools:
+            tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
-                raise Exception(f'Unable to resolve tool {toolName}')
+                raise Exception(f'Unable to resolve tool {tool_name}')
             tools.append(tool_action)
 
     return (model_action, tools)

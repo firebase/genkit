@@ -68,7 +68,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         self,
         chunk: GenerateResponseChunk,
         index: int,
-        prevChunks: list[GenerateResponseChunk],
+        previous_chunks: list[GenerateResponseChunk],
     ):
         super().__init__(
             role=chunk.role,

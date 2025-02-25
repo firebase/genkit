@@ -14,8 +14,6 @@ Example:
     >>> action = registry.get_action('my_action')
 """
 
-import asyncio
-import sys
 from collections.abc import Callable
 from typing import Any
 
@@ -41,6 +39,8 @@ class Registry:
         actions: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
     """
+
+    default_model: str | None = None
 
     def __init__(self):
         """Initialize an empty Registry instance."""

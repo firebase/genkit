@@ -51,7 +51,7 @@ class Genkit:
                 server.
         """
         self.registry = Registry()
-        self.registry.defaultModel = model
+        self.registry.default_model = model
 
         if is_dev_environment():
             runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
