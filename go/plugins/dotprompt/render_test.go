@@ -1,10 +1,10 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -16,9 +16,7 @@ import (
 
 // TestRender is some of the tests from prompt_test.ts.
 func TestRender(t *testing.T) {
-	g, err := genkit.New(&genkit.Options{
-		PromptDir: "testdata",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithPromptDir("testdata"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,9 +83,7 @@ This is the rest of the prompt`,
 
 // TestRenderMessages is some of the tests from template_test.ts.
 func TestRenderMessages(t *testing.T) {
-	g, err := genkit.New(&genkit.Options{
-		PromptDir: "testdata",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithPromptDir("testdata"))
 	if err != nil {
 		log.Fatal(err)
 	}
