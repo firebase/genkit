@@ -3,9 +3,7 @@
 
 import copy
 import logging
-import sys
-from typing import Any, Callable, Dict, List, Tuple
-
+from collections.abc import Callable
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -48,7 +46,7 @@ async def generate_action(
 
     request = await action_to_generate_request(raw_request, tools, model)
 
-    prev_chunks: List[GenerateResponseChunk] = []
+    prev_chunks: list[GenerateResponseChunk] = []
 
     chunk_role: Role = 'model'
 
@@ -151,7 +149,7 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions):
 
 def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
-) -> Tuple[Action, list[Action]]:
+) -> tuple[Action, list[Action]]:
     model = (
         request.model if request.model is not None else registry.default_model
     )
@@ -224,7 +222,7 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 
 async def resolve_tool_requests(
     registry: Registry, request: GenerateActionOptions, message: Message
-) -> Tuple[Message, Message, GenerateActionOptions]:
+) -> tuple[Message, Message, GenerateActionOptions]:
     # TODO: interrupts
     # TODO: prompt transfer
 
@@ -269,7 +267,7 @@ class GenerationResponseError(Exception):
         response: GenerateResponse,
         message: str,
         status: str,
-        details: Dict[str, any],
+        details: dict[str, any],
     ):
         self.response = response
         self.message = message
