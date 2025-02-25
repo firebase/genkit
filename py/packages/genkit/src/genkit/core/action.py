@@ -275,6 +275,7 @@ class Action:
             self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
         else:
             self.input_schema = TypeAdapter(Any).json_schema()
+            self.input_type = None
             self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
 
         if ActionMetadataKey.RETURN in input_spec.annotations:
@@ -353,7 +354,11 @@ class Action:
         Returns:
             The action response.
         """
-        input_action = self.input_type.validate_python(raw_input)
+        input_action = (
+            self.input_type.validate_python(raw_input)
+            if self.input_type != None
+            else None
+        )
         return await self.arun(
             input=input_action,
             on_chunk=on_chunk,
