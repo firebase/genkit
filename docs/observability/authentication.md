@@ -1,14 +1,14 @@
-# Authentication and authorization
+# Authentication and authorization {: #authentication }
 
-The Firebase telemetry plugin requires a Google Cloud project ID and application
-credentials.
+The Firebase telemetry plugin requires a Google Cloud or Firebase project ID
+and application credentials.
 
 If you don't have a Google Cloud project and account, you can set one up in the
 [Firebase Console](https://console.firebase.google.com/) or in the
 [Google Cloud Console](https://cloud.google.com). All Firebase project IDs are
 Google Cloud project IDs.
 
-## Enable APIs
+## Enable APIs {: #enable-apis }
 
 Prior to adding the plugin, make sure the following APIs are enabled for
 your project:
@@ -20,16 +20,15 @@ your project:
 These APIs should be listed in the
 [API dashboard](https://console.cloud.google.com/apis/dashboard) for your
 project.
-Click [here](https://support.google.com/googleapi/answer/6158841) to learn more
-about enabling and disabling APIs.
+Click to learn more about how to [enable and disable APIs](https://support.google.com/googleapi/answer/6158841).
 
-## User Authentication
+## User Authentication {: #user-authentication }
 
 To export telemetry from your local development environment to Firebase Genkit
 Monitoring, you will need to authenticate yourself with Google Cloud.
 
-The easiest way to authenticate as yourself is via the gcloud CLI, which will
-automatically make your credentials available to the framework via
+The easiest way to authenticate as yourself is using the gcloud CLI, which will
+automatically make your credentials available to the framework through
 [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
 
 If you don't have the gcloud CLI installed, first follow the [installation instructions](https://cloud.google.com/sdk/docs/install#installation_instructions).
@@ -46,15 +45,15 @@ If you don't have the gcloud CLI installed, first follow the [installation instr
    gcloud config set project PROJECT_ID
    ```
 
-## Deploy to Google Cloud
+## Deploy to Google Cloud {: #deploy-to-cloud }
 
-If deploying your code to a Google Cloud environment (Cloud
-Functions, Cloud Run, etc), the project ID and credentials will be discovered
-automatically via
+If deploying your code to a Google Cloud or Firebase environment (Cloud
+Functions, Cloud Run, App Hosting, etc), the project ID and credentials will be
+discovered automatically with
 [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc).
 
 You will need to apply the following roles to the service account that is
-running your code (i.e. 'attached service account') via the
+running your code (i.e. 'attached service account') using the
 [IAM Console](https://console.cloud.google.com/iam-admin/iam):
 
 - `roles/monitoring.metricWriter`
@@ -63,15 +62,15 @@ running your code (i.e. 'attached service account') via the
 
 Not sure which service account is the right one? See the
 [Find or create your service account](#find-or-create-your-service-account)
-section below.
+section.
 
-## Deploy outside of Google Cloud (with ADC)
+## Deploy outside of Google Cloud (with ADC) {: #deploy-to-cloud-with-adc }
 
-If possible, it is still recommended to leverage the
+If possible, use
 [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc)
-process to make credentials available to the plugin.
+to make credentials available to the plugin.
 
-Typically this involves generating a service account key/pair and deploying
+Typically this involves generating a service account key and deploying
 those credentials to your production environment.
 
 1. Follow the instructions to set up a
@@ -93,9 +92,9 @@ those credentials to your production environment.
 
 Not sure which service account is the right one? See the
 [Find or create your service account](#find-or-create-your-service-account)
-section below.
+section.
 
-## Deploy outside of Google Cloud (without ADC)
+## Deploy outside of Google Cloud (without ADC) {: #deploy-to-cloud-without-adc }
 
 In some serverless environments, you may not be able to deploy a credential
 file.
@@ -130,9 +129,9 @@ GCLOUD_SERVICE_ACCOUNT_CREDS='{
 
 Not sure which service account is the right one? See the
 [Find or create your service account](#find-or-create-your-service-account)
-section below.
+section.
 
-## Find or create your service account
+## Find or create your service account {: #find-or-create-your-service-account }
 
 To find the appropriate service account:
 
@@ -142,13 +141,13 @@ To find the appropriate service account:
 3. Find the appropriate service account. Common default service accounts are as follows:
 
 - Firebase functions & Cloud Run
-  
+
     <code><var>PROJECT ID</var>-compute@developer.gserviceaccount.com</code>
 
 - App Engine
-  
+
     <code><var>PROJECT ID</var>@appspot.gserviceaccount.com</code>
-  
+
 - App Hosting
   
     <code>firebase-app-hosting-compute@<var>PROJECT ID</var>.iam.gserviceaccount.com</code>
