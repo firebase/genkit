@@ -7,6 +7,7 @@
 
 import pytest
 import yaml
+import pathlib
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
@@ -87,7 +88,11 @@ async def test_simple_text_generate_request(setup_test) -> None:
 ##########################################################################
 
 specs = []
-with open('../../../tests/specs/generate.yaml') as stream:
+with open(
+    pathlib.Path(__file__)
+    .parent.joinpath('../../../../../../tests/specs/generate.yaml')
+    .resolve()
+) as stream:
     testsSpec = yaml.safe_load(stream)
     specs = testsSpec['tests']
     specs = [x for x in testsSpec['tests'] if x['name'] == 'calls tools']
