@@ -699,6 +699,14 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   return out;
 }
 
+export const GenerateActionOutputConfig = z.object({
+  format: z.string().optional(),
+  contentType: z.string().optional(),
+  instructions: z.union([z.boolean(), z.string()]).optional(),
+  jsonSchema: z.any().optional(),
+  constrained: z.boolean().optional(),
+});
+
 export const GenerateActionOptionsSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
   model: z.string(),
@@ -713,15 +721,7 @@ export const GenerateActionOptionsSchema = z.object({
   /** Configuration for the generation request. */
   config: z.any().optional(),
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
-  output: z
-    .object({
-      format: z.string().optional(),
-      contentType: z.string().optional(),
-      instructions: z.union([z.boolean(), z.string()]).optional(),
-      jsonSchema: z.any().optional(),
-      constrained: z.boolean().optional(),
-    })
-    .optional(),
+  output: GenerateActionOutputConfig.optional(),
   /** Options for resuming an interrupted generation. */
   resume: z
     .object({

@@ -8,3 +8,4 @@ go/
 pnpm-lock.yaml
 public/
 py/*
+README.md

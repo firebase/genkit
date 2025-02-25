@@ -1,4 +1,6 @@
 /**
+ * @license
+ *
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,4 +16,27 @@
  * limitations under the License.
  */
 
+/**
+ * A simple, browser-safe client library for remotely runnning/streaming deployed Genkit flows.
+ *
+ * ```ts
+ * import { runFlow, streamFlow } from 'genkit/beta/client';
+ *
+ * const response = await runFlow({
+ *   url: 'https://my-flow-deployed-url',
+ *   input: 'foo',
+ * });
+ *
+ * const response = streamFlow({
+ *   url: 'https://my-flow-deployed-url',
+ *   input: 'foo',
+ * });
+ * for await (const chunk of response.stream) {
+ *   console.log(chunk);
+ * }
+ * console.log(await response.output);
+ * ```
+ *
+ * @module beta/client
+ */
 export { runFlow, streamFlow } from './client.js';

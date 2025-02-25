@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { gemini20Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash,
+  model: gemini20Flash,
 });
 
-(async () => {
-  const { text } = await ai.generate('hi');
+async function main() {
+  // make a generation request
+  const { text } = await ai.generate('Hello, Gemini!');
   console.log(text);
-})();
+}
+
+main();

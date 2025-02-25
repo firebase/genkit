@@ -36,6 +36,7 @@ export function deleteUndefinedProps(obj: any) {
 export function stripUndefinedProps<T>(input: T): T {
   if (
     input === undefined ||
+    input === null ||
     Array.isArray(input) ||
     typeof input !== 'object'
   ) {

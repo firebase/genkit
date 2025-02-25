@@ -52,11 +52,11 @@ func TestLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
-		func(ctx context.Context, input struct {
-			Value float64
+		func(ctx *ai.ToolContext, input struct {
+			Value int
 			Over  float64
 		}) (float64, error) {
-			return math.Pow(input.Value, input.Over), nil
+			return math.Pow(float64(input.Value), input.Over), nil
 		},
 	)
 	t.Run("embedder", func(t *testing.T) {
@@ -137,7 +137,7 @@ func TestLive(t *testing.T) {
 		}
 
 		out := resp.Message.Content[0].Text
-		const want = "12.25"
+		const want = "11.31"
 		if !strings.Contains(out, want) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}

@@ -24,7 +24,7 @@ const ai = genkit({
   // Initialize and configure the model plugins.
   plugins: [
     googleAI({
-      apiKey: 'your-api-key', // Or (preferred): export GOOGLE_GENAI_API_KEY=...
+      apiKey: 'your-api-key', // Or (preferred): export GEMINI_API_KEY=...
     }),
   ],
 });

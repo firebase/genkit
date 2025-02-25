@@ -23,6 +23,11 @@ import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 import { TelemetryConfigs } from './telemetry/defaults.js';
 import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from './types.js';
 
+/**
+ * Enables telemetry export to the Google Cloud Observability suite.
+ *
+ * @param options configuration options
+ */
 export function enableGoogleCloudTelemetry(
   options?: GcpTelemetryConfigOptions
 ) {
@@ -36,7 +41,7 @@ export function enableGoogleCloudTelemetry(
 
 /**
  * Create a configuration object for the plugin.
- * Not normally needed, but exposed for use by the firebase plugin.
+ * Not normally needed, but exposed for use by the Firebase plugin.
  */
 async function configureGcpPlugin(
   options?: GcpTelemetryConfigOptions
