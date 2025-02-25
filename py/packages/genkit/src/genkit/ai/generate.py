@@ -3,6 +3,7 @@
 
 import copy
 import logging
+from typing import Any
 from collections.abc import Callable
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
@@ -268,7 +269,7 @@ class GenerationResponseError(Exception):
         response: GenerateResponse,
         message: str,
         status: str,
-        details: dict[str, any],
+        details: dict[str, Any],
     ):
         self.response = response
         self.message = message
