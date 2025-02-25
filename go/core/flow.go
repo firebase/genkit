@@ -5,6 +5,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -42,7 +43,8 @@ func DefineFlow[In, Out any](
 ) *Flow[In, Out, struct{}] {
 	a := DefineAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In) (Out, error) {
 		fc := &flowContext{tracingState: r.TracingState()}
-		return fn(flowContextKey.NewContext(ctx, fc), input)
+		ctx = flowContextKey.NewContext(ctx, fc)
+		return fn(ctx, input)
 	})
 	return &Flow[In, Out, struct{}]{action: a}
 }
@@ -63,7 +65,8 @@ func DefineStreamingFlow[In, Out, Stream any](
 ) *Flow[In, Out, Stream] {
 	a := DefineStreamingAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
 		fc := &flowContext{tracingState: r.TracingState()}
-		return fn(flowContextKey.NewContext(ctx, fc), input, cb)
+		ctx = flowContextKey.NewContext(ctx, fc)
+		return fn(ctx, input, cb)
 	})
 	return &Flow[In, Out, Stream]{action: a}
 }
@@ -75,7 +78,7 @@ func DefineStreamingFlow[In, Out, Stream any](
 // Each call to Run results in a new step in the flow.
 // A step has its own span in the trace, and its result is cached so that if the flow
 // is restarted, f will not be called a second time.
-func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
+func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out, error) {
 	fc := flowContextKey.FromContext(ctx)
 	if fc == nil {
 		var z Out
@@ -84,12 +87,22 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 	return tracing.RunInNewSpan(ctx, fc.tracingState, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit:name", name)
 		tracing.SetCustomMetadataAttr(ctx, "genkit:type", "flowStep")
-		o, err := f()
+		o, err := fn()
 		if err != nil {
 			return base.Zero[Out](), err
 		}
 		return o, nil
 	})
+}
+
+// Name returns the name of the flow.
+func (f *Flow[In, Out, Stream]) Name() string {
+	return f.action.Name()
+}
+
+// RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
+func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+	return f.action.RunJSON(ctx, input, cb)
 }
 
 // Run runs the flow in the context of another flow.

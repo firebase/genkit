@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package firebase
 
 import (
@@ -12,93 +11,58 @@ import (
 	"strings"
 
 	"firebase.google.com/go/v4/auth"
-	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/core"
 )
 
-var authContextKey = base.NewContextKey[map[string]any]()
+// AuthContext is the context of an authenticated request.
+type AuthContext = *auth.Token
 
+// AuthPolicy is a function that validates an incoming request.
+type AuthPolicy = func(context.Context, AuthContext, json.RawMessage) error
+
+// AuthClient is a client for the Firebase Auth service.
 type AuthClient interface {
 	VerifyIDToken(context.Context, string) (*auth.Token, error)
 }
 
-// firebaseAuth is a Firebase auth provider.
-type firebaseAuth struct {
-	client   AuthClient                          // Auth client for verifying ID tokens.
-	policy   func(genkit.AuthContext, any) error // Auth policy for checking auth context.
-	required bool                                // Whether auth is required for direct calls.
-}
-
-// NewAuth creates a Firebase auth check.
-func NewAuth(ctx context.Context, policy func(genkit.AuthContext, any) error, required bool) (genkit.FlowAuth, error) {
+// ContextProvider creates a Firebase context provider for Genkit actions.
+func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvider, error) {
 	app, err := App(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	client, err := app.Auth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	auth := &firebaseAuth{
-		client:   client,
-		policy:   policy,
-		required: required,
-	}
-	return auth, nil
-}
 
-// ProvideAuthContext provides auth context from an auth header and sets it on the context.
-func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
-	if authHeader == "" {
-		if f.required {
+	return func(ctx context.Context, input core.RequestData) (core.ActionContext, error) {
+		authHeader, ok := input.Headers["authorization"]
+		if !ok {
 			return nil, errors.New("authorization header is required but not provided")
 		}
-		return ctx, nil
-	}
-	const bearerPrefix = "bearer "
-	if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
-		return nil, errors.New("invalid authorization header format")
-	}
-	token := authHeader[len(bearerPrefix):]
-	authToken, err := f.client.VerifyIDToken(ctx, token)
-	if err != nil {
-		return nil, fmt.Errorf("error verifying ID token: %v", err)
-	}
-	authBytes, err := json.Marshal(authToken)
-	if err != nil {
-		return nil, err
-	}
-	var authContext genkit.AuthContext
-	if err = json.Unmarshal(authBytes, &authContext); err != nil {
-		return nil, err
-	}
-	return f.NewContext(ctx, authContext), nil
-}
 
-// NewContext sets the auth context on the given context.
-func (f *firebaseAuth) NewContext(ctx context.Context, authContext genkit.AuthContext) context.Context {
-	if ctx == nil {
-		return nil
-	}
-	return authContextKey.NewContext(ctx, authContext)
-}
+		const bearerPrefix = "bearer "
 
-// FromContext retrieves the auth context from the given context.
-func (*firebaseAuth) FromContext(ctx context.Context) genkit.AuthContext {
-	if ctx == nil {
-		return nil
-	}
-	return authContextKey.FromContext(ctx)
-}
-
-// CheckAuthPolicy checks auth context against policy.
-func (f *firebaseAuth) CheckAuthPolicy(ctx context.Context, input any) error {
-	authContext := f.FromContext(ctx)
-	if authContext == nil {
-		if f.required {
-			return errors.New("auth is required")
+		if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
+			return nil, errors.New("invalid authorization header format")
 		}
-		return nil
-	}
-	return f.policy(authContext, input)
+
+		token := authHeader[len(bearerPrefix):]
+		authCtx, err := client.VerifyIDToken(ctx, token)
+		if err != nil {
+			return nil, fmt.Errorf("error verifying ID token: %v", err)
+		}
+
+		if policy != nil {
+			if err := policy(ctx, authCtx, input.Input); err != nil {
+				return nil, err
+			}
+		}
+
+		return core.ActionContext{
+			"auth": authCtx,
+		}, nil
+	}, nil
 }

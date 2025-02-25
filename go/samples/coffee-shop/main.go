@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 const simpleGreetingPromptTemplate = `
@@ -205,5 +206,5 @@ func main() {
 	for _, a := range genkit.ListFlows(g) {
 		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
 	}
-	log.Fatal(genkit.StartServer(ctx, "127.0.0.1:8080", mux))
+	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }

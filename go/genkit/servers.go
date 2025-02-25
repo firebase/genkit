@@ -10,12 +10,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"sync/atomic"
-	"syscall"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
@@ -25,19 +22,20 @@ import (
 type HandlerOption = func(params *handlerParams)
 
 type handlerParams struct {
-	ContextProvider core.ContextProvider
+	ContextProviders []core.ContextProvider
 }
 
 // requestID is a unique ID for each request.
 var requestID atomic.Int64
 
-// WithContextProvider sets the context provider for the handler.
-func WithContextProvider(ctxProvider core.ContextProvider) HandlerOption {
+// WithContextProviders adds providers for action context that may be used during runtime.
+// They are called in the order added and may overwrite previous context.
+func WithContextProviders(ctxProviders ...core.ContextProvider) HandlerOption {
 	return func(params *handlerParams) {
-		if params.ContextProvider != nil {
-			panic("genkit.WithContextProvider: cannot set ContextProvider more than once")
+		if params.ContextProviders != nil {
+			panic("genkit.WithContextProviders: cannot set ContextProviders more than once")
 		}
-		params.ContextProvider = ctxProvider
+		params.ContextProviders = ctxProviders
 	}
 }
 
@@ -48,36 +46,6 @@ func Handler(a Action, opts ...HandlerOption) http.HandlerFunc {
 		opt(params)
 	}
 	return wrapHandler(handler(a, params))
-}
-
-// StartServer starts a new HTTP server and manages its lifecycle.
-func StartServer(ctx context.Context, addr string, mux *http.ServeMux) error {
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-
-	srv := &http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}
-
-	errChan := make(chan error, 1)
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errChan <- fmt.Errorf("server error: %w", err)
-		}
-		cancel()
-	}()
-
-	select {
-	case err := <-errChan:
-		return err
-	case <-ctx.Done():
-		if err := srv.Shutdown(ctx); err != nil {
-			return fmt.Errorf("failed to shutdown server: %w", err)
-		}
-	}
-	return nil
 }
 
 // wrapHandler wraps an HTTP handler function with common logging and error handling.
@@ -146,23 +114,31 @@ func handler(a Action, params *handlerParams) func(http.ResponseWriter, *http.Re
 		}
 
 		ctx := r.Context()
-		if params.ContextProvider != nil {
-			headers := make(map[string]string, len(r.Header))
-			for k, v := range r.Header {
-				headers[strings.ToLower(k)] = strings.Join(v, " ")
-			}
+		if params.ContextProviders != nil {
+			for _, ctxProvider := range params.ContextProviders {
+				headers := make(map[string]string, len(r.Header))
+				for k, v := range r.Header {
+					headers[strings.ToLower(k)] = strings.Join(v, " ")
+				}
 
-			actionCtx, err := params.ContextProvider(ctx, core.RequestData{
-				Method:  r.Method,
-				Headers: headers,
-				Input:   body.Data,
-			})
-			if err != nil {
-				logger.FromContext(ctx).Error("error providing action runtime context from request", "err", err)
-				return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
-			}
+				actionCtx, err := ctxProvider(ctx, core.RequestData{
+					Method:  r.Method,
+					Headers: headers,
+					Input:   body.Data,
+				})
+				if err != nil {
+					logger.FromContext(ctx).Error("error providing action context from request", "err", err)
+					return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
+				}
 
-			ctx = core.WithActionContext(ctx, actionCtx)
+				if existing := core.FromContext(ctx); existing != nil {
+					for k, v := range actionCtx {
+						existing[k] = v
+					}
+					actionCtx = existing
+				}
+				ctx = core.WithActionContext(ctx, actionCtx)
+			}
 		}
 
 		out, err := a.RunJSON(ctx, body.Data, callback)
