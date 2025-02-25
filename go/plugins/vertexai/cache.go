@@ -27,12 +27,19 @@ type CacheConfigDetails struct {
 	TTL time.Duration
 }
 
+var ContextCacheSupportedModels = [...]string{
+	"gemini-1.5-flash-001",
+	"gemini-1.5-pro-001",
+}
+
 var INVALID_ARGUMENT_MESSAGES = struct {
 	modelVersion string
 	tools        string
 }{
-	modelVersion: "Invalid modelVersion specified.",
-	tools:        "Tools are not supported with context caching.",
+	modelVersion: fmt.Sprintf(
+		"unsupported model version, expected: %s",
+		strings.Join(ContextCacheSupportedModels[:], ", ")),
+	tools: "tools are not supported with context caching",
 }
 
 // getContentForCache inspects the request and modelVersion, and constructs a
@@ -145,15 +152,6 @@ func calculateTTL(ttl time.Duration) time.Duration {
 	return ttl * time.Second
 }
 
-// getKeysFrom returns the keys from the given map as a slice of strings, it is using to get the supported models
-func getKeysFrom(m map[string]ai.ModelCapabilities) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 // contains checks if a slice contains a given string.
 func contains(slice []string, target string) bool {
 	for _, s := range slice {
@@ -167,8 +165,7 @@ func contains(slice []string, target string) bool {
 // validateContextCacheRequest decides if we should try caching for this request.
 // For demonstration, we will cache if there are more than 2 messages or if there's a system prompt.
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
-	models := getKeysFrom(knownCaps)
-	if modelVersion == "" || !contains(models, modelVersion) {
+	if modelVersion == "" || !contains(ContextCacheSupportedModels[:], modelVersion) {
 		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.modelVersion)
 	}
 	if len(request.Tools) > 0 {

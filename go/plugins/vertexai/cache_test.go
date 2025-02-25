@@ -145,30 +145,6 @@ func TestCalculateTTL(t *testing.T) {
 	}
 }
 
-func TestGetKeysFrom(t *testing.T) {
-	m := map[string]ai.ModelCapabilities{
-		"alpha": {},
-		"beta":  {},
-	}
-	keys := getKeysFrom(m)
-	if len(keys) != 2 {
-		t.Errorf("expected 2 keys, got %d", len(keys))
-	}
-	foundAlpha := false
-	foundBeta := false
-	for _, k := range keys {
-		if k == "alpha" {
-			foundAlpha = true
-		}
-		if k == "beta" {
-			foundBeta = true
-		}
-	}
-	if !foundAlpha || !foundBeta {
-		t.Errorf("expected 'alpha' and 'beta' in keys, got %v", keys)
-	}
-}
-
 func TestContains(t *testing.T) {
 	slice := []string{"foo", "bar", "baz"}
 	if !contains(slice, "foo") {
@@ -205,7 +181,7 @@ func TestValidateContextCacheRequest_HasTools(t *testing.T) {
 	req := &ai.ModelRequest{
 		Tools: []*ai.ToolDefinition{{Name: "someTool"}},
 	}
-	err := validateContextCacheRequest(req, "gemini-1.5-flash")
+	err := validateContextCacheRequest(req, "gemini-1.5-flash-001")
 	if err == nil {
 		t.Fatal("expected error if Tools are present")
 	}
@@ -216,7 +192,7 @@ func TestValidateContextCacheRequest_HasTools(t *testing.T) {
 
 func TestValidateContextCacheRequest_Valid(t *testing.T) {
 	req := &ai.ModelRequest{}
-	err := validateContextCacheRequest(req, "gemini-1.5-flash")
+	err := validateContextCacheRequest(req, "gemini-1.5-flash-001")
 	if err != nil {
 		t.Fatalf("did not expect error, got: %v", err)
 	}
