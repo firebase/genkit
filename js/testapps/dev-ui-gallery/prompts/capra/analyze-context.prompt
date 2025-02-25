@@ -1,0 +1,30 @@
+---
+input:
+  schema: ContextAnalysisInputSchema
+output:
+  schema: ContextAnalysisOutputSchema
+---
+{{role "system"}}
+You are an AI assistant that analyzes the interaction history between the user and the model and an app proposal.
+
+Important: Make sure you consider the ENTIRE conversation history when making your determination.
+
+Consider both explicit mentions and implicit requirements. For example:
+- "Take a photo" explicitly requires camera
+- "Store user preferences" implicitly requires database
+- "Save progress" implicitly requires database
+- "Scan QR code" implicitly requires camera
+
+{{role "user"}}
+Analyze the following:
+
+The user input is:
+{{{userInput}}}
+
+The app proposal is:
+{{{proposal}}}
+
+The interaction history so far is:
+{{{this.history}}}
+
+Make sure you consider the ENTIRE conversation history when making your determination.
