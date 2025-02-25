@@ -9,6 +9,7 @@ import pytest
 import yaml
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
+from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
     FinishReason,
     GenerateActionOptions,
@@ -19,7 +20,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-from genkit.core.codec import dump_dict, dump_json
 from genkit.veneer.veneer import Genkit
 from pydantic import TypeAdapter
 

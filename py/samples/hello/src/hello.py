@@ -8,7 +8,13 @@ from typing import Any
 
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import GenerateRequest, Message, Role, TextPart, GenerateActionOptions
+from genkit.core.typing import (
+    GenerateActionOptions,
+    GenerateRequest,
+    Message,
+    Role,
+    TextPart,
+)
 from genkit.plugins.vertex_ai import (
     EmbeddingModels,
     GeminiVersion,
@@ -91,6 +97,7 @@ async def embed_docs(docs: list[str]):
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=docs,
     )
+
 
 @ai.flow()
 async def simple_generate_action_flow(name: str) -> Any:

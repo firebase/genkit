@@ -10,6 +10,7 @@ from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
 )
+from genkit.core.codec import dump_dict
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -23,7 +24,6 @@ from genkit.core.typing import (
     ToolResponse1,
     ToolResponsePart,
 )
-from genkit.core.codec import dump_dict
 
 logger = logging.getLogger(__name__)
 
