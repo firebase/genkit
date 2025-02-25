@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 
+DEFAULT_MAX_TURNS = 5
+
 
 async def generate_action(
     registry: Registry,
@@ -77,16 +79,16 @@ async def generate_action(
     response.assert_valid()
     generated_msg = response.message
 
-    tool_requests = [
-        x for x in response.message.content if x.root.tool_request != None
-    ]
+    tool_requests = [x for x in response.message.content if x.root.tool_request]
 
     if raw_request.return_tool_requests or len(tool_requests) == 0:
         if len(tool_requests) == 0:
             response.assert_valid_schema()
         return response
 
-    max_iters = raw_request.max_turns if raw_request.max_turns != None else 5
+    max_iters = (
+        raw_request.max_turns if raw_request.max_turns else DEFAULT_MAX_TURNS
+    )
 
     if current_turn + 1 > max_iters:
         raise GenerationResponseError(
@@ -103,7 +105,7 @@ async def generate_action(
     ) = await resolve_tool_requests(registry, raw_request, generated_msg)
 
     # if an interrupt message is returned, stop the tool loop and return a response
-    if revised_model_msg != None:
+    if revised_model_msg:
         interrupted_resp = GenerateResponseWrapper(response, request)
         interrupted_resp.finish_reason = 'interrupted'
         interrupted_resp.finish_message = (
@@ -113,7 +115,7 @@ async def generate_action(
         return interrupted_resp
 
     # if the loop will continue, stream out the tool response message...
-    if on_chunk != None:
+    if on_chunk:
         on_chunk(
             make_chunk('tool', GenerateResponseChunk(content=tool_msg.content))
         )
@@ -161,7 +163,7 @@ def resolve_parameters(
         raise Exception(f'Failed to to resolve model {model}')
 
     tools: list[Action] = []
-    if request.tools != None:
+    if request.tools:
         for tool_name in request.tools:
             tool_action = registry.lookup_action(ActionKind.TOOL, tool_name)
             if tool_action is None:
@@ -227,9 +229,7 @@ async def resolve_tool_requests(
     # TODO: prompt transfer
 
     tool_requests = [
-        x.root.tool_request
-        for x in message.content
-        if x.root.tool_request != None
+        x.root.tool_request for x in message.content if x.root.tool_request
     ]
     tool_dict: dict[str, Action] = {}
     for tool_name in request.tools:
