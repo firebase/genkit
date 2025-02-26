@@ -16,13 +16,15 @@
 
 import { GenerateContentCandidate } from '@google-cloud/vertexai';
 import * as assert from 'assert';
-import { MessageData } from 'genkit';
+import { MessageData, z } from 'genkit';
+import { toJsonSchema } from 'genkit/schema';
 import { describe, it } from 'node:test';
 import {
   cleanSchema,
   fromGeminiCandidate,
   toGeminiMessage,
   toGeminiSystemInstruction,
+  toGeminiTool,
 } from '../src/gemini.js';
 
 describe('toGeminiMessages', () => {
@@ -379,5 +381,63 @@ describe('cleanSchema', () => {
       },
       required: ['title'],
     });
+  });
+});
+
+describe('toGeminiTool', () => {
+  it('', async () => {
+    const got = toGeminiTool({
+      name: 'foo',
+      description: 'tool foo',
+      inputSchema: toJsonSchema({
+        schema: z.object({
+          simpleString: z.string().describe('a string').nullable(),
+          simpleNumber: z.number().describe('a number'),
+          simpleBoolean: z.boolean().describe('a boolean').optional(),
+          simpleArray: z.array(z.string()).describe('an array').optional(),
+          simpleEnum: z
+            .enum(['choice_a', 'choice_b'])
+            .describe('an enum')
+            .optional(),
+        }),
+      }),
+    });
+
+    const want = {
+      description: 'tool foo',
+      name: 'foo',
+      parameters: {
+        properties: {
+          simpleArray: {
+            description: 'an array',
+            items: {
+              type: 'STRING',
+            },
+            type: 'ARRAY',
+          },
+          simpleBoolean: {
+            description: 'a boolean',
+            type: 'BOOLEAN',
+          },
+          simpleEnum: {
+            description: 'an enum',
+            enum: ['choice_a', 'choice_b'],
+            type: 'STRING',
+          },
+          simpleNumber: {
+            description: 'a number',
+            type: 'NUMBER',
+          },
+          simpleString: {
+            description: 'a string',
+            nullable: true,
+            type: 'STRING',
+          },
+        },
+        required: ['simpleString', 'simpleNumber'],
+        type: 'OBJECT',
+      },
+    };
+    assert.deepStrictEqual(got, want);
   });
 });

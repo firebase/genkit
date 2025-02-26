@@ -20,7 +20,7 @@ import { DocumentDataSchema } from './document';
 // IMPORTANT: Keep this file in sync with genkit/ai/src/model.ts!
 //
 
-const EmptyPartSchema = z.object({
+export const EmptyPartSchema = z.object({
   text: z.never().optional(),
   media: z.never().optional(),
   toolRequest: z.never().optional(),
@@ -96,7 +96,7 @@ export const MessageSchema = z.object({
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
-const OutputFormatSchema = z.enum(['json', 'text', 'media']);
+export const OutputFormatSchema = z.enum(['json', 'text', 'media']);
 
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
@@ -157,9 +157,11 @@ export const GenerationCommonConfigSchema = z.object({
 });
 export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 
-const OutputConfigSchema = z.object({
+export const OutputConfigSchema = z.object({
   format: OutputFormatSchema.optional(),
   schema: z.record(z.any()).optional(),
+  constrained: z.boolean().optional(),
+  contentType: z.string().optional(),
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 

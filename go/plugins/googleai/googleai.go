@@ -61,6 +61,10 @@ var (
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
+		"gemini-2.0-pro-exp-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
@@ -382,7 +386,7 @@ func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
 		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
-		if err != err {
+		if err != nil {
 			return nil, err
 		}
 		fd := &genai.FunctionDeclaration{
@@ -414,7 +418,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 		schema.Type = genai.TypeNumber
 	case "number":
 		schema.Type = genai.TypeNumber
-	case "int":
+	case "integer":
 		schema.Type = genai.TypeInteger
 	case "bool":
 		schema.Type = genai.TypeBoolean

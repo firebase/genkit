@@ -46,7 +46,8 @@ logger.setLogLevel('info');
 
 enableFirebaseTelemetry({
   forceDevExport: false,
-  metricExportIntervalMillis: 5000,
+  metricExportIntervalMillis: 5_000,
+  metricExportTimeoutMillis: 5_000,
   autoInstrumentation: true,
   autoInstrumentationConfig: {
     '@opentelemetry/instrumentation-fs': { enabled: false },
@@ -79,6 +80,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 };
 
 export const ai = genkit({
+  model: gemini15Flash,
   // load at least one plugin representing each action type
   plugins: [
     // model providers

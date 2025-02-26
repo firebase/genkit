@@ -17,6 +17,7 @@
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
 import { EmbedderAction, EmbedderReference, Genkit, z } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
+import { getApiKeyFromEnvVar } from './common.js';
 import { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([
@@ -82,13 +83,10 @@ export function defineGoogleAIEmbedder(
   name: string,
   options: PluginOptions
 ): EmbedderAction<any> {
-  let apiKey =
-    options?.apiKey ||
-    process.env.GOOGLE_GENAI_API_KEY ||
-    process.env.GOOGLE_API_KEY;
+  let apiKey = options?.apiKey || getApiKeyFromEnvVar();
   if (!apiKey)
     throw new Error(
-      'Please pass in the API key or set either GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+      'Please pass in the API key or set either GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
         'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
     );
   const embedder: EmbedderReference =

@@ -26,11 +26,13 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 const simpleGreetingPromptTemplate = `
@@ -83,9 +85,8 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "googleai/gemini-1.5-flash",
-	})
+	ctx := context.Background()
+	g, err := genkit.Init(ctx, genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
@@ -201,7 +202,9 @@ func main() {
 		return out, nil
 	})
 
-	if err := g.Start(context.Background(), nil); err != nil {
-		log.Fatal(err)
+	mux := http.NewServeMux()
+	for _, a := range genkit.ListFlows(g) {
+		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
 	}
+	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }

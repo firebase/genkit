@@ -293,7 +293,7 @@ function definePromptAsync<
       docs = resolvedOptions.docs;
     }
 
-    return stripUndefinedProps({
+    const opts: GenerateOptions = stripUndefinedProps({
       model: resolvedOptions.model,
       maxTurns: resolvedOptions.maxTurns,
       messages,
@@ -310,6 +310,11 @@ function definePromptAsync<
         ...renderOptions?.config,
       },
     });
+    // if config is empty and it was not explicitly passed in, we delete it, don't want {}
+    if (Object.keys(opts.config).length === 0 && !renderOptions?.config) {
+      delete opts.config;
+    }
+    return opts;
   };
   const rendererActionConfig = lazy(() =>
     optionsPromise.then((options: PromptConfig<I, O, CustomOptions>) => {
@@ -394,7 +399,7 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
       input: {
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
-      name: options.name,
+      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
       model: modelName(options.model),
     },
     type: 'prompt',

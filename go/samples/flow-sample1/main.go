@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // This program can be manually tested like so:
 // Start the server listening on port 3100:
 //
@@ -24,17 +23,20 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 func main() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
@@ -47,18 +49,7 @@ func main() {
 		return genkit.Run(ctx, "call-llm", func() (string, error) { return "foo: " + foo, nil })
 	})
 
-	auth := &testAuth{}
-
-	genkit.DefineFlow(g, "withContext", func(ctx context.Context, subject string) (string, error) {
-		authJson, err := json.Marshal(auth.FromContext(ctx))
-		if err != nil {
-			return "", err
-		}
-
-		return "subject=" + subject + ",auth=" + string(authJson), nil
-	}, genkit.WithFlowAuth(auth))
-
-	genkit.DefineFlow(g, "parent", func(ctx context.Context, _ struct{}) (string, error) {
+	genkit.DefineFlow(g, "parent", func(ctx context.Context, _ any) (string, error) {
 		return basic.Run(ctx, "foo")
 	})
 
@@ -68,7 +59,7 @@ func main() {
 	}
 
 	genkit.DefineFlow(g, "complex", func(ctx context.Context, c complex) (string, error) {
-		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return c.Key + ": " + strconv.Itoa(c.Value), nil })
+		foo, err := core.Run(ctx, "call-llm", func() (string, error) { return c.Key + ": " + strconv.Itoa(c.Value), nil })
 		if err != nil {
 			return "", err
 		}
@@ -110,51 +101,9 @@ func main() {
 		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
 	})
 
-	if err := g.Start(context.Background(), nil); err != nil {
-		log.Fatal(err)
+	mux := http.NewServeMux()
+	for _, a := range genkit.ListFlows(g) {
+		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
 	}
-}
-
-type testAuth struct {
-	genkit.FlowAuth
-}
-
-const authKey = "testAuth"
-
-// ProvideAuthContext provides auth context from an auth header and sets it on the context.
-func (f *testAuth) ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
-	var context genkit.AuthContext
-	context = map[string]any{
-		"username": authHeader,
-	}
-	return f.NewContext(ctx, context), nil
-}
-
-// NewContext sets the auth context on the given context.
-func (f *testAuth) NewContext(ctx context.Context, authContext genkit.AuthContext) context.Context {
-	return context.WithValue(ctx, authKey, authContext)
-}
-
-// FromContext retrieves the auth context from the given context.
-func (*testAuth) FromContext(ctx context.Context) genkit.AuthContext {
-	if ctx == nil {
-		return nil
-	}
-	val := ctx.Value(authKey)
-	if val == nil {
-		return nil
-	}
-	return val.(genkit.AuthContext)
-}
-
-// CheckAuthPolicy checks auth context against policy.
-func (f *testAuth) CheckAuthPolicy(ctx context.Context, input any) error {
-	authContext := f.FromContext(ctx)
-	if authContext == nil {
-		return errors.New("auth is required")
-	}
-	if authContext["username"] != "authorized" {
-		return errors.New("unauthorized")
-	}
-	return nil
+	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }

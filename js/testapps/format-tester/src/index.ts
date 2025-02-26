@@ -154,6 +154,7 @@ if (!models.length) {
     'vertexai/gemini-1.5-flash',
     'googleai/gemini-1.5-pro',
     'googleai/gemini-1.5-flash',
+    'googleai/gemini-2.0-flash',
   ];
 }
 

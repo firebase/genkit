@@ -26,6 +26,8 @@ export interface CommonPluginOptions {
   location: string;
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
+  /** Enables additional debug traces (e.g. raw model API call details). */
+  experimental_debugTraces?: boolean;
 }
 
 /** Combined plugin options, extending common options with subplugin-specific options */

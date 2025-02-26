@@ -1,25 +1,8 @@
 # Google Cloud plugin for Genkit
 
-## Installing the plugin
+The Google Cloud plugin is a utility plugin to export telemetry and logs to Cloud Observability. This functionality is exposed through the Firebase plugin for customer use.
 
-```bash
-npm i --save @genkit-ai/google-cloud
-```
-
-## Using the plugin
-
-```ts
-import { genkit } from 'genkit';
-import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-
-enableGoogleCloudTelemetry();
-
-const ai = genkit({
-  plugins: [
-    // ...
-  ],
-});
-```
+Visit the [Getting started](https://firebase.google.com/docs/genkit/observability/getting-started) docs to set up Firebase Genkit Monitoring.
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 

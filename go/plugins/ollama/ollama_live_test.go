@@ -29,7 +29,7 @@ func TestLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
