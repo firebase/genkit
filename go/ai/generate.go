@@ -149,6 +149,26 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 	return (*modelActionDef)(action)
 }
 
+// LookupModelByName looks up a [Model] registered by [DefineModel].
+// It returns an error if the model was not defined.
+func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
+	if modelName == "" {
+		return nil, errors.New("generate.LookupModelByName: model not specified")
+	}
+
+	parts := strings.Split(modelName, "/")
+	if len(parts) != 2 {
+		return nil, errors.New("generate.LookupModelByName: prompt model not in provider/name format")
+	}
+
+	model := LookupModel(r, parts[0], parts[1])
+	if model == nil {
+		return nil, fmt.Errorf("generate.LookupModelByName: no model named %q for provider %q", parts[1], parts[0])
+	}
+
+	return model, nil
+}
+
 // generateParams represents various params of the Generate call.
 type generateParams struct {
 	Request            *ModelRequest

@@ -20,7 +20,10 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-// RenderSystemPrompt renders the system prompt.
+// RenderSystemPrompt renders a system prompt message.
+// It uses config.SystemFn (if present) or config.System as a template, renders it with input,
+// and appends the result as a system message to the messages slice.
+// Returns the updated messages and any rendering errors.
 func RenderSystemPrompt(ctx context.Context, config *Config, messages []*ai.Message, input map[string]any, raw any) ([]*ai.Message, error) {
 	var templateText string
 	var err error
@@ -49,7 +52,10 @@ func RenderSystemPrompt(ctx context.Context, config *Config, messages []*ai.Mess
 	return messages, nil
 }
 
-// RenderUserPrompt renders the user prompt.
+// RenderUserPrompt renders a user prompt message.
+// It uses config.PromptFn (if present) or config.Prompt as a template, renders it with input,
+// and appends the result as a user message to the messages slice.
+// Returns the updated messages and any rendering errors.
 func RenderUserPrompt(ctx context.Context, config *Config, messages []*ai.Message, input map[string]any, raw any) ([]*ai.Message, error) {
 	var templateText string
 	var err error
@@ -78,6 +84,10 @@ func RenderUserPrompt(ctx context.Context, config *Config, messages []*ai.Messag
 	return messages, nil
 }
 
+// RenderMessages renders a slice of messages.
+// It uses config.MessagesFn (if present) or config.Messages as a template, renders e with input,
+// and appends the result to the messages slice.
+// Returns the updated messages and any rendering errors.
 func RenderMessages(ctx context.Context, config *Config, messages []*ai.Message, input map[string]any, raw any) ([]*ai.Message, error) {
 	var msgs []*ai.Message
 	var err error

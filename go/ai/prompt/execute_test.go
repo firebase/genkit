@@ -52,7 +52,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	testModel := ai.DefineModel(r, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := Define(r, "TestExecute", "TestExecute", WithInputType(InputOutput{}), WithDefaultPrompt("TestExecute"))
+		p, err := Define(r, "TestExecute", "TestExecute", WithInputType(InputOutput{}), WithPromptText("TestExecute"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := Define(r, "TestModelname", "TestModelname", WithInputType(InputOutput{}), WithDefaultPrompt("TestModelname"))
+		p, err := Define(r, "TestModelname", "TestModelname", WithInputType(InputOutput{}), WithPromptText("TestModelname"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -132,14 +132,6 @@ func TestExecuteOptions(t *testing.T) {
 			with: WithModel(testModel),
 		},
 		{
-			name: "WithSystemText",
-			with: WithSystemText("say hello"),
-		},
-		{
-			name: "WithPrompt",
-			with: WithPrompt("default prompt"),
-		},
-		{
 			name: "WithMessages",
 			with: WithMessages(
 				[]*ai.Message{{
@@ -165,6 +157,14 @@ func TestExecuteOptions(t *testing.T) {
 }
 
 func TestDefaultsOverride(t *testing.T) {
+	msgsFn := func(ctx context.Context, input any) ([]*ai.Message, error) {
+		return []*ai.Message{
+			{
+				Role:    ai.RoleUser,
+				Content: []*ai.Part{ai.NewTextPart("you're history")},
+			}}, nil
+	}
+
 	var tests = []struct {
 		name           string
 		define         []PromptOption
@@ -173,39 +173,9 @@ func TestDefaultsOverride(t *testing.T) {
 		wantGenerated  *ai.ModelRequest
 	}{
 		{
-			name: "SystemText and prompt",
-			define: []PromptOption{
-				WithDefaultPrompt("my name is default"),
-				WithDefaultSystemText("say hello to default"),
-				WithDefaultModel(promptModel),
-			},
-			execute: []GenerateOption{
-				WithConfig(&ai.GenerationCommonConfig{Temperature: 12}),
-				WithPrompt("my name is foo"),
-				WithSystemText("say hello to foo"),
-			},
-			wantTextOutput: "Echo: system: say hello to foo; my name is foo; config: {\n  \"temperature\": 12\n}; context: null",
-			wantGenerated: &ai.ModelRequest{
-				Config: &ai.GenerationCommonConfig{
-					Temperature: 12,
-				},
-				Output: &ai.ModelRequestOutput{},
-				Messages: []*ai.Message{
-					{
-						Role:    ai.RoleSystem,
-						Content: []*ai.Part{ai.NewTextPart("say hello to foo")},
-					},
-					{
-						Role:    ai.RoleUser,
-						Content: []*ai.Part{ai.NewTextPart("my name is foo")},
-					},
-				},
-			},
-		},
-		{
 			name: "Messages",
 			define: []PromptOption{
-				WithDefaultPrompt("my name is default"),
+				WithPromptText("my name is default"),
 				WithDefaultMessages([]*ai.Message{
 					{
 						Role:    ai.RoleUser,
@@ -240,9 +210,42 @@ func TestDefaultsOverride(t *testing.T) {
 			},
 		},
 		{
+			name: "MessagesFn",
+			define: []PromptOption{
+				WithPromptText("my name is default"),
+				WithDefaultMessages([]*ai.Message{
+					{
+						Role:    ai.RoleUser,
+						Content: []*ai.Part{ai.NewTextPart("you're default")},
+					}}),
+				WithDefaultModel(promptModel),
+			},
+			execute: []GenerateOption{
+				WithConfig(&ai.GenerationCommonConfig{Temperature: 12}),
+				WithMessagesFn(msgsFn),
+			},
+			wantTextOutput: "Echo: you're history; my name is default; config: {\n  \"temperature\": 12\n}; context: null",
+			wantGenerated: &ai.ModelRequest{
+				Config: &ai.GenerationCommonConfig{
+					Temperature: 12,
+				},
+				Output: &ai.ModelRequestOutput{},
+				Messages: []*ai.Message{
+					{
+						Role:    ai.RoleUser,
+						Content: []*ai.Part{ai.NewTextPart("you're history")},
+					},
+					{
+						Role:    ai.RoleUser,
+						Content: []*ai.Part{ai.NewTextPart("my name is default")},
+					},
+				},
+			},
+		},
+		{
 			name: "Config",
 			define: []PromptOption{
-				WithDefaultPrompt("my name is foo"),
+				WithPromptText("my name is foo"),
 				WithDefaultConfig(&ai.GenerationCommonConfig{Temperature: 11}),
 				WithDefaultModel(promptModel),
 			},
@@ -266,7 +269,7 @@ func TestDefaultsOverride(t *testing.T) {
 		{
 			name: "Model",
 			define: []PromptOption{
-				WithDefaultPrompt("my name is foo"),
+				WithPromptText("my name is foo"),
 				WithDefaultModel(promptModel),
 			},
 			execute: []GenerateOption{
@@ -290,7 +293,7 @@ func TestDefaultsOverride(t *testing.T) {
 		{
 			name: "ModelName",
 			define: []PromptOption{
-				WithDefaultPrompt("my name is foo"),
+				WithPromptText("my name is foo"),
 				WithDefaultModelName("test/chat"),
 			},
 			execute: []GenerateOption{

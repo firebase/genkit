@@ -237,6 +237,13 @@ func TestInputFormat(t *testing.T) {
 			input:        map[string]any{"name": "world"},
 			render:       "hello world",
 		},
+		{
+			name:         "bool",
+			templateText: "that is {{input}}",
+			inputType:    true,
+			input:        map[string]any{"input": true},
+			render:       "that is true",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -248,7 +255,7 @@ func TestInputFormat(t *testing.T) {
 					r,
 					"provider",
 					test.name,
-					WithDefaultPrompt(test.templateText),
+					WithPromptText(test.templateText),
 					WithInputType(test.inputType),
 				)
 			} else {
@@ -256,7 +263,7 @@ func TestInputFormat(t *testing.T) {
 					r,
 					"provider",
 					"inputFormat",
-					WithDefaultPrompt(test.templateText),
+					WithPromptText(test.templateText),
 				)
 			}
 
@@ -314,12 +321,12 @@ func TestPromptOptions(t *testing.T) {
 			with: WithDefaultModel(testModel),
 		},
 		{
-			name: "WithDefaultSystemText",
-			with: WithDefaultSystemText("say hello"),
+			name: "WithSystemText",
+			with: WithSystemText("say hello"),
 		},
 		{
-			name: "WithDefaultPrompt",
-			with: WithDefaultPrompt("default prompt"),
+			name: "WithPromptText",
+			with: WithPromptText("default prompt"),
 		},
 		{
 			name: "WithDefaultMessages",

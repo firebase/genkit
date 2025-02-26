@@ -73,7 +73,7 @@ func pr03() error {
 		"prompts",
 		"helloPrompt",
 		prompt.WithInputType(HelloPromptInput{}),
-		prompt.WithDefaultSystemText(func(ctx context.Context, input any) (string, error) {
+		prompt.WithSystemFn(func(ctx context.Context, input any) (string, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
 				return "", errors.New("input doesn't satisfy schema")

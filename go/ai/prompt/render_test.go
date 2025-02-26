@@ -94,9 +94,12 @@ func TestValidPrompt(t *testing.T) {
 	var tests = []struct {
 		name           string
 		model          ai.Model
-		system         any
-		prompt         any
-		messages       any
+		systemText     string
+		systemFn       PromptFn
+		promptText     string
+		promptFn       PromptFn
+		messages       []*ai.Message
+		messagesFn     MessagesFn
 		tools          []ai.Tool
 		config         *ai.GenerationCommonConfig
 		inputType      any
@@ -108,13 +111,13 @@ func TestValidPrompt(t *testing.T) {
 		only           bool
 	}{
 		{
-			name:      "user and system prompt, basic",
-			model:     promptModel,
-			config:    &ai.GenerationCommonConfig{Temperature: 11},
-			inputType: HelloPromptInput{},
-			system:    "say hello",
-			prompt:    "my name is foo",
-			input:     HelloPromptInput{Name: "foo"},
+			name:       "user and system prompt, basic",
+			model:      promptModel,
+			config:     &ai.GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []GenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
@@ -142,10 +145,10 @@ func TestValidPrompt(t *testing.T) {
 			model:     promptModel,
 			config:    &ai.GenerationCommonConfig{Temperature: 11},
 			inputType: HelloPromptInput{},
-			system: func(ctx context.Context, input any) (string, error) {
+			systemFn: func(ctx context.Context, input any) (string, error) {
 				return "say hello to {{Name}}", nil
 			},
-			prompt: func(ctx context.Context, input any) (string, error) {
+			promptFn: func(ctx context.Context, input any) (string, error) {
 				return "my name is {{Name}}", nil
 			},
 			input: HelloPromptInput{Name: "foo"},
@@ -172,12 +175,12 @@ func TestValidPrompt(t *testing.T) {
 			},
 		},
 		{
-			name:      "messages prompt, basic",
-			model:     promptModel,
-			config:    &ai.GenerationCommonConfig{Temperature: 11},
-			inputType: HelloPromptInput{},
-			system:    "say hello",
-			prompt:    "my name is foo",
+			name:       "messages prompt, basic",
+			model:      promptModel,
+			config:     &ai.GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
 			messages: []*ai.Message{
 				{
 					Role:    ai.RoleUser,
@@ -211,13 +214,13 @@ func TestValidPrompt(t *testing.T) {
 			},
 		},
 		{
-			name:      "messages prompt, function",
-			model:     promptModel,
-			config:    &ai.GenerationCommonConfig{Temperature: 11},
-			inputType: HelloPromptInput{},
-			system:    "say hello",
-			prompt:    "my name is foo",
-			messages: func(ctx context.Context, input any) ([]*ai.Message, error) {
+			name:       "messages prompt, function",
+			model:      promptModel,
+			config:     &ai.GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			messagesFn: func(ctx context.Context, input any) ([]*ai.Message, error) {
 				return []*ai.Message{
 					{
 						Role:    ai.RoleModel,
@@ -252,13 +255,13 @@ func TestValidPrompt(t *testing.T) {
 			},
 		},
 		{
-			name:      "messages prompt, input struct",
-			model:     promptModel,
-			config:    &ai.GenerationCommonConfig{Temperature: 11},
-			inputType: HelloPromptInput{},
-			system:    "say hello",
-			prompt:    "my name is foo",
-			messages: func(ctx context.Context, input any) ([]*ai.Message, error) {
+			name:       "messages prompt, input struct",
+			model:      promptModel,
+			config:     &ai.GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			messagesFn: func(ctx context.Context, input any) ([]*ai.Message, error) {
 				var p HelloPromptInput
 				switch param := input.(type) {
 				case HelloPromptInput:
@@ -298,14 +301,14 @@ func TestValidPrompt(t *testing.T) {
 			},
 		},
 		{
-			name:      "prompt with tools",
-			model:     promptModel,
-			config:    &ai.GenerationCommonConfig{Temperature: 11},
-			inputType: HelloPromptInput{},
-			system:    "say hello",
-			prompt:    "my name is foo",
-			tools:     []ai.Tool{testTool("testTool")},
-			input:     HelloPromptInput{Name: "foo"},
+			name:       "prompt with tools",
+			model:      promptModel,
+			config:     &ai.GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			tools:      []ai.Tool{testTool("testTool")},
+			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []GenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
@@ -366,19 +369,37 @@ func TestValidPrompt(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			var opts []PromptOption
+			opts = append(opts, WithInputType(test.inputType))
+			opts = append(opts, WithDefaultModel(test.model))
+			opts = append(opts, WithDefaultConfig(test.config))
+			opts = append(opts, WithDefaultToolChoice(ai.ToolChoiceRequired))
+			opts = append(opts, WithTools(test.tools...))
+			opts = append(opts, WithDefaultMaxTurns(1))
+
+			if test.systemText != "" {
+				opts = append(opts, WithSystemText(test.systemText))
+			} else {
+				opts = append(opts, WithSystemFn(test.systemFn))
+			}
+
+			if test.promptText != "" {
+				opts = append(opts, WithPromptText(test.promptText))
+			} else {
+				opts = append(opts, WithPromptFn(test.promptFn))
+			}
+
+			if test.messages != nil {
+				opts = append(opts, WithDefaultMessages(test.messages))
+			} else {
+				opts = append(opts, WithDefaultMessagesFn(test.messagesFn))
+			}
+
 			p, err := Define(
 				r,
 				"prompts",
 				test.name,
-				WithInputType(test.inputType),
-				WithDefaultSystemText(test.system),
-				WithDefaultPrompt(test.prompt),
-				WithDefaultMessages(test.messages),
-				WithDefaultModel(test.model),
-				WithDefaultConfig(test.config),
-				WithDefaultToolChoice(ai.ToolChoiceRequired),
-				WithTools(test.tools...),
-				WithDefaultMaxTurns(1),
+				opts...,
 			)
 			if err != nil {
 				t.Fatal(err)

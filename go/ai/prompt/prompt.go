@@ -31,76 +31,50 @@ import (
 )
 
 type Prompt struct {
-	Registry *registry.Registry
-	Action   core.Action[any, *ai.ModelRequest, struct{}]
-	// The name of the prompt.
-	Name string
-	// Prompt description
-	Description string
+	registry    *registry.Registry
+	action      core.Action[any, *ai.ModelRequest, struct{}]
+	Name        string // The name of the prompt.
+	Description string // Prompt description.
 	Config
-	// The parsed prompt template.
-	Template *raymond.Template
-	// The original prompt template text.
-	TemplateText string
+	Template     *raymond.Template // The parsed prompt template.
+	TemplateText string            // The original prompt template text.
 }
 
 // Config is optional configuration for a [Prompt].
 type Config struct {
-	// The prompt variant.
-	Variant string
-	// The name of the model for which the prompt is input.
-	// If this is non-empty, Model should be nil.
-	ModelName string
-	// The Model to use.
-	// If this is set, ModelName should be an empty string.
-	Model ai.Model
-	// The System prompt. If this is non-empty, SystemFn should be nil.
-	System string
-	// The System prompt function. If this is set, System should be an empty string.
-	SystemFn PromptFn
-	// The User prompt. If this is non-empty, PromptFn should be nil.
-	Prompt string
-	// The User prompt function. If this is set, Prompt should be an empty string.
-	PromptFn PromptFn
-	// The messages to add to the prompt. If this is set, MessagesFn should be an empty.
-	Messages []*ai.Message
-	// The messages function. If this is set, Messages should be an empty.
-	MessagesFn MessagesFn
-	// Override the render function
-	RenderFn RenderFn
-	// The tools to use.
-	Tools []ai.Tool
-	// Details for the model.
-	GenerationConfig *ai.GenerationCommonConfig
-	// Schema for input variables.
-	InputSchema *jsonschema.Schema
-	// Default input variable values
-	DefaultInput map[string]any
-	// Desired output format.
-	OutputFormat ai.OutputFormat
-	// Desired output schema, for JSON output.
-	OutputSchema *jsonschema.Schema
-	// Arbitrary metadata.
-	Metadata map[string]any
-	// ToolChoice is the tool choice to use.
-	ToolChoice ai.ToolChoice
-	// MaxTurns is the maximum number of turns.
-	MaxTurns int
-	// ReturnToolRequests is whether to return tool requests.
-	ReturnToolRequests bool
+	Variant            string                     // The prompt variant.
+	ModelName          string                     // The name of the model for which the prompt is input. If this is non-empty, Model should be nil.
+	Model              ai.Model                   // The Model to use. If this is set, ModelName should be an empty string.
+	System             string                     // The System prompt. If this is non-empty, SystemFn should be nil.
+	SystemFn           PromptFn                   // The System prompt function. If this is set, System should be an empty string.
+	Prompt             string                     // The User prompt. If this is non-empty, PromptFn should be nil.
+	PromptFn           PromptFn                   // The User prompt function. If this is set, Prompt should be an empty string.
+	Messages           []*ai.Message              // The messages to add to the prompt. If this is set, MessagesFn should be an empty.
+	MessagesFn         MessagesFn                 // The messages function. If this is set, Messages should be an empty.
+	RenderFn           RenderFn                   // Override the render function.
+	Tools              []ai.Tool                  // The tools to use.
+	GenerationConfig   *ai.GenerationCommonConfig // Details for the model.
+	InputSchema        *jsonschema.Schema         // Schema for input variables.
+	DefaultInput       map[string]any             // Default input variable values.
+	OutputFormat       ai.OutputFormat            // Desired output format.
+	OutputSchema       *jsonschema.Schema         // Desired output schema, for JSON output.
+	Metadata           map[string]any             // Arbitrary metadata.
+	ToolChoice         ai.ToolChoice              // ToolChoice is the tool choice to use.
+	MaxTurns           int                        // MaxTurns is the maximum number of turns.
+	ReturnToolRequests bool                       // ReturnToolRequests is whether to return tool requests.
 }
 
-type PromptFn func(context.Context, any) (string, error)
-type MessagesFn func(context.Context, any) ([]*ai.Message, error)
-type RenderFn func(ctx context.Context, input any) (*ai.ModelRequest, error)
+type PromptFn = func(context.Context, any) (string, error)
+type MessagesFn = func(context.Context, any) ([]*ai.Message, error)
+type RenderFn = func(ctx context.Context, input any) (*ai.ModelRequest, error)
 
-// PromptOption configures params for the prompt
-type PromptOption func(p *Prompt) error
+// PromptOption configures params for the prompt.
+type PromptOption = func(p *Prompt) error
 
 // Define creates and registers a new Prompt.
 func Define(r *registry.Registry, provider, name string, opts ...PromptOption) (*Prompt, error) {
 	p := &Prompt{
-		Registry: r,
+		registry: r,
 	}
 
 	for _, with := range opts {
@@ -137,16 +111,16 @@ func Define(r *registry.Registry, provider, name string, opts ...PromptOption) (
 		},
 	}
 
-	p.Action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, metadata, p.Config.InputSchema, renderFn)
+	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, metadata, p.Config.InputSchema, renderFn)
 	return p, nil
 }
 
 // Render renders the prompt template based on user input.
 func (p *Prompt) Render(ctx context.Context, input any) (*ai.ModelRequest, error) {
 	if p == nil {
-		return nil, errors.New("prompt.Render called on a nil Prompt; check that all prompts are defined")
+		return nil, errors.New("prompt.Render: called on a nil Prompt; check that all prompts are defined")
 	}
-	return p.Action.Run(ctx, input, nil)
+	return p.action.Run(ctx, input, nil)
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
@@ -159,57 +133,78 @@ func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
 	action := core.LookupActionFor[any, *ai.ModelRequest, struct{}](r, atype.Prompt, provider, name)
 	p := &Prompt{
-		Action: *action,
+		action: *action,
 	}
 	return p
 }
 
-// WithDefaultSystemText adds system message to the prompt. Set either a string or a callback function.
-func WithDefaultSystemText(system any) PromptOption {
+// WithSystemText adds system message to the prompt.
+func WithSystemText(systemText string) PromptOption {
 	return func(p *Prompt) error {
 		if p.SystemFn != nil || p.System != "" {
-			return errors.New("prompt.WithDefaultSystemText: cannot set system text more than once")
+			return errors.New("prompt.WithSystemText: cannot set system text more than once")
 		}
-		switch v := system.(type) {
-		case string:
-			p.System = v
-		case func(context.Context, any) (string, error):
-			p.SystemFn = v
-		}
+		p.System = systemText
 
 		return nil
 	}
 }
 
-// WithDefaultPrompt adds user message to the prompt. Set either a string or a callback function.
-func WithDefaultPrompt(prompt any) PromptOption {
+// WithSystemFn sets the result of the callback function as system message on the prompt.
+func WithSystemFn(systemFn PromptFn) PromptOption {
+	return func(p *Prompt) error {
+		if p.SystemFn != nil || p.System != "" {
+			return errors.New("prompt.WithSystemFn: cannot set system text more than once")
+		}
+		p.SystemFn = systemFn
+
+		return nil
+	}
+}
+
+// WithPromptText adds user message to the prompt.
+func WithPromptText(promptText string) PromptOption {
 	return func(p *Prompt) error {
 		if p.PromptFn != nil || p.Prompt != "" {
-			return errors.New("prompt.WithDefaultPrompt: cannot set prompt more than once")
+			return errors.New("prompt.WithPrompt: cannot set prompt more than once")
 		}
-		switch v := prompt.(type) {
-		case string:
-			p.Prompt = v
-		case func(context.Context, any) (string, error):
-			p.PromptFn = v
-		}
+		p.Prompt = promptText
 
 		return nil
 	}
 }
 
-// WithDefaultMessages adds messages to the prompt. Set either a string or a callback function.
-func WithDefaultMessages(messages any) PromptOption {
+// WithPromptFn sets the result of the callback function as the user message on the prompt.
+func WithPromptFn(promptFn PromptFn) PromptOption {
+	return func(p *Prompt) error {
+		if p.PromptFn != nil || p.Prompt != "" {
+			return errors.New("prompt.WithPromptFn: cannot set prompt more than once")
+		}
+		p.PromptFn = promptFn
+
+		return nil
+	}
+}
+
+// WithDefaultMessages adds messages to the prompt.
+func WithDefaultMessages(msgs []*ai.Message) PromptOption {
 	return func(p *Prompt) error {
 		if p.MessagesFn != nil || len(p.Messages) > 0 {
 			return errors.New("prompt.WithDefaultMessages: cannot set messages more than once")
 		}
-		switch v := messages.(type) {
-		case []*ai.Message:
-			p.Messages = v
-		case func(context.Context, any) ([]*ai.Message, error):
-			p.MessagesFn = v
+		p.Messages = msgs
+
+		return nil
+	}
+}
+
+// WithDefaultMessagesFn sets the result of the callback function as messages on the prompt.
+func WithDefaultMessagesFn(msgsFn MessagesFn) PromptOption {
+	return func(p *Prompt) error {
+		if p.MessagesFn != nil || len(p.Messages) > 0 {
+			return errors.New("prompt.WithDefaultMessages: cannot set messages more than once")
 		}
+		p.MessagesFn = msgsFn
 
 		return nil
 	}
@@ -261,6 +256,8 @@ func WithInputType(input any) PromptOption {
 		// Pass map directly
 		case map[string]any:
 			input = v
+		case bool:
+			input = map[string]any{"value": strconv.FormatBool(v)}
 		}
 
 		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
@@ -296,7 +293,7 @@ func WithOutputType(output any) PromptOption {
 	}
 }
 
-// WithOutputFormat adds the desired output format to the prompt
+// WithOutputFormat adds the desired output format to the prompt.
 func WithOutputFormat(format ai.OutputFormat) PromptOption {
 	return func(p *Prompt) error {
 		if p.Config.OutputFormat != "" && p.Config.OutputFormat != format {

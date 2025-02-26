@@ -75,7 +75,7 @@ var templateHelpers = map[string]any{
 func renderDotprompt(templateText string, variables map[string]any, defaultInput map[string]any) (string, error) {
 	template, err := raymond.Parse(templateText)
 	if err != nil {
-		return "", fmt.Errorf("renderDotprompt: failed to parse: %w", err)
+		return "", fmt.Errorf("prompt.renderDotprompt: failed to parse: %w", err)
 	}
 	template.RegisterHelpers(templateHelpers)
 

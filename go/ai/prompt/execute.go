@@ -16,7 +16,6 @@ package prompt
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -24,48 +23,32 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/base"
 )
 
 // PromptRequest is a request to execute a prompt and
 // pass the result to a [Model]. Any settings set here override settings specified by the prompt.
 type PromptRequest struct {
-	// The name of the model to use.
-	ModelName string `json:"modelname,omitempty"`
-	// The model to use.
-	Model ai.Model `json:"model,omitempty"`
-	// The System prompt. If this is non-empty, SystemFn should be nil.
-	System string
-	// The System prompt function. If this is set, System should be an empty string.
-	SystemFn PromptFn
-	// The User prompt. If this is non-empty, PromptFn should be nil.
-	Prompt string
-	// The User prompt function. If this is set, Prompt should be an empty string.
-	PromptFn PromptFn
-	// The messages to add to the prompt. If this is set, MessagesFn should be an empty.
-	Messages []*ai.Message
-	// The messages function. If this is set, Messages should be an empty.
-	MessagesFn MessagesFn
-	// Model configuration. If nil will be taken from the prompt config.
-	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
-	// Input fields for the prompt. If not nil this should be a struct
-	// or pointer to a struct that matches the prompt's input schema.
-	Input any `json:"input,omitempty"`
-	// Context to pass to model, if any.
-	Context []any `json:"context,omitempty"`
-	// Whether tool calls are required, disabled, or optional for the prompt.
-	ToolChoice ai.ToolChoice `json:"toolChoice,omitempty"`
-	// Maximum number of tool call iterations for the prompt.
-	MaxTurns int `json:"maxTurns,omitempty"`
-	// Whether to return tool requests instead of making the tool calls and continuing the generation.
-	ReturnToolRequests bool `json:"returnToolRequests,omitempty"`
-	// Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
-	IsReturnToolRequestsSet bool `json:"-"`
-	// Streaming callback function
-	Stream ai.ModelStreamingCallback
+	ModelName               string                     `json:"modelname,omitempty"`          // The name of the model to use.
+	Model                   ai.Model                   `json:"model,omitempty"`              // The model to use.
+	System                  string                     `json:"system,omitempty"`             // The System prompt. If this is non-empty, SystemFn should be nil.
+	SystemFn                PromptFn                   `json:"-"`                            // The System prompt function. If this is set, System should be an empty string.
+	Prompt                  string                     `json:"prompt,omitempty"`             // The User prompt. If this is non-empty, PromptFn should be nil.
+	PromptFn                PromptFn                   `json:"-"`                            // The User prompt function. If this is set, Prompt should be an empty string.
+	Messages                []*ai.Message              `json:"messages,omitempty"`           // The messages to add to the prompt. If this is set, MessagesFn should be an empty.
+	MessagesFn              MessagesFn                 `json:"-"`                            // The messages function. If this is set, Messages should be an empty.
+	Config                  *ai.GenerationCommonConfig `json:"config,omitempty"`             // Model configuration. If nil will be taken from the prompt config.
+	Input                   any                        `json:"input,omitempty"`              // Input fields for the prompt. If not nil this should be a struct or pointer to a struct that matches the prompt's input schema.
+	Context                 []any                      `json:"context,omitempty"`            // Context to pass to model, if any.
+	ToolChoice              ai.ToolChoice              `json:"toolChoice,omitempty"`         // Whether tool calls are required, disabled, or optional for the prompt.
+	MaxTurns                int                        `json:"maxTurns,omitempty"`           // Maximum number of tool call iterations for the prompt.
+	ReturnToolRequests      bool                       `json:"returnToolRequests,omitempty"` // Whether to return tool requests instead of making the tool calls and continuing the generation.
+	IsReturnToolRequestsSet bool                       `json:"-"`                            // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
+	Stream                  ai.ModelStreamingCallback  // Streaming callback function
 }
 
-// GenerateOption configures params for Generate function
-type GenerateOption func(p *PromptRequest) error
+// GenerateOption configures params for Generate function.
+type GenerateOption = func(p *PromptRequest) error
 
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by
@@ -85,19 +68,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...GenerateOption) (*ai.Model
 		}
 	}
 
-	// Let some fields in pr override those in the prompt config, before rendering.
-	if pr.System != "" {
-		p.Config.System = pr.System
-	}
-	if pr.SystemFn != nil {
-		p.Config.SystemFn = pr.SystemFn
-	}
-	if pr.Prompt != "" {
-		p.Config.Prompt = pr.Prompt
-	}
-	if pr.PromptFn != nil {
-		p.Config.PromptFn = pr.PromptFn
-	}
+	// Let some messages in pr override those in the prompt config, before rendering.
 	if len(pr.Messages) > 0 {
 		p.Config.Messages = pr.Messages
 	}
@@ -110,7 +81,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...GenerateOption) (*ai.Model
 		return nil, err
 	}
 
-	// Set the rest of the overrides
+	// Set the rest of the overrides.
 	if pr.Config != nil {
 		mr.Config = pr.Config
 	}
@@ -134,17 +105,10 @@ func (p *Prompt) Execute(ctx context.Context, opts ...GenerateOption) (*ai.Model
 		if pr.ModelName != "" {
 			modelName = pr.ModelName
 		}
-		if modelName == "" {
-			return nil, errors.New("prompt.Execute: model not specified")
-		}
-		provider, name, found := strings.Cut(modelName, "/")
-		if !found {
-			return nil, errors.New("prompt.Execute: prompt model not in provider/name format")
-		}
 
-		model = ai.LookupModel(p.Registry, provider, name)
-		if model == nil {
-			return nil, fmt.Errorf("prompt.Execute: no model named %q for provider %q", name, provider)
+		model, err = ai.LookupModelByName(p.registry, modelName)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -163,7 +127,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...GenerateOption) (*ai.Model
 		ReturnToolRequests: returnToolRequests,
 	}
 
-	return model.Generate(ctx, p.Registry, mr, toolCfg, pr.Stream)
+	return model.Generate(ctx, p.registry, mr, toolCfg, pr.Stream)
 }
 
 // buildVariables returns a map holding prompt field values based
@@ -253,14 +217,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.ModelRequest,
 
 	var outputSchema map[string]any
 	if p.OutputSchema != nil {
-		jsonBytes, err := p.OutputSchema.MarshalJSON()
-		if err != nil {
-			return nil, fmt.Errorf("prompt.buildrequest: failed to marshal output schema JSON: %w", err)
-		}
-		err = json.Unmarshal(jsonBytes, &outputSchema)
-		if err != nil {
-			return nil, fmt.Errorf("prompt.buildrequest: failed to unmarshal output schema JSON: %w", err)
-		}
+		outputSchema = base.SchemaAsMap(p.OutputSchema)
 	}
 
 	req.Output = &ai.ModelRequestOutput{
@@ -288,52 +245,25 @@ func WithInput(input any) GenerateOption {
 	}
 }
 
-// WithSystemText adds system message to the prompt. Set either a string or a callback function,
-func WithSystemText(system any) GenerateOption {
-	return func(p *PromptRequest) error {
-		if p.SystemFn != nil || p.System != "" {
-			return errors.New("prompt: cannot set system message more than once")
-		}
-		switch v := system.(type) {
-		case string:
-			p.System = v
-		case func(context.Context, any) (string, error):
-			p.SystemFn = v
-		}
-
-		return nil
-	}
-}
-
-// WithPrompt adds user message to the prompt. Set either a string or a callback function,
-func WithPrompt(prompt any) GenerateOption {
-	return func(p *PromptRequest) error {
-		if p.PromptFn != nil || p.Prompt != "" {
-			return errors.New("prompt: cannot set prompt message more than once")
-		}
-		switch v := prompt.(type) {
-		case string:
-			p.Prompt = v
-		case func(context.Context, any) (string, error):
-			p.PromptFn = v
-		}
-
-		return nil
-	}
-}
-
-// WithMessages adds messages to the prompt. Set either a string or a callback function,
-func WithMessages(messages any) GenerateOption {
+// WithMessages adds messages to the prompt.
+func WithMessages(msgs []*ai.Message) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.MessagesFn != nil || len(p.Messages) > 0 {
-			return errors.New("prompt: cannot set messages more than once")
+			return errors.New("prompt.WithMessages: cannot set messages more than once")
 		}
-		switch v := messages.(type) {
-		case []*ai.Message:
-			p.Messages = v
-		case func(context.Context, any) ([]*ai.Message, error):
-			p.MessagesFn = v
+		p.Messages = msgs
+
+		return nil
+	}
+}
+
+// WithMessagesFn sets the result of the callback function as messages on the prompt.
+func WithMessagesFn(msgFn MessagesFn) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.MessagesFn != nil || len(p.Messages) > 0 {
+			return errors.New("prompt.WithMessages: cannot set messages more than once")
 		}
+		p.MessagesFn = msgFn
 
 		return nil
 	}
@@ -398,7 +328,7 @@ func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
 func WithMaxTurns(maxTurns int) GenerateOption {
 	return func(p *PromptRequest) error {
 		if maxTurns <= 0 {
-			return fmt.Errorf("maxTurns must be greater than 0, got %d", maxTurns)
+			return fmt.Errorf("prompt.WithMaxTurns: maxTurns must be greater than 0, got %d", maxTurns)
 		}
 		if p.MaxTurns != 0 {
 			return errors.New("prompt.WithMaxTurns: cannot set MaxTurns more than once")
