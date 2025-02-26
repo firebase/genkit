@@ -80,6 +80,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 };
 
 export const ai = genkit({
+  model: gemini15Flash,
   // load at least one plugin representing each action type
   plugins: [
     // model providers

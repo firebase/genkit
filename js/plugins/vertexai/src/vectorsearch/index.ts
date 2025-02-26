@@ -19,12 +19,8 @@ import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
 import { PluginOptions } from './types.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector_search/index.js';
-export { PluginOptions } from '../common/types.js';
+export { type PluginOptions } from '../common/types.js';
 export {
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
   getFirestoreDocumentIndexer,
@@ -33,6 +29,10 @@ export {
   vertexAiIndexers,
   vertexAiRetrieverRef,
   vertexAiRetrievers,
+  type DocumentIndexer,
+  type DocumentRetriever,
+  type Neighbor,
+  type VectorSearchOptions,
 } from './vector_search/index.js';
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.

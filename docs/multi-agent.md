@@ -1,3 +1,7 @@
+Beta: This feature of Genkit is in **Beta,** which means it is not yet
+part of Genkit's stable API. APIs of beta features may change in minor
+version releases.
+
 # Building multi-agent systems
 
 A powerful application of large language models are LLM-powered agents. An agent

@@ -1,10 +1,10 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"testing"
@@ -29,16 +29,12 @@ func testTool(g *genkit.Genkit, name string) *ai.ToolDef[struct{ Test string }, 
 	)
 }
 
-var g, _ = genkit.New(&genkit.Options{
-	PromptDir: "testdata",
-})
+var g, _ = genkit.Init(context.Background(), genkit.WithPromptDir("testdata"))
 
 var testModel = genkit.DefineModel(g, "defineoptions", "test", nil, testGenerate)
 
 func TestPrompts(t *testing.T) {
-	g, err := genkit.New(&genkit.Options{
-		PromptDir: "testdata",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithPromptDir("testdata"))
 	if err != nil {
 		log.Fatal(err)
 	}

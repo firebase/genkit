@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package dotprompt
 
 import (
@@ -41,7 +40,7 @@ func testGenerate(ctx context.Context, req *ai.ModelRequest, cb func(context.Con
 }
 
 func TestExecute(t *testing.T) {
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,7 +95,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestOptionsPatternGenerate(t *testing.T) {
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,7 +154,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 }
 
 func TestGenerateOptions(t *testing.T) {
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}

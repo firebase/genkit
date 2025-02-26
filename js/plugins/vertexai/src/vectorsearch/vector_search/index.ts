@@ -17,20 +17,20 @@
 export {
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
-} from './bigquery';
+} from './bigquery.js';
 export {
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
-} from './firestore';
-export { vertexAiIndexerRef, vertexAiIndexers } from './indexers';
-export { vertexAiRetrieverRef, vertexAiRetrievers } from './retrievers';
+} from './firestore.js';
+export { vertexAiIndexerRef, vertexAiIndexers } from './indexers.js';
+export { vertexAiRetrieverRef, vertexAiRetrievers } from './retrievers.js';
 export {
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-  VertexAIVectorIndexerOptions,
   VertexAIVectorIndexerOptionsSchema,
-  VertexAIVectorRetrieverOptions,
   VertexAIVectorRetrieverOptionsSchema,
-} from './types';
+  type DocumentIndexer,
+  type DocumentRetriever,
+  type Neighbor,
+  type VectorSearchOptions,
+  type VertexAIVectorIndexerOptions,
+  type VertexAIVectorRetrieverOptions,
+} from './types.js';

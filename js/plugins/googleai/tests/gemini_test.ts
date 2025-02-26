@@ -16,8 +16,9 @@
 
 import { GenerateContentCandidate } from '@google/generative-ai';
 import * as assert from 'assert';
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 import { MessageData, ModelInfo } from 'genkit/model';
+import { toJsonSchema } from 'genkit/schema';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
   GENERIC_GEMINI_MODEL,
@@ -28,6 +29,7 @@ import {
   gemini15Pro,
   toGeminiMessage,
   toGeminiSystemInstruction,
+  toGeminiTool,
 } from '../src/gemini.js';
 import { googleAI } from '../src/index.js';
 
@@ -498,6 +500,64 @@ describe('plugin', () => {
       );
       assert.ok(flash003 === undefined);
     });
+  });
+});
+
+describe('toGeminiTool', () => {
+  it('', async () => {
+    const got = toGeminiTool({
+      name: 'foo',
+      description: 'tool foo',
+      inputSchema: toJsonSchema({
+        schema: z.object({
+          simpleString: z.string().describe('a string').nullable(),
+          simpleNumber: z.number().describe('a number'),
+          simpleBoolean: z.boolean().describe('a boolean').optional(),
+          simpleArray: z.array(z.string()).describe('an array').optional(),
+          simpleEnum: z
+            .enum(['choice_a', 'choice_b'])
+            .describe('an enum')
+            .optional(),
+        }),
+      }),
+    });
+
+    const want = {
+      description: 'tool foo',
+      name: 'foo',
+      parameters: {
+        properties: {
+          simpleArray: {
+            description: 'an array',
+            items: {
+              type: 'string',
+            },
+            type: 'array',
+          },
+          simpleBoolean: {
+            description: 'a boolean',
+            type: 'boolean',
+          },
+          simpleEnum: {
+            description: 'an enum',
+            enum: ['choice_a', 'choice_b'],
+            type: 'string',
+          },
+          simpleNumber: {
+            description: 'a number',
+            type: 'number',
+          },
+          simpleString: {
+            description: 'a string',
+            nullable: true,
+            type: 'string',
+          },
+        },
+        required: ['simpleString', 'simpleNumber'],
+        type: 'object',
+      },
+    };
+    assert.deepStrictEqual(got, want);
   });
 });
 

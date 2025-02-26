@@ -1,18 +1,16 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package action
 
 import (
 	"context"
 	"encoding/json"
 
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/invopop/jsonschema"
 )
 
-// Action is the type that all Action[I, O, S] have in common.
+// Action is the type that all Action[I, O, S] have in common. Internal version.
 type Action interface {
 	Name() string
 
@@ -24,9 +22,6 @@ type Action interface {
 	// It should set all fields of actionDesc except Key, which
 	// the registry will set.
 	Desc() Desc
-
-	// SetTracingState set's the action's tracing.State.
-	SetTracingState(*tracing.State)
 }
 
 // A Desc is a description of an Action.
