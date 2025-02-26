@@ -1,16 +1,5 @@
 // Copyright 2025 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package main
 
@@ -22,9 +11,14 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
+
+// lotrQuestionInput is a question about the LOTR chapters.
+type lotrQuestionInput struct {
+	Question string `json:"question"`
+	FilePath string `json:"path"`
+}
 
 func main() {
 	projectID := os.Getenv("GCLOUD_PROJECT")
@@ -37,24 +31,45 @@ func main() {
 		fmt.Println("GCLOUD_LOCATION environment variable not set")
 		return
 	}
-	var r, _ = registry.New()
 	ctx := context.Background()
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "vertexai/gemini-1.5-flash",
+	g, err := genkit.Init(ctx, genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = vertexai.Init(ctx, g, &vertexai.Config{
+		ProjectID: projectID,
+		Location:  location,
 	})
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = vertexai.Init(ctx, g, &vertexai.Config{ProjectID: projectID, Location: location})
-	if err != nil {
-		fmt.Println(err)
-	}
-	resp, err := ai.Generate(ctx, r,
-		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1, TTL: time.Hour}),
-		ai.WithTextPrompt("Tell me a joke about golang developers"))
 
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("output:", resp.Message.Text())
+	genkit.DefineFlow(g, "lotr-VertexAI", func(ctx context.Context, input *lotrQuestionInput) (string, error) {
+		prompt := "What is the text I provided you with?"
+		if input != nil {
+			prompt = input.Question
+		}
+
+		textContent, err := os.ReadFile(input.FilePath)
+		if err != nil {
+			return "", err
+		}
+
+		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
+			Temperature: 1,
+			TTL:         time.Hour,
+			Version:     "gemini-1.5-flash-001",
+		}),
+			ai.WithTextPrompt(prompt),
+			ai.WithContext(string(textContent)))
+		if err != nil {
+			return "", nil
+		}
+
+		text := resp.Text()
+
+		return text, nil
+	})
+
+	<-ctx.Done()
 }
