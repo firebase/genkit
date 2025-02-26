@@ -28,7 +28,7 @@ type Model interface {
 }
 
 // ModelFunc is a function that generates a model response.
-type ModelFunc = core.Func[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // ModelMiddleware is middleware for model generate requests.
 type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
