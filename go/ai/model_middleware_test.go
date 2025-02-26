@@ -1,16 +1,5 @@
-// Copyright 2025 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2024 Google LLC
+// SPDX-License-Identifier: Apache-2.0
 
 package ai
 
@@ -29,13 +18,15 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "valid request with no special features",
 			supports: &ModelInfoSupports{
-				Media:     false,
-				Tools:     false,
-				Multiturn: false,
+				Media:      false,
+				Tools:      false,
+				Multiturn:  false,
+				ToolChoice: false,
+				SystemRole: false,
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Content: []*Part{NewTextPart("hello")}},
+					NewUserTextMessage("hello"),
 				},
 			},
 			wantErr: false,
@@ -74,8 +65,30 @@ func TestValidateSupport(t *testing.T) {
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Content: []*Part{NewTextPart("message 1")}},
-					{Content: []*Part{NewTextPart("message 2")}},
+					NewUserTextMessage("message 1"),
+					NewUserTextMessage("message 2"),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "tool choice not supported but requested",
+			supports: &ModelInfoSupports{
+				ToolChoice: false,
+			},
+			input: &ModelRequest{
+				ToolChoice: ToolChoiceRequired,
+			},
+			wantErr: true,
+		},
+		{
+			name: "system role not supported but requested",
+			supports: &ModelInfoSupports{
+				SystemRole: false,
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: RoleSystem, Content: []*Part{NewTextPart("system instruction")}},
 				},
 			},
 			wantErr: true,
@@ -83,14 +96,17 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "all features supported and used",
 			supports: &ModelInfoSupports{
-				Media:     true,
-				Tools:     true,
-				Multiturn: true,
+				Media:      true,
+				Tools:      true,
+				Multiturn:  true,
+				ToolChoice: true,
+				SystemRole: true,
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
+					NewSystemTextMessage("be helpful"),
+					NewUserTextMessage("hello! look at this image"),
 					{Content: []*Part{NewMediaPart("image/png", "data:image/png;base64,...")}},
-					{Content: []*Part{NewTextPart("follow-up message")}},
 				},
 				Tools: []*ToolDefinition{
 					{
@@ -98,6 +114,7 @@ func TestValidateSupport(t *testing.T) {
 						Description: "A test tool",
 					},
 				},
+				ToolChoice: ToolChoiceNone,
 			},
 			wantErr: false,
 		},
@@ -128,14 +145,14 @@ func TestValidateSupport(t *testing.T) {
 		},
 	}
 
+	mockModelFunc := func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
+		return &ModelResponse{}, nil
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := ValidateSupport("test-model", tt.supports)
-
-			_, err := middleware(context.Background(), tt.input, nil,
-				func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
-					return &ModelResponse{}, nil
-				})
+			handler := ValidateSupport("test-model", tt.supports)(mockModelFunc)
+			_, err := handler(context.Background(), tt.input, nil)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateSupport() error = %v, wantErr %v", err, tt.wantErr)

@@ -29,7 +29,7 @@ func DefinePrompt(r *registry.Registry, provider, name string, metadata map[stri
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	return (*Prompt)(core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, mm, inputSchema, nil, render))
+	return (*Prompt)(core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, mm, inputSchema, render))
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.

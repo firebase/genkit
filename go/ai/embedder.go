@@ -51,7 +51,7 @@ func DefineEmbedder(
 	provider, name string,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedderActionDef)(core.DefineAction(r, provider, name, atype.Embedder, nil, nil, embed))
+	return (*embedderActionDef)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
 }
 
 // IsDefinedEmbedder reports whether an embedder is defined.
