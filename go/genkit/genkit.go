@@ -6,7 +6,6 @@ package genkit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,15 +22,6 @@ import (
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
-
-// Action is the interface that all Genkit actions (e.g. flows, models, tools, etc) have in common.
-type Action interface {
-	// Name returns the name of the action.
-	Name() string
-
-	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
-	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
-}
 
 // Genkit encapsulates a Genkit instance including the registry and configuration.
 type Genkit struct {
@@ -162,9 +152,9 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 }
 
 // ListFlows returns all flows registered in the Genkit instance.
-func ListFlows(g *Genkit) []Action {
+func ListFlows(g *Genkit) []core.Action {
 	acts := g.reg.ListActions()
-	flows := []Action{}
+	flows := []core.Action{}
 	for _, act := range acts {
 		if strings.HasPrefix(act.Key, "/"+string(atype.Flow)+"/") {
 			flows = append(flows, g.reg.LookupAction(act.Key))

@@ -27,11 +27,11 @@ type Model interface {
 	Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error)
 }
 
-type modelActionDef core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-type modelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type modelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-type generateAction = core.Action[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
