@@ -20,6 +20,7 @@ import {
   GenkitError,
   getStreamingCallback,
   runWithStreamingCallback,
+  sentinelNoopStreamingCallback,
   stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
@@ -69,8 +70,41 @@ export type GenerateAction = Action<
   typeof GenerateResponseChunkSchema
 >;
 
-/** Defines (registers) a utilty generate action. */
+/** Defines (registers) a utilty model runner action. */
 export function defineGenerateAction(registry: Registry): GenerateAction {
+  defineAction(
+    registry,
+    {
+      actionType: 'util',
+      name: 'model-runner',
+      inputSchema: z.object({
+        model: z.string().optional(),
+        request: GenerateRequestSchema,
+      }),
+      outputSchema: GenerateResponseSchema,
+      streamSchema: GenerateResponseChunkSchema,
+    },
+    async (input, { sendChunk }) => {
+      const modelName =
+        input.model ??
+        (await registry.lookupValue('defaultModel', 'defaultModel'));
+      const resolvedModel = await resolveModel(registry, modelName);
+      const modelAction = resolvedModel.modelAction;
+
+      // TODO: add this to action run options object, sentinelNoopStreamingCallback is not
+      // exported publicly.
+      const isStreaming = sendChunk !== sentinelNoopStreamingCallback;
+      const modelFn = () => modelAction(input.request);
+      return isStreaming
+        ? runWithStreamingCallback(
+            registry,
+            (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
+            modelFn
+          )
+        : modelFn();
+    }
+  );
+
   return defineAction(
     registry,
     {
