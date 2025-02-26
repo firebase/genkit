@@ -133,6 +133,7 @@ func DefineModel(
 		"multiturn":  info.Supports.Multiturn,
 		"systemRole": info.Supports.SystemRole,
 		"tools":      info.Supports.Tools,
+		"toolChoice": info.Supports.ToolChoice,
 	}
 	metadataMap["supports"] = supports
 	metadataMap["versions"] = info.Versions
