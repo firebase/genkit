@@ -224,7 +224,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		}
 		return &result, err
 	}
-	core.DefineStreamingAction(r, "", f.name, atype.Flow, metadata, nil, afunc)
+	core.DefineStreamingAction(r, "", f.name, atype.Flow, metadata, afunc)
 	f.tstate = r.TracingState()
 	r.RegisterFlow(f)
 	return f

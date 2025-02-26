@@ -113,7 +113,6 @@ func DefineModel(
 	r *registry.Registry,
 	provider, name string,
 	info *ModelInfo,
-	mw []ModelMiddleware,
 	generate ModelFunc,
 ) Model {
 	metadataMap := map[string]any{}

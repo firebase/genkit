@@ -44,7 +44,7 @@ func TestExecute(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	testModel := genkit.DefineModel(g, "test", "test", nil, nil, testGenerate)
+	testModel := genkit.DefineModel(g, "test", "test", nil, testGenerate)
 	t.Run("Model", func(t *testing.T) {
 		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 		if err != nil {
@@ -99,7 +99,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	testModel := genkit.DefineModel(g, "options", "test", nil, nil, testGenerate)
+	testModel := genkit.DefineModel(g, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
 		p, err := Define(g, "TestExecute", "TestExecute", WithInputType(InputOutput{}))

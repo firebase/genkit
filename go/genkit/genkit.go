@@ -157,11 +157,10 @@ func (g *Genkit) Start(ctx context.Context, opts *StartOptions) error {
 func DefineModel(
 	g *Genkit,
 	provider, name string,
-	metadata *ai.ModelInfo,
-	mw []ai.ModelMiddleware,
-	generate func(context.Context, *ai.ModelRequest, ai.ModelStreamingCallback) (*ai.ModelResponse, error),
+	info *ai.ModelInfo,
+	generate ai.ModelFunc,
 ) ai.Model {
-	return ai.DefineModel(g.reg, provider, name, metadata, mw, generate)
+	return ai.DefineModel(g.reg, provider, name, info, generate)
 }
 
 // IsDefinedModel reports whether a model is defined.

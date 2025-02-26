@@ -42,9 +42,6 @@ func Init() error {
 			},
 			Versions: []string{"my-model-001", "..."},
 		},
-		[]ai.ModelMiddleware{
-			// Add any middleware you want to apply to the model here.
-		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,
 			_ ai.ModelStreamingCallback,

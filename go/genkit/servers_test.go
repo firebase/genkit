@@ -39,8 +39,8 @@ func TestDevServer(t *testing.T) {
 	tc := tracing.NewTestOnlyTelemetryClient()
 	r.TracingState().WriteTelemetryImmediate(tc)
 
-	core.DefineAction(r, "devServer", "inc", atype.Custom, map[string]any{"foo": "bar"}, nil, inc)
-	core.DefineAction(r, "devServer", "dec", atype.Custom, map[string]any{"bar": "baz"}, nil, dec)
+	core.DefineAction(r, "devServer", "inc", atype.Custom, map[string]any{"foo": "bar"}, inc)
+	core.DefineAction(r, "devServer", "dec", atype.Custom, map[string]any{"bar": "baz"}, dec)
 
 	srv := httptest.NewServer(newDevServeMux(&devServer{reg: r}))
 	defer srv.Close()

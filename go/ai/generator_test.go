@@ -37,7 +37,7 @@ var (
 		Versions: []string{"echo-001", "echo-002"},
 	}
 
-	echoModel = DefineModel(r, "test", modelName, &metadata, nil, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},
@@ -352,7 +352,7 @@ func TestGenerate(t *testing.T) {
 				Tools:     true,
 			},
 		}
-		interruptModel := DefineModel(r, "test", "interrupt", info, nil,
+		interruptModel := DefineModel(r, "test", "interrupt", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -411,7 +411,7 @@ func TestGenerate(t *testing.T) {
 				Tools:     true,
 			},
 		}
-		parallelModel := DefineModel(r, "test", "parallel", info, nil,
+		parallelModel := DefineModel(r, "test", "parallel", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -476,7 +476,7 @@ func TestGenerate(t *testing.T) {
 				Tools:     true,
 			},
 		}
-		multiRoundModel := DefineModel(r, "test", "multiround", info, nil,
+		multiRoundModel := DefineModel(r, "test", "multiround", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -544,7 +544,7 @@ func TestGenerate(t *testing.T) {
 				Tools:     true,
 			},
 		}
-		infiniteModel := DefineModel(r, "test", "infinite", info, nil,
+		infiniteModel := DefineModel(r, "test", "infinite", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
