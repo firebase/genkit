@@ -34,32 +34,21 @@ type SessionStore interface {
 }
 
 type SessionData struct {
-	// Any state that should be stored
-	State map[string]any `json:"state,omitempty"`
-	// Schema for state variables
-	StateSchema *jsonschema.Schema `json:"stateschema,omitempty"`
-	// The messages for each thread
-	Threads map[string][]*ai.Message `json:"threads,omitempty"`
+	State       map[string]any           `json:"state,omitempty"`       // Any state that should be stored
+	StateSchema *jsonschema.Schema       `json:"stateschema,omitempty"` // Schema for state variables
+	Threads     map[string][]*ai.Message `json:"threads,omitempty"`     // Messages by thread name
 }
 
 type Session struct {
-	// Genkit
-	Genkit *Genkit
-	// The session id
-	ID string
-	// The data for the session
-	SessionData SessionData
-	// Default state variable values
-	DefaultState map[string]any
-	// The store for the session, defaults to in-memory storage
-	Store SessionStore
+	Genkit       *Genkit
+	ID           string         // The session id
+	SessionData  SessionData    // The data for the session
+	DefaultState map[string]any // Default state variable values
+	Store        SessionStore   // The store for the session, defaults to in-memory storage
 }
 
-// SessionOption configures params for the session
-type SessionOption func(s *Session) error
-
-// A session key
-type sessionKey string
+type SessionOption func(s *Session) error // SessionOption configures params for the session
+type sessionKey string                    // A session key
 
 const (
 	currentSessionID    sessionKey = "currentSessionID"
@@ -79,7 +68,7 @@ func NewSession(ctx context.Context, opts ...SessionOption) (session *Session, e
 	}
 
 	if s.Store == nil {
-		s.Store = &InMemSessionStore{}
+		s.Store = &InMemorySessionStore{}
 	}
 
 	if s.ID == "" {
@@ -161,12 +150,12 @@ func (s *Session) SetContext(ctx context.Context) context.Context {
 func SessionFromContext(ctx context.Context) (session *Session, err error) {
 	sessionID, ok := ctx.Value(currentSessionID).(string)
 	if !ok {
-		return nil, errors.New("no session ID found in context")
+		return nil, errors.New("genkit.SessionFromContext: no session ID found in context")
 	}
 
 	store, ok := ctx.Value(currentSessionStore).(SessionStore)
 	if !ok {
-		return nil, errors.New("no session store found in context")
+		return nil, errors.New("genkit.SessionFromContext: no session store found in context")
 	}
 
 	session, err = LoadSession(ctx, sessionID, store)
@@ -181,7 +170,7 @@ func SessionFromContext(ctx context.Context) (session *Session, err error) {
 func WithSessionID(id string) SessionOption {
 	return func(s *Session) error {
 		if s.ID != "" {
-			return errors.New("cannot set session id (WithSessionID) more than once")
+			return errors.New("genkit.WithSessionID: cannot set session id more than once")
 		}
 		s.ID = id
 		return nil
@@ -192,7 +181,7 @@ func WithSessionID(id string) SessionOption {
 func WithSessionData(data SessionData) SessionOption {
 	return func(s *Session) error {
 		if s.SessionData.Threads != nil {
-			return errors.New("cannot set session data (WithSessionData) more than once")
+			return errors.New("genkit.WithSessionData: cannot set session data more than once")
 		}
 		s.SessionData = data
 		return nil
@@ -203,7 +192,7 @@ func WithSessionData(data SessionData) SessionOption {
 func WithSessionStore(store SessionStore) SessionOption {
 	return func(s *Session) error {
 		if s.Store != nil {
-			return errors.New("cannot set session store (WithSessionStore) more than once")
+			return errors.New("genkit.WithSessionStore: cannot set session store more than once")
 		}
 		s.Store = store
 		return nil
@@ -215,7 +204,7 @@ func WithSessionStore(store SessionStore) SessionOption {
 func WithStateType(state any) SessionOption {
 	return func(s *Session) error {
 		if s.SessionData.StateSchema != nil {
-			return errors.New("cannot set state type (WithStateType) more than once")
+			return errors.New("genkit.WithStateType: cannot set state type more than once")
 		}
 
 		var err error
@@ -271,28 +260,28 @@ func getSchemaAndDefaults(state any) (schema *jsonschema.Schema, defaults map[st
 }
 
 // Default in-memory session store.
-type InMemSessionStore struct {
-	SessionData map[string]SessionData
-	mu          sync.RWMutex
+type InMemorySessionStore struct {
+	Data map[string]SessionData // The session data keyed by session id
+	mu   sync.RWMutex
 }
 
-func (s *InMemSessionStore) Get(sessionId string) (data SessionData, err error) {
+func (s *InMemorySessionStore) Get(sessionId string) (data SessionData, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if _, ok := s.SessionData[sessionId]; !ok {
-		return data, errors.New("session not found")
+	if _, ok := s.Data[sessionId]; !ok {
+		return data, errors.New("genkit.InMemorySessionStore.Get: session not found")
 	}
-	return s.SessionData[sessionId], nil
+	return s.Data[sessionId], nil
 }
 
-func (s *InMemSessionStore) Save(sessionId string, data SessionData) error {
+func (s *InMemorySessionStore) Save(sessionId string, data SessionData) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.SessionData[sessionId]; !ok {
-		s.SessionData = make(map[string]SessionData)
+	if _, ok := s.Data[sessionId]; !ok {
+		s.Data = make(map[string]SessionData)
 	}
-	s.SessionData[sessionId] = data
+	s.Data[sessionId] = data
 	return nil
 }

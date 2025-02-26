@@ -24,41 +24,27 @@ import (
 )
 
 type Chat struct {
-	// Genkit
-	Genkit *Genkit `json:"genkit,omitempty"`
-	// The model to query
-	Model ai.Model `json:"model,omitempty"`
-	// The chats threadname
-	ThreadName string `json:"threadName,omitempty"`
-	// The chats session
-	Session *Session `json:"session,omitempty"`
-	// Message sent to the model as system instructions
-	SystemText string `json:"systemtext,omitempty"`
-	// Optional prompt
-	Prompt *ai.Prompt `json:"prompt,omitempty"`
-	// Optional input fields for the chat. This should be a struct,
-	// a pointer to a struct that matches the input schema, or a string.
-	Input any `json:"input,omitempty"`
-
-	Request *ChatRequest              `json:"request,omitempty"`
-	Stream  ai.ModelStreamingCallback `json:"stream,omitempty"`
+	Genkit     *Genkit                   `json:"genkit,omitempty"`
+	Model      ai.Model                  `json:"model,omitempty"`      // The model to query
+	ThreadName string                    `json:"threadName,omitempty"` // The chats threadname
+	Session    *Session                  `json:"session,omitempty"`    // The chats session
+	SystemText string                    `json:"systemtext,omitempty"` // Message sent to the model as system instructions
+	Prompt     *ai.Prompt                `json:"prompt,omitempty"`     // Optional prompt
+	Input      any                       `json:"input,omitempty"`      // Optional input fields for the chat. This should be a struct, a pointer to a struct that matches the input schema, or a string.
+	Request    *ChatRequest              `json:"request,omitempty"`
+	Stream     ai.ModelStreamingCallback `json:"stream,omitempty"`
 }
 
 type ChatRequest struct {
-	Config   any           `json:"config,omitempty"`
-	Context  []any         `json:"context,omitempty"`
-	Messages []*ai.Message `json:"messages,omitempty"`
-
-	// Defines the output format and schema
-	Schema any             `json:"schema,omitempty"`
-	Format ai.OutputFormat `json:"outputformat,omitempty"`
-
-	// Tools lists the available tools that the model can ask the client to run.
-	Tools []ai.Tool `json:"tools,omitempty"`
+	Config   any             `json:"config,omitempty"`
+	Context  []any           `json:"context,omitempty"`
+	Messages []*ai.Message   `json:"messages,omitempty"`
+	Schema   any             `json:"schema,omitempty"` // Defines the output format and schema
+	Format   ai.OutputFormat `json:"outputformat,omitempty"`
+	Tools    []ai.Tool       `json:"tools,omitempty"` // Tools lists the available tools that the model can ask the client to run.
 }
 
-// ChatOption configures params for the chat
-type ChatOption func(c *Chat) error
+type ChatOption func(c *Chat) error // ChatOption configures params for the chat
 
 // NewChat creates a new chat instance with the provided AI model and options.
 // If no session or thread name is provided, it adds a new session and default thread.
@@ -166,16 +152,16 @@ func (c *Chat) Send(ctx context.Context, msg any) (resp *ai.ModelResponse, err e
 }
 
 // UpdateMessages updates the messages for the chat.
-func (c *Chat) UpdateMessages(ThreadName string, messages []*ai.Message) error {
-	c.Request.Messages = messages
-	return c.Session.UpdateMessages(ThreadName, messages)
+func (c *Chat) UpdateMessages(thread string, msgs []*ai.Message) error {
+	c.Request.Messages = msgs
+	return c.Session.UpdateMessages(thread, msgs)
 }
 
 // WithModel sets the model for the chat.
 func WithModel(model ai.Model) ChatOption {
 	return func(c *Chat) error {
 		if c.Model != nil {
-			return errors.New("cannot set model (WithModel) more than once")
+			return errors.New("genkit.WithModel: cannot set model more than once")
 		}
 		c.Model = model
 		return nil
@@ -186,7 +172,7 @@ func WithModel(model ai.Model) ChatOption {
 func WithSession(session *Session) ChatOption {
 	return func(c *Chat) error {
 		if c.Session != nil {
-			return errors.New("cannot set session (WithSession) more than once")
+			return errors.New("genkit.WithSession: cannot set session more than once")
 		}
 		c.Session = session
 		return nil
@@ -198,7 +184,7 @@ func WithSession(session *Session) ChatOption {
 func WithThreadName(name string) ChatOption {
 	return func(c *Chat) error {
 		if c.ThreadName != "" {
-			return errors.New("cannot set threadname (WithThreadName) more than once")
+			return errors.New("genkit.WithThreadName: cannot set threadname more than once")
 		}
 
 		c.ThreadName = name
@@ -210,7 +196,7 @@ func WithThreadName(name string) ChatOption {
 func WithStreaming(cb ai.ModelStreamingCallback) ChatOption {
 	return func(c *Chat) error {
 		if c.Stream != nil {
-			return errors.New("cannot set streaming callback (WithStreaming) more than once")
+			return errors.New("genkit.WithStreaming: cannot set streaming callback more than once")
 		}
 		c.Stream = cb
 		return nil
@@ -221,7 +207,7 @@ func WithStreaming(cb ai.ModelStreamingCallback) ChatOption {
 func WithSystemText(msg string) ChatOption {
 	return func(c *Chat) error {
 		if c.SystemText != "" {
-			return errors.New("cannot set systemText (WithSystemText) more than once")
+			return errors.New("genkit.WithSystemText: cannot set systemText more than once")
 		}
 		c.SystemText = msg
 		return nil
@@ -232,7 +218,7 @@ func WithSystemText(msg string) ChatOption {
 func WithConfig(config ai.GenerationCommonConfig) ChatOption {
 	return func(c *Chat) error {
 		if c.Request.Config != nil {
-			return errors.New("cannot set config (WithConfig) more than once")
+			return errors.New("genkit.WithConfig: cannot set config more than once")
 		}
 		c.Request.Config = &config
 		return nil
@@ -243,7 +229,7 @@ func WithConfig(config ai.GenerationCommonConfig) ChatOption {
 func WithContext(context ...any) ChatOption {
 	return func(c *Chat) error {
 		if len(c.Request.Context) > 0 {
-			return errors.New("cannot set context (WithContext) more than once")
+			return errors.New("genkit.WithContext: cannot set context more than once")
 		}
 		c.Request.Context = append(c.Request.Context, context...)
 		return nil
@@ -254,7 +240,7 @@ func WithContext(context ...any) ChatOption {
 func WithTools(tools ...ai.Tool) ChatOption {
 	return func(c *Chat) error {
 		if len(c.Request.Tools) != 0 {
-			return errors.New("cannot set tools (WithTools) more than once")
+			return errors.New("genkit.WithTools: cannot set tools more than once")
 		}
 		c.Request.Tools = tools
 		return nil
@@ -265,7 +251,7 @@ func WithTools(tools ...ai.Tool) ChatOption {
 func WithOutputSchema(schema any) ChatOption {
 	return func(c *Chat) error {
 		if c.Request.Schema != nil {
-			return errors.New("cannot set outputSchema (WithOutputSchema) more than once")
+			return errors.New("genkit.WithOutputSchema: cannot set outputSchema more than once")
 		}
 
 		c.Request.Schema = schema
@@ -277,7 +263,7 @@ func WithOutputSchema(schema any) ChatOption {
 func WithOutputFormat(format ai.OutputFormat) ChatOption {
 	return func(c *Chat) error {
 		if c.Request.Format != "" {
-			return errors.New("cannot set outputFormat (WithOutputFormat) more than once")
+			return errors.New("genkit.WithOutputFormat: cannot set outputFormat more than once")
 		}
 
 		c.Request.Format = format
@@ -289,7 +275,7 @@ func WithOutputFormat(format ai.OutputFormat) ChatOption {
 func WithPrompt(prompt *ai.Prompt) ChatOption {
 	return func(c *Chat) error {
 		if c.Prompt != nil {
-			return errors.New("cannot set prompt (WithPrompt) more than once")
+			return errors.New("genkit.WithPrompt: cannot set prompt more than once")
 		}
 		c.Prompt = prompt
 		return nil
@@ -300,7 +286,7 @@ func WithPrompt(prompt *ai.Prompt) ChatOption {
 func WithInput(input any) ChatOption {
 	return func(c *Chat) error {
 		if c.Input != nil {
-			return errors.New("WithInput: cannot set Input more than once")
+			return errors.New("genkit.WithInput: cannot set input more than once")
 		}
 		c.Input = input
 		return nil
@@ -328,7 +314,7 @@ func getChatMessages(msg any) (messages []*ai.Message, err error) {
 	case []*ai.Message:
 		messages = append(messages, v...)
 	default:
-		return messages, fmt.Errorf("getChatMessages: unknown message type %T", v)
+		return messages, fmt.Errorf("genkit.getChatMessages: unknown message type %T", v)
 	}
 
 	return messages, nil

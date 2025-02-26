@@ -47,10 +47,10 @@ func TestSession(t *testing.T) {
 }
 
 func TestDefaultInMemSessionStore(t *testing.T) {
-	ss := InMemSessionStore{
-		SessionData: make(map[string]SessionData),
+	ss := InMemorySessionStore{
+		Data: make(map[string]SessionData),
 	}
-	ss.SessionData["testID"] = SessionData{
+	ss.Data["testID"] = SessionData{
 		Threads: map[string][]*ai.Message{
 			"testThread": {ai.NewUserTextMessage("testMessage")},
 		},
