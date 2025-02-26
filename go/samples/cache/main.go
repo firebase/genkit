@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -46,7 +47,10 @@ func main() {
 
 	genkit.DefineFlow(g, "lotr-VertexAI", func(ctx context.Context, input *lotrQuestionInput) (string, error) {
 		prompt := "What is the text I provided you with?"
-		if input != nil {
+		if input == nil {
+			return "", errors.New("empty flow input, provide at least a source file to read")
+		}
+		if len(input.Question) > 0 {
 			prompt = input.Question
 		}
 
@@ -61,13 +65,15 @@ func main() {
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithTextPrompt(prompt),
-			ai.WithContext(string(textContent)))
+			ai.WithMessages(ai.NewUserMessage(
+				ai.NewTextPart(string(textContent)))))
 		if err != nil {
 			return "", nil
 		}
 
 		text := resp.Text()
 
+		fmt.Printf("%#v", resp.Usage)
 		return text, nil
 	})
 
