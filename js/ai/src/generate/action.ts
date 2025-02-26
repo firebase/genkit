@@ -70,7 +70,7 @@ export type GenerateAction = Action<
   typeof GenerateResponseChunkSchema
 >;
 
-/** Defines (registers) a utilty model runner action. */
+/** Defines (registers) a utilty generate actions. */
 export function defineGenerateAction(registry: Registry): GenerateAction {
   defineAction(
     registry,
