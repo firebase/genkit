@@ -32,11 +32,11 @@ func dot01() error {
 	// Default to the project in GCLOUD_PROJECT and the location "us-central1".
 	vertexai.Init(ctx, g, nil)
 
-	// The .prompt file specifies vertexai/gemini-1.5-flash, which is
+	// The .prompt file specifies vertexai/gemini-2.0-flash, which is
 	// automatically defined by Init(). However, if it specified a model that
 	// isn't automatically loaded (such as a specific version), you would need
 	// to define it here:
-	// vertexai.DefineModel("gemini-1.0-pro-002", &ai.ModelCapabilities{
+	// vertexai.DefineModel("gemini-2.0-flash", &ai.ModelCapabilities{
 	// 	Multiturn:  true,
 	// 	Tools:      true,
 	// 	SystemRole: true,
@@ -91,7 +91,7 @@ func dot02() {
 
 	// [START dot02]
 	// Make sure you set up the model you're using.
-	vertexai.DefineModel(g, "gemini-1.5-flash", nil)
+	vertexai.DefineModel(g, "gemini-2.0-flash", nil)
 
 	response, err := prompt.Generate(
 		context.Background(),
@@ -101,7 +101,7 @@ func dot02() {
 			Style:    "a fancy pirate",
 			Name:     "Ed",
 		}),
-		dotprompt.WithModelName("vertexai/gemini-1.5-flash"),
+		dotprompt.WithModelName("vertexai/gemini-2.0-flash"),
 		dotprompt.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 1.0,
 		}),
