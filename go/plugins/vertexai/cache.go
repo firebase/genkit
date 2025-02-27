@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -42,6 +41,30 @@ var INVALID_ARGUMENT_MESSAGES = struct {
 	tools: "tools are not supported with context caching",
 }
 
+// validateHistoryLength validates that the request and chat session history
+// lengths align
+func validateHistoryLength(request *ai.ModelRequest, cs *genai.ChatSession) error {
+	systemMessages := 0
+
+	// in Gemini, system messages are not part of the chat history
+	for _, m := range request.Messages {
+		if m.Role == ai.RoleSystem {
+			systemMessages += 1
+		}
+	}
+
+	if len(cs.History) != len(request.Messages)-systemMessages-1 {
+		return fmt.Errorf("history length mismatch, chat session: %d, request messages: %d", len(cs.History), len(request.Messages)-1)
+	}
+
+	return nil
+}
+
+type contentForCache struct {
+	cacheConfig *CacheConfigDetails
+	content     *genai.CachedContent
+}
+
 // getContentForCache inspects the request and modelVersion, and constructs a
 // genai.CachedContent that should be cached.
 // This is where you decide what goes into the cache: large documents, system instructions, etc.
@@ -49,11 +72,21 @@ func getContentForCache(
 	request *ai.ModelRequest,
 	modelVersion string,
 	cacheConfig *CacheConfigDetails,
-) (*genai.CachedContent, error) {
+	cs *genai.ChatSession,
+) (*contentForCache, error) {
+	err := validateHistoryLength(request, cs)
+	if err != nil {
+		return nil, err
+	}
+
 	endOfCachedContents, extractedCacheConfig, err := extractCacheConfig(request)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("cacheConfig: %#v\n\n", cacheConfig)
+	fmt.Printf("endOfCachedContents: %v\n\n", endOfCachedContents)
+	fmt.Printf("extractedCacheConfig: %#v\n\n", extractedCacheConfig)
 
 	// If no cache metadata found, return nil
 	if extractedCacheConfig == nil {
@@ -65,54 +98,34 @@ func getContentForCache(
 	if cacheConfig == nil {
 		cacheConfig = extractedCacheConfig
 	}
-	var systemInstruction string
-	var userParts []*genai.Content
 
-	for _, m := range request.Messages {
-		if m.Role == ai.RoleSystem {
-			sysParts := []string{}
-			for _, p := range m.Content {
-				if p.IsText() {
-					sysParts = append(sysParts, p.Text)
-				}
-			}
-			if len(sysParts) > 0 {
-				systemInstruction = strings.Join(sysParts, "\n")
-			}
+	var messagesForCache []*genai.Content
+	for i := endOfCachedContents; i >= 0; i-- {
+		// system instructions should not be used for cache
+		if request.Messages[i].Role == ai.RoleSystem {
+			fmt.Printf("oop, found a system role: %#v\n\n", request.Messages[i].Role)
+			continue
 		}
-	}
-
-	if len(request.Messages) > 0 {
-		for _, m := range request.Messages {
-			if m.Role == ai.RoleUser {
-				parts, err := convertParts(m.Content)
-				if err != nil {
-					return nil, err
-				}
-				userParts = append(userParts, &genai.Content{
-					Role:  "user",
-					Parts: parts,
-				})
-				break
-			}
+		parts, err := convertParts(request.Messages[i].Content)
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	if systemInstruction == "" && len(userParts) == 0 {
-		return nil, fmt.Errorf("no content to cache")
+		messagesForCache = append(messagesForCache, &genai.Content{
+			Role:  string(request.Messages[i].Role),
+			Parts: parts,
+		})
 	}
 
 	content := &genai.CachedContent{
-		Model: modelVersion,
-		SystemInstruction: &genai.Content{
-			Role:  "system",
-			Parts: []genai.Part{genai.Text(systemInstruction)},
-		},
-		Contents:   userParts,
+		Model:      modelVersion,
+		Contents:   messagesForCache,
 		Expiration: genai.ExpireTimeOrTTL{TTL: calculateTTL(cacheConfig.TTL)},
 	}
 
-	return content, nil
+	return &contentForCache{
+		cacheConfig: cacheConfig,
+		content:     content,
+	}, nil
 }
 
 // generateCacheKey creates a unique key for the cached content based on its contents.
@@ -162,8 +175,8 @@ func contains(slice []string, target string) bool {
 	return false
 }
 
-// validateContextCacheRequest decides if we should try caching for this request.
-// For demonstration, we will cache if there are more than 2 messages or if there's a system prompt.
+// validateContextCacheRequest checks for supported models and checks if Tools
+// are being provided in the request
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
 	if modelVersion == "" || !contains(ContextCacheSupportedModels[:], modelVersion) {
 		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.modelVersion)
@@ -180,43 +193,29 @@ func extractCacheConfig(request *ai.ModelRequest) (int, *CacheConfigDetails, err
 	endOfCachedContents := -1
 	var cacheConfig *CacheConfigDetails
 
+	// find the cache mark in the list of request messages
 	for i := len(request.Messages) - 1; i >= 0; i-- {
 		m := request.Messages[i]
-		if m.Metadata != nil {
-			if c, ok := m.Metadata["cache"]; ok && c != nil {
-				// Found a message with `metadata.cache`
-				endOfCachedContents = i
+		fmt.Printf("m contents: %#v\n\n", m)
+		if m.Metadata == nil {
+			continue
+		}
 
-				// Parse the cache config. The TS code uses zod schema;
-				// here we assume `cache` can be either a boolean or a map with `ttlSeconds`.
-				switch val := c.(type) {
-				case bool:
-					// If it's just a boolean, true = default TTL, false = no cache
-					if val {
-						cacheConfig = &CacheConfigDetails{
-							TTL: 0, // use default if 0
-						}
-					} else {
-						// false means no caching
-						cacheConfig = &CacheConfigDetails{
-							TTL: 0,
-						}
-					}
+		// found the cache key and its content is a map
+		fmt.Printf("m.Metadata[cache]: %#v\n\n", m.Metadata["cache"])
+		if c, ok := m.Metadata["cache"].(map[string]any); ok && c != nil {
+			fmt.Printf("[%d] FOUND METADATA! %#v\n\n", i, m.Metadata["cache"])
+			// Found a message with `metadata.cache`
+			endOfCachedContents = i
 
-				case map[string]interface{}:
-					ttl := time.Duration(0)
-					if ttlVal, ok := val["ttlSeconds"].(float64); ok {
-						ttl = time.Duration(ttlVal)
-					}
-					cacheConfig = &CacheConfigDetails{
-						TTL: ttl,
-					}
-
-				default:
-					return -1, nil, fmt.Errorf("invalid cache config type: %T", val)
-				}
-				break
+			ttl := time.Duration(0)
+			if ttlVal, ok := c["ttlSeconds"].(int); ok {
+				ttl = time.Duration(ttlVal)
 			}
+			cacheConfig = &CacheConfigDetails{
+				TTL: ttl,
+			}
+			break
 		}
 	}
 
@@ -225,6 +224,7 @@ func extractCacheConfig(request *ai.ModelRequest) (int, *CacheConfigDetails, err
 		return -1, nil, nil
 	}
 
+	fmt.Printf("cacheConfig: %#v\n\n")
 	return endOfCachedContents, cacheConfig, nil
 }
 
@@ -236,24 +236,43 @@ func handleCacheIfNeeded(
 	request *ai.ModelRequest,
 	modelVersion string,
 	cacheConfig *CacheConfigDetails,
-) (*genai.CachedContent, error) {
-	if cacheConfig == nil || validateContextCacheRequest(request, modelVersion) != nil {
-		return nil, nil
-	}
-	cachedContent, err := getContentForCache(request, modelVersion, cacheConfig)
-	if err != nil || cachedContent == nil {
+	cs *genai.ChatSession,
+) (*contentForCache, error) {
+	if cacheConfig == nil {
 		return nil, nil
 	}
 
-	cachedContent.Model = modelVersion
-	cacheKey := generateCacheKey(cachedContent)
-	newCache, err := client.CreateCachedContent(ctx, cachedContent)
-	if err != nil {
-		if strings.Contains(err.Error(), "The minimum token count to start caching is 32768.") {
-			slog.Debug("not enough token count to start caching: %s cacheKey: %s", err.Error(), cacheKey)
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to create cache: %w", err)
+	if c, ok := request.Config.(*ai.GenerationCommonConfig); ok {
+		modelVersion = c.Version
 	}
-	return newCache, nil
+
+	// since context caching is only available for specific model versions, we
+	// must make sure the configuration has the right version
+	err := validateContextCacheRequest(request, modelVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	cc, err := getContentForCache(request, modelVersion, cacheConfig, cs)
+	if err != nil {
+		return nil, err
+	}
+
+	cc.content.Model = modelVersion
+	fmt.Printf("generating cache key for model: %s - %#v\n\n", cc.content.Model, cc.content)
+	// cacheKey := generateCacheKey(cc.content)
+	// fmt.Printf("cache key: %s\n\n", cacheKey)
+
+	newCache, err := client.CreateCachedContent(ctx, cc.content)
+	if err != nil {
+		fmt.Errorf("OOPS: %#v", err)
+		if strings.Contains(err.Error(), "The minimum token count to start caching is") {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to create cache: %v", err)
+	}
+
+	cc.content = newCache
+	fmt.Printf("generated cache: %#v\n\n", newCache)
+	return cc, nil
 }

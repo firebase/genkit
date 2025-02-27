@@ -260,27 +260,36 @@ func generate(
 	if !ok {
 		return nil, fmt.Errorf("vertexai.Generate(%s): expected CacheConfigDetails", model)
 	}
+
 	var cacheConfig *CacheConfigDetails
 	if req.TTL != 0 {
 		cacheConfig = &CacheConfigDetails{
 			TTL: req.TTL,
 		}
 	}
-	cache, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
-	if err != nil {
-		return nil, err
-	}
+
 	gm, err := newModel(client, model, input)
 	if err != nil {
 		return nil, err
 	}
-	if cache != nil {
-		gm.CachedContentName = cache.Name
-	}
+
 	cs, err := startChat(gm, input)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("context cache for model version: %#v\n\n", model)
+	cc, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig, cs)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("cache: %#v\n\n", cc)
+	if cc != nil {
+		if cc.content != nil {
+			gm.CachedContentName = cc.content.Name
+		}
+	}
+
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
 	if len(input.Messages) > 0 {

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 // NewModelRequest create a new ModelRequest with provided config and
@@ -65,5 +64,25 @@ func NewTextMessage(role Role, text string) *Message {
 	return &Message{
 		Role:    role,
 		Content: []*Part{NewTextPart(text)},
+	}
+}
+
+// Cached adds cache configuration for the desired message
+func (m *Message) Cached(ttlSeconds int) *Message {
+	metadata := map[string]any{
+		"cache": map[string]any{
+			"ttlSeconds": ttlSeconds,
+		},
+	}
+	// copy the existing metadata and add cache
+	if m.Metadata != nil {
+		for k, v := range m.Metadata {
+			metadata[k] = v
+		}
+	}
+	return &Message{
+		Content:  m.Content,
+		Role:     m.Role,
+		Metadata: metadata,
 	}
 }

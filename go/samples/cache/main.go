@@ -65,15 +65,20 @@ func main() {
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithTextPrompt(prompt),
-			ai.WithMessages(ai.NewUserMessage(
-				ai.NewTextPart(string(textContent)))))
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart(string(textContent))),
+				ai.NewModelMessage(
+					ai.NewTextPart("Here's what I can tell you about the book you provided")).Cached(360),
+			),
+		)
 		if err != nil {
 			return "", nil
 		}
 
 		text := resp.Text()
 
-		fmt.Printf("%#v", resp.Usage)
+		fmt.Printf("%#v\n\n", resp.Usage)
 		return text, nil
 	})
 
