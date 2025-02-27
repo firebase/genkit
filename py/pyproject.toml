@@ -80,7 +80,7 @@ rag                        = { workspace = true }
 vertex-ai-model-garden     = { workspace = true }
 vertex-ai-reranker         = { workspace = true }
 vertex-ai-vector-search    = { workspace = true }
-
+vertex-ai-imagen           = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]

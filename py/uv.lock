@@ -1187,7 +1187,7 @@ wheels = [
 [[package]]
 name = "imagen"
 version = "0.1.0"
-source = { editable = "samples/vetex-ai-imagen" }
+source = { editable = "samples/vertex-ai-imagen" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-firebase-plugin" },
