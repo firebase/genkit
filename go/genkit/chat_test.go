@@ -22,12 +22,13 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit/session"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
 )
 
 type HelloPromptInput struct {
-	UserName string
+	Name string
 }
 
 var chatGenkit, _ = New(nil)
@@ -41,12 +42,12 @@ func getNameTool(g *Genkit) *ai.ToolDef[struct{ Name string }, string] {
 			Name string
 		}) (string, error) {
 			// Set name in state
-			session, err := SessionFromContext(ctx)
+			session, err := session.FromContext(ctx)
 			if err != nil {
 				return "", err
 			}
 
-			err = session.UpdateState(input.Name)
+			err = session.UpdateState(input)
 			if err != nil {
 				return "", err
 			}
@@ -133,7 +134,7 @@ func getChatPrompt(g *Genkit) *ai.Prompt {
 			}
 			prompt := fmt.Sprintf(
 				"Say hello to %s",
-				params.UserName)
+				params.Name)
 			return &ai.ModelRequest{Messages: []*ai.Message{
 				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
 			}}, nil
@@ -211,7 +212,7 @@ func TestChatWithStreaming(t *testing.T) {
 func TestChatWithOptions(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession(ctx)
+	session, err := session.New(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -233,7 +234,7 @@ func TestChatWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	if chat.Session == nil || chat.Session.ID != session.ID {
+	if chat.Session == nil || chat.Session.GetID() != session.GetID() {
 		t.Errorf("session is not set")
 	}
 
@@ -267,7 +268,7 @@ func TestChatWithOptions(t *testing.T) {
 func TestChatWithOptionsErrorHandling(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession(ctx)
+	session, err := session.New(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -436,7 +437,7 @@ func TestGetChatMessages(t *testing.T) {
 func TestMultiChatSession(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession(ctx)
+	session, err := session.New(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -485,7 +486,11 @@ func TestMultiChatSession(t *testing.T) {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
 
-	if len(session.SessionData.Threads) != 2 {
+	data, err := session.GetData()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if len(data.Threads) != 2 {
 		t.Errorf("session should have 2 threads")
 	}
 }
@@ -493,8 +498,8 @@ func TestMultiChatSession(t *testing.T) {
 func TestStateUpdate(t *testing.T) {
 	ctx := context.Background()
 
-	session, err := NewSession(ctx,
-		WithStateType("no name"),
+	session, err := session.New(ctx,
+		session.WithStateType(HelloPromptInput{}),
 	)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -522,7 +527,11 @@ func TestStateUpdate(t *testing.T) {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
 
-	if session.SessionData.State["state"] != "Earl" {
+	data, err := session.GetData()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if data.State["Name"] != "Earl" {
 		t.Error("session state not set")
 	}
 }
@@ -536,7 +545,7 @@ func TestChatWithPrompt(t *testing.T) {
 		chatGenkit,
 		WithModel(chatModel),
 		WithPrompt(chatPrompt),
-		WithInput(HelloPromptInput{UserName: "Earl"}),
+		WithInput(HelloPromptInput{Name: "Earl"}),
 	)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -552,8 +561,18 @@ func TestChatWithPrompt(t *testing.T) {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
 
+	// Send text instead of messages
+	text, err := chat.SendText(ctx, "Send prompt")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if !strings.Contains(text, want) {
+		t.Errorf("got %q want %q", text, want)
+	}
+
 	// Rendered prompt to chat
-	mr, err := chatPrompt.Render(ctx, HelloPromptInput{UserName: "someone else"})
+	mr, err := chatPrompt.Render(ctx, HelloPromptInput{Name: "someone else"})
 	if err != nil {
 		t.Fatal(err.Error())
 	}

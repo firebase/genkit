@@ -21,13 +21,14 @@ import (
 	"strconv"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit/session"
 )
 
 type Chat struct {
 	Genkit     *Genkit                   `json:"genkit,omitempty"`
 	Model      ai.Model                  `json:"model,omitempty"`      // The model to query
 	ThreadName string                    `json:"threadName,omitempty"` // The chats threadname
-	Session    *Session                  `json:"session,omitempty"`    // The chats session
+	Session    *session.Session          `json:"session,omitempty"`    // The chats session
 	SystemText string                    `json:"systemtext,omitempty"` // Message sent to the model as system instructions
 	Prompt     *ai.Prompt                `json:"prompt,omitempty"`     // Optional prompt
 	Input      any                       `json:"input,omitempty"`      // Optional input fields for the chat. This should be a struct, a pointer to a struct that matches the input schema, or a string.
@@ -62,7 +63,7 @@ func NewChat(ctx context.Context, g *Genkit, opts ...ChatOption) (chat *Chat, er
 	}
 
 	if chat.Session == nil {
-		s, err := NewSession(ctx)
+		s, err := session.New(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +84,7 @@ func NewChat(ctx context.Context, g *Genkit, opts ...ChatOption) (chat *Chat, er
 // included in the conversation before the history.
 func (c *Chat) Send(ctx context.Context, msg any) (resp *ai.ModelResponse, err error) {
 	// Load history
-	data, err := c.Session.Store.Get(c.Session.ID)
+	data, err := c.Session.GetData()
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +152,21 @@ func (c *Chat) Send(ctx context.Context, msg any) (resp *ai.ModelResponse, err e
 	return resp, nil
 }
 
+// SendText sends a text message to the chat, generating a response from the AI model and return the text.
+// It retrieves the chat history from the session store, adds the new message
+// to the history, and sends the entire conversation to the AI model for
+// generating a response. If a system message is set for the chat, it is
+// included in the conversation before the history.
+func (c *Chat) SendText(ctx context.Context, msgText string) (string, error) {
+	msg := ai.NewUserTextMessage(msgText)
+	resp, err := c.Send(ctx, msg)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Text(), nil
+}
+
 // UpdateMessages updates the messages for the chat.
 func (c *Chat) UpdateMessages(thread string, msgs []*ai.Message) error {
 	c.Request.Messages = msgs
@@ -169,7 +185,7 @@ func WithModel(model ai.Model) ChatOption {
 }
 
 // WithSession sets a session for the chat.
-func WithSession(session *Session) ChatOption {
+func WithSession(session *session.Session) ChatOption {
 	return func(c *Chat) error {
 		if c.Session != nil {
 			return errors.New("genkit.WithSession: cannot set session more than once")

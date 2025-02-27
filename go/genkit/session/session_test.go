@@ -12,34 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package session
 
 import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 )
 
+type hello struct {
+	Name string `json:"name"`
+}
+
 func TestSession(t *testing.T) {
 	ctx := context.Background()
-	session, err := NewSession(ctx)
+	session, err := New(ctx)
 
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if session.ID == "" {
+	if session.id == "" {
 		t.Error("session id is empty")
 	}
 
-	if session.Store == nil {
+	if session.store == nil {
 		t.Error("session store is nil")
 	}
 
-	if session.SessionData.Threads == nil {
+	if session.data.Threads == nil {
 		t.Error("session threads are nil")
 	}
 
@@ -48,9 +53,9 @@ func TestSession(t *testing.T) {
 
 func TestDefaultInMemSessionStore(t *testing.T) {
 	ss := InMemorySessionStore{
-		Data: make(map[string]SessionData),
+		data: make(map[string]Data),
 	}
-	ss.Data["testID"] = SessionData{
+	ss.data["testID"] = Data{
 		Threads: map[string][]*ai.Message{
 			"testThread": {ai.NewUserTextMessage("testMessage")},
 		},
@@ -146,7 +151,7 @@ func TestMultiSessionsAndThreads(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			data, err := test.session.Store.Get(test.session.ID)
+			data, err := test.session.store.Get(test.session.id)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -179,14 +184,14 @@ func TestMultiSessionsAndThreads(t *testing.T) {
 
 func TestLoadSessionFromStore(t *testing.T) {
 	ctx := context.Background()
-	session, err := NewSession(ctx)
+	session, err := New(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
 	_helper_check_stored_messages(t, session, "hello")
 
-	loadS, err := LoadSession(ctx, session.ID, session.Store)
+	loadS, err := Load(ctx, session.id, session.store)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -195,16 +200,13 @@ func TestLoadSessionFromStore(t *testing.T) {
 }
 
 func TestSessionStateFormat(t *testing.T) {
-	type hello struct {
-		Name string `json:"name"`
-	}
-
 	var tests = []struct {
 		name         string
 		state        any
 		stateType    string
 		defaultState map[string]any
 		newState     any
+		fail         bool
 	}{
 		{
 			name:         "structInput",
@@ -212,6 +214,7 @@ func TestSessionStateFormat(t *testing.T) {
 			stateType:    "struct",
 			defaultState: map[string]any{"name": ""},
 			newState:     hello{Name: "new world"},
+			fail:         false,
 		},
 		{
 			name:         "structInputWithDefaults",
@@ -219,6 +222,7 @@ func TestSessionStateFormat(t *testing.T) {
 			stateType:    "struct",
 			defaultState: map[string]any{"name": "world"},
 			newState:     hello{Name: "new world"},
+			fail:         false,
 		},
 		{
 			name:         "stringInput",
@@ -226,6 +230,7 @@ func TestSessionStateFormat(t *testing.T) {
 			stateType:    "primitive",
 			defaultState: map[string]any{"state": "world"},
 			newState:     "new world",
+			fail:         true,
 		},
 		{
 			name:         "intInput",
@@ -233,6 +238,7 @@ func TestSessionStateFormat(t *testing.T) {
 			stateType:    "primitive",
 			defaultState: map[string]any{"state": 1},
 			newState:     2,
+			fail:         true,
 		},
 		{
 			name:         "floatInput",
@@ -240,6 +246,7 @@ func TestSessionStateFormat(t *testing.T) {
 			stateType:    "primitive",
 			defaultState: map[string]any{"state": 3.14159},
 			newState:     2.71828,
+			fail:         true,
 		},
 		{
 			name:         "mapInput",
@@ -247,21 +254,26 @@ func TestSessionStateFormat(t *testing.T) {
 			state:        map[string]any{"name": "world"},
 			defaultState: map[string]any{"name": "world"},
 			newState:     map[string]any{"name": "new world"},
+			fail:         true,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			session, err := NewSession(
+			session, err := New(
 				context.Background(),
 				WithStateType(test.state),
 			)
 			if err != nil {
+				want := "only structs are allowed as types"
+				if test.fail && strings.Contains(err.Error(), want) {
+					return
+				}
 				t.Fatal(err)
 			}
 
 			for k, v1 := range test.defaultState {
-				if v2, ok := session.SessionData.State[k]; !ok || v1 != v2 {
-					fmt.Print(session.SessionData.State)
+				if v2, ok := session.data.State[k]; !ok || v1 != v2 {
+					fmt.Print(session.data.State)
 					t.Errorf("default state not set")
 				}
 			}
@@ -273,16 +285,16 @@ func TestSessionStateFormat(t *testing.T) {
 
 			switch test.stateType {
 			case "struct":
-				if reflect.DeepEqual(test.newState, session.SessionData.State) {
+				if reflect.DeepEqual(test.newState, session.data.State) {
 					t.Errorf("state not updated")
 				}
 			case "primitive":
-				if v, ok := session.SessionData.State["state"]; !ok || v != test.newState {
+				if v, ok := session.data.State["state"]; !ok || v != test.newState {
 					t.Errorf("state not updated")
 				}
 			case "map":
 				for k, v1 := range test.newState.(map[string]any) {
-					if v2, ok := session.SessionData.State[k]; !ok || v1 != v2 {
+					if v2, ok := session.data.State[k]; !ok || v1 != v2 {
 						t.Errorf("state not updated")
 					}
 				}
@@ -292,13 +304,13 @@ func TestSessionStateFormat(t *testing.T) {
 }
 
 func TestSessionWithOptions(t *testing.T) {
-	session, err := NewSession(
+	session, err := New(
 		context.Background(),
-		WithSessionStore(&TestInMemSessionStore{
-			SessionData: make(map[string]SessionData),
+		WithStore(&TestInMemSessionStore{
+			SessionData: make(map[string]Data),
 		}),
-		WithSessionID("test"),
-		WithSessionData(SessionData{
+		WithID("test"),
+		WithData(Data{
 			State: map[string]any{
 				"state": "testState",
 			},
@@ -312,20 +324,20 @@ func TestSessionWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	if session.Store == nil {
+	if session.store == nil {
 		t.Error("session store is nil")
 	}
 
-	store := reflect.TypeOf(session.Store)
-	if store.String() != "*genkit.TestInMemSessionStore" {
+	store := reflect.TypeOf(session.store)
+	if store.String() != "*session.TestInMemSessionStore" {
 		t.Errorf("default store not overwritten, got %s", store.String())
 	}
 
-	if session.ID != "test" {
+	if session.id != "test" {
 		t.Error("session id not overwritten")
 	}
 
-	data, err := session.Store.Get(session.ID)
+	data, err := session.store.Get(session.id)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -344,17 +356,17 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 	}{
 		{
 			name: "WithSessionStore",
-			with: WithSessionStore(&TestInMemSessionStore{
-				SessionData: make(map[string]SessionData),
+			with: WithStore(&TestInMemSessionStore{
+				SessionData: make(map[string]Data),
 			}),
 		},
 		{
 			name: "WithSessionID",
-			with: WithSessionID("test"),
+			with: WithID("test"),
 		},
 		{
 			name: "WithSessionData",
-			with: WithSessionData(SessionData{
+			with: WithData(Data{
 				State: map[string]any{
 					"state": "testState",
 				},
@@ -365,13 +377,13 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 		},
 		{
 			name: "WithStateType",
-			with: WithStateType(map[string]any{"name": "world"}),
+			with: WithStateType(hello{Name: "world"}),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := NewSession(
+			_, err := New(
 				context.Background(),
 				test.with,
 				test.with,
@@ -386,7 +398,7 @@ func TestSessionWithOptionsErrorHandling(t *testing.T) {
 
 func TestSessionFromContext(t *testing.T) {
 	ctx := context.Background()
-	session, err := NewSession(ctx)
+	session, err := New(ctx)
 
 	if err != nil {
 		t.Fatal(err.Error())
@@ -394,19 +406,19 @@ func TestSessionFromContext(t *testing.T) {
 
 	ctx = session.SetContext(ctx)
 
-	sCtx, err := SessionFromContext(ctx)
+	sCtx, err := FromContext(ctx)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if sCtx.ID != session.ID {
+	if sCtx.id != session.id {
 		t.Error("session id not found in context")
 	}
 }
 
 func _helper_session_with_stored_messages(threads map[string][]*ai.Message) (*Session, error) {
 	ctx := context.Background()
-	session, err := NewSession(ctx)
+	session, err := New(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +440,7 @@ func _helper_check_stored_messages(t *testing.T, s *Session, msg string) {
 		t.Fatal(err.Error())
 	}
 
-	data, err := s.Store.Get(s.ID)
+	data, err := s.store.Get(s.id)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -443,14 +455,14 @@ func _helper_check_stored_messages(t *testing.T, s *Session, msg string) {
 }
 
 type TestInMemSessionStore struct {
-	SessionData map[string]SessionData
+	SessionData map[string]Data
 }
 
-func (s *TestInMemSessionStore) Get(sessionId string) (data SessionData, err error) {
+func (s *TestInMemSessionStore) Get(sessionId string) (data Data, err error) {
 	return s.SessionData[sessionId], nil
 }
 
-func (s *TestInMemSessionStore) Save(sessionId string, data SessionData) error {
+func (s *TestInMemSessionStore) Save(sessionId string, data Data) error {
 	s.SessionData[sessionId] = data
 	return nil
 }

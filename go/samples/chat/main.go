@@ -22,6 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/genkit/session"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
@@ -68,8 +69,8 @@ func StatefulChat(ctx context.Context, g *genkit.Genkit) {
 	m := vertexai.Model(g, "gemini-1.5-pro")
 
 	// To include state in a session, you need to instantiate a session explicitly
-	session, err := genkit.NewSession(ctx,
-		genkit.WithSessionData(genkit.SessionData{
+	s, err := session.New(ctx,
+		session.WithData(session.Data{
 			State: map[string]any{
 				"username": "Michael",
 			},
@@ -89,12 +90,12 @@ func StatefulChat(ctx context.Context, g *genkit.Genkit) {
 			Name string
 		}) (string, error) {
 			// Set name in state
-			session, err := genkit.SessionFromContext(ctx)
+			s, err := session.FromContext(ctx)
 			if err != nil {
 				return "", err
 			}
 
-			err = session.UpdateState(map[string]any{
+			err = s.UpdateState(map[string]any{
 				"username": input.Name,
 			})
 			if err != nil {
@@ -111,7 +112,7 @@ func StatefulChat(ctx context.Context, g *genkit.Genkit) {
 		genkit.WithModel(m),
 		genkit.WithSystemText("You're Kitt from Knight Rider. Address the user as Kitt would and always introduce yourself."),
 		genkit.WithConfig(ai.GenerationCommonConfig{Temperature: 1}),
-		genkit.WithSession(session),
+		genkit.WithSession(s),
 		genkit.WithTools(chatTool),
 	)
 	if err != nil {
@@ -124,7 +125,11 @@ func StatefulChat(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	fmt.Print(resp.Text())
-	fmt.Print(session.SessionData.State["username"])
+	data, err := s.GetData()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(data.State["username"])
 }
 
 func MultiThreadChat(ctx context.Context, g *genkit.Genkit) {
@@ -174,10 +179,10 @@ func PersistentStorageChat(ctx context.Context, g *genkit.Genkit) {
 
 	// To override default in-mem session storage
 	store := &MyOwnSessionStore{
-		SessionData: make(map[string]genkit.SessionData),
+		SessionData: make(map[string]session.Data),
 	}
-	session, err := genkit.NewSession(ctx,
-		genkit.WithSessionStore(store),
+	s, err := session.New(ctx,
+		session.WithStore(store),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -189,7 +194,7 @@ func PersistentStorageChat(ctx context.Context, g *genkit.Genkit) {
 		genkit.WithModel(m),
 		genkit.WithSystemText("You're a helpful chatbox. Help the user."),
 		genkit.WithConfig(ai.GenerationCommonConfig{Temperature: 1}),
-		genkit.WithSession(session),
+		genkit.WithSession(s),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -203,7 +208,7 @@ func PersistentStorageChat(ctx context.Context, g *genkit.Genkit) {
 	fmt.Print(resp.Text())
 
 	// Load and use existing session
-	session2, err := genkit.LoadSession(ctx, session.ID, store)
+	session2, err := session.Load(ctx, s.GetID(), store)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -229,10 +234,10 @@ func PersistentStorageChat(ctx context.Context, g *genkit.Genkit) {
 }
 
 type MyOwnSessionStore struct {
-	SessionData map[string]genkit.SessionData
+	SessionData map[string]session.Data
 }
 
-func (s *MyOwnSessionStore) Get(sessionId string) (data genkit.SessionData, err error) {
+func (s *MyOwnSessionStore) Get(sessionId string) (data session.Data, err error) {
 	d, err := os.ReadFile("/tmp/" + sessionId)
 	if err != nil {
 		return data, err
@@ -250,7 +255,7 @@ func (s *MyOwnSessionStore) Get(sessionId string) (data genkit.SessionData, err 
 	return s.SessionData[sessionId], nil
 }
 
-func (s *MyOwnSessionStore) Save(sessionId string, data genkit.SessionData) error {
+func (s *MyOwnSessionStore) Save(sessionId string, data session.Data) error {
 	s.SessionData[sessionId] = data
 	d, err := json.Marshal(data)
 	if err != nil {
