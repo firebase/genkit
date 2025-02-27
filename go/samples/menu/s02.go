@@ -50,9 +50,7 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 
 	genkit.DefineFlow(g, "s02_menuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			resp, err := dataMenuPrompt.Generate(ctx, g,
-				dotprompt.WithInput(input),
-			)
+			resp, err := dataMenuPrompt.Generate(ctx, g, dotprompt.WithInput(input))
 			if err != nil {
 				return nil, err
 			}
