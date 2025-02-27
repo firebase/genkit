@@ -19,16 +19,11 @@ from genkit.veneer.veneer import Genkit
 
 
 class ProgrammableModel:
-    request_idx = 0
-    responses: list[GenerateResponse] = []
-    chunks: list[list[GenerateResponseChunk]] = None
-    last_request: GenerateRequest = None
-
     def __init__(self):
         self.request_idx = 0
-        self.responses = []
-        self.chunks = None
-        self.last_request = None
+        self.responses: list[GenerateResponse] = []
+        self.chunks: list[list[GenerateResponseChunk]] = None
+        self.last_request: GenerateRequest = None
 
     def model_fn(self, request: GenerateRequest, ctx: ActionRunContext):
         self.last_request = request
@@ -54,9 +49,9 @@ def define_programmable_model(ai: Genkit, name: str = 'programmableModel'):
 
 
 class EchoModel:
-    last_request: GenerateRequest = None
-
     def __init__(self):
+        self.last_request: GenerateRequest = None
+
         def model_fn(request: GenerateRequest):
             self.last_request = request
             merged_txt = ''
