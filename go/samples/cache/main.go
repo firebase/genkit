@@ -15,7 +15,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
-// duneQuestionInput is a question about the LOTR chapters.
+// duneQuestionInput is a question about Dune
 type duneQuestionInput struct {
 	Question string `json:"question"`
 	FilePath string `json:"path"`
