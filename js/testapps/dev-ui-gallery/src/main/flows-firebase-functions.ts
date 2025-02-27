@@ -27,9 +27,11 @@ const greetFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (langauge: string) => {
-    const { output } = await ai.generate(`Say hello in language ${langauge}`);
-    return output;
+  async (language: string) => {
+    const { text } = await ai.generate({
+      prompt: `Say hello in language ${language}`,
+    });
+    return text;
   }
 );
 

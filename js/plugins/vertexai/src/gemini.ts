@@ -25,13 +25,20 @@ import {
   GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
+  Schema,
   StartChatParams,
   ToolConfig,
   VertexAI,
   type GoogleSearchRetrieval,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
-import { GENKIT_CLIENT_HEADER, Genkit, JSONSchema, z } from 'genkit';
+import {
+  GENKIT_CLIENT_HEADER,
+  Genkit,
+  GenkitError,
+  JSONSchema,
+  z,
+} from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -51,6 +58,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
+import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
@@ -424,7 +432,8 @@ function toGeminiRole(
   }
 }
 
-const toGeminiTool = (
+/** @hidden */
+export const toGeminiTool = (
   tool: z.infer<typeof ToolDefinitionSchema>
 ): FunctionDeclaration => {
   const declaration: FunctionDeclaration = {
@@ -645,31 +654,65 @@ export function fromGeminiCandidate(
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
-const convertSchemaProperty = (property) => {
+function convertSchemaProperty(property) {
   if (!property || !property.type) {
-    return null;
+    return undefined;
   }
-  if (property.type === 'object') {
+  const baseSchema = {} as Schema;
+  if (property.description) {
+    baseSchema.description = property.description;
+  }
+  if (property.enum) {
+    baseSchema.enum = property.enum;
+  }
+  if (property.nullable) {
+    baseSchema.nullable = property.nullable;
+  }
+  let propertyType;
+  // nullable schema can ALSO be defined as, for example, type=['string','null']
+  if (Array.isArray(property.type)) {
+    const types = property.type as string[];
+    if (types.includes('null')) {
+      baseSchema.nullable = true;
+    }
+    // grab the type that's not `null`
+    propertyType = types.find((t) => t !== 'null');
+  } else {
+    propertyType = property.type;
+  }
+  if (propertyType === 'object') {
     const nestedProperties = {};
     Object.keys(property.properties).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
+      ...baseSchema,
       type: FunctionDeclarationSchemaType.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
-  } else if (property.type === 'array') {
+  } else if (propertyType === 'array') {
     return {
+      ...baseSchema,
       type: FunctionDeclarationSchemaType.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
+    const schemaType = FunctionDeclarationSchemaType[
+      propertyType.toUpperCase()
+    ] as FunctionDeclarationSchemaType;
+    if (!schemaType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Unsupported property type ${propertyType.toUpperCase()}`,
+      });
+    }
     return {
-      type: FunctionDeclarationSchemaType[property.type.toUpperCase()],
+      ...baseSchema,
+      type: schemaType,
     };
   }
-};
+}
 
 export function cleanSchema(schema: JSONSchema): JSONSchema {
   const out = structuredClone(schema);
@@ -700,36 +743,47 @@ export function defineGeminiKnownModel(
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
   ) => VertexAI,
-  options: PluginOptions
+  options: PluginOptions,
+  debugTraces?: boolean
 ): ModelAction {
   const modelName = `vertexai/${name}`;
 
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
-  return defineGeminiModel(
+  return defineGeminiModel({
     ai,
     modelName,
-    name,
-    model?.info,
+    version: name,
+    modelInfo: model?.info,
     vertexClientFactory,
-    options
-  );
+    options,
+    debugTraces,
+  });
 }
 
 /**
  * Define a Vertex AI Gemini model.
  */
-export function defineGeminiModel(
-  ai: Genkit,
-  modelName: string,
-  version: string,
-  modelInfo: ModelInfo | undefined,
+export function defineGeminiModel({
+  ai,
+  modelName,
+  version,
+  modelInfo,
+  vertexClientFactory,
+  options,
+  debugTraces,
+}: {
+  ai: Genkit;
+  modelName: string;
+  version: string;
+  modelInfo: ModelInfo | undefined;
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
-  ) => VertexAI,
-  options: PluginOptions
-): ModelAction {
+  ) => VertexAI;
+  options: PluginOptions;
+  debugTraces?: boolean;
+}): ModelAction {
   const middlewares: ModelMiddleware[] = [];
   if (SUPPORTED_V1_MODELS[version]) {
     middlewares.push(simulateSystemPrompt());
@@ -746,7 +800,7 @@ export function defineGeminiModel(
       configSchema: GeminiConfigSchema,
       use: middlewares,
     },
-    async (request, streamingCallback) => {
+    async (request, sendChunk) => {
       const vertex = vertexClientFactory(request);
 
       // Make a copy of messages to avoid side-effects
@@ -884,57 +938,84 @@ export function defineGeminiModel(
         );
       }
 
-      // Handle streaming and non-streaming responses
-      if (streamingCallback) {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessageStream(msg.parts);
+      const callGemini = async () => {
+        let response: GenerateContentResponse;
 
-        for await (const item of result.stream) {
-          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
-            const c = fromGeminiCandidate(candidate, jsonMode);
-            streamingCallback({
-              index: c.index,
-              content: c.message.content,
-            });
+        // Handle streaming and non-streaming responses
+        if (sendChunk) {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessageStream(msg.parts);
+
+          for await (const item of result.stream) {
+            (item as GenerateContentResponse).candidates?.forEach(
+              (candidate) => {
+                const c = fromGeminiCandidate(candidate, jsonMode);
+                sendChunk({
+                  index: c.index,
+                  content: c.message.content,
+                });
+              }
+            );
+          }
+
+          response = await result.response;
+        } else {
+          const result = await genModel
+            .startChat(updatedChatRequest)
+            .sendMessage(msg.parts);
+
+          response = result.response;
+        }
+
+        if (!response.candidates?.length) {
+          throw new GenkitError({
+            status: 'FAILED_PRECONDITION',
+            message: 'No valid candidates returned.',
           });
         }
 
-        const response = await result.response;
-        if (!response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
-        }
-
-        return {
-          candidates: response.candidates.map((c) =>
-            fromGeminiCandidate(c, jsonMode)
-          ),
-          custom: response,
-        };
-      } else {
-        const result = await genModel
-          .startChat(updatedChatRequest)
-          .sendMessage(msg.parts);
-
-        if (!result?.response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
-        }
-
-        const responseCandidates = result.response.candidates.map((c) =>
+        const candidateData = response.candidates.map((c) =>
           fromGeminiCandidate(c, jsonMode)
         );
 
         return {
-          candidates: responseCandidates,
-          custom: result.response,
+          candidates: candidateData,
+          custom: response,
           usage: {
-            ...getBasicUsageStats(request.messages, responseCandidates),
-            inputTokens: result.response.usageMetadata?.promptTokenCount,
-            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-            totalTokens: result.response.usageMetadata?.totalTokenCount,
+            ...getBasicUsageStats(request.messages, candidateData),
+            inputTokens: response.usageMetadata?.promptTokenCount,
+            outputTokens: response.usageMetadata?.candidatesTokenCount,
+            totalTokens: response.usageMetadata?.totalTokenCount,
           },
         };
-      }
+      };
+
+      // If debugTraces is enable, we wrap the actual model call with a span, add raw
+      // API params as for input.
+      return debugTraces
+        ? await runInNewSpan(
+            ai.registry,
+            {
+              metadata: {
+                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
+            async (metadata) => {
+              metadata.input = {
+                sdk: '@google-cloud/vertexai',
+                cache: cache,
+                model: genModel.getModelName(),
+                chatOptions: updatedChatRequest,
+                parts: msg.parts,
+                options,
+              };
+              const response = await callGemini();
+              metadata.output = response.custom;
+              return response;
+            }
+          )
+        : await callGemini();
     }
   );
 }

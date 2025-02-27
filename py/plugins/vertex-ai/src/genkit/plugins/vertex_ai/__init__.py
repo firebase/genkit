@@ -1,67 +1,31 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
+"""Vertex AI plugin for Genkit.
 
-
+This plugin provides integration with Google Cloud's Vertex AI platform,
+enabling the use of Vertex AI models and services within the Genkit framework.
 """
-Google Cloud Vertex AI Plugin for Genkit.
-"""
 
-import vertexai
-
-from typing import Callable, Optional
-from vertexai.generative_models import GenerativeModel, Content, Part
-
-from genkit.core.schemas import (
-    GenerateRequest,
-    GenerateResponse,
-    Message,
-    TextPart,
-)
-from genkit.veneer.veneer import Genkit
+from genkit.plugins.vertex_ai.embedding import EmbeddingModels
+from genkit.plugins.vertex_ai.gemini import GeminiVersion
+from genkit.plugins.vertex_ai.imagen import ImagenVersion
+from genkit.plugins.vertex_ai.plugin_api import VertexAI, vertexai_name
 
 
 def package_name() -> str:
+    """Get the package name for the Vertex AI plugin.
+
+    Returns:
+        The fully qualified package name as a string.
+    """
     return 'genkit.plugins.vertex_ai'
 
 
-def vertexAI(project_id: Optional[str] = None) -> Callable[[Genkit], None]:
-    def plugin(ai: Genkit) -> None:
-        vertexai.init(location='us-central1', project=project_id)
-
-        def gemini(request: GenerateRequest) -> GenerateResponse:
-            geminiMsgs: list[Content] = []
-            for m in request.messages:
-                geminiParts: list[Part] = []
-                for p in m.content:
-                    if p.root.text is not None:
-                        geminiParts.append(Part.from_text(p.root.text))
-                    else:
-                        raise Exception('unsupported part type')
-                geminiMsgs.append(Content(role=m.role.value, parts=geminiParts))
-            model = GenerativeModel('gemini-1.5-flash-002')
-            response = model.generate_content(contents=geminiMsgs)
-            return GenerateResponse(
-                message=Message(
-                    role='model', content=[TextPart(text=response.text)]
-                )
-            )
-
-        ai.define_model(
-            name='vertexai/gemini-1.5-flash',
-            fn=gemini,
-            metadata={
-                'model': {
-                    'label': 'banana',
-                    'supports': {'multiturn': True},
-                }
-            },
-        )
-
-    return plugin
-
-
-def gemini(name: str) -> str:
-    return f'vertexai/{name}'
-
-
-__all__ = ['package_name', 'vertexAI', 'gemini']
+__all__ = [
+    package_name.__name__,
+    VertexAI.__name__,
+    vertexai_name.__name__,
+    EmbeddingModels.__name__,
+    GeminiVersion.__name__,
+    ImagenVersion.__name__,
+]

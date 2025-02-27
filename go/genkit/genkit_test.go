@@ -1,23 +1,24 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package genkit
 
 import (
 	"context"
 	"testing"
+
+	"github.com/firebase/genkit/go/core"
 )
 
 func TestStreamFlow(t *testing.T) {
-	ai, err := New(nil)
+	g, err := Init(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := DefineStreamingFlow(ai, "count", count)
+	f := DefineStreamingFlow(g, "count", count)
 	iter := f.Stream(context.Background(), 2)
 	want := 0
-	iter(func(val *StreamFlowValue[int, int], err error) bool {
+	iter(func(val *core.StreamFlowValue[int, int], err error) bool {
 		if err != nil {
 			t.Fatal(err)
 		}

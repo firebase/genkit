@@ -33,6 +33,7 @@ import {
   gemini15Flash8b,
   gemini15Pro,
   gemini20Flash,
+  gemini20ProExp0205,
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
@@ -43,6 +44,7 @@ export {
   gemini15Flash8b,
   gemini15Pro,
   gemini20Flash,
+  gemini20ProExp0205,
   textEmbedding004,
   textEmbeddingGecko001,
   type GeminiConfig,
@@ -57,6 +59,7 @@ export interface PluginOptions {
     | ModelReference</** @ignore */ typeof GeminiConfigSchema>
     | string
   )[];
+  experimental_debugTraces?: boolean;
 }
 
 /**
@@ -76,33 +79,36 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
 
     if (apiVersions.includes('v1beta')) {
       Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
-        defineGoogleAIModel(
+        defineGoogleAIModel({
           ai,
           name,
-          options?.apiKey,
-          'v1beta',
-          options?.baseUrl
-        )
+          apiKey: options?.apiKey,
+          apiVersion: 'v1beta',
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
       );
     }
     if (apiVersions.includes('v1')) {
       Object.keys(SUPPORTED_V1_MODELS).forEach((name) =>
-        defineGoogleAIModel(
+        defineGoogleAIModel({
           ai,
           name,
-          options?.apiKey,
-          undefined,
-          options?.baseUrl
-        )
+          apiKey: options?.apiKey,
+          apiVersion: undefined,
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
       );
       Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
-        defineGoogleAIModel(
+        defineGoogleAIModel({
           ai,
           name,
-          options?.apiKey,
-          undefined,
-          options?.baseUrl
-        )
+          apiKey: options?.apiKey,
+          apiVersion: undefined,
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
       );
       Object.keys(EMBEDDER_MODELS).forEach((name) =>
         defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
@@ -118,17 +124,17 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
               modelOrRef.name.split('/')[1];
         const modelRef =
           typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-        defineGoogleAIModel(
+        defineGoogleAIModel({
           ai,
-          modelName,
-          options?.apiKey,
-          undefined,
-          options?.baseUrl,
-          {
+          name: modelName,
+          apiKey: options?.apiKey,
+          baseUrl: options?.baseUrl,
+          info: {
             ...modelRef.info,
             label: `Google AI - ${modelName}`,
-          }
-        );
+          },
+          debugTraces: options?.experimental_debugTraces,
+        });
       }
     }
   });

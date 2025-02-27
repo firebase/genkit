@@ -61,6 +61,10 @@ var (
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
+		"gemini-2.0-pro-exp-02-05": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}

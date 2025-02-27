@@ -102,7 +102,6 @@ export function genkitEvaluators<
   return metrics.map((metric) => {
     switch (metric) {
       case GenkitMetric.ANSWER_RELEVANCY: {
-        ai.defineIndexer;
         return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,

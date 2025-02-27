@@ -2,8 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Callable, Optional, Any
-from genkit.core.schemas import GenerateRequest
+"""Prompt management and templating for the Genkit framework.
 
+This module provides types and utilities for managing prompts and templates
+used with AI models in the Genkit framework. It enables consistent prompt
+generation and management across different parts of the application.
+"""
 
-PromptFn = Callable[[Optional[Any]], GenerateRequest]
+from collections.abc import Callable
+from typing import Any
+
+from genkit.core.typing import GenerateRequest
+
+# Type alias for a function that takes optional context and returns
+# a GenerateRequest
+PromptFn = Callable[[Any | None], GenerateRequest]

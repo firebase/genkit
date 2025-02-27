@@ -9,8 +9,8 @@ build intelligent and scalable AI applications. Key features include:
 - **Firestore Vector Store**: Use Firestore for indexing and retrieval
 with vector embeddings.
 - **Telemetry**: Export telemetry to
-[Google's Cloud operations suite](https://cloud.google.com/products/operations) that powers the Firebase Genkit
-Monitoring console.
+[Google's Cloud operations suite](https://cloud.google.com/products/operations)
+that powers the Firebase Genkit Monitoring console.
 
 ## Installation
 
@@ -78,37 +78,27 @@ Application Default Credentials. To specify your credentials:
   page of the Firebase console.
   1. Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
   path of the JSON file that contains your service account key, or you can set
-  the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the JSON file.
+  the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the
+  JSON file.
 
 ## Features and usage
 
 ### Telemetry
 
-Firebase Genkit Monitoring is powered by Google's Cloud operation suite. This
-requires telemetry related API's to be enabled for your project. Please refer
-to the [Google Cloud plugin](google-cloud.md#set-up-a-google-cloud-account)
-documentation for more details.
+The Firebase plugin provides a telemetry implementation for sending metrics,
+traces, and logs to Firebase Genkit Monitoring.
 
-Grant the following roles to the **"Default compute service account"** within
-the [Google Cloud IAM Console](https://console.cloud.google.com/iam-admin/iam):
+To get started, visit the [Getting started guide](../observability/getting-started.md)
+for installation and configuration instructions.
 
-- **Monitoring Metric Writer** (roles/monitoring.metricWriter)
-- **Cloud Trace Agent** (roles/cloudtrace.agent)
-- **Logs Writer** (roles/logging.logWriter)
+See the [Authentication and authorization guide](../observability/authentication.md)
+to authenticate with Google Cloud.
 
-To enable telemetry export call `enableFirebaseTelemetry()`:
+See the [Advanced configuration guide](../observability/advanced-configuration.md)
+for configuration options.
 
-<!--See note above on prettier-ignore -->
-<!-- prettier-ignore -->
-```js
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-
-enableFirebaseTelemetry({
-  forceDevExport: false, // Set this to true to export telemetry for local runs
-});
-```
-
-This plugin shares [configuration options](google-cloud.md#plugin-configuration) with the [Google Cloud plugin](google-cloud.md).
+See the [Telemetry collection](../observability/telemetry-collection.md) for
+details on which Genkit metrics, traces, and logs collected.
 
 ### Cloud Firestore vector search
 
@@ -291,7 +281,7 @@ section of the Firestore docs.
 
   The command looks like the following:
 
-  ```
+  ```posix-terminal
   gcloud alpha firestore indexes composite create --project=your-project-id \
     --collection-group=yourCollectionName --query-scope=COLLECTION \
     --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
@@ -300,7 +290,6 @@ section of the Firestore docs.
   However, the correct indexing configuration depends on the queries you
   make and the embedding model you're using.
 
-
 - Alternatively, call `ai.retrieve()` and Firestore will throw an error with
   the correct command to create the index.
 
@@ -308,8 +297,8 @@ section of the Firestore docs.
 
 - See the [Retrieval-augmented generation](http://../rag.md) page for a general discussion
 on indexers and retrievers in Genkit.
-- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search) in the Cloud Firestore docs for more
-on the vector search feature.
+- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
+in the Cloud Firestore docs for more on the vector search feature.
 
 ### Deploy flows as Cloud Functions
 
@@ -343,6 +332,6 @@ export const example = onCallGenkit({ secrets: [apiKey] }, exampleFlow);
 
 Deploy your flow using the Firebase CLI:
 
-```
+```posix-terminal
 firebase deploy --only functions
 ```

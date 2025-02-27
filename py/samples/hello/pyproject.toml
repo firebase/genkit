@@ -24,7 +24,7 @@ dependencies = [
   "genkit-vertex-ai-plugin",
   "pydantic>=2.10.5",
 ]
-description = "Hello world sample"
+description = "hello Genkit sample"
 license = { text = "Apache-2.0" }
 name = "hello"
 readme = "README.md"

@@ -23,7 +23,8 @@ type MyModelConfig struct {
 // [END cfg]
 
 func Init() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		return err
 	}

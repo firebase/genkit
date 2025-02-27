@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# Adds a license header to all files that don't already have it.
+
+# set -x # Uncomment to enable tracing.
+set -euo pipefail
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+
+if ! command -v addlicense &>/dev/null; then
+  if ! command -v go &>/dev/null; then
+    echo "Please install go"
+    exit 1
+  fi
+  echo "Installing addlicense..."
+  go install github.com/google/addlicense@latest
+fi
+
+# NOTE: If you edit the ignore patterns, make sure to update the ignore patterns
+# in the corresponding check_license script.
+$HOME/go/bin/addlicense \
+  -c "Google LLC" \
+  -s=only \
+  -l apache \
+  -ignore '**/.dist/**/*' \
+  -ignore '**/.eggs/**/*' \
+  -ignore '**/.idea/**/*' \
+  -ignore '**/.mypy_cache/**/*' \
+  -ignore '**/.next/**/*' \
+  -ignore '**/.output/**/*' \
+  -ignore '**/.pytest_cache/**/*' \
+  -ignore '**/.ruff_cache/**/*' \
+  -ignore '**/.venv/**/*' \
+  -ignore '**/.wxt/**/*' \
+  -ignore '**/__pycache__/**/*' \
+  -ignore '**/bazel-*/**/*' \
+  -ignore '**/coverage/**/*' \
+  -ignore '**/develop-eggs/**/*' \
+  -ignore '**/dist/**/*' \
+  -ignore '**/node_modules/**/*' \
+  -ignore '**/pnpm-lock.yaml' \
+  -ignore '.nx/**/*' \
+  -ignore '.trunk/**/*' \
+  "$TOP_DIR"

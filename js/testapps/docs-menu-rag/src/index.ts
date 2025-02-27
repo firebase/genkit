@@ -14,22 +14,9 @@
  * limitations under the License.
  */
 
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
-import { genkit, z } from 'genkit';
+import { z } from 'genkit';
+import { ai } from './genkit.js';
 import { indexMenu } from './indexer';
-
-export const ai = genkit({
-  plugins: [
-    vertexAI(),
-    devLocalVectorstore([
-      {
-        indexName: 'menuQA',
-        embedder: textEmbedding004,
-      },
-    ]),
-  ],
-});
 
 const menus = ['./docs/GenkitGrubPub.pdf'];
 
