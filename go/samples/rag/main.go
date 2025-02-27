@@ -64,7 +64,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.Model(g, "gemini-1.0-pro")
+	model := googleai.Model(g, "gemini-2.0-flash")
 	embedder := googleai.Embedder(g, "embedding-001")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
