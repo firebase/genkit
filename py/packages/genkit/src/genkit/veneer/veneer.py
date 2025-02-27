@@ -12,19 +12,26 @@ from http.server import HTTPServer
 from typing import Any
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
-from genkit.ai.model import ModelFn
-from genkit.core.action import ActionKind
+from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
+from genkit.ai.generate import generate_action
+from genkit.ai.model import GenerateResponseWrapper, ModelFn
+from genkit.core.action import Action, ActionKind
 from genkit.core.environment import is_dev_environment
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
 from genkit.core.typing import (
-    GenerateRequest,
-    GenerateResponse,
+    GenerateActionOptions,
     GenerationCommonConfig,
     Message,
+    Output,
+    Part,
+    Role,
+    TextPart,
+    ToolChoice,
 )
 from genkit.veneer import server
+from pydantic import TypeAdapter
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
@@ -97,37 +104,113 @@ class Genkit:
     async def generate(
         self,
         model: str | None = None,
-        prompt: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
         messages: list[Message] | None = None,
-        system: str | None = None,
         tools: list[str] | None = None,
-        config: GenerationCommonConfig | None = None,
-    ) -> GenerateResponse:
-        """Generate text using a language model.
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice = None,
+        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, Any] | None = None,
+        output_format: str | None = None,
+        content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, Any] | None = None,
+        constrained: bool | None = None,
+        # TODO:
+        #  docs: list[Document]
+        #  use: list[ModelMiddleware]
+        #  resume: ResumeOptions
+    ) -> GenerateResponseWrapper:
+        """Generates text or structured data using a language model.
+
+        This function provides a flexible interface for interacting with various language models,
+        supporting both simple text generation and more complex interactions involving tools and
+        structured conversations.
 
         Args:
-            model: Optional model name to use.
-            prompt: Optional raw prompt string.
-            messages: Optional list of messages for chat models.
-            system: Optional system message for chat models.
-            tools: Optional list of tools to use.
-            config: Optional generation configuration.
+            model: Optional. The name of the model to use for generation. If not provided, a default
+                   model may be used.
+            prompt: Optional. A single prompt string, a `Part` object, or a list of `Part` objects
+                    to provide as input to the model. This is used for simple text generation.
+            system: Optional. A system message string, a `Part` object, or a list of `Part` objects
+                    to provide context or instructions to the model, especially for chat-based models.
+            messages: Optional. A list of `Message` objects representing a conversation history.
+                      This is used for chat-based models to maintain context.
+            tools: Optional. A list of tool names (strings) that the model can use.
+            return_tool_requests: Optional. If `True`, the model will return tool requests instead of
+                                  executing them directly.
+            tool_choice: Optional. A `ToolChoice` object specifying how the model should choose
+                         which tool to use.
+            config: Optional. A `GenerationCommonConfig` object or a dictionary containing configuration
+                    parameters for the generation process. This allows fine-tuning the model's
+                    behavior.
+            max_turns: Optional. The maximum number of turns in a conversation.
+            on_chunk: Optional. A callback function of type `ModelStreamingCallback` that is called
+                      for each chunk of generated text during streaming.
+            context: Optional. A dictionary containing additional context information that can be
+                     used during generation.
 
         Returns:
-            The generated text response.
+            A `GenerateResponseWrapper` object containing the model's response, which may include
+            generated text, tool requests, or other relevant information.
+
+        Note:
+            - The `tools`, `return_tool_requests`, and `tool_choice` arguments are used for models
+              that support tool usage.
+            - The `on_chunk` argument enables streaming responses, allowing you to process the
+              generated content as it becomes available.
         """
-        model = model if model is not None else self.registry.defaultModel
+        model = model if model is not None else self.registry.default_model
         if model is None:
             raise Exception('No model configured.')
-        if config and not isinstance(config, GenerationCommonConfig):
+        if (
+            config
+            and not isinstance(config, GenerationCommonConfig)
+            and not isinstance(config, dict)
+        ):
             raise AttributeError('Invalid generate config provided')
 
-        model_action = self.registry.lookup_action(ActionKind.MODEL, model)
-        return (
-            await model_action.arun(
-                GenerateRequest(messages=messages, config=config)
+        resolved_msgs: list[Message] = []
+        if system:
+            resolved_msgs.append(
+                Message(role=Role.SYSTEM, content=normalize_prompt_arg(system))
             )
-        ).response
+        if messages:
+            resolved_msgs += messages
+        if prompt:
+            resolved_msgs.append(
+                Message(role=Role.USER, content=normalize_prompt_arg(prompt))
+            )
+
+        output = Output()
+        if output_format:
+            output.format = output_format
+        if content_type:
+            output.content_type = content_type
+        if output_instructions != None:
+            output.instructions = output_instructions
+        if output_schema:
+            output.json_schema = to_json_schema(output_schema)
+        if constrained != None:
+            output.constrained = constrained
+
+        return await generate_action(
+            self.registry,
+            GenerateActionOptions(
+                model=model,
+                messages=resolved_msgs,
+                config=config,
+                tools=tools,
+                return_tool_requests=return_tool_requests,
+                tool_choice=tool_choice,
+                output=output,
+                max_turns=max_turns,
+            ),
+            on_chunk=on_chunk,
+        )
 
     async def embed(
         self, model: str | None = None, documents: list[str] | None = None
@@ -218,7 +301,7 @@ class Genkit:
         name: str,
         fn: ModelFn,
         metadata: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> Action:
         """Define a custom model action.
 
         Args:
@@ -226,9 +309,27 @@ class Genkit:
             fn: Function implementing the model behavior.
             metadata: Optional metadata for the model.
         """
-        self.registry.register_action(
+        return self.registry.register_action(
             name=name,
             kind=ActionKind.MODEL,
             fn=fn,
             metadata=metadata,
         )
+
+
+def to_json_schema(schema) -> dict[str, Any]:
+    if isinstance(schema, dict):
+        return schema
+    type_adapter = TypeAdapter(schema)
+    return type_adapter.json_schema()
+
+
+def normalize_prompt_arg(prompt: str | Part | list[Part] | None) -> list[Part]:
+    if not prompt:
+        return None
+    if isinstance(prompt, str):
+        return [TextPart(text=prompt)]
+    elif hasattr(prompt, '__len__'):
+        return prompt
+    else:
+        return [prompt]
