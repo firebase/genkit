@@ -1,9 +1,10 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
-
+import logging
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
@@ -13,14 +14,33 @@ from genkit.core.typing import (
     ModelInfo,
     Role,
     Supports,
+    TextPart,
 )
+from pydantic import BaseModel
 from vertexai.preview.vision_models import ImageGenerationModel
+
+LOG = logging.getLogger(__name__)
 
 
 class ImagenVersion(StrEnum):
     IMAGEN3 = 'imagen-3.0-generate-002'
     IMAGEN3_FAST = 'imagen-3.0-fast-generate-001'
     IMAGEN2 = 'imagegeneration@006'
+
+
+class ImagenOptions(BaseModel):
+    number_of_images: int = 1
+    language: Literal[
+        'auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'
+    ] = 'auto'
+    aspect_ratio: Literal['1:1', '9:16', '16:9', '3:4', '4:3'] = '1:1'
+    safety_filter_level: Literal[
+        'block_most', 'block_some', 'block_few', 'block_fewest'
+    ] = 'block_some'
+    person_generation: Literal['dont_allow', 'allow_adult', 'allow_all'] = (
+        'allow_adult'
+    )
+    negative_prompt: bool = False
 
 
 SUPPORTED_MODELS = {
@@ -67,24 +87,26 @@ class Imagen:
     def model(self) -> ImageGenerationModel:
         return ImageGenerationModel.from_pretrained(self._version)
 
-    def handle_request(self, request: GenerateRequest) -> GenerateResponse:
-        parts: list[str] = []
-        for m in request.messages:
-            for p in m.content:
-                if p.root.text is not None:
-                    parts.append(p.root.text)
-                else:
-                    raise Exception('unsupported part type')
+    def generate(
+        self, request: GenerateRequest, ctx: ActionRunContext
+    ) -> GenerateResponse:
+        """Handle a generation request using the Imagen model.
 
-        prompt = ' '.join(parts)
-        images = self.model.generate_images(
-            prompt=prompt,
-            number_of_images=1,
-            language='en',
-            aspect_ratio='1:1',
-            safety_filter_level='block_some',
-            person_generation='allow_adult',
+        Args:
+            request: The generation request containing messages and parameters.
+            ctx: additional context.
+
+        Returns:
+            The model's response to the generation request.
+        """
+        prompt = self.build_prompt(request)
+
+        options = (
+            request.config if request.config else ImagenOptions().model_dump()
         )
+        options['prompt'] = prompt
+
+        images = self.model.generate_images(**options)
 
         media_content = [
             MediaPart(
@@ -101,6 +123,24 @@ class Imagen:
                 content=media_content,
             )
         )
+
+    def build_prompt(self, request: GenerateRequest) -> str:
+        """Creates a single prompt string fom a list of messages and parts in requests.
+
+        Args:
+            - request: a packed request for the model
+
+        Returns:
+            - a single string with a prompt
+        """
+        prompt = []
+        for message in request.messages:
+            for text_part in message.content:
+                if isinstance(text_part.root, TextPart):
+                    prompt.append(text_part.root.text)
+                else:
+                    LOG.error('Non-text messages are not supported')
+        return ' '.join(prompt)
 
     @property
     def model_metadata(self) -> dict[str, Any]:
