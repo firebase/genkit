@@ -111,10 +111,7 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx, g,
-			dotprompt.WithInput(promptInput),
-			nil,
-		)
+		resp, err := simpleQaPrompt.Generate(ctx, g, dotprompt.WithInput(promptInput))
 		if err != nil {
 			return "", err
 		}

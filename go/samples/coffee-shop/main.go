@@ -133,10 +133,7 @@ func main() {
 	}
 
 	greetingWithHistoryFlow := genkit.DefineFlow(g, "greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
-		resp, err := greetingWithHistoryPrompt.Generate(ctx, g,
-			dotprompt.WithInput(input),
-			nil,
-		)
+		resp, err := greetingWithHistoryPrompt.Generate(ctx, g, dotprompt.WithInput(input))
 		if err != nil {
 			return "", err
 		}
