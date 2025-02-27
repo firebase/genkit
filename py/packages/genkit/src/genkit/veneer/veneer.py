@@ -20,6 +20,7 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
 from genkit.core.registry import Registry
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     GenerateActionOptions,
     GenerationCommonConfig,
@@ -31,7 +32,6 @@ from genkit.core.typing import (
     ToolChoice,
 )
 from genkit.veneer import server
-from pydantic import TypeAdapter
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
@@ -176,13 +176,13 @@ class Genkit:
         resolved_msgs: list[Message] = []
         if system:
             resolved_msgs.append(
-                Message(role=Role.SYSTEM, content=normalize_prompt_arg(system))
+                Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
             )
         if messages:
             resolved_msgs += messages
         if prompt:
             resolved_msgs.append(
-                Message(role=Role.USER, content=normalize_prompt_arg(prompt))
+                Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
             )
 
         output = Output()
@@ -317,14 +317,7 @@ class Genkit:
         )
 
 
-def to_json_schema(schema) -> dict[str, Any]:
-    if isinstance(schema, dict):
-        return schema
-    type_adapter = TypeAdapter(schema)
-    return type_adapter.json_schema()
-
-
-def normalize_prompt_arg(prompt: str | Part | list[Part] | None) -> list[Part]:
+def _normalize_prompt_arg(prompt: str | Part | list[Part] | None) -> list[Part]:
     if not prompt:
         return None
     if isinstance(prompt, str):
