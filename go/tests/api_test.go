@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package api_test
 
 import (
@@ -134,6 +133,8 @@ func startGenkitApp(ctx context.Context, dir string) (func() error, error) {
 	cmd = exec.CommandContext(ctx, "./"+dir)
 	cmd.Dir = tmp
 	cmd.Env = append(os.Environ(), "GENKIT_ENV=dev")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.WaitDelay = time.Second
 	if err := cmd.Start(); err != nil {
 		return nil, err

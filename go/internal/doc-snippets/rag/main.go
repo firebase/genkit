@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package rag
 
 import (
@@ -24,7 +23,7 @@ func main() {
 	// [START vec]
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,10 +93,7 @@ func main() {
 	)
 	// [END indexflow]
 
-	err = g.Start(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }
 
 // [START readpdf]
@@ -130,7 +126,7 @@ func menuQA() {
 	// [START retrieve]
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -192,7 +188,8 @@ make up an answer. Do not add or change items on the menu.`),
 }
 
 func customret() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,10 +1,10 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package telemetryplugin
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"time"
@@ -38,7 +38,8 @@ type Config struct {
 // [END config]
 
 func Init(cfg Config) error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		return err
 	}
