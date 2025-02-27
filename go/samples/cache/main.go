@@ -60,7 +60,7 @@ func main() {
 		}
 
 		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
-			Temperature: 1,
+			Temperature: 0.7,
 			TTL:         time.Hour,
 			Version:     "gemini-1.5-flash-001",
 		}),
@@ -69,7 +69,7 @@ func main() {
 				ai.NewUserMessage(
 					ai.NewTextPart(string(textContent))),
 				ai.NewModelMessage(
-					ai.NewTextPart("Here's what I can tell you about the book you provided")).Cached(360),
+					ai.NewTextPart("Here's what I can tell you about the text you provided")).Cached(360),
 			),
 		)
 		if err != nil {
@@ -77,8 +77,6 @@ func main() {
 		}
 
 		text := resp.Text()
-
-		fmt.Printf("%#v\n\n", resp.Usage)
 		return text, nil
 	})
 

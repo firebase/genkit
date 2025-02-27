@@ -278,16 +278,12 @@ func generate(
 		return nil, err
 	}
 
-	fmt.Printf("context cache for model version: %#v\n\n", model)
-	cc, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig, cs)
+	cc, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("cache: %#v\n\n", cc)
 	if cc != nil {
-		if cc.content != nil {
-			gm.CachedContentName = cc.content.Name
-		}
+		gm.CachedContentName = cc.Name
 	}
 
 	// The last message gets added to the parts slice.
