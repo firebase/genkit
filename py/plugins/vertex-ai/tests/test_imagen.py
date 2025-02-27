@@ -7,6 +7,7 @@
 """Test Gemini models."""
 
 import pytest
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
@@ -41,7 +42,8 @@ def test_generate(mocker, version):
         'genkit.plugins.vertex_ai.imagen.Imagen.model', genai_model_mock
     )
 
-    response = imagen.handle_request(request)
+    ctx = ActionRunContext()
+    response = imagen.generate(request, ctx)
     assert isinstance(response, GenerateResponse)
     assert isinstance(response.message.content[0].root.media, Media1)
     assert response.message.content[0].root.media.url == mocked_respond
@@ -55,3 +57,20 @@ def test_gemini_metadata(version):
     assert not supports['multiturn']
     assert not supports['tools']
     assert not supports['system_role']
+
+
+def test_create_prompt():
+    content = ['Text1', 'Text2', 'Text3']
+    request = GenerateRequest(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=x) for x in content],
+            ),
+        ],
+    )
+    imagen = Imagen(ImagenVersion.IMAGEN3_FAST)
+    result = imagen.build_prompt(request)
+    expected = ' '.join(content)
+    assert isinstance(result, str)
+    assert result == expected

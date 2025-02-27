@@ -75,7 +75,7 @@ class VertexAI(Plugin):
             gemini = Gemini(model_version)
             ai.define_model(
                 name=vertexai_name(model_version),
-                fn=gemini.handle_request,
+                fn=gemini.generate,
                 metadata=gemini.model_metadata,
             )
 
@@ -83,7 +83,7 @@ class VertexAI(Plugin):
             embedder = Embedder(embed_model)
             ai.define_embedder(
                 name=vertexai_name(embed_model),
-                fn=embedder.handle_request,
+                fn=embedder.generate,
                 metadata=embedder.model_metadata,
             )
 
@@ -91,6 +91,6 @@ class VertexAI(Plugin):
             imagen = Imagen(imagen_version)
             ai.define_model(
                 name=vertexai_name(imagen_version),
-                fn=imagen.handle_request,
+                fn=imagen.generate,
                 metadata=imagen.model_metadata,
             )

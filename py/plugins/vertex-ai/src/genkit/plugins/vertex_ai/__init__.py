@@ -8,7 +8,7 @@ enabling the use of Vertex AI models and services within the Genkit framework.
 
 from genkit.plugins.vertex_ai.embedding import EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import GeminiVersion
-from genkit.plugins.vertex_ai.imagen import ImagenVersion
+from genkit.plugins.vertex_ai.imagen import ImagenOptions, ImagenVersion
 from genkit.plugins.vertex_ai.plugin_api import VertexAI, vertexai_name
 
 
@@ -28,4 +28,5 @@ __all__ = [
     EmbeddingModels.__name__,
     GeminiVersion.__name__,
     ImagenVersion.__name__,
+    ImagenOptions.__name__,
 ]
