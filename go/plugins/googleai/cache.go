@@ -137,7 +137,6 @@ func extractCacheConfig(request *ai.ModelRequest) (int, *CacheConfigDetails, err
 
 			// only accepting ints for ttlSeconds
 			if ttlVal, ok := c["ttlSeconds"].(int); ok {
-				fmt.Printf("got a good cache format!! \n\n")
 				cacheConfig = &CacheConfigDetails{
 					TTL: time.Duration(ttlVal),
 				}
