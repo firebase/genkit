@@ -12,6 +12,7 @@ import asyncio
 import inspect
 from collections.abc import Callable
 from enum import StrEnum
+from functools import cached_property
 from typing import Any
 
 from genkit.core.codec import dump_json
@@ -137,10 +138,15 @@ class ActionRunContext:
             on_chunk: The callback to invoke when a chunk is received.
             context: The context to pass to the action.
         """
-        self.__on_chunk = (
+        self._on_chunk = (
             on_chunk if on_chunk is not None else noop_streaming_callback
         )
         self.context = context if context is not None else {}
+
+    @cached_property
+    def is_streaming(self) -> bool:
+        """Returns true if context contains on chunk callback, False otherwise"""
+        return self._on_chunk != noop_streaming_callback
 
     def send_chunk(self, chunk: Any):
         """Send a chunk to from the action to the client.
@@ -148,7 +154,7 @@ class ActionRunContext:
         Args:
             chunk: The chunk to send to the client.
         """
-        self.__on_chunk(chunk)
+        self._on_chunk(chunk)
 
 
 class Action:

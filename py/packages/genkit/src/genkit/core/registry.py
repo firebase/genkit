@@ -10,8 +10,8 @@ of these resources during runtime.
 
 Example:
     >>> registry = Registry()
-    >>> registry.register_action(my_action)
-    >>> action = registry.get_action('my_action')
+    >>> registry.register_action('<action kind>', 'my_action', ...)
+    >>> action = registry.lookup_action('<action kind>', 'my_action')
 """
 
 from collections.abc import Callable
@@ -36,7 +36,7 @@ class Registry:
     looking them up at runtime.
 
     Attributes:
-        actions: A nested dictionary mapping ActionKind to a dictionary of
+        entries: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
     """
 
