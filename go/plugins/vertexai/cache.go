@@ -135,14 +135,18 @@ func extractCacheConfig(request *ai.ModelRequest) (int, *CacheConfigDetails, err
 			// Found a message with `metadata.cache`
 			endOfCachedContents = i
 
-			ttl := time.Duration(0)
+			// only accepting ints for ttlSeconds
 			if ttlVal, ok := c["ttlSeconds"].(int); ok {
-				ttl = time.Duration(ttlVal)
-			}
-			cacheConfig = &CacheConfigDetails{
-				TTL: ttl,
+				fmt.Printf("got a good cache format!! \n\n")
+				cacheConfig = &CacheConfigDetails{
+					TTL: time.Duration(ttlVal),
+				}
+			} else {
+				return -1, nil, fmt.Errorf("invalid type for cache ttlSeconds, expected int, got %T", ttlVal)
 			}
 			break
+		} else {
+			return -1, nil, fmt.Errorf("cache metadata should be a map but got %T", m.Metadata["cache"])
 		}
 	}
 
@@ -183,6 +187,6 @@ func handleCacheIfNeeded(
 		return nil, err
 	}
 
-	cc.Model = modelVersion
+	// cc.Model = modelVersion
 	return client.CreateCachedContent(ctx, cc)
 }

@@ -15,8 +15,8 @@ import (
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
-// lotrQuestionInput is a question about the LOTR chapters.
-type lotrQuestionInput struct {
+// duneQuestionInput is a question about the LOTR chapters.
+type duneQuestionInput struct {
 	Question string `json:"question"`
 	FilePath string `json:"path"`
 }
@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
+	g, err := genkit.Init(ctx, genkit.WithDefaultModel("vertexai/gemini-1.5-pro"))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -45,7 +45,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	genkit.DefineFlow(g, "lotr-VertexAI", func(ctx context.Context, input *lotrQuestionInput) (string, error) {
+	genkit.DefineFlow(g, "duneFlowVertexAI", func(ctx context.Context, input *duneQuestionInput) (string, error) {
 		prompt := "What is the text I provided you with?"
 		if input == nil {
 			return "", errors.New("empty flow input, provide at least a source file to read")
@@ -62,7 +62,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.7,
 			TTL:         time.Hour,
-			Version:     "gemini-1.5-flash-001",
+			Version:     "gemini-1.5-pro-001",
 		}),
 			ai.WithTextPrompt(prompt),
 			ai.WithMessages(

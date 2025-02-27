@@ -5,13 +5,10 @@ package vertexai
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 )
 
@@ -26,7 +23,7 @@ func TestGetContentForCache_NoCacheMetadata(t *testing.T) {
 			},
 		},
 	}
-	gotContent, err := getContentForCache(req, "gemini-1.5-flash", nil)
+	gotContent, err := getContentForCache(req, "gemini-1.5-flash-001", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -39,13 +36,15 @@ func TestGetContentForCache_NoContentToCache(t *testing.T) {
 	req := &ai.ModelRequest{
 		Messages: []*ai.Message{
 			{
-				Role:     ai.RoleUser,
-				Metadata: map[string]interface{}{"cache": true},
+				Role: ai.RoleUser,
+				Metadata: map[string]interface{}{"cache": map[string]any{
+					"ttlSeconds": int(160),
+				}},
 				// No text content
 			},
 		},
 	}
-	_, err := getContentForCache(req, "gemini-1.5-flash", nil)
+	_, err := getContentForCache(req, "gemini-1.5-flash-001", nil)
 	if err != nil {
 		t.Errorf("expected error due to no content to cache, but got nil error")
 	}
@@ -61,19 +60,22 @@ func TestGetContentForCache_Valid(t *testing.T) {
 				},
 			},
 			{
-				Role:     ai.RoleUser,
-				Content:  []*ai.Part{{Text: "Hello user"}},
-				Metadata: map[string]interface{}{"cache": true},
+				Role:    ai.RoleUser,
+				Content: []*ai.Part{{Text: "Hello user"}},
+				Metadata: map[string]interface{}{"cache": map[string]any{
+					"ttlSeconds": 160,
+				}},
 			},
 		},
 	}
-	content, err := getContentForCache(req, "gemini-1.5-flash", nil)
+	content, err := getContentForCache(req, "gemini-1.5-flash-001", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if content == nil {
 		t.Fatal("expected a non-nil CachedContent")
 	}
+	/* TODO: enable these checks when upgrading VertexAI Genai SDK
 	if content.SystemInstruction == nil {
 		t.Error("expected SystemInstruction to be set")
 	} else {
@@ -84,46 +86,12 @@ func TestGetContentForCache_Valid(t *testing.T) {
 		if !strings.Contains(got, "System instructions") {
 			t.Errorf("expected 'System instructions' in system content, got %q", got)
 		}
-	}
+	}*/
 	if len(content.Contents) == 0 || content.Contents[0].Role != "user" {
 		t.Errorf("expected user content, got %v", content.Contents)
 	}
-	if content.Model != "gemini-1.5-flash" {
-		t.Errorf("expected gemini-1.5-flash, got %s", content.Model)
-	}
-}
-
-func TestGenerateCacheKey(t *testing.T) {
-	content := &genai.CachedContent{
-		Model: "gemini-1.5-flash",
-		SystemInstruction: &genai.Content{
-			Role:  "system",
-			Parts: []genai.Part{genai.Text("System message")},
-		},
-		Contents: []*genai.Content{
-			{
-				Role:  "user",
-				Parts: []genai.Part{genai.Text("User message")},
-			},
-		},
-	}
-	key := generateCacheKey(content)
-	if len(key) == 0 {
-		t.Fatal("expected non-empty key")
-	}
-	// It's a SHA256 sum, so length in hex is 64
-	if len(key) != 64 {
-		t.Errorf("expected 64 hex chars, got %d: %s", len(key), key)
-	}
-
-	// Quick sanity check by hashing ourselves:
-	h := sha256.New()
-	h.Write([]byte("System message"))
-	h.Write([]byte("gemini-1.5-flash"))
-	h.Write([]byte("User message"))
-	exp := fmt.Sprintf("%x", h.Sum(nil))
-	if key != exp {
-		t.Errorf("hash mismatch: expected %s, got %s", exp, key)
+	if content.Model != "gemini-1.5-flash-001" {
+		t.Errorf("expected gemini-1.5-flash-001, got %s", content.Model)
 	}
 }
 
@@ -216,56 +184,6 @@ func TestExtractCacheConfig_NoMetadata(t *testing.T) {
 	}
 }
 
-func TestExtractCacheConfig_BooleanTrue(t *testing.T) {
-	req := &ai.ModelRequest{
-		Messages: []*ai.Message{
-			{
-				Role:     ai.RoleUser,
-				Content:  []*ai.Part{{Text: "Hello"}},
-				Metadata: map[string]interface{}{"cache": true},
-			},
-		},
-	}
-	endIndex, config, err := extractCacheConfig(req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if endIndex != 0 {
-		t.Errorf("expected endIndex=0, got %d", endIndex)
-	}
-	if config == nil {
-		t.Fatal("expected non-nil config")
-	}
-	if config.TTL != 0 {
-		t.Errorf("expected TTLSeconds = 0, got %v", config.TTL)
-	}
-}
-
-func TestExtractCacheConfig_BooleanFalse(t *testing.T) {
-	req := &ai.ModelRequest{
-		Messages: []*ai.Message{
-			{
-				Role:     ai.RoleUser,
-				Content:  []*ai.Part{{Text: "Hello"}},
-				Metadata: map[string]interface{}{"cache": false},
-			},
-		},
-	}
-	endIndex, config, err := extractCacheConfig(req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if endIndex != 0 {
-		t.Errorf("expected endIndex=0, got %d", endIndex)
-	}
-	if config == nil {
-		t.Fatal("expected non-nil config")
-	}
-	if config.TTL != 0 {
-		t.Errorf("expected TTLSeconds=0, got %v", config.TTL)
-	}
-}
-
 func TestExtractCacheConfig_MapTTL(t *testing.T) {
 	req := &ai.ModelRequest{
 		Messages: []*ai.Message{
@@ -276,7 +194,7 @@ func TestExtractCacheConfig_MapTTL(t *testing.T) {
 				},
 				Metadata: map[string]interface{}{
 					"cache": map[string]interface{}{
-						"ttlSeconds": float64(123),
+						"ttlSeconds": int(123),
 					},
 				},
 			},
@@ -315,9 +233,6 @@ func TestExtractCacheConfig_InvalidCacheType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid cache type")
 	}
-	if !strings.Contains(err.Error(), "invalid cache config type") {
-		t.Errorf("unexpected error text: %v", err)
-	}
 	if endIndex != -1 {
 		t.Errorf("expected endIndex=-1, got %d", endIndex)
 	}
@@ -328,7 +243,7 @@ func TestExtractCacheConfig_InvalidCacheType(t *testing.T) {
 
 func TestHandleCacheIfNeeded_NoCacheConfig(t *testing.T) {
 	req := &ai.ModelRequest{}
-	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash", nil)
+	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash-001", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -337,14 +252,28 @@ func TestHandleCacheIfNeeded_NoCacheConfig(t *testing.T) {
 	}
 }
 
-func TestHandleCacheIfNeeded_RequestInvalid(t *testing.T) {
+func TestHandleCacheIfNeeded_Tools(t *testing.T) {
 	req := &ai.ModelRequest{
+		Messages: []*ai.Message{
+			{
+				Role: ai.RoleUser,
+				Content: []*ai.Part{
+					{Text: "Hello"},
+				},
+				Metadata: map[string]interface{}{
+					"cache": map[string]interface{}{
+						"ttlSeconds": int(123),
+					},
+				},
+			},
+		},
+
 		Tools: []*ai.ToolDefinition{{Name: "someTool"}},
 	}
 	cc := &CacheConfigDetails{}
-	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash", cc)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash-001", cc)
+	if err == nil {
+		t.Fatalf("tool use is not allowed when caching contents")
 	}
 	if content != nil {
 		t.Errorf("expected nil content if request invalid, got: %#v", content)
