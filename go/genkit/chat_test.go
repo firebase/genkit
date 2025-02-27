@@ -31,7 +31,7 @@ type HelloPromptInput struct {
 	Name string
 }
 
-var chatGenkit, _ = New(nil)
+var chatGenkit, _ = Init(context.Background())
 var chatModel = getChatModel(chatGenkit)
 var chatTool = getNameTool(chatGenkit)
 var chatPrompt = getChatPrompt(chatGenkit)

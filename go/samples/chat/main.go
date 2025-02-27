@@ -28,7 +28,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
