@@ -18,7 +18,7 @@
     "build": "pnpm genversion && tsc",
     "build:watch": "tsc --watch",
     "test": "jest --verbose",
-    "genversion": "genversion -es src/utils/version.ts"
+    "genversion": "genversion -esf src/utils/version.ts"
   },
   "repository": {
     "type": "git",
