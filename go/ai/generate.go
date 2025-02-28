@@ -34,11 +34,11 @@ type ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelRespons
 type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // ModelAction is an action for model generation.
-type ModelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type ModelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
 
-type modelActionDef core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error

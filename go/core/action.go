@@ -251,7 +251,7 @@ func (a *ActionDef[In, Out, Stream]) Desc() action.Desc {
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.
-func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
+func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.ActionType, provider, name string) *ActionDef[In, Out, Stream] {
 	var key string
 	if provider != "" {
 		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
