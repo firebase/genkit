@@ -29,11 +29,11 @@ type Indexer interface {
 }
 
 type (
-	indexerActionDef   core.Action[*IndexerRequest, struct{}, struct{}]
-	retrieverActionDef core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+	indexerActionDef   core.ActionDef[*IndexerRequest, struct{}, struct{}]
+	retrieverActionDef core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 
-	indexerAction   = core.Action[*IndexerRequest, struct{}, struct{}]
-	retrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+	indexerAction   = core.ActionDef[*IndexerRequest, struct{}, struct{}]
+	retrieverAction = core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 )
 
 // IndexerRequest is the data we pass to add documents to the database.
