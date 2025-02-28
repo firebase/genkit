@@ -374,6 +374,23 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini20FlashThinkingExp0121 = modelRef({
+  name: 'vertexai/gemini-2.0-flash-thinking-exp-01-21',
+  info: {
+    label: 'Vertex AI - Gemini 2.0 Flash Thinking Experimental 01-21',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -399,6 +416,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-001': gemini20Flash001,
   'gemini-2.0-flash-lite-preview-02-05': gemini20FlashLitePreview0205,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
+  'gemini-2.0-flash-thinking-exp-01-21': gemini20FlashThinkingExp0121,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
