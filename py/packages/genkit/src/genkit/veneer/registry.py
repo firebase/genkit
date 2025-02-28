@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Any
 
 from genkit.ai.model import ModelFn
-from genkit.core.action import ActionKind
+from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry
 
 
@@ -16,33 +16,11 @@ class GenkitRegisry:
     def __init__(self):
         self.registry = Registry()
 
-    def define_model(
-        self,
-        name: str,
-        fn: ModelFn,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Define a custom model action.
-
-        Args:
-            name: Name of the model.
-            fn: Function implementing the model behavior.
-            metadata: Optional metadata for the model.
-        """
-        self.registry.register_action(
-            name=name,
-            kind=ActionKind.MODEL,
-            fn=fn,
-            metadata=metadata,
-        )
-
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.
-
         Args:
             name: Optional name for the flow. If not provided, uses the
                 function name.
-
         Returns:
             A decorator function that registers the flow.
         """
@@ -72,11 +50,9 @@ class GenkitRegisry:
         self, description: str, name: str | None = None
     ) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
-
         Args:
             description: Description for the tool to be passed to the model.
             name: Optional name for the flow. If not provided, uses the function name.
-
         Returns:
             A decorator function that registers the tool.
         """
@@ -101,3 +77,22 @@ class GenkitRegisry:
             return async_wrapper if action.is_async else sync_wrapper
 
         return wrapper
+
+    def define_model(
+        self,
+        name: str,
+        fn: ModelFn,
+        metadata: dict[str, Any] | None = None,
+    ) -> Action:
+        """Define a custom model action.
+        Args:
+            name: Name of the model.
+            fn: Function implementing the model behavior.
+            metadata: Optional metadata for the model.
+        """
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.MODEL,
+            fn=fn,
+            metadata=metadata,
+        )
