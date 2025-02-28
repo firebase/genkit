@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package base
 
 import (
@@ -79,7 +78,7 @@ func InferJSONSchemaNonReferencing(x any) (s *jsonschema.Schema) {
 	return s
 }
 
-// SchemaAsMap convers json schema struct to a map (JSON representation).
+// SchemaAsMap converts json schema struct to a map (JSON representation).
 func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	jsb, err := s.MarshalJSON()
 	if err != nil {

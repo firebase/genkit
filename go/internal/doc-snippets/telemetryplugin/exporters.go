@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package telemetryplugin
 
 import (
@@ -102,4 +101,5 @@ func (s redactedSpan) Attributes() []attribute.KeyValue {
 	}
 	return ts
 }
+
 // [END redactpii]

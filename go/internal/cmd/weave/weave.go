@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // The weave command is a simple preprocessor for markdown files.
 // It builds a table of contents and processes %include directives.
 //
