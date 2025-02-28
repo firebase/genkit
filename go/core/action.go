@@ -168,6 +168,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
+
 	return tracing.RunInNewSpan(ctx, a.tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
@@ -190,6 +191,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.name, latency)
+
 			return output, nil
 		})
 }
@@ -250,7 +252,12 @@ func (a *ActionDef[In, Out, Stream]) Desc() action.Desc {
 // or nil if there is none.
 // It panics if the action is of the wrong type.
 func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.ActionType, provider, name string) *ActionDef[In, Out, Stream] {
-	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	var key string
+	if provider != "" {
+		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	} else {
+		key = fmt.Sprintf("/%s/%s", typ, name)
+	}
 	a := r.LookupAction(key)
 	if a == nil {
 		return nil

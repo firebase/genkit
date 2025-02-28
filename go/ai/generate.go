@@ -24,14 +24,21 @@ type Model interface {
 	// Name returns the registry name of the model.
 	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
-	Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error)
+	Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error)
 }
 
-type modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+// ModelFunc is a function that generates a model response.
+type ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-type modelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+// ModelMiddleware is middleware for model generate requests.
+type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+
+// ModelAction is an action for model generation.
+type ModelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+
+type modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
@@ -44,7 +51,7 @@ type ToolConfig struct {
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, map[string]any{},
+	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, nil,
 		func(ctx context.Context, req *GenerateActionOptions, cb ModelStreamingCallback) (output *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", req))
@@ -53,9 +60,10 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"output", fmt.Sprintf("%#v", output),
 					"err", err)
 			}()
+
 			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, req,
 				func(ctx context.Context, input *GenerateActionOptions) (*ModelResponse, error) {
-					model := LookupModel(r, "default", req.Model)
+					model := LookupModel(r, "", req.Model)
 					if model == nil {
 						return nil, fmt.Errorf("model %q not found", req.Model)
 					}
@@ -95,43 +103,43 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 						ReturnToolRequests: req.ReturnToolRequests,
 					}
 
-					return model.Generate(ctx, r, modelReq, toolCfg, cb)
+					return model.Generate(ctx, r, modelReq, nil, toolCfg, cb)
 				})
 		}))
 }
 
-// DefineModel registers the given generate function as an action, and returns a
-// [Model] that runs it.
+// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(
 	r *registry.Registry,
 	provider, name string,
-	metadata *ModelInfo,
-	generate func(context.Context, *ModelRequest, ModelStreamingCallback) (*ModelResponse, error),
+	info *ModelInfo,
+	generate ModelFunc,
 ) Model {
 	metadataMap := map[string]any{}
-	if metadata == nil {
+	if info == nil {
 		// Always make sure there's at least minimal metadata.
-		metadata = &ModelInfo{
+		info = &ModelInfo{
 			Label:    name,
 			Supports: &ModelInfoSupports{},
 			Versions: []string{},
 		}
 	}
-	if metadata.Label != "" {
-		metadataMap["label"] = metadata.Label
+	if info.Label != "" {
+		metadataMap["label"] = info.Label
 	}
 	supports := map[string]bool{
-		"media":      metadata.Supports.Media,
-		"multiturn":  metadata.Supports.Multiturn,
-		"systemRole": metadata.Supports.SystemRole,
-		"tools":      metadata.Supports.Tools,
+		"media":      info.Supports.Media,
+		"multiturn":  info.Supports.Multiturn,
+		"systemRole": info.Supports.SystemRole,
+		"tools":      info.Supports.Tools,
+		"toolChoice": info.Supports.ToolChoice,
 	}
 	metadataMap["supports"] = supports
-	metadataMap["versions"] = metadata.Versions
+	metadataMap["versions"] = info.Versions
 
-	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{
-		"model": metadataMap,
-	}, generate))
+	generate = core.ChainMiddleware(ValidateSupport(name, info.Supports))(generate)
+
+	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{"model": metadataMap}, generate))
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -158,6 +166,7 @@ type generateParams struct {
 	SystemPrompt       *Message
 	MaxTurns           int
 	ReturnToolRequests bool
+	Middleware         []ModelMiddleware
 }
 
 // GenerateOption configures params of the Generate call.
@@ -225,10 +234,13 @@ func WithConfig(config any) GenerateOption {
 	}
 }
 
-// WithContext adds provided context to ModelRequest.
-func WithContext(c ...any) GenerateOption {
+// WithContext adds provided documents to ModelRequest.
+func WithContext(docs ...*Document) GenerateOption {
 	return func(req *generateParams) error {
-		req.Request.Context = append(req.Request.Context, c...)
+		if req.Request.Context != nil {
+			return errors.New("generate.WithContext: cannot set context more than once")
+		}
+		req.Request.Context = docs
 		return nil
 	}
 }
@@ -321,6 +333,17 @@ func WithToolChoice(toolChoice ToolChoice) GenerateOption {
 	}
 }
 
+// WithMiddleware adds middleware to the generate request.
+func WithMiddleware(middleware ...ModelMiddleware) GenerateOption {
+	return func(req *generateParams) error {
+		if req.Middleware != nil {
+			return errors.New("generate.WithMiddleware: cannot set Middleware more than once")
+		}
+		req.Middleware = middleware
+		return nil
+	}
+}
+
 // Generate run generate request for this model. Returns ModelResponse struct.
 func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	req := &generateParams{
@@ -369,7 +392,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ReturnToolRequests: req.ReturnToolRequests,
 	}
 
-	return req.Model.Generate(ctx, r, req.Request, toolCfg, req.Stream)
+	return req.Model.Generate(ctx, r, req.Request, req.Middleware, toolCfg, req.Stream)
 }
 
 // validateModelVersion checks in the registry the action of the
@@ -387,7 +410,7 @@ func validateModelVersion(r *registry.Registry, v string, req *generateParams) (
 
 	// at the end, a Model is an action so type conversion is required
 	if a, ok := m.(*modelActionDef); ok {
-		if !(modelVersionSupported(v, (*modelAction)(a).Desc().Metadata)) {
+		if !(modelVersionSupported(v, (*ModelAction)(a).Desc().Metadata)) {
 			return false, fmt.Errorf("version %s not supported", v)
 		}
 	} else {
@@ -436,7 +459,7 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 }
 
 // Generate applies the [Action] to provided request, handling tool requests and handles streaming.
-func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error) {
+func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -447,8 +470,6 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 			ReturnToolRequests: false,
 		}
 	}
-
-	// TODO: Add warnings if the model does not support certain configuration options.
 
 	if req.Tools != nil {
 		toolNames := make(map[string]bool)
@@ -464,9 +485,11 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 		return nil, err
 	}
 
+	handler := core.ChainMiddleware(mw...)((*ModelAction)(m).Run)
+
 	currentTurn := 0
 	for {
-		resp, err := (*modelAction)(m).Run(ctx, req, cb)
+		resp, err := handler(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}
@@ -510,7 +533,7 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 	}
 }
 
-func (i *modelActionDef) Name() string { return (*modelAction)(i).Name() }
+func (i *modelActionDef) Name() string { return (*ModelAction)(i).Name() }
 
 // cloneMessage creates a deep copy of the provided Message.
 func cloneMessage(m *Message) *Message {
