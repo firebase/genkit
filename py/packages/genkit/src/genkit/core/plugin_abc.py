@@ -28,11 +28,26 @@ class Plugin(abc.ABC):
     @abc.abstractmethod
     @cached_property
     def name(self):
+        """The name of the plugin.
+
+        Returns:
+            The name of the plugin.
+        """
         pass
 
     def resolve_action(
         self, ai: GenkitRegistry, kind: ActionKind, name: str
     ) -> None:
+        """Resolves an action by adding it to the provided GenkitRegistry.
+
+        Args:
+            ai: The Genkit registry.
+            kind: The kind of action to resolve.
+            name: The name of the action to resolve.
+
+        Returns:
+            None, action resolution is done by side-effect on the registry.
+        """
         pass
 
     def initialize(self, ai: GenkitRegistry) -> None:
@@ -42,6 +57,6 @@ class Plugin(abc.ABC):
             registry: Registry to register plugin functionality.
 
         Returns:
-            None
+            None, initialization is done by side-effect on the registry.
         """
         pass

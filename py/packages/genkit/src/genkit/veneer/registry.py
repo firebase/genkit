@@ -1,6 +1,8 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""This is the user facing Genkit registry API with methods to register models, flow, etc."""
+
 from collections.abc import Callable
 from functools import wraps
 from typing import Any

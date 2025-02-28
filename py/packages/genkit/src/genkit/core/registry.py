@@ -55,6 +55,15 @@ class Registry:
     def register_action_resolver(
         self, plugin_name: str, resolver: ActionResolver
     ):
+        """Registers an ActionResolver function for a given plugin.
+
+        Args:
+            plugin_name: The name of the plugin.
+            resolver: The ActionResolver instance to register.
+
+        Raises:
+            ValueError: If a resolver is already registered for the plugin.
+        """
         if plugin_name in self.action_resolvers:
             raise ValueError(f'Plugin {plugin_name} already registered')
         self.action_resolvers[plugin_name] = resolver
@@ -107,6 +116,9 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
+
+        # if the entry does not exist, we fist try to call the action resolver
+        # for the plugin to give it a chance to dynamically add the action.
         if kind not in self.entries or name not in self.entries[kind]:
             plugin_name = parse_plugin_name_from_action_name(name)
             if plugin_name and plugin_name in self.action_resolvers:
