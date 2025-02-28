@@ -8,8 +8,10 @@ It provides a way to initialize and register plugin functionality.
 """
 
 import abc
+from functools import cached_property
 
-from genkit.core.registry import Registry
+from genkit.core.registry import ActionKind
+from genkit.veneer.registry import GenkitRegisry
 
 
 class Plugin(abc.ABC):
@@ -24,7 +26,16 @@ class Plugin(abc.ABC):
     """
 
     @abc.abstractmethod
-    def initialize(self, registry: Registry) -> None:
+    @cached_property
+    def name(self):
+        pass
+
+    def resolve_action(
+        self, ai: GenkitRegisry, kind: ActionKind, name: str
+    ) -> None:
+        pass
+
+    def initialize(self, ai: GenkitRegisry) -> None:
         """Initialize the plugin with the given registry.
 
         Args:

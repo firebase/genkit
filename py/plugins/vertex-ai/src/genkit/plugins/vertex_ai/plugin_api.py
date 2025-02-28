@@ -39,6 +39,9 @@ class VertexAI(Plugin):
     registration of model actions.
     """
 
+    def name():
+        return 'vertexai'
+
     def __init__(
         self, project_id: str | None = None, location: str | None = None
     ):

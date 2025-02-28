@@ -11,7 +11,10 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 from genkit.core.action import ActionKind, ActionMetadataKey
-from genkit.core.registry import Registry
+from genkit.core.plugin_abc import Plugin
+from genkit.core.registry import ActionKind, Registry
+from genkit.veneer import Genkit
+from genkit.veneer.registry import GenkitRegisry
 
 
 def test_register_action_with_name_and_kind() -> None:
@@ -67,3 +70,38 @@ def test_list_serializable_actions() -> None:
             },
         },
     }
+
+
+def test_resolve_action_from_plugin():
+    resolver_calls = []
+
+    class MyPlugin(Plugin):
+        def name(self):
+            return 'myplugin'
+
+        def resolve_action(
+            self, ai: GenkitRegisry, kind: ActionKind, name: str
+        ):
+            nonlocal resolver_calls
+            resolver_calls.append([kind, name])
+
+            def model_fn():
+                pass
+
+            ai.define_model(name=name, fn=model_fn)
+
+        def initialize(self, ai: GenkitRegisry) -> None:
+            pass
+
+    ai = Genkit(plugins=[MyPlugin()])
+
+    action = ai.registry.lookup_action(ActionKind.MODEL, 'myplugin/foo')
+
+    assert action is not None
+    assert len(resolver_calls) == 1
+
+    assert resolver_calls == [[ActionKind.MODEL, 'myplugin/foo']]
+
+    # should be idempotent
+    ai.registry.lookup_action(ActionKind.MODEL, 'myplugin/foo')
+    assert len(resolver_calls) == 1

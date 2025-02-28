@@ -12,7 +12,7 @@ import asyncio
 import inspect
 from collections.abc import Callable
 from enum import StrEnum
-from typing import Any
+from typing import Any, Optional
 
 from genkit.core.codec import dump_json
 from genkit.core.tracing import tracer
@@ -100,6 +100,12 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
         msg = f'Invalid action kind: `{kind_str}`'
         raise ValueError(msg) from e
     return kind, name
+
+
+def parse_plugin_name_from_action_name(name: str) -> Optional[str]:
+    tokens = name.split('/')
+    if len(tokens) > 1:
+        return tokens[0]
 
 
 def create_action_key(kind: ActionKind, name: str) -> str:

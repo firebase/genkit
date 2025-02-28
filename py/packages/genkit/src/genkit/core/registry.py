@@ -22,9 +22,12 @@ from genkit.core.action import (
     ActionKind,
     create_action_key,
     parse_action_key,
+    parse_plugin_name_from_action_name,
 )
 
 type ActionName = str
+
+type ActionResolver = Callable[[ActionKind, str], None]
 
 
 class Registry:
@@ -44,9 +47,17 @@ class Registry:
 
     def __init__(self):
         """Initialize an empty Registry instance."""
+        self.action_resolvers: dict[str, ActionResolver] = {}
         self.entries: dict[ActionKind, dict[ActionName, Action]] = {}
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
+
+    def register_action_resolver(
+        self, plugin_name: str, resolver: ActionResolver
+    ):
+        if plugin_name in self.action_resolvers:
+            raise ValueError(f'Plugin {plugin_name} already registered')
+        self.action_resolvers[plugin_name] = resolver
 
     def register_action(
         self,
@@ -96,6 +107,11 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
+        if kind not in self.entries or name not in self.entries[kind]:
+            plugin_name = parse_plugin_name_from_action_name(name)
+            if plugin_name and plugin_name in self.action_resolvers:
+                self.action_resolvers[plugin_name](kind, name)
+
         if kind in self.entries and name in self.entries[kind]:
             return self.entries[kind][name]
 
