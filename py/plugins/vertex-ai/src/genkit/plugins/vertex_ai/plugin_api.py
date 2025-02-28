@@ -40,6 +40,7 @@ class VertexAI(Plugin):
     """
 
     def name():
+        """Name of the plugin."""
         return 'vertexai'
 
     def __init__(
