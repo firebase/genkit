@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { googleAI} from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
 export const ai = genkit({
