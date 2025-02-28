@@ -169,7 +169,7 @@ class Genkit(GenkitRegistry):
             - The `on_chunk` argument enables streaming responses, allowing you to process the
               generated content as it becomes available.
         """
-        model = model if model is not None else self.registry.default_model
+        model = model or self.registry.default_model
         if model is None:
             raise Exception('No model configured.')
         if (

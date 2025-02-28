@@ -38,11 +38,6 @@ var state struct {
 
 var (
 	supportedModels = map[string]ai.ModelInfo{
-		"gemini-1.0-pro": {
-			Versions: []string{"gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro-001"},
-			Supports: &gemini.BasicText,
-		},
-
 		"gemini-1.5-flash": {
 			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
 			Supports: &gemini.Multimodal,

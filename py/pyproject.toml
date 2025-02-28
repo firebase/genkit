@@ -49,7 +49,8 @@ python_files = [
 testpaths = ["packages", "plugins", "samples"]
 
 [tool.pytest.ini_options]
-addopts = "--cov"
+addopts                            = "--cov"
+asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
 fail_under = 85
@@ -76,10 +77,10 @@ hello                      = { workspace = true }
 menu                       = { workspace = true }
 prompt-file                = { workspace = true }
 rag                        = { workspace = true }
+vertex-ai-imagen           = { workspace = true }
 vertex-ai-model-garden     = { workspace = true }
 vertex-ai-reranker         = { workspace = true }
 vertex-ai-vector-search    = { workspace = true }
-
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]

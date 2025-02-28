@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package plugin
 
 import (
@@ -27,4 +26,5 @@ func Init(cfg *Config) (err error) {
 
 	return nil
 }
+
 // [END init]
