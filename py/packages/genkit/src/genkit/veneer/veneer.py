@@ -13,6 +13,7 @@ from typing import Any
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.model import ModelFn
+from genkit.ai.tool import ToolFn
 from genkit.core.action import ActionKind
 from genkit.core.environment import is_dev_environment
 from genkit.core.plugin_abc import Plugin
@@ -23,6 +24,7 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerationCommonConfig,
     Message,
+    ToolDefinition,
 )
 from genkit.veneer import server
 
@@ -122,10 +124,31 @@ class Genkit:
         if config and not isinstance(config, GenerationCommonConfig):
             raise AttributeError('Invalid generate config provided')
 
+        tool_definitions = []
+        for tool in tools or []:
+            tool_action = self.registry.lookup_action(ActionKind.TOOL, tool)
+            if not tool_action:
+                raise AttributeError(
+                    f'Failed to find registered tool for {tool}'
+                )
+            tool_definitions.append(
+                ToolDefinition(
+                    name=tool_action.name,
+                    description=tool_action.description,
+                    input_schema=tool_action.input_schema,
+                    output_schema=tool_action.output_schema,
+                    metadata=tool_action.metadata,
+                )
+            )
+
         model_action = self.registry.lookup_action(ActionKind.MODEL, model)
         return (
             await model_action.arun(
-                GenerateRequest(messages=messages, config=config)
+                GenerateRequest(
+                    messages=messages,
+                    config=config,
+                    tools=tool_definitions,
+                )
             )
         ).response
 

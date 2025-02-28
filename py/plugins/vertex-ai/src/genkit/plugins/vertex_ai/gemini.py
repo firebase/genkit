@@ -19,8 +19,16 @@ from genkit.core.typing import (
     Role,
     Supports,
     TextPart,
+    ToolRequest1,
+    ToolRequestPart,
 )
-from vertexai.generative_models import Content, GenerativeModel, Part
+from vertexai.generative_models import (
+    Content,
+    FunctionDeclaration,
+    GenerativeModel,
+    Part,
+    Tool,
+)
 
 
 class GeminiVersion(StrEnum):
@@ -119,11 +127,55 @@ class Gemini:
                 else:
                     raise Exception('unsupported part type')
             messages.append(Content(role=m.role.value, parts=parts))
-        response = self.gemini_model.generate_content(contents=messages)
+        tools = [
+            Tool(
+                function_declarations=[
+                    FunctionDeclaration(
+                        name=tool_definition.name,
+                        parameters=tool_definition.input_schema,
+                        description=tool_definition.description,
+                        response=tool_definition.output_schema,
+                    )
+                ]
+            )
+            for tool_definition in request.tools or []
+        ]
+        response = self.gemini_model.generate_content(
+            contents=messages,
+            tools=tools,
+        )
+        # If response containing text -
+        # model was able to address request without tools
+        try:
+            content = [
+                TextPart(
+                    text=response.text,
+                )
+            ]
+        except ValueError:
+            content = []
+            for candidate in response.candidates:
+                # If model is able to address request by itself - return text
+                # Otherwise will return a suggested tool
+                try:
+                    content.append(
+                        TextPart(
+                            text=candidate.text,
+                        )
+                    )
+                except ValueError:
+                    content.append(
+                        ToolRequestPart(
+                            tool_request=ToolRequest1(
+                                name=candidate.function_calls[0].name,
+                                input=candidate.function_calls[0].args,
+                            )
+                        )
+                    )
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=[TextPart(text=response.text)],
+                content=content,
             )
         )
 

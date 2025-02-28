@@ -20,6 +20,7 @@ from genkit.core.typing import (
     Message,
     OutputConfig,
     Role,
+    TextPart,
     ToolDefinition,
     ToolResponse1,
     ToolResponsePart,
@@ -229,6 +230,8 @@ async def resolve_tool_requests(
     registry: Registry, request: GenerateActionOptions, message: Message
 ) -> tuple[Message, Message, GenerateActionOptions]:
     # TODO: interrupts
+    response_message = None
+
     # TODO: prompt transfer
 
     tool_requests = [
@@ -255,7 +258,22 @@ async def resolve_tool_requests(
             )
         )
 
-    return (None, Message(role=Role.TOOL, content=response_parts), None)
+    if response_parts:
+        response_message = Message(
+            role=Role.TOOL,
+            content=[
+                TextPart(
+                    text=str(response_part.tool_response.output),
+                )
+                for response_part in response_parts
+            ],
+        )
+
+    return (
+        response_message,
+        Message(role=Role.TOOL, content=response_parts),
+        None,
+    )
 
 
 def resolve_tool(registry: Registry, tool_name: str):

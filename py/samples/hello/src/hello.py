@@ -196,6 +196,7 @@ async def main() -> None:
     This function demonstrates the usage of the AI flow by generating
     greetings and performing simple arithmetic operations.
     """
+    print(await simple_generate_action_with_tools_flow(3))
     print(await say_hi('John Doe'))
     print(sum_two_numbers2(MyInput(a=1, b=3)))
     print(
