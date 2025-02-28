@@ -11,7 +11,7 @@ import abc
 from functools import cached_property
 
 from genkit.core.registry import ActionKind
-from genkit.veneer.registry import GenkitRegisry
+from genkit.veneer.registry import GenkitRegistry
 
 
 class Plugin(abc.ABC):
@@ -31,11 +31,11 @@ class Plugin(abc.ABC):
         pass
 
     def resolve_action(
-        self, ai: GenkitRegisry, kind: ActionKind, name: str
+        self, ai: GenkitRegistry, kind: ActionKind, name: str
     ) -> None:
         pass
 
-    def initialize(self, ai: GenkitRegisry) -> None:
+    def initialize(self, ai: GenkitRegistry) -> None:
         """Initialize the plugin with the given registry.
 
         Args:

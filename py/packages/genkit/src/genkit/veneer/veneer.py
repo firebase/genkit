@@ -30,7 +30,7 @@ from genkit.core.typing import (
     ToolChoice,
 )
 from genkit.veneer import server
-from genkit.veneer.registry import GenkitRegisry
+from genkit.veneer.registry import GenkitRegistry
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
@@ -39,7 +39,7 @@ DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
 logger = logging.getLogger(__name__)
 
 
-class Genkit(GenkitRegisry):
+class Genkit(GenkitRegistry):
     """Veneer user-facing API for application developers who use the SDK."""
 
     def __init__(

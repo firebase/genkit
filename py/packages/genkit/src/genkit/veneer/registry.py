@@ -10,7 +10,7 @@ from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry
 
 
-class GenkitRegisry:
+class GenkitRegistry:
     """User-facing API for interacting with Genkit registry."""
 
     def __init__(self):

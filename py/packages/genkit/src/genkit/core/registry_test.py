@@ -14,7 +14,7 @@ from genkit.core.action import ActionKind, ActionMetadataKey
 from genkit.core.plugin_abc import Plugin
 from genkit.core.registry import ActionKind, Registry
 from genkit.veneer import Genkit
-from genkit.veneer.registry import GenkitRegisry
+from genkit.veneer.registry import GenkitRegistry
 
 
 def test_register_action_with_name_and_kind() -> None:
@@ -80,7 +80,7 @@ def test_resolve_action_from_plugin():
             return 'myplugin'
 
         def resolve_action(
-            self, ai: GenkitRegisry, kind: ActionKind, name: str
+            self, ai: GenkitRegistry, kind: ActionKind, name: str
         ):
             nonlocal resolver_calls
             resolver_calls.append([kind, name])
@@ -90,7 +90,7 @@ def test_resolve_action_from_plugin():
 
             ai.define_model(name=name, fn=model_fn)
 
-        def initialize(self, ai: GenkitRegisry) -> None:
+        def initialize(self, ai: GenkitRegistry) -> None:
             pass
 
     ai = Genkit(plugins=[MyPlugin()])
