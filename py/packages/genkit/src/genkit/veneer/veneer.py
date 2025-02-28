@@ -6,20 +6,16 @@
 import logging
 import os
 import threading
-from collections.abc import Callable
-from functools import wraps
 from http.server import HTTPServer
 from typing import Any
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
 from genkit.ai.generate import generate_action
-from genkit.ai.model import GenerateResponseWrapper, ModelFn
-from genkit.core.action import Action, ActionKind
+from genkit.ai.model import GenerateResponseWrapper
+from genkit.core.action import ActionKind
 from genkit.core.environment import is_dev_environment
-from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
-from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -32,6 +28,8 @@ from genkit.core.typing import (
     ToolChoice,
 )
 from genkit.veneer import server
+from genkit.veneer.plugin import Plugin
+from genkit.veneer.registry import GenkitRegistry
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
@@ -40,7 +38,7 @@ DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
 logger = logging.getLogger(__name__)
 
 
-class Genkit:
+class Genkit(GenkitRegistry):
     """Veneer user-facing API for application developers who use the SDK."""
 
     def __init__(
@@ -57,7 +55,7 @@ class Genkit:
             reflection_server_spec: Optional server spec for the reflection
                 server.
         """
-        self.registry = Registry()
+        super().__init__()
         self.registry.default_model = model
 
         if is_dev_environment():
@@ -81,11 +79,18 @@ class Genkit:
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.initialize(registry=self.registry)
+                    plugin.initialize(ai=self)
+
+                    def resolver(kind, name):
+                        return plugin.resolve_action(self, kind, name)
+
+                    self.registry.register_action_resolver(
+                        plugin.plugin_name(), resolver
+                    )
                 else:
                     raise ValueError(
                         f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.core.plugin_abc.Plugin`'
+                        f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
     def start_server(self, host: str, port: int) -> None:
@@ -229,92 +234,6 @@ class Genkit:
         return (
             await embed_action.arun(EmbedRequest(documents=documents))
         ).response
-
-    def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
-        """Decorator to register a function as a flow.
-
-        Args:
-            name: Optional name for the flow. If not provided, uses the
-                function name.
-
-        Returns:
-            A decorator function that registers the flow.
-        """
-
-        def wrapper(func: Callable) -> Callable:
-            flow_name = name if name is not None else func.__name__
-            action = self.registry.register_action(
-                name=flow_name,
-                kind=ActionKind.FLOW,
-                fn=func,
-                span_metadata={'genkit:metadata:flow:name': flow_name},
-            )
-
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                return (await action.arun(*args, **kwargs)).response
-
-            @wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                return action.run(*args, **kwargs).response
-
-            return async_wrapper if action.is_async else sync_wrapper
-
-        return wrapper
-
-    def tool(
-        self, description: str, name: str | None = None
-    ) -> Callable[[Callable], Callable]:
-        """Decorator to register a function as a tool.
-
-        Args:
-            description: Description for the tool to be passed to the model.
-            name: Optional name for the flow. If not provided, uses the function name.
-
-        Returns:
-            A decorator function that registers the tool.
-        """
-
-        def wrapper(func: Callable) -> Callable:
-            tool_name = name if name is not None else func.__name__
-            action = self.registry.register_action(
-                name=tool_name,
-                kind=ActionKind.TOOL,
-                description=description,
-                fn=func,
-            )
-
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                return (await action.arun(*args, **kwargs)).response
-
-            @wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                return action.run(*args, **kwargs).response
-
-            return async_wrapper if action.is_async else sync_wrapper
-
-        return wrapper
-
-    def define_model(
-        self,
-        name: str,
-        fn: ModelFn,
-        metadata: dict[str, Any] | None = None,
-    ) -> Action:
-        """Define a custom model action.
-
-        Args:
-            name: Name of the model.
-            fn: Function implementing the model behavior.
-            metadata: Optional metadata for the model.
-        """
-        return self.registry.register_action(
-            name=name,
-            kind=ActionKind.MODEL,
-            fn=fn,
-            metadata=metadata,
-        )
 
 
 def _normalize_prompt_arg(prompt: str | Part | list[Part] | None) -> list[Part]:

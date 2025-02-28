@@ -26,7 +26,7 @@ from genkit.core.typing import (
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse
-ModelFn = Callable[[GenerateRequest], GenerateResponse]
+type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 
 
 class GenerateResponseWrapper(GenerateResponse):
