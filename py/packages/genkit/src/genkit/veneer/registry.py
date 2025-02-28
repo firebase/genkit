@@ -7,6 +7,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
+from genkit.ai.embedding import EmbedderFn
 from genkit.ai.model import ModelFn
 from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry
@@ -95,6 +96,25 @@ class GenkitRegistry:
         return self.registry.register_action(
             name=name,
             kind=ActionKind.MODEL,
+            fn=fn,
+            metadata=metadata,
+        )
+
+    def define_embedder(
+        self,
+        name: str,
+        fn: EmbedderFn,
+        metadata: dict[str, Any] | None = None,
+    ) -> Action:
+        """Define a custom embedder action.
+        Args:
+            name: Name of the model.
+            fn: Function implementing the embedder behavior.
+            metadata: Optional metadata for the model.
+        """
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.EMBEDDER,
             fn=fn,
             metadata=metadata,
         )

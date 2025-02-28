@@ -25,15 +25,13 @@ class Plugin(abc.ABC):
         registry: Registry for plugin functionality.
     """
 
-    @abc.abstractmethod
-    @cached_property
-    def name(self):
+    def plugin_name(self):
         """The name of the plugin.
 
         Returns:
             The name of the plugin.
         """
-        pass
+        return self.name
 
     def resolve_action(
         self, ai: GenkitRegistry, kind: ActionKind, name: str

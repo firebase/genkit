@@ -8,12 +8,12 @@ import os
 
 import vertexai
 from genkit.core.action import ActionKind
-from genkit.core.plugin_abc import Plugin
-from genkit.core.registry import Registry
 from genkit.plugins.vertex_ai import constants as const
 from genkit.plugins.vertex_ai.embedding import Embedder, EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
 from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
+from genkit.veneer.plugin import Plugin
+from genkit.veneer.registry import GenkitRegistry
 
 LOG = logging.getLogger(__name__)
 
@@ -39,9 +39,7 @@ class VertexAI(Plugin):
     registration of model actions.
     """
 
-    def name():
-        """Name of the plugin."""
-        return 'vertexai'
+    name = 'vertexai'
 
     def __init__(
         self, project_id: str | None = None, location: str | None = None
@@ -61,7 +59,7 @@ class VertexAI(Plugin):
         location = location if location else const.DEFAULT_REGION
         vertexai.init(project=project_id, location=location)
 
-    def initialize(self, registry: Registry) -> None:
+    def initialize(self, ai: GenkitRegistry) -> None:
         """Initialize the plugin by registering actions with the registry.
 
         This method registers the Vertex AI model actions with the provided
@@ -75,8 +73,7 @@ class VertexAI(Plugin):
         """
         for model_version in GeminiVersion:
             gemini = Gemini(model_version)
-            registry.register_action(
-                kind=ActionKind.MODEL,
+            ai.define_model(
                 name=vertexai_name(model_version),
                 fn=gemini.handle_request,
                 metadata=gemini.model_metadata,
@@ -84,8 +81,7 @@ class VertexAI(Plugin):
 
         for embed_model in EmbeddingModels:
             embedder = Embedder(embed_model)
-            registry.register_action(
-                kind=ActionKind.EMBEDDER,
+            ai.define_embedder(
                 name=vertexai_name(embed_model),
                 fn=embedder.handle_request,
                 metadata=embedder.model_metadata,
@@ -93,8 +89,7 @@ class VertexAI(Plugin):
 
         for imagen_version in ImagenVersion:
             imagen = Imagen(imagen_version)
-            registry.register_action(
-                kind=ActionKind.MODEL,
+            ai.define_model(
                 name=vertexai_name(imagen_version),
                 fn=imagen.handle_request,
                 metadata=imagen.model_metadata,

@@ -12,12 +12,10 @@ from typing import Any
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
 from genkit.ai.generate import generate_action
-from genkit.ai.model import GenerateResponseWrapper, ModelFn
-from genkit.core.action import Action, ActionKind
+from genkit.ai.model import GenerateResponseWrapper
+from genkit.core.action import ActionKind
 from genkit.core.environment import is_dev_environment
-from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
-from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -30,6 +28,7 @@ from genkit.core.typing import (
     ToolChoice,
 )
 from genkit.veneer import server
+from genkit.veneer.plugin import Plugin
 from genkit.veneer.registry import GenkitRegistry
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
@@ -86,12 +85,12 @@ class Genkit(GenkitRegistry):
                         return plugin.resolve_action(self, kind, name)
 
                     self.registry.register_action_resolver(
-                        plugin.name(), resolver
+                        plugin.plugin_name(), resolver
                     )
                 else:
                     raise ValueError(
                         f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.core.plugin_abc.Plugin`'
+                        f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
     def start_server(self, host: str, port: int) -> None:

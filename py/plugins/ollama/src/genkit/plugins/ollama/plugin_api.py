@@ -10,7 +10,6 @@ from functools import cached_property
 from typing import Type
 
 from genkit.core.action import ActionKind
-from genkit.core.plugin_abc import Plugin
 from genkit.core.registry import Registry
 from genkit.plugins.ollama.models import (
     AsyncOllamaModel,
@@ -18,6 +17,8 @@ from genkit.plugins.ollama.models import (
     OllamaModel,
     OllamaPluginParams,
 )
+from genkit.veneer.plugin import Plugin
+from genkit.veneer.registry import GenkitRegistry
 
 import ollama as ollama_api
 
@@ -29,6 +30,8 @@ def ollama_name(name: str) -> str:
 
 
 class Ollama(Plugin):
+    name = 'ollama'
+
     def __init__(self, plugin_params: OllamaPluginParams):
         self.plugin_params = plugin_params
         self._sync_client = ollama_api.Client(
@@ -57,14 +60,13 @@ class Ollama(Plugin):
             else OllamaModel
         )
 
-    def initialize(self, registry: Registry) -> None:
+    def initialize(self, ai: GenkitRegistry) -> None:
         for model_definition in self.plugin_params.models:
             model = self.ollama_model_class(
                 client=self.client,
                 model_definition=model_definition,
             )
-            registry.register_action(
-                kind=ActionKind.MODEL,
+            ai.define_model(
                 name=ollama_name(model_definition.name),
                 fn=model.generate,
                 metadata={

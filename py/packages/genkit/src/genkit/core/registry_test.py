@@ -11,9 +11,9 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 from genkit.core.action import ActionKind, ActionMetadataKey
-from genkit.core.plugin_abc import Plugin
 from genkit.core.registry import ActionKind, Registry
 from genkit.veneer import Genkit
+from genkit.veneer.plugin import Plugin
 from genkit.veneer.registry import GenkitRegistry
 
 
@@ -76,8 +76,7 @@ def test_resolve_action_from_plugin():
     resolver_calls = []
 
     class MyPlugin(Plugin):
-        def name(self):
-            return 'myplugin'
+        name = 'myplugin'
 
         def resolve_action(
             self, ai: GenkitRegistry, kind: ActionKind, name: str
