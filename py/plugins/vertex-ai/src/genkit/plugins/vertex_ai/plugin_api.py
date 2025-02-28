@@ -13,6 +13,7 @@ from genkit.core.registry import Registry
 from genkit.plugins.vertex_ai import constants as const
 from genkit.plugins.vertex_ai.embedding import Embedder, EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
+from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
 
 LOG = logging.getLogger(__name__)
 
@@ -84,4 +85,13 @@ class VertexAI(Plugin):
                 name=vertexai_name(embed_model),
                 fn=embedder.handle_request,
                 metadata=embedder.model_metadata,
+            )
+
+        for imagen_version in ImagenVersion:
+            imagen = Imagen(imagen_version)
+            registry.register_action(
+                kind=ActionKind.MODEL,
+                name=vertexai_name(imagen_version),
+                fn=imagen.handle_request,
+                metadata=imagen.model_metadata,
             )

@@ -36,7 +36,7 @@ type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResp
 // ModelAction is an action for model generation.
 type ModelAction = core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-type generateAction = core.Action[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
 
 type modelActionDef core.Action[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
@@ -208,10 +208,11 @@ func WithMessages(messages ...*Message) GenerateOption {
 	}
 }
 
-// WithHistory adds provided history messages to the begining of ModelRequest.Messages.
-// History messages will always be put first in the list of messages, with the
-// exception of system prompt which will always be first.
-// [WithMessages] and [WithTextPrompt] will insert messages after system prompt and history.
+// WithHistory adds provided history messages to the beginning of
+// ModelRequest.Messages.  History messages will always be put first in the list
+// of messages, with the exception of system prompt which will always be first.
+// [WithMessages] and [WithTextPrompt] will insert messages after system prompt
+// and history.
 func WithHistory(history ...*Message) GenerateOption {
 	return func(req *generateParams) error {
 		if req.History != nil {
@@ -553,7 +554,9 @@ func cloneMessage(m *Message) *Message {
 	return &copy
 }
 
-// handleToolRequests processes any tool requests in the response, returning either a new request to continue the conversation or nil if no tool requests need handling.
+// handleToolRequests processes any tool requests in the response, returning
+// either a new request to continue the conversation or nil if no tool requests
+// need handling.
 func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamingCallback) (*ModelRequest, *Message, error) {
 	toolCount := 0
 	for _, part := range resp.Message.Content {
@@ -723,7 +726,7 @@ func (gr *ModelResponse) Text() string {
 	return gr.Message.Text()
 }
 
-// History returns messages from the request combined with the reponse message
+// History returns messages from the request combined with the response message
 // to represent the conversation history.
 func (gr *ModelResponse) History() []*Message {
 	if gr.Message == nil {

@@ -25,24 +25,35 @@ import (
 type Func[In, Out any] = func(context.Context, In) (Out, error)
 
 // StreamingFunc is an alias for streaming functions with input of type In, output of type Out, and streaming chunk of type Stream.
-type StreamingFunc[In, Out, Stream any] = func(context.Context, In, func(context.Context, Stream) error) (Out, error)
+type StreamingFunc[In, Out, Stream any] = func(context.Context, In, StreamCallback[Stream]) (Out, error)
 
-// An Action is a named, observable operation.
+// StreamCallback is a function that is called during streaming to return the next chunk of the stream.
+type StreamCallback[Stream any] = func(context.Context, Stream) error
+
+// Action is the interface that all Genkit primitives (e.g. flows, models, tools) have in common.
+type Action interface {
+	// Name returns the name of the action.
+	Name() string
+	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
+	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
+}
+
+// An ActionDef is a named, observable operation that underlies all Genkit primitives.
 // It consists of a function that takes an input of type I and returns an output
 // of type O, optionally streaming values of type S incrementally by invoking a callback.
-// It optionally has other metadata, like a description
-// and JSON Schemas for its input and output.
+// It optionally has other metadata, like a description and JSON Schemas for its input and
+// output which it validates against.
 //
-// Each time an Action is run, it results in a new trace span.
-type Action[In, Out, Stream any] struct {
-	name         string
-	description  string
-	atype        atype.ActionType
-	fn           StreamingFunc[In, Out, Stream]
-	tstate       *tracing.State
-	inputSchema  *jsonschema.Schema
-	outputSchema *jsonschema.Schema
-	metadata     map[string]any
+// Each time an ActionDef is run, it results in a new trace span.
+type ActionDef[In, Out, Stream any] struct {
+	name         string                         // Name of the action.
+	description  string                         // Description of the action. Optional.
+	atype        atype.ActionType               // Type of the action (e.g. flow, model, tool).
+	fn           StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
+	tstate       *tracing.State                 // Collects and writes traces during runtime.
+	inputSchema  *jsonschema.Schema             // JSON schema to validate against the action's input.
+	outputSchema *jsonschema.Schema             // JSON schema to validate against the action's output.
+	metadata     map[string]any                 // Metadata for the action.
 }
 
 type noStream = func(context.Context, struct{}) error
@@ -54,7 +65,7 @@ func DefineAction[In, Out any](
 	atype atype.ActionType,
 	metadata map[string]any,
 	fn Func[In, Out],
-) *Action[In, Out, struct{}] {
+) *ActionDef[In, Out, struct{}] {
 	return defineAction(r, provider, name, atype, metadata, nil,
 		func(ctx context.Context, in In, cb noStream) (Out, error) {
 			return fn(ctx, in)
@@ -68,7 +79,7 @@ func DefineStreamingAction[In, Out, Stream any](
 	atype atype.ActionType,
 	metadata map[string]any,
 	fn StreamingFunc[In, Out, Stream],
-) *Action[In, Out, Stream] {
+) *ActionDef[In, Out, Stream] {
 	return defineAction(r, provider, name, atype, metadata, nil, fn)
 }
 
@@ -83,7 +94,7 @@ func DefineActionWithInputSchema[Out any](
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
 	fn Func[any, Out],
-) *Action[any, Out, struct{}] {
+) *ActionDef[any, Out, struct{}] {
 	return defineAction(r, provider, name, atype, metadata, inputSchema,
 		func(ctx context.Context, in any, _ noStream) (Out, error) {
 			return fn(ctx, in)
@@ -98,7 +109,7 @@ func defineAction[In, Out, Stream any](
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
 	fn StreamingFunc[In, Out, Stream],
-) *Action[In, Out, Stream] {
+) *ActionDef[In, Out, Stream] {
 	fullName := name
 	if provider != "" {
 		fullName = provider + "/" + name
@@ -117,7 +128,7 @@ func newAction[In, Out, Stream any](
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
 	fn StreamingFunc[In, Out, Stream],
-) *Action[In, Out, Stream] {
+) *ActionDef[In, Out, Stream] {
 	var i In
 	var o Out
 	if inputSchema == nil {
@@ -129,13 +140,13 @@ func newAction[In, Out, Stream any](
 	if reflect.ValueOf(o).Kind() != reflect.Invalid {
 		outputSchema = base.InferJSONSchema(o)
 	}
-	return &Action[In, Out, Stream]{
+	return &ActionDef[In, Out, Stream]{
 		name:   name,
 		atype:  atype,
 		tstate: r.TracingState(),
-		fn: func(ctx context.Context, input In, sc func(context.Context, Stream) error) (Out, error) {
+		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
-			return fn(ctx, input, sc)
+			return fn(ctx, input, cb)
 		},
 		inputSchema:  inputSchema,
 		outputSchema: outputSchema,
@@ -144,10 +155,10 @@ func newAction[In, Out, Stream any](
 }
 
 // Name returns the Action's Name.
-func (a *Action[In, Out, Stream]) Name() string { return a.name }
+func (a *ActionDef[In, Out, Stream]) Name() string { return a.name }
 
 // Run executes the Action's function in a new trace span.
-func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
+func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.Name,
 		"input", fmt.Sprintf("%#v", input))
@@ -186,7 +197,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
-func (a *Action[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.inputSchema); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
@@ -219,7 +230,7 @@ func (a *Action[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMes
 }
 
 // Desc returns a description of the action.
-func (a *Action[In, Out, Stream]) Desc() action.Desc {
+func (a *ActionDef[In, Out, Stream]) Desc() action.Desc {
 	ad := action.Desc{
 		Name:         a.name,
 		Description:  a.description,
@@ -251,5 +262,5 @@ func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ atype.Action
 	if a == nil {
 		return nil
 	}
-	return a.(*Action[In, Out, Stream])
+	return a.(*ActionDef[In, Out, Stream])
 }

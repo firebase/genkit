@@ -30,7 +30,7 @@ type GenerateActionOptions struct {
 	Output             *GenerateActionOptionsOutput `json:"output,omitempty"`
 	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
 	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
-	Tools              []string            			`json:"tools,omitempty"`
+	Tools              []string                     `json:"tools,omitempty"`
 }
 
 type GenerateActionOptionsOutput struct {

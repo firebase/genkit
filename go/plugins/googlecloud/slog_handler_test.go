@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // The googlecloud package supports telemetry (tracing, metrics and logging) using
 // Google Cloud services.
 package googlecloud

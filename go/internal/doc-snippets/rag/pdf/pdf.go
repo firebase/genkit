@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package pdf
 
 import (
@@ -9,7 +8,7 @@ import (
 	"os"
 )
 
-type Reader struct {}
+type Reader struct{}
 
 func (Reader) GetPlainText() (io.Reader, error) {
 	panic("Stub.")
