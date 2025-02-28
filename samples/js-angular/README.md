@@ -1,10 +1,12 @@
 # Firebase Genkit Angular Streaming Sample
 
-A real-time UI for generating RPG characters using Google's Gemini API.
+An Angular application for generating RPG characters and interactive chatbot experiences using Google's Gemini API.
 
 ## Overview
 
-This sample application demonstrates how to implement streaming AI responses in an Angular application using Firebase Genkit and Google's Gemini API. It creates interactive RPG character profiles with dynamic content generation.
+This sample application demonstrates how to implement streaming AI responses in an Angular application using Firebase Genkit and Google's Gemini API. It features two main components:
+- An RPG character generator that creates and streams character profiles
+- An interactive chatbot application for AI conversations
 
 ## Prerequisites
 
@@ -37,12 +39,6 @@ npm run genkit:dev
 ```
 
 Then access the application at [http://localhost:4200/](http://localhost:4200/)
-
-## Features
-
-- Real-time character generation with streaming responses
-- Interactive UI for customizing character attributes
-- Seamless integration with Google's Gemini AI model
 
 ## Project Structure
 
