@@ -63,7 +63,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
         ),
     )
 
-    assert response.text() == 'bye'
+    assert response.text == 'bye'
 
 
 ##########################################################################

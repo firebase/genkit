@@ -16,7 +16,10 @@ Example:
 """
 
 from collections.abc import Callable
+from functools import cached_property
+from typing import Any
 
+from genkit.core.extract import extract_json
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
@@ -30,6 +33,8 @@ type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 
 
 class GenerateResponseWrapper(GenerateResponse):
+    """A helper wrapper class for GenerateResponse that offer a few utility methods"""
+
     def __init__(self, response: GenerateResponse, request: GenerateRequest):
         super().__init__(
             message=response.message,
@@ -52,33 +57,57 @@ class GenerateResponseWrapper(GenerateResponse):
         # TODO: implement
         pass
 
-    def text(self):
+    @cached_property
+    def text(self) -> str:
+        """Returns all text parts of the response joined into a single string"""
         return ''.join([
             p.root.text if p.root.text is not None else ''
             for p in self.message.content
         ])
 
-    def output(self):
-        # TODO: implement
-        pass
+    @cached_property
+    def output(self) -> Any:
+        """Parses out JSON data from the text parts of the response."""
+        return extract_json(self.text)
 
 
 class GenerateResponseChunkWrapper(GenerateResponseChunk):
+    """A helper wrapper class for GenerateResponseChunk that offer a few utility methods"""
+
+    previous_chunks: list[GenerateResponseChunk]
+
     def __init__(
         self,
         chunk: GenerateResponseChunk,
-        index: int,
         previous_chunks: list[GenerateResponseChunk],
+        index: str,
     ):
         super().__init__(
             role=chunk.role,
-            index=chunk.index,
+            index=index,
             content=chunk.content,
             custom=chunk.custom,
             aggregated=chunk.aggregated,
+            previous_chunks=previous_chunks,
         )
 
-    def text(self):
-        return ''.join([
+    @cached_property
+    def text(self) -> str:
+        return ''.join(
             p.root.text if p.root.text is not None else '' for p in self.content
-        ])
+        )
+
+    @cached_property
+    def accumulated_text(self) -> str:
+        if not self.previous_chunks:
+            return ''
+        atext = ''
+        for chunk in self.previous_chunks:
+            for p in chunk.content:
+                atext += p.root.text if p.root.text else ''
+        return atext
+
+    @cached_property
+    def output(self) -> Any:
+        """Parses out JSON data from the accumulated text parts of the response."""
+        return extract_json(self.accumulated_text)
