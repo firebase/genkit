@@ -1,20 +1,70 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility functions for extracting JSON data from text and markdown."""
+
+from typing import Any
+
 import json5
 from partial_json_parser import loads
 
+CHAR_NON_BREAKING_SPACE = '\u00a0'
 
-def parse_partial_json(json_string: str):
+
+def parse_partial_json(json_string: str) -> Any:
+    """Parses a partially complete JSON string and returns the parsed object.
+
+    This function attempts to parse the given JSON string, even if it is not
+    a complete or valid JSON document.
+
+    Args:
+        json_string: The string to parse as JSON.
+
+    Returns:
+        The parsed JSON object.
+
+    Raises:
+        AssertionError: If the string cannot be parsed as JSON.
     """
-    Parses partially complete JSON string.
-    """
+    # TODO: add handling for malformed JSON cases.
     return loads(json_string)
 
 
-def extract_json(text: str, throw_on_bad_json: bool = True):
+def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
     """
-    Extracts JSON from string with lenient parsing rules to improve likelihood of successful extraction.
+    Extracts JSON from a string with lenient parsing.
+
+    This function attempts to extract a valid JSON object or array from a
+    string, even if the string contains extraneous characters or minor
+    formatting issues. It uses a combination of basic parsing and
+    `json5` and `partial-json` libraries to maximize the chance of
+    successful extraction.
+
+    Args:
+        text: The string to extract JSON from.
+        throw_on_bad_json: If True, raises a ValueError if no valid JSON
+            can be extracted. If False, returns None in such cases.
+
+    Returns:
+        The extracted JSON object (dict or list), or None if no valid
+        JSON is found and `throw_on_bad_json` is False.
+
+    Raises:
+        ValueError: If `throw_on_bad_json` is True and no valid JSON
+            can be extracted.
+
+    Examples:
+        >>> extract_json('  { "key" : "value" }  ')
+        {'key': 'value'}
+
+        >>> extract_json('{"key": "value",}')  # Trailing comma
+        {'key': 'value'}
+
+        >>> extract_json('some text {"key": "value"} more text')
+        {'key': 'value'}
+
+        >>> extract_json('invalid json', throw_on_bad_json=False)
+        None
     """
     opening_char = None
     closing_char = None
@@ -24,7 +74,7 @@ def extract_json(text: str, throw_on_bad_json: bool = True):
     escape_next = False
 
     for i in range(len(text)):
-        char = text[i].replace('\u00a0', ' ')
+        char = text[i].replace(CHAR_NON_BREAKING_SPACE, ' ')
 
         if escape_next:
             escape_next = False
@@ -84,9 +134,53 @@ class ExtractItemsResult:
 
 def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
     """
-    Extracts complete objects from the first array found in the text.
-    Processes text from the cursor position and returns both complete items
-    and the new cursor position.
+    Extracts complete JSON objects from the first array found in the text.
+
+    This function searches for the first JSON array within the input string,
+    starting from an optional cursor position. It extracts complete JSON
+    objects from this array and returns them along with an updated cursor
+    position, indicating how much of the string has been processed.
+
+    Args:
+        text: The string to extract items from.
+        cursor: The starting position for searching the array (default: 0).
+            Useful for processing large strings in chunks.
+
+    Returns:
+        An `ExtractItemsResult` object containing:
+          - `items`: A list of extracted JSON objects (dictionaries).
+          - `cursor`: The updated cursor position, which is the index
+            immediately after the last processed character. If no array is
+            found, the cursor will be the length of the text.
+
+    Examples:
+        >>> text = '[{"a": 1}, {"b": 2}, {"c": 3}]'
+        >>> result = extract_items(text)
+        >>> result.items
+        [{'a': 1}, {'b': 2}, {'c': 3}]
+        >>> result.cursor
+        29
+
+        >>> text = '  [ {"x": 10},  {"y": 20} ]  '
+        >>> result = extract_items(text)
+        >>> result.items
+        [{'x': 10}, {'y': 20}]
+        >>> result.cursor
+        25
+
+        >>> text = 'some text [ {"p": 100} , {"q": 200} ] more text'
+        >>> result = extract_items(text, cursor=10)
+        >>> result.items
+        [{'p': 100}, {'q': 200}]
+        >>> result.cursor
+        35
+
+        >>> text = 'no array here'
+        >>> result = extract_items(text)
+        >>> result.items
+        []
+        >>> result.cursor
+        13
     """
     items = []
     current_cursor = cursor
@@ -95,7 +189,7 @@ def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
     if cursor == 0:
         array_start = text.find('[')
         if array_start == -1:
-            return {'items': [], 'cursor': len(text)}
+            return ExtractItemsResult(items=[], cursor=len(text))
         current_cursor = array_start + 1
 
     object_start = -1
