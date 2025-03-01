@@ -36,6 +36,12 @@ class GenerateResponseWrapper(GenerateResponse):
     """A helper wrapper class for GenerateResponse that offer a few utility methods"""
 
     def __init__(self, response: GenerateResponse, request: GenerateRequest):
+        """Initializes a GenerateResponseWrapper instance.
+
+        Args:
+            response: The original GenerateResponse object.
+            request: The GenerateRequest object associated with the response.
+        """
         super().__init__(
             message=response.message,
             finish_reason=response.finish_reason,
@@ -93,12 +99,14 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
     @cached_property
     def text(self) -> str:
+        """Returns all text parts of the current chunk joined into a single string."""
         return ''.join(
             p.root.text if p.root.text is not None else '' for p in self.content
         )
 
     @cached_property
     def accumulated_text(self) -> str:
+        """Returns all text parts from previous chunks."""
         if not self.previous_chunks:
             return ''
         atext = ''
