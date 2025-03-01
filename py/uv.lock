@@ -675,8 +675,10 @@ version = "0.1.0"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "dotprompt" },
+    { name = "json5" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
+    { name = "partial-json-parser" },
     { name = "pydantic" },
     { name = "requests" },
 ]
@@ -684,8 +686,10 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dotprompt" },
+    { name = "json5", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
+    { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "requests", specifier = ">=2.32.3" },
 ]
@@ -1989,6 +1993,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/66/94/68e2e17afaa9169cf6412ab0f28623903be73d1b32e208d9e8e541bb086d/parso-0.8.4.tar.gz", hash = "sha256:eb3a7b58240fb99099a345571deecc0f9540ea5f4dd2fe14c2a99d6b281ab92d", size = 400609 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c6/ac/dac4a63f978e4dcb3c6d3a78c4d8e0192a113d288502a1216950c41b1027/parso-0.8.4-py2.py3-none-any.whl", hash = "sha256:a418670a20291dacd2dddc80c377c5c3791378ee1e8d12bffc35420643d43f18", size = 103650 },
+]
+
+[[package]]
+name = "partial-json-parser"
+version = "0.2.1.1.post5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/9c/9c366aed65acb40a97842ce1375a87b27ea37d735fc9717f7729bae3cc00/partial_json_parser-0.2.1.1.post5.tar.gz", hash = "sha256:992710ac67e90b367921d52727698928040f7713ba7ecb33b96371ea7aec82ca", size = 10313 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8c/ee/a9476f01f27c74420601be208c6c2c0dd3486681d515e9d765931b89851c/partial_json_parser-0.2.1.1.post5-py3-none-any.whl", hash = "sha256:627715aaa3cb3fb60a65b0d62223243acaa6c70846520a90326fef3a2f0b61ca", size = 10885 },
 ]
 
 [[package]]
