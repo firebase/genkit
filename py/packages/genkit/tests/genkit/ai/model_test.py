@@ -64,22 +64,22 @@ def test_chunk_wrapper_text() -> None:
 
 def test_chunk_wrapper_accumulated_text() -> None:
     wrapper = GenerateResponseChunkWrapper(
-        GenerateResponseChunk(content=[TextPart(text='doesn not matter')]),
+        GenerateResponseChunk(content=[TextPart(text=' PS: aliens')]),
         index=0,
         previous_chunks=[
             GenerateResponseChunk(
                 content=[TextPart(text='hello'), TextPart(text=' ')]
             ),
-            GenerateResponseChunk(content=[TextPart(text='world')]),
+            GenerateResponseChunk(content=[TextPart(text='world!')]),
         ],
     )
 
-    assert wrapper.accumulated_text == 'hello world'
+    assert wrapper.accumulated_text == 'hello world! PS: aliens'
 
 
 def test_chunk_wrapper_output() -> None:
     wrapper = GenerateResponseChunkWrapper(
-        GenerateResponseChunk(content=[TextPart(text='doesn not matter')]),
+        GenerateResponseChunk(content=[TextPart(text=', "baz":[1,2,')]),
         index=0,
         previous_chunks=[
             GenerateResponseChunk(
@@ -89,4 +89,4 @@ def test_chunk_wrapper_output() -> None:
         ],
     )
 
-    assert wrapper.output == {'foo': 'bar'}
+    assert wrapper.output == {'foo': 'bar', 'baz': [1, 2]}

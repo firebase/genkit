@@ -106,14 +106,15 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
     @cached_property
     def accumulated_text(self) -> str:
-        """Returns all text parts from previous chunks."""
+        """Returns all text parts from previous chunks plus the latest chunk."""
         if not self.previous_chunks:
             return ''
         atext = ''
         for chunk in self.previous_chunks:
             for p in chunk.content:
-                atext += p.root.text if p.root.text else ''
-        return atext
+                if p.root.text:
+                    atext += p.root.text
+        return atext + self.text
 
     @cached_property
     def output(self) -> Any:
