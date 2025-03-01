@@ -75,6 +75,7 @@ def extract_json(text: str, throw_on_bad_json: bool = True):
 
 
 class ExtractItemsResult:
+    """Result of array item extraction."""
     def __init__(self, items: list, cursor: int):
         self.items = items
         self.cursor = cursor
