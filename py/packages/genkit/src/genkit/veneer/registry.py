@@ -8,6 +8,7 @@ from functools import wraps
 from typing import Any
 
 from genkit.ai.embedding import EmbedderFn
+from genkit.ai.formats.types import FormatDef
 from genkit.ai.model import ModelFn
 from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry
@@ -118,3 +119,7 @@ class GenkitRegistry:
             fn=fn,
             metadata=metadata,
         )
+
+    def define_format(self, format: FormatDef):
+        """Registers a custom format in the registry."""
+        self.registry.register_value('format', format.name, format)

@@ -49,6 +49,7 @@ class Registry:
         """Initialize an empty Registry instance."""
         self.action_resolvers: dict[str, ActionResolver] = {}
         self.entries: dict[ActionKind, dict[ActionName, Action]] = {}
+        self.value_by_type_and_name: dict[str, dict[str, Any]] = {}
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -166,3 +167,46 @@ class Registry:
                     'metadata': action.metadata,
                 }
         return actions
+
+    def register_value(self, type: str, name: str, value: Any):
+        """
+        Registers a value with a given type and name.
+
+        This method stores a value in a nested dictionary, where the first level
+        is keyed by the 'type' and the second level is keyed by the 'name'.
+        It prevents duplicate registrations for the same type and name.
+
+        Args:
+            type: The type of the value (e.g., "format", "default-model").
+            name: The name of the value (e.g., "json", "text").
+            value: The value to be registered. Can be of any non-serializable type.
+
+        Raises:
+            ValueError: If a value with the given type and name is already registered.
+        """
+        if type not in self.value_by_type_and_name:
+            self.value_by_type_and_name[type] = {}
+
+        if name in self.value_by_type_and_name[type]:
+            raise ValueError(
+                f'value for type "{type}" and name "{name}" is already registered'
+            )
+
+        self.value_by_type_and_name[type][name] = value
+
+    def lookup_value(self, type: str, name: str) -> Any | None:
+        """
+        Looks up value that us previously registered by `register_value`.
+
+        Args:
+          type: The type of the value (e.g., "format", "default-model").
+          name: The name of the value (e.g., "json", "text").
+
+        Returns:
+          The value or None if not found.
+        """
+        if (
+            type in self.value_by_type_and_name
+            and name in self.value_by_type_and_name[type]
+        ):
+            return self.value_by_type_and_name[type][name]

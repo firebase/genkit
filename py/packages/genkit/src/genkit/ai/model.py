@@ -25,17 +25,30 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
+    Message,
 )
+from pydantic import Field
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse
 type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 
+# These types are duplicated in genkit.ai.formats.types due to circular deps
+type MessageParser[T] = Callable[[Message], T]
+type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+
 
 class GenerateResponseWrapper(GenerateResponse):
     """A helper wrapper class for GenerateResponse that offer a few utility methods"""
 
-    def __init__(self, response: GenerateResponse, request: GenerateRequest):
+    message_parser: MessageParser | None = Field(exclude=True)
+
+    def __init__(
+        self,
+        response: GenerateResponse,
+        request: GenerateRequest,
+        message_parser: MessageParser | None = None,
+    ):
         """Initializes a GenerateResponseWrapper instance.
 
         Args:
@@ -53,6 +66,7 @@ class GenerateResponseWrapper(GenerateResponse):
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
+            message_parser=message_parser,
         )
 
     def assert_valid(self):
@@ -74,19 +88,23 @@ class GenerateResponseWrapper(GenerateResponse):
     @cached_property
     def output(self) -> Any:
         """Parses out JSON data from the text parts of the response."""
+        if self.message_parser:
+            return self.message_parser(self.message)
         return extract_json(self.text)
 
 
 class GenerateResponseChunkWrapper(GenerateResponseChunk):
     """A helper wrapper class for GenerateResponseChunk that offer a few utility methods"""
 
-    previous_chunks: list[GenerateResponseChunk]
+    previous_chunks: list[GenerateResponseChunk] = Field(exclude=True)
+    chunk_parser: ChunkParser | None = Field(exclude=True)
 
     def __init__(
         self,
         chunk: GenerateResponseChunk,
         previous_chunks: list[GenerateResponseChunk],
-        index: str,
+        index: int,
+        chunk_parser: ChunkParser | None = None,
     ):
         super().__init__(
             role=chunk.role,
@@ -95,6 +113,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
             custom=chunk.custom,
             aggregated=chunk.aggregated,
             previous_chunks=previous_chunks,
+            chunk_parser=chunk_parser,
         )
 
     @cached_property
@@ -119,4 +138,6 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
     @cached_property
     def output(self) -> Any:
         """Parses out JSON data from the accumulated text parts of the response."""
+        if self.chunk_parser:
+            return self.chunk_parser(self)
         return extract_json(self.accumulated_text)
