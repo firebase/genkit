@@ -9,13 +9,13 @@ import json
 
 import pytest
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
+from genkit.ai.model import MessageWrapper
 from genkit.ai.testing_utils import (
     EchoModel,
     ProgrammableModel,
     define_echo_model,
     define_programmable_model,
 )
-from genkit.core.codec import dump_json
 from genkit.core.typing import (
     FinishReason,
     GenerateRequest,
@@ -234,15 +234,17 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     def test_tool(input: ToolInput):
         return 'abc'
 
-    tool_request_msg = Message(
-        role=Role.MODEL,
-        content=[
-            ToolRequestPart(
-                toolRequest=ToolRequest1(
-                    input={'value': 5}, name='testTool', ref='123'
+    tool_request_msg = MessageWrapper(
+        Message(
+            role=Role.MODEL,
+            content=[
+                ToolRequestPart(
+                    toolRequest=ToolRequest1(
+                        input={'value': 5}, name='testTool', ref='123'
+                    )
                 )
-            )
-        ],
+            ],
+        )
     )
     pm.responses.append(
         GenerateResponse(

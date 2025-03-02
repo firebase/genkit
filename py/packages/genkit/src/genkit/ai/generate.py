@@ -10,6 +10,7 @@ from genkit.ai.formats import FormatDef, Formatter
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
+    MessageWrapper,
 )
 from genkit.core.codec import dump_dict
 from genkit.core.registry import Action, ActionKind, Registry
@@ -105,7 +106,7 @@ async def generate_action(
         )
     ).response
 
-    def message_parser(msg: Message):
+    def message_parser(msg: MessageWrapper):
         """Parse a message using the current formatter.
 
         Args:

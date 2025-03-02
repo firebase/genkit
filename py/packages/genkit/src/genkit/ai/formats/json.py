@@ -8,12 +8,10 @@ from typing import Any
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
     GenerateResponseWrapper,
+    MessageWrapper,
 )
 from genkit.core.codec import dump_json
 from genkit.core.extract import extract_json
-from genkit.core.typing import (
-    Message,
-)
 
 
 class JsonFormat(FormatDef):
@@ -57,7 +55,7 @@ class JsonFormat(FormatDef):
             the provided schema.
         """
 
-        def message_parser(msg: Message):
+        def message_parser(msg: MessageWrapper):
             """
             Extracts JSON from a Message object.
 
@@ -70,11 +68,7 @@ class JsonFormat(FormatDef):
             Returns:
                 A JSON object extracted from the message content.
             """
-            return extract_json(
-                ''.join([
-                    p.root.text if p.root.text else '' for p in msg.content
-                ])
-            )
+            return extract_json(msg.text)
 
         def chunk_parser(chunk: GenerateResponseWrapper):
             """

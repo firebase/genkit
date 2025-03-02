@@ -9,13 +9,13 @@ from typing import Any
 
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
+    MessageWrapper,
 )
 from genkit.core.typing import (
-    Message,
     OutputConfig,
 )
 
-type MessageParser[T] = Callable[[Message], T]
+type MessageParser[T] = Callable[[MessageWrapper], T]
 type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
 
 
@@ -45,8 +45,7 @@ class Formatter[O, CO]:
         self.__message_parser = message_parser
         self.__chunk_parser = chunk_parser
 
-    # TODO: make this acceps MessageWrapper (once it exists)
-    def parse_message(self, message: Message) -> O:
+    def parse_message(self, message: MessageWrapper) -> O:
         """Parses a message.
 
         Args:

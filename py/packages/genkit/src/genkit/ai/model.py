@@ -34,14 +34,40 @@ from pydantic import Field
 type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 
 # These types are duplicated in genkit.ai.formats.types due to circular deps
-type MessageParser[T] = Callable[[Message], T]
+type MessageParser[T] = Callable[[MessageWrapper], T]
 type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+
+
+class MessageWrapper(Message):
+    """A helper wrapper class for Message that offer a few utility methods"""
+
+    def __init__(
+        self,
+        message: Message,
+    ):
+        super().__init__(
+            role=message.role,
+            content=message.content,
+            metadata=message.metadata,
+        )
+
+    @cached_property
+    def text(self) -> str:
+        """Returns all text parts of the current chunk joined into a single string.
+
+        Returns:
+            str: The combined text content from the current chunk.
+        """
+        return ''.join(
+            p.root.text if p.root.text is not None else '' for p in self.content
+        )
 
 
 class GenerateResponseWrapper(GenerateResponse):
     """A helper wrapper class for GenerateResponse that offer a few utility methods"""
 
     message_parser: MessageParser | None = Field(exclude=True)
+    message: MessageWrapper = None
 
     def __init__(
         self,
@@ -56,7 +82,7 @@ class GenerateResponseWrapper(GenerateResponse):
             request: The GenerateRequest object associated with the response.
         """
         super().__init__(
-            message=response.message,
+            message=MessageWrapper(response.message),
             finish_reason=response.finish_reason,
             finish_message=response.finish_message,
             latency_ms=response.latency_ms,
@@ -94,10 +120,7 @@ class GenerateResponseWrapper(GenerateResponse):
         Returns:
             str: The combined text content from the response.
         """
-        return ''.join([
-            p.root.text if p.root.text is not None else ''
-            for p in self.message.content
-        ])
+        return self.message.text
 
     @cached_property
     def output(self) -> Any:
