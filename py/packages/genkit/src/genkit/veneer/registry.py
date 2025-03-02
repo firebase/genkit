@@ -30,6 +30,14 @@ class GenkitRegistry:
         """
 
         def wrapper(func: Callable) -> Callable:
+            """Register the decorated function as a flow.
+
+            Args:
+                func: The function to register as a flow.
+
+            Returns:
+                The wrapped function that executes the flow.
+            """
             flow_name = name if name is not None else func.__name__
             action = self.registry.register_action(
                 name=flow_name,
@@ -40,10 +48,28 @@ class GenkitRegistry:
 
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
+                """Asynchronous wrapper for the flow function.
+
+                Args:
+                    *args: Positional arguments to pass to the flow function.
+                    **kwargs: Keyword arguments to pass to the flow function.
+
+                Returns:
+                    The response from the flow function.
+                """
                 return (await action.arun(*args, **kwargs)).response
 
             @wraps(func)
             def sync_wrapper(*args, **kwargs):
+                """Synchronous wrapper for the flow function.
+
+                Args:
+                    *args: Positional arguments to pass to the flow function.
+                    **kwargs: Keyword arguments to pass to the flow function.
+
+                Returns:
+                    The response from the flow function.
+                """
                 return action.run(*args, **kwargs).response
 
             return async_wrapper if action.is_async else sync_wrapper
@@ -62,6 +88,14 @@ class GenkitRegistry:
         """
 
         def wrapper(func: Callable) -> Callable:
+            """Register the decorated function as a tool.
+
+            Args:
+                func: The function to register as a tool.
+
+            Returns:
+                The wrapped function that executes the tool.
+            """
             tool_name = name if name is not None else func.__name__
             action = self.registry.register_action(
                 name=tool_name,
@@ -72,10 +106,28 @@ class GenkitRegistry:
 
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
+                """Asynchronous wrapper for the tool function.
+
+                Args:
+                    *args: Positional arguments to pass to the tool function.
+                    **kwargs: Keyword arguments to pass to the tool function.
+
+                Returns:
+                    The response from the tool function.
+                """
                 return (await action.arun(*args, **kwargs)).response
 
             @wraps(func)
             def sync_wrapper(*args, **kwargs):
+                """Synchronous wrapper for the tool function.
+
+                Args:
+                    *args: Positional arguments to pass to the tool function.
+                    **kwargs: Keyword arguments to pass to the tool function.
+
+                Returns:
+                    The response from the tool function.
+                """
                 return action.run(*args, **kwargs).response
 
             return async_wrapper if action.is_async else sync_wrapper

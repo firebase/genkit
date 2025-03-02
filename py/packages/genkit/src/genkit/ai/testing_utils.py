@@ -19,13 +19,39 @@ from genkit.veneer.veneer import Genkit
 
 
 class ProgrammableModel:
+    """A configurable model implementation for testing.
+
+    This class allows test cases to define custom responses that the model
+    should return, making it useful for testing expected behavior in various
+    scenarios.
+
+    Attributes:
+        request_idx: Index tracking which request is being processed.
+        responses: List of predefined responses to return.
+        chunks: Optional list of chunks to stream for each request.
+        last_request: The most recent request received.
+    """
+
     def __init__(self):
+        """Initialize a new ProgrammableModel instance."""
         self.request_idx = 0
         self.responses: list[GenerateResponse] = []
         self.chunks: list[list[GenerateResponseChunk]] = None
         self.last_request: GenerateRequest = None
 
     def model_fn(self, request: GenerateRequest, ctx: ActionRunContext):
+        """Process a generation request and return a programmed response.
+
+        This function returns pre-configured responses and streams pre-configured
+        chunks based on the current request index.
+
+        Args:
+            request: The generation request to process.
+            ctx: The action run context for streaming chunks.
+
+        Returns:
+            The pre-configured response for the current request.
+        """
         self.last_request = request
         response = self.responses[self.request_idx]
         if self.chunks:
@@ -49,10 +75,28 @@ def define_programmable_model(ai: Genkit, name: str = 'programmableModel'):
 
 
 class EchoModel:
+    """A simple model implementation that echoes back the input.
+
+    This model is useful for testing as it returns a readable representation
+    of the input it received.
+
+    Attributes:
+        last_request: The most recent request received.
+    """
+
     def __init__(self):
+        """Initialize a new EchoModel instance."""
         self.last_request: GenerateRequest = None
 
     def model_fn(self, request: GenerateRequest):
+        """Process a generation request and echo it back in the response.
+
+        Args:
+            request: The generation request to process.
+
+        Returns:
+            A response containing an echo of the input request details.
+        """
         self.last_request = request
         merged_txt = ''
         for m in request.messages:
