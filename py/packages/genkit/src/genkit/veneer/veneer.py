@@ -10,6 +10,7 @@ from http.server import HTTPServer
 from typing import Any
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
+from genkit.ai.formats import built_in_formats
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
 from genkit.ai.generate import generate_action
 from genkit.ai.model import GenerateResponseWrapper
@@ -74,6 +75,9 @@ class Genkit(GenkitRegistry):
             )
             self.thread.start()
 
+        for format in built_in_formats:
+            self.define_format(format)
+
         if not plugins:
             logger.warning('No plugins provided to Genkit')
         else:
@@ -120,10 +124,10 @@ class Genkit(GenkitRegistry):
         on_chunk: ModelStreamingCallback | None = None,
         context: dict[str, Any] | None = None,
         output_format: str | None = None,
-        content_type: str | None = None,
+        output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
-        constrained: bool | None = None,
+        output_constrained: bool | None = None,
         # TODO:
         #  docs: list[Document]
         #  use: list[ModelMiddleware]
@@ -190,17 +194,21 @@ class Genkit(GenkitRegistry):
                 Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
             )
 
+        # If is schema is set but format is not explicitly set, default to `json` format.
+        if output_schema and not output_format:
+            output_format = 'json'
+
         output = Output()
         if output_format:
             output.format = output_format
-        if content_type:
-            output.content_type = content_type
+        if output_content_type:
+            output.content_type = output_content_type
         if output_instructions != None:
             output.instructions = output_instructions
         if output_schema:
             output.json_schema = to_json_schema(output_schema)
-        if constrained != None:
-            output.constrained = constrained
+        if output_constrained != None:
+            output.constrained = output_constrained
 
         return await generate_action(
             self.registry,

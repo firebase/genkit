@@ -104,3 +104,11 @@ def test_resolve_action_from_plugin():
     # should be idempotent
     ai.registry.lookup_action(ActionKind.MODEL, 'myplugin/foo')
     assert len(resolver_calls) == 1
+
+
+def test_register_value():
+    registry = Registry()
+
+    registry.register_value('format', 'json', [1, 2, 3])
+
+    assert registry.lookup_value('format', 'json') == [1, 2, 3]
