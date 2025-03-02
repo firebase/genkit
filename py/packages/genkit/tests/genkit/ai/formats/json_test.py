@@ -6,7 +6,7 @@
 """Tests for the JSON format"""
 
 from genkit.ai.formats import JsonFormat
-from genkit.ai.model import GenerateResponseChunkWrapper
+from genkit.ai.model import GenerateResponseChunkWrapper, MessageWrapper
 from genkit.core.typing import GenerateResponseChunk, Message, TextPart
 
 
@@ -34,7 +34,9 @@ def test_json_format() -> None:
     )
 
     assert json_format.parse_message(
-        Message(role='user', content=[TextPart(text='{"foo": "bar')])
+        MessageWrapper(
+            Message(role='user', content=[TextPart(text='{"foo": "bar')])
+        )
     ) == {'foo': 'bar'}
 
     assert json_format.parse_chunk(

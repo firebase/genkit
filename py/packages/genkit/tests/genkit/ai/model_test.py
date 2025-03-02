@@ -8,6 +8,7 @@
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
+    MessageWrapper,
 )
 from genkit.core.typing import (
     GenerateRequest,
@@ -16,6 +17,17 @@ from genkit.core.typing import (
     Message,
     TextPart,
 )
+
+
+def test_message_wrapper_text() -> None:
+    wrapper = MessageWrapper(
+        Message(
+            role='model',
+            content=[TextPart(text='hello'), TextPart(text=' world')],
+        ),
+    )
+
+    assert wrapper.text == 'hello world'
 
 
 def test_response_wrapper_text() -> None:
