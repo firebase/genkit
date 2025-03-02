@@ -41,7 +41,7 @@ async def test_generate_uses_default_model(setup_test) -> None:
 
     response = await ai.generate(prompt='hi', config={'temperature': 11})
 
-    assert response.text() == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -52,7 +52,7 @@ async def test_generate_with_explicit_model(setup_test) -> None:
         model='echoModel', prompt='hi', config={'temperature': 11}
     )
 
-    assert response.text() == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,7 @@ async def test_generate_with_str_prompt(setup_test) -> None:
 
     response = await ai.generate(prompt='hi', config={'temperature': 11})
 
-    assert response.text() == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_generate_with_part_prompt(setup_test) -> None:
         prompt=TextPart(text='hi'), config={'temperature': 11}
     )
 
-    assert response.text() == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -84,7 +84,7 @@ async def test_generate_with_part_list_prompt(setup_test) -> None:
         config={'temperature': 11},
     )
 
-    assert response.text() == '[ECHO] user: "hello","world" {"temperature": 11}'
+    assert response.text == '[ECHO] user: "hello","world" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -96,7 +96,7 @@ async def test_generate_with_str_system(setup_test) -> None:
     )
 
     assert (
-        response.text()
+        response.text
         == '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
     )
 
@@ -112,7 +112,7 @@ async def test_generate_with_part_system(setup_test) -> None:
     )
 
     assert (
-        response.text()
+        response.text
         == '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
     )
 
@@ -128,7 +128,7 @@ async def test_generate_with_part_list_system(setup_test) -> None:
     )
 
     assert (
-        response.text()
+        response.text
         == '[ECHO] system: "talk","like pirate" user: "hi" {"temperature": 11}'
     )
 
@@ -147,7 +147,7 @@ async def test_generate_with_messages(setup_test) -> None:
         config={'temperature': 11},
     )
 
-    assert response.text() == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -170,7 +170,7 @@ async def test_generate_with_system_prompt_messages(setup_test) -> None:
     )
 
     assert (
-        response.text()
+        response.text
         == '[ECHO] system: "talk like pirate" user: "hi" model: "bye" user: "hi again"'
     )
 
@@ -186,7 +186,7 @@ async def test_generate_with_tools(setup_test) -> None:
         tools=['testTool'],
     )
 
-    assert response.text() == '[ECHO] user: "hi" tool_choice=required'
+    assert response.text == '[ECHO] user: "hi" tool_choice=required'
     assert echo.last_request.tools == [
         ToolDefinition(
             name='testTool',
@@ -251,7 +251,7 @@ async def test_generate_with_tools(setup_test) -> None:
         tools=['testTool'],
     )
 
-    assert response.text() == 'tool called'
+    assert response.text == 'tool called'
     assert response.request.messages[0] == Message(
         role=Role.USER, content=[TextPart(text='hi')]
     )
