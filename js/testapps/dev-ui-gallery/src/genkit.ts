@@ -157,13 +157,23 @@ export const ai = genkit({
 
     // evaluation
     genkitEval({
-      judge: gemini15Flash,
-      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      embedder: textEmbedding004,
       metrics: [
-        GenkitMetric.ANSWER_RELEVANCY,
-        GenkitMetric.FAITHFULNESS,
-        GenkitMetric.MALICIOUSNESS,
+        {
+          type: GenkitMetric.ANSWER_RELEVANCY,
+          judge: gemini15Flash,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+          embedder: textEmbedding004,
+        },
+        {
+          type: GenkitMetric.FAITHFULNESS,
+          judge: gemini15Flash,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+        },
+        {
+          type: GenkitMetric.MALICIOUSNESS,
+          judge: gemini15Flash,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+        },
       ],
     }),
   ],

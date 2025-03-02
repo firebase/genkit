@@ -27,6 +27,7 @@ export {
 } from './embedder.js';
 export {
   BaseDataPointSchema,
+  EvalStatusEnum,
   evaluate,
   evaluatorRef,
   type EvalResponses,

@@ -23,6 +23,11 @@
  */
 import { z } from 'zod';
 
+//
+// IMPORTANT: Keep this file in sync with genkit/ai/src/evaluator.ts!
+//
+
+const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
 export const ScoreSchema = z.object({
   id: z
     .string()
@@ -31,7 +36,7 @@ export const ScoreSchema = z.object({
     )
     .optional(),
   score: z.number().optional(),
-  // TODO: use StatusSchema
+  status: EvalStatusEnumSchema.optional(),
   error: z.string().optional(),
   details: z
     .object({

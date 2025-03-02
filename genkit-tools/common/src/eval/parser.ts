@@ -45,6 +45,7 @@ export function enrichResultsWithScoring(
           evaluator,
           score: s.score,
           scoreId: s.id,
+          status: s.status,
           rationale: s.details?.reasoning,
           error: s.error,
           traceId: scoredSample.traceId,
