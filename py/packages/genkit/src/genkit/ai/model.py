@@ -70,16 +70,30 @@ class GenerateResponseWrapper(GenerateResponse):
         )
 
     def assert_valid(self):
+        """Validate that the response is properly structured.
+
+        Raises:
+            AssertionError: If the response is not valid.
+        """
         # TODO: implement
         pass
 
     def assert_valid_schema(self):
+        """Validate that the response conforms to the expected schema.
+
+        Raises:
+            AssertionError: If the response does not conform to the schema.
+        """
         # TODO: implement
         pass
 
     @cached_property
     def text(self) -> str:
-        """Returns all text parts of the response joined into a single string"""
+        """Returns all text parts of the response joined into a single string.
+
+        Returns:
+            str: The combined text content from the response.
+        """
         return ''.join([
             p.root.text if p.root.text is not None else ''
             for p in self.message.content
@@ -87,7 +101,11 @@ class GenerateResponseWrapper(GenerateResponse):
 
     @cached_property
     def output(self) -> Any:
-        """Parses out JSON data from the text parts of the response."""
+        """Parses out JSON data from the text parts of the response.
+
+        Returns:
+            Any: The parsed JSON data from the response.
+        """
         if self.message_parser:
             return self.message_parser(self.message)
         return extract_json(self.text)
@@ -118,14 +136,22 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
     @cached_property
     def text(self) -> str:
-        """Returns all text parts of the current chunk joined into a single string."""
+        """Returns all text parts of the current chunk joined into a single string.
+
+        Returns:
+            str: The combined text content from the current chunk.
+        """
         return ''.join(
             p.root.text if p.root.text is not None else '' for p in self.content
         )
 
     @cached_property
     def accumulated_text(self) -> str:
-        """Returns all text parts from previous chunks plus the latest chunk."""
+        """Returns all text parts from previous chunks plus the latest chunk.
+
+        Returns:
+            str: The combined text content from all chunks seen so far.
+        """
         if not self.previous_chunks:
             return ''
         atext = ''
@@ -137,7 +163,11 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
     @cached_property
     def output(self) -> Any:
-        """Parses out JSON data from the accumulated text parts of the response."""
+        """Parses out JSON data from the accumulated text parts of the response.
+
+        Returns:
+            Any: The parsed JSON data from the accumulated chunks.
+        """
         if self.chunk_parser:
             return self.chunk_parser(self)
         return extract_json(self.accumulated_text)

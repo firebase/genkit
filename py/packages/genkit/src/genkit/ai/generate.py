@@ -62,12 +62,12 @@ async def generate_action(
     def make_chunk(
         role: Role, chunk: GenerateResponseChunk
     ) -> GenerateResponseChunk:
-        """convenience method to create a full chunk from role and data, append
+        """Convenience method to create a full chunk from role and data, append
         the chunk to the previousChunks array, and increment the message index
         as needed"""
         nonlocal chunk_role, message_index
 
-        if role != chunk_role and len(prev_chunks.length) > 0:
+        if role != chunk_role and len(prev_chunks) > 0:
             message_index += 1
 
         chunk_role = role
@@ -76,6 +76,7 @@ async def generate_action(
         prev_chunks.append(chunk)
 
         def chunk_parser(chunk: GenerateResponseChunkWrapper):
+            """Parse a chunk using the current formatter."""
             return formatter.parse_chunk(chunk)
 
         return GenerateResponseChunkWrapper(
@@ -86,6 +87,16 @@ async def generate_action(
         )
 
     def wrap_chunks(chunk):
+        """Wrap and process a model response chunk.
+
+        This function prepares model response chunks for the stream callback.
+
+        Args:
+            chunk: The original model response chunk.
+
+        Returns:
+            The result of passing the processed chunk to the callback.
+        """
         return on_chunk(make_chunk(Role.MODEL, chunk))
 
     model_response = (
@@ -95,6 +106,14 @@ async def generate_action(
     ).response
 
     def message_parser(msg: Message):
+        """Parse a message using the current formatter.
+
+        Args:
+            msg: The message to parse.
+
+        Returns:
+            The parsed message content.
+        """
         return formatter.parse_message(msg)
 
     response = GenerateResponseWrapper(
@@ -288,7 +307,16 @@ def inject_instructions(
 
 def resolve_instructions(
     formatter: Formatter, instructions_opt: bool | str | None
-) -> str | None:
+):
+    """Resolve instructions based on formatter and instruction options.
+
+    Args:
+        formatter: The formatter to use for resolving instructions.
+        instructions_opt: The instruction options: True/False, a string, or None.
+
+    Returns:
+        The resolved instructions or None if no instructions should be used.
+    """
     if isinstance(instructions_opt, str):
         # user provided instructions
         return instructions_opt
@@ -302,12 +330,31 @@ def resolve_instructions(
 
 def apply_transfer_preamble(
     next_request: GenerateActionOptions, preamble: GenerateActionOptions
-) -> GenerateActionOptions:
+):
+    """Apply transfer preamble to the next request.
+
+    Copies relevant properties from the preamble request to the next request.
+
+    Args:
+        next_request: The request to apply the preamble to.
+        preamble: The preamble containing properties to transfer.
+
+    Returns:
+        The updated request with preamble properties applied.
+    """
     # TODO: implement me
     return next_request
 
 
 def assert_valid_tool_names(raw_request: GenerateActionOptions):
+    """Assert that tool names in the request are valid.
+
+    Args:
+        raw_request: The generation request to validate.
+
+    Raises:
+        ValueError: If any tool names are invalid.
+    """
     # TODO: implement me
     pass
 
@@ -427,6 +474,18 @@ async def resolve_tool_requests(
 
 
 def resolve_tool(registry: Registry, tool_name: str):
+    """Resolve a tool by name from the registry.
+
+    Args:
+        registry: The registry to resolve the tool from.
+        tool_name: The name of the tool to resolve.
+
+    Returns:
+        The resolved tool action.
+
+    Raises:
+        ValueError: If the tool could not be resolved.
+    """
     return registry.lookup_action(kind=ActionKind.TOOL, name=tool_name)
 
 
