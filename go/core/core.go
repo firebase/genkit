@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Run the npm script that generates JSON Schemas from the zod types
 // in the *.ts files. It writes the result to genkit-tools/genkit-schema.json
 //go:generate npm --prefix ../../genkit-tools run export:schemas

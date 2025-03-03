@@ -6,25 +6,31 @@
 import logging
 import os
 import threading
-from collections.abc import Callable
-from functools import wraps
 from http.server import HTTPServer
 from typing import Any
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
-from genkit.ai.model import ModelFn
+from genkit.ai.formats import built_in_formats
+from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
+from genkit.ai.generate import generate_action
+from genkit.ai.model import GenerateResponseWrapper
 from genkit.core.action import ActionKind
 from genkit.core.environment import is_dev_environment
-from genkit.core.plugin_abc import Plugin
 from genkit.core.reflection import make_reflection_server
-from genkit.core.registry import Registry
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
-    GenerateRequest,
-    GenerateResponse,
+    GenerateActionOptions,
     GenerationCommonConfig,
     Message,
+    Output,
+    Part,
+    Role,
+    TextPart,
+    ToolChoice,
 )
 from genkit.veneer import server
+from genkit.veneer.plugin import Plugin
+from genkit.veneer.registry import GenkitRegistry
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
@@ -33,7 +39,7 @@ DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
 logger = logging.getLogger(__name__)
 
 
-class Genkit:
+class Genkit(GenkitRegistry):
     """Veneer user-facing API for application developers who use the SDK."""
 
     def __init__(
@@ -50,7 +56,7 @@ class Genkit:
             reflection_server_spec: Optional server spec for the reflection
                 server.
         """
-        self.registry = Registry()
+        super().__init__()
         self.registry.default_model = model
 
         if is_dev_environment():
@@ -69,16 +75,26 @@ class Genkit:
             )
             self.thread.start()
 
+        for format in built_in_formats:
+            self.define_format(format)
+
         if not plugins:
             logger.warning('No plugins provided to Genkit')
         else:
             for plugin in plugins:
                 if isinstance(plugin, Plugin):
-                    plugin.initialize(registry=self.registry)
+                    plugin.initialize(ai=self)
+
+                    def resolver(kind, name):
+                        return plugin.resolve_action(self, kind, name)
+
+                    self.registry.register_action_resolver(
+                        plugin.plugin_name(), resolver
+                    )
                 else:
                     raise ValueError(
                         f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.core.plugin_abc.Plugin`'
+                        f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
     def start_server(self, host: str, port: int) -> None:
@@ -97,37 +113,117 @@ class Genkit:
     async def generate(
         self,
         model: str | None = None,
-        prompt: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
         messages: list[Message] | None = None,
-        system: str | None = None,
         tools: list[str] | None = None,
-        config: GenerationCommonConfig | None = None,
-    ) -> GenerateResponse:
-        """Generate text using a language model.
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice = None,
+        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        max_turns: int | None = None,
+        on_chunk: ModelStreamingCallback | None = None,
+        context: dict[str, Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, Any] | None = None,
+        output_constrained: bool | None = None,
+        # TODO:
+        #  docs: list[Document]
+        #  use: list[ModelMiddleware]
+        #  resume: ResumeOptions
+    ) -> GenerateResponseWrapper:
+        """Generates text or structured data using a language model.
+
+        This function provides a flexible interface for interacting with various language models,
+        supporting both simple text generation and more complex interactions involving tools and
+        structured conversations.
 
         Args:
-            model: Optional model name to use.
-            prompt: Optional raw prompt string.
-            messages: Optional list of messages for chat models.
-            system: Optional system message for chat models.
-            tools: Optional list of tools to use.
-            config: Optional generation configuration.
+            model: Optional. The name of the model to use for generation. If not provided, a default
+                   model may be used.
+            prompt: Optional. A single prompt string, a `Part` object, or a list of `Part` objects
+                    to provide as input to the model. This is used for simple text generation.
+            system: Optional. A system message string, a `Part` object, or a list of `Part` objects
+                    to provide context or instructions to the model, especially for chat-based models.
+            messages: Optional. A list of `Message` objects representing a conversation history.
+                      This is used for chat-based models to maintain context.
+            tools: Optional. A list of tool names (strings) that the model can use.
+            return_tool_requests: Optional. If `True`, the model will return tool requests instead of
+                                  executing them directly.
+            tool_choice: Optional. A `ToolChoice` object specifying how the model should choose
+                         which tool to use.
+            config: Optional. A `GenerationCommonConfig` object or a dictionary containing configuration
+                    parameters for the generation process. This allows fine-tuning the model's
+                    behavior.
+            max_turns: Optional. The maximum number of turns in a conversation.
+            on_chunk: Optional. A callback function of type `ModelStreamingCallback` that is called
+                      for each chunk of generated text during streaming.
+            context: Optional. A dictionary containing additional context information that can be
+                     used during generation.
 
         Returns:
-            The generated text response.
+            A `GenerateResponseWrapper` object containing the model's response, which may include
+            generated text, tool requests, or other relevant information.
+
+        Note:
+            - The `tools`, `return_tool_requests`, and `tool_choice` arguments are used for models
+              that support tool usage.
+            - The `on_chunk` argument enables streaming responses, allowing you to process the
+              generated content as it becomes available.
         """
-        model = model if model is not None else self.registry.defaultModel
+        model = model or self.registry.default_model
         if model is None:
             raise Exception('No model configured.')
-        if config and not isinstance(config, GenerationCommonConfig):
+        if (
+            config
+            and not isinstance(config, GenerationCommonConfig)
+            and not isinstance(config, dict)
+        ):
             raise AttributeError('Invalid generate config provided')
 
-        model_action = self.registry.lookup_action(ActionKind.MODEL, model)
-        return (
-            await model_action.arun(
-                GenerateRequest(messages=messages, config=config)
+        resolved_msgs: list[Message] = []
+        if system:
+            resolved_msgs.append(
+                Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
             )
-        ).response
+        if messages:
+            resolved_msgs += messages
+        if prompt:
+            resolved_msgs.append(
+                Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
+            )
+
+        # If is schema is set but format is not explicitly set, default to `json` format.
+        if output_schema and not output_format:
+            output_format = 'json'
+
+        output = Output()
+        if output_format:
+            output.format = output_format
+        if output_content_type:
+            output.content_type = output_content_type
+        if output_instructions != None:
+            output.instructions = output_instructions
+        if output_schema:
+            output.json_schema = to_json_schema(output_schema)
+        if output_constrained != None:
+            output.constrained = output_constrained
+
+        return await generate_action(
+            self.registry,
+            GenerateActionOptions(
+                model=model,
+                messages=resolved_msgs,
+                config=config,
+                tools=tools,
+                return_tool_requests=return_tool_requests,
+                tool_choice=tool_choice,
+                output=output,
+                max_turns=max_turns,
+            ),
+            on_chunk=on_chunk,
+        )
 
     async def embed(
         self, model: str | None = None, documents: list[str] | None = None
@@ -147,88 +243,13 @@ class Genkit:
             await embed_action.arun(EmbedRequest(documents=documents))
         ).response
 
-    def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
-        """Decorator to register a function as a flow.
 
-        Args:
-            name: Optional name for the flow. If not provided, uses the
-                function name.
-
-        Returns:
-            A decorator function that registers the flow.
-        """
-
-        def wrapper(func: Callable) -> Callable:
-            flow_name = name if name is not None else func.__name__
-            action = self.registry.register_action(
-                name=flow_name,
-                kind=ActionKind.FLOW,
-                fn=func,
-                span_metadata={'genkit:metadata:flow:name': flow_name},
-            )
-
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                return (await action.arun(*args, **kwargs)).response
-
-            @wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                return action.run(*args, **kwargs).response
-
-            return async_wrapper if action.is_async else sync_wrapper
-
-        return wrapper
-
-    def tool(
-        self, description: str, name: str | None = None
-    ) -> Callable[[Callable], Callable]:
-        """Decorator to register a function as a tool.
-
-        Args:
-            description: Description for the tool to be passed to the model.
-            name: Optional name for the flow. If not provided, uses the function name.
-
-        Returns:
-            A decorator function that registers the tool.
-        """
-
-        def wrapper(func: Callable) -> Callable:
-            tool_name = name if name is not None else func.__name__
-            action = self.registry.register_action(
-                name=tool_name,
-                kind=ActionKind.TOOL,
-                description=description,
-                fn=func,
-            )
-
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                return (await action.arun(*args, **kwargs)).response
-
-            @wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                return action.run(*args, **kwargs).response
-
-            return async_wrapper if action.is_async else sync_wrapper
-
-        return wrapper
-
-    def define_model(
-        self,
-        name: str,
-        fn: ModelFn,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Define a custom model action.
-
-        Args:
-            name: Name of the model.
-            fn: Function implementing the model behavior.
-            metadata: Optional metadata for the model.
-        """
-        self.registry.register_action(
-            name=name,
-            kind=ActionKind.MODEL,
-            fn=fn,
-            metadata=metadata,
-        )
+def _normalize_prompt_arg(prompt: str | Part | list[Part] | None) -> list[Part]:
+    if not prompt:
+        return None
+    if isinstance(prompt, str):
+        return [TextPart(text=prompt)]
+    elif hasattr(prompt, '__len__'):
+        return prompt
+    else:
+        return [prompt]

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package uri
 
 import (
@@ -11,8 +10,8 @@ import (
 )
 
 func TestData(t *testing.T) {
-	tests := []struct{
-		input *ai.Part
+	tests := []struct {
+		input    *ai.Part
 		wantType string
 		wantData string
 		wantErr  bool

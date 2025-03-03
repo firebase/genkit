@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package uri extracts the content-type and data from a media part.
 // This is used by the googleai and vertexai plugins.
 package uri

@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -22,7 +21,9 @@ members = [
     "genkit-vertex-ai-plugin",
     "genkit-workspace",
     "hello",
+    "imagen",
     "menu",
+    "ollama-example",
     "prompt-file",
     "rag",
     "vertex-ai-model-garden",
@@ -674,8 +675,10 @@ version = "0.1.0"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "dotprompt" },
+    { name = "json5" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
+    { name = "partial-json-parser" },
     { name = "pydantic" },
     { name = "requests" },
 ]
@@ -683,8 +686,10 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dotprompt" },
+    { name = "json5", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
+    { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "requests", specifier = ">=2.32.3" },
 ]
@@ -739,10 +744,14 @@ version = "0.1.0"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
+    { name = "ollama" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "ollama", specifier = "~=0.4" },
+]
 
 [[package]]
 name = "genkit-pinecone-plugin"
@@ -762,12 +771,14 @@ source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
     { name = "google-cloud-aiplatform" },
+    { name = "pytest-mock" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
+    { name = "pytest-mock" },
 ]
 
 [[package]]
@@ -1175,6 +1186,33 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7590aa73f1f1d3fa9a380e654b86af429e0934a32f7d/idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9", size = 190490 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442 },
+]
+
+[[package]]
+name = "imagen"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-imagen" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -1846,6 +1884,42 @@ wheels = [
 ]
 
 [[package]]
+name = "ollama"
+version = "0.4.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/6d/dc77539c735bbed5d0c873fb029fb86aa9f0163df169b34152914331c369/ollama-0.4.7.tar.gz", hash = "sha256:891dcbe54f55397d82d289c459de0ea897e103b86a3f1fad0fdb1895922a75ff", size = 12843 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/83/c3ffac86906c10184c88c2e916460806b072a2cfe34cdcaf3a0c0e836d39/ollama-0.4.7-py3-none-any.whl", hash = "sha256:85505663cca67a83707be5fb3aeff0ea72e67846cea5985529d8eca4366564a1", size = 13210 },
+]
+
+[[package]]
+name = "ollama-example"
+version = "0.1.0"
+source = { virtual = "samples/ollama" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
 name = "opentelemetry-api"
 version = "1.30.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1919,6 +1993,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/66/94/68e2e17afaa9169cf6412ab0f28623903be73d1b32e208d9e8e541bb086d/parso-0.8.4.tar.gz", hash = "sha256:eb3a7b58240fb99099a345571deecc0f9540ea5f4dd2fe14c2a99d6b281ab92d", size = 400609 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c6/ac/dac4a63f978e4dcb3c6d3a78c4d8e0192a113d288502a1216950c41b1027/parso-0.8.4-py2.py3-none-any.whl", hash = "sha256:a418670a20291dacd2dddc80c377c5c3791378ee1e8d12bffc35420643d43f18", size = 103650 },
+]
+
+[[package]]
+name = "partial-json-parser"
+version = "0.2.1.1.post5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/9c/9c366aed65acb40a97842ce1375a87b27ea37d735fc9717f7729bae3cc00/partial_json_parser-0.2.1.1.post5.tar.gz", hash = "sha256:992710ac67e90b367921d52727698928040f7713ba7ecb33b96371ea7aec82ca", size = 10313 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8c/ee/a9476f01f27c74420601be208c6c2c0dd3486681d515e9d765931b89851c/partial_json_parser-0.2.1.1.post5-py3-none-any.whl", hash = "sha256:627715aaa3cb3fb60a65b0d62223243acaa6c70846520a90326fef3a2f0b61ca", size = 10885 },
 ]
 
 [[package]]
@@ -2206,6 +2289,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/be/45/9b538de8cef30e17c7b45ef42f538a94889ed6a16f2387a6c89e73220651/pytest-cov-6.0.0.tar.gz", hash = "sha256:fde0b595ca248bb8e2d76f020b465f3b107c9632e6a1d1705f17834c89dcadc0", size = 66945 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/36/3b/48e79f2cd6a61dbbd4807b4ed46cb564b4fd50a76166b1c4ea5c1d9e2371/pytest_cov-6.0.0-py3-none-any.whl", hash = "sha256:eee6f1b9e61008bd34975a4d5bab25801eb31898b032dd55addc93e96fcaaa35", size = 22949 },
+]
+
+[[package]]
+name = "pytest-mock"
+version = "3.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c6/90/a955c3ab35ccd41ad4de556596fa86685bf4fc5ffcc62d22d856cfd4e29a/pytest-mock-3.14.0.tar.gz", hash = "sha256:2719255a1efeceadbc056d6bf3df3d1c5015530fb40cf347c0f9afac88410bd0", size = 32814 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/3b/b26f90f74e2986a82df6e7ac7e319b8ea7ccece1caec9f8ab6104dc70603/pytest_mock-3.14.0-py3-none-any.whl", hash = "sha256:0b72c38033392a5f4621342fe11e9219ac11ec9d375f8e2a0c164539e0d70f6f", size = 9863 },
 ]
 
 [[package]]

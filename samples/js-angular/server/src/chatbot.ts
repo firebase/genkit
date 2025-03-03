@@ -15,7 +15,7 @@
  */
 
 import { MessageData } from '@genkit-ai/ai/model';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { gemini20Flash } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { defineAgent, HistoryStore } from './agent.js';
 import { ai } from './genkit.js';
@@ -50,7 +50,7 @@ const datePicker = ai.defineTool(
 
 export const chatbotFlow = defineAgent(ai, {
   name: 'chatbotFlow',
-  model: gemini15Flash,
+  model: gemini20Flash,
   tools: [weatherTool, datePicker],
   returnToolRequests: true,
   systemPrompt:

@@ -15,7 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "genkit": "^1.0.4",
-    "@genkit-ai/vertexai": "^1.0.4",
+    "@genkit-ai/googleai": "^1.0.4",
     "@genkit-ai/express": "^1.0.4",
     "express": "^4.21.0",
     "partial-json": "^0.1.7"

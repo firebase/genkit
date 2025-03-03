@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import vertexAI from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
 export const ai = genkit({
-  plugins: [vertexAI()],
+  plugins: [googleAI()],
 });

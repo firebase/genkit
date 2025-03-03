@@ -19,12 +19,13 @@ const provider = "local"
 
 // A ToolDef is an implementation of a single tool.
 type ToolDef[In, Out any] struct {
-	action *core.Action[In, Out, struct{}]
+	action *core.ActionDef[In, Out, struct{}]
 }
 
 // toolAction is genericless version of ToolDef. It's required to make
 // LookupTool possible.
 type toolAction struct {
+	// action is the underlying internal action. It's needed for the descriptor.
 	action action.Action
 }
 
@@ -32,10 +33,7 @@ type toolAction struct {
 type Tool interface {
 	// Definition returns ToolDefinition for for this tool.
 	Definition() *ToolDefinition
-	// Action returns the action instance that backs this tools.
-	Action() action.Action
-	// RunRaw runs this tool using the provided raw map format data (JSON parsed
-	// as map[string]any).
+	// RunRaw runs this tool using the provided raw input.
 	RunRaw(ctx context.Context, input any) (any, error)
 }
 
@@ -86,36 +84,26 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	}
 }
 
-// Action returns the action instance that backs this tools.
-func (ta *ToolDef[In, Out]) Action() action.Action {
-	return ta.action
-}
-
-// Action returns the action instance that backs this tools.
-func (ta *toolAction) Action() action.Action {
-	return ta.action
-}
-
 // Definition returns ToolDefinition for for this tool.
 func (ta *ToolDef[In, Out]) Definition() *ToolDefinition {
-	return definition(ta)
+	return definition(ta.action.Desc())
 }
 
 // Definition returns ToolDefinition for for this tool.
 func (ta *toolAction) Definition() *ToolDefinition {
-	return definition(ta)
+	return definition(ta.action.Desc())
 }
 
-func definition(ta Tool) *ToolDefinition {
+func definition(desc action.Desc) *ToolDefinition {
 	td := &ToolDefinition{
-		Name:        ta.Action().Desc().Metadata["name"].(string),
-		Description: ta.Action().Desc().Metadata["description"].(string),
+		Name:        desc.Metadata["name"].(string),
+		Description: desc.Metadata["description"].(string),
 	}
-	if ta.Action().Desc().InputSchema != nil {
-		td.InputSchema = base.SchemaAsMap(ta.Action().Desc().InputSchema)
+	if desc.InputSchema != nil {
+		td.InputSchema = base.SchemaAsMap(desc.InputSchema)
 	}
-	if ta.Action().Desc().OutputSchema != nil {
-		td.OutputSchema = base.SchemaAsMap(ta.Action().Desc().OutputSchema)
+	if desc.OutputSchema != nil {
+		td.OutputSchema = base.SchemaAsMap(desc.OutputSchema)
 	}
 	return td
 }
@@ -123,30 +111,31 @@ func definition(ta Tool) *ToolDefinition {
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
 func (ta *toolAction) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, ta, input)
+	return runAction(ctx, ta.Definition(), ta.action, input)
 
 }
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
 func (ta *ToolDef[In, Out]) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, ta, input)
+	return runAction(ctx, ta.Definition(), ta.action, input)
 }
 
-func runAction(ctx context.Context, action Tool, input any) (any, error) {
+// runAction runs the given action with the provided raw input and returns the output in raw format.
+func runAction(ctx context.Context, def *ToolDefinition, action core.Action, input any) (any, error) {
 	mi, err := json.Marshal(input)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling tool input for %v: %v", action.Definition().Name, err)
+		return nil, fmt.Errorf("error marshalling tool input for %v: %v", def.Name, err)
 	}
-	output, err := action.Action().RunJSON(ctx, mi, nil)
+	output, err := action.RunJSON(ctx, mi, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error calling tool %v: %w", action.Definition().Name, err)
+		return nil, fmt.Errorf("error calling tool %v: %w", def.Name, err)
 	}
 
 	var uo any
 	err = json.Unmarshal(output, &uo)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing tool output for %v: %v", action.Definition().Name, err)
+		return nil, fmt.Errorf("error parsing tool output for %v: %v", def.Name, err)
 	}
 	return uo, nil
 }
