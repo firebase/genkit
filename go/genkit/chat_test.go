@@ -225,7 +225,7 @@ func TestChatWithOptions(t *testing.T) {
 		WithThreadName("test"),
 		WithSystemText("you are a helpful assistant"),
 		WithConfig(ai.GenerationCommonConfig{Temperature: 1}),
-		WithContext("foo", "bar"),
+		WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("Banana")}}),
 		WithTools(chatTool),
 		WithOutputSchema("hello world"),
 		WithOutputFormat(ai.OutputFormatText),
@@ -305,7 +305,7 @@ func TestChatWithOptionsErrorHandling(t *testing.T) {
 		},
 		{
 			name: "WithContext",
-			with: WithContext("foo", "bar"),
+			with: WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("Banana")}}),
 		},
 		{
 			name: "WithTools",

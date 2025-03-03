@@ -38,7 +38,7 @@ type Chat struct {
 
 type ChatRequest struct {
 	Config   any             `json:"config,omitempty"`
-	Context  []any           `json:"context,omitempty"`
+	Context  []*ai.Document  `json:"context,omitempty"`
 	Messages []*ai.Message   `json:"messages,omitempty"`
 	Schema   any             `json:"schema,omitempty"` // Defines the output format and schema
 	Format   ai.OutputFormat `json:"outputformat,omitempty"`
@@ -241,13 +241,13 @@ func WithConfig(config ai.GenerationCommonConfig) ChatOption {
 	}
 }
 
-// WithContext adds provided context to chat.
-func WithContext(context ...any) ChatOption {
+// WithContext adds provided documents to chat.
+func WithContext(docs ...*ai.Document) ChatOption {
 	return func(c *Chat) error {
 		if len(c.Request.Context) > 0 {
 			return errors.New("genkit.WithContext: cannot set context more than once")
 		}
-		c.Request.Context = append(c.Request.Context, context...)
+		c.Request.Context = append(c.Request.Context, docs...)
 		return nil
 	}
 }
