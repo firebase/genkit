@@ -37,7 +37,6 @@ var INVALID_ARGUMENT_MESSAGES = struct {
 		"unsupported model version, expected: %s",
 		strings.Join(ContextCacheSupportedModels[:], ", ")),
 	tools: "tools are not supported with context caching",
-	// TODO: add system prompt constraint to avoid grpc error
 }
 
 // getContentForCache inspects the request and modelVersion, and constructs a
@@ -186,6 +185,5 @@ func handleCacheIfNeeded(
 		return nil, err
 	}
 
-	// cc.Model = modelVersion
 	return client.CreateCachedContent(ctx, cc)
 }

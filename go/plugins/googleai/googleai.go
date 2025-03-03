@@ -260,12 +260,10 @@ func generate(
 	if err != nil {
 		return nil, err
 	}
-
 	gm, err := newModel(client, model, input, cc)
 	if err != nil {
 		return nil, err
 	}
-
 	cs, err := startChat(gm, input)
 	if err != nil {
 		return nil, err

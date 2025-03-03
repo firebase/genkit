@@ -54,13 +54,13 @@ func main() {
 			TTL:         time.Hour,
 			Version:     "gemini-1.5-flash-001",
 		}),
-			ai.WithTextPrompt(prompt),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart(string(textContent))),
 				ai.NewModelMessage(
 					ai.NewTextPart("Here's what I can tell you about the text you provided")).Cached(360),
 			),
+			ai.WithTextPrompt(prompt),
 		)
 		if err != nil {
 			return "", nil
