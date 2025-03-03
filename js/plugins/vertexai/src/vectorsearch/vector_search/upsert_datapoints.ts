@@ -48,10 +48,42 @@ export async function upsertDatapoints(
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/indexes/${indexId}:upsertDatapoints`;
 
   const requestBody = {
-    datapoints: datapoints.map((dp) => ({
-      datapoint_id: dp.datapointId,
-      feature_vector: dp.featureVector,
-    })),
+    datapoints: datapoints.map((dp) => {
+      const newDp: Record<string, unknown> = {
+        datapoint_id: dp.datapointId,
+        feature_vector: dp.featureVector,
+      };
+      if (dp.restricts) {
+        newDp.restricts =
+          dp.restricts?.map((r) => ({
+            namespace: r.namespace,
+            allow_list: r.allowList,
+            deny_list: r.denyList,
+          })) || [];
+      }
+      if (dp.numericRestricts) {
+        newDp.numeric_restricts =
+          dp.numericRestricts?.map((nr) => {
+            const newNR: Record<string, unknown> = {
+              namespace: nr.namespace,
+            };
+            if (nr.valueInt) {
+              newNR.value_int = nr.valueInt;
+            }
+            if (nr.valueFloat) {
+              newNR.value_float = nr.valueFloat;
+            }
+            if (nr.valueDouble) {
+              newNR.value_double = nr.valueDouble;
+            }
+            return newNR;
+          }) || [];
+      }
+      if (dp.crowdingTag) {
+        newDp.crowding_tag = dp.crowdingTag;
+      }
+      return newDp;
+    }),
   };
 
   const response = await fetch(url, {
@@ -64,8 +96,9 @@ export async function upsertDatapoints(
   });
 
   if (!response.ok) {
+    const errMsg = (await response.json()).error?.message || '';
     throw new Error(
-      `Error upserting datapoints into index ${indexId}: ${response.statusText}`
+      `Error upserting datapoints into index ${indexId}: ${response.statusText}. ${errMsg}`
     );
   }
 }

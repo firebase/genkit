@@ -90,7 +90,7 @@ describe('defineOllamaEmbedder', () => {
         assert.ok(error instanceof Error);
         assert.strictEqual(
           error.message,
-          'Error fetching embedding from Ollama: Internal Server Error'
+          'Error fetching embedding from Ollama: Internal Server Error. '
         );
         return true;
       }

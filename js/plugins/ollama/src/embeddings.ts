@@ -93,8 +93,9 @@ export function defineOllamaEmbedder(
       });
 
       if (!response.ok) {
+        const errMsg = (await response.json()).error?.message || '';
         throw new Error(
-          `Error fetching embedding from Ollama: ${response.statusText}`
+          `Error fetching embedding from Ollama: ${response.statusText}. ${errMsg}`
         );
       }
 
