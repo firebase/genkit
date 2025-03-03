@@ -158,8 +158,8 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 	return (*modelActionDef)(action)
 }
 
-// GenerateParams represents various params of the Generate call.
-type GenerateParams struct {
+// generateParams represents various params of the Generate call.
+type generateParams struct {
 	Request            *ModelRequest
 	Model              Model
 	Stream             ModelStreamingCallback
@@ -168,15 +168,15 @@ type GenerateParams struct {
 	MaxTurns           int
 	ReturnToolRequests bool
 	Middleware         []ModelMiddleware
-  TTL                *time.Duration
+	TTL                *time.Duration
 }
 
 // GenerateOption configures params of the Generate call.
-type GenerateOption func(req *GenerateParams) error
+type GenerateOption func(req *generateParams) error
 
 // WithModel sets the model to use for the generate request.
 func WithModel(m Model) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		req.Model = m
 		return nil
 	}
@@ -184,7 +184,7 @@ func WithModel(m Model) GenerateOption {
 
 // WithTextPrompt adds a simple text user prompt to ModelRequest.
 func WithTextPrompt(prompt string, ttl ...int) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
 		if len(ttl) > 0 {
 			*req.TTL = time.Duration(ttl[0]) * time.Second
@@ -196,7 +196,7 @@ func WithTextPrompt(prompt string, ttl ...int) GenerateOption {
 // WithSystemPrompt adds a simple text system prompt as the first message in ModelRequest.
 // System prompt will always be put first in the list of messages.
 func WithSystemPrompt(prompt string) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.SystemPrompt != nil {
 			return errors.New("generate.WithSystemPrompt: cannot set system prompt more than once")
 		}
@@ -207,7 +207,7 @@ func WithSystemPrompt(prompt string) GenerateOption {
 
 // WithMessages adds provided messages to ModelRequest.
 func WithMessages(messages ...*Message) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		req.Request.Messages = append(req.Request.Messages, messages...)
 		return nil
 	}
@@ -219,7 +219,7 @@ func WithMessages(messages ...*Message) GenerateOption {
 // [WithMessages] and [WithTextPrompt] will insert messages after system prompt
 // and history.
 func WithHistory(history ...*Message) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.History != nil {
 			return errors.New("generate.WithHistory: cannot set history more than once")
 		}
@@ -230,7 +230,7 @@ func WithHistory(history ...*Message) GenerateOption {
 
 // WithConfig adds provided config to ModelRequest.
 func WithConfig(config any) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Request.Config != nil {
 			return errors.New("generate.WithConfig: cannot set config more than once")
 		}
@@ -241,7 +241,7 @@ func WithConfig(config any) GenerateOption {
 
 // WithContext adds provided documents to ModelRequest.
 func WithContext(docs ...*Document) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Request.Context != nil {
 			return errors.New("generate.WithContext: cannot set context more than once")
 		}
@@ -253,7 +253,7 @@ func WithContext(docs ...*Document) GenerateOption {
 // WithTools adds provided tools to ModelRequest.
 // WithTools adds provided tools to ModelRequest.
 func WithTools(tools ...Tool) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Request.Tools != nil {
 			return errors.New("generate.WithTools: cannot set tools more than once")
 		}
@@ -268,7 +268,7 @@ func WithTools(tools ...Tool) GenerateOption {
 
 // WithOutputSchema adds provided output schema to ModelRequest.
 func WithOutputSchema(schema any) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Request.Output != nil && req.Request.Output.Schema != nil {
 			return errors.New("generate.WithOutputSchema: cannot set output schema more than once")
 		}
@@ -283,7 +283,7 @@ func WithOutputSchema(schema any) GenerateOption {
 
 // WithOutputFormat adds provided output format to ModelRequest.
 func WithOutputFormat(format OutputFormat) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Request.Output == nil {
 			req.Request.Output = &ModelRequestOutput{}
 		}
@@ -294,7 +294,7 @@ func WithOutputFormat(format OutputFormat) GenerateOption {
 
 // WithStreaming adds a streaming callback to the generate request.
 func WithStreaming(cb ModelStreamingCallback) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Stream != nil {
 			return errors.New("generate.WithStreaming: cannot set streaming callback more than once")
 		}
@@ -305,7 +305,7 @@ func WithStreaming(cb ModelStreamingCallback) GenerateOption {
 
 // WithMaxTurns sets the maximum number of tool call iterations for the generate request.
 func WithMaxTurns(maxTurns int) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if maxTurns <= 0 {
 			return fmt.Errorf("maxTurns must be greater than 0, got %d", maxTurns)
 		}
@@ -319,7 +319,7 @@ func WithMaxTurns(maxTurns int) GenerateOption {
 
 // WithReturnToolRequests configures whether to return tool requests instead of making the tool calls and continuing the generation.
 func WithReturnToolRequests(returnToolRequests bool) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.ReturnToolRequests {
 			return errors.New("generate.WithReturnToolRequests: cannot set ReturnToolRequests more than once")
 		}
@@ -330,7 +330,7 @@ func WithReturnToolRequests(returnToolRequests bool) GenerateOption {
 
 // WithToolChoice configures whether tool calls are required, disabled, or optional for the generate request.
 func WithToolChoice(toolChoice ToolChoice) GenerateOption {
-	return func(req *GenerateParams) error {
+	return func(req *generateParams) error {
 		if req.Request.ToolChoice != "" {
 			return errors.New("generate.WithToolChoice: cannot set ToolChoice more than once")
 		}
@@ -352,7 +352,7 @@ func WithMiddleware(middleware ...ModelMiddleware) GenerateOption {
 
 // Generate run generate request for this model. Returns ModelResponse struct.
 func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
-	req := &GenerateParams{
+	req := &generateParams{
 		Request: &ModelRequest{},
 	}
 
@@ -403,7 +403,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 // validateModelVersion checks in the registry the action of the
 // given model version and determines whether its supported or not.
-func validateModelVersion(r *registry.Registry, v string, req *GenerateParams) (bool, error) {
+func validateModelVersion(r *registry.Registry, v string, req *generateParams) (bool, error) {
 	parts := strings.Split(req.Model.Name(), "/")
 	if len(parts) != 2 {
 		return false, errors.New("wrong model name")

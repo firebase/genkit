@@ -87,6 +87,7 @@ type GenerationUsage struct {
 	OutputTokens     int                `json:"outputTokens,omitempty"`
 	OutputVideos     float64            `json:"outputVideos,omitempty"`
 	TotalTokens      int                `json:"totalTokens,omitempty"`
+	CachedTokens     int                `json:"cachedTokens,omitempty"`
 }
 
 type mediaPart struct {

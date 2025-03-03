@@ -343,7 +343,6 @@ func generate(
 func newModel(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerativeModel, error) {
 	var gm *genai.GenerativeModel
 	if cache != nil {
-		fmt.Printf("creating model with cache content\n\n")
 		gm = client.GenerativeModelFromCachedContent(cache)
 	} else {
 		gm = client.GenerativeModel(model)

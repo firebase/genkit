@@ -336,7 +336,6 @@ func generate(
 func newModel(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerativeModel, error) {
 	var gm *genai.GenerativeModel
 	if cache != nil {
-		fmt.Printf("creating model with cache content\n\n")
 		gm = client.GenerativeModelFromCachedContent(cache)
 	} else {
 		gm = client.GenerativeModel(model)
@@ -548,24 +547,19 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 //copy:stop
 
-//copy:start vertexai.go translateResponse
-
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	r := translateCandidate(resp.Candidates[0])
-
-	fmt.Printf("usage_metadata: \n%#v\n\n", resp.UsageMetadata)
 
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.CachedTokens = int(u.CachedContentTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
 	return r
 }
-
-//copy:stop
 
 //copy:start vertexai.go convertParts
 

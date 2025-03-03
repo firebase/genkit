@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithDefaultModel("vertexai/gemini-1.5-pro"))
+	g, err := genkit.Init(ctx, genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -62,7 +62,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.7,
 			TTL:         time.Hour,
-			Version:     "gemini-1.5-pro-001",
+			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithTextPrompt(prompt),
 			ai.WithMessages(
