@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -17,7 +16,7 @@ import (
 
 // A Prompt is used to render a prompt template,
 // producing a [GenerateRequest] that may be passed to a [Model].
-type Prompt core.Action[any, *ModelRequest, struct{}]
+type Prompt core.ActionDef[any, *ModelRequest, struct{}]
 
 // DefinePrompt takes a function that renders a prompt template
 // into a [GenerateRequest] that may be passed to a [Model].
@@ -49,5 +48,5 @@ func (p *Prompt) Render(ctx context.Context, input any) (*ModelRequest, error) {
 	if p == nil {
 		return nil, errors.New("Render called on a nil Prompt; check that all prompts are defined")
 	}
-	return (*core.Action[any, *ModelRequest, struct{}])(p).Run(ctx, input, nil)
+	return (*core.ActionDef[any, *ModelRequest, struct{}])(p).Run(ctx, input, nil)
 }

@@ -103,6 +103,24 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     return kind, name
 
 
+def parse_plugin_name_from_action_name(name: str) -> str | None:
+    """
+    Parses the plugin name from an action name.
+
+    As per convention, the plugin name is optional. If present, it's the first
+    part of the action name, separated by a forward slash: `pluginname/*`.
+
+    Args:
+        name: The action name string.
+
+    Returns:
+        The plugin name, or None if no plugin name is found in the action name.
+    """
+    tokens = name.split('/')
+    if len(tokens) > 1:
+        return tokens[0]
+
+
 def create_action_key(kind: ActionKind, name: str) -> str:
     """Create an action key from its kind and name components.
 

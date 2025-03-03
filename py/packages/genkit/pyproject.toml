@@ -20,6 +20,8 @@ dependencies = [
   "pydantic>=2.10.5",
   "requests>=2.32.3",
   "dotprompt",
+  "partial-json-parser>=0.2.1.1.post5",
+  "json5>=0.10.0",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }

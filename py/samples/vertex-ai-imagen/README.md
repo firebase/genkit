@@ -16,5 +16,5 @@ in a directory you mention by --directory.
 The command to run:
 
 ```bash
-genkit start -- uv run --directory py samples/vetex-ai-imagen/example_imagen.py
+genkit start -- uv run --directory py samples/vertex-ai-imagen/src/vertex-ai-imagen.py
 ```

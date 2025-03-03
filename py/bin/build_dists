@@ -23,7 +23,19 @@ PROJECT_DIRS=(
   "plugins/ollama"
   "plugins/pinecone"
   "plugins/vertex-ai"
+  "samples/basic-gemini"
+  "samples/coffee-shop"
+  "samples/context-caching"
+  "samples/flow-sample1"
   "samples/hello"
+  "samples/menu"
+  "samples/prompt-file"
+  "samples/rag"
+  "samples/vertex-ai-imagen"
+  "samples/vertex-ai-model-garden"
+  "samples/vertex-ai-reranker"
+  "samples/vertex-ai-vector-search"
+  "tests/smoke"
 )
 
 for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do

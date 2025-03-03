@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -23,9 +22,9 @@ type Embedder interface {
 
 // An embedderActionDef is used to convert a document to a
 // multidimensional vector.
-type embedderActionDef core.Action[*EmbedRequest, *EmbedResponse, struct{}]
+type embedderActionDef core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 
-type embedderAction = core.Action[*EmbedRequest, *EmbedResponse, struct{}]
+type embedderAction = core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 
 // EmbedRequest is the data we pass to convert one or more documents
 // to a multidimensional vector.
@@ -75,7 +74,7 @@ func (e *embedderActionDef) Embed(ctx context.Context, req *EmbedRequest) (*Embe
 	if e == nil {
 		return nil, errors.New("Embed called on a nil Embedder; check that all embedders are defined")
 	}
-	a := (*core.Action[*EmbedRequest, *EmbedResponse, struct{}])(e)
+	a := (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e)
 	return a.Run(ctx, req, nil)
 }
 

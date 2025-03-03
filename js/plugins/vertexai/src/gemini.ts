@@ -89,7 +89,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   /**
    * GCP region (e.g. us-central1)
    */
-  location: z.string().describe('banana').optional(),
+  location: z.string().optional(),
 
   /**
    * Safety filter settings. See: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters#configurable-filters

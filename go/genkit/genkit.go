@@ -6,7 +6,6 @@ package genkit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,15 +22,6 @@ import (
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
-
-// Action is the interface that all Genkit actions (e.g. flows, models, tools, etc) have in common.
-type Action interface {
-	// Name returns the name of the action.
-	Name() string
-
-	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
-	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
-}
 
 // Genkit encapsulates a Genkit instance including the registry and configuration.
 type Genkit struct {
@@ -162,9 +152,9 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 }
 
 // ListFlows returns all flows registered in the Genkit instance.
-func ListFlows(g *Genkit) []Action {
+func ListFlows(g *Genkit) []core.Action {
 	acts := g.reg.ListActions()
-	flows := []Action{}
+	flows := []core.Action{}
 	for _, act := range acts {
 		if strings.HasPrefix(act.Key, "/"+string(atype.Flow)+"/") {
 			flows = append(flows, g.reg.LookupAction(act.Key))
@@ -173,15 +163,14 @@ func ListFlows(g *Genkit) []Action {
 	return flows
 }
 
-// DefineModel registers the given generate function as an action, and returns a
-// [Model] that runs it.
+// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(
 	g *Genkit,
 	provider, name string,
-	metadata *ai.ModelInfo,
-	generate func(context.Context, *ai.ModelRequest, ai.ModelStreamingCallback) (*ai.ModelResponse, error),
+	info *ai.ModelInfo,
+	generate ai.ModelFunc,
 ) ai.Model {
-	return ai.DefineModel(g.reg, provider, name, metadata, generate)
+	return ai.DefineModel(g.reg, provider, name, info, generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -259,8 +248,8 @@ func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.Generate
 }
 
 // GenerateWithRequest runs the model with the given request and streaming callback.
-func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
-	return m.Generate(ctx, g.reg, req, toolCfg, cb)
+func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, mw []ai.ModelMiddleware, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+	return m.Generate(ctx, g.reg, req, mw, toolCfg, cb)
 }
 
 // DefineIndexer registers the given index function as an action, and returns an
