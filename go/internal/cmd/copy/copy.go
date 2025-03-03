@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // copy is a tool for copying parts of files.
 // It reads a set of source files, collecting named sequences of lines to copy
 // to a destination file.

@@ -64,8 +64,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.Model(g, "gemini-1.5-flash")
-	embedder := googleai.Embedder(g, "text-embedding-004")
+	model := googleai.Model(g, "gemini-2.0-flash")
+	embedder := googleai.Embedder(g, "embedding-001")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
@@ -94,23 +94,16 @@ func main() {
 		m["reasoning"] = "No good reason"
 		score := ai.Score{
 			Id:      "testScore",
+			Score:   1,
+			Status:  ai.ScoreStatusPass.String(),
 			Details: m,
 		}
 		callbackResponse := ai.EvaluatorCallbackResponse{
 			TestCaseId: req.Input.TestCaseId,
-			TraceId:    "fake-traceId",
-			SpanId:     "fake-spanId",
 			Evaluation: []ai.Score{score},
 		}
 		return &callbackResponse, nil
 	})
-
-	// genkit.DefineEvaluator(g, "custom", "simpleEvaluator", func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
-	// 	callbackResponse := ai.EvaluatorResponse{
-	// 		Score: req.EvaluationId,
-	// 	}
-	// 	return &callbackResponse, nil
-	// })
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
@@ -139,9 +132,7 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx, g,
-			dotprompt.WithInput(promptInput),
-		)
+		resp, err := simpleQaPrompt.Generate(ctx, g, dotprompt.WithInput(promptInput))
 		if err != nil {
 			return "", err
 		}

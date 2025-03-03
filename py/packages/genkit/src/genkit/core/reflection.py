@@ -15,7 +15,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
-from genkit.core.codec import dump_json
+from genkit.core.codec import dump_dict, dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.registry import Registry
 from genkit.core.web import HTTPHeader
@@ -121,7 +121,7 @@ def make_reflection_server(
                     self.wfile.write(
                         bytes(
                             json.dumps({
-                                'result': dump_json(output.response),
+                                'result': dump_dict(output.response),
                                 'telemetry': {'traceId': output.trace_id},
                             }),
                             encoding,
@@ -144,7 +144,7 @@ def make_reflection_server(
                     self.wfile.write(
                         bytes(
                             json.dumps({
-                                'result': dump_json(output.response),
+                                'result': dump_dict(output.response),
                                 'telemetry': {'traceId': output.trace_id},
                             }),
                             encoding,
