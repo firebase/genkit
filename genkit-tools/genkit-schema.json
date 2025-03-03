@@ -297,7 +297,15 @@
           "$ref": "#/$defs/GenerationUsage"
         },
         "finishReason": {
-          "$ref": "#/$defs/FinishReason"
+          "type": "string",
+          "enum": [
+            "stop",
+            "length",
+            "blocked",
+            "interrupted",
+            "other",
+            "unknown"
+          ]
         },
         "finishMessage": {
           "type": "string"
@@ -311,7 +319,7 @@
       ],
       "additionalProperties": false
     },
-    "DataPart": {
+    "CustomPart": {
       "type": "object",
       "properties": {
         "text": {
@@ -330,42 +338,42 @@
         "metadata": {
           "type": "object",
           "additionalProperties": {}
+        },
+        "custom": {
+          "type": "object",
+          "additionalProperties": {}
         }
       },
+      "required": [
+        "custom"
+      ],
       "additionalProperties": false
     },
-    "EmptyPart": {
+    "DataPart": {
       "type": "object",
       "properties": {
         "text": {
-          "$ref": "#/$defs/DataPart/properties/text"
+          "$ref": "#/$defs/CustomPart/properties/text"
         },
         "media": {
-          "$ref": "#/$defs/DataPart/properties/media"
+          "$ref": "#/$defs/CustomPart/properties/media"
         },
         "toolRequest": {
-          "$ref": "#/$defs/DataPart/properties/toolRequest"
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
         },
         "toolResponse": {
-          "$ref": "#/$defs/DataPart/properties/toolResponse"
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
         },
         "data": {},
         "metadata": {
-          "$ref": "#/$defs/DataPart/properties/metadata"
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "type": "object",
+          "additionalProperties": {}
         }
       },
       "additionalProperties": false
-    },
-    "FinishReason": {
-      "type": "string",
-      "enum": [
-        "stop",
-        "length",
-        "blocked",
-        "interrupted",
-        "other",
-        "unknown"
-      ]
     },
     "GenerateActionOptions": {
       "type": "object",
@@ -460,23 +468,26 @@
         },
         "config": {},
         "output": {
+          "$ref": "#/$defs/GenerateActionOutputConfig"
+        },
+        "resume": {
           "type": "object",
           "properties": {
-            "format": {
-              "type": "string"
+            "respond": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ToolResponsePart"
+              }
             },
-            "contentType": {
-              "type": "string"
+            "restart": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ToolRequestPart"
+              }
             },
-            "instructions": {
-              "type": [
-                "boolean",
-                "string"
-              ]
-            },
-            "jsonSchema": {},
-            "constrained": {
-              "type": "boolean"
+            "metadata": {
+              "type": "object",
+              "additionalProperties": {}
             }
           },
           "additionalProperties": false
@@ -492,6 +503,28 @@
         "model",
         "messages"
       ],
+      "additionalProperties": false
+    },
+    "GenerateActionOutputConfig": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "contentType": {
+          "type": "string"
+        },
+        "instructions": {
+          "type": [
+            "boolean",
+            "string"
+          ]
+        },
+        "jsonSchema": {},
+        "constrained": {
+          "type": "boolean"
+        }
+      },
       "additionalProperties": false
     },
     "GenerateRequest": {
@@ -521,7 +554,7 @@
         "output": {
           "$ref": "#/$defs/OutputConfig"
         },
-        "context": {
+        "docs": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/GenerateActionOptions/properties/docs/items"
@@ -568,7 +601,7 @@
           "$ref": "#/$defs/Message"
         },
         "finishReason": {
-          "$ref": "#/$defs/FinishReason"
+          "$ref": "#/$defs/Candidate/properties/finishReason"
         },
         "finishMessage": {
           "type": "string"
@@ -580,6 +613,7 @@
           "$ref": "#/$defs/GenerationUsage"
         },
         "custom": {},
+        "raw": {},
         "request": {
           "$ref": "#/$defs/GenerateRequest"
         },
@@ -668,7 +702,7 @@
       "type": "object",
       "properties": {
         "text": {
-          "$ref": "#/$defs/DataPart/properties/text"
+          "$ref": "#/$defs/CustomPart/properties/text"
         },
         "media": {
           "type": "object",
@@ -686,16 +720,19 @@
           "additionalProperties": false
         },
         "toolRequest": {
-          "$ref": "#/$defs/DataPart/properties/toolRequest"
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
         },
         "toolResponse": {
-          "$ref": "#/$defs/DataPart/properties/toolResponse"
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
         },
         "data": {
-          "$ref": "#/$defs/EmptyPart/properties/data"
+          "$ref": "#/$defs/CustomPart/properties/data"
         },
         "metadata": {
-          "$ref": "#/$defs/DataPart/properties/metadata"
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
         }
       },
       "required": [
@@ -781,6 +818,16 @@
             }
           },
           "additionalProperties": false
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "featured",
+            "stable",
+            "unstable",
+            "legacy",
+            "deprecated"
+          ]
         }
       },
       "additionalProperties": false
@@ -803,11 +850,8 @@
         "output": {
           "$ref": "#/$defs/GenerateRequest/properties/output"
         },
-        "context": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/GenerateActionOptions/properties/docs/items"
-          }
+        "docs": {
+          "$ref": "#/$defs/GenerateRequest/properties/docs"
         }
       },
       "required": [
@@ -846,7 +890,7 @@
           "$ref": "#/$defs/GenerateResponse/properties/message"
         },
         "finishReason": {
-          "$ref": "#/$defs/FinishReason"
+          "$ref": "#/$defs/Candidate/properties/finishReason"
         },
         "finishMessage": {
           "$ref": "#/$defs/GenerateResponse/properties/finishMessage"
@@ -859,6 +903,9 @@
         },
         "custom": {
           "$ref": "#/$defs/GenerateResponse/properties/custom"
+        },
+        "raw": {
+          "$ref": "#/$defs/GenerateResponse/properties/raw"
         },
         "request": {
           "$ref": "#/$defs/GenerateResponse/properties/request"
@@ -873,7 +920,7 @@
       "type": "object",
       "properties": {
         "format": {
-          "$ref": "#/$defs/OutputFormat"
+          "type": "string"
         },
         "schema": {
           "type": "object",
@@ -882,19 +929,14 @@
         "constrained": {
           "type": "boolean"
         },
+        "instructions": {
+          "type": "string"
+        },
         "contentType": {
           "type": "string"
         }
       },
       "additionalProperties": false
-    },
-    "OutputFormat": {
-      "type": "string",
-      "enum": [
-        "json",
-        "text",
-        "media"
-      ]
     },
     "Part": {
       "anyOf": [
@@ -912,6 +954,9 @@
         },
         {
           "$ref": "#/$defs/DataPart"
+        },
+        {
+          "$ref": "#/$defs/CustomPart"
         }
       ]
     },
@@ -931,19 +976,22 @@
           "type": "string"
         },
         "media": {
-          "$ref": "#/$defs/DataPart/properties/media"
+          "$ref": "#/$defs/CustomPart/properties/media"
         },
         "toolRequest": {
-          "$ref": "#/$defs/DataPart/properties/toolRequest"
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
         },
         "toolResponse": {
-          "$ref": "#/$defs/DataPart/properties/toolResponse"
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
         },
         "data": {
-          "$ref": "#/$defs/EmptyPart/properties/data"
+          "$ref": "#/$defs/CustomPart/properties/data"
         },
         "metadata": {
-          "$ref": "#/$defs/DataPart/properties/metadata"
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
         }
       },
       "required": [
@@ -961,13 +1009,29 @@
           "type": "string"
         },
         "inputSchema": {
-          "type": "object",
-          "additionalProperties": {},
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Valid JSON Schema representing the input of the tool."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Valid JSON Schema representing the input of the tool."
         },
         "outputSchema": {
-          "type": "object",
-          "additionalProperties": {},
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Valid JSON Schema describing the output of the tool."
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Valid JSON Schema describing the output of the tool."
         },
         "metadata": {
@@ -978,8 +1042,7 @@
       },
       "required": [
         "name",
-        "description",
-        "inputSchema"
+        "description"
       ],
       "additionalProperties": false
     },
@@ -987,10 +1050,10 @@
       "type": "object",
       "properties": {
         "text": {
-          "$ref": "#/$defs/DataPart/properties/text"
+          "$ref": "#/$defs/CustomPart/properties/text"
         },
         "media": {
-          "$ref": "#/$defs/DataPart/properties/media"
+          "$ref": "#/$defs/CustomPart/properties/media"
         },
         "toolRequest": {
           "type": "object",
@@ -1009,13 +1072,16 @@
           "additionalProperties": false
         },
         "toolResponse": {
-          "$ref": "#/$defs/DataPart/properties/toolResponse"
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
         },
         "data": {
-          "$ref": "#/$defs/EmptyPart/properties/data"
+          "$ref": "#/$defs/CustomPart/properties/data"
         },
         "metadata": {
-          "$ref": "#/$defs/DataPart/properties/metadata"
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
         }
       },
       "required": [
@@ -1027,13 +1093,13 @@
       "type": "object",
       "properties": {
         "text": {
-          "$ref": "#/$defs/DataPart/properties/text"
+          "$ref": "#/$defs/CustomPart/properties/text"
         },
         "media": {
-          "$ref": "#/$defs/DataPart/properties/media"
+          "$ref": "#/$defs/CustomPart/properties/media"
         },
         "toolRequest": {
-          "$ref": "#/$defs/DataPart/properties/toolRequest"
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
         },
         "toolResponse": {
           "type": "object",
@@ -1052,10 +1118,13 @@
           "additionalProperties": false
         },
         "data": {
-          "$ref": "#/$defs/EmptyPart/properties/data"
+          "$ref": "#/$defs/CustomPart/properties/data"
         },
         "metadata": {
-          "$ref": "#/$defs/DataPart/properties/metadata"
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
         }
       },
       "required": [
