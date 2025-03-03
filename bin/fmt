@@ -32,7 +32,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Format all Go code.
-go fmt -C go ./...
+go fmt -C "${TOP_DIR}/go" ./...
 if [[ $? -ne 0 ]]; then
   exit 1
 fi
