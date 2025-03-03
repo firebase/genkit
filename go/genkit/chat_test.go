@@ -58,7 +58,13 @@ func getNameTool(g *Genkit) *ai.ToolDef[struct{ Name string }, string] {
 }
 
 func getChatModel(g *Genkit) ai.Model {
-	return ai.DefineModel(g.reg, "test", "chat", nil, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+	return ai.DefineModel(g.reg, "test", "chat", &ai.ModelInfo{
+		Supports: &ai.ModelInfoSupports{
+			Tools:      true,
+			Multiturn:  true,
+			SystemRole: true,
+		},
+	}, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
 		toolCalled := false
 		for _, msg := range gr.Messages {
 			if msg.Content[0].IsToolResponse() {
@@ -259,7 +265,7 @@ func TestChatWithOptions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	want := "Echo: system: tool: you are a helpful assistant; Hello; ; Hello, my name is Earl; ; config: {\n  \"temperature\": 1\n}; context: [\n  \"foo\",\n  \"bar\"\n]"
+	want := "Echo: system: tool: you are a helpful assistant; Hello; ; Hello, my name is Earl; ; config: {\n  \"temperature\": 1\n}; context: [\n  {\n    \"content\": [\n      {\n        \"text\": \"Banana\"\n      }\n    ]\n  }\n]"
 	if resp.Text() != want {
 		t.Errorf("got %q want %q", resp.Text(), want)
 	}
