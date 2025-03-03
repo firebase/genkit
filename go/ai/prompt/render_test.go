@@ -29,66 +29,72 @@ type HelloPromptInput struct {
 	Name string
 }
 
-var promptModel = ai.DefineModel(r, "test", "chat", nil, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
-	toolCalled := false
-	for _, msg := range gr.Messages {
-		if msg.Content[0].IsToolResponse() {
-			toolCalled = true
+var promptModel = ai.DefineModel(r, "test", "chat",
+	&ai.ModelInfo{Supports: &ai.ModelInfoSupports{
+		Tools:      true,
+		Multiturn:  true,
+		ToolChoice: true,
+		SystemRole: true,
+	}}, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+		toolCalled := false
+		for _, msg := range gr.Messages {
+			if msg.Content[0].IsToolResponse() {
+				toolCalled = true
+			}
 		}
-	}
 
-	if !toolCalled && len(gr.Tools) == 1 {
-		part := ai.NewToolRequestPart(&ai.ToolRequest{
-			Name:  "testTool",
-			Input: map[string]any{"Test": "Bar"},
-		})
+		if !toolCalled && len(gr.Tools) == 1 {
+			part := ai.NewToolRequestPart(&ai.ToolRequest{
+				Name:  "testTool",
+				Input: map[string]any{"Test": "Bar"},
+			})
+
+			return &ai.ModelResponse{
+				Request: gr,
+				Message: &ai.Message{
+					Role:    ai.RoleModel,
+					Content: []*ai.Part{part},
+				},
+			}, nil
+		}
+
+		if msc != nil {
+			msc(ctx, &ai.ModelResponseChunk{
+				Content: []*ai.Part{ai.NewTextPart("3!")},
+			})
+			msc(ctx, &ai.ModelResponseChunk{
+				Content: []*ai.Part{ai.NewTextPart("2!")},
+			})
+			msc(ctx, &ai.ModelResponseChunk{
+				Content: []*ai.Part{ai.NewTextPart("1!")},
+			})
+		}
+
+		textResponse := ""
+		var contentTexts []string
+		for _, m := range gr.Messages {
+			if m.Role != ai.RoleUser && m.Role != ai.RoleModel {
+				textResponse += fmt.Sprintf("%s: ", m.Role)
+			}
+
+			if m.Role == ai.RoleTool {
+				contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output.(string))
+			}
+
+			for _, c := range m.Content {
+				contentTexts = append(contentTexts, c.Text)
+			}
+		}
+
+		textResponse += strings.Join(contentTexts, "; ")
+		textResponse += "; config: " + base.PrettyJSONString(gr.Config)
+		textResponse += "; context: " + base.PrettyJSONString(gr.Context)
 
 		return &ai.ModelResponse{
 			Request: gr,
-			Message: &ai.Message{
-				Role:    ai.RoleModel,
-				Content: []*ai.Part{part},
-			},
+			Message: ai.NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
 		}, nil
-	}
-
-	if msc != nil {
-		msc(ctx, &ai.ModelResponseChunk{
-			Content: []*ai.Part{ai.NewTextPart("3!")},
-		})
-		msc(ctx, &ai.ModelResponseChunk{
-			Content: []*ai.Part{ai.NewTextPart("2!")},
-		})
-		msc(ctx, &ai.ModelResponseChunk{
-			Content: []*ai.Part{ai.NewTextPart("1!")},
-		})
-	}
-
-	textResponse := ""
-	var contentTexts []string
-	for _, m := range gr.Messages {
-		if m.Role != ai.RoleUser && m.Role != ai.RoleModel {
-			textResponse += fmt.Sprintf("%s: ", m.Role)
-		}
-
-		if m.Role == ai.RoleTool {
-			contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output.(string))
-		}
-
-		for _, c := range m.Content {
-			contentTexts = append(contentTexts, c.Text)
-		}
-	}
-
-	textResponse += strings.Join(contentTexts, "; ")
-	textResponse += "; config: " + base.PrettyJSONString(gr.Config)
-	textResponse += "; context: " + base.PrettyJSONString(gr.Context)
-
-	return &ai.ModelResponse{
-		Request: gr,
-		Message: ai.NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
-	}, nil
-})
+	})
 
 func TestValidPrompt(t *testing.T) {
 	var tests = []struct {

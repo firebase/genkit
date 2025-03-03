@@ -39,11 +39,12 @@ type PromptRequest struct {
 	MessagesFn              MessagesFn                 `json:"-"`                            // The messages function. If this is set, Messages should be an empty.
 	Config                  *ai.GenerationCommonConfig `json:"config,omitempty"`             // Model configuration. If nil will be taken from the prompt config.
 	Input                   any                        `json:"input,omitempty"`              // Input fields for the prompt. If not nil this should be a struct or pointer to a struct that matches the prompt's input schema.
-	Context                 []any                      `json:"context,omitempty"`            // Context to pass to model, if any.
+	Context                 []*ai.Document             `json:"context,omitempty"`            // Context to pass to model, if any.
 	ToolChoice              ai.ToolChoice              `json:"toolChoice,omitempty"`         // Whether tool calls are required, disabled, or optional for the prompt.
 	MaxTurns                int                        `json:"maxTurns,omitempty"`           // Maximum number of tool call iterations for the prompt.
 	ReturnToolRequests      bool                       `json:"returnToolRequests,omitempty"` // Whether to return tool requests instead of making the tool calls and continuing the generation.
 	IsReturnToolRequestsSet bool                       `json:"-"`                            // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
+	Middleware              []ai.ModelMiddleware       `json:"-"`                            // Middleware to apply to the prompt
 	Stream                  ai.ModelStreamingCallback  // Streaming callback function
 }
 
@@ -127,7 +128,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...GenerateOption) (*ai.Model
 		ReturnToolRequests: returnToolRequests,
 	}
 
-	return model.Generate(ctx, p.registry, mr, toolCfg, pr.Stream)
+	return model.Generate(ctx, p.registry, mr, pr.Middleware, toolCfg, pr.Stream)
 }
 
 // buildVariables returns a map holding prompt field values based
@@ -281,12 +282,12 @@ func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 }
 
 // WithContext add context to pass to model, if any.
-func WithContext(context []any) GenerateOption {
+func WithContext(docs ...*ai.Document) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Context != nil {
 			return errors.New("prompt.WithContext: cannot set Context more than once")
 		}
-		p.Context = context
+		p.Context = docs
 		return nil
 	}
 }
@@ -357,6 +358,17 @@ func WithToolChoice(toolChoice ai.ToolChoice) GenerateOption {
 			return errors.New("prompt.WithToolChoice: cannot set ToolChoice more than once")
 		}
 		p.ToolChoice = toolChoice
+		return nil
+	}
+}
+
+// WithMiddleware adds middleware to the generate request.
+func WithMiddleware(middleware ...ai.ModelMiddleware) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.Middleware != nil {
+			return errors.New("prompt.WithMiddleware: cannot set Middleware more than once")
+		}
+		p.Middleware = middleware
 		return nil
 	}
 }

@@ -68,7 +68,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 				return nil
 			}),
 			WithModel(testModel),
-			WithContext([]any{"context"}),
+			WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("Banana")}}),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -121,7 +121,7 @@ func TestExecuteOptions(t *testing.T) {
 		},
 		{
 			name: "WithContext",
-			with: WithContext([]any{"context"}),
+			with: WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("Banana")}}),
 		},
 		{
 			name: "WithModelName",
