@@ -91,7 +91,7 @@ type EvaluationResult struct {
 	TestCaseId string  `json:"testCaseId"`
 	TraceID    string  `json:"traceId,omitempty"`
 	SpanID     string  `json:"spanId,omitempty"`
-	Evaluation []Score `json:"score"`
+	Evaluation []Score `json:"evaluation"`
 }
 
 // EvaluatorResponse is a collection of [EvaluationResult] structs, it
@@ -118,7 +118,7 @@ type EvaluatorCallbackResponse = EvaluationResult
 // DefineEvaluator registers the given evaluator function as an action, and
 // returns a [Evaluator] that runs it. This method process the input dataset
 // one-by-one.
-func DefineEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, eval func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)) (*evaluatorActionDef, error) {
+func DefineEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, eval func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)) (Evaluator, error) {
 	if options == nil {
 		return nil, errors.New("EvaluatorOptions must be provided")
 	}
@@ -189,15 +189,6 @@ func LookupEvaluator(r *registry.Registry, provider, name string) Evaluator {
 	return (*evaluatorActionDef)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, atype.Evaluator, provider, name))
 }
 
-// Evaluate runs the given [Evaluator].
-func (e *evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
-	if e == nil {
-		return nil, errors.New("Evaluator called on a nil Evaluator; check that all evaluators are defined")
-	}
-	a := (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(e)
-	return a.Run(ctx, req, nil)
-}
-
 // EvaluateOption configures params of the Embed call.
 type EvaluateOption func(req *EvaluatorRequest) error
 
@@ -238,3 +229,12 @@ func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluateOption) (*Evalua
 }
 
 func (r *evaluatorActionDef) Name() string { return (*evaluatorAction)(r).Name() }
+
+// Evaluate runs the given [Evaluator].
+func (e *evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+	if e == nil {
+		return nil, errors.New("Evaluator called on a nil Evaluator; check that all evaluators are defined")
+	}
+	a := (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(e)
+	return a.Run(ctx, req, nil)
+}

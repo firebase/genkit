@@ -84,6 +84,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Dummy evaluator for testing
 	evalOptions := ai.EvaluatorOptions{
 		DisplayName: "Simple Evaluator",
 		Definition:  "Just says true or false randomly",
