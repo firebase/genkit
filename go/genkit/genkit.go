@@ -15,10 +15,10 @@ import (
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -202,22 +202,20 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 func DefinePrompt(
 	g *Genkit,
 	provider, name string,
-	metadata map[string]any,
-	inputSchema *jsonschema.Schema,
-	render func(context.Context, any) (*ai.ModelRequest, error),
-) *ai.Prompt {
-	return ai.DefinePrompt(g.reg, provider, name, metadata, inputSchema, render)
+	opts ...prompt.PromptOption,
+) (*prompt.Prompt, error) {
+	return prompt.Define(g.reg, provider, name, opts...)
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
 func IsDefinedPrompt(g *Genkit, provider, name string) bool {
-	return ai.IsDefinedPrompt(g.reg, provider, name)
+	return prompt.IsDefinedPrompt(g.reg, provider, name)
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
-	return ai.LookupPrompt(g.reg, provider, name)
+func LookupPrompt(g *Genkit, provider, name string) *prompt.Prompt {
+	return prompt.LookupPrompt(g.reg, provider, name)
 }
 
 // Generate run generate request for this model. Returns ModelResponse struct.

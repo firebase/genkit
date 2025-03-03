@@ -19,6 +19,7 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
@@ -52,7 +53,7 @@ type Prompt struct {
 	// A hash of the prompt contents.
 	hash string
 	// A prompt that renders the prompt.
-	prompt *ai.Prompt
+	prompt *prompt.Prompt
 }
 
 // Config is optional configuration for a [Prompt].

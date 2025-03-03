@@ -658,6 +658,21 @@ func TestLookupModel(t *testing.T) {
 	})
 }
 
+func TestLookupModelByName(t *testing.T) {
+	t.Run("should return model", func(t *testing.T) {
+		model, _ := LookupModelByName(r, "test/"+modelName)
+		if model == nil {
+			t.Errorf("LookupModelByName did not return model")
+		}
+	})
+	t.Run("should return nil", func(t *testing.T) {
+		_, err := LookupModelByName(r, "foo/bar")
+		if err == nil {
+			t.Errorf("LookupModelByName did not return error")
+		}
+	})
+}
+
 func JSONMarkdown(text string) string {
 	return "```json\n" + text + "\n```"
 }
