@@ -15,7 +15,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
-from genkit.core.codec import dump_json, dump_dict
+from genkit.core.codec import dump_dict, dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.registry import Registry
 from genkit.core.web import HTTPHeader
