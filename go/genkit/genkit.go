@@ -303,14 +303,12 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 	return ai.LookupEmbedder(g.reg, provider, name)
 }
 
-// DefineEvaluator registers the given evaluate function as an action, and
-// returns a [Evaluator] that runs it.
-// func DefineEvaluator(g *Genkit, provider, name string, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) ai.Evaluator {
-// 	return ai.DefineEvaluator(g.reg, provider, name, eval)
-// }
-
 func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) ai.Evaluator {
-	return ai.DefineEvaluator(g.reg, provider, name, options, eval)
+	evaluator, err := ai.DefineEvaluator(g.reg, provider, name, options, eval)
+	if err != nil {
+		return nil
+	}
+	return evaluator
 }
 
 // IsDefinedEvaluator reports whether a [Evaluator] is defined.

@@ -14,6 +14,7 @@ import (
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Evaluator represents a evaluator action.
@@ -25,9 +26,9 @@ type Evaluator interface {
 }
 
 type (
-	evaluatorActionDef core.Action[*EvaluatorRequest, *EvaluatorResponse, struct{}]
+	evaluatorActionDef core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
 
-	evaluatorAction = core.Action[*EvaluatorRequest, *EvaluatorResponse, struct{}]
+	evaluatorAction = core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
 )
 
 // Example is a single example that requires evaluation
@@ -35,53 +36,66 @@ type Example struct {
 	TestCaseId string   `json:"testCaseId,omitempty"`
 	Input      any      `json:"input"`
 	Output     any      `json:"output,omitempty"`
-	Context    any      `json:"context,omitempty"`
+	Context    []any    `json:"context,omitempty"`
 	Reference  any      `json:"reference,omitempty"`
 	TraceIds   []string `json:"traceIds,omitempty"`
 }
 
+// Dataset is a collection of [Example]
 type Dataset = []Example
 
 // EvaluatorRequest is the data we pass to evaluate a dataset.
 // The Options field is specific to the actual evaluator implementation.
 type EvaluatorRequest struct {
-	Dataset      []Example `json:"dataset"`
-	EvaluationId string    `json:"evalRunId"`
-	Options      any       `json:"options,omitempty"`
+	Dataset      *Dataset `json:"dataset"`
+	EvaluationId string   `json:"evalRunId"`
+	Options      any      `json:"options,omitempty"`
 }
 
+// ScoreStatus is an enum used to indicate if a Score has passed or failed. This
+// drives additional features in tooling / the Dev UI.
 type ScoreStatus int
 
 const (
-	Unknown ScoreStatus = iota
-	Fail
-	Pass
+	ScoreStatusUnknown ScoreStatus = iota
+	ScoreStatusFail
+	ScoreStatusPass
 )
 
 var statusName = map[ScoreStatus]string{
-	Unknown: "unknown",
-	Fail:    "fail",
-	Pass:    "pass",
+	ScoreStatusUnknown: "unknown",
+	ScoreStatusFail:    "fail",
+	ScoreStatusPass:    "pass",
 }
 
 func (ss ScoreStatus) String() string {
 	return statusName[ss]
 }
 
+// Score is the evaluation score that represents the result of an evaluator.
+// This struct includes information such as the score (numeric, string or other
+// types), the reasoning provided for this score (if any), the score status (if
+// any) and other details.
 type Score struct {
 	Id      string         `json:"id,omitempty"`
 	Score   any            `json:"score,omitempty"`
+	Status  string         `json:"status,omitempty" jsonschema:"enum=unknown,enum=fail,enum=pass"`
 	Error   string         `json:"error,omitempty"`
 	Details map[string]any `json:"details,omitempty"`
 }
 
+// EvaluationResult is the result of running the evaluator on a single Example.
+// An evaluator may provide multiple scores simultaneously (e.g. if they are using
+// an API to score on multiple criteria)
 type EvaluationResult struct {
 	TestCaseId string  `json:"testCaseId"`
-	TraceId    string  `json:"traceId,omitempty"`
-	SpanId     string  `json:"spanId,omitempty"`
+	TraceID    string  `json:"traceId,omitempty"`
+	SpanID     string  `json:"spanId,omitempty"`
 	Evaluation []Score `json:"score"`
 }
 
+// EvaluatorResponse is a collection of [EvaluationResult] structs, it
+// represents the result on the entire input dataset.
 type EvaluatorResponse = []EvaluationResult
 
 type EvaluatorOptions struct {
@@ -90,26 +104,32 @@ type EvaluatorOptions struct {
 	IsBilled    bool   `json:"isBilled,omitempty"`
 }
 
-// EvaluatorRequest is the data we pass to evaluate a dataset.
-// The Options field is specific to the actual evaluator implementation.
+// EvaluatorCallbackRequest is the data we pass to the callback function
+// provided in defineEvaluator. The Options field is specific to the actual
+// evaluator implementation.
 type EvaluatorCallbackRequest struct {
 	Input   Example `json:"input"`
 	Options any     `json:"options,omitempty"`
 }
 
+// EvaluatorCallbackResponse is the result on evaluating a single [Example]
 type EvaluatorCallbackResponse = EvaluationResult
 
 // DefineEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it.
-func DefineEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, eval func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)) *evaluatorActionDef {
+// returns a [Evaluator] that runs it. This method process the input dataset
+// one-by-one.
+func DefineEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, eval func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)) (*evaluatorActionDef, error) {
+	if options == nil {
+		return nil, errors.New("EvaluatorOptions must be provided")
+	}
 	metadataMap := map[string]any{}
 	metadataMap["evaluatorIsBilled"] = options.IsBilled
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+	actionDef := (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 		var evalResponses []EvaluationResult
-		dataset := req.Dataset
+		dataset := *req.Dataset
 		for i := 0; i < len(dataset); i++ {
 			datapoint := dataset[i]
 			if datapoint.TestCaseId == "" {
@@ -119,6 +139,8 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 				func(ctx context.Context, input Example) (*EvaluatorCallbackResponse, error) {
 					spanMetadata := tracing.SpanMetadata(ctx)
 					spanMetadata.Input = input
+					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
+					spanId := trace.SpanContextFromContext(ctx).SpanID().String()
 					callbackRequest := EvaluatorCallbackRequest{
 						Input:   input,
 						Options: req.Options,
@@ -126,17 +148,21 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 					evaluatorResponse, err := eval(ctx, &callbackRequest)
 					if err != nil {
 						failedScore := Score{
-							// Status: Fail,
-							Error: fmt.Sprintf("Evaluation of test case %s failed: \n %s", input.TestCaseId, err.Error()),
+							Status: ScoreStatusFail.String(),
+							Error:  fmt.Sprintf("Evaluation of test case %s failed: \n %s", input.TestCaseId, err.Error()),
 						}
 						failedEvalResult := EvaluationResult{
 							TestCaseId: input.TestCaseId,
 							Evaluation: []Score{failedScore},
+							TraceID:    traceId,
+							SpanID:     spanId,
 						}
 						evalResponses = append(evalResponses, failedEvalResult)
+						// return error to mark span as failed
 						return nil, err
 					}
-					spanMetadata.Output = evaluatorResponse
+					evaluatorResponse.TraceID = traceId
+					evaluatorResponse.SpanID = spanId
 					evalResponses = append(evalResponses, *evaluatorResponse)
 					return evaluatorResponse, nil
 				})
@@ -147,7 +173,10 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 		}
 		return &evalResponses, nil
 	}))
+	return actionDef, nil
 }
+
+// TODO(ssbushi): Add defineBatchEvaluator()
 
 // IsDefinedEvaluator reports whether an [Evaluator] is defined.
 func IsDefinedEvaluator(r *registry.Registry, provider, name string) bool {
@@ -165,7 +194,7 @@ func (e *evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest
 	if e == nil {
 		return nil, errors.New("Evaluator called on a nil Evaluator; check that all evaluators are defined")
 	}
-	a := (*core.Action[*EvaluatorRequest, *EvaluatorResponse, struct{}])(e)
+	a := (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(e)
 	return a.Run(ctx, req, nil)
 }
 
@@ -173,7 +202,7 @@ func (e *evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest
 type EvaluateOption func(req *EvaluatorRequest) error
 
 // WithEvaluateDataset set the dataset on [EvaluatorRequest]
-func WithEvaluateDataset(dataset Dataset) EvaluateOption {
+func WithEvaluateDataset(dataset *Dataset) EvaluateOption {
 	return func(req *EvaluatorRequest) error {
 		req.Dataset = dataset
 		return nil
