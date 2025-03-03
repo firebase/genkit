@@ -10,12 +10,12 @@ import pathlib
 import pytest
 import yaml
 from genkit.ai.generate import generate_action
+from genkit.ai.testing_utils import define_programmable_model
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
     FinishReason,
     GenerateActionOptions,
-    GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Message,
@@ -26,29 +26,11 @@ from genkit.veneer.veneer import Genkit
 from pydantic import TypeAdapter
 
 
-class ProgrammableModel:
-    request_idx = 0
-    responses: list[GenerateResponse] = []
-    chunks: list[list[GenerateResponseChunk]] = None
-    last_request: GenerateResponse = None
-
-
 @pytest.fixture
 def setup_test():
     ai = Genkit()
 
-    pm = ProgrammableModel()
-
-    def programmableModel(request: GenerateRequest, ctx: ActionRunContext):
-        pm.last_request = request
-        response = pm.responses[pm.request_idx]
-        if pm.chunks is not None:
-            for chunk in pm.chunks[pm.request_idx]:
-                ctx.send_chunk(chunk)
-        pm.request_idx += 1
-        return response
-
-    ai.define_model(name='programmableModel', fn=programmableModel)
+    pm, _ = define_programmable_model(ai)
 
     @ai.tool('the tool')
     def testTool():
@@ -81,7 +63,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
         ),
     )
 
-    assert response.text() == 'bye'
+    assert response.text == 'bye'
 
 
 ##########################################################################
@@ -107,18 +89,7 @@ with open(
 async def test_generate_action_spec(spec) -> None:
     ai = Genkit()
 
-    pm = ProgrammableModel()
-
-    def programmableModel(request: GenerateRequest, ctx: ActionRunContext):
-        pm.last_request = request
-        response = pm.responses[pm.request_idx]
-        if pm.chunks is not None:
-            for chunk in pm.chunks[pm.request_idx]:
-                ctx.send_chunk(chunk)
-        pm.request_idx += 1
-        return response
-
-    ai.define_model(name='programmableModel', fn=programmableModel)
+    pm, _ = define_programmable_model(ai)
 
     @ai.tool('description')
     def testTool():

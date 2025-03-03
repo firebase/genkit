@@ -17,7 +17,8 @@ import (
 
 // A Flow is a user-defined Action. A Flow[In, Out, Stream] represents a function from In to Out. The Stream parameter is for flows that support streaming: providing their results incrementally.
 type Flow[In, Out, Stream any] struct {
-	action *Action[In, Out, Stream]
+	Action
+	action *ActionDef[In, Out, Stream]
 }
 
 // StreamFlowValue is either a streamed value or a final output of a flow.
@@ -96,12 +97,10 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 }
 
 // Name returns the name of the flow.
-func (f *Flow[In, Out, Stream]) Name() string {
-	return f.action.Name()
-}
+func (f *Flow[In, Out, Stream]) Name() string { return f.action.Name() }
 
 // RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
-func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
 	return f.action.RunJSON(ctx, input, cb)
 }
 

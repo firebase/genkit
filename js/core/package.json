@@ -16,7 +16,7 @@
     "build": "npm-run-all genversion build:clean check compile",
     "build:watch": "tsup-node --watch",
     "test": "node --import tsx --test tests/*_test.ts",
-    "genversion": "genversion -es src/__codegen/version.ts"
+    "genversion": "genversion -esf src/__codegen/version.ts"
   },
   "repository": {
     "type": "git",

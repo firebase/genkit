@@ -41,7 +41,7 @@ func Init() error {
 				Media:      false, // Can the model accept media input?
 				Tools:      false, // Does the model support function calling (tools)?
 			},
-			Versions: []string{},
+			Versions: []string{"my-model-001", "..."},
 		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,

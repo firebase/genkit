@@ -264,7 +264,7 @@ func TestGenerate(t *testing.T) {
 				},
 			},
 			Config:  GenerationCommonConfig{Temperature: 1},
-			Context: []any{[]any{string("Banana")}},
+			Context: []*Document{&Document{Content: []*Part{NewTextPart("Banana")}}},
 			Output: &ModelRequestOutput{
 				Format: "json",
 				Schema: map[string]any{
@@ -310,7 +310,7 @@ func TestGenerate(t *testing.T) {
 				Temperature: 1,
 			}),
 			WithHistory(NewUserTextMessage("banana"), NewModelTextMessage("yes, banana")),
-			WithContext([]any{"Banana"}),
+			WithContext(&Document{Content: []*Part{NewTextPart("Banana")}}),
 			WithOutputSchema(&GameCharacter{}),
 			WithTools(gablorkenTool),
 			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
@@ -346,7 +346,13 @@ func TestGenerate(t *testing.T) {
 			},
 		)
 
-		interruptModel := DefineModel(r, "test", "interrupt", nil,
+		info := &ModelInfo{
+			Supports: &ModelInfoSupports{
+				Multiturn: true,
+				Tools:     true,
+			},
+		}
+		interruptModel := DefineModel(r, "test", "interrupt", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -399,7 +405,13 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
 		roundCount := 0
-		parallelModel := DefineModel(r, "test", "parallel", nil,
+		info := &ModelInfo{
+			Supports: &ModelInfoSupports{
+				Multiturn: true,
+				Tools:     true,
+			},
+		}
+		parallelModel := DefineModel(r, "test", "parallel", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -458,7 +470,13 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
 		roundCount := 0
-		multiRoundModel := DefineModel(r, "test", "multiround", nil,
+		info := &ModelInfo{
+			Supports: &ModelInfoSupports{
+				Multiturn: true,
+				Tools:     true,
+			},
+		}
+		multiRoundModel := DefineModel(r, "test", "multiround", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -520,7 +538,13 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("exceeds maximum turns", func(t *testing.T) {
-		infiniteModel := DefineModel(r, "test", "infinite", nil,
+		info := &ModelInfo{
+			Supports: &ModelInfoSupports{
+				Multiturn: true,
+				Tools:     true,
+			},
+		}
+		infiniteModel := DefineModel(r, "test", "infinite", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -548,6 +572,35 @@ func TestGenerate(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "exceeded maximum tool call iterations (2)") {
 			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+
+	t.Run("applies middleware", func(t *testing.T) {
+		middlewareCalled := false
+		testMiddleware := func(next ModelFunc) ModelFunc {
+			return func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
+				middlewareCalled = true
+				req.Messages = append(req.Messages, NewUserTextMessage("middleware was here"))
+				return next(ctx, req, cb)
+			}
+		}
+
+		res, err := Generate(context.Background(), r,
+			WithModel(echoModel),
+			WithTextPrompt("test middleware"),
+			WithMiddleware(testMiddleware),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !middlewareCalled {
+			t.Error("middleware was not called")
+		}
+
+		expectedText := "test middlewaremiddleware was here"
+		if res.Text() != expectedText {
+			t.Errorf("got text %q, want %q", res.Text(), expectedText)
 		}
 	})
 }

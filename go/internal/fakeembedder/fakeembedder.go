@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package fakeembedder provides a fake implementation of
 // genkit.Embedder for testing purposes.
 // The caller must register the values that the fake embedder should

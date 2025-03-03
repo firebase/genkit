@@ -119,7 +119,7 @@ func TestOptionsPatternGenerate(t *testing.T) {
 				return nil
 			}),
 			WithModel(testModel),
-			WithContext([]any{"context"}),
+			WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("context")}}),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -177,7 +177,7 @@ func TestGenerateOptions(t *testing.T) {
 		},
 		{
 			name: "WithContext",
-			with: WithContext([]any{"context"}),
+			with: WithContext(&ai.Document{Content: []*ai.Part{ai.NewTextPart("context")}}),
 		},
 		{
 			name: "WithModelName",

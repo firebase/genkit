@@ -40,7 +40,7 @@ func WithContextProviders(ctxProviders ...core.ContextProvider) HandlerOption {
 }
 
 // Handler returns an HTTP handler function that serves the action with the provided options.
-func Handler(a Action, opts ...HandlerOption) http.HandlerFunc {
+func Handler(a core.Action, opts ...HandlerOption) http.HandlerFunc {
 	params := &handlerParams{}
 	for _, opt := range opts {
 		opt(params)
@@ -75,7 +75,7 @@ func wrapHandler(h func(http.ResponseWriter, *http.Request) error) http.HandlerF
 }
 
 // handler returns an HTTP handler function that serves the action with the provided params. Responses are written in server-sent events (SSE) format.
-func handler(a Action, params *handlerParams) func(http.ResponseWriter, *http.Request) error {
+func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if a == nil {
 			return errors.New("action is nil; cannot serve")

@@ -32,7 +32,7 @@ import (
 
 type Prompt struct {
 	registry    *registry.Registry
-	action      core.Action[any, *ai.ModelRequest, struct{}]
+	action      core.ActionDef[any, *ai.ModelRequest, struct{}]
 	Name        string // The name of the prompt.
 	Description string // Prompt description.
 	Config

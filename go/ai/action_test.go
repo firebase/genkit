@@ -56,7 +56,11 @@ func (pm *programmableModel) Generate(ctx context.Context, r *registry.Registry,
 
 func defineProgrammableModel(r *registry.Registry) *programmableModel {
 	pm := &programmableModel{r: r}
-	DefineModel(r, "default", "programmableModel", nil, func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
+	supports := &ModelInfoSupports{
+		Tools:     true,
+		Multiturn: true,
+	}
+	DefineModel(r, "", "programmableModel", &ModelInfo{Supports: supports}, func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
 		return pm.Generate(ctx, r, req, &ToolConfig{MaxTurns: 5}, cb)
 	})
 	return pm

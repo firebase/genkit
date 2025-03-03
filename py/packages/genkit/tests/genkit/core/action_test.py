@@ -12,6 +12,7 @@ from genkit.core.action import (
     ActionRunContext,
     create_action_key,
     parse_action_key,
+    parse_plugin_name_from_action_name,
 )
 
 
@@ -234,3 +235,9 @@ async def test_define_async_streaming_action() -> None:
         )
     ).response == 3
     assert chunks == ['1', '2']
+
+
+def test_parse_plugin_name_from_action_name():
+    assert parse_plugin_name_from_action_name('foo') == None
+    assert parse_plugin_name_from_action_name('foo/bar') == 'foo'
+    assert parse_plugin_name_from_action_name('foo/bar/baz') == 'foo'
