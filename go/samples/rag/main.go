@@ -64,8 +64,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.Model(g, "gemini-1.0-pro")
-	embedder := googleai.Embedder(g, "embedding-001")
+	model := googleai.Model(g, "gemini-1.5-flash")
+	embedder := googleai.Embedder(g, "text-embedding-004")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
@@ -83,6 +83,34 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	evalOptions := ai.EvaluatorOptions{
+		DisplayName: "Simple Evaluator",
+		Definition:  "Just says true or false randomly",
+		IsBilled:    false,
+	}
+	genkit.DefineEvaluator(g, "custom", "simpleEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+		m := make(map[string]any)
+		m["reasoning"] = "No good reason"
+		score := ai.Score{
+			Id:      "testScore",
+			Details: m,
+		}
+		callbackResponse := ai.EvaluatorCallbackResponse{
+			TestCaseId: req.Input.TestCaseId,
+			TraceId:    "fake-traceId",
+			SpanId:     "fake-spanId",
+			Evaluation: []ai.Score{score},
+		}
+		return &callbackResponse, nil
+	})
+
+	// genkit.DefineEvaluator(g, "custom", "simpleEvaluator", func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
+	// 	callbackResponse := ai.EvaluatorResponse{
+	// 		Score: req.EvaluationId,
+	// 	}
+	// 	return &callbackResponse, nil
+	// })
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
@@ -113,7 +141,6 @@ func main() {
 
 		resp, err := simpleQaPrompt.Generate(ctx, g,
 			dotprompt.WithInput(promptInput),
-			nil,
 		)
 		if err != nil {
 			return "", err

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // The tracing package provides support for execution traces.
 package tracing
 
@@ -185,4 +184,9 @@ func SetCustomMetadataAttr(ctx context.Context, key, value string) {
 // SpanPath returns the path as recroding in the current span metadata.
 func SpanPath(ctx context.Context) string {
 	return spanMetaKey.FromContext(ctx).Path
+}
+
+// SpanMetadata returns the span metadata
+func SpanMetadata(ctx context.Context) *spanMetadata {
+	return spanMetaKey.FromContext(ctx)
 }

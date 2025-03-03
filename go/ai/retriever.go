@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -47,7 +46,7 @@ type IndexerRequest struct {
 // RetrieverRequest is the data we pass to retrieve documents from the database.
 // The Options field is specific to the actual retriever implementation.
 type RetrieverRequest struct {
-	Document *Document `json:"content"`
+	Document *Document `json:"query"`
 	Options  any       `json:"options,omitempty"`
 }
 
@@ -88,7 +87,7 @@ func IsDefinedRetriever(r *registry.Registry, provider, name string) bool {
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the model was not defined.
+// It returns nil if the retriever was not defined.
 func LookupRetriever(r *registry.Registry, provider, name string) Retriever {
 	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name))
 }
