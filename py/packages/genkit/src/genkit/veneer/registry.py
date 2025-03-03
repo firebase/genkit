@@ -11,7 +11,11 @@ from genkit.ai.embedding import EmbedderFn
 from genkit.ai.formats.types import FormatDef
 from genkit.ai.model import ModelFn
 from genkit.core.action import Action, ActionKind
+from genkit.core.codec import dump_dict
 from genkit.core.registry import Registry
+from genkit.core.schema import to_json_schema
+from genkit.core.typing import ModelInfo
+from pydantic import BaseModel
 
 
 class GenkitRegistry:
@@ -138,19 +142,37 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        info: ModelInfo | None = None,
     ) -> Action:
         """Define a custom model action.
         Args:
             name: Name of the model.
             fn: Function implementing the model behavior.
+            config_schema: Optional schema for model configuration.
             metadata: Optional metadata for the model.
+            info: Optional ModelInfo for the model.
         """
+        model_meta = metadata if metadata else {}
+        if info:
+            model_meta['model'] = dump_dict(info)
+        if 'model' not in model_meta:
+            model_meta['model'] = {}
+        if (
+            'label' not in model_meta['model']
+            or not model_meta['model']['label']
+        ):
+            model_meta['model']['label'] = name
+
+        if config_schema:
+            model_meta['model']['customOptions'] = to_json_schema(config_schema)
+
         return self.registry.register_action(
             name=name,
             kind=ActionKind.MODEL,
             fn=fn,
-            metadata=metadata,
+            metadata=model_meta,
         )
 
     def define_embedder(

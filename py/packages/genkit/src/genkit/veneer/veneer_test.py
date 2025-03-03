@@ -23,8 +23,10 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     Message,
     Metadata,
+    ModelInfo,
     OutputConfig,
     Role,
+    Supports,
     TextPart,
     ToolDefinition,
     ToolRequest1,
@@ -628,3 +630,87 @@ async def test_define_format(setup_test: SetupFixture) -> None:
             content_type='application/banana',
         ),
     )
+
+
+def test_define_model_default_metadata(setup_test: SetupFixture):
+    ai, _, pm, *_ = setup_test
+
+    def foo_model_fn():
+        return GenerateResponse(
+            message=Message(role=Role.MODEL, content=[TextPart(text='banana!')])
+        )
+
+    action = ai.define_model(
+        name='foo',
+        fn=foo_model_fn,
+    )
+
+    assert action.metadata['model'] == {
+        'label': 'foo',
+    }
+
+
+def test_define_model_with_schema(setup_test: SetupFixture):
+    ai, _, pm, *_ = setup_test
+
+    class Config(BaseModel):
+        field_a: str = Field(description='a field')
+        field_b: str = Field(description='b field')
+
+    def foo_model_fn():
+        return GenerateResponse(
+            message=Message(role=Role.MODEL, content=[TextPart(text='banana!')])
+        )
+
+    action = ai.define_model(
+        name='foo',
+        fn=foo_model_fn,
+        config_schema=Config,
+    )
+    assert action.metadata['model'] == {
+        'customOptions': {
+            'properties': {
+                'field_a': {
+                    'description': 'a field',
+                    'title': 'Field A',
+                    'type': 'string',
+                },
+                'field_b': {
+                    'description': 'b field',
+                    'title': 'Field B',
+                    'type': 'string',
+                },
+            },
+            'required': [
+                'field_a',
+                'field_b',
+            ],
+            'title': 'Config',
+            'type': 'object',
+        },
+        'label': 'foo',
+    }
+
+
+def test_define_model_with_info(setup_test: SetupFixture):
+    ai, _, pm, *_ = setup_test
+
+    def foo_model_fn():
+        return GenerateResponse(
+            message=Message(role=Role.MODEL, content=[TextPart(text='banana!')])
+        )
+
+    action = ai.define_model(
+        name='foo',
+        fn=foo_model_fn,
+        info=ModelInfo(
+            label='Foo Bar', supports=Supports(multiturn=True, tools=True)
+        ),
+    )
+    assert action.metadata['model'] == {
+        'label': 'Foo Bar',
+        'supports': {
+            'multiturn': True,
+            'tools': True,
+        },
+    }
