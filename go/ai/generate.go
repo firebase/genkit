@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
@@ -167,6 +168,7 @@ type generateParams struct {
 	MaxTurns           int
 	ReturnToolRequests bool
 	Middleware         []ModelMiddleware
+	TTL                *time.Duration
 }
 
 // GenerateOption configures params of the Generate call.
@@ -181,9 +183,12 @@ func WithModel(m Model) GenerateOption {
 }
 
 // WithTextPrompt adds a simple text user prompt to ModelRequest.
-func WithTextPrompt(prompt string) GenerateOption {
+func WithTextPrompt(prompt string, ttl ...int) GenerateOption {
 	return func(req *generateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
+		if len(ttl) > 0 {
+			*req.TTL = time.Duration(ttl[0]) * time.Second
+		}
 		return nil
 	}
 }
@@ -245,6 +250,7 @@ func WithContext(docs ...*Document) GenerateOption {
 	}
 }
 
+// WithTools adds provided tools to ModelRequest.
 // WithTools adds provided tools to ModelRequest.
 func WithTools(tools ...Tool) GenerateOption {
 	return func(req *generateParams) error {

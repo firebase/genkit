@@ -251,14 +251,33 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	gm, err := newModel(client, model, input)
+	req, ok := input.Config.(*ai.GenerationCommonConfig)
+	if !ok {
+		return nil, fmt.Errorf("vertexai.Generate(%s): expected CacheConfigDetails", model)
+	}
+
+	var cacheConfig *CacheConfigDetails
+	if req.TTL != 0 {
+		cacheConfig = &CacheConfigDetails{
+			TTL: req.TTL,
+		}
+	}
+
+	cc, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	gm, err := newModel(client, model, input, cc)
+	if err != nil {
+		return nil, err
+	}
+
 	cs, err := startChat(gm, input)
 	if err != nil {
 		return nil, err
 	}
+
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
 	if len(input.Messages) > 0 {
@@ -321,8 +340,14 @@ func generate(
 	return r, nil
 }
 
-func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
-	gm := client.GenerativeModel(model)
+func newModel(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerativeModel, error) {
+	var gm *genai.GenerativeModel
+	if cache != nil {
+		gm = client.GenerativeModelFromCachedContent(cache)
+	} else {
+		gm = client.GenerativeModel(model)
+	}
+
 	gm.SetCandidateCount(1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
@@ -539,6 +564,7 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	r := translateCandidate(resp.Candidates[0])
 
+	fmt.Printf("usage_metadata: \n%#v\n\n", resp.UsageMetadata)
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)

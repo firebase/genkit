@@ -66,3 +66,23 @@ func NewTextMessage(role Role, text string) *Message {
 		Content: []*Part{NewTextPart(text)},
 	}
 }
+
+// Cached adds cache configuration for the desired message
+func (m *Message) Cached(ttlSeconds int) *Message {
+	metadata := map[string]any{
+		"cache": map[string]any{
+			"ttlSeconds": ttlSeconds,
+		},
+	}
+	// copy the existing metadata and add cache
+	if m.Metadata != nil {
+		for k, v := range m.Metadata {
+			metadata[k] = v
+		}
+	}
+	return &Message{
+		Content:  m.Content,
+		Role:     m.Role,
+		Metadata: metadata,
+	}
+}
