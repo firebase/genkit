@@ -28,7 +28,7 @@ import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
 import { TOOLS_SERVER_ROUTER } from './router';
 
-const MAX_PAYLOAD_SIZE = '30mb';
+const MAX_PAYLOAD_SIZE = 30000000;
 const UI_ASSETS_GCS_BUCKET = `https://storage.googleapis.com/genkit-assets`;
 const UI_ASSETS_ZIP_FILE_NAME = `${toolsPackage.version}.zip`;
 const UI_ASSETS_ZIP_GCS_PATH = `${UI_ASSETS_GCS_BUCKET}/${UI_ASSETS_ZIP_FILE_NAME}`;
@@ -115,6 +115,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     },
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(manager),
+      maxBodySize: MAX_PAYLOAD_SIZE,
     })
   );
 
