@@ -9,6 +9,7 @@ package googleai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -314,32 +315,56 @@ func generate(
 	return r, nil
 }
 
+func mapToStruct(m map[string]interface{}, v interface{}) error {
+	// Convert map to JSON
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	// Unmarshal JSON to struct
+	return json.Unmarshal(jsonData, v)
+}
+
+// applyGenerationConfig applies the common generation configuration to the model
+// todo: support Gemini-specific configuration
+func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConfig) error {
+	if c.MaxOutputTokens != 0 {
+		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+	}
+	if len(c.StopSequences) > 0 {
+		gm.StopSequences = c.StopSequences
+	}
+	if c.Temperature != 0 {
+		gm.SetTemperature(float32(c.Temperature))
+	}
+	if c.TopK != 0 {
+		gm.SetTopK(int32(c.TopK))
+	}
+	if c.TopP != 0 {
+		gm.SetTopP(float32(c.TopP))
+	}
+	return nil
+}
+
 func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
-	gm := client.GenerativeModel(model)
+	var c ai.GenerationCommonConfig
+	if err := mapToStruct(input.Config.(map[string]interface{}), &c); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+	specifiedModel := model
+	if c.Version != "" {
+		specifiedModel = c.Version
+	}
+	gm := client.GenerativeModel(specifiedModel)
 	gm.SetCandidateCount(1)
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		}
-		if len(c.StopSequences) > 0 {
-			gm.StopSequences = c.StopSequences
-		}
-		if c.Temperature != 0 {
-			gm.SetTemperature(float32(c.Temperature))
-		}
-		if c.TopK != 0 {
-			gm.SetTopK(int32(c.TopK))
-		}
-		if c.TopP != 0 {
-			gm.SetTopP(float32(c.TopP))
-		}
+	if err := applyGenerationConfig(gm, &c); err != nil {
+		return nil, err
 	}
 	for _, m := range input.Messages {
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
 			return nil, err
 		}
-		// system prompts go into GenerativeModel.SystemInstruction field.
 		if m.Role == ai.RoleSystem {
 			gm.SystemInstruction = &genai.Content{
 				Parts: systemParts,
