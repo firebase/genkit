@@ -7,8 +7,9 @@ import logging
 import os
 import threading
 from asyncio import Future
+from collections.abc import AsyncIterator
 from http.server import HTTPServer
-from typing import Any, AsyncIterator
+from typing import Any
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
@@ -25,9 +26,9 @@ from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     GenerateActionOptions,
+    GenerateActionOutputConfig,
     GenerationCommonConfig,
     Message,
-    Output,
     Part,
     Role,
     TextPart,
@@ -90,7 +91,7 @@ class Genkit(GenkitRegistry):
                 if isinstance(plugin, Plugin):
                     plugin.initialize(ai=self)
 
-                    def resolver(kind, name):
+                    def resolver(kind, name, plugin=plugin):
                         return plugin.resolve_action(self, kind, name)
 
                     self.registry.register_action_resolver(
@@ -140,42 +141,57 @@ class Genkit(GenkitRegistry):
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
 
-        This function provides a flexible interface for interacting with various language models,
-        supporting both simple text generation and more complex interactions involving tools and
-        structured conversations.
+        This function provides a flexible interface for interacting with various
+        language models, supporting both simple text generation and more complex
+        interactions involving tools and structured conversations.
 
         Args:
-            model: Optional. The name of the model to use for generation. If not provided, a default
-                   model may be used.
-            prompt: Optional. A single prompt string, a `Part` object, or a list of `Part` objects
-                    to provide as input to the model. This is used for simple text generation.
-            system: Optional. A system message string, a `Part` object, or a list of `Part` objects
-                    to provide context or instructions to the model, especially for chat-based models.
-            messages: Optional. A list of `Message` objects representing a conversation history.
-                      This is used for chat-based models to maintain context.
-            tools: Optional. A list of tool names (strings) that the model can use.
-            return_tool_requests: Optional. If `True`, the model will return tool requests instead of
-                                  executing them directly.
-            tool_choice: Optional. A `ToolChoice` object specifying how the model should choose
-                         which tool to use.
-            config: Optional. A `GenerationCommonConfig` object or a dictionary containing configuration
-                    parameters for the generation process. This allows fine-tuning the model's
-                    behavior.
+            model: Optional. The name of the model to use for generation. If not
+                provided, a default model may be used.
+            prompt: Optional. A single prompt string, a `Part` object, or a list
+                of `Part` objects to provide as input to the model. This is used
+                for simple text generation.
+            system: Optional. A system message string, a `Part` object, or a
+                list of `Part` objects to provide context or instructions to
+                the model, especially for chat-based models.
+            messages: Optional. A list of `Message` objects representing a
+                conversation history.  This is used for chat-based models to
+                maintain context.
+            tools: Optional. A list of tool names (strings) that the model can
+                use.
+            return_tool_requests: Optional. If `True`, the model will return
+                tool requests instead of executing them directly.
+            tool_choice: Optional. A `ToolChoice` object specifying how the
+                model should choose which tool to use.
+            config: Optional. A `GenerationCommonConfig` object or a dictionary
+                containing configuration parameters for the generation process.
+                This allows fine-tuning the model's behavior.
             max_turns: Optional. The maximum number of turns in a conversation.
-            on_chunk: Optional. A callback function of type `ModelStreamingCallback` that is called
-                      for each chunk of generated text during streaming.
-            context: Optional. A dictionary containing additional context information that can be
-                     used during generation.
+            on_chunk: Optional. A callback function of type
+                `ModelStreamingCallback` that is called for each chunk of
+                generated text during streaming.
+            context: Optional. A dictionary containing additional context
+                information that can be used during generation.
+            output_format: Optional. The format to use for the output (e.g.,
+                'json').
+            output_content_type: Optional. The content type of the output.
+            output_instructions: Optional. Instructions for formatting the
+                output.
+            output_schema: Optional. Schema defining the structure of the
+                output.
+            output_constrained: Optional. Whether to constrain the output to the
+                schema.
 
         Returns:
-            A `GenerateResponseWrapper` object containing the model's response, which may include
-            generated text, tool requests, or other relevant information.
+            A `GenerateResponseWrapper` object containing the model's response,
+            which may include generated text, tool requests, or other relevant
+            information.
 
         Note:
-            - The `tools`, `return_tool_requests`, and `tool_choice` arguments are used for models
-              that support tool usage.
-            - The `on_chunk` argument enables streaming responses, allowing you to process the
-              generated content as it becomes available.
+            - The `tools`, `return_tool_requests`, and `tool_choice` arguments
+              are used for models that support tool usage.
+            - The `on_chunk` argument enables streaming responses, allowing you
+              to process the generated content as it becomes available.
         """
         model = model or self.registry.default_model
         if model is None:
@@ -199,20 +215,21 @@ class Genkit(GenkitRegistry):
                 Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
             )
 
-        # If is schema is set but format is not explicitly set, default to `json` format.
+        # If is schema is set but format is not explicitly set, default to
+        # `json` format.
         if output_schema and not output_format:
             output_format = 'json'
 
-        output = Output()
+        output = GenerateActionOutputConfig()
         if output_format:
             output.format = output_format
         if output_content_type:
             output.content_type = output_content_type
-        if output_instructions != None:
+        if output_instructions is not None:
             output.instructions = output_instructions
         if output_schema:
             output.json_schema = to_json_schema(output_schema)
-        if output_constrained != None:
+        if output_constrained is not None:
             output.constrained = output_constrained
 
         return await generate_action(
@@ -251,44 +268,59 @@ class Genkit(GenkitRegistry):
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
     ]:
-        """Generates text or structured data using a language model and streams the response.
+        """Streams generated text or structured data using a language model.
 
-        This function provides a flexible interface for interacting with various language models,
-        supporting both simple text generation and more complex interactions involving tools and
-        structured conversations.
+        This function provides a flexible interface for interacting with various
+        language models, supporting both simple text generation and more complex
+        interactions involving tools and structured conversations.
 
         Args:
-            model: Optional. The name of the model to use for generation. If not provided, a default
-                   model may be used.
-            prompt: Optional. A single prompt string, a `Part` object, or a list of `Part` objects
-                    to provide as input to the model. This is used for simple text generation.
-            system: Optional. A system message string, a `Part` object, or a list of `Part` objects
-                    to provide context or instructions to the model, especially for chat-based models.
-            messages: Optional. A list of `Message` objects representing a conversation history.
-                      This is used for chat-based models to maintain context.
-            tools: Optional. A list of tool names (strings) that the model can use.
-            return_tool_requests: Optional. If `True`, the model will return tool requests instead of
-                                  executing them directly.
-            tool_choice: Optional. A `ToolChoice` object specifying how the model should choose
-                         which tool to use.
-            config: Optional. A `GenerationCommonConfig` object or a dictionary containing configuration
-                    parameters for the generation process. This allows fine-tuning the model's
-                    behavior.
+            model: Optional. The name of the model to use for generation. If not
+                provided, a default model may be used.
+            prompt: Optional. A single prompt string, a `Part` object, or a list
+                of `Part` objects to provide as input to the model. This is used
+                for simple text generation.
+            system: Optional. A system message string, a `Part` object, or a
+                list of `Part` objects to provide context or instructions to the
+                model, especially for chat-based models.
+            messages: Optional. A list of `Message` objects representing a
+                conversation history.  This is used for chat-based models to
+                maintain context.
+            tools: Optional. A list of tool names (strings) that the model can
+                use.
+            return_tool_requests: Optional. If `True`, the model will return
+                tool requests instead of executing them directly.
+            tool_choice: Optional. A `ToolChoice` object specifying how the
+                model should choose which tool to use.
+            config: Optional. A `GenerationCommonConfig` object or a dictionary
+                containing configuration parameters for the generation process.
+                This allows fine-tuning the model's behavior.
             max_turns: Optional. The maximum number of turns in a conversation.
-            on_chunk: Optional. A callback function of type `ModelStreamingCallback` that is called
-                      for each chunk of generated text during streaming.
-            context: Optional. A dictionary containing additional context information that can be
-                     used during generation.
+            on_chunk: Optional. A callback function of type
+                `ModelStreamingCallback` that is called for each chunk of
+                generated text during streaming.
+            context: Optional. A dictionary containing additional context
+                information that can be used during generation.
+            output_format: Optional. The format to use for the output (e.g.,
+                'json').
+            output_content_type: Optional. The content type of the output.
+            output_instructions: Optional. Instructions for formatting the
+                output.
+            output_schema: Optional. Schema defining the structure of the
+                output.
+            output_constrained: Optional. Whether to constrain the output to the
+                schema.
 
         Returns:
-            A `GenerateResponseWrapper` object containing the model's response, which may include
-            generated text, tool requests, or other relevant information.
+            A `GenerateResponseWrapper` object containing the model's response,
+            which may include generated text, tool requests, or other relevant
+            information.
 
         Note:
-            - The `tools`, `return_tool_requests`, and `tool_choice` arguments are used for models
-              that support tool usage.
-            - The `on_chunk` argument enables streaming responses, allowing you to process the
-              generated content as it becomes available.
+            - The `tools`, `return_tool_requests`, and `tool_choice` arguments
+              are used for models that support tool usage.
+            - The `on_chunk` argument enables streaming responses, allowing you
+              to process the generated content as it becomes available.
         """
         stream = Channel()
 
@@ -333,7 +365,17 @@ class Genkit(GenkitRegistry):
         ).response
 
 
-def _normalize_prompt_arg(prompt: str | Part | list[Part] | None) -> list[Part]:
+def _normalize_prompt_arg(
+    prompt: str | Part | list[Part] | None,
+) -> list[Part] | None:
+    """Normalize the prompt argument to a list of `Part` objects.
+
+    This function ensures that the prompt argument is a list of `Part` objects,
+    which is the expected format for the `generate` function.
+
+    Args:
+        prompt: The prompt argument to normalize.
+    """
     if not prompt:
         return None
     if isinstance(prompt, str):

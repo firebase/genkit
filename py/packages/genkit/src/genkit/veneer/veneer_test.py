@@ -28,13 +28,14 @@ from genkit.core.typing import (
     Role,
     Supports,
     TextPart,
+    ToolChoice,
     ToolDefinition,
     ToolRequest1,
     ToolRequestPart,
     ToolResponse1,
     ToolResponsePart,
 )
-from genkit.veneer.veneer import Channel, Genkit
+from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
 
 type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
@@ -42,6 +43,7 @@ type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 
 @pytest.fixture
 def setup_test():
+    """Setup a test fixture for the veneer tests."""
     ai = Genkit(model='echoModel')
 
     pm, _ = define_programmable_model(ai)
@@ -52,6 +54,7 @@ def setup_test():
 
 @pytest.mark.asyncio
 async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
+    """Test that the generate function uses the default model."""
     ai, *_ = setup_test
 
     want_txt = '[ECHO] user: "hi" {"temperature": 11}'
@@ -67,6 +70,7 @@ async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_explicit_model(setup_test: SetupFixture) -> None:
+    """Test that the generate function uses the explicit model."""
     ai, *_ = setup_test
 
     response = await ai.generate(
@@ -84,6 +88,7 @@ async def test_generate_with_explicit_model(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_str_prompt(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a string prompt works."""
     ai, *_ = setup_test
 
     response = await ai.generate(prompt='hi', config={'temperature': 11})
@@ -93,6 +98,7 @@ async def test_generate_with_str_prompt(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_part_prompt(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a part prompt works."""
     ai, *_ = setup_test
 
     want_txt = '[ECHO] user: "hi" {"temperature": 11}'
@@ -112,6 +118,7 @@ async def test_generate_with_part_prompt(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_part_list_prompt(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a list of parts prompt works."""
     ai, *_ = setup_test
 
     want_txt = '[ECHO] user: "hello","world" {"temperature": 11}'
@@ -133,6 +140,7 @@ async def test_generate_with_part_list_prompt(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_str_system(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a string system works."""
     ai, *_ = setup_test
 
     want_txt = (
@@ -154,6 +162,7 @@ async def test_generate_with_str_system(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a part system works."""
     ai, *_ = setup_test
 
     want_txt = (
@@ -179,6 +188,7 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a list of parts system works."""
     ai, *_ = setup_test
 
     want_txt = (
@@ -204,6 +214,7 @@ async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_with_messages(setup_test: SetupFixture) -> None:
+    """Test that the generate function with a list of messages works."""
     ai, *_ = setup_test
 
     response = await ai.generate(
@@ -235,9 +246,13 @@ async def test_generate_with_messages(setup_test: SetupFixture) -> None:
 async def test_generate_with_system_prompt_messages(
     setup_test: SetupFixture,
 ) -> None:
+    """Generate function with a system prompt and messages works."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] system: "talk like pirate" user: "hi" model: "bye" user: "hi again"'
+    want_txt = (
+        '[ECHO] system: "talk like pirate" user: "hi" '
+        'model: "bye" user: "hi again"'
+    )
 
     response = await ai.generate(
         system='talk like pirate',
@@ -276,16 +291,25 @@ async def test_generate_with_system_prompt_messages(
 
 @pytest.mark.asyncio
 async def test_generate_with_tools(setup_test: SetupFixture) -> None:
+    """Test that the generate function with tools works."""
     ai, echo, *_ = setup_test
+
+    class ToolInput(BaseModel):
+        value: int = Field(None, description='value field')
+
+    @ai.tool('the tool', name='testTool')
+    def test_tool(input: ToolInput):
+        return input.value
 
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        tool_choice='required',
+        tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
     )
 
-    want_txt = '[ECHO] user: "hi" tool_choice=required'
+    want_txt = f'[ECHO] user: "hi" tool_choice={ToolChoice.REQUIRED}'
+
     want_request = [
         ToolDefinition(
             name='testTool',
@@ -296,7 +320,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
                         'default': None,
                         'description': 'value field',
                         'title': 'Value',
-                        'type': 'string',
+                        'type': 'integer',
                     }
                 },
                 'title': 'ToolInput',
@@ -312,7 +336,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        tool_choice='required',
+        tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
     )
 
@@ -321,7 +345,8 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_with_tools(setup_test: SetupFixture) -> None:
+async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
+    """Test that the generate function with tools and output works."""
     ai, _, pm, *_ = setup_test
 
     class ToolInput(BaseModel):
@@ -361,7 +386,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     response = await ai.generate(
         model='programmableModel',
         prompt='hi',
-        tool_choice='required',
+        tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
     )
 
@@ -403,6 +428,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
+    """Test that the generate stream function with tools works."""
     ai, _, pm, *_ = setup_test
 
     class ToolInput(BaseModel):
@@ -455,7 +481,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     stream, aresponse = ai.generate_stream(
         model='programmableModel',
         prompt='hi',
-        tool_choice='required',
+        tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
     )
 
@@ -498,6 +524,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
 async def test_generate_stream_no_need_to_await_response(
     setup_test: SetupFixture,
 ) -> None:
+    """Test that the generate stream function no need to await response."""
     ai, _, pm, *_ = setup_test
 
     pm.responses.append(
@@ -528,6 +555,7 @@ async def test_generate_stream_no_need_to_await_response(
 
 @pytest.mark.asyncio
 async def test_generate_with_output(setup_test: SetupFixture) -> None:
+    """Test that the generate function with output works."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -594,7 +622,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
 async def test_generate_defaults_to_json_format(
     setup_test: SetupFixture,
 ) -> None:
-    """When output_schema is provided, format will default to json"""
+    """When output_schema is provided, format will default to json."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -654,7 +682,7 @@ async def test_generate_defaults_to_json_format(
 async def test_generate_json_format_unconstrained(
     setup_test: SetupFixture,
 ) -> None:
-    """When output_schema is provided, format will default to json"""
+    """When output_schema is provided, format will default to json."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -715,7 +743,7 @@ async def test_generate_json_format_unconstrained(
 async def test_generate_json_format_unconstrained_with_instructions(
     setup_test: SetupFixture,
 ) -> None:
-    """When output_schema is provided, format will default to json"""
+    """When output_schema is provided, format will default to json."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
@@ -784,7 +812,10 @@ async def test_generate_json_format_unconstrained_with_instructions(
 
 
 class TestFormat(FormatDef):
+    """Test format for testing the format."""
+
     def __init__(self):
+        """Initialize the format."""
         super().__init__(
             'banana',
             FormatterConfig(
@@ -795,10 +826,14 @@ class TestFormat(FormatDef):
         )
 
     def handle(self, schema) -> Formatter:
+        """Handle the format."""
+
         def message_parser(msg: Message):
+            """Parse the message."""
             return f'banana {"".join(p.root.text for p in msg.content)}'
 
-        def chunk_parser(chunk):
+        def chunk_parser(chunk: GenerateResponseChunk) -> str:
+            """Parse the chunk."""
             return f'banana chunk {"".join(p.root.text for p in chunk.content)}'
 
         instructions: str | None
@@ -815,6 +850,7 @@ class TestFormat(FormatDef):
 
 @pytest.mark.asyncio
 async def test_define_format(setup_test: SetupFixture) -> None:
+    """Test that the define format function works."""
     ai, _, pm, *_ = setup_test
 
     ai.define_format(TestFormat())
@@ -900,8 +936,9 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     )
 
 
-def test_define_model_default_metadata(setup_test: SetupFixture):
-    ai, _, pm, *_ = setup_test
+def test_define_model_default_metadata(setup_test: SetupFixture) -> None:
+    """Test that the define model function works."""
+    ai, _, _, *_ = setup_test
 
     def foo_model_fn():
         return GenerateResponse(
@@ -918,8 +955,9 @@ def test_define_model_default_metadata(setup_test: SetupFixture):
     }
 
 
-def test_define_model_with_schema(setup_test: SetupFixture):
-    ai, _, pm, *_ = setup_test
+def test_define_model_with_schema(setup_test: SetupFixture) -> None:
+    """Test that the define model function with schema works."""
+    ai, _, _, *_ = setup_test
 
     class Config(BaseModel):
         field_a: str = Field(description='a field')
@@ -960,8 +998,9 @@ def test_define_model_with_schema(setup_test: SetupFixture):
     }
 
 
-def test_define_model_with_info(setup_test: SetupFixture):
-    ai, _, pm, *_ = setup_test
+def test_define_model_with_info(setup_test: SetupFixture) -> None:
+    """Test that the define model function with info works."""
+    ai, _, _, *_ = setup_test
 
     def foo_model_fn():
         return GenerateResponse(

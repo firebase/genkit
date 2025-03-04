@@ -110,18 +110,6 @@ class CandidateError(BaseModel):
     message: str | None = None
 
 
-class DataPart(BaseModel):
-    """Model for datapart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Any | None = None
-    media: Any | None = None
-    tool_request: Any | None = Field(None, alias='toolRequest')
-    tool_response: Any | None = Field(None, alias='toolResponse')
-    data: Any | None = None
-    metadata: dict[str, Any] | None = None
-
-
 class FinishReason(StrEnum):
     """Enumeration of finishreason values."""
 
@@ -131,6 +119,19 @@ class FinishReason(StrEnum):
     INTERRUPTED = 'interrupted'
     OTHER = 'other'
     UNKNOWN = 'unknown'
+
+
+class CustomPart(BaseModel):
+    """Model for custompart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Any | None = None
+    media: Any | None = None
+    tool_request: Any | None = Field(None, alias='toolRequest')
+    tool_response: Any | None = Field(None, alias='toolResponse')
+    data: Any | None = None
+    metadata: dict[str, Any] | None = None
+    custom: dict[str, Any]
 
 
 class Content(BaseModel):
@@ -173,8 +174,8 @@ class ToolChoice(StrEnum):
     NONE = 'none'
 
 
-class Output(BaseModel):
-    """Model for output data."""
+class GenerateActionOutputConfig(BaseModel):
+    """Model for generateactionoutputconfig data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     format: str | None = None
@@ -237,6 +238,16 @@ class Supports(BaseModel):
     tool_choice: bool | None = Field(None, alias='toolChoice')
 
 
+class Stage(StrEnum):
+    """Enumeration of stage values."""
+
+    FEATURED = 'featured'
+    STABLE = 'stable'
+    UNSTABLE = 'unstable'
+    LEGACY = 'legacy'
+    DEPRECATED = 'deprecated'
+
+
 class ModelInfo(BaseModel):
     """Model for modelinfo data."""
 
@@ -244,14 +255,18 @@ class ModelInfo(BaseModel):
     versions: list[str] | None = None
     label: str | None = None
     supports: Supports | None = None
+    stage: Stage | None = None
 
 
-class OutputFormat(StrEnum):
-    """Enumeration of outputformat values."""
+class OutputConfig(BaseModel):
+    """Model for outputconfig data."""
 
-    JSON = 'json'
-    TEXT = 'text'
-    MEDIA = 'media'
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    format: str | None = None
+    schema_: dict[str, Any] | None = Field(None, alias='schema')
+    constrained: bool | None = None
+    instructions: str | None = None
+    content_type: str | None = Field(None, alias='contentType')
 
 
 class Role(StrEnum):
@@ -269,8 +284,8 @@ class ToolDefinition(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     description: str
-    input_schema: dict[str, Any] = Field(
-        ...,
+    input_schema: dict[str, Any] | None = Field(
+        None,
         alias='inputSchema',
         description='Valid JSON Schema representing the input of the tool.',
     )
@@ -300,6 +315,12 @@ class ToolResponse1(BaseModel):
     ref: str | None = None
     name: str
     output: Any | None = None
+
+
+class Data(RootModel[Any]):
+    """Data data type class."""
+
+    root: Any
 
 
 class Media(RootModel[Any]):
@@ -332,10 +353,10 @@ class ToolResponse(RootModel[Any]):
     root: Any
 
 
-class Data(RootModel[Any]):
-    """Data data type class."""
+class Custom(RootModel[dict[str, Any] | None]):
+    """Custom data type class."""
 
-    root: Any
+    root: dict[str, Any] | None = None
 
 
 class Content2(BaseModel):
@@ -376,14 +397,26 @@ class Config(RootModel[Any]):
     root: Any
 
 
+class Docs(RootModel[list[Items]]):
+    """Docs data type class."""
+
+    root: list[Items]
+
+
+class Output(RootModel[OutputConfig]):
+    """Output data type class."""
+
+    root: OutputConfig
+
+
 class Tools(RootModel[list[ToolDefinition]]):
     """Tools data type class."""
 
     root: list[ToolDefinition]
 
 
-class Custom(RootModel[Any]):
-    """Custom data type class."""
+class CustomModel(RootModel[Any]):
+    """CustomModel data type class."""
 
     root: Any
 
@@ -398,6 +431,12 @@ class LatencyMs(RootModel[float]):
     """LatencyMs data type class."""
 
     root: float
+
+
+class Raw(RootModel[Any]):
+    """Raw data type class."""
+
+    root: Any
 
 
 class Usage(RootModel[GenerationUsage]):
@@ -471,8 +510,8 @@ class TraceData(BaseModel):
     spans: dict[str, SpanData]
 
 
-class EmptyPart(BaseModel):
-    """Model for emptypart data."""
+class DataPart(BaseModel):
+    """Model for datapart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
@@ -481,6 +520,7 @@ class EmptyPart(BaseModel):
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Any | None = None
     metadata: Metadata | None = None
+    custom: dict[str, Any] | None = None
 
 
 class MediaPart(BaseModel):
@@ -493,16 +533,7 @@ class MediaPart(BaseModel):
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
-
-
-class OutputConfig(BaseModel):
-    """Model for outputconfig data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    format: OutputFormat | None = None
-    schema_: dict[str, Any] | None = Field(None, alias='schema')
-    constrained: bool | None = None
-    content_type: str | None = Field(None, alias='contentType')
+    custom: Custom | None = None
 
 
 class TextPart(BaseModel):
@@ -515,6 +546,7 @@ class TextPart(BaseModel):
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
+    custom: Custom | None = None
 
 
 class ToolRequestPart(BaseModel):
@@ -527,6 +559,7 @@ class ToolRequestPart(BaseModel):
     tool_response: ToolResponse | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
+    custom: Custom | None = None
 
 
 class ToolResponsePart(BaseModel):
@@ -539,22 +572,38 @@ class ToolResponsePart(BaseModel):
     tool_response: ToolResponse1 = Field(..., alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
+    custom: Custom | None = None
 
 
-class OutputModel(RootModel[OutputConfig]):
-    """OutputModel data type class."""
+class Resume(BaseModel):
+    """Model for resume data."""
 
-    root: OutputConfig
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    respond: list[ToolResponsePart] | None = None
+    restart: list[ToolRequestPart] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class Part(
     RootModel[
-        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart
+        TextPart
+        | MediaPart
+        | ToolRequestPart
+        | ToolResponsePart
+        | DataPart
+        | CustomPart
     ]
 ):
     """Part data type class."""
 
-    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart
+    root: (
+        TextPart
+        | MediaPart
+        | ToolRequestPart
+        | ToolResponsePart
+        | DataPart
+        | CustomPart
+    )
 
 
 class ContentModel(RootModel[list[Part]]):
@@ -598,7 +647,7 @@ class ModelResponseChunk(BaseModel):
     role: Role | None = None
     index: Index | None = None
     content: ContentModel
-    custom: Custom | None = None
+    custom: CustomModel | None = None
     aggregated: Aggregated | None = None
 
 
@@ -630,7 +679,8 @@ class GenerateActionOptions(BaseModel):
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     config: Any | None = None
-    output: Output | None = None
+    output: GenerateActionOutputConfig | None = None
+    resume: Resume | None = None
     return_tool_requests: bool | None = Field(None, alias='returnToolRequests')
     max_turns: float | None = Field(None, alias='maxTurns')
 
@@ -644,7 +694,7 @@ class GenerateRequest(BaseModel):
     tools: list[ToolDefinition] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
-    context: list[Items] | None = None
+    docs: list[Items] | None = None
     candidates: float | None = None
 
 
@@ -658,6 +708,7 @@ class GenerateResponse(BaseModel):
     latency_ms: float | None = Field(None, alias='latencyMs')
     usage: GenerationUsage | None = None
     custom: Any | None = None
+    raw: Any | None = None
     request: GenerateRequest | None = None
     candidates: list[Candidate] | None = None
 
@@ -670,8 +721,8 @@ class ModelRequest(BaseModel):
     config: Config | None = None
     tools: Tools | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
-    output: OutputModel | None = None
-    context: list[Items] | None = None
+    output: Output | None = None
+    docs: Docs | None = None
 
 
 class Request(RootModel[GenerateRequest]):
@@ -689,5 +740,6 @@ class ModelResponse(BaseModel):
     finish_message: FinishMessage | None = Field(None, alias='finishMessage')
     latency_ms: LatencyMs | None = Field(None, alias='latencyMs')
     usage: Usage | None = None
-    custom: Custom | None = None
+    custom: CustomModel | None = None
+    raw: Raw | None = None
     request: Request | None = None

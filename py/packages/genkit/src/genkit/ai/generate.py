@@ -412,7 +412,7 @@ async def action_to_generate_request(
     return GenerateRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
-        context=options.docs,
+        docs=options.docs,
         tools=tool_defs,
         tool_choice=options.tool_choice,
         output=OutputConfig(
