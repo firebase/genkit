@@ -316,12 +316,10 @@ func generate(
 }
 
 func mapToStruct(m map[string]interface{}, v interface{}) error {
-	// Convert map to JSON
 	jsonData, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	// Unmarshal JSON to struct
 	return json.Unmarshal(jsonData, v)
 }
 
