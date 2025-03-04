@@ -316,8 +316,7 @@ func generate(
 }
 
 func mapToStruct(m map[string]interface{}, v interface{}) error {
-	jsonData, err := json.Marshal(m)
-	if err != nil {
+	if jsonData, err := json.Marshal(m); err != nil {		
 		return err
 	}
 	return json.Unmarshal(jsonData, v)
