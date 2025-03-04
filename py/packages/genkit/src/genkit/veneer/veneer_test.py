@@ -34,7 +34,7 @@ from genkit.core.typing import (
     ToolResponse1,
     ToolResponsePart,
 )
-from genkit.veneer.veneer import Genkit
+from genkit.veneer.veneer import Channel, Genkit
 from pydantic import BaseModel, Field
 
 type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
@@ -54,9 +54,15 @@ def setup_test():
 async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
 
+    want_txt = '[ECHO] user: "hi" {"temperature": 11}'
+
     response = await ai.generate(prompt='hi', config={'temperature': 11})
 
-    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(prompt='hi', config={'temperature': 11})
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -68,6 +74,12 @@ async def test_generate_with_explicit_model(setup_test: SetupFixture) -> None:
     )
 
     assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
+
+    _, response = ai.generate_stream(
+        model='echoModel', prompt='hi', config={'temperature': 11}
+    )
+
+    assert (await response).text == '[ECHO] user: "hi" {"temperature": 11}'
 
 
 @pytest.mark.asyncio
@@ -83,42 +95,70 @@ async def test_generate_with_str_prompt(setup_test: SetupFixture) -> None:
 async def test_generate_with_part_prompt(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
 
+    want_txt = '[ECHO] user: "hi" {"temperature": 11}'
+
     response = await ai.generate(
         prompt=TextPart(text='hi'), config={'temperature': 11}
     )
 
-    assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(
+        prompt=TextPart(text='hi'), config={'temperature': 11}
+    )
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
 async def test_generate_with_part_list_prompt(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
 
+    want_txt = '[ECHO] user: "hello","world" {"temperature": 11}'
+
     response = await ai.generate(
         prompt=[TextPart(text='hello'), TextPart(text='world')],
         config={'temperature': 11},
     )
 
-    assert response.text == '[ECHO] user: "hello","world" {"temperature": 11}'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(
+        prompt=[TextPart(text='hello'), TextPart(text='world')],
+        config={'temperature': 11},
+    )
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
 async def test_generate_with_str_system(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
 
+    want_txt = (
+        '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
+    )
+
     response = await ai.generate(
         system='talk like pirate', prompt='hi', config={'temperature': 11}
     )
 
-    assert (
-        response.text
-        == '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(
+        system='talk like pirate', prompt='hi', config={'temperature': 11}
     )
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
 async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
+
+    want_txt = (
+        '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
+    )
 
     response = await ai.generate(
         system=TextPart(text='talk like pirate'),
@@ -126,15 +166,24 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
         config={'temperature': 11},
     )
 
-    assert (
-        response.text
-        == '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(
+        system=TextPart(text='talk like pirate'),
+        prompt='hi',
+        config={'temperature': 11},
     )
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
 async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
+
+    want_txt = (
+        '[ECHO] system: "talk","like pirate" user: "hi" {"temperature": 11}'
+    )
 
     response = await ai.generate(
         system=[TextPart(text='talk'), TextPart(text='like pirate')],
@@ -142,10 +191,15 @@ async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
         config={'temperature': 11},
     )
 
-    assert (
-        response.text
-        == '[ECHO] system: "talk","like pirate" user: "hi" {"temperature": 11}'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(
+        system=[TextPart(text='talk'), TextPart(text='like pirate')],
+        prompt='hi',
+        config={'temperature': 11},
     )
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -164,12 +218,26 @@ async def test_generate_with_messages(setup_test: SetupFixture) -> None:
 
     assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
+    _, response = ai.generate_stream(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='hi')],
+            ),
+        ],
+        config={'temperature': 11},
+    )
+
+    assert (await response).text == '[ECHO] user: "hi" {"temperature": 11}'
+
 
 @pytest.mark.asyncio
 async def test_generate_with_system_prompt_messages(
     setup_test: SetupFixture,
 ) -> None:
     ai, *_ = setup_test
+
+    want_txt = '[ECHO] system: "talk like pirate" user: "hi" model: "bye" user: "hi again"'
 
     response = await ai.generate(
         system='talk like pirate',
@@ -186,10 +254,24 @@ async def test_generate_with_system_prompt_messages(
         ],
     )
 
-    assert (
-        response.text
-        == '[ECHO] system: "talk like pirate" user: "hi" model: "bye" user: "hi again"'
+    assert response.text == want_txt
+
+    _, response = ai.generate_stream(
+        system='talk like pirate',
+        prompt='hi again',
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='hi')],
+            ),
+            Message(
+                role=Role.MODEL,
+                content=[TextPart(text='bye')],
+            ),
+        ],
     )
+
+    assert (await response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -203,8 +285,8 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
         tools=['testTool'],
     )
 
-    assert response.text == '[ECHO] user: "hi" tool_choice=required'
-    assert echo.last_request.tools == [
+    want_txt = '[ECHO] user: "hi" tool_choice=required'
+    want_request = [
         ToolDefinition(
             name='testTool',
             description='the tool',
@@ -223,6 +305,19 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
             outputSchema={},
         )
     ]
+
+    assert response.text == want_txt
+    assert echo.last_request.tools == want_request
+
+    _, response = ai.generate_stream(
+        model='echoModel',
+        prompt='hi',
+        tool_choice='required',
+        tools=['testTool'],
+    )
+
+    assert (await response).text == want_txt
+    assert echo.last_request.tools == want_request
 
 
 @pytest.mark.asyncio
@@ -307,6 +402,131 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
+    ai, _, pm, *_ = setup_test
+
+    class ToolInput(BaseModel):
+        value: int = Field(None, description='value field')
+
+    @ai.tool('the tool', name='testTool')
+    def test_tool(input: ToolInput):
+        return 'abc'
+
+    tool_request_msg = MessageWrapper(
+        Message(
+            role=Role.MODEL,
+            content=[
+                ToolRequestPart(
+                    toolRequest=ToolRequest1(
+                        input={'value': 5}, name='testTool', ref='123'
+                    )
+                )
+            ],
+        )
+    )
+    pm.responses.append(
+        GenerateResponse(
+            finishReason=FinishReason.STOP,
+            message=tool_request_msg,
+        )
+    )
+    pm.responses.append(
+        GenerateResponse(
+            finishReason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL, content=[TextPart(text='tool called')]
+            ),
+        )
+    )
+    pm.chunks = [
+        [
+            GenerateResponseChunk(
+                role=tool_request_msg.role,
+                content=tool_request_msg.content,
+            )
+        ],
+        [
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='tool called')]
+            )
+        ],
+    ]
+
+    stream, aresponse = ai.generate_stream(
+        model='programmableModel',
+        prompt='hi',
+        tool_choice='required',
+        tools=['testTool'],
+    )
+
+    chunks = []
+    async for chunk in stream:
+        summary = ''
+        if chunk.role:
+            summary += f'{chunk.role} '
+        for p in chunk.content:
+            summary += str(type(p.root).__name__)
+            if isinstance(p.root, TextPart):
+                summary += f' {p.root.text}'
+        chunks.append(summary)
+
+    response = await aresponse
+
+    assert response.text == 'tool called'
+    assert response.request.messages[0] == Message(
+        role=Role.USER, content=[TextPart(text='hi')]
+    )
+    assert response.request.messages[1] == tool_request_msg
+    assert response.request.messages[2] == Message(
+        role=Role.TOOL,
+        content=[
+            ToolResponsePart(
+                tool_response=ToolResponse1(
+                    ref='123', name='testTool', output='abc'
+                )
+            )
+        ],
+    )
+    assert chunks == [
+        'model ToolRequestPart',
+        'tool ToolResponsePart',
+        'model TextPart tool called',
+    ]
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_no_need_to_await_response(
+    setup_test: SetupFixture,
+) -> None:
+    ai, _, pm, *_ = setup_test
+
+    pm.responses.append(
+        GenerateResponse(
+            finishReason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL, content=[TextPart(text='something else')]
+            ),
+        )
+    )
+    pm.chunks = [
+        [
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='h')]
+            ),
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='i')]
+            ),
+        ],
+    ]
+
+    stream, _ = ai.generate_stream(model='programmableModel', prompt='do it')
+    chunks = ''
+    async for chunk in stream:
+        chunks += chunk.text
+    assert chunks == 'hi'
+
+
+@pytest.mark.asyncio
 async def test_generate_with_output(setup_test: SetupFixture) -> None:
     ai, *_ = setup_test
 
@@ -314,17 +534,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         foo: int = Field(None, description='foo field')
         bar: str = Field(None, description='bar field')
 
-    response = await ai.generate(
-        model='echoModel',
-        prompt='hi',
-        output_constrained=True,
-        output_format='json',
-        output_content_type='application/json',
-        output_schema=TestSchema,
-        output_instructions=False,
-    )
-
-    assert response.request == GenerateRequest(
+    want = GenerateRequest(
         messages=[
             Message(role=Role.USER, content=[TextPart(text='hi')]),
         ],
@@ -355,6 +565,30 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         ),
     )
 
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        output_constrained=True,
+        output_format='json',
+        output_content_type='application/json',
+        output_schema=TestSchema,
+        output_instructions=False,
+    )
+
+    assert response.request == want
+
+    _, response = ai.generate_stream(
+        model='echoModel',
+        prompt='hi',
+        output_constrained=True,
+        output_format='json',
+        output_content_type='application/json',
+        output_schema=TestSchema,
+        output_instructions=False,
+    )
+
+    assert (await response).request == want
+
 
 @pytest.mark.asyncio
 async def test_generate_defaults_to_json_format(
@@ -367,13 +601,7 @@ async def test_generate_defaults_to_json_format(
         foo: int = Field(None, description='foo field')
         bar: str = Field(None, description='bar field')
 
-    response = await ai.generate(
-        model='echoModel',
-        prompt='hi',
-        output_schema=TestSchema,
-    )
-
-    assert response.request == GenerateRequest(
+    want = GenerateRequest(
         messages=[
             Message(role=Role.USER, content=[TextPart(text='hi')]),
         ],
@@ -405,6 +633,22 @@ async def test_generate_defaults_to_json_format(
         ),
     )
 
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        output_schema=TestSchema,
+    )
+
+    assert response.request == want
+
+    _, response = ai.generate_stream(
+        model='echoModel',
+        prompt='hi',
+        output_schema=TestSchema,
+    )
+
+    assert (await response).request == want
+
 
 @pytest.mark.asyncio
 async def test_generate_json_format_unconstrained(
@@ -417,14 +661,7 @@ async def test_generate_json_format_unconstrained(
         foo: int = Field(None, description='foo field')
         bar: str = Field(None, description='bar field')
 
-    response = await ai.generate(
-        model='echoModel',
-        prompt='hi',
-        output_schema=TestSchema,
-        output_constrained=False,
-    )
-
-    assert response.request == GenerateRequest(
+    want = GenerateRequest(
         messages=[
             Message(role=Role.USER, content=[TextPart(text='hi')]),
         ],
@@ -455,6 +692,24 @@ async def test_generate_json_format_unconstrained(
         ),
     )
 
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        output_schema=TestSchema,
+        output_constrained=False,
+    )
+
+    assert response.request == want
+
+    _, response = ai.generate_stream(
+        model='echoModel',
+        prompt='hi',
+        output_schema=TestSchema,
+        output_constrained=False,
+    )
+
+    assert (await response).request == want
+
 
 @pytest.mark.asyncio
 async def test_generate_json_format_unconstrained_with_instructions(
@@ -467,15 +722,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         foo: int = Field(None, description='foo field')
         bar: str = Field(None, description='bar field')
 
-    response = await ai.generate(
-        model='echoModel',
-        prompt='hi',
-        output_schema=TestSchema,
-        output_instructions=True,
-        output_constrained=False,
-    )
-
-    assert response.request == GenerateRequest(
+    want = GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -514,6 +761,26 @@ async def test_generate_json_format_unconstrained_with_instructions(
             content_type='application/json',
         ),
     )
+
+    response = await ai.generate(
+        model='echoModel',
+        prompt='hi',
+        output_schema=TestSchema,
+        output_instructions=True,
+        output_constrained=False,
+    )
+
+    assert response.request == want
+
+    _, response = ai.generate_stream(
+        model='echoModel',
+        prompt='hi',
+        output_schema=TestSchema,
+        output_instructions=True,
+        output_constrained=False,
+    )
+
+    assert (await response).request == want
 
 
 class TestFormat(FormatDef):
@@ -576,16 +843,17 @@ async def test_define_format(setup_test: SetupFixture) -> None:
 
     chunks = []
 
-    def collect_chunks(chunk):
-        chunks.append(chunk.output)
-
-    response = await ai.generate(
+    stream, aresponse = ai.generate_stream(
         model='programmableModel',
         prompt='hi',
         output_format='banana',
         output_schema=TestSchema,
-        on_chunk=collect_chunks,
     )
+
+    async for chunk in stream:
+        chunks.append(chunk.output)
+
+    response = await aresponse
 
     assert response.output == 'banana model says'
     assert chunks == ['banana chunk 1', 'banana chunk 2', 'banana chunk 3']
