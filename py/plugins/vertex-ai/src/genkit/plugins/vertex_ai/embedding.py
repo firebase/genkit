@@ -83,7 +83,7 @@ class Embedder:
         """
         return TextEmbeddingModel.from_pretrained(self._version)
 
-    def handle_request(self, request: EmbedRequest) -> EmbedResponse:
+    def generate(self, request: EmbedRequest) -> EmbedResponse:
         """Handle an embedding request.
 
         Args:

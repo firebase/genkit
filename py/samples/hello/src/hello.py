@@ -203,6 +203,8 @@ async def main() -> None:
     print(
         await embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
     )
+    await streaming_async_flow()
+    streaming_sync_flow()
 
 
 def my_model(request: GenerateRequest, ctx: ActionRunContext):

@@ -8,9 +8,11 @@ Gemini models through the Vertex AI platform. It includes version
 definitions and a client class for making requests to Gemini models.
 """
 
+import logging
 from enum import StrEnum
 from typing import Any
 
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
@@ -21,6 +23,8 @@ from genkit.core.typing import (
     TextPart,
 )
 from vertexai.generative_models import Content, GenerativeModel, Part
+
+LOG = logging.getLogger(__name__)
 
 
 class GeminiVersion(StrEnum):
@@ -92,6 +96,26 @@ class Gemini:
         """
         self._version = version
 
+    def build_messages(self, request: GenerateRequest) -> list[Content]:
+        """Builds a list of VertexAI content from a request.
+
+        Args:
+            - request: a packed request for the model
+
+        Returns:
+            - a list of VertexAI GenAI Content for the request
+        """
+        messages: list[Content] = []
+        for message in request.messages:
+            parts: list[Part] = []
+            for text_part in message.content:
+                if isinstance(text_part.root, TextPart):
+                    parts.append(Part.from_text(text_part.root.text))
+                else:
+                    LOG.error('Non-text messages are not supported')
+            messages.append(Content(role=message.role.value, parts=parts))
+        return messages
+
     @property
     def gemini_model(self) -> GenerativeModel:
         """Get the Vertex AI GenerativeModel instance.
@@ -101,25 +125,28 @@ class Gemini:
         """
         return GenerativeModel(self._version)
 
-    def handle_request(self, request: GenerateRequest) -> GenerateResponse:
+    def generate(
+        self, request: GenerateRequest, ctx: ActionRunContext
+    ) -> GenerateResponse:
         """Handle a generation request using the Gemini model.
 
         Args:
             request: The generation request containing messages and parameters.
+            ctx: additional context
 
         Returns:
             The model's response to the generation request.
         """
-        messages: list[Content] = []
-        for m in request.messages:
-            parts: list[Part] = []
-            for p in m.content:
-                if p.root.text is not None:
-                    parts.append(Part.from_text(p.root.text))
-                else:
-                    raise Exception('unsupported part type')
-            messages.append(Content(role=m.role.value, parts=parts))
-        response = self.gemini_model.generate_content(contents=messages)
+
+        messages = self.build_messages(request)
+        response = self.gemini_model.generate_content(
+            contents=messages, stream=ctx.is_streaming
+        )
+
+        if ctx.is_streaming:
+            for chunk in response:
+                ctx.send_chunk(chunk=chunk)
+
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
