@@ -74,12 +74,7 @@ func (m *Message) Cached(ttlSeconds int) *Message {
 			"ttlSeconds": ttlSeconds,
 		},
 	}
-	// copy the existing metadata and add cache
-	if m.Metadata != nil {
-		for k, v := range m.Metadata {
-			metadata[k] = v
-		}
-	}
+
 	return &Message{
 		Content:  m.Content,
 		Role:     m.Role,

@@ -1,7 +1,7 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package vertexai
+package googleai
 
 import (
 	"context"
@@ -23,7 +23,7 @@ func TestGetContentForCache_NoCacheMetadata(t *testing.T) {
 			},
 		},
 	}
-	gotContent, err := getContentForCache(req, "gemini-1.5-flash-001", nil)
+	gotContent, err := getContentForCache(req, "gemini-1.5-flash-001")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestGetContentForCache_NoContentToCache(t *testing.T) {
 			},
 		},
 	}
-	_, err := getContentForCache(req, "gemini-1.5-flash-001", nil)
+	_, err := getContentForCache(req, "gemini-1.5-flash-001")
 	if err != nil {
 		t.Errorf("expected error due to no content to cache, but got nil error")
 	}
@@ -68,58 +68,18 @@ func TestGetContentForCache_Valid(t *testing.T) {
 			},
 		},
 	}
-	content, err := getContentForCache(req, "gemini-1.5-flash-001", nil)
+	content, err := getContentForCache(req, "gemini-1.5-flash-001")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if content == nil {
 		t.Fatal("expected a non-nil CachedContent")
 	}
-	/* TODO: enable these checks when upgrading VertexAI Genai SDK
-	if content.SystemInstruction == nil {
-		t.Error("expected SystemInstruction to be set")
-	} else {
-		got := ""
-		for _, p := range content.SystemInstruction.Parts {
-			got += string(p.(genai.Text))
-		}
-		if !strings.Contains(got, "System instructions") {
-			t.Errorf("expected 'System instructions' in system content, got %q", got)
-		}
-	}*/
 	if len(content.Contents) == 0 || content.Contents[0].Role != "user" {
 		t.Errorf("expected user content, got %v", content.Contents)
 	}
 	if content.Model != "gemini-1.5-flash-001" {
 		t.Errorf("expected gemini-1.5-flash-001, got %s", content.Model)
-	}
-}
-
-func TestCalculateTTL(t *testing.T) {
-	// if <= 0, we return DEFAULT_TTL
-	ttl := calculateTTL(0)
-	if ttl != DEFAULT_TTL {
-		t.Errorf("expected DEFAULT_TTL %d, got %d", DEFAULT_TTL, ttl)
-	}
-	ttl = calculateTTL(-10)
-	if ttl != DEFAULT_TTL {
-		t.Errorf("expected DEFAULT_TTL %d for negative input, got %d", DEFAULT_TTL, ttl)
-	}
-
-	// positive
-	ttl = calculateTTL(5)
-	if ttl != 5*time.Second {
-		t.Errorf("expected 5s, got %s", ttl)
-	}
-}
-
-func TestContains(t *testing.T) {
-	slice := []string{"foo", "bar", "baz"}
-	if !contains(slice, "foo") {
-		t.Errorf("expected slice to contain 'foo'")
-	}
-	if contains(slice, "notfound") {
-		t.Errorf("expected slice NOT to contain 'notfound'")
 	}
 }
 
@@ -172,15 +132,15 @@ func TestExtractCacheConfig_NoMetadata(t *testing.T) {
 			{Role: ai.RoleUser, Content: []*ai.Part{{Text: "Hello"}}},
 		},
 	}
-	endIndex, config, err := extractCacheConfig(req)
+	endIndex, ttl, err := findCacheMarker(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if endIndex != -1 {
-		t.Errorf("expected endOfCachedContents = -1, got %d", endIndex)
+		t.Errorf("expected end of cache index = -1, got %d", endIndex)
 	}
-	if config != nil {
-		t.Errorf("expected nil cacheConfig, got %#v", config)
+	if ttl != 0 {
+		t.Errorf("expected cache ttlSeconds = 0, got %d", ttl)
 	}
 }
 
@@ -200,18 +160,15 @@ func TestExtractCacheConfig_MapTTL(t *testing.T) {
 			},
 		},
 	}
-	endIndex, config, err := extractCacheConfig(req)
+	endIndex, ttl, err := findCacheMarker(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if endIndex != 0 {
 		t.Errorf("expected endIndex=0, got %d", endIndex)
 	}
-	if config == nil {
-		t.Fatal("expected non-nil config")
-	}
-	if config.TTL != 123 {
-		t.Errorf("expected TTLSeconds=123, got %v", config.TTL)
+	if ttl != time.Duration(123)*time.Second {
+		t.Errorf("expected TTLSeconds=123, got %v", ttl)
 	}
 }
 
@@ -229,26 +186,15 @@ func TestExtractCacheConfig_InvalidCacheType(t *testing.T) {
 			},
 		},
 	}
-	endIndex, config, err := extractCacheConfig(req)
+	endIndex, ttl, err := findCacheMarker(req)
 	if err == nil {
 		t.Fatal("expected error for invalid cache type")
 	}
 	if endIndex != -1 {
 		t.Errorf("expected endIndex=-1, got %d", endIndex)
 	}
-	if config != nil {
-		t.Errorf("expected config to be nil, got %#v", config)
-	}
-}
-
-func TestHandleCacheIfNeeded_NoCacheConfig(t *testing.T) {
-	req := &ai.ModelRequest{}
-	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash-001", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if content != nil {
-		t.Errorf("expected nil content if no cache config, got: %#v", content)
+	if ttl != 0 {
+		t.Errorf("expected cache ttlSeconds = 0, got %d", ttl)
 	}
 }
 
@@ -270,10 +216,41 @@ func TestHandleCacheIfNeeded_Tools(t *testing.T) {
 
 		Tools: []*ai.ToolDefinition{{Name: "someTool"}},
 	}
-	cc := &CacheConfigDetails{}
-	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash-001", cc)
+	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash-001")
 	if err == nil {
 		t.Fatalf("tool use is not allowed when caching contents")
+	}
+	if content != nil {
+		t.Errorf("expected nil content if request invalid, got: %#v", content)
+	}
+}
+
+func TestHandleCacheIfNeeded_SystemPrompt_and_Tools(t *testing.T) {
+	req := &ai.ModelRequest{
+		Messages: []*ai.Message{
+			{
+				Role: ai.RoleUser,
+				Content: []*ai.Part{
+					{Text: "Hello"},
+				},
+				Metadata: map[string]interface{}{
+					"cache": map[string]interface{}{
+						"ttlSeconds": int(123),
+					},
+				},
+			},
+			{
+				Role: ai.RoleSystem,
+				Content: []*ai.Part{
+					{Text: "talk like a pirate"},
+				},
+			},
+		},
+		Tools: []*ai.ToolDefinition{{Name: "someTool"}},
+	}
+	content, err := handleCacheIfNeeded(context.Background(), state.gclient, req, "gemini-1.5-flash-001")
+	if err == nil {
+		t.Fatalf("system prompt use is not allowed when caching contents")
 	}
 	if content != nil {
 		t.Errorf("expected nil content if request invalid, got: %#v", content)

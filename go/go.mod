@@ -16,7 +16,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/google/generative-ai-go v0.16.1-0.20240711222609-09946422abc6
+	github.com/google/generative-ai-go v0.19.0
 	github.com/google/go-cmp v0.6.0
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jba/slog v0.2.0

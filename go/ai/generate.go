@@ -183,12 +183,9 @@ func WithModel(m Model) GenerateOption {
 }
 
 // WithTextPrompt adds a simple text user prompt to ModelRequest.
-func WithTextPrompt(prompt string, ttl ...int) GenerateOption {
+func WithTextPrompt(prompt string) GenerateOption {
 	return func(req *generateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
-		if len(ttl) > 0 {
-			*req.TTL = time.Duration(ttl[0]) * time.Second
-		}
 		return nil
 	}
 }
@@ -250,7 +247,6 @@ func WithContext(docs ...*Document) GenerateOption {
 	}
 }
 
-// WithTools adds provided tools to ModelRequest.
 // WithTools adds provided tools to ModelRequest.
 func WithTools(tools ...Tool) GenerateOption {
 	return func(req *generateParams) error {

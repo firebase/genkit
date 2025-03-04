@@ -244,19 +244,7 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	req, ok := input.Config.(*ai.GenerationCommonConfig)
-	if !ok {
-		return nil, fmt.Errorf("vertexai.Generate(%s): expected CacheConfigDetails", model)
-	}
-
-	var cacheConfig *CacheConfigDetails
-	if req.TTL != 0 {
-		cacheConfig = &CacheConfigDetails{
-			TTL: req.TTL,
-		}
-	}
-
-	cc, err := handleCacheIfNeeded(ctx, client, input, model, cacheConfig)
+	cc, err := handleCacheIfNeeded(ctx, client, input, model)
 	if err != nil {
 		return nil, err
 	}
