@@ -325,7 +325,7 @@ func mapToStruct(m map[string]interface{}, v interface{}) error {
 
 // applyGenerationConfig applies the common generation configuration to the model
 // todo: support Gemini-specific configuration
-func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConfig) error {
+func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConfig) {
 	if c.MaxOutputTokens != 0 {
 		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
 	}
@@ -341,7 +341,6 @@ func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConf
 	if c.TopP != 0 {
 		gm.SetTopP(float32(c.TopP))
 	}
-	return nil
 }
 
 func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
@@ -355,9 +354,7 @@ func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*gena
 	}
 	gm := client.GenerativeModel(specifiedModel)
 	gm.SetCandidateCount(1)
-	if err := applyGenerationConfig(gm, &c); err != nil {
-		return nil, err
-	}
+	applyGenerationConfig(gm, &c)
 	for _, m := range input.Messages {
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
