@@ -11,6 +11,8 @@ from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateActionOptions,
     GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
     Message,
     Role,
     TextPart,
@@ -201,6 +203,41 @@ async def main() -> None:
     print(
         await embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
     )
+
+
+def my_model(request: GenerateRequest, ctx: ActionRunContext):
+    if ctx.is_streaming:
+        ctx.send_chunk(
+            GenerateResponseChunk(role='model', content=[TextPart(text='1')])
+        )
+        ctx.send_chunk(
+            GenerateResponseChunk(role='model', content=[TextPart(text='2')])
+        )
+        ctx.send_chunk(
+            GenerateResponseChunk(role='model', content=[TextPart(text='3')])
+        )
+
+    return GenerateResponse(
+        message=Message(
+            role='model',
+            content=[TextPart(text='hello')],
+        )
+    )
+
+
+ai.define_model(name='my_model', fn=my_model)
+
+
+@ai.flow()
+async def streaming_model_tester(_: str, ctx: ActionRunContext):
+    stream, res = ai.generate_stream(
+        prompt='tell me a long joke', model='my_model'
+    )
+
+    async for chunk in stream:
+        ctx.send_chunk(f'chunk: {chunk.text}')
+
+    return (await res).text
 
 
 if __name__ == '__main__':

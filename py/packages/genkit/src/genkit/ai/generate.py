@@ -168,7 +168,12 @@ async def generate_action(
     # if the loop will continue, stream out the tool response message...
     if on_chunk:
         on_chunk(
-            make_chunk('tool', GenerateResponseChunk(content=tool_msg.content))
+            make_chunk(
+                'tool',
+                GenerateResponseChunk(
+                    role=tool_msg.role, content=tool_msg.content
+                ),
+            )
         )
 
     next_request = copy.copy(raw_request)
@@ -185,6 +190,7 @@ async def generate_action(
         # middleware: middleware,
         current_turn=current_turn + 1,
         message_index=message_index + 1,
+        on_chunk=on_chunk,
     )
 
 

@@ -6,15 +6,20 @@
 import logging
 import os
 import threading
+from asyncio import Future
 from http.server import HTTPServer
-from typing import Any
+from typing import Any, AsyncIterator
 
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
 from genkit.ai.generate import generate_action
-from genkit.ai.model import GenerateResponseWrapper
+from genkit.ai.model import (
+    GenerateResponseChunkWrapper,
+    GenerateResponseWrapper,
+)
 from genkit.core.action import ActionKind
+from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
@@ -224,6 +229,90 @@ class Genkit(GenkitRegistry):
             ),
             on_chunk=on_chunk,
         )
+
+    def generate_stream(
+        self,
+        model: str | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        system: str | Part | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice = None,
+        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        max_turns: int | None = None,
+        context: dict[str, Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, Any] | None = None,
+        output_constrained: bool | None = None,
+    ) -> tuple[
+        AsyncIterator[GenerateResponseChunkWrapper],
+        Future[GenerateResponseWrapper],
+    ]:
+        """Generates text or structured data using a language model and streams the response.
+
+        This function provides a flexible interface for interacting with various language models,
+        supporting both simple text generation and more complex interactions involving tools and
+        structured conversations.
+
+        Args:
+            model: Optional. The name of the model to use for generation. If not provided, a default
+                   model may be used.
+            prompt: Optional. A single prompt string, a `Part` object, or a list of `Part` objects
+                    to provide as input to the model. This is used for simple text generation.
+            system: Optional. A system message string, a `Part` object, or a list of `Part` objects
+                    to provide context or instructions to the model, especially for chat-based models.
+            messages: Optional. A list of `Message` objects representing a conversation history.
+                      This is used for chat-based models to maintain context.
+            tools: Optional. A list of tool names (strings) that the model can use.
+            return_tool_requests: Optional. If `True`, the model will return tool requests instead of
+                                  executing them directly.
+            tool_choice: Optional. A `ToolChoice` object specifying how the model should choose
+                         which tool to use.
+            config: Optional. A `GenerationCommonConfig` object or a dictionary containing configuration
+                    parameters for the generation process. This allows fine-tuning the model's
+                    behavior.
+            max_turns: Optional. The maximum number of turns in a conversation.
+            on_chunk: Optional. A callback function of type `ModelStreamingCallback` that is called
+                      for each chunk of generated text during streaming.
+            context: Optional. A dictionary containing additional context information that can be
+                     used during generation.
+
+        Returns:
+            A `GenerateResponseWrapper` object containing the model's response, which may include
+            generated text, tool requests, or other relevant information.
+
+        Note:
+            - The `tools`, `return_tool_requests`, and `tool_choice` arguments are used for models
+              that support tool usage.
+            - The `on_chunk` argument enables streaming responses, allowing you to process the
+              generated content as it becomes available.
+        """
+        stream = Channel()
+
+        resp = self.generate(
+            model=model,
+            prompt=prompt,
+            system=system,
+            messages=messages,
+            tools=tools,
+            return_tool_requests=return_tool_requests,
+            tool_choice=tool_choice,
+            config=config,
+            max_turns=max_turns,
+            context=context,
+            output_format=output_format,
+            output_content_type=output_content_type,
+            output_instructions=output_instructions,
+            output_schema=output_schema,
+            output_constrained=output_constrained,
+            on_chunk=lambda c: stream.send(c),
+        )
+        stream.set_close_future(resp)
+
+        return (stream, stream.closed)
 
     async def embed(
         self, model: str | None = None, documents: list[str] | None = None
