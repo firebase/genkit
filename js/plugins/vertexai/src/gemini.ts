@@ -513,10 +513,36 @@ export function toGeminiMessage(
   message: MessageData,
   modelInfo?: ModelInfo
 ): Content {
-  return {
-    role: toGeminiRole(message.role, modelInfo),
-    parts: message.content.map(toGeminiPart),
-  };
+    let sortedParts = message.content;
+    if (message.role === 'tool') {
+      sortedParts = [...message.content].sort((a, b) => {
+        const aRef = a.ref;
+        const bRef = b.ref;
+        if(aRef === undefined && bRef === undefined){
+          return 0
+        }
+        if(aRef === undefined){
+          return 1
+        }
+        if(bRef === undefined){
+          return -1
+        }
+        return parseInt(aRef, 10) - parseInt(bRef, 10)
+      });
+      sortedParts = sortedParts.sort((a, b)=>{
+          if(a.ref === undefined){
+            return 1
+          }
+           if(b.ref === undefined){
+            return -1
+           }
+        return parseInt(a.ref, 10) - parseInt(b.ref, 10)
+      });
+    }
+    return {
+      role: toGeminiRole(message.role, modelInfo),
+      parts: sortedParts.map(toGeminiPart),
+    };
 }
 
 function fromGeminiFinishReason(
@@ -618,28 +644,39 @@ function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
 }
 
 // Converts vertex part to genkit part
-function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  // functionCall is first to work around https://github.com/googleapis/nodejs-vertexai/issues/494
+function fromGeminiPart(part: GeminiPart, jsonMode: boolean, ref?:string): Part {
   if (part.functionCall) return fromGeminiFunctionCallPart(part);
   if (part.text !== undefined) return { text: part.text };
   if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
+    if (part.functionCall) {
+        return { ...fromGeminiFunctionCallPart(part), ref };
+    }
+    if (part.functionResponse) {
+      return { ...fromGeminiFunctionResponsePart(part), ref };
+    }
   throw new Error(
     'Part type is unsupported/corrupted. Either data is missing or type cannot be inferred from type.'
   );
 }
-
 export function fromGeminiCandidate(
   candidate: GenerateContentCandidate,
   jsonMode: boolean
 ): CandidateData {
   const parts = candidate.content.parts || [];
+
   const genkitCandidate: CandidateData = {
-    index: candidate.index || 0, // reasonable default?
+    index: candidate.index || 0,
     message: {
       role: 'model',
-      content: parts.map((p) => fromGeminiPart(p, jsonMode)),
+      content: parts.map((part, index) => {
+        let ref;
+        if(part.functionCall){
+          ref = index.toString()
+        }
+        return fromGeminiPart(part, jsonMode, ref)
+      }),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,
@@ -648,9 +685,14 @@ export function fromGeminiCandidate(
       citationMetadata: candidate.citationMetadata,
     },
   };
+  for(const toolRequest of toolRequests){
+    toolRequest.part.ref = toolRequest.index
+  }
+  for(const toolResponse of toolResponses){
+      toolResponse.part.ref = toolResponse.index
+  }
   return genkitCandidate;
 }
-
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.

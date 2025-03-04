@@ -42,6 +42,54 @@ describe('toGeminiMessages', () => {
     },
     {
       should:
+        'should transform genkit message (tool response content with ref) correctly',
+      inputMessage: {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'tellAFunnyJoke',
+              output: 'Why did the dogs cross the road?',
+            },
+              ref: '1'
+          },
+           {
+            toolResponse: {
+              name: 'tellAnotherFunnyJoke',
+              output: 'To get to the other side.',
+            },
+              ref: '0'
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'function',
+        parts: [
+          {
+            functionResponse: {
+              name: 'tellAnotherFunnyJoke',
+              response: {
+                name: 'tellAnotherFunnyJoke',
+                content: 'To get to the other side.',
+              },
+            },
+            ref: '0'
+          },
+          {
+            functionResponse: {
+              name: 'tellAFunnyJoke',
+              response: {
+                name: 'tellAFunnyJoke',
+                content: 'Why did the dogs cross the road?',
+              },
+            },
+               ref: '1'
+          },
+        ],
+      },
+    },
+    {
+      should:
         'should transform genkit message (tool request content) correctly',
       inputMessage: {
         role: 'model',
@@ -113,6 +161,62 @@ describe('toGeminiMessages', () => {
         ],
       },
     },
+    {
+      should:
+        'should transform gemini candidate to genkit candidate (function call parts with ref) correctly',
+      geminiCandidate: {
+        content: {
+          role: 'model',
+          parts: [
+            {
+              functionCall: { name: 'tellAFunnyJoke', args: { topic: 'dog' } },
+            },
+            {
+              functionCall: { name: 'tellAnotherFunnyJoke', args: { topic: 'cat' } },
+            },
+          ],
+        },
+        finishReason: 'STOP',
+        safetyRatings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.11858909,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11456649,
+          },
+        ],
+      },
+      expectedOutput: {
+        index: 0,
+         message: {
+          role: 'model',
+          content: [
+            {
+              toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dog' }, ref: '0' },
+            },
+            {
+              toolRequest: { name: 'tellAnotherFunnyJoke', input: { topic: 'cat' }, ref: '1' },
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.11858909,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11456649,
+            },
+          ],
+        },
+      },
+    },
+
   ];
   for (const test of testCases) {
     it(test.should, () => {

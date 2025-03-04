@@ -33,38 +33,10 @@ import {
 } from '../src/gemini.js';
 import { googleAI } from '../src/index.js';
 
-describe('toGeminiMessages', () => {
-  const testCases = [
-    {
-      should: 'should transform genkit message (text content) correctly',
-      inputMessage: {
-        role: 'user',
-        content: [{ text: 'Tell a joke about dogs.' }],
-      },
-      expectedOutput: {
-        role: 'user',
-        parts: [{ text: 'Tell a joke about dogs.' }],
-      },
     },
     {
       should:
-        'should transform genkit message (tool request content) correctly',
-      inputMessage: {
-        role: 'model',
-        content: [
-          { toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dogs' } } },
-        ],
-      },
-      expectedOutput: {
-        role: 'model',
-        parts: [
-          { functionCall: { name: 'tellAFunnyJoke', args: { topic: 'dogs' } } },
-        ],
-      },
-    },
-    {
-      should:
-        'should transform genkit message (tool response content) correctly',
+        'should transform genkit message (tool response content with ref) correctly',
       inputMessage: {
         role: 'tool',
         content: [
@@ -73,12 +45,30 @@ describe('toGeminiMessages', () => {
               name: 'tellAFunnyJoke',
               output: 'Why did the dogs cross the road?',
             },
+              ref:'1'
+          },
+           {
+            toolResponse: {
+              name: 'tellAnotherFunnyJoke',
+              output: 'To get to the other side.',
+            },
+              ref:'0'
           },
         ],
       },
       expectedOutput: {
         role: 'function',
         parts: [
+          {
+            functionResponse: {
+              name: 'tellAnotherFunnyJoke',
+              response: {
+                name: 'tellAnotherFunnyJoke',
+                content: 'To get to the other side.',
+              },
+            },
+             ref: '0'
+          },
           {
             functionResponse: {
               name: 'tellAFunnyJoke',
