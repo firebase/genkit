@@ -360,6 +360,7 @@ func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*gena
 		if err != nil {
 			return nil, err
 		}
+		// system prompts go into GenerativeModel.SystemInstruction field.
 		if m.Role == ai.RoleSystem {
 			gm.SystemInstruction = &genai.Content{
 				Parts: systemParts,
