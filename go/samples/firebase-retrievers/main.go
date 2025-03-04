@@ -131,7 +131,7 @@ func main() {
 	genkit.DefineFlow(g, "flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
 		// Perform Firestore retrieval based on user input
 		req := &ai.RetrieverRequest{
-			Document: ai.DocumentFromText(query, nil),
+			Query: ai.DocumentFromText(query, nil),
 		}
 		log.Println("Starting retrieval with query:", query)
 		resp, err := retriever.Retrieve(ctx, req)
