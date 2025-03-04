@@ -37,7 +37,7 @@ var (
 		Versions: []string{"echo-001", "echo-002"},
 	}
 
-	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},
@@ -353,7 +353,7 @@ func TestGenerate(t *testing.T) {
 			},
 		}
 		interruptModel := DefineModel(r, "test", "interrupt", info,
-			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
 					Message: &Message{
@@ -412,7 +412,7 @@ func TestGenerate(t *testing.T) {
 			},
 		}
 		parallelModel := DefineModel(r, "test", "parallel", info,
-			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
 					return &ModelResponse{
@@ -477,7 +477,7 @@ func TestGenerate(t *testing.T) {
 			},
 		}
 		multiRoundModel := DefineModel(r, "test", "multiround", info,
-			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
 					return &ModelResponse{
@@ -545,7 +545,7 @@ func TestGenerate(t *testing.T) {
 			},
 		}
 		infiniteModel := DefineModel(r, "test", "infinite", info,
-			func(ctx context.Context, gr *ModelRequest, msc ModelStreamingCallback) (*ModelResponse, error) {
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
 					Message: &Message{
@@ -578,7 +578,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("applies middleware", func(t *testing.T) {
 		middlewareCalled := false
 		testMiddleware := func(next ModelFunc) ModelFunc {
-			return func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
+			return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 				middlewareCalled = true
 				req.Messages = append(req.Messages, NewUserTextMessage("middleware was here"))
 				return next(ctx, req, cb)

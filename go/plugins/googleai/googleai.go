@@ -39,30 +39,54 @@ var state struct {
 var (
 	supportedModels = map[string]ai.ModelInfo{
 		"gemini-1.5-flash": {
-			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
+			Versions: []string{
+				"gemini-1.5-flash-latest",
+				"gemini-1.5-flash-001",
+				"gemini-1.5-flash-002",
+			},
 			Supports: &gemini.Multimodal,
 		},
-
 		"gemini-1.5-pro": {
-			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
+			Versions: []string{
+				"gemini-1.5-pro-latest",
+				"gemini-1.5-pro-001",
+				"gemini-1.5-pro-002",
+			},
 			Supports: &gemini.Multimodal,
 		},
-
 		"gemini-1.5-flash-8b": {
-			Versions: []string{"gemini-1.5-flash-8b-latest", "gemini-1.5-flash-8b-001"},
+			Versions: []string{
+				"gemini-1.5-flash-8b-latest",
+				"gemini-1.5-flash-8b-001",
+			},
 			Supports: &gemini.Multimodal,
 		},
 		"gemini-2.0-flash": {
-			Versions: []string{},
+			Versions: []string{
+				"gemini-2.0-flash-001",
+			},
+			Supports: &gemini.Multimodal,
+		},
+		"gemini-2.0-flash-lite": {
+			Versions: []string{
+				"gemini-2.0-flash-lite-001",
+			},
 			Supports: &gemini.Multimodal,
 		},
 		"gemini-2.0-pro-exp-02-05": {
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
+		"gemini-2.0-flash-thinking-exp-01-21": {
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
 	}
 
-	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
+	knownEmbedders = []string{
+		"text-embedding-004",
+		"embedding-001",
+	}
 )
 
 // Config is the configuration for the plugin.

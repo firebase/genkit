@@ -10,19 +10,21 @@ import (
 
 func TestValidateSupport(t *testing.T) {
 	tests := []struct {
-		name     string
-		supports *ModelInfoSupports
-		input    *ModelRequest
-		wantErr  bool
+		name    string
+		info    *ModelInfo
+		input   *ModelRequest
+		wantErr bool
 	}{
 		{
 			name: "valid request with no special features",
-			supports: &ModelInfoSupports{
-				Media:      false,
-				Tools:      false,
-				Multiturn:  false,
-				ToolChoice: false,
-				SystemRole: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					Media:      false,
+					Tools:      false,
+					Multiturn:  false,
+					ToolChoice: false,
+					SystemRole: false,
+				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
@@ -33,8 +35,10 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "media not supported but requested",
-			supports: &ModelInfoSupports{
-				Media: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					Media: false,
+				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
@@ -45,8 +49,10 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "tools not supported but requested",
-			supports: &ModelInfoSupports{
-				Tools: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					Tools: false,
+				},
 			},
 			input: &ModelRequest{
 				Tools: []*ToolDefinition{
@@ -60,8 +66,10 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "multiturn not supported but requested",
-			supports: &ModelInfoSupports{
-				Multiturn: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					Multiturn: false,
+				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
@@ -73,8 +81,10 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "tool choice not supported but requested",
-			supports: &ModelInfoSupports{
-				ToolChoice: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					ToolChoice: false,
+				},
 			},
 			input: &ModelRequest{
 				ToolChoice: ToolChoiceRequired,
@@ -83,8 +93,10 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "system role not supported but requested",
-			supports: &ModelInfoSupports{
-				SystemRole: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					SystemRole: false,
+				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
@@ -95,12 +107,14 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "all features supported and used",
-			supports: &ModelInfoSupports{
-				Media:      true,
-				Tools:      true,
-				Multiturn:  true,
-				ToolChoice: true,
-				SystemRole: true,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					Media:      true,
+					Tools:      true,
+					Multiturn:  true,
+					ToolChoice: true,
+					SystemRole: true,
+				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
@@ -119,8 +133,8 @@ func TestValidateSupport(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "nil supports defaults to no features",
-			supports: nil,
+			name: "nil supports defaults to no features",
+			info: nil,
 			input: &ModelRequest{
 				Messages: []*Message{
 					{Content: []*Part{NewMediaPart("image/png", "data:image/png;base64,...")}},
@@ -130,8 +144,10 @@ func TestValidateSupport(t *testing.T) {
 		},
 		{
 			name: "mixed content types in message",
-			supports: &ModelInfoSupports{
-				Media: false,
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{
+					Media: false,
+				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
@@ -143,15 +159,85 @@ func TestValidateSupport(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "supported version",
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{},
+				Versions: []string{"v1", "v2"},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewUserTextMessage("hello"),
+				},
+				Config: map[string]any{"version": "v1"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "unsupported version",
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{},
+				Versions: []string{"v1", "v2"},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewUserTextMessage("hello"),
+				},
+				Config: map[string]any{"version": "v3"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "non-string version",
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{},
+				Versions: []string{"v1", "v2"},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewUserTextMessage("hello"),
+				},
+				Config: map[string]any{"version": 1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "struct with supported version",
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{},
+				Versions: []string{"v1", "v2"},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewUserTextMessage("hello"),
+				},
+				Config: &GenerationCommonConfig{Version: "v1"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "struct with unsupported version",
+			info: &ModelInfo{
+				Supports: &ModelInfoSupports{},
+				Versions: []string{"v1", "v2"},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewUserTextMessage("hello"),
+				},
+				Config: &GenerationCommonConfig{Version: "v3"},
+			},
+			wantErr: true,
+		},
 	}
 
-	mockModelFunc := func(ctx context.Context, req *ModelRequest, cb ModelStreamingCallback) (*ModelResponse, error) {
+	mockModelFunc := func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 		return &ModelResponse{}, nil
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := ValidateSupport("test-model", tt.supports)(mockModelFunc)
+			handler := ValidateSupport("test-model", tt.info)(mockModelFunc)
 			_, err := handler(context.Background(), tt.input, nil)
 
 			if (err != nil) != tt.wantErr {
