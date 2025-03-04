@@ -2,23 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 import asyncio
 
-from genkit.core.typing import Message, Role, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
-    ModelDefinition,
-    OllamaAPITypes,
+    EmbeddingModelDefinition,
     OllamaPluginParams,
 )
 from genkit.veneer import Genkit
 
 # model can be pulled with `ollama pull *LLM_VERSION*`
-LLM_VERSION = 'gemma2:latest'
+EMBEDDER_VERSION = 'mxbai-embed-large'
 
 plugin_params = OllamaPluginParams(
-    models=[
-        ModelDefinition(
-            name=LLM_VERSION,
-            api_type=OllamaAPITypes.CHAT,
+    embedders=[
+        EmbeddingModelDefinition(
+            name=EMBEDDER_VERSION,
+            dimensions=512,
         )
     ],
 )
@@ -29,12 +27,10 @@ ai = Genkit(
             plugin_params=plugin_params,
         )
     ],
-    model=ollama_name(LLM_VERSION),
 )
 
 
-@ai.flow()
-async def say_hi(hi_input: str):
+async def sample_embed(documents: list[str]):
     """Generate a request to greet a user.
 
     Args:
@@ -43,20 +39,19 @@ async def say_hi(hi_input: str):
     Returns:
         A GenerateRequest object with the greeting message.
     """
-    return await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    TextPart(text='hi ' + hi_input),
-                ],
-            )
-        ]
+    return await ai.embed(
+        model=ollama_name(EMBEDDER_VERSION),
+        documents=documents,
     )
 
 
 async def main() -> None:
-    response = await say_hi('John Doe')
+    response = await sample_embed(
+        documents=[
+            'test document 1',
+            'test document 2',
+        ]
+    )
     print(response)
 
 
