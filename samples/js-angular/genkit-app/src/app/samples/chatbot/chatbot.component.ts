@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import {
   FormControl,
@@ -60,11 +59,9 @@ interface OutputSchema {
 }
 
 @Component({
-  selector: 'app-chatbot',
-  standalone: true,
-  providers: [provideNativeDateAdapter()],
-  imports: [
-    CommonModule,
+    selector: 'app-chatbot',
+    providers: [provideNativeDateAdapter()],
+    imports: [
     FormsModule,
     MatFormFieldModule,
     MatInputModule,
@@ -72,10 +69,10 @@ interface OutputSchema {
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
-    MatDatepickerModule,
-  ],
-  templateUrl: './chatbot.component.html',
-  styleUrl: './chatbot.component.scss',
+    MatDatepickerModule
+],
+    templateUrl: './chatbot.component.html',
+    styleUrl: './chatbot.component.scss'
 })
 export class ChatbotComponent {
   history: (InputSchema | OutputSchema)[] = [];
