@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -175,9 +176,17 @@ func (p *Prompt) Register(g *genkit.Genkit) error {
 			"template": p.TemplateText,
 		},
 	}
-	p.prompt = genkit.DefinePrompt(g, "dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
 
-	return nil
+	var err error
+	p.prompt, err = genkit.DefinePrompt(
+		g,
+		"dotprompt",
+		name,
+		prompt.WithMetadata(metadata),
+		prompt.WithInputType(p.Config.DefaultInput),
+		prompt.WithRender(p.buildRequest),
+	)
+	return err
 }
 
 // Generate executes a prompt. It does variable substitution and
