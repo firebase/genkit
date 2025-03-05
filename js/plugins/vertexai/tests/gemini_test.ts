@@ -50,15 +50,15 @@ describe('toGeminiMessages', () => {
             toolResponse: {
               name: 'tellAFunnyJoke',
               output: 'Why did the dogs cross the road?',
+              ref: '1',
             },
-              ref: '1'
           },
-           {
+          {
             toolResponse: {
               name: 'tellAnotherFunnyJoke',
               output: 'To get to the other side.',
+              ref: '0',
             },
-              ref: '0'
           },
         ],
       },
@@ -73,7 +73,6 @@ describe('toGeminiMessages', () => {
                 content: 'To get to the other side.',
               },
             },
-            ref: '0'
           },
           {
             functionResponse: {
@@ -83,7 +82,6 @@ describe('toGeminiMessages', () => {
                 content: 'Why did the dogs cross the road?',
               },
             },
-               ref: '1'
           },
         ],
       },
@@ -161,66 +159,10 @@ describe('toGeminiMessages', () => {
         ],
       },
     },
-    {
-      should:
-        'should transform gemini candidate to genkit candidate (function call parts with ref) correctly',
-      geminiCandidate: {
-        content: {
-          role: 'model',
-          parts: [
-            {
-              functionCall: { name: 'tellAFunnyJoke', args: { topic: 'dog' } },
-            },
-            {
-              functionCall: { name: 'tellAnotherFunnyJoke', args: { topic: 'cat' } },
-            },
-          ],
-        },
-        finishReason: 'STOP',
-        safetyRatings: [
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            probability: 'NEGLIGIBLE',
-            probabilityScore: 0.11858909,
-            severity: 'HARM_SEVERITY_NEGLIGIBLE',
-            severityScore: 0.11456649,
-          },
-        ],
-      },
-      expectedOutput: {
-        index: 0,
-         message: {
-          role: 'model',
-          content: [
-            {
-              toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dog' }, ref: '0' },
-            },
-            {
-              toolRequest: { name: 'tellAnotherFunnyJoke', input: { topic: 'cat' }, ref: '1' },
-            },
-          ],
-        },
-        finishReason: 'stop',
-        finishMessage: undefined,
-        custom: {
-          citationMetadata: undefined,
-          safetyRatings: [
-            {
-              category: 'HARM_CATEGORY_HATE_SPEECH',
-              probability: 'NEGLIGIBLE',
-              probabilityScore: 0.11858909,
-              severity: 'HARM_SEVERITY_NEGLIGIBLE',
-              severityScore: 0.11456649,
-            },
-          ],
-        },
-      },
-    },
-
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         toGeminiMessage(test.inputMessage as MessageData),
         test.expectedOutput
       );
@@ -261,7 +203,7 @@ describe('toGeminiSystemInstruction', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         toGeminiSystemInstruction(test.inputMessage as MessageData),
         test.expectedOutput
       );
@@ -404,7 +346,11 @@ describe('fromGeminiCandidate', () => {
           role: 'model',
           content: [
             {
-              toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dog' } },
+              toolRequest: {
+                name: 'tellAFunnyJoke',
+                input: { topic: 'dog' },
+                ref: '0',
+              },
             },
           ],
         },
@@ -445,7 +391,7 @@ describe('fromGeminiCandidate', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         fromGeminiCandidate(
           test.geminiCandidate as GenerateContentCandidate,
           false

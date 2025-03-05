@@ -452,7 +452,10 @@ function toFunctionCall(part: ToolRequestPart): FunctionCallPart {
   };
 }
 
-function fromFunctionCall(part: FunctionCallPart): ToolRequestPart {
+function fromFunctionCall(
+  part: FunctionCallPart,
+  ref: string
+): ToolRequestPart {
   if (!part.functionCall) {
     throw Error('Invalid FunctionCallPart');
   }
@@ -460,6 +463,7 @@ function fromFunctionCall(part: FunctionCallPart): ToolRequestPart {
     toolRequest: {
       name: part.functionCall.name,
       input: part.functionCall.args,
+      ref,
     },
   };
 }
@@ -479,7 +483,10 @@ function toFunctionResponse(part: ToolResponsePart): FunctionResponsePart {
   };
 }
 
-function fromFunctionResponse(part: FunctionResponsePart): ToolResponsePart {
+function fromFunctionResponse(
+  part: FunctionResponsePart,
+  ref?: string
+): ToolResponsePart {
   if (!part.functionResponse) {
     throw new Error('Invalid FunctionResponsePart.');
   }
@@ -487,6 +494,7 @@ function fromFunctionResponse(part: FunctionResponsePart): ToolResponsePart {
     toolResponse: {
       name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
+      ref,
     },
   };
 }
@@ -544,18 +552,22 @@ function toGeminiPart(part: Part): GeminiPart {
   throw new Error('Unsupported Part type' + JSON.stringify(part));
 }
 
-function fromGeminiPart(part: GeminiPart, jsonMode: boolean, ref?:string): Part {
+function fromGeminiPart(
+  part: GeminiPart,
+  jsonMode: boolean,
+  ref: string
+): Part {
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
-  if (part.functionCall) return fromFunctionCall(part);
+  if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
   if (part.functionCall) {
-      return { ...fromFunctionCall(part), ref };
+    return fromFunctionCall(part, ref);
   }
   if (part.functionResponse) {
-    return { ...fromFunctionResponse(part), ref };
+    return fromFunctionResponse(part, ref);
   }
   throw new Error('Unsupported GeminiPart type');
 }
@@ -564,36 +576,20 @@ export function toGeminiMessage(
   model?: ModelReference<z.ZodTypeAny>
 ): GeminiMessage {
   let sortedParts = message.content;
-    if (message.role === 'tool') {
-      sortedParts = [...message.content].sort((a, b) => {
-        const aRef = a.ref;
-        const bRef = b.ref;
-        if(aRef === undefined && bRef === undefined){
-          return 0
-        }
-        if(aRef === undefined){
-          return 1
-        }
-        if(bRef === undefined){
-          return -1
-        }
-        return parseInt(aRef, 10) - parseInt(bRef, 10)
-      });
-      sortedParts = sortedParts.sort((a, b)=>{
-          if(a.ref === undefined){
-            return 1
-          }
-           if(b.ref === undefined){
-            return -1
-           }
-        return parseInt(a.ref, 10) - parseInt(b.ref, 10)
-      });
-    }
-      return {
-        role: toGeminiRole(message.role, model),
-        parts: sortedParts.map(toGeminiPart)
-      };
-
+  if (message.role === 'tool') {
+    sortedParts = [...message.content].sort((a, b) => {
+      const aRef = a.toolResponse?.ref;
+      const bRef = b.toolResponse?.ref;
+      if (!aRef && !bRef) return 0;
+      if (!aRef) return 1;
+      if (!bRef) return -1;
+      return parseInt(aRef, 10) - parseInt(bRef, 10);
+    });
+  }
+  return {
+    role: toGeminiRole(message.role, model),
+    parts: sortedParts.map(toGeminiPart),
+  };
 }
 
 export function toGeminiSystemInstruction(message: MessageData): GeminiMessage {
@@ -630,13 +626,8 @@ export function fromGeminiCandidate(
     message: {
       role: 'model',
       content: parts.map((part, index) =>
-      {
-        let ref;
-        if(part.functionCall){
-          ref = index.toString()
-        }
-        return fromGeminiPart(part, jsonMode, ref)
-      }),
+        fromGeminiPart(part, jsonMode, index.toString())
+      ),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,

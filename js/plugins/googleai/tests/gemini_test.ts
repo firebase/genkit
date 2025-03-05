@@ -33,10 +33,38 @@ import {
 } from '../src/gemini.js';
 import { googleAI } from '../src/index.js';
 
+describe('toGeminiMessages', () => {
+  const testCases = [
+    {
+      should: 'should transform genkit message (text content) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [{ text: 'Tell a joke about dogs.' }],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [{ text: 'Tell a joke about dogs.' }],
+      },
     },
     {
       should:
-        'should transform genkit message (tool response content with ref) correctly',
+        'should transform genkit message (tool request content) correctly',
+      inputMessage: {
+        role: 'model',
+        content: [
+          { toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dogs' } } },
+        ],
+      },
+      expectedOutput: {
+        role: 'model',
+        parts: [
+          { functionCall: { name: 'tellAFunnyJoke', args: { topic: 'dogs' } } },
+        ],
+      },
+    },
+    {
+      should:
+        'should transform genkit message (tool response content) correctly',
       inputMessage: {
         role: 'tool',
         content: [
@@ -44,15 +72,15 @@ import { googleAI } from '../src/index.js';
             toolResponse: {
               name: 'tellAFunnyJoke',
               output: 'Why did the dogs cross the road?',
+              ref: '1',
             },
-              ref:'1'
           },
-           {
+          {
             toolResponse: {
-              name: 'tellAnotherFunnyJoke',
-              output: 'To get to the other side.',
+              name: 'tellAFunnyJoke',
+              output: 'Why did the chicken cross the road?',
+              ref: '0',
             },
-              ref:'0'
           },
         ],
       },
@@ -61,13 +89,12 @@ import { googleAI } from '../src/index.js';
         parts: [
           {
             functionResponse: {
-              name: 'tellAnotherFunnyJoke',
+              name: 'tellAFunnyJoke',
               response: {
-                name: 'tellAnotherFunnyJoke',
-                content: 'To get to the other side.',
+                name: 'tellAFunnyJoke',
+                content: 'Why did the chicken cross the road?',
               },
             },
-             ref: '0'
           },
           {
             functionResponse: {
@@ -296,7 +323,11 @@ describe('fromGeminiCandidate', () => {
           role: 'model',
           content: [
             {
-              toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dog' } },
+              toolRequest: {
+                name: 'tellAFunnyJoke',
+                input: { topic: 'dog' },
+                ref: '0',
+              },
             },
           ],
         },
@@ -337,7 +368,7 @@ describe('fromGeminiCandidate', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         fromGeminiCandidate(test.geminiCandidate as GenerateContentCandidate),
         test.expectedOutput
       );

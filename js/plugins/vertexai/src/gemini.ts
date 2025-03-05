@@ -513,36 +513,21 @@ export function toGeminiMessage(
   message: MessageData,
   modelInfo?: ModelInfo
 ): Content {
-    let sortedParts = message.content;
-    if (message.role === 'tool') {
-      sortedParts = [...message.content].sort((a, b) => {
-        const aRef = a.ref;
-        const bRef = b.ref;
-        if(aRef === undefined && bRef === undefined){
-          return 0
-        }
-        if(aRef === undefined){
-          return 1
-        }
-        if(bRef === undefined){
-          return -1
-        }
-        return parseInt(aRef, 10) - parseInt(bRef, 10)
-      });
-      sortedParts = sortedParts.sort((a, b)=>{
-          if(a.ref === undefined){
-            return 1
-          }
-           if(b.ref === undefined){
-            return -1
-           }
-        return parseInt(a.ref, 10) - parseInt(b.ref, 10)
-      });
-    }
-    return {
-      role: toGeminiRole(message.role, modelInfo),
-      parts: sortedParts.map(toGeminiPart),
-    };
+  let sortedParts = message.content;
+  if (message.role === 'tool') {
+    sortedParts = [...message.content].sort((a, b) => {
+      const aRef = a.toolResponse?.ref;
+      const bRef = b.toolResponse?.ref;
+      if (!aRef && !bRef) return 0;
+      if (!aRef) return 1;
+      if (!bRef) return -1;
+      return parseInt(aRef, 10) - parseInt(bRef, 10);
+    });
+  }
+  return {
+    role: toGeminiRole(message.role, modelInfo),
+    parts: sortedParts.map(toGeminiPart),
+  };
 }
 
 function fromGeminiFinishReason(
@@ -615,7 +600,7 @@ function fromGeminiFileDataPart(part: GeminiPart): MediaPart {
   };
 }
 
-function fromGeminiFunctionCallPart(part: GeminiPart): Part {
+function fromGeminiFunctionCallPart(part: GeminiPart, ref?: string): Part {
   if (!part.functionCall) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
@@ -625,11 +610,12 @@ function fromGeminiFunctionCallPart(part: GeminiPart): Part {
     toolRequest: {
       name: part.functionCall.name,
       input: part.functionCall.args,
+      ref,
     },
   };
 }
 
-function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
+function fromGeminiFunctionResponsePart(part: GeminiPart, ref?: string): Part {
   if (!part.functionResponse) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
@@ -639,23 +625,23 @@ function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
     toolResponse: {
       name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
+      ref,
     },
   };
 }
 
 // Converts vertex part to genkit part
-function fromGeminiPart(part: GeminiPart, jsonMode: boolean, ref?:string): Part {
-  if (part.functionCall) return fromGeminiFunctionCallPart(part);
+function fromGeminiPart(
+  part: GeminiPart,
+  jsonMode: boolean,
+  ref?: string
+): Part {
   if (part.text !== undefined) return { text: part.text };
-  if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
-    if (part.functionCall) {
-        return { ...fromGeminiFunctionCallPart(part), ref };
-    }
-    if (part.functionResponse) {
-      return { ...fromGeminiFunctionResponsePart(part), ref };
-    }
+  if (part.functionCall) return fromGeminiFunctionCallPart(part, ref);
+  if (part.functionResponse) return fromGeminiFunctionResponsePart(part, ref);
+
   throw new Error(
     'Part type is unsupported/corrupted. Either data is missing or type cannot be inferred from type.'
   );
@@ -671,11 +657,7 @@ export function fromGeminiCandidate(
     message: {
       role: 'model',
       content: parts.map((part, index) => {
-        let ref;
-        if(part.functionCall){
-          ref = index.toString()
-        }
-        return fromGeminiPart(part, jsonMode, ref)
+        return fromGeminiPart(part, jsonMode, index.toString());
       }),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
@@ -685,12 +667,6 @@ export function fromGeminiCandidate(
       citationMetadata: candidate.citationMetadata,
     },
   };
-  for(const toolRequest of toolRequests){
-    toolRequest.part.ref = toolRequest.index
-  }
-  for(const toolResponse of toolResponses){
-      toolResponse.part.ref = toolResponse.index
-  }
   return genkitCandidate;
 }
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
