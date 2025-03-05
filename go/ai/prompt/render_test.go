@@ -35,7 +35,7 @@ var promptModel = ai.DefineModel(r, "test", "chat",
 		Multiturn:  true,
 		ToolChoice: true,
 		SystemRole: true,
-	}}, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+	}}, func(ctx context.Context, gr *ai.ModelRequest, msc ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 		toolCalled := false
 		for _, msg := range gr.Messages {
 			if msg.Content[0].IsToolResponse() {
