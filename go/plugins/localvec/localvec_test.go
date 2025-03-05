@@ -64,8 +64,8 @@ func TestLocalVec(t *testing.T) {
 	}
 
 	retrieverReq := &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
+		Query:   d1,
+		Options: retrieverOptions,
 	}
 	retrieverResp, err := ds.retrieve(ctx, retrieverReq)
 	if err != nil {
@@ -132,8 +132,8 @@ func TestPersistentIndexing(t *testing.T) {
 	}
 
 	retrieverReq := &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
+		Query:   d1,
+		Options: retrieverOptions,
 	}
 	retrieverResp, err := ds.retrieve(ctx, retrieverReq)
 	if err != nil {
@@ -163,8 +163,8 @@ func TestPersistentIndexing(t *testing.T) {
 	}
 
 	retrieverReq = &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
+		Query:   d1,
+		Options: retrieverOptions,
 	}
 	retrieverResp, err = dsAnother.retrieve(ctx, retrieverReq)
 	if err != nil {
