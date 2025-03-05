@@ -270,13 +270,13 @@ func generate(
 		}
 	}
 
+	// Convert input.Tools and append to gm.Tools
 	gm.Tools, err = convertTools(input.Tools)
 	if err != nil {
 		return nil, err
 	}
-	// Convert input.Tools and append to gm.Tools
 
-	// TODO: gm.ToolConfig?
+	gm.ToolConfig = convertToolChoice(input.ToolChoice, input.Tools)
 
 	// Send out the actual request.
 	if cb == nil {
@@ -388,7 +388,7 @@ func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
 		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
-		if err != err {
+		if err != nil {
 			return nil, err
 		}
 		fd := &genai.FunctionDeclaration{
@@ -420,7 +420,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 		schema.Type = genai.TypeNumber
 	case "number":
 		schema.Type = genai.TypeNumber
-	case "int":
+	case "integer":
 		schema.Type = genai.TypeInteger
 	case "bool":
 		schema.Type = genai.TypeBoolean
@@ -481,6 +481,36 @@ func castToStringArray(i []any) []string {
 		r = append(r, v.(string))
 	}
 	return r
+}
+
+func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *genai.ToolConfig {
+	var mode genai.FunctionCallingMode
+	switch toolChoice {
+	case "":
+		return nil
+	case ai.ToolChoiceAuto:
+		mode = genai.FunctionCallingAuto
+	case ai.ToolChoiceRequired:
+		mode = genai.FunctionCallingAny
+	case ai.ToolChoiceNone:
+		mode = genai.FunctionCallingNone
+	default:
+		panic(fmt.Sprintf("%s does not support tool choice mode %q", provider, toolChoice))
+	}
+
+	var toolNames []string
+	// Per docs, only set AllowedToolNames with mode set to ANY.
+	if mode == genai.FunctionCallingAny {
+		for _, t := range tools {
+			toolNames = append(toolNames, t.Name)
+		}
+	}
+	return &genai.ToolConfig{
+		FunctionCallingConfig: &genai.FunctionCallingConfig{
+			Mode:                 mode,
+			AllowedFunctionNames: toolNames,
+		},
+	}
 }
 
 // DO NOT MODIFY above ^^^^
