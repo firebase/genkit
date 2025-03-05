@@ -52,7 +52,7 @@ func main() {
 			ai.WithModel(m),
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
-				Version:     "gemini-1.5-flash-002",
+				Version:     "gemini-2.0-flash-001",
 			}),
 			ai.WithTextPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)))
 		if err != nil {

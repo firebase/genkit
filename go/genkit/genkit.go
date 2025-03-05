@@ -248,7 +248,7 @@ func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.Generate
 }
 
 // GenerateWithRequest runs the model with the given request and streaming callback.
-func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, mw []ai.ModelMiddleware, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
+func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, mw []ai.ModelMiddleware, toolCfg *ai.ToolConfig, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 	return m.Generate(ctx, g.reg, req, mw, toolCfg, cb)
 }
 
