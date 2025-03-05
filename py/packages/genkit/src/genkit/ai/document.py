@@ -1,0 +1,193 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+from genkit.ai.embedding import EmbeddingModel
+from pydantic import BaseModel
+
+
+class EmptyPart(BaseModel):
+    """Empty part of a document."""
+
+    text: None = None
+    media: None = None
+
+
+class TextPart(BaseModel):
+    """Text part of a document.
+
+    Attributes:
+        text: The string contents of the document
+    """
+
+    text: str
+    media: None = None
+
+
+class MediaPartModel(BaseModel):
+    """Object model representing media parts.
+
+    Attributes:
+        content_type: The media content type. Inferred from data uri if not
+        provided.
+        url: A `data:` or `https:` uri containing the media content.
+    """
+
+    content_type: str | None = None
+    url: str
+
+
+class MediaPart(BaseModel):
+    """Media part of a document.
+
+    Attributes:
+        media: The media contents of the document
+    """
+
+    text: None = None
+    media: MediaPartModel
+
+
+# Part type
+type Part = TextPart | MediaPart
+
+
+class DocumentData(BaseModel):
+    """Represent complete document data.
+
+    Attributes:
+        content: The parts contained in this document
+        metadata: optional metadata
+    """
+
+    content: list[Part]
+    metadata: dict[str, Any] | None = None
+
+
+class Document(DocumentData):
+    """Represents document content along with its metadata.
+
+    This object can be embedded, indexed or retrieved. Each document can contain
+    multiple parts (for example text and an image).
+    """
+
+    def __init__(
+        self, content: list[Part], metadata: dict[str, Any] | None = None
+    ) -> None:
+        """Initialize Document object."""
+        doc_content = deepcopy(content)
+        doc_metadata = deepcopy(metadata)
+        super().__init__(content=doc_content, metadata=doc_metadata)
+
+    @staticmethod
+    def from_text(
+        text: str, metadata: dict[str, Any] | None = None
+    ) -> Document:
+        """Construct a Document from a single text part."""
+        return Document(content=[TextPart(text=text)], metadata=metadata)
+
+    @staticmethod
+    def from_media(
+        url: str,
+        content_type: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Document:
+        """Construct a Document from a single media part."""
+        return Document(
+            content=[
+                MediaPart(
+                    media=MediaPartModel(url=url, content_type=content_type)
+                )
+            ],
+            metadata=metadata,
+        )
+
+    @staticmethod
+    def from_data(
+        data: str,
+        data_type: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Document:
+        """Construct a Document from a single media part."""
+        if data_type == 'text':
+            return Document.from_text(data, metadata)
+        return Document.from_media(data, data_type, metadata)
+
+    def text(self) -> str:
+        """Concatenates all `text` parts with no delimiter."""
+        text_parts = map(lambda part: part.text or '', self.content)
+        return ''.join(text_parts)
+
+    def media(self) -> list[MediaPartModel]:
+        """Media array getter."""
+        media_parts = map(lambda part: part.media, self.content)
+        return list(filter(lambda m: m is not None, media_parts))
+
+    def data(self) -> str:
+        """Gets the first item in the document. Either text or media url."""
+        if self.text():
+            return self.text()
+
+        if self.media():
+            return self.media()[0].url
+
+        return ''
+
+    def data_type(self) -> str | None:
+        """Gets the content_type of the data that is returned by data()."""
+        if self.text():
+            return 'text'
+
+        if self.media() and self.media()[0].content_type:
+            return self.media()[0].content_type
+
+        return None
+
+    def get_embedding_documents(
+        self, embeddings: list[EmbeddingModel]
+    ) -> list[Document]:
+        """Creates documents from embeddings.
+
+        Embedders may return multiple embeddings for a single document. But
+        storage still requires a 1:1 relationship. So we create an array of
+        Documents from a single document - one per embedding.
+        """
+        documents = []
+        for embedding in embeddings:
+            content = deepcopy(self.content)
+            metadata = deepcopy(self.metadata)
+            if embedding.metadata:
+                if not metadata:
+                    metadata = {}
+                metadata['embedMetadata'] = embedding.metadata
+            documents.append(Document(content=content, metadata=metadata))
+        check_unique_documents(documents)
+        return documents
+
+
+def check_unique_documents(documents: list[Document]) -> bool:
+    """Check for unique documents in given array.
+
+    Unique documents are important because we key
+    our vector storage on the Md5 hash of the JSON string of document
+    So if we have multiple duplicate documents with
+    different embeddings, we will either skip or overwrite
+    those entries and lose embedding information.
+    Boolean return value for testing only.
+    """
+    seen = set()
+    for doc in documents:
+        if doc.model_dump_json() in seen:
+            print(
+                """
+                Warning: embedding documents are not unique.
+                Are you missing embed metadata?
+                """
+            )
+            return False
+        seen.add(doc.model_dump_json())
+    return True
