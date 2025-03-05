@@ -27,6 +27,9 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
 
+      - name: Generate schema typing
+        run: ./py/bin/generate_schema_typing
+
       - name: Format check
         run: uv run --directory py ruff format --check .
 
