@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -24,8 +23,7 @@ const url = 'http://127.0.0.1:3400/streamCharacters';
 
 @Component({
   selector: 'app-streaming-json',
-  standalone: true,
-  imports: [FormsModule, CommonModule, MatButtonModule],
+  imports: [FormsModule, MatButtonModule],
   templateUrl: './streaming-json.component.html',
   styleUrl: './streaming-json.component.scss',
 })
