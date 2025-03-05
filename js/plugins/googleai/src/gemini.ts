@@ -483,10 +483,7 @@ function toFunctionResponse(part: ToolResponsePart): FunctionResponsePart {
   };
 }
 
-function fromFunctionResponse(
-  part: FunctionResponsePart,
-  ref?: string
-): ToolResponsePart {
+function fromFunctionResponse(part: FunctionResponsePart): ToolResponsePart {
   if (!part.functionResponse) {
     throw new Error('Invalid FunctionResponsePart.');
   }
@@ -494,7 +491,6 @@ function fromFunctionResponse(
     toolResponse: {
       name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
-      ref,
     },
   };
 }
@@ -563,12 +559,6 @@ function fromGeminiPart(
   if (part.functionResponse) return fromFunctionResponse(part);
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
-  if (part.functionCall) {
-    return fromFunctionCall(part, ref);
-  }
-  if (part.functionResponse) {
-    return fromFunctionResponse(part, ref);
-  }
   throw new Error('Unsupported GeminiPart type');
 }
 export function toGeminiMessage(
