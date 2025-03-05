@@ -5,6 +5,7 @@
     "plugins/vertexai",
     "plugins/firebase",
     "plugins/google-cloud",
+    "plugins/next",
     "plugins/checks",
     "plugins/dev-local-vectorstore",
     "plugins/evaluators",
