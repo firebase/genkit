@@ -40,8 +40,8 @@ type Prompt struct {
 	TemplateText string            // Original prompt template text.
 }
 
-// Define creates and registers a new Prompt.
-func Define(r *registry.Registry, provider, name string, opts ...PromptOption) (*Prompt, error) {
+// DefinePrompt creates and registers a new Prompt.
+func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOption) (*Prompt, error) {
 	p := &Prompt{
 		registry: r,
 	}

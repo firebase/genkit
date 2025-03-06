@@ -178,9 +178,7 @@ func (p *Prompt) Register(g *genkit.Genkit) error {
 
 	var err error
 	p.prompt, err = genkit.DefinePrompt(
-		g,
-		"dotprompt",
-		name,
+		g, "dotprompt", name,
 		ai.WithMetadata(metadata),
 		ai.WithInputType(p.Config.DefaultInput),
 		ai.WithRenderFn(p.buildRequest),

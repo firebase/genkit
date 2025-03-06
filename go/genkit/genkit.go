@@ -15,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -203,19 +202,19 @@ func DefinePrompt(
 	g *Genkit,
 	provider, name string,
 	opts ...ai.PromptOption,
-) (*prompt.Prompt, error) {
-	return prompt.Define(g.reg, provider, name, opts...)
+) (*ai.Prompt, error) {
+	return ai.DefinePrompt(g.reg, provider, name, opts...)
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
 func IsDefinedPrompt(g *Genkit, provider, name string) bool {
-	return prompt.IsDefinedPrompt(g.reg, provider, name)
+	return ai.IsDefinedPrompt(g.reg, provider, name)
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(g *Genkit, provider, name string) *prompt.Prompt {
-	return prompt.LookupPrompt(g.reg, provider, name)
+func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
+	return ai.LookupPrompt(g.reg, provider, name)
 }
 
 // Generate run generate request for this model. Returns ModelResponse struct.
