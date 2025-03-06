@@ -20,14 +20,26 @@
 import { z } from 'zod';
 import { DocumentDataSchema } from './document';
 
-const RetrieverRequestSchema = z.object({
+/**
+ * Zod schema for retriever request.
+ */
+export const RetrieverRequestSchema = z.object({
   query: DocumentDataSchema,
   options: z.any().optional(),
 });
 export type RetrieverRequest = z.infer<typeof RetrieverRequestSchema>;
 
-const RetrieverResponseSchema = z.object({
+/**
+ * Zod schema for retriever response.
+ */
+export const RetrieverResponseSchema = z.object({
   documents: z.array(DocumentDataSchema),
 });
-
 export type RetrieverResponse = z.infer<typeof RetrieverResponseSchema>;
+
+/**
+ * Zod schema of common retriever options.
+ */
+export const CommonRetrieverOptionsSchema = z.object({
+  k: z.number().describe('Number of documents to retrieve').optional(),
+});

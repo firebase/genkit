@@ -15,14 +15,34 @@
  */
 import { z } from 'zod';
 import {
+  CustomPart,
   CustomPartSchema,
+  DataPart,
   DataPartSchema,
   DocumentDataSchema,
+  MediaPart,
   MediaPartSchema,
+  TextPart,
   TextPartSchema,
+  ToolRequestPart,
   ToolRequestPartSchema,
+  ToolResponsePart,
   ToolResponsePartSchema,
 } from './document';
+export {
+  CustomPart,
+  CustomPartSchema,
+  DataPart,
+  DataPartSchema,
+  MediaPart,
+  MediaPartSchema,
+  TextPart,
+  TextPartSchema,
+  ToolRequestPart,
+  ToolRequestPartSchema,
+  ToolResponsePart,
+  ToolResponsePartSchema,
+};
 
 //
 // IMPORTANT: Keep this file in sync with genkit/ai/src/model.ts!

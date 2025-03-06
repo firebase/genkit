@@ -1,246 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$defs": {
-    "InstrumentationLibrary": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        },
-        "schemaUrl": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": false
-    },
-    "Link": {
-      "type": "object",
-      "properties": {
-        "context": {
-          "$ref": "#/$defs/SpanContext"
-        },
-        "attributes": {
-          "type": "object",
-          "additionalProperties": {}
-        },
-        "droppedAttributesCount": {
-          "type": "number"
-        }
-      },
-      "additionalProperties": false
-    },
-    "SpanContext": {
-      "type": "object",
-      "properties": {
-        "traceId": {
-          "type": "string"
-        },
-        "spanId": {
-          "type": "string"
-        },
-        "isRemote": {
-          "type": "boolean"
-        },
-        "traceFlags": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "traceId",
-        "spanId",
-        "traceFlags"
-      ],
-      "additionalProperties": false
-    },
-    "SpanData": {
-      "type": "object",
-      "properties": {
-        "spanId": {
-          "type": "string"
-        },
-        "traceId": {
-          "type": "string"
-        },
-        "parentSpanId": {
-          "type": "string"
-        },
-        "startTime": {
-          "type": "number"
-        },
-        "endTime": {
-          "type": "number"
-        },
-        "attributes": {
-          "type": "object",
-          "additionalProperties": {}
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "links": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Link"
-          }
-        },
-        "instrumentationLibrary": {
-          "$ref": "#/$defs/InstrumentationLibrary"
-        },
-        "spanKind": {
-          "type": "string"
-        },
-        "sameProcessAsParentSpan": {
-          "type": "object",
-          "properties": {
-            "value": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        "status": {
-          "$ref": "#/$defs/SpanStatus"
-        },
-        "timeEvents": {
-          "type": "object",
-          "properties": {
-            "timeEvent": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/TimeEvent"
-              }
-            }
-          },
-          "additionalProperties": false
-        },
-        "truncated": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "spanId",
-        "traceId",
-        "startTime",
-        "endTime",
-        "attributes",
-        "displayName",
-        "instrumentationLibrary",
-        "spanKind"
-      ],
-      "additionalProperties": false
-    },
-    "SpanMetadata": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "state": {
-          "type": "string",
-          "enum": [
-            "success",
-            "error"
-          ]
-        },
-        "input": {},
-        "output": {},
-        "isRoot": {
-          "type": "boolean"
-        },
-        "metadata": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": false
-    },
-    "SpanStatus": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "number"
-        },
-        "message": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "code"
-      ],
-      "additionalProperties": false
-    },
-    "TimeEvent": {
-      "type": "object",
-      "properties": {
-        "time": {
-          "type": "number"
-        },
-        "annotation": {
-          "type": "object",
-          "properties": {
-            "attributes": {
-              "type": "object",
-              "additionalProperties": {}
-            },
-            "description": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "attributes",
-            "description"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "time",
-        "annotation"
-      ],
-      "additionalProperties": false
-    },
-    "TraceData": {
-      "type": "object",
-      "properties": {
-        "traceId": {
-          "type": "string"
-        },
-        "displayName": {
-          "type": "string"
-        },
-        "startTime": {
-          "type": "number"
-        },
-        "endTime": {
-          "type": "number"
-        },
-        "spans": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/SpanData"
-          }
-        }
-      },
-      "required": [
-        "traceId",
-        "spans"
-      ],
-      "additionalProperties": false
-    },
     "CustomPart": {
       "type": "object",
       "properties": {
@@ -482,6 +242,175 @@
       "required": [
         "toolResponse"
       ],
+      "additionalProperties": false
+    },
+    "EmbedRequest": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentData"
+          }
+        },
+        "options": {}
+      },
+      "required": [
+        "input"
+      ],
+      "additionalProperties": false
+    },
+    "EmbedResponse": {
+      "type": "object",
+      "properties": {
+        "embeddings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Embedding"
+          }
+        }
+      },
+      "required": [
+        "embeddings"
+      ],
+      "additionalProperties": false
+    },
+    "Embedding": {
+      "type": "object",
+      "properties": {
+        "embedding": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "embedding"
+      ],
+      "additionalProperties": false
+    },
+    "BaseDataPoint": {
+      "type": "object",
+      "properties": {
+        "input": {},
+        "output": {},
+        "context": {
+          "type": "array",
+          "items": {}
+        },
+        "reference": {},
+        "testCaseId": {
+          "type": "string"
+        },
+        "traceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "BaseEvalDataPoint": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$ref": "#/$defs/BaseDataPoint/properties/input"
+        },
+        "output": {
+          "$ref": "#/$defs/BaseDataPoint/properties/output"
+        },
+        "context": {
+          "$ref": "#/$defs/BaseDataPoint/properties/context"
+        },
+        "reference": {
+          "$ref": "#/$defs/BaseDataPoint/properties/reference"
+        },
+        "testCaseId": {
+          "type": "string"
+        },
+        "traceIds": {
+          "$ref": "#/$defs/BaseDataPoint/properties/traceIds"
+        }
+      },
+      "required": [
+        "testCaseId"
+      ],
+      "additionalProperties": false
+    },
+    "EvalFnResponse": {
+      "type": "object",
+      "properties": {
+        "sampleIndex": {
+          "type": "number"
+        },
+        "testCaseId": {
+          "type": "string"
+        },
+        "traceId": {
+          "type": "string"
+        },
+        "spanId": {
+          "type": "string"
+        },
+        "evaluation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Score"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Score"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "testCaseId",
+        "evaluation"
+      ],
+      "additionalProperties": false
+    },
+    "EvalResponse": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EvalFnResponse"
+      }
+    },
+    "Score": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional ID to differentiate different scores if applying in a single evaluation"
+        },
+        "score": {
+          "type": [
+            "number",
+            "string",
+            "boolean"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object",
+          "properties": {
+            "reasoning": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
       "additionalProperties": false
     },
     "CandidateError": {
@@ -1080,6 +1009,410 @@
       "required": [
         "name",
         "description"
+      ],
+      "additionalProperties": false
+    },
+    "CommonRerankerOptions": {
+      "type": "object",
+      "properties": {
+        "k": {
+          "type": "number",
+          "description": "Number of documents to rerank"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RankedDocumentData": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentPart"
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "score"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "content",
+        "metadata"
+      ],
+      "additionalProperties": false
+    },
+    "RerankerRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/$defs/DocumentData"
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentData"
+          }
+        },
+        "options": {}
+      },
+      "required": [
+        "query",
+        "documents"
+      ],
+      "additionalProperties": false
+    },
+    "RerankerResponse": {
+      "type": "object",
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RankedDocumentData"
+          }
+        }
+      },
+      "required": [
+        "documents"
+      ],
+      "additionalProperties": false
+    },
+    "CommonRetrieverOptions": {
+      "type": "object",
+      "properties": {
+        "k": {
+          "type": "number",
+          "description": "Number of documents to retrieve"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RetrieverRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/$defs/DocumentData"
+        },
+        "options": {}
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "RetrieverResponse": {
+      "type": "object",
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentData"
+          }
+        }
+      },
+      "required": [
+        "documents"
+      ],
+      "additionalProperties": false
+    },
+    "InstrumentationLibrary": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "schemaUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/SpanContext"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "droppedAttributesCount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PathMetadata": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "latency": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "path",
+        "status",
+        "latency"
+      ],
+      "additionalProperties": false
+    },
+    "SpanContext": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "type": "string"
+        },
+        "spanId": {
+          "type": "string"
+        },
+        "isRemote": {
+          "type": "boolean"
+        },
+        "traceFlags": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "traceId",
+        "spanId",
+        "traceFlags"
+      ],
+      "additionalProperties": false
+    },
+    "SpanData": {
+      "type": "object",
+      "properties": {
+        "spanId": {
+          "type": "string"
+        },
+        "traceId": {
+          "type": "string"
+        },
+        "parentSpanId": {
+          "type": "string"
+        },
+        "startTime": {
+          "type": "number"
+        },
+        "endTime": {
+          "type": "number"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Link"
+          }
+        },
+        "instrumentationLibrary": {
+          "$ref": "#/$defs/InstrumentationLibrary"
+        },
+        "spanKind": {
+          "type": "string"
+        },
+        "sameProcessAsParentSpan": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "status": {
+          "$ref": "#/$defs/SpanStatus"
+        },
+        "timeEvents": {
+          "type": "object",
+          "properties": {
+            "timeEvent": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TimeEvent"
+              }
+            }
+          },
+          "required": [
+            "timeEvent"
+          ],
+          "additionalProperties": false
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "spanId",
+        "traceId",
+        "startTime",
+        "endTime",
+        "attributes",
+        "displayName",
+        "instrumentationLibrary",
+        "spanKind"
+      ],
+      "additionalProperties": false
+    },
+    "SpanMetadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "success",
+            "error"
+          ]
+        },
+        "input": {},
+        "output": {},
+        "isRoot": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "SpanStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "number"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    "TimeEvent": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number"
+        },
+        "annotation": {
+          "type": "object",
+          "properties": {
+            "attributes": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "attributes",
+            "description"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "time",
+        "annotation"
+      ],
+      "additionalProperties": false
+    },
+    "TraceData": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "startTime": {
+          "type": "number",
+          "description": "trace start time in milliseconds since the epoch"
+        },
+        "endTime": {
+          "type": "number",
+          "description": "end time in milliseconds since the epoch"
+        },
+        "spans": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SpanData"
+          }
+        }
+      },
+      "required": [
+        "traceId",
+        "spans"
+      ],
+      "additionalProperties": false
+    },
+    "TraceMetadata": {
+      "type": "object",
+      "properties": {
+        "featureName": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/PathMetadata"
+          }
+        },
+        "timestamp": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "timestamp"
       ],
       "additionalProperties": false
     }
