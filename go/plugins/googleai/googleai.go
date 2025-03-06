@@ -66,6 +66,12 @@ var (
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
 )
 
+// GenerationGoogleAIConfig extends GenerationCommonConfig with Google AI specific settings.
+type GenerationGoogleAIConfig struct {
+	ai.GenerationCommonConfig
+	SafetySettings []*genai.SafetySetting
+}
+
 // Config is the configuration for the plugin.
 type Config struct {
 	// The API key to access the service.
@@ -315,7 +321,7 @@ func generate(
 	return r, nil
 }
 
-func mapToStruct(m map[string]interface{}, v interface{}) error {
+func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -324,8 +330,7 @@ func mapToStruct(m map[string]interface{}, v interface{}) error {
 }
 
 // applyGenerationConfig applies the common generation configuration to the model
-// todo: support Gemini-specific configuration
-func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConfig) {
+func applyGenerationConfig(gm *genai.GenerativeModel, c GenerationGoogleAIConfig) {
 	if c.MaxOutputTokens != 0 {
 		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
 	}
@@ -341,20 +346,65 @@ func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConf
 	if c.TopP != 0 {
 		gm.SetTopP(float32(c.TopP))
 	}
+	if len(c.SafetySettings) > 0 {
+		gm.SafetySettings = c.SafetySettings
+	}
+}
+
+// extractConfigFromInput converts any supported config type to GoogleAIConfig
+func extractConfigFromInput(input *ai.ModelRequest) (GenerationGoogleAIConfig, error) {
+	var result GenerationGoogleAIConfig
+	switch config := input.Config.(type) {
+	case GenerationGoogleAIConfig:
+		return config, nil
+	case *GenerationGoogleAIConfig:
+		return *config, nil
+	case ai.GenerationCommonConfig:
+		result.MaxOutputTokens = config.MaxOutputTokens
+		result.StopSequences = config.StopSequences
+		result.Temperature = config.Temperature
+		result.TopK = config.TopK
+		result.TopP = config.TopP
+		result.Version = config.Version
+		return result, nil
+	case *ai.GenerationCommonConfig:
+		if config != nil {
+			result.MaxOutputTokens = config.MaxOutputTokens
+			result.StopSequences = config.StopSequences
+			result.Temperature = config.Temperature
+			result.TopK = config.TopK
+			result.TopP = config.TopP
+			result.Version = config.Version
+		}
+		return result, nil
+	case map[string]any:
+		// Try parsing directly as GoogleAIConfig first
+		if err := mapToStruct(config, &result); err == nil {
+			return result, nil
+		} else {
+			return result, err
+		}
+	case nil:
+		// Empty but valid config
+		return result, nil
+	default:
+		return result, fmt.Errorf("unexpected config type: %T", input.Config)
+	}
 }
 
 func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
-	var c ai.GenerationCommonConfig
-	if err := mapToStruct(input.Config.(map[string]interface{}), &c); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
+	c, err := extractConfigFromInput(input)
+	if err != nil {
+		return nil, err
 	}
+
 	specifiedModel := model
 	if c.Version != "" {
 		specifiedModel = c.Version
 	}
 	gm := client.GenerativeModel(specifiedModel)
 	gm.SetCandidateCount(1)
-	applyGenerationConfig(gm, &c)
+	applyGenerationConfig(gm, c)
 	for _, m := range input.Messages {
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
