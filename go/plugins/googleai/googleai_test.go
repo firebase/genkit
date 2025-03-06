@@ -127,8 +127,6 @@ func TestLive(t *testing.T) {
 		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
 			t.Errorf("Empty usage stats %#v", *final.Usage)
 		}
-
-		t.Fatalf("on purpose, remove me")
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,

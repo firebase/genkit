@@ -238,7 +238,7 @@ func defineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 		// TODO: set em.TaskType from EmbedRequest.Options?
 		batch := em.NewBatch()
 		for _, doc := range input.Documents {
-			parts, err := convertGoogleaiParts(doc.Content)
+			parts, err := convertGoogleAIParts(doc.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -256,11 +256,12 @@ func defineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	})
 }
 
-// convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertGoogleaiParts(parts []*ai.Part) ([]googleai.Part, error) {
+// convertGoogleAIParts converts a slice of *ai.Part to a slice of googleai.Part.
+// NOTE: to be removed once go-genai SDK supports embeddings
+func convertGoogleAIParts(parts []*ai.Part) ([]googleai.Part, error) {
 	res := make([]googleai.Part, 0, len(parts))
 	for _, p := range parts {
-		part, err := convertGoogleaiPart(p)
+		part, err := convertGoogleAIPart(p)
 		if err != nil {
 			return nil, err
 		}
@@ -269,8 +270,9 @@ func convertGoogleaiParts(parts []*ai.Part) ([]googleai.Part, error) {
 	return res, nil
 }
 
-// convertPart converts a *ai.Part to a genai.Part.
-func convertGoogleaiPart(p *ai.Part) (googleai.Part, error) {
+// convertGoogleAIPart converts *ai.Part to a googleai.Part.
+// NOTE: to be removed once go-genai SDK supports embeddings
+func convertGoogleAIPart(p *ai.Part) (googleai.Part, error) {
 	switch {
 	case p.IsText():
 		return googleai.Text(p.Text), nil
@@ -387,7 +389,7 @@ func generate(
 			return nil, err
 		}
 		for i, c := range chunk.Candidates {
-			tc := translateCandidate((c))
+			tc := translateCandidate(c)
 			err := cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
 			})
@@ -397,7 +399,7 @@ func generate(
 			// stream only supports text
 			chunks = append(chunks, c.Content.Parts[i].Text)
 		}
-		// keep the last chunk
+		// keep the last chunk for usage metadata
 		resp = chunk
 	}
 
@@ -412,7 +414,6 @@ func generate(
 	}
 	resp.Candidates = merged
 	r = translateResponse(resp)
-
 	if r == nil {
 		// No candidates were returned. Probably rare, but it might avoid a NPE
 		// to return an empty instead of nil result.
@@ -422,12 +423,13 @@ func generate(
 	return r, nil
 }
 
+// int64Ptr converts an int to *int64
 func int64Ptr(n int) *int64 {
 	val := int64(n)
 	return &val
 }
 
-// float64Ptr converts an int to a *float64
+// float64Ptr converts an int to *float64
 func float64Ptr(n int) *float64 {
 	val := float64(n)
 	return &val
@@ -684,7 +686,6 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	r := translateCandidate(resp.Candidates[0])
 
-	fmt.Printf("token usage: %#v\n\n", resp.UsageMetadata)
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(*u.PromptTokenCount)
