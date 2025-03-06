@@ -18,13 +18,7 @@
 // IMPORTANT: Keep this file in sync with js/ai/src/retriever.ts!
 //
 import { z } from 'zod';
-import { PartSchema } from './model';
-
-export const DocumentDataSchema = z.object({
-  content: z.array(PartSchema),
-  metadata: z.record(z.string(), z.any()).optional(),
-});
-export type DocumentData = z.infer<typeof DocumentDataSchema>;
+import { DocumentDataSchema } from './document';
 
 const RetrieverRequestSchema = z.object({
   query: DocumentDataSchema,

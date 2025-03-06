@@ -24,6 +24,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 const EXPORTED_TYPE_MODULES = [
   '../common/src/types/trace.ts',
   '../common/src/types/retrievers.ts',
+  '../common/src/types/document.ts',
   '../common/src/types/model.ts',
 ];
 
