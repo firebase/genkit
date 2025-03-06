@@ -1,11 +1,13 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for Genkit document."""
 
 from genkit.ai.document import (
     Document,
-    TextPart,
-    DocumentData,
     MediaPart,
     MediaPartModel,
+    TextPart,
 )
 from genkit.ai.embedding import EmbeddingModel
 

@@ -1,6 +1,12 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""Document model for the Genkit framework.
+
+This module provides types for creating and managing multi-modal documents in
+Genkit.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
