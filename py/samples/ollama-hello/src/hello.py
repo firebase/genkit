@@ -21,7 +21,6 @@ plugin_params = OllamaPluginParams(
             api_type=OllamaAPITypes.CHAT,
         )
     ],
-    use_async_api=True,
 )
 
 ai = Genkit(
@@ -32,6 +31,10 @@ ai = Genkit(
     ],
     model=ollama_name(LLM_VERSION),
 )
+
+
+def on_chunk(chunk):
+    print('received chunk: ', chunk)
 
 
 @ai.flow()
@@ -52,7 +55,9 @@ async def say_hi(hi_input: str):
                     TextPart(text='hi ' + hi_input),
                 ],
             )
-        ]
+        ],
+        # uncomment me to handle streaming response
+        # on_chunk=on_chunk,
     )
 
 

@@ -24,6 +24,7 @@ members = [
     "imagen",
     "menu",
     "ollama-example",
+    "ollama-simple-embed",
     "prompt-file",
     "rag",
     "vertex-ai-model-garden",
@@ -1899,7 +1900,30 @@ wheels = [
 [[package]]
 name = "ollama-example"
 version = "0.1.0"
-source = { virtual = "samples/ollama" }
+source = { virtual = "samples/ollama-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
+name = "ollama-simple-embed"
+version = "0.1.0"
+source = { virtual = "samples/ollama-simple-embed" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-firebase-plugin" },
