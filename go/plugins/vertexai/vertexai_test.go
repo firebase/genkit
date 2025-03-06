@@ -45,7 +45,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
+			ai.WithPromptText("Write one paragraph about the Golden State Warriors."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				for _, p := range c.Content {
@@ -97,7 +97,7 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)

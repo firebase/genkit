@@ -192,7 +192,8 @@ type promptOptions struct {
 	Metadata     map[string]any     // Arbitrary metadata.
 }
 
-// PromptOption is an option for defining a prompt. It applies only to prompt.Define().
+// PromptOption is an option for defining a prompt.
+// It applies only to DefinePrompt().
 type PromptOption interface {
 	applyPrompt(*promptOptions) error
 }
@@ -291,11 +292,12 @@ func WithInputType(input any) *promptOptions {
 
 // promptingOptions are options for the system and user prompts of a prompt or generate request.
 type promptingOptions struct {
-	SystemFn promptFn // System prompt function. If this is set, System should be an empty string.
-	PromptFn promptFn // User prompt function. If this is set, Prompt should be an empty string.
+	SystemFn promptFn // Function to generate the system prompt.
+	PromptFn promptFn // Function to generate the user prompt.
 }
 
-// PromptingOption is an option for the system and user prompts of a prompt or generate request. It applies only to prompt.Define() and Generate().
+// PromptingOption is an option for the system and user prompts of a prompt or generate request.
+// It applies only to DefinePrompt() and Generate().
 type PromptingOption interface {
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
@@ -365,10 +367,11 @@ func WithPromptFn(fn promptFn) PromptingOption {
 // outputOptions are options for the output of a prompt or generate request.
 type outputOptions struct {
 	OutputSchema map[string]any // JSON schema of the output.
-	OutputFormat OutputFormat   // Format of the output. If schema is set, this is set to OutputFormatJSON.
+	OutputFormat OutputFormat   // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
 }
 
-// OutputOption is an option for the output of a prompt or generate request. It applies only to prompt.Define() and Generate().
+// OutputOption is an option for the output of a prompt or generate request.
+// It applies only to DefinePrompt() and Generate().
 type OutputOption interface {
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
