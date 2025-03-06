@@ -1,3 +1,6 @@
+// Copyright 2024 Google LLC
+// SPDX-License-Identifier: Apache-2.0
+
 package ai
 
 import (
@@ -17,8 +20,8 @@ type promptFn = func(context.Context, any) (string, error)
 // messagesFn is a function that generates messages.
 type messagesFn = func(context.Context, any) ([]*Message, error)
 
-// RenderFn is a function that renders a prompt intoa model request.
-type RenderFn = func(context.Context, any) (*ModelRequest, error)
+// renderFn is a function that renders a prompt intoa model request.
+type renderFn = func(context.Context, any) (*ModelRequest, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
@@ -35,9 +38,9 @@ type commonOptions struct {
 
 type CommonOption interface {
 	applyCommon(*commonOptions) error
-	applyPrompt(*PromptOptions) error
+	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptRequest(*PromptRequestOptions) error
+	applyPromptRequest(*promptGenerateOptions) error
 }
 
 // applyCommon applies the option to the common options.
@@ -103,12 +106,12 @@ func (o *commonOptions) applyCommon(opts *commonOptions) error {
 }
 
 // applyPromptRequest applies the option to the prompt request options.
-func (o *commonOptions) applyPromptRequest(reqOpts *PromptRequestOptions) error {
+func (o *commonOptions) applyPromptRequest(reqOpts *promptGenerateOptions) error {
 	return o.applyCommon(&reqOpts.commonOptions)
 }
 
 // applyPrompt applies the option to the prompt options.
-func (o *commonOptions) applyPrompt(pOpts *PromptOptions) error {
+func (o *commonOptions) applyPrompt(pOpts *promptOptions) error {
 	return o.applyCommon(&pOpts.commonOptions)
 }
 
@@ -178,26 +181,24 @@ func WithToolChoice(toolChoice ToolChoice) CommonOption {
 	return &commonOptions{ToolChoice: toolChoice}
 }
 
-// TODO: Unexport PromptOptions after moving `prompt` to `ai` package.
-
-// PromptOptions are options for defining a prompt.
-type PromptOptions struct {
+// promptOptions are options for defining a prompt.
+type promptOptions struct {
 	commonOptions
 	promptingOptions
 	outputOptions
 	InputSchema  *jsonschema.Schema // Schema of the input.
 	DefaultInput map[string]any     // Default input that will be used if no input is provided.
-	RenderFn     RenderFn           // Function to render the prompt.
+	RenderFn     renderFn           // Function to render the prompt.
 	Metadata     map[string]any     // Arbitrary metadata.
 }
 
 // PromptOption is an option for defining a prompt. It applies only to prompt.Define().
 type PromptOption interface {
-	applyPrompt(*PromptOptions) error
+	applyPrompt(*promptOptions) error
 }
 
 // applyPrompt applies the option to the prompt options.
-func (o *PromptOptions) applyPrompt(opts *PromptOptions) error {
+func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 	if err := o.commonOptions.applyPrompt(opts); err != nil {
 		return err
 	}
@@ -238,18 +239,18 @@ func (o *PromptOptions) applyPrompt(opts *PromptOptions) error {
 }
 
 // WithRenderFn sets the function to render the prompt.
-func WithRenderFn(fn RenderFn) PromptOption {
-	return &PromptOptions{RenderFn: fn}
+func WithRenderFn(fn renderFn) PromptOption {
+	return &promptOptions{RenderFn: fn}
 }
 
 // WithMetadata sets arbitrary metadata for the prompt.
 func WithMetadata(metadata map[string]any) PromptOption {
-	return &PromptOptions{Metadata: metadata}
+	return &promptOptions{Metadata: metadata}
 }
 
 // WithInputType uses the type provided to derive the input schema.
 // The inputted value will serve as the default input if no input is given at generation time.
-func WithInputType(input any) *PromptOptions {
+func WithInputType(input any) *promptOptions {
 	// TODO: Switch case is incomplete and neither covers all types nor is opinionated.
 
 	var defaultInput map[string]any
@@ -282,7 +283,7 @@ func WithInputType(input any) *PromptOptions {
 		panic(fmt.Errorf("failed to unmarshal default input (WithInputType): %w", err))
 	}
 
-	return &PromptOptions{
+	return &promptOptions{
 		InputSchema:  base.InferJSONSchemaNonReferencing(input),
 		DefaultInput: defaultInput,
 	}
@@ -296,7 +297,7 @@ type promptingOptions struct {
 
 // PromptingOption is an option for the system and user prompts of a prompt or generate request. It applies only to prompt.Define() and Generate().
 type PromptingOption interface {
-	applyPrompt(*PromptOptions) error
+	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
 }
 
@@ -320,7 +321,7 @@ func (o *promptingOptions) applyPrompting(opts *promptingOptions) error {
 }
 
 // applyPrompt applies the option to the prompt options.
-func (o *promptingOptions) applyPrompt(opts *PromptOptions) error {
+func (o *promptingOptions) applyPrompt(opts *promptOptions) error {
 	return o.applyPrompting(&opts.promptingOptions)
 }
 
@@ -369,12 +370,12 @@ type outputOptions struct {
 
 // OutputOption is an option for the output of a prompt or generate request. It applies only to prompt.Define() and Generate().
 type OutputOption interface {
-	applyPrompt(*PromptOptions) error
+	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
 }
 
 // applyPrompt applies the option to the prompt options.
-func (o *outputOptions) applyPrompt(opts *PromptOptions) error {
+func (o *outputOptions) applyPrompt(opts *promptOptions) error {
 	if opts.OutputSchema != nil || opts.OutputFormat != "" {
 		return errors.New("cannot set output options more than once (WithOutputType)")
 	}
@@ -418,7 +419,7 @@ type executionOptions struct {
 type ExecutionOption interface {
 	applyRuntime(*executionOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptRequest(*PromptRequestOptions) error
+	applyPromptRequest(*promptGenerateOptions) error
 }
 
 // applyRuntime applies the option to the runtime options.
@@ -453,7 +454,7 @@ func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // applyPromptRequest applies the option to the prompt request options.
-func (o *executionOptions) applyPromptRequest(reqOpts *PromptRequestOptions) error {
+func (o *executionOptions) applyPromptRequest(reqOpts *promptGenerateOptions) error {
 	return o.applyRuntime(&reqOpts.executionOptions)
 }
 
@@ -473,7 +474,7 @@ func WithStreaming(callback ModelStreamCallback) ExecutionOption {
 	return &executionOptions{Stream: callback}
 }
 
-// generateOptions are options for generating a model response.
+// generateOptions are options for generating a model response by calling a model directly.
 type generateOptions struct {
 	commonOptions
 	promptingOptions
@@ -503,10 +504,8 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 	return nil
 }
 
-// TODO: Unexport PromptRequestOptions after moving `prompt` to `ai` package.
-
-// PromptRequestOptions are options for executing a prompt.
-type PromptRequestOptions struct {
+// promptGenerateOptions are options for generating a model response by executing a prompt.
+type promptGenerateOptions struct {
 	commonOptions
 	executionOptions
 	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
@@ -514,11 +513,11 @@ type PromptRequestOptions struct {
 
 // PromptRequestOption is an option for executing a prompt. It applies only to prompt.Execute().
 type PromptRequestOption interface {
-	applyPromptRequest(*PromptRequestOptions) error
+	applyPromptRequest(*promptGenerateOptions) error
 }
 
 // applyPromptRequest applies the option to the prompt request options.
-func (o *PromptRequestOptions) applyPromptRequest(reqOpts *PromptRequestOptions) error {
+func (o *promptGenerateOptions) applyPromptRequest(reqOpts *promptGenerateOptions) error {
 	if err := o.commonOptions.applyPromptRequest(reqOpts); err != nil {
 		return err
 	}
@@ -537,5 +536,5 @@ func (o *PromptRequestOptions) applyPromptRequest(reqOpts *PromptRequestOptions)
 
 // WithInput sets the input for the prompt request.
 func WithInput(input any) PromptRequestOption {
-	return &PromptRequestOptions{Input: input}
+	return &promptGenerateOptions{Input: input}
 }
