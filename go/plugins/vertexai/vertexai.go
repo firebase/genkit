@@ -12,14 +12,12 @@ import (
 	"sync"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
-	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 const (
@@ -125,8 +123,11 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 	var err error
 	// Client for Gemini SDK.
-	opts := append([]option.ClientOption{genai.WithClientInfo("genkit-go", internal.Version)}, cfg.ClientOptions...)
-	state.gclient, err = genai.NewClient(ctx, state.projectID, state.location, opts...)
+	state.gclient, err = genai.NewClient(ctx, &genai.ClientConfig{
+		Backend:  genai.BackendVertexAI,
+		Project:  state.projectID,
+		Location: state.location,
+	})
 	if err != nil {
 		return err
 	}
@@ -259,36 +260,29 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	gm, err := newModel(client, model, input)
+	gc, err := convertRequest(client, model, input)
 	if err != nil {
 		return nil, err
 	}
-	cs, err := startChat(gm, input)
-	if err != nil {
-		return nil, err
-	}
-	// The last message gets added to the parts slice.
-	var parts []genai.Part
-	if len(input.Messages) > 0 {
-		last := input.Messages[len(input.Messages)-1]
-		var err error
-		parts, err = convertParts(last.Content)
+
+	var contents []*genai.Content
+	for _, m := range input.Messages {
+		if m.Role == ai.RoleSystem {
+			continue
+		}
+		parts, err := convertParts(m.Content)
 		if err != nil {
 			return nil, err
 		}
+		contents = append(contents, &genai.Content{
+			Parts: parts,
+			Role:  string(m.Role),
+		})
 	}
-
-	// Convert input.Tools and append to gm.Tools
-	gm.Tools, err = convertTools(input.Tools)
-	if err != nil {
-		return nil, err
-	}
-
-	gm.ToolConfig = convertToolChoice(input.ToolChoice, input.Tools)
 
 	// Send out the actual request.
 	if cb == nil {
-		resp, err := cs.SendMessage(ctx, parts...)
+		resp, err := client.Models.GenerateContent(ctx, model, contents, gc)
 		if err != nil {
 			return nil, err
 		}
@@ -298,19 +292,18 @@ func generate(
 	}
 
 	// Streaming version.
-	iter := cs.SendMessageStream(ctx, parts...)
+	iter := client.Models.GenerateContentStream(ctx, model, contents, gc)
 	var r *ai.ModelResponse
-	for {
-		chunk, err := iter.Next()
-		if err == iterator.Done {
-			r = translateResponse(iter.MergedResponse())
-			break
-		}
+
+	// merge all streamed responses
+	var resp *genai.GenerateContentResponse
+	var chunks []string
+	for chunk, err := range iter {
+		// abort stream if error found in the iterator items
 		if err != nil {
 			return nil, err
 		}
-		// Send candidates to the callback.
-		for _, c := range chunk.Candidates {
+		for i, c := range chunk.Candidates {
 			tc := translateCandidate(c)
 			err := cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
@@ -318,8 +311,24 @@ func generate(
 			if err != nil {
 				return nil, err
 			}
+			// stream only supports text
+			chunks = append(chunks, c.Content.Parts[i].Text)
 		}
+		// keep the last chunk for usage metadata
+		resp = chunk
 	}
+
+	// manually merge all candidate responses, iterator does not provide a
+	// merged response utility
+	merged := []*genai.Candidate{
+		{
+			Content: &genai.Content{
+				Parts: []*genai.Part{genai.NewPartFromText(strings.Join(chunks, ""))},
+			},
+		},
+	}
+	resp.Candidates = merged
+	r = translateResponse(resp)
 	if r == nil {
 		// No candidates were returned. Probably rare, but it might avoid a NPE
 		// to return an empty instead of nil result.
@@ -329,69 +338,77 @@ func generate(
 	return r, nil
 }
 
-func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
-	gm := client.GenerativeModel(model)
-	gm.SetCandidateCount(1)
+// int64Ptr converts an int to *int64
+func int64Ptr(n int) *int64 {
+	val := int64(n)
+	return &val
+}
+
+// float64Ptr converts an int to *float64
+func float64Ptr(n int) *float64 {
+	val := float64(n)
+	return &val
+}
+
+// convertRequest translates from [*ai.ModelRequest] to
+// *genai.GenerateContentParameters
+func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
+	gc := genai.GenerateContentConfig{}
+	gc.CandidateCount = int64Ptr(1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
-			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+			gc.MaxOutputTokens = int64Ptr(c.MaxOutputTokens)
 		}
 		if len(c.StopSequences) > 0 {
-			gm.StopSequences = c.StopSequences
+			gc.StopSequences = c.StopSequences
 		}
 		if c.Temperature != 0 {
-			gm.SetTemperature(float32(c.Temperature))
+			gc.Temperature = &c.Temperature
 		}
 		if c.TopK != 0 {
-			gm.SetTopK(int32(c.TopK))
+			gc.TopK = float64Ptr(c.TopK)
 		}
 		if c.TopP != 0 {
-			gm.SetTopP(float32(c.TopP))
+			gc.TopP = &c.TopP
 		}
 	}
+
+	var systemParts []*genai.Part
 	for _, m := range input.Messages {
-		systemParts, err := convertParts(m.Content)
-		if err != nil {
-			return nil, err
-		}
-		// system prompts go into GenerativeModel.SystemInstruction field.
 		if m.Role == ai.RoleSystem {
-			gm.SystemInstruction = &genai.Content{
-				Parts: systemParts,
-				Role:  string(m.Role),
+			parts, err := convertParts(m.Content)
+			if err != nil {
+				return nil, err
 			}
+			systemParts = append(systemParts, parts...)
 		}
 	}
-	return gm, nil
-}
 
-// startChat starts a chat session and configures it with the input messages.
-func startChat(gm *genai.GenerativeModel, input *ai.ModelRequest) (*genai.ChatSession, error) {
-	cs := gm.StartChat()
-
-	// All but the last message goes in the history field.
-	messages := input.Messages
-	for len(messages) > 1 {
-		m := messages[0]
-		messages = messages[1:]
-
-		// skip system prompt message, it's handled separately.
-		if m.Role == ai.RoleSystem {
-			continue
+	// configure system instruction
+	if len(systemParts) > 0 {
+		gc.SystemInstruction = &genai.Content{
+			Parts: systemParts,
+			Role:  string(ai.RoleSystem),
 		}
-
-		parts, err := convertParts(m.Content)
-		if err != nil {
-			return nil, err
-		}
-		cs.History = append(cs.History, &genai.Content{
-			Parts: parts,
-			Role:  string(m.Role),
-		})
 	}
-	return cs, nil
+
+	// configure tools
+	tools, err := convertTools(input.Tools)
+	if err != nil {
+		return nil, err
+	}
+	gc.Tools = tools
+
+	// configure tool choice
+	choice := convertToolChoice(input.ToolChoice, input.Tools)
+	gc.ToolConfig = choice
+
+	// TODO: configure cache
+
+	return &gc, nil
 }
 
+// convertTools translates an [*ai.ToolDefinition] to a *genai.Tool
 func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
@@ -492,23 +509,23 @@ func castToStringArray(i []any) []string {
 }
 
 func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *genai.ToolConfig {
-	var mode genai.FunctionCallingMode
+	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
 		return nil
 	case ai.ToolChoiceAuto:
-		mode = genai.FunctionCallingAuto
+		mode = genai.FunctionCallingConfigModeAuto
 	case ai.ToolChoiceRequired:
-		mode = genai.FunctionCallingAny
+		mode = genai.FunctionCallingConfigModeAny
 	case ai.ToolChoiceNone:
-		mode = genai.FunctionCallingNone
+		mode = genai.FunctionCallingConfigModeNone
 	default:
 		panic(fmt.Sprintf("%s does not support tool choice mode %q", provider, toolChoice))
 	}
 
 	var toolNames []string
 	// Per docs, only set AllowedToolNames with mode set to ANY.
-	if mode == genai.FunctionCallingAny {
+	if mode == genai.FunctionCallingConfigModeAny {
 		for _, t := range tools {
 			toolNames = append(toolNames, t.Name)
 		}
@@ -546,21 +563,32 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 	}
 	msg := &ai.Message{}
 	msg.Role = ai.Role(cand.Content.Role)
+
+	// iterate over the candidate parts, only one struct member
+	// must be populated, more than one is considered an error
 	for _, part := range cand.Content.Parts {
 		var p *ai.Part
-		switch part := part.(type) {
-		case genai.Text:
-			p = ai.NewTextPart(string(part))
-		case genai.Blob:
-			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
-		case genai.FunctionCall:
-			p = ai.NewToolRequestPart(&ai.ToolRequest{
-				Name:  part.Name,
-				Input: part.Args,
-			})
-		default:
-			panic(fmt.Sprintf("unknown part %#v", part))
+		partFound := 0
+
+		if part.Text != "" {
+			partFound++
+			p = ai.NewTextPart(part.Text)
 		}
+		if part.InlineData != nil {
+			partFound++
+			p = ai.NewMediaPart(part.InlineData.MIMEType, string(part.InlineData.Data))
+		}
+		if part.FunctionCall != nil {
+			partFound++
+			p = ai.NewToolRequestPart(&ai.ToolRequest{
+				Name:  part.FunctionCall.Name,
+				Input: part.FunctionCall.Args,
+			})
+		}
+		if partFound > 1 {
+			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
+		}
+
 		msg.Content = append(msg.Content, p)
 	}
 	m.Message = msg
@@ -579,8 +607,8 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
-		r.Usage.InputTokens = int(u.PromptTokenCount)
-		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.InputTokens = int(*u.PromptTokenCount)
+		r.Usage.OutputTokens = int(*u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
 	return r
@@ -593,8 +621,8 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 // DO NOT MODIFY below vvvv
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertParts(parts []*ai.Part) ([]genai.Part, error) {
-	res := make([]genai.Part, 0, len(parts))
+func convertParts(parts []*ai.Part) ([]*genai.Part, error) {
+	res := make([]*genai.Part, 0, len(parts))
 	for _, p := range parts {
 		part, err := convertPart(p)
 		if err != nil {
@@ -606,16 +634,16 @@ func convertParts(parts []*ai.Part) ([]genai.Part, error) {
 }
 
 // convertPart converts a *ai.Part to a genai.Part.
-func convertPart(p *ai.Part) (genai.Part, error) {
+func convertPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
-		return genai.Text(p.Text), nil
+		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
 		contentType, data, err := uri.Data(p)
 		if err != nil {
 			return nil, err
 		}
-		return genai.Blob{MIMEType: contentType, Data: data}, nil
+		return genai.NewPartFromBytes(data, contentType), nil
 	case p.IsData():
 		panic(fmt.Sprintf("%s does not support Data parts", provider))
 	case p.IsToolResponse():
@@ -629,10 +657,7 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 				"content": toolResp.Output,
 			}
 		}
-		fr := genai.FunctionResponse{
-			Name:     toolResp.Name,
-			Response: output,
-		}
+		fr := genai.NewPartFromFunctionResponse(toolResp.Name, output)
 		return fr, nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
@@ -644,10 +669,7 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 				"input": toolReq.Input,
 			}
 		}
-		fc := genai.FunctionCall{
-			Name: toolReq.Name,
-			Args: input,
-		}
+		fc := genai.NewPartFromFunctionCall(toolReq.Name, input)
 		return fc, nil
 	default:
 		panic("unknown part type in a request")
