@@ -9,6 +9,7 @@ package googleai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -338,26 +339,46 @@ func generate(
 	return r, nil
 }
 
-func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
-	gm := client.GenerativeModel(model)
-	gm.SetCandidateCount(1)
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		}
-		if len(c.StopSequences) > 0 {
-			gm.StopSequences = c.StopSequences
-		}
-		if c.Temperature != 0 {
-			gm.SetTemperature(float32(c.Temperature))
-		}
-		if c.TopK != 0 {
-			gm.SetTopK(int32(c.TopK))
-		}
-		if c.TopP != 0 {
-			gm.SetTopP(float32(c.TopP))
-		}
+func mapToStruct(m map[string]interface{}, v interface{}) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
 	}
+	return json.Unmarshal(jsonData, v)
+}
+
+// applyGenerationConfig applies the common generation configuration to the model
+// todo: support Gemini-specific configuration
+func applyGenerationConfig(gm *genai.GenerativeModel, c *ai.GenerationCommonConfig) {
+	if c.MaxOutputTokens != 0 {
+		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+	}
+	if len(c.StopSequences) > 0 {
+		gm.StopSequences = c.StopSequences
+	}
+	if c.Temperature != 0 {
+		gm.SetTemperature(float32(c.Temperature))
+	}
+	if c.TopK != 0 {
+		gm.SetTopK(int32(c.TopK))
+	}
+	if c.TopP != 0 {
+		gm.SetTopP(float32(c.TopP))
+	}
+}
+
+func newModel(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerativeModel, error) {
+	var c ai.GenerationCommonConfig
+	if err := mapToStruct(input.Config.(map[string]interface{}), &c); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+	specifiedModel := model
+	if c.Version != "" {
+		specifiedModel = c.Version
+	}
+	gm := client.GenerativeModel(specifiedModel)
+	gm.SetCandidateCount(1)
+	applyGenerationConfig(gm, &c)
 	for _, m := range input.Messages {
 		systemParts, err := convertParts(m.Content)
 		if err != nil {
