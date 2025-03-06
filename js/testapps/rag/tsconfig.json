@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "module": "NodeNext",
-    "moduleResolution": "NodeNext",
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "outDir": "lib",

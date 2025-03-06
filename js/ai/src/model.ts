@@ -50,19 +50,19 @@ import {
 export { defineGenerateAction } from './generate/action.js';
 // Export imports from document.js to retain API compatibility
 export {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
-  MediaPart,
   MediaPartSchema,
   simulateConstrainedGeneration,
-  TextPart,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 };
 
 //
