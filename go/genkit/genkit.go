@@ -202,7 +202,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 func DefinePrompt(
 	g *Genkit,
 	provider, name string,
-	opts ...prompt.PromptOption,
+	opts ...ai.PromptOption,
 ) (*prompt.Prompt, error) {
 	return prompt.Define(g.reg, provider, name, opts...)
 }
