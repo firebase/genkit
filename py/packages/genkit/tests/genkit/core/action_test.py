@@ -6,7 +6,6 @@
 """Tests for the action module."""
 
 import pytest
-from genkit.core.codec import dump_json
 from genkit.core.action import (
     Action,
     ActionKind,
@@ -15,6 +14,7 @@ from genkit.core.action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
+from genkit.core.codec import dump_json
 
 
 def test_action_enum_behaves_like_str() -> None:
@@ -189,8 +189,7 @@ async def test_define_async_action_with_input() -> None:
         """An async action that returns 'asyncFoo' with an input."""
         return f'syncFoo {input}'
 
-    asyncFooAction = Action(
-        name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
+    asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
 
     assert (await asyncFooAction.arun('foo')).response == 'syncFoo foo'
     assert (await asyncFoo('foo')) == 'syncFoo foo'
@@ -204,8 +203,7 @@ async def test_define_async_action_with_input_and_context() -> None:
         """An async action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
-    asyncFooAction = Action(
-        name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
+    asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
 
     assert (
         await asyncFooAction.arun('foo', context={'foo': 'bar'})
@@ -225,8 +223,7 @@ async def test_define_async_streaming_action() -> None:
         ctx.send_chunk('2')
         return 3
 
-    asyncFooAction = Action(
-        name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
+    asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
 
     chunks = []
 
@@ -253,14 +250,17 @@ async def test_propagates_context_via_contextvar() -> None:
 
     async def foo(_: str | None, ctx: ActionRunContext):
         return dump_json(ctx.context)
+
     fooAction = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
 
     async def bar():
         return (await fooAction.arun()).response
+
     barAction = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
 
     async def baz():
         return (await barAction.arun()).response
+
     bazAction = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
 
     first = bazAction.arun(context={'foo': 'bar'})

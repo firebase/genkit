@@ -11,10 +11,11 @@ uninterrupted operations that can operate in streaming or non-streaming mode.
 import asyncio
 import inspect
 from collections.abc import Callable
+from contextvars import ContextVar
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
-from contextvars import ContextVar
+
 from genkit.core.codec import dump_json
 from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -340,7 +341,8 @@ class Action:
             __action_context.set(context)
 
         return self.__fn(
-            input, ActionRunContext(on_chunk=on_chunk, context=__action_context.get())
+            input,
+            ActionRunContext(on_chunk=on_chunk, context=__action_context.get()),
         )
 
     async def arun(
@@ -362,12 +364,13 @@ class Action:
             The action response.
         """
         # TODO: handle telemetry_labels
-        
+
         if context:
             __action_context.set(context)
 
         return await self.__afn(
-            input, ActionRunContext(on_chunk=on_chunk, context=__action_context.get())
+            input,
+            ActionRunContext(on_chunk=on_chunk, context=__action_context.get()),
         )
 
     async def arun_raw(
