@@ -378,7 +378,7 @@ func extractConfigFromInput(input *ai.ModelRequest) (GenerationGoogleAIConfig, e
 		}
 		return result, nil
 	case map[string]any:
-		// Try parsing directly as GoogleAIConfig first
+		// Todo: this will silently fail if extra parameters are passed, may want to expose errors
 		if err := mapToStruct(config, &result); err == nil {
 			return result, nil
 		} else {
