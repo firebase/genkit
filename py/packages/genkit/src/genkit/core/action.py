@@ -24,8 +24,8 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 StreamingCallback = Callable[[Any], None]
 
 
-__action_context = ContextVar('context')
-__action_context.set(None)
+_action_context = ContextVar('context')
+_action_context.set(None)
 
 
 class ActionKind(StrEnum):
@@ -338,11 +338,11 @@ class Action:
         # TODO: handle telemetry_labels
 
         if context:
-            __action_context.set(context)
+            _action_context.set(context)
 
         return self.__fn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=__action_context.get()),
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
         )
 
     async def arun(
@@ -366,11 +366,11 @@ class Action:
         # TODO: handle telemetry_labels
 
         if context:
-            __action_context.set(context)
+            _action_context.set(context)
 
         return await self.__afn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=__action_context.get()),
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
         )
 
     async def arun_raw(
