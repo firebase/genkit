@@ -213,16 +213,16 @@ async def test_generate_middleware_can_modify_stream(
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(role='model', content=[TextPart(text='1')]),
-            GenerateResponseChunk(role='model', content=[TextPart(text='2')]),
-            GenerateResponseChunk(role='model', content=[TextPart(text='3')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='2')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')]),
         ]
     ]
 
     async def modify_stream(req, ctx, next):
         ctx.send_chunk(
             GenerateResponseChunk(
-                role='model',
+                role=Role.MODEL,
                 content=[TextPart(text='something extra before')],
             )
         )
@@ -230,7 +230,7 @@ async def test_generate_middleware_can_modify_stream(
         def chunk_handler(chunk):
             ctx.send_chunk(
                 GenerateResponseChunk(
-                    role='model',
+                    role=Role.MODEL,
                     content=[
                         TextPart(
                             text=f'intercepted: {_text_from_content(chunk.content)}'
