@@ -108,6 +108,7 @@ type ModelInfo struct {
 	Label    string             `json:"label,omitempty"`
 	Supports *ModelInfoSupports `json:"supports,omitempty"`
 	Versions []string           `json:"versions,omitempty"`
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
 }
 
 type ModelInfoSupports struct {

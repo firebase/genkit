@@ -18,9 +18,11 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/google/generative-ai-go/genai"
+	"github.com/invopop/jsonschema"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -162,9 +164,10 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 // requires state.mu
 func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 	meta := &ai.ModelInfo{
-		Label:    labelPrefix + " - " + name,
-		Supports: info.Supports,
-		Versions: info.Versions,
+		Label:        labelPrefix + " - " + name,
+		Supports:     info.Supports,
+		Versions:     info.Versions,
+		ConfigSchema: convertConfigSchemaToMap(&GenerationGoogleAIConfig{}),
 	}
 	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
@@ -173,6 +176,16 @@ func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 	) (*ai.ModelResponse, error) {
 		return generate(ctx, state.gclient, name, input, cb)
 	})
+}
+
+func convertConfigSchemaToMap(config any) map[string]any {
+	r := jsonschema.Reflector{
+		DoNotReference: true, // Prevent $ref usage
+		ExpandedStruct: true, // Include all fields directly
+	}
+	schema := r.Reflect(config)
+	result := base.SchemaAsMap(schema)
+	return result
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
