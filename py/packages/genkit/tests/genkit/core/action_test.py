@@ -14,6 +14,7 @@ from genkit.core.action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
+from genkit.core.codec import dump_json
 
 
 def test_action_enum_behaves_like_str() -> None:
@@ -241,3 +242,29 @@ def test_parse_plugin_name_from_action_name():
     assert parse_plugin_name_from_action_name('foo') == None
     assert parse_plugin_name_from_action_name('foo/bar') == 'foo'
     assert parse_plugin_name_from_action_name('foo/bar/baz') == 'foo'
+
+
+@pytest.mark.asyncio
+async def test_propagates_context_via_contextvar() -> None:
+    """Test that context is properly propagated via contextvar."""
+
+    async def foo(_: str | None, ctx: ActionRunContext):
+        return dump_json(ctx.context)
+
+    fooAction = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+
+    async def bar():
+        return (await fooAction.arun()).response
+
+    barAction = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
+
+    async def baz():
+        return (await barAction.arun()).response
+
+    bazAction = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
+
+    first = bazAction.arun(context={'foo': 'bar'})
+    second = bazAction.arun(context={'bar': 'baz'})
+
+    assert (await second).response == '{"bar": "baz"}'
+    assert (await first).response == '{"foo": "bar"}'

@@ -11,6 +11,7 @@ uninterrupted operations that can operate in streaming or non-streaming mode.
 import asyncio
 import inspect
 from collections.abc import Callable
+from contextvars import ContextVar
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
@@ -21,6 +22,10 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 # TODO: add typing, generics
 StreamingCallback = Callable[[Any], None]
+
+
+_action_context = ContextVar('context')
+_action_context.set(None)
 
 
 class ActionKind(StrEnum):
@@ -331,9 +336,13 @@ class Action:
             The action response.
         """
         # TODO: handle telemetry_labels
-        # TODO: propagate context down the callstack via contextvars
+
+        if context:
+            _action_context.set(context)
+
         return self.__fn(
-            input, ActionRunContext(on_chunk=on_chunk, context=context)
+            input,
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
         )
 
     async def arun(
@@ -355,9 +364,13 @@ class Action:
             The action response.
         """
         # TODO: handle telemetry_labels
-        # TODO: propagate context down the callstack via contextvars
+
+        if context:
+            _action_context.set(context)
+
         return await self.__afn(
-            input, ActionRunContext(on_chunk=on_chunk, context=context)
+            input,
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
         )
 
     async def arun_raw(
