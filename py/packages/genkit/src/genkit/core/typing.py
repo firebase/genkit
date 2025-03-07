@@ -104,8 +104,7 @@ class Score(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     id: str | None = Field(
-        None,
-        description='Optional ID to differentiate different scores if applying in a single evaluation',
+        None, description='Optional ID to differentiate different scores'
     )
     score: float | str | bool | None = None
     error: str | None = None

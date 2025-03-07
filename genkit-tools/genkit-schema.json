@@ -409,7 +409,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Optional ID to differentiate different scores if applying in a single evaluation"
+          "description": "Optional ID to differentiate different scores"
         },
         "score": {
           "type": [

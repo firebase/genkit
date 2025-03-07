@@ -54,7 +54,7 @@ export const ScoreSchema = z.object({
   id: z
     .string()
     .describe(
-      'Optional ID to differentiate different scores if applying in a single evaluation'
+      'Optional ID to differentiate different scores'
     )
     .optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
