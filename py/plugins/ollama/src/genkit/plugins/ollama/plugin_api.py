@@ -6,13 +6,9 @@ Ollama Plugin for Genkit.
 """
 
 import logging
-from functools import cached_property
-from typing import Type
 
-from genkit.core.action import ActionKind
-from genkit.core.registry import Registry
+from genkit.plugins.ollama.embedders import OllamaEmbedder
 from genkit.plugins.ollama.models import (
-    AsyncOllamaModel,
     OllamaAPITypes,
     OllamaModel,
     OllamaPluginParams,
@@ -34,35 +30,17 @@ class Ollama(Plugin):
 
     def __init__(self, plugin_params: OllamaPluginParams):
         self.plugin_params = plugin_params
-        self._sync_client = ollama_api.Client(
+        self.client = ollama_api.AsyncClient(
             host=self.plugin_params.server_address.unicode_string()
-        )
-        self._async_client = ollama_api.AsyncClient(
-            host=self.plugin_params.server_address.unicode_string()
-        )
-
-    @cached_property
-    def client(self) -> ollama_api.AsyncClient | ollama_api.Client:
-        client_cls = (
-            ollama_api.AsyncClient
-            if self.plugin_params.use_async_api
-            else ollama_api.Client
-        )
-        return client_cls(
-            host=self.plugin_params.server_address.unicode_string(),
-        )
-
-    @cached_property
-    def ollama_model_class(self) -> Type[AsyncOllamaModel | OllamaModel]:
-        return (
-            AsyncOllamaModel
-            if self.plugin_params.use_async_api
-            else OllamaModel
         )
 
     def initialize(self, ai: GenkitRegistry) -> None:
+        self._initialize_models(ai=ai)
+        self._initialize_embedders(ai=ai)
+
+    def _initialize_models(self, ai: GenkitRegistry):
         for model_definition in self.plugin_params.models:
-            model = self.ollama_model_class(
+            model = OllamaModel(
                 client=self.client,
                 model_definition=model_definition,
             )
@@ -75,5 +53,21 @@ class Ollama(Plugin):
                     'system_role': True,
                 },
             )
-        # TODO: introduce embedders here
-        # for embedder in self.plugin_params.embedders:
+
+    def _initialize_embedders(self, ai: GenkitRegistry):
+        for embedding_definition in self.plugin_params.embedders:
+            embedder = OllamaEmbedder(
+                client=self.client,
+                embedding_definition=embedding_definition,
+            )
+            ai.define_embedder(
+                name=ollama_name(embedding_definition.name),
+                fn=embedder.embed,
+                metadata={
+                    'label': f'Ollama Embedding - {embedding_definition.name}',
+                    'dimensions': embedding_definition.dimensions,
+                    'supports': {
+                        'input': ['text'],
+                    },
+                },
+            )

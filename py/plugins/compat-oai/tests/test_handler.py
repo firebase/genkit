@@ -1,0 +1,85 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+from unittest.mock import MagicMock
+
+import pytest
+from genkit.core.action import ActionRunContext
+from genkit.core.typing import GenerateResponse, Message, Role, TextPart
+from genkit.plugins.compat_oai.models import OpenAIModelHandler
+from genkit.plugins.compat_oai.models.model import OpenAIModel
+from genkit.plugins.compat_oai.models.model_info import (
+    GPT_3_5_TURBO,
+    GPT_4,
+    SUPPORTED_OPENAI_MODELS,
+)
+
+
+def test_get_model_handler():
+    """Test get_model_handler method returns a callable."""
+    model_name = GPT_4
+    handler = OpenAIModelHandler.get_model_handler(
+        model=model_name, client=MagicMock()
+    )
+    assert callable(handler)
+
+
+def test_get_model_handler_invalid():
+    """Test get_model_handler raises ValueError for unsupported models."""
+    with pytest.raises(
+        ValueError, match="Model 'unsupported-model' is not supported."
+    ):
+        OpenAIModelHandler.get_model_handler(
+            model='unsupported-model', client=MagicMock()
+        )
+
+
+def test_validate_version():
+    """Test validate_version method validates supported versions."""
+    model = MagicMock()
+    model.name = GPT_4
+    SUPPORTED_OPENAI_MODELS[GPT_4] = MagicMock(versions=[GPT_4, GPT_3_5_TURBO])
+    handler = OpenAIModelHandler(model)
+
+    handler.validate_version(GPT_4)  # Should not raise an error
+
+    with pytest.raises(
+        ValueError, match="Model version 'invalid-version' is not supported."
+    ):
+        handler.validate_version('invalid-version')
+
+
+def test_handler_generate_non_streaming(sample_request):
+    """Test OpenAIModelHandler generate method in non-streaming mode."""
+    mock_model = MagicMock(spec=OpenAIModel)
+    mock_model.name = GPT_4
+    mock_model.generate.return_value = GenerateResponse(
+        message=Message(
+            role=Role.MODEL, content=[TextPart(text='Hello, user!')]
+        )
+    )
+
+    handler = OpenAIModelHandler(mock_model)
+    mock_ctx = MagicMock(spec=ActionRunContext, is_streaming=False)
+
+    response = handler.generate(sample_request, mock_ctx)
+
+    mock_model.generate.assert_called_once()
+    assert isinstance(response, GenerateResponse)
+    assert response.message.role == Role.MODEL
+    assert response.message.content[0].root.text == 'Hello, user!'
+
+
+def test_handler_generate_streaming(sample_request):
+    """Test OpenAIModelHandler generate method in streaming mode."""
+    mock_model = MagicMock(spec=OpenAIModel)
+    mock_model.name = GPT_4
+
+    handler = OpenAIModelHandler(mock_model)
+    mock_ctx = MagicMock(spec=ActionRunContext, is_streaming=True)
+
+    handler.generate(sample_request, mock_ctx)
+
+    mock_model.generate_stream.assert_called_once_with(
+        sample_request, mock_ctx.send_chunk
+    )
