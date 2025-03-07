@@ -135,7 +135,7 @@ class Genkit(GenkitRegistry):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = [],
+        use: list[ModelMiddleware] | None = None,
         # TODO:
         #  docs: list[Document]
         #  resume: ResumeOptions
@@ -271,7 +271,7 @@ class Genkit(GenkitRegistry):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = [],
+        use: list[ModelMiddleware] | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],

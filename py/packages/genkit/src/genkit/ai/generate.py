@@ -45,11 +45,9 @@ async def generate_action(
     on_chunk: StreamingCallback | None = None,
     message_index: int = 0,
     current_turn: int = 0,
-    middleware: list[ModelMiddleware] | None = [],
+    middleware: list[ModelMiddleware] | None = None,
     context: dict[str, Any] | None = None,
 ) -> GenerateResponseWrapper:
-    # TODO: middleware
-
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
