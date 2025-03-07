@@ -284,6 +284,9 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 	return resp, nil
 }
 
+// Name returns the name of the model.
+func (i *modelActionDef) Name() string { return (*ModelAction)(i).Name() }
+
 // Generate applies the [Action] to provided request, handling tool requests and handles streaming.
 func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
@@ -295,6 +298,10 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 			MaxTurns:           1,
 			ReturnToolRequests: false,
 		}
+	}
+
+	if toolCfg.MaxTurns == 0 {
+		toolCfg.MaxTurns = 1
 	}
 
 	if req.Tools != nil {
@@ -358,8 +365,6 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 		currentTurn++
 	}
 }
-
-func (i *modelActionDef) Name() string { return (*ModelAction)(i).Name() }
 
 // cloneMessage creates a deep copy of the provided Message.
 func cloneMessage(m *Message) *Message {

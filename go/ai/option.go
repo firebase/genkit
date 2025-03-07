@@ -34,13 +34,14 @@ type commonOptions struct {
 	MaxTurns                int                     // Maximum number of tool call iterations.
 	ReturnToolRequests      bool                    // Whether to return tool requests instead of making the tool calls and continuing the generation.
 	IsReturnToolRequestsSet bool                    // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
+	Middleware              []ModelMiddleware       // Middleware to apply to the model request.
 }
 
 type CommonOption interface {
 	applyCommon(*commonOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptRequest(*promptGenerateOptions) error
+	applyPromptGenerate(*promptGenerateOptions) error
 }
 
 // applyCommon applies the option to the common options.
@@ -102,11 +103,18 @@ func (o *commonOptions) applyCommon(opts *commonOptions) error {
 		opts.IsReturnToolRequestsSet = true
 	}
 
+	if o.Middleware != nil {
+		if opts.Middleware != nil {
+			return errors.New("cannot set middleware more than once (WithMiddleware)")
+		}
+		opts.Middleware = o.Middleware
+	}
+
 	return nil
 }
 
-// applyPromptRequest applies the option to the prompt request options.
-func (o *commonOptions) applyPromptRequest(reqOpts *promptGenerateOptions) error {
+// applyPromptGenerate applies the option to the prompt request options.
+func (o *commonOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
 	return o.applyCommon(&reqOpts.commonOptions)
 }
 
@@ -158,6 +166,11 @@ func WithModelName(name string) CommonOption {
 	return &commonOptions{ModelName: name}
 }
 
+// WithMiddleware sets middleware to apply to the model request.
+func WithMiddleware(middleware ...ModelMiddleware) CommonOption {
+	return &commonOptions{Middleware: middleware}
+}
+
 // WithMaxTurns sets the maximum number of tool call iterations before erroring.
 // A tool call happens when tools are provided in the request and a model decides to call one or more as a response.
 // Each round trip, including multiple tools in parallel, counts as one turn.
@@ -186,6 +199,7 @@ type promptOptions struct {
 	commonOptions
 	promptingOptions
 	outputOptions
+	Description  string             // Description of the prompt.
 	InputSchema  *jsonschema.Schema // Schema of the input.
 	DefaultInput map[string]any     // Default input that will be used if no input is provided.
 	RenderFn     renderFn           // Function to render the prompt.
@@ -206,6 +220,13 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 
 	if err := o.outputOptions.applyPrompt(opts); err != nil {
 		return err
+	}
+
+	if o.Description != "" {
+		if opts.Description != "" {
+			return errors.New("cannot set description more than once (WithDescription)")
+		}
+		opts.Description = o.Description
 	}
 
 	if o.InputSchema != nil {
@@ -237,6 +258,11 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 	}
 
 	return nil
+}
+
+// WithDescription sets the description of the prompt.
+func WithDescription(description string) PromptOption {
+	return &promptOptions{Description: description}
 }
 
 // WithRenderFn sets the function to render the prompt.
@@ -274,7 +300,7 @@ func WithInputType(input any) *promptOptions {
 		// Structs.
 	}
 
-	data, err := json.Marshal(defaultInput)
+	data, err := json.Marshal(input)
 	if err != nil {
 		panic(fmt.Errorf("failed to marshal default input (WithInputType): %w", err))
 	}
@@ -285,7 +311,7 @@ func WithInputType(input any) *promptOptions {
 	}
 
 	return &promptOptions{
-		InputSchema:  base.InferJSONSchemaNonReferencing(input),
+		InputSchema:  base.InferJSONSchema(input),
 		DefaultInput: defaultInput,
 	}
 }
@@ -401,7 +427,7 @@ func (o *outputOptions) applyGenerate(opts *generateOptions) error {
 func WithOutputType(output any) OutputOption {
 	// TODO: Does OutputSchema need to be a map?
 	return &outputOptions{
-		OutputSchema: base.SchemaAsMap(base.InferJSONSchemaNonReferencing(output)),
+		OutputSchema: base.SchemaAsMap(base.InferJSONSchema(output)),
 		OutputFormat: OutputFormatJSON,
 	}
 }
@@ -413,16 +439,15 @@ func WithOutputFormat(format OutputFormat) OutputOption {
 
 // executionOptions are options for the execution of a prompt or generate request.
 type executionOptions struct {
-	Context    []*Document         // Context to pass to model, if any.
-	Middleware []ModelMiddleware   // Middleware to apply to the generation.
-	Stream     ModelStreamCallback // Function to call with each chunk of the generated response.
+	Context []*Document         // Context to pass to model, if any.
+	Stream  ModelStreamCallback // Function to call with each chunk of the generated response.
 }
 
 // ExecutionOption is an option for the execution of a prompt or generate request. It applies only to Generate() and prompt.Execute().
 type ExecutionOption interface {
 	applyRuntime(*executionOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptRequest(*promptGenerateOptions) error
+	applyPromptGenerate(*promptGenerateOptions) error
 }
 
 // applyRuntime applies the option to the runtime options.
@@ -432,13 +457,6 @@ func (o *executionOptions) applyRuntime(runOpts *executionOptions) error {
 			return errors.New("cannot set context more than once (WithContext)")
 		}
 		runOpts.Context = o.Context
-	}
-
-	if o.Middleware != nil {
-		if runOpts.Middleware != nil {
-			return errors.New("cannot set middleware more than once (WithMiddleware)")
-		}
-		runOpts.Middleware = o.Middleware
 	}
 
 	if o.Stream != nil {
@@ -456,19 +474,14 @@ func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
 	return o.applyRuntime(&genOpts.executionOptions)
 }
 
-// applyPromptRequest applies the option to the prompt request options.
-func (o *executionOptions) applyPromptRequest(reqOpts *promptGenerateOptions) error {
+// applyPromptGenerate applies the option to the prompt request options.
+func (o *executionOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
 	return o.applyRuntime(&reqOpts.executionOptions)
 }
 
 // WithContext sets the retrieved documents to be used as context for the generate request.
 func WithContext(docs ...*Document) ExecutionOption {
 	return &executionOptions{Context: docs}
-}
-
-// WithMiddleware sets middleware to apply to the model request.
-func WithMiddleware(middleware ...ModelMiddleware) ExecutionOption {
-	return &executionOptions{Middleware: middleware}
 }
 
 // WithStreaming sets the stream callback for the generate request.
@@ -514,18 +527,18 @@ type promptGenerateOptions struct {
 	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
 }
 
-// PromptRequestOption is an option for executing a prompt. It applies only to prompt.Execute().
-type PromptRequestOption interface {
-	applyPromptRequest(*promptGenerateOptions) error
+// PromptGenerateOption is an option for executing a prompt. It applies only to prompt.Execute().
+type PromptGenerateOption interface {
+	applyPromptGenerate(*promptGenerateOptions) error
 }
 
-// applyPromptRequest applies the option to the prompt request options.
-func (o *promptGenerateOptions) applyPromptRequest(reqOpts *promptGenerateOptions) error {
-	if err := o.commonOptions.applyPromptRequest(reqOpts); err != nil {
+// applyPromptGenerate applies the option to the prompt request options.
+func (o *promptGenerateOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
+	if err := o.commonOptions.applyPromptGenerate(reqOpts); err != nil {
 		return err
 	}
 
-	if err := o.executionOptions.applyPromptRequest(reqOpts); err != nil {
+	if err := o.executionOptions.applyPromptGenerate(reqOpts); err != nil {
 		return err
 	}
 
@@ -538,6 +551,6 @@ func (o *promptGenerateOptions) applyPromptRequest(reqOpts *promptGenerateOption
 }
 
 // WithInput sets the input for the prompt request.
-func WithInput(input any) PromptRequestOption {
+func WithInput(input any) PromptGenerateOption {
 	return &promptGenerateOptions{Input: input}
 }
