@@ -19,6 +19,7 @@ from genkit.core.typing import (
 )
 from genkit.plugins.vertex_ai import (
     EmbeddingModels,
+    EmbeddingsTaskType,
     GeminiVersion,
     VertexAI,
     vertexai_name,
@@ -95,9 +96,11 @@ async def embed_docs(docs: list[str]):
     Returns:
         The generated embedding.
     """
+    options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=docs,
+        options=options,
     )
 
 
@@ -208,18 +211,18 @@ async def main() -> None:
 def my_model(request: GenerateRequest, ctx: ActionRunContext):
     if ctx.is_streaming:
         ctx.send_chunk(
-            GenerateResponseChunk(role='model', content=[TextPart(text='1')])
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')])
         )
         ctx.send_chunk(
-            GenerateResponseChunk(role='model', content=[TextPart(text='2')])
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='2')])
         )
         ctx.send_chunk(
-            GenerateResponseChunk(role='model', content=[TextPart(text='3')])
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')])
         )
 
     return GenerateResponse(
         message=Message(
-            role='model',
+            role=Role.MODEL,
             content=[TextPart(text='hello')],
         )
     )
@@ -231,14 +234,19 @@ ai.define_model(name='my_model', fn=my_model)
 @ai.flow()
 async def streaming_model_tester(_: str, ctx: ActionRunContext):
     stream, res = ai.generate_stream(
-        prompt='tell me a long joke', model='my_model'
+        prompt='tell me a long joke',
+        model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
     )
 
     async for chunk in stream:
         ctx.send_chunk(f'chunk: {chunk.text}')
 
-    return (await res).text
+    async for data in stream:
+        for part in data.content:
+            print(part.root.text)
+    # return (await res).text
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    # asyncio.run(main())
+    asyncio.run(streaming_model_tester())

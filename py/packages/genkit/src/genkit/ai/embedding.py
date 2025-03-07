@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -14,6 +15,7 @@ class EmbedRequest(BaseModel):
     """
 
     documents: list[str]
+    options: dict[str, Any] | None = None
 
 
 class EmbedResponse(BaseModel):
