@@ -8,6 +8,7 @@ the Genkit framework. Actions are strongly-typed, named, observable,
 uninterrupted operations that can operate in streaming or non-streaming mode.
 """
 
+import abc
 import asyncio
 import inspect
 from collections.abc import Callable
@@ -153,7 +154,7 @@ class ActionRunContext:
     def __init__(
         self,
         on_chunk: StreamingCallback | None = None,
-        context: Any | None = None,
+        context: dict[str, Any] | None = None,
     ):
         """Initialize an ActionRunContext.
 
@@ -178,6 +179,12 @@ class ActionRunContext:
             chunk: The chunk to send to the client.
         """
         self._on_chunk(chunk)
+
+    @staticmethod
+    def _current_context() -> dict[str, Any] | None:
+        """Returns current context if running within an action.
+        Otherwise returns None."""
+        return _action_context.get()
 
 
 class Action:

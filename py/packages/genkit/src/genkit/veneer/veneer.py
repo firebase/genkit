@@ -18,8 +18,9 @@ from genkit.ai.generate import generate_action
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
+    ModelMiddleware,
 )
-from genkit.core.action import ActionKind
+from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
@@ -134,9 +135,9 @@ class Genkit(GenkitRegistry):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = [],
         # TODO:
         #  docs: list[Document]
-        #  use: list[ModelMiddleware]
         #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
@@ -181,6 +182,10 @@ class Genkit(GenkitRegistry):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            use: Optional. A list of `ModelMiddleware` functions to apply to the
+                generation process. Middleware can be used to intercept and
+                modify requests and responses.
+
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -245,6 +250,8 @@ class Genkit(GenkitRegistry):
                 max_turns=max_turns,
             ),
             on_chunk=on_chunk,
+            middleware=use,
+            context=context if context else ActionRunContext._current_context(),
         )
 
     def generate_stream(
@@ -264,6 +271,7 @@ class Genkit(GenkitRegistry):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = [],
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
@@ -310,6 +318,9 @@ class Genkit(GenkitRegistry):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            use: Optional. A list of `ModelMiddleware` functions to apply to the
+                generation process. Middleware can be used to intercept and
+                modify requests and responses.
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -340,6 +351,7 @@ class Genkit(GenkitRegistry):
             output_instructions=output_instructions,
             output_schema=output_schema,
             output_constrained=output_constrained,
+            use=use,
             on_chunk=lambda c: stream.send(c),
         )
         stream.set_close_future(resp)
