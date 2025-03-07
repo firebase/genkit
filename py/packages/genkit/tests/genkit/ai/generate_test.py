@@ -213,9 +213,15 @@ async def test_generate_middleware_can_modify_stream(
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')]),
-            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='2')]),
-            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')]),
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='1')]
+            ),
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='2')]
+            ),
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='3')]
+            ),
         ]
     ]
 
