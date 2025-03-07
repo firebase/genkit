@@ -2,8 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel
+
+type Embedding = list[float]
+
+
+# TODO(ssbushi): Replace with generated type
+class EmbeddingModel(BaseModel):
+    """Represents an embedding with metadata."""
+
+    embedding: Embedding
+    metadata: dict[str, Any] | None = None
 
 
 class EmbedRequest(BaseModel):
@@ -23,7 +34,7 @@ class EmbedResponse(BaseModel):
         embeddings: The list of embeddings for the documents.
     """
 
-    embeddings: list[list[float]]
+    embeddings: list[Embedding]
 
 
 type EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
