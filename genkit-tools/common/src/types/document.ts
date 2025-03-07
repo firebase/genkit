@@ -33,7 +33,7 @@ const EmptyPartSchema = z.object({
  * Zod schema for a text part.
  */
 export const TextPartSchema = EmptyPartSchema.extend({
-  /** The text of the message. */
+  /** The text of the document. */
   text: z.string(),
 });
 

@@ -24,6 +24,10 @@
 import { z } from 'zod';
 import { DocumentDataSchema, DocumentPartSchema } from './document';
 
+//
+// IMPORTANT: Keep this file in sync with genkit/ai/src/reranker.ts!
+//
+
 /**
  * Zod schema for a reranked document.
  */

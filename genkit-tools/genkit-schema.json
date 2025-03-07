@@ -378,6 +378,26 @@
       ],
       "additionalProperties": false
     },
+    "EvalRequest": {
+      "type": "object",
+      "properties": {
+        "dataset": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BaseDataPoint"
+          }
+        },
+        "evalRunId": {
+          "type": "string"
+        },
+        "options": {}
+      },
+      "required": [
+        "dataset",
+        "evalRunId"
+      ],
+      "additionalProperties": false
+    },
     "EvalResponse": {
       "type": "array",
       "items": {

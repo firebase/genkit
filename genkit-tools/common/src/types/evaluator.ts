@@ -23,6 +23,10 @@
  */
 import { z } from 'zod';
 
+//
+// IMPORTANT: Keep this file in sync with genkit/ai/src/evaluator.ts!
+//
+
 /**
  * Zod schema for a data point for evaluation
  */
@@ -64,6 +68,16 @@ export const ScoreSchema = z.object({
     .optional(),
 });
 export type Score = z.infer<typeof ScoreSchema>;
+
+/**
+ * Zod schema for an evaluator action request.
+ */
+export const EvalRequestSchema = z.object({
+  dataset: z.array(BaseDataPointSchema),
+  evalRunId: z.string(),
+  options: z.unknown(),
+});
+export type EvalRequest = z.infer<typeof EvalRequestSchema>;
 
 /**
  * Zod schema for single response from evaluator function.

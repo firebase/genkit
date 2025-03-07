@@ -30,18 +30,18 @@ import {
   ToolResponsePartSchema,
 } from './document';
 export {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
-  MediaPart,
   MediaPartSchema,
-  TextPart,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 };
 
 //

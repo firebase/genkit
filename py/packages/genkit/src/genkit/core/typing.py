@@ -83,6 +83,15 @@ class BaseDataPoint(BaseModel):
     trace_ids: list[str] | None = Field(None, alias='traceIds')
 
 
+class EvalRequest(BaseModel):
+    """Model for evalrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    dataset: list[BaseDataPoint]
+    eval_run_id: str = Field(..., alias='evalRunId')
+    options: Any | None = None
+
+
 class Details(BaseModel):
     """Model for details data."""
 
