@@ -24,73 +24,83 @@ class Model(RootModel[Any]):
     root: Any
 
 
-class InstrumentationLibrary(BaseModel):
-    """Model for instrumentationlibrary data."""
+class CustomPart(BaseModel):
+    """Model for custompart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Any | None = None
+    media: Any | None = None
+    tool_request: Any | None = Field(None, alias='toolRequest')
+    tool_response: Any | None = Field(None, alias='toolResponse')
+    data: Any | None = None
+    metadata: dict[str, Any] | None = None
+    custom: dict[str, Any]
+
+
+class Media1(BaseModel):
+    """Model for media1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    content_type: str | None = Field(None, alias='contentType')
+    url: str
+
+
+class ToolRequest1(BaseModel):
+    """Model for toolrequest1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    ref: str | None = None
     name: str
-    version: str | None = None
-    schema_url: str | None = Field(None, alias='schemaUrl')
+    input: Any | None = None
 
 
-class SpanContext(BaseModel):
-    """Model for spancontext data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: str = Field(..., alias='traceId')
-    span_id: str = Field(..., alias='spanId')
-    is_remote: bool | None = Field(None, alias='isRemote')
-    trace_flags: float = Field(..., alias='traceFlags')
-
-
-class SameProcessAsParentSpan(BaseModel):
-    """Model for sameprocessasparentspan data."""
+class ToolResponse1(BaseModel):
+    """Model for toolresponse1 data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    value: bool
-
-
-class State(StrEnum):
-    """Enumeration of state values."""
-
-    SUCCESS = 'success'
-    ERROR = 'error'
-
-
-class SpanMetadata(BaseModel):
-    """Model for spanmetadata data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    ref: str | None = None
     name: str
-    state: State | None = None
+    output: Any | None = None
+
+
+class Embedding(BaseModel):
+    """Model for embedding data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    embedding: list[float]
+    metadata: dict[str, Any] | None = None
+
+
+class BaseDataPoint(BaseModel):
+    """Model for basedatapoint data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     input: Any | None = None
     output: Any | None = None
-    is_root: bool | None = Field(None, alias='isRoot')
-    metadata: dict[str, str] | None = None
+    context: list | None = None
+    reference: Any | None = None
+    test_case_id: str | None = Field(None, alias='testCaseId')
+    trace_ids: list[str] | None = Field(None, alias='traceIds')
 
 
-class SpanStatus(BaseModel):
-    """Model for spanstatus data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    code: float
-    message: str | None = None
-
-
-class Annotation(BaseModel):
-    """Model for annotation data."""
+class Details(BaseModel):
+    """Model for details data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    attributes: dict[str, Any]
-    description: str
+    reasoning: str | None = None
 
 
-class TimeEvent(BaseModel):
-    """Model for timeevent data."""
+class Score(BaseModel):
+    """Model for score data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    time: float
-    annotation: Annotation
+    id: str | None = Field(
+        None,
+        description='Optional ID to differentiate different scores if applying in a single evaluation',
+    )
+    score: float | str | bool | None = None
+    error: str | None = None
+    details: Details | None = None
 
 
 class Code(StrEnum):
@@ -119,51 +129,6 @@ class FinishReason(StrEnum):
     INTERRUPTED = 'interrupted'
     OTHER = 'other'
     UNKNOWN = 'unknown'
-
-
-class CustomPart(BaseModel):
-    """Model for custompart data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Any | None = None
-    media: Any | None = None
-    tool_request: Any | None = Field(None, alias='toolRequest')
-    tool_response: Any | None = Field(None, alias='toolResponse')
-    data: Any | None = None
-    metadata: dict[str, Any] | None = None
-    custom: dict[str, Any]
-
-
-class Content(BaseModel):
-    """Model for content data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: str
-    media: Any | None = None
-
-
-class Media1(BaseModel):
-    """Model for media1 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content_type: str | None = Field(None, alias='contentType')
-    url: str
-
-
-class Content1(BaseModel):
-    """Model for content1 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Any | None = None
-    media: Media1
-
-
-class Doc(BaseModel):
-    """Model for doc data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content: list[Content | Content1]
-    metadata: dict[str, Any] | None = None
 
 
 class ToolChoice(StrEnum):
@@ -299,22 +264,144 @@ class ToolDefinition(BaseModel):
     )
 
 
-class ToolRequest1(BaseModel):
-    """Model for toolrequest1 data."""
+class CommonRerankerOptions(BaseModel):
+    """Model for commonrerankeroptions data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    ref: str | None = None
+    k: float | None = Field(None, description='Number of documents to rerank')
+
+
+class Metadata1(BaseModel):
+    """Model for metadata1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    score: float
+
+
+class CommonRetrieverOptions(BaseModel):
+    """Model for commonretrieveroptions data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    k: float | None = Field(None, description='Number of documents to retrieve')
+
+
+class InstrumentationLibrary(BaseModel):
+    """Model for instrumentationlibrary data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
+    version: str | None = None
+    schema_url: str | None = Field(None, alias='schemaUrl')
+
+
+class PathMetadata(BaseModel):
+    """Model for pathmetadata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    path: str
+    status: str
+    error: str | None = None
+    latency: float
+
+
+class SpanContext(BaseModel):
+    """Model for spancontext data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: str = Field(..., alias='traceId')
+    span_id: str = Field(..., alias='spanId')
+    is_remote: bool | None = Field(None, alias='isRemote')
+    trace_flags: float = Field(..., alias='traceFlags')
+
+
+class SameProcessAsParentSpan(BaseModel):
+    """Model for sameprocessasparentspan data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    value: bool
+
+
+class State(StrEnum):
+    """Enumeration of state values."""
+
+    SUCCESS = 'success'
+    ERROR = 'error'
+
+
+class SpanMetadata(BaseModel):
+    """Model for spanmetadata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: str
+    state: State | None = None
     input: Any | None = None
+    output: Any | None = None
+    is_root: bool | None = Field(None, alias='isRoot')
+    metadata: dict[str, str] | None = None
+    path: str | None = None
 
 
-class ToolResponse1(BaseModel):
-    """Model for toolresponse1 data."""
+class SpanStatus(BaseModel):
+    """Model for spanstatus data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    ref: str | None = None
-    name: str
-    output: Any | None = None
+    code: float
+    message: str | None = None
+
+
+class Annotation(BaseModel):
+    """Model for annotation data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    attributes: dict[str, Any]
+    description: str
+
+
+class TimeEvent(BaseModel):
+    """Model for timeevent data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    time: float
+    annotation: Annotation
+
+
+class TraceMetadata(BaseModel):
+    """Model for tracemetadata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    feature_name: str | None = Field(None, alias='featureName')
+    paths: set[PathMetadata] | None = None
+    timestamp: float
+
+
+class Context(RootModel[list]):
+    """Context data type class."""
+
+    root: list
+
+
+class Input(RootModel[Any]):
+    """Input data type class."""
+
+    root: Any
+
+
+class Output(RootModel[Any]):
+    """Output data type class."""
+
+    root: Any
+
+
+class Reference(RootModel[Any]):
+    """Reference data type class."""
+
+    root: Any
+
+
+class TraceIds(RootModel[list[str]]):
+    """TraceIds data type class."""
+
+    root: list[str]
 
 
 class Data(RootModel[Any]):
@@ -359,52 +446,14 @@ class Custom(RootModel[dict[str, Any] | None]):
     root: dict[str, Any] | None = None
 
 
-class Content2(BaseModel):
-    """Model for content2 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: str
-    media: Any | None = None
-
-
-class Media3(BaseModel):
-    """Model for media3 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content_type: str | None = Field(None, alias='contentType')
-    url: str
-
-
-class Content3(BaseModel):
-    """Model for content3 data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Any | None = None
-    media: Media3
-
-
-class Items(BaseModel):
-    """Model for items data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content: list[Content2 | Content3]
-    metadata: dict[str, Any] | None = None
-
-
 class Config(RootModel[Any]):
     """Config data type class."""
 
     root: Any
 
 
-class Docs(RootModel[list[Items]]):
-    """Docs data type class."""
-
-    root: list[Items]
-
-
-class Output(RootModel[OutputConfig]):
-    """Output data type class."""
+class OutputModel(RootModel[OutputConfig]):
+    """OutputModel data type class."""
 
     root: OutputConfig
 
@@ -455,59 +504,6 @@ class Index(RootModel[float]):
     """Index data type class."""
 
     root: float
-
-
-class Link(BaseModel):
-    """Model for link data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    context: SpanContext | None = None
-    attributes: dict[str, Any] | None = None
-    dropped_attributes_count: float | None = Field(
-        None, alias='droppedAttributesCount'
-    )
-
-
-class TimeEvents(BaseModel):
-    """Model for timeevents data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    time_event: list[TimeEvent] | None = Field(None, alias='timeEvent')
-
-
-class SpanData(BaseModel):
-    """Model for spandata data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    span_id: str = Field(..., alias='spanId')
-    trace_id: str = Field(..., alias='traceId')
-    parent_span_id: str | None = Field(None, alias='parentSpanId')
-    start_time: float = Field(..., alias='startTime')
-    end_time: float = Field(..., alias='endTime')
-    attributes: dict[str, Any]
-    display_name: str = Field(..., alias='displayName')
-    links: list[Link] | None = None
-    instrumentation_library: InstrumentationLibrary = Field(
-        ..., alias='instrumentationLibrary'
-    )
-    span_kind: str = Field(..., alias='spanKind')
-    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(
-        None, alias='sameProcessAsParentSpan'
-    )
-    status: SpanStatus | None = None
-    time_events: TimeEvents | None = Field(None, alias='timeEvents')
-    truncated: bool | None = None
-
-
-class TraceData(BaseModel):
-    """Model for tracedata data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: str = Field(..., alias='traceId')
-    display_name: str | None = Field(None, alias='displayName')
-    start_time: float | None = Field(None, alias='startTime')
-    end_time: float | None = Field(None, alias='endTime')
-    spans: dict[str, SpanData]
 
 
 class DataPart(BaseModel):
@@ -575,6 +571,42 @@ class ToolResponsePart(BaseModel):
     custom: Custom | None = None
 
 
+class EmbedResponse(BaseModel):
+    """Model for embedresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    embeddings: list[Embedding]
+
+
+class BaseEvalDataPoint(BaseModel):
+    """Model for baseevaldatapoint data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    input: Input | None = None
+    output: Output | None = None
+    context: Context | None = None
+    reference: Reference | None = None
+    test_case_id: str = Field(..., alias='testCaseId')
+    trace_ids: TraceIds | None = Field(None, alias='traceIds')
+
+
+class EvalFnResponse(BaseModel):
+    """Model for evalfnresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    sample_index: float | None = Field(None, alias='sampleIndex')
+    test_case_id: str = Field(..., alias='testCaseId')
+    trace_id: str | None = Field(None, alias='traceId')
+    span_id: str | None = Field(None, alias='spanId')
+    evaluation: Score | list[Score]
+
+
+class EvalResponse(RootModel[list[EvalFnResponse]]):
+    """EvalResponse data type class."""
+
+    root: list[EvalFnResponse]
+
+
 class Resume(BaseModel):
     """Model for resume data."""
 
@@ -606,18 +638,77 @@ class Part(
     )
 
 
-class ContentModel(RootModel[list[Part]]):
-    """ContentModel data type class."""
+class Link(BaseModel):
+    """Model for link data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    context: SpanContext | None = None
+    attributes: dict[str, Any] | None = None
+    dropped_attributes_count: float | None = Field(
+        None, alias='droppedAttributesCount'
+    )
+
+
+class TimeEvents(BaseModel):
+    """Model for timeevents data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    time_event: list[TimeEvent] = Field(..., alias='timeEvent')
+
+
+class SpanData(BaseModel):
+    """Model for spandata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    span_id: str = Field(..., alias='spanId')
+    trace_id: str = Field(..., alias='traceId')
+    parent_span_id: str | None = Field(None, alias='parentSpanId')
+    start_time: float = Field(..., alias='startTime')
+    end_time: float = Field(..., alias='endTime')
+    attributes: dict[str, Any]
+    display_name: str = Field(..., alias='displayName')
+    links: list[Link] | None = None
+    instrumentation_library: InstrumentationLibrary = Field(
+        ..., alias='instrumentationLibrary'
+    )
+    span_kind: str = Field(..., alias='spanKind')
+    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(
+        None, alias='sameProcessAsParentSpan'
+    )
+    status: SpanStatus | None = None
+    time_events: TimeEvents | None = Field(None, alias='timeEvents')
+    truncated: bool | None = None
+
+
+class TraceData(BaseModel):
+    """Model for tracedata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    trace_id: str = Field(..., alias='traceId')
+    display_name: str | None = Field(None, alias='displayName')
+    start_time: float | None = Field(
+        None,
+        alias='startTime',
+        description='trace start time in milliseconds since the epoch',
+    )
+    end_time: float | None = Field(
+        None,
+        alias='endTime',
+        description='end time in milliseconds since the epoch',
+    )
+    spans: dict[str, SpanData]
+
+
+class Content(RootModel[list[Part]]):
+    """Content data type class."""
 
     root: list[Part]
 
 
-class DocumentData(BaseModel):
-    """Model for documentdata data."""
+class DocumentPart(RootModel[TextPart | MediaPart]):
+    """DocumentPart data type class."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content: list[Part]
-    metadata: dict[str, Any] | None = None
+    root: TextPart | MediaPart
 
 
 class GenerateResponseChunk(BaseModel):
@@ -646,15 +737,46 @@ class ModelResponseChunk(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     role: Role | None = None
     index: Index | None = None
-    content: ContentModel
+    content: Content
     custom: CustomModel | None = None
     aggregated: Aggregated | None = None
+
+
+class RankedDocumentData(BaseModel):
+    """Model for rankeddocumentdata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    content: list[DocumentPart]
+    metadata: Metadata1
+
+
+class RerankerResponse(BaseModel):
+    """Model for rerankerresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    documents: list[RankedDocumentData]
 
 
 class Messages(RootModel[list[Message]]):
     """Messages data type class."""
 
     root: list[Message]
+
+
+class DocumentData(BaseModel):
+    """Model for documentdata data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    content: list[DocumentPart]
+    metadata: dict[str, Any] | None = None
+
+
+class EmbedRequest(BaseModel):
+    """Model for embedrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    input: list[DocumentData]
+    options: Any | None = None
 
 
 class Candidate(BaseModel):
@@ -674,7 +796,7 @@ class GenerateActionOptions(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     model: str
-    docs: list[Doc] | None = None
+    docs: list[DocumentData] | None = None
     messages: list[Message]
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
@@ -694,7 +816,7 @@ class GenerateRequest(BaseModel):
     tools: list[ToolDefinition] | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
-    docs: list[Items] | None = None
+    docs: list[DocumentData] | None = None
     candidates: float | None = None
 
 
@@ -713,6 +835,42 @@ class GenerateResponse(BaseModel):
     candidates: list[Candidate] | None = None
 
 
+class RerankerRequest(BaseModel):
+    """Model for rerankerrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    query: DocumentData
+    documents: list[DocumentData]
+    options: Any | None = None
+
+
+class RetrieverRequest(BaseModel):
+    """Model for retrieverrequest data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    query: DocumentData
+    options: Any | None = None
+
+
+class RetrieverResponse(BaseModel):
+    """Model for retrieverresponse data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    documents: list[DocumentData]
+
+
+class Docs(RootModel[list[DocumentData]]):
+    """Docs data type class."""
+
+    root: list[DocumentData]
+
+
+class Request(RootModel[GenerateRequest]):
+    """Request data type class."""
+
+    root: GenerateRequest
+
+
 class ModelRequest(BaseModel):
     """Model for modelrequest data."""
 
@@ -721,14 +879,8 @@ class ModelRequest(BaseModel):
     config: Config | None = None
     tools: Tools | None = None
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
-    output: Output | None = None
+    output: OutputModel | None = None
     docs: Docs | None = None
-
-
-class Request(RootModel[GenerateRequest]):
-    """Request data type class."""
-
-    root: GenerateRequest
 
 
 class ModelResponse(BaseModel):
