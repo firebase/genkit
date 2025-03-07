@@ -42,7 +42,18 @@ func Generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	gc, err := convertRequest(client, model, input)
+	// since context caching is only available for specific model versions, we
+	// must make sure the configuration has the right version
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
+		model = c.Version
+	}
+
+	cache, err := handleCache(ctx, client, input, model)
+	if err != nil {
+		return nil, err
+	}
+
+	gc, err := convertRequest(client, model, input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +133,7 @@ func Generate(
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
+func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = int64Ptr(1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
@@ -173,7 +184,10 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) 
 	choice := convertToolChoice(input.ToolChoice, input.Tools)
 	gc.ToolConfig = choice
 
-	// TODO: configure cache
+	// configure cache
+	if cache != nil {
+		gc.CachedContent = cache.Name
+	}
 
 	return &gc, nil
 }
