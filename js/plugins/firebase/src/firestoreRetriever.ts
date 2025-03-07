@@ -136,7 +136,8 @@ export function defineFirestoreRetriever(
       },
       configSchema: z.object({
         where: z.record(z.any()).optional(),
-        limit: z.number(),
+        /** Maximum number of results to return. Defaults to 10. */
+        limit: z.number().optional(),
         /* Supply or override the distanceMeasure */
         distanceMeasure: z
           .enum(['COSINE', 'DOT_PRODUCT', 'EUCLIDEAN'])
@@ -150,6 +151,7 @@ export function defineFirestoreRetriever(
       }),
     },
     async (content, options) => {
+      options = options || {};
       if (!options.collection && !collection) {
         throw new Error(
           'Must specify a collection to query in Firestore retriever.'
