@@ -92,19 +92,16 @@ from genkit.ai.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
+from genkit.ai.prompt import to_generate_action_options
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
-    GenerateActionOptions,
-    GenerateActionOutputConfig,
     GenerationCommonConfig,
     Message,
     Part,
-    Role,
-    TextPart,
     ToolChoice,
 )
 from genkit.veneer import server
@@ -277,56 +274,24 @@ class Genkit(GenkitRegistry):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        model = model or self.registry.default_model
-        if model is None:
-            raise Exception('No model configured.')
-        if (
-            config
-            and not isinstance(config, GenerationCommonConfig)
-            and not isinstance(config, dict)
-        ):
-            raise AttributeError('Invalid generate config provided')
-
-        resolved_msgs: list[Message] = []
-        if system:
-            resolved_msgs.append(
-                Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
-            )
-        if messages:
-            resolved_msgs += messages
-        if prompt:
-            resolved_msgs.append(
-                Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
-            )
-
-        # If is schema is set but format is not explicitly set, default to
-        # `json` format.
-        if output_schema and not output_format:
-            output_format = 'json'
-
-        output = GenerateActionOutputConfig()
-        if output_format:
-            output.format = output_format
-        if output_content_type:
-            output.content_type = output_content_type
-        if output_instructions is not None:
-            output.instructions = output_instructions
-        if output_schema:
-            output.json_schema = to_json_schema(output_schema)
-        if output_constrained is not None:
-            output.constrained = output_constrained
-
         return await generate_action(
             self.registry,
-            GenerateActionOptions(
+            to_generate_action_options(
+                registry=self.registry,
                 model=model,
-                messages=resolved_msgs,
-                config=config,
+                prompt=prompt,
+                system=system,
+                messages=messages,
                 tools=tools,
                 return_tool_requests=return_tool_requests,
                 tool_choice=tool_choice,
-                output=output,
+                config=config,
                 max_turns=max_turns,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
             ),
             on_chunk=on_chunk,
             middleware=use,
@@ -457,24 +422,3 @@ class Genkit(GenkitRegistry):
                 EmbedRequest(documents=documents, options=options)
             )
         ).response
-
-
-def _normalize_prompt_arg(
-    prompt: str | Part | list[Part] | None,
-) -> list[Part] | None:
-    """Normalize the prompt argument to a list of `Part` objects.
-
-    This function ensures that the prompt argument is a list of `Part` objects,
-    which is the expected format for the `generate` function.
-
-    Args:
-        prompt: The prompt argument to normalize.
-    """
-    if not prompt:
-        return None
-    if isinstance(prompt, str):
-        return [TextPart(text=prompt)]
-    elif hasattr(prompt, '__len__'):
-        return prompt
-    else:
-        return [prompt]

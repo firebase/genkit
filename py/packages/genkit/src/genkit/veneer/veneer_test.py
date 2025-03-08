@@ -308,7 +308,9 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
         tools=['testTool'],
     )
 
-    want_txt = f'[ECHO] user: "hi" tool_choice={ToolChoice.REQUIRED}'
+    want_txt = (
+        f'[ECHO] user: "hi" tools=testTool tool_choice={ToolChoice.REQUIRED}'
+    )
 
     want_request = [
         ToolDefinition(

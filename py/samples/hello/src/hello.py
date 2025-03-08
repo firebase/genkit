@@ -13,7 +13,7 @@ from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    Media1,
+    Media,
     MediaPart,
     Message,
     Role,
@@ -248,20 +248,34 @@ async def streaming_model_tester(_: str, ctx: ActionRunContext):
 
 
 @ai.flow()
-async def describe_picture():
-    # HTTP URI or Google Cloud Storage URI
-    url = '<your url>'
+async def describe_picture(url: str):
     return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
                 content=[
                     TextPart(text='What is shown in this image?'),
-                    MediaPart(media=Media1(contentType='image/jpg', url=url)),
+                    MediaPart(media=Media(contentType='image/jpg', url=url)),
                 ],
             ),
         ],
     )
+myprompt = ai.define_prompt(model='my_model', prompt='tell me a long dad joke')
+
+
+@ai.flow()
+async def call_a_prompt(_: str):
+    return (await myprompt()).text
+
+
+@ai.flow()
+async def stream_a_prompt(_: str, ctx: ActionRunContext):
+    stream, res = myprompt.stream()
+
+    async for chunk in stream:
+        ctx.send_chunk(f'chunk: {chunk.text}')
+
+    return (await res).text
 
 
 if __name__ == '__main__':

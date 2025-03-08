@@ -191,7 +191,7 @@ class ActionRunContext:
         Returns:
             The current context if running within an action, None otherwise.
         """
-        return _action_context.get()
+        return _action_context.get(None)
 
 
 class Action:
@@ -384,7 +384,9 @@ class Action:
 
         return await self.__afn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
+            ActionRunContext(
+                on_chunk=on_chunk, context=_action_context.get(None)
+            ),
         )
 
     async def arun_raw(
