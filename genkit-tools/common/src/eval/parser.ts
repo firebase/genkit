@@ -16,7 +16,7 @@
 
 import { Action } from '../types/action';
 import { EvalInput, EvalMetric, EvalResult } from '../types/eval';
-import { EvalResponse, TestCase } from '../types/evaluators';
+import { EvalFnResponse, EvalResponse } from '../types/evaluator';
 import {
   EVALUATOR_METADATA_KEY_DEFINITION,
   EVALUATOR_METADATA_KEY_DISPLAY_NAME,
@@ -32,7 +32,7 @@ export function enrichResultsWithScoring(
   const scoreMap: Record<string, EvalMetric[]> = {};
   Object.keys(scores).forEach((evaluator) => {
     const evaluatorResponse = scores[evaluator];
-    evaluatorResponse.forEach((scoredSample: TestCase) => {
+    evaluatorResponse.forEach((scoredSample: EvalFnResponse) => {
       if (!scoredSample.testCaseId) {
         throw new Error('testCaseId expected to be present');
       }
