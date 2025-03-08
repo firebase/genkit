@@ -60,6 +60,8 @@ class Channel[T]:
         if pop in finished:
             return pop.result()
         if self.__close_future in finished:
+            # cancel pop task if we're done, avoid warnings
+            pop.cancel()
             raise StopAsyncIteration()
         return await pop
 
