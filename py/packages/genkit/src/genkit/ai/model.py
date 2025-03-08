@@ -15,10 +15,11 @@ Example:
     model_fn: ModelFn = my_model
 """
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
 
+from genkit.core.action import ActionRunContext
 from genkit.core.extract import extract_json
 from genkit.core.typing import (
     GenerateRequest,
@@ -26,6 +27,7 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     GenerationUsage,
     Message,
+    Part,
 )
 from pydantic import Field
 
@@ -36,6 +38,15 @@ type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 # These types are duplicated in genkit.ai.formats.types due to circular deps
 type MessageParser[T] = Callable[[MessageWrapper], T]
 type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+
+
+type ModelMiddlewareNext = Callable[
+    [GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]
+]
+type ModelMiddleware = Callable[
+    [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
+    Awaitable[GenerateResponse],
+]
 
 
 class MessageWrapper(Message):
@@ -58,9 +69,7 @@ class MessageWrapper(Message):
         Returns:
             str: The combined text content from the current chunk.
         """
-        return ''.join(
-            p.root.text if p.root.text is not None else '' for p in self.content
-        )
+        return _text_from_message(self)
 
 
 class GenerateResponseWrapper(GenerateResponse):
@@ -194,3 +203,15 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         if self.chunk_parser:
             return self.chunk_parser(self)
         return extract_json(self.accumulated_text)
+
+
+def _text_from_message(msg: Message) -> str:
+    """Extracts text from message object."""
+    return _text_from_content(msg.content)
+
+
+def _text_from_content(content: list[Part]) -> str:
+    """Extracts text from message content (parts)."""
+    return ''.join(
+        p.root.text if p.root.text is not None else '' for p in content
+    )

@@ -11,7 +11,9 @@ from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     MessageWrapper,
+    ModelMiddleware,
 )
+from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
@@ -43,9 +45,9 @@ async def generate_action(
     on_chunk: StreamingCallback | None = None,
     message_index: int = 0,
     current_turn: int = 0,
+    middleware: list[ModelMiddleware] | None = None,
+    context: dict[str, Any] | None = None,
 ) -> GenerateResponseWrapper:
-    # TODO: middleware
-
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
@@ -100,11 +102,39 @@ async def generate_action(
         """
         return on_chunk(make_chunk(Role.MODEL, chunk))
 
-    model_response = (
-        await model.arun(
-            input=request, on_chunk=wrap_chunks if on_chunk else None
-        )
-    ).response
+    async def dispatch(
+        index: int, req: GenerateRequest, ctx: ActionRunContext
+    ) -> GenerateResponse:
+        """Dispatches the model request, passes it through middleware if present."""
+        if not middleware or index == len(middleware):
+            # end of the chain, call the original model action
+            return (
+                await model.arun(
+                    input=req,
+                    context=ctx.context,
+                    on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+                )
+            ).response
+
+        current_middleware = middleware[index]
+
+        async def next_fn(modified_req=None, modified_ctx=None):
+            return await dispatch(
+                index + 1,
+                modified_req if modified_req else req,
+                modified_ctx if modified_ctx else ctx,
+            )
+
+        return await current_middleware(req, ctx, next_fn)
+
+    model_response = await dispatch(
+        0,
+        request,
+        ActionRunContext(
+            on_chunk=wrap_chunks if on_chunk else None,
+            context=context,
+        ),
+    )
 
     def message_parser(msg: MessageWrapper):
         """Parse a message using the current formatter.

@@ -9,7 +9,7 @@ import json
 
 import pytest
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import MessageWrapper
+from genkit.ai.model import MessageWrapper, _text_from_message
 from genkit.ai.testing_utils import (
     EchoModel,
     ProgrammableModel,
@@ -737,6 +737,127 @@ async def test_generate_json_format_unconstrained(
     )
 
     assert (await response).request == want
+
+
+@pytest.mark.asyncio
+async def test_generate_with_middleware(
+    setup_test: SetupFixture,
+) -> None:
+    """When middleware is provided, applies it."""
+    ai, *_ = setup_test
+
+    async def pre_middle(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER, content=[TextPart(text=f'PRE {txt}')]
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def post_middle(req, ctx, next):
+        resp: GenerateResponse = await next(req, ctx)
+        txt = _text_from_message(resp.message)
+        return GenerateResponse(
+            finishReason=resp.finish_reason,
+            message=Message(
+                role=Role.USER, content=[TextPart(text=f'{txt} POST')]
+            ),
+        )
+
+    want = '[ECHO] user: "PRE hi" POST'
+
+    response = await ai.generate(
+        model='echoModel', prompt='hi', use=[pre_middle, post_middle]
+    )
+
+    assert response.text == want
+
+    _, response = ai.generate_stream(
+        model='echoModel', prompt='hi', use=[pre_middle, post_middle]
+    )
+
+    assert (await response).text == want
+
+
+@pytest.mark.asyncio
+async def test_generate_passes_through_current_action_context(
+    setup_test,
+) -> None:
+    """Test that generate uses current action context by default."""
+    ai, *_ = setup_test
+
+    async def inject_context(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[TextPart(text=f'{txt} {ctx.context}')],
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def action_fn():
+        return await ai.generate(
+            model='echoModel', prompt='hi', use=[inject_context]
+        )
+
+    action = ai.registry.register_action(
+        name='test_action', kind='custom', fn=action_fn
+    )
+    action_response = await action.arun(context={'foo': 'bar'})
+
+    assert (
+        action_response.response.text == '''[ECHO] user: "hi {'foo': 'bar'}"'''
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_uses_explicitly_passed_in_context(
+    setup_test,
+) -> None:
+    """Test that generate will use explicitly passed in context instead of
+    current action action context."""
+    ai, *_ = setup_test
+
+    async def inject_context(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[TextPart(text=f'{txt} {ctx.context}')],
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def action_fn():
+        return await ai.generate(
+            model='echoModel',
+            prompt='hi',
+            use=[inject_context],
+            context={'bar': 'baz'},
+        )
+
+    action = ai.registry.register_action(
+        name='test_action', kind='custom', fn=action_fn
+    )
+    action_response = await action.arun(context={'foo': 'bar'})
+
+    assert (
+        action_response.response.text == '''[ECHO] user: "hi {'bar': 'baz'}"'''
+    )
 
 
 @pytest.mark.asyncio
