@@ -19,7 +19,6 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
@@ -53,7 +52,7 @@ type Prompt struct {
 	// A hash of the prompt contents.
 	hash string
 	// A prompt that renders the prompt.
-	prompt *prompt.Prompt
+	prompt *ai.Prompt
 }
 
 // Config is optional configuration for a [Prompt].
@@ -359,7 +358,7 @@ func WithInputType(input any) PromptOption {
 			input = v
 		}
 
-		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
+		p.Config.InputSchema = base.InferJSONSchema(input)
 
 		// Set values as default input
 		defaultInput := base.SchemaAsMap(p.Config.InputSchema)
@@ -385,7 +384,7 @@ func WithOutputType(output any) PromptOption {
 			return errors.New("dotprompt.WithOutputType: cannot set OutputType more than once")
 		}
 
-		p.Config.OutputSchema = base.InferJSONSchemaNonReferencing(output)
+		p.Config.OutputSchema = base.InferJSONSchema(output)
 		p.Config.OutputFormat = ai.OutputFormatJSON
 
 		return nil

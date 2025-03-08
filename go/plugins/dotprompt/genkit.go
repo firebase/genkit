@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -179,12 +178,10 @@ func (p *Prompt) Register(g *genkit.Genkit) error {
 
 	var err error
 	p.prompt, err = genkit.DefinePrompt(
-		g,
-		"dotprompt",
-		name,
-		prompt.WithMetadata(metadata),
-		prompt.WithInputType(p.Config.DefaultInput),
-		prompt.WithRender(p.buildRequest),
+		g, "dotprompt", name,
+		ai.WithMetadata(metadata),
+		ai.WithInputType(p.Config.DefaultInput),
+		ai.WithRenderFn(p.buildRequest),
 	)
 	return err
 }
@@ -193,7 +190,7 @@ func (p *Prompt) Register(g *genkit.Genkit) error {
 // passes the rendered template to the AI model specified by
 // the prompt.
 //
-// This implements the [ai.Prompt] interface.
+// This implements the [ai.PromptDef] interface.
 func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...GenerateOption) (*ai.ModelResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 	var pr PromptRequest

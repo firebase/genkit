@@ -303,15 +303,18 @@ func TestGenerate(t *testing.T) {
 		streamText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(echoModel),
-			WithTextPrompt(charJSONmd),
-			WithMessages(NewModelTextMessage("banana again")),
-			WithSystemPrompt("you are"),
-			WithConfig(GenerationCommonConfig{
+			WithPromptText(charJSONmd),
+			WithSystemText("you are"),
+			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
-			WithHistory(NewUserTextMessage("banana"), NewModelTextMessage("yes, banana")),
+			WithMessages(
+				NewUserTextMessage("banana"),
+				NewModelTextMessage("yes, banana"),
+				NewModelTextMessage("banana again"),
+			),
 			WithContext(&Document{Content: []*Part{NewTextPart("Banana")}}),
-			WithOutputSchema(&GameCharacter{}),
+			WithOutputType(&GameCharacter{}),
 			WithTools(gablorkenTool),
 			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
 				streamText += grc.Text()
@@ -370,7 +373,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(interruptModel),
-			WithTextPrompt("trigger interrupt"),
+			WithPromptText("trigger interrupt"),
 			WithTools(interruptTool),
 		)
 		if err != nil {
@@ -455,7 +458,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(parallelModel),
-			WithTextPrompt("trigger parallel tools"),
+			WithPromptText("trigger parallel tools"),
 			WithTools(gablorkenTool),
 		)
 		if err != nil {
@@ -520,7 +523,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(multiRoundModel),
-			WithTextPrompt("trigger multiple rounds"),
+			WithPromptText("trigger multiple rounds"),
 			WithTools(gablorkenTool),
 			WithMaxTurns(2),
 		)
@@ -562,7 +565,7 @@ func TestGenerate(t *testing.T) {
 
 		_, err := Generate(context.Background(), r,
 			WithModel(infiniteModel),
-			WithTextPrompt("trigger infinite loop"),
+			WithPromptText("trigger infinite loop"),
 			WithTools(gablorkenTool),
 			WithMaxTurns(2),
 		)
@@ -587,7 +590,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(echoModel),
-			WithTextPrompt("test middleware"),
+			WithPromptText("test middleware"),
 			WithMiddleware(testMiddleware),
 		)
 		if err != nil {
@@ -613,7 +616,7 @@ func TestModelVersion(t *testing.T) {
 				Temperature: 1,
 				Version:     "echo-001",
 			}),
-			WithTextPrompt("tell a joke about batman"))
+			WithPromptText("tell a joke about batman"))
 		if err != nil {
 			t.Errorf("model version should be valid")
 		}
@@ -625,7 +628,7 @@ func TestModelVersion(t *testing.T) {
 				Temperature: 1,
 				Version:     "echo-im-not-a-version",
 			}),
-			WithTextPrompt("tell a joke about batman"))
+			WithPromptText("tell a joke about batman"))
 		if err == nil {
 			t.Errorf("model version should be invalid: %v", err)
 		}
