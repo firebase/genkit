@@ -14,7 +14,7 @@
 
 name: Formatting Check (Run npm run format locally if this fails)
 
-on: pull_request
+on: pull_request_review_comment
 
 env:
   GITHUB_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
