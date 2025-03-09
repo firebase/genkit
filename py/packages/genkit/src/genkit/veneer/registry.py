@@ -1,7 +1,37 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""This is the user facing Genkit registry API with methods to register models, flow, etc."""
+"""Genkit maintains a registry of all actions.
+
+An **action** is a remote callable function that uses typed-JSON RPC over HTTP
+to allow the framework and users to define custom AI functionality.  There are
+several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
+
+| Kind          | Description |
+|---------------|-------------|
+| `'chat-llm'`  | Chat LLM    |
+| `'custom'`    | Custom      |
+| `'embedder'`  | Embedder    |
+| `'evaluator'` | Evaluator   |
+| `'flow'`      | Flow        |
+| `'indexer'`   | Indexer     |
+| `'model'`     | Model       |
+| `'prompt'`    | Prompt      |
+| `'retriever'` | Retriever   |
+| `'text-llm'`  | Text LLM    |
+| `'tool'`      | Tool        |
+| `'util'`      | Utility     |
+
+## Operations
+
+It defines the following methods:
+
+| Category         | Method                                                                       | Description                          |
+|------------------|------------------------------------------------------------------------------|--------------------------------------|
+| **Registration** | [`define_embedder()`][genkit.veneer.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
+|                  | [`define_format()`][genkit.veneer.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
+|                  | [`define_model()`][genkit.veneer.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
+"""
 
 from collections.abc import Callable
 from functools import wraps

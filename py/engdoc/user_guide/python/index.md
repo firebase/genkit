@@ -9,7 +9,6 @@ An action is a typed JSON-based RPC-over-HTTP function that supports metadata,
 streaming, reflection and discovery.  A flow is a user-defined action. An action
 can depend on other actions.
 
-
 !!! note "Caveat"
 
     While a Python ASGI application implements bidirectional streaming,
@@ -34,12 +33,11 @@ concurrency among which are the following:
 | Goroutines (Go) and CSP  | Lightweight, managed concurrent execution units that use messaging over concurrent queues |
 | Actors                   | Independent units of computation that communicate via mailboxes                           |
 
-
 The Genkit Python SDK makes use of coroutines, event loops, and asynchronous I/O
 to manage concurrency. For synchronous situations, it makes use of [thread pool
 executors](https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor).
 
-!!! info
+!!! info "Runnables, callables, and coroutines"
 
     A **runnable** or **callable** is a unit of executable work&mdash;for example,
     threads, processes, green threads, goroutines, and coroutines are runnables.
@@ -100,7 +98,6 @@ WSGI is the yesteryear standard interface for Python Web applications. It is:
 
 * **Limited to HTTP:** WSGI only supports the HTTP protocol.
 
-
 ### ASGI (Asynchronous Server Gateway Interface)
 
 ASGI, in essence, is embodied by:
@@ -141,10 +138,9 @@ async def app(scope, receive, send):
 [﻿ASGI](https://asgi.readthedocs.io/en/latest/) (Asynchronous Server Gateway
 Interface) is a spiritual successor to WSGI, intended to provide a standard
 interface between async-capable Python Web servers, frameworks, and
-applications. ASGI decomposes protocols into a series of _events_ that an
-application must _receive_ and react to, and _events_ the application might
-_send_ in response.
-
+applications. ASGI decomposes protocols into a series of *events* that an
+application must *receive* and react to, and *events* the application might
+*send* in response.
 
 #### Applications and Deployment
 
