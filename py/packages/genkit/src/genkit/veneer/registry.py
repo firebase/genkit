@@ -259,6 +259,29 @@ class GenkitRegistry:
         # TODO:
         #  docs: list[Document]
     ):
+        """Define a prompt.
+
+        Args:
+            variant: Optional variant name for the prompt.
+            model: Optional model name to use for the prompt.
+            config: Optional configuration for the model.
+            description: Optional description for the prompt.
+            input_schema: Optional schema for the input to the prompt.
+            system: Optional system message for the prompt.
+            prompt: Optional prompt for the model.
+            messages: Optional messages for the model.
+            output_format: Optional output format for the prompt.
+            output_content_type: Optional output content type for the prompt.
+            output_instructions: Optional output instructions for the prompt.
+            output_schema: Optional schema for the output from the prompt.
+            output_constrained: Optional flag indicating whether the output should be constrained.
+            max_turns: Optional maximum number of turns for the prompt.
+            return_tool_requests: Optional flag indicating whether tool requests should be returned.
+            metadata: Optional metadata for the prompt.
+            tools: Optional list of tools to use for the prompt.
+            tool_choice: Optional tool choice for the prompt.
+            use: Optional list of model middlewares to use for the prompt.
+        """
         return define_prompt(
             self.registry,
             variant=variant,
