@@ -1,4 +1,4 @@
-# API
+# API Design
 
 Genkit is a framework for building AI-powered applications using generative
 models. It provides a streamlined way to work with AI models, tools, prompts,

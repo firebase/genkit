@@ -68,13 +68,13 @@ dotpromptz                 = { git = "https://github.com/google/dotprompt.git", 
 flow-sample1               = { workspace = true }
 genkit                     = { workspace = true }
 genkit-chroma-plugin       = { workspace = true }
+genkit-compat-oai-plugin   = { workspace = true }
 genkit-firebase-plugin     = { workspace = true }
 genkit-google-ai-plugin    = { workspace = true }
 genkit-google-cloud-plugin = { workspace = true }
 genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
-genkit-compat-oai-plugin   = { workspace = true }
 hello                      = { workspace = true }
 menu                       = { workspace = true }
 prompt-file                = { workspace = true }

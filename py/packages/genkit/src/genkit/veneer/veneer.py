@@ -1,7 +1,77 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Veneer user-facing API for application developers who use the SDK."""
+"""To use Genkit in your application, construct an instance of the `Genkit`
+class while customizing it with any plugins, models, and tooling.  Then use the
+instance to define application flows.
+
+??? example "Examples"
+
+    === "Chat bot"
+
+        ```python
+        # TODO
+        ai = Genkit(...)
+
+        @ai.flow()
+        async def foo(...):
+            await ...
+        ```
+
+    === "Structured Output"
+
+
+        ```python
+        # TODO
+        ai = Genkit(...)
+
+        @ai.flow()
+        async def foo(...):
+            await ...
+        ```
+
+    === "Tool Calling"
+
+
+        ```python
+        # TODO
+        ai = Genkit(...)
+
+        @ai.flow()
+        async def foo(...):
+            await ...
+        ```
+
+## Operations
+
+The `Genkit` class defines the following methods to allow users to generate
+content, define flows, define formats, etc.
+
+| Category         | Method                                                                       | Description                          |
+|------------------|------------------------------------------------------------------------------|--------------------------------------|
+| **AI**           | [`generate()`][genkit.veneer.veneer.Genkit.generate]                         | Generates content.                   |
+|                  | [`generate_stream()`][genkit.veneer.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
+|                  | [`embed()`][genkit.veneer.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
+| **Registration** | [`define_embedder()`][genkit.veneer.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
+|                  | [`define_format()`][genkit.veneer.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
+|                  | [`define_model()`][genkit.veneer.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
+
+??? info "Under the hood"
+
+    Creating an instance of [Genkit][genkit.veneer.veneer.Genkit]:
+
+    * creates a runtime configuration in the working directory
+    * initializes a registry of actions including plugins, formats, etc.
+    * starts server daemons to expose actions over HTTP
+
+    The following servers are started depending on the environment:
+
+    | Server Type | Purpose                                                         | Notes                                                   |
+    |-------------|-----------------------------------------------------------------|---------------------------------------------------------|
+    | Reflection  | Development-time API for inspecting and interacting with Genkit | Only starts in development mode (`GENKIT_ENV=dev`).     |
+    | Flow        | Exposes registered flows as HTTP endpoints                      | Main server for production environment.                 |
+
+"""
 
 import logging
 import os
@@ -47,20 +117,27 @@ logger = logging.getLogger(__name__)
 
 
 class Genkit(GenkitRegistry):
-    """Veneer user-facing API for application developers who use the SDK."""
+    """Veneer user-facing API for application developers who use the SDK.
+
+    The methods exposed by the
+    [GenkitRegistry][genkit.veneer.registry.GenkitRegistry] class are also part
+    of the API.
+
+
+    """
 
     def __init__(
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec=DEFAULT_REFLECTION_SERVER_SPEC,
+        reflection_server_spec: server.ServerSpec = DEFAULT_REFLECTION_SERVER_SPEC,
     ) -> None:
         """Initialize a new Genkit instance.
 
         Args:
-            plugins: Optional list of plugins to initialize.
-            model: Optional model name to use.
-            reflection_server_spec: Optional server spec for the reflection
+            plugins: List of plugins to initialize.
+            model: Model name to use.
+            reflection_server_spec: Server spec for the reflection
                 server.
         """
         super().__init__()
@@ -304,9 +381,6 @@ class Genkit(GenkitRegistry):
                 containing configuration parameters for the generation process.
                 This allows fine-tuning the model's behavior.
             max_turns: Optional. The maximum number of turns in a conversation.
-            on_chunk: Optional. A callback function of type
-                `ModelStreamingCallback` that is called for each chunk of
-                generated text during streaming.
             context: Optional. A dictionary containing additional context
                 information that can be used during generation.
             output_format: Optional. The format to use for the output (e.g.,
@@ -361,7 +435,7 @@ class Genkit(GenkitRegistry):
     async def embed(
         self, model: str | None = None, documents: list[str] | None = None
     ) -> EmbedResponse:
-        """Calculates embeddings for the given texts.
+        """Calculates embeddings for documents.
 
         Args:
             model: Optional embedder model name to use.

@@ -8,7 +8,6 @@ the Genkit framework. Actions are strongly-typed, named, observable,
 uninterrupted operations that can operate in streaming or non-streaming mode.
 """
 
-import abc
 import asyncio
 import inspect
 from collections.abc import Callable

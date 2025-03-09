@@ -68,12 +68,16 @@ class TelemetryServerSpanExporter(SpanExporter):
                 'parentSpanId': f'{span.parent.span_id}'
                 if span.parent
                 else None,
-                'status': {
-                    'code': trace_api.StatusCode(span.status.status_code).value,
-                    'description': span.status.description,
-                }
-                if span.status
-                else None,
+                'status': (
+                    {
+                        'code': trace_api.StatusCode(
+                            span.status.status_code
+                        ).value,
+                        'description': span.status.description,
+                    }
+                    if span.status
+                    else None
+                ),
                 'instrumentationLibrary': {
                     'name': 'genkit-tracer',
                     'version': 'v1',
