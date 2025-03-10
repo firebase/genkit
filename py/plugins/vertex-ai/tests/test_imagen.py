@@ -10,7 +10,7 @@ import pytest
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
-    Media1,
+    Media,
     Message,
     Role,
     TextPart,
@@ -43,7 +43,7 @@ def test_generate(mocker, version):
 
     response = imagen.handle_request(request)
     assert isinstance(response, GenerateResponse)
-    assert isinstance(response.message.content[0].root.media, Media1)
+    assert isinstance(response.message.content[0].root.media, Media)
     assert response.message.content[0].root.media.url == mocked_respond
 
 
