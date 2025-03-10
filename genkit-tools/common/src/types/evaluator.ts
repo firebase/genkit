@@ -53,9 +53,7 @@ export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
 export const ScoreSchema = z.object({
   id: z
     .string()
-    .describe(
-      'Optional ID to differentiate different scores'
-    )
+    .describe('Optional ID to differentiate different scores')
     .optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
   // TODO: use StatusSchema
