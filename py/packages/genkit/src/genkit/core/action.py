@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 StreamingCallback = Callable[[Any], None]
 
 
-_action_context = ContextVar('context')
+_action_context: ContextVar[dict[str, Any] | None] = ContextVar('context')
 _action_context.set(None)
 
 
@@ -35,16 +35,16 @@ class ActionKind(StrEnum):
     including chat models, embedders, evaluators, and other utility functions.
     """
 
-    CHATLLM = 'chat-llm'
     CUSTOM = 'custom'
     EMBEDDER = 'embedder'
     EVALUATOR = 'evaluator'
+    EXECUTABLE_PROMPT = 'executable-prompt'
     FLOW = 'flow'
     INDEXER = 'indexer'
     MODEL = 'model'
     PROMPT = 'prompt'
+    RERANKER = 'reranker'
     RETRIEVER = 'retriever'
-    TEXTLLM = 'text-llm'
     TOOL = 'tool'
     UTIL = 'util'
 
@@ -109,8 +109,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
 
 
 def parse_plugin_name_from_action_name(name: str) -> str | None:
-    """
-    Parses the plugin name from an action name.
+    """Parses the plugin name from an action name.
 
     As per convention, the plugin name is optional. If present, it's the first
     part of the action name, separated by a forward slash: `pluginname/*`.
@@ -124,6 +123,7 @@ def parse_plugin_name_from_action_name(name: str) -> str | None:
     tokens = name.split('/')
     if len(tokens) > 1:
         return tokens[0]
+    return None
 
 
 def create_action_key(kind: ActionKind, name: str) -> str:
@@ -168,10 +168,15 @@ class ActionRunContext:
 
     @cached_property
     def is_streaming(self) -> bool:
-        """Returns true if context contains on chunk callback, False otherwise"""
+        """Determines whether context contains on chunk callback.
+
+        Returns:
+            Boolean indicating whether the context contains a streaming
+            callback.
+        """
         return self._on_chunk != noop_streaming_callback
 
-    def send_chunk(self, chunk: Any):
+    def send_chunk(self, chunk: Any) -> None:
         """Send a chunk to from the action to the client.
 
         Args:
@@ -181,8 +186,11 @@ class ActionRunContext:
 
     @staticmethod
     def _current_context() -> dict[str, Any] | None:
-        """Returns current context if running within an action.
-        Otherwise returns None."""
+        """Obtains current context if running within an action.
+
+        Returns:
+            The current context if running within an action, None otherwise.
+        """
         return _action_context.get()
 
 
@@ -399,7 +407,7 @@ class Action:
         """
         input_action = (
             self.input_type.validate_python(raw_input)
-            if self.input_type != None
+            if self.input_type is not None
             else None
         )
         return await self.arun(
