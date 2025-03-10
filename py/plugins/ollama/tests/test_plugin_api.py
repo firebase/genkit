@@ -5,6 +5,7 @@ from unittest import mock
 
 import ollama as ollama_api
 import pytest
+from genkit.core.action import ActionKind
 from genkit.core.typing import GenerateResponse, Message, Role, TextPart
 from genkit.veneer import Genkit
 
@@ -13,17 +14,17 @@ def test_adding_ollama_chat_model_to_genkit_veneer(
     ollama_model: str,
     genkit_veneer_chat_model: Genkit,
 ):
-    assert len(genkit_veneer_chat_model.registry.entries) == 1
-    assert ollama_model in genkit_veneer_chat_model.registry.entries['model']
+    assert genkit_veneer_chat_model.registry.lookup_action(
+        ActionKind.MODEL, ollama_model
+    )
 
 
 def test_adding_ollama_generation_model_to_genkit_veneer(
     ollama_model: str,
     genkit_veneer_generate_model: Genkit,
 ):
-    assert len(genkit_veneer_generate_model.registry.entries) == 1
-    assert (
-        ollama_model in genkit_veneer_generate_model.registry.entries['model']
+    assert genkit_veneer_generate_model.registry.lookup_action(
+        ActionKind.MODEL, ollama_model
     )
 
 
