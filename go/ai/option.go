@@ -218,6 +218,10 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 		return err
 	}
 
+	if err := o.promptingOptions.applyPrompt(opts); err != nil {
+		return err
+	}
+
 	if err := o.outputOptions.applyPrompt(opts); err != nil {
 		return err
 	}
@@ -325,6 +329,7 @@ type promptingOptions struct {
 // PromptingOption is an option for the system and user prompts of a prompt or generate request.
 // It applies only to DefinePrompt() and Generate().
 type PromptingOption interface {
+	applyPrompting(*promptingOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
 }
@@ -445,13 +450,13 @@ type executionOptions struct {
 
 // ExecutionOption is an option for the execution of a prompt or generate request. It applies only to Generate() and prompt.Execute().
 type ExecutionOption interface {
-	applyRuntime(*executionOptions) error
+	applyExecution(*executionOptions) error
 	applyGenerate(*generateOptions) error
 	applyPromptGenerate(*promptGenerateOptions) error
 }
 
-// applyRuntime applies the option to the runtime options.
-func (o *executionOptions) applyRuntime(runOpts *executionOptions) error {
+// applyExecution applies the option to the runtime options.
+func (o *executionOptions) applyExecution(runOpts *executionOptions) error {
 	if o.Context != nil {
 		if runOpts.Context != nil {
 			return errors.New("cannot set context more than once (WithContext)")
@@ -471,12 +476,12 @@ func (o *executionOptions) applyRuntime(runOpts *executionOptions) error {
 
 // applyGenerate applies the option to the generate options.
 func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
-	return o.applyRuntime(&genOpts.executionOptions)
+	return o.applyExecution(&genOpts.executionOptions)
 }
 
 // applyPromptGenerate applies the option to the prompt request options.
 func (o *executionOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
-	return o.applyRuntime(&reqOpts.executionOptions)
+	return o.applyExecution(&reqOpts.executionOptions)
 }
 
 // WithContext sets the retrieved documents to be used as context for the generate request.
@@ -506,6 +511,10 @@ type GenerateOption interface {
 // applyGenerate applies the option to the generate options.
 func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 	if err := o.commonOptions.applyGenerate(genOpts); err != nil {
+		return err
+	}
+
+	if err := o.promptingOptions.applyGenerate(genOpts); err != nil {
 		return err
 	}
 
