@@ -322,7 +322,7 @@ def to_generate_action_options(
     model = model or registry.default_model
     if model is None:
         raise Exception('No model configured.')
-    if (not isinstance(config, GenerationCommonConfig | dict | None)):
+    if not isinstance(config, GenerationCommonConfig | dict | None):
         raise AttributeError('Invalid generate config provided')
     resolved_msgs: list[Message] = []
     if system:
