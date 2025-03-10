@@ -430,7 +430,6 @@ func (o *outputOptions) applyGenerate(opts *generateOptions) error {
 
 // WithOutputType sets the schema and format of the output based on the value provided.
 func WithOutputType(output any) OutputOption {
-	// TODO: Does OutputSchema need to be a map?
 	return &outputOptions{
 		OutputSchema: base.SchemaAsMap(base.InferJSONSchema(output)),
 		OutputFormat: OutputFormatJSON,
