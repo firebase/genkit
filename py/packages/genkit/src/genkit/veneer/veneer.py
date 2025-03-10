@@ -1,7 +1,9 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""To use Genkit in your application, construct an instance of the `Genkit`
+"""User-facing API for Genkit.
+
+To use Genkit in your application, construct an instance of the `Genkit`
 class while customizing it with any plugins, models, and tooling.  Then use the
 instance to define application flows.
 

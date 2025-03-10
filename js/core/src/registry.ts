@@ -30,17 +30,17 @@ export type AsyncProvider<T> = () => Promise<T>;
  */
 export type ActionType =
   | 'custom'
-  | 'retriever'
-  | 'indexer'
   | 'embedder'
   | 'evaluator'
+  | 'executable-prompt'
   | 'flow'
+  | 'indexer'
   | 'model'
   | 'prompt'
-  | 'executable-prompt'
-  | 'util'
+  | 'reranker'
+  | 'retriever'
   | 'tool'
-  | 'reranker';
+  | 'util';
 
 /**
  * A schema is either a Zod schema or a JSON schema.
@@ -77,7 +77,7 @@ export class Registry {
 
   readonly asyncStore = new AsyncStore();
   readonly dotprompt = new Dotprompt({
-    schemaResolver: async (name) => {
+    schemaResolver: async name => {
       const resolvedSchema = await this.lookupSchema(name);
       if (!resolvedSchema) {
         throw new GenkitError({

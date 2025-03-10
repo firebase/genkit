@@ -23,16 +23,16 @@ def test_action_enum_behaves_like_str() -> None:
     This test verifies that the ActionType enum values can be compared
     directly with strings and that the correct variants are used.
     """
-    assert ActionKind.CHATLLM == 'chat-llm'
     assert ActionKind.CUSTOM == 'custom'
     assert ActionKind.EMBEDDER == 'embedder'
     assert ActionKind.EVALUATOR == 'evaluator'
+    assert ActionKind.EXECUTABLE_PROMPT == 'executable-prompt'
     assert ActionKind.FLOW == 'flow'
     assert ActionKind.INDEXER == 'indexer'
     assert ActionKind.MODEL == 'model'
     assert ActionKind.PROMPT == 'prompt'
+    assert ActionKind.RERANKER == 'reranker'
     assert ActionKind.RETRIEVER == 'retriever'
-    assert ActionKind.TEXTLLM == 'text-llm'
     assert ActionKind.TOOL == 'tool'
     assert ActionKind.UTIL == 'util'
 
@@ -73,7 +73,6 @@ def test_create_action_key() -> None:
     assert create_action_key(ActionKind.MODEL, 'foo') == '/model/foo'
     assert create_action_key(ActionKind.PROMPT, 'foo') == '/prompt/foo'
     assert create_action_key(ActionKind.RETRIEVER, 'foo') == '/retriever/foo'
-    assert create_action_key(ActionKind.TEXTLLM, 'foo') == '/text-llm/foo'
     assert create_action_key(ActionKind.TOOL, 'foo') == '/tool/foo'
     assert create_action_key(ActionKind.UTIL, 'foo') == '/util/foo'
 
