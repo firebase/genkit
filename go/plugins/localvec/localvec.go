@@ -181,7 +181,7 @@ func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Document},
+		Documents: []*ai.Document{req.Query},
 		Options:   ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)

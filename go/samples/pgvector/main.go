@@ -110,7 +110,7 @@ const provider = "pgvector"
 // [START retr]
 func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Document))
+		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Query))
 		if err != nil {
 			return nil, err
 		}

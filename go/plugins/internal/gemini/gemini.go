@@ -12,6 +12,7 @@ var (
 	BasicText = ai.ModelInfoSupports{
 		Multiturn:  true,
 		Tools:      true,
+		ToolChoice: true,
 		SystemRole: true,
 		Media:      false,
 	}
@@ -20,6 +21,7 @@ var (
 	Multimodal = ai.ModelInfoSupports{
 		Multiturn:  true,
 		Tools:      true,
+		ToolChoice: true,
 		SystemRole: true,
 		Media:      true,
 	}

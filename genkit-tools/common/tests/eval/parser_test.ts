@@ -17,7 +17,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { enrichResultsWithScoring } from '../../src/eval';
 import { EvalMetricSchema, EvalResult } from '../../src/types/eval';
-import { EvalResponse } from '../../src/types/evaluators';
+import { EvalResponse } from '../../src/types/evaluator';
 
 describe('parser', () => {
   const evalRunResults: EvalResult[] = [

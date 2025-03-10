@@ -244,7 +244,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	inputDocument := ai.DocumentFromText(queryText, nil)
 
 	req := &ai.RetrieverRequest{
-		Document: inputDocument,
+		Query: inputDocument,
 	}
 
 	// Perform the retrieval

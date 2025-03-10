@@ -7,5 +7,5 @@ In case of questions, please refer to `./py/plugins/ollama/README.md`
 ## Execute "Hello World" Sample
 
 ```bash
-genkit start -- uv run hello.py
+genkit start -- uv run ./ollama-hello/src/hello.py
 ```
