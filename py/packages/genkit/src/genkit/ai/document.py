@@ -21,6 +21,8 @@ from genkit.core.typing import (
 )
 from genkit.core.typing import Media1 as MediaPartModel
 
+TEXT_DATA_TYPE: str = 'text'
+
 
 class Document(DocumentData):
     """Represents document content along with its metadata.
@@ -28,8 +30,6 @@ class Document(DocumentData):
     This object can be embedded, indexed or retrieved. Each document can contain
     multiple parts (for example text and an image).
     """
-
-    TEXT_DATA_TYPE: ClassVar[str] = 'text'
 
     def __init__(
         self,
