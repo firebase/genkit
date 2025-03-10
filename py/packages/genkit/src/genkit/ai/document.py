@@ -10,7 +10,7 @@ Genkit.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import Any, ClassVar
 
 from genkit.core.typing import (
     DocumentData,
@@ -29,7 +29,7 @@ class Document(DocumentData):
     multiple parts (for example text and an image).
     """
 
-    TEXT_DATA_TYPE = 'text'
+    TEXT_DATA_TYPE: ClassVar[str] = 'text'
 
     def __init__(
         self,
