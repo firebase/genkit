@@ -12,66 +12,14 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from genkit.ai.embedding import EmbeddingModel
-from pydantic import BaseModel
-
-
-class EmptyPart(BaseModel):
-    """Empty part of a document."""
-
-    text: None = None
-    media: None = None
-
-
-class TextPart(BaseModel):
-    """Text part of a document.
-
-    Attributes:
-        text: The string contents of the document
-    """
-
-    text: str
-    media: None = None
-
-
-class MediaPartModel(BaseModel):
-    """Object model representing media parts.
-
-    Attributes:
-        content_type: The media content type. Inferred from data uri if not
-        provided.
-        url: A `data:` or `https:` uri containing the media content.
-    """
-
-    content_type: str | None = None
-    url: str
-
-
-class MediaPart(BaseModel):
-    """Media part of a document.
-
-    Attributes:
-        media: The media contents of the document
-    """
-
-    text: None = None
-    media: MediaPartModel
-
-
-# Part type
-type Part = TextPart | MediaPart
-
-
-class DocumentData(BaseModel):
-    """Represent complete document data.
-
-    Attributes:
-        content: The parts contained in this document
-        metadata: optional metadata
-    """
-
-    content: list[Part]
-    metadata: dict[str, Any] | None = None
+from genkit.core.typing import (
+    DocumentData,
+    DocumentPart,
+    Embedding,
+    MediaPart,
+    TextPart,
+)
+from genkit.core.typing import Media1 as MediaPartModel
 
 
 class Document(DocumentData):
@@ -81,8 +29,12 @@ class Document(DocumentData):
     multiple parts (for example text and an image).
     """
 
+    TEXT_DATA_TYPE = 'text'
+
     def __init__(
-        self, content: list[Part], metadata: dict[str, Any] | None = None
+        self,
+        content: list[DocumentPart],
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Initialize Document object."""
         doc_content = deepcopy(content)
@@ -119,18 +71,18 @@ class Document(DocumentData):
         metadata: dict[str, Any] | None = None,
     ) -> Document:
         """Construct a Document from a single media part."""
-        if data_type == 'text':
+        if data_type == TEXT_DATA_TYPE:
             return Document.from_text(data, metadata)
         return Document.from_media(data, data_type, metadata)
 
     def text(self) -> str:
         """Concatenates all `text` parts with no delimiter."""
-        text_parts = map(lambda part: part.text or '', self.content)
+        text_parts = map(lambda part: part.root.text or '', self.content)
         return ''.join(text_parts)
 
     def media(self) -> list[MediaPartModel]:
         """Media array getter."""
-        media_parts = map(lambda part: part.media, self.content)
+        media_parts = map(lambda part: part.root.media, self.content)
         return list(filter(lambda m: m is not None, media_parts))
 
     def data(self) -> str:
@@ -146,7 +98,7 @@ class Document(DocumentData):
     def data_type(self) -> str | None:
         """Gets the content_type of the data that is returned by data()."""
         if self.text():
-            return 'text'
+            return TEXT_DATA_TYPE
 
         if self.media() and self.media()[0].content_type:
             return self.media()[0].content_type
@@ -154,7 +106,7 @@ class Document(DocumentData):
         return None
 
     def get_embedding_documents(
-        self, embeddings: list[EmbeddingModel]
+        self, embeddings: list[Embedding]
     ) -> list[Document]:
         """Creates documents from embeddings.
 

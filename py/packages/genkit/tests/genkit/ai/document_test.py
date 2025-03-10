@@ -3,13 +3,15 @@
 
 """Tests for Genkit document."""
 
-from genkit.ai.document import (
-    Document,
+from genkit.ai.document import Document
+from genkit.core.typing import (
+    Embedding,
     MediaPart,
-    MediaPartModel,
     TextPart,
 )
-from genkit.ai.embedding import EmbeddingModel
+from genkit.core.typing import (
+    Media1 as MediaPartModel,
+)
 
 
 def test_makes_deep_copy() -> None:
@@ -20,7 +22,7 @@ def test_makes_deep_copy() -> None:
     content[0].text = 'other text'
     metadata['foo'] = 'faz'
 
-    assert doc.content[0].text == 'some text'
+    assert doc.content[0].root.text == 'some text'
     assert doc.metadata['foo'] == 'bar'
 
 
@@ -112,9 +114,7 @@ def test_data_type_with_media() -> None:
 
 def test_get_embedding_documents() -> None:
     doc = Document.from_text('foo')
-    embeddings: list[EmbeddingModel] = [
-        EmbeddingModel(embedding=[0.1, 0.2, 0.3])
-    ]
+    embeddings: list[Embedding] = [Embedding(embedding=[0.1, 0.2, 0.3])]
     docs = doc.get_embedding_documents(embeddings)
 
     assert docs == [doc]
@@ -125,7 +125,7 @@ def test_get_embedding_documents_multiple_embeddings() -> None:
     content_type = 'video/mp4'
     metadata = {'start': 0, 'end': 60}
     doc = Document.from_media(url, content_type, metadata)
-    embeddings: list[EmbeddingModel] = []
+    embeddings: list[Embedding] = []
 
     for start in range(0, 60, 15):
         embeddings.append(make_test_embedding(start))
@@ -141,8 +141,8 @@ def test_get_embedding_documents_multiple_embeddings() -> None:
         assert orig_metadata, doc.metadata
 
 
-def make_test_embedding(start: int) -> EmbeddingModel:
-    return EmbeddingModel(
+def make_test_embedding(start: int) -> Embedding:
+    return Embedding(
         embedding=[0.1, 0.2, 0.3],
         metadata={'embeddingType': 'video', 'start': start, 'end': start + 15},
     )
