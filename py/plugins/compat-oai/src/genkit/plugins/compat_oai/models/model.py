@@ -92,7 +92,17 @@ class OpenAIModel:
 
     def generate_stream(
         self, request: GenerateRequest, callback: Callable
-    ) -> None:
+    ) -> GenerateResponse:
+        """
+        Generates a streaming response from the OpenAI client and processes it in chunks.
+
+        Args:
+            request (GenerateRequest): The request object containing generation parameters.
+            callback (Callable): A function to handle each chunk of the streamed response.
+
+        Returns:
+            GenerateResponse: An empty response message when streaming is complete.
+        """
         openai_config = self._get_openai_config(request=request)
         openai_config['stream'] = True
 
@@ -110,3 +120,9 @@ class OpenAIModel:
             )
 
             callback(response_chunk)
+
+        # Return an empty response when streaming is complete
+        return GenerateResponse(
+            request=request,
+            message=Message(role=Role.MODEL, content=[TextPart(text='')]),
+        )
