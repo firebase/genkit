@@ -1,6 +1,9 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 import logging
+import mimetypes
+
+from typing import Literal
 
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -8,9 +11,15 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
+    Media,
+    MediaPart,
     Message,
+    Part,
     Role,
     TextPart,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponsePart
 )
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
@@ -50,30 +59,32 @@ class OllamaModel:
     async def generate(
         self, request: GenerateRequest, ctx: ActionRunContext | None = None
     ) -> GenerateResponse:
-        txt_response = 'Failed to get response from Ollama API'
+        content = [TextPart(text='Failed to get response from Ollama API')]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
-            api_response = await self._chat_with_ollama(
+            chat_response = await self._chat_with_ollama(
                 request=request, ctx=ctx
             )
-            if api_response:
-                txt_response = api_response.message.content
+            if chat_response:
+                content = self._build_multimodal_chat_response(
+                    chat_response=chat_response,
+                )
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
             api_response = await self._generate_ollama_response(
                 request=request, ctx=ctx
             )
             if api_response:
-                txt_response = api_response.response
+                content = [TextPart(text=api_response.response)]
         else:
             LOG.error(f'Unresolved API type: {self.model_definition.api_type}')
 
         if self.is_streaming_request(ctx=ctx):
-            txt_response = 'Response sent to Streaming API'
+            content = []
 
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=[TextPart(text=txt_response)],
+                content=content,
             )
         )
 
@@ -97,6 +108,19 @@ class OllamaModel:
         chat_response = await self.client.chat(
             model=self.model_definition.name,
             messages=messages,
+            tools=[
+                ollama_api.Tool(
+                    function=ollama_api.Tool.Function(
+                        name=tool.name,
+                        description=tool.description,
+                        parameters=ollama_api.Tool.Function.Parameters(
+                            type='object',
+                            properties={'input': tool.input_schema},
+                        ),
+                    )
+                )
+                for tool in request.tools or []
+            ],
             options=self.build_request_options(config=request.config),
             format=fmt,
             stream=streaming_request,
@@ -115,7 +139,9 @@ class OllamaModel:
                     chunk=GenerateResponseChunk(
                         role=role,
                         index=idx,
-                        content=[TextPart(text=chunk.message.content)],
+                        content=self._build_multimodal_chat_response(
+                            chat_response=chunk
+                        ),
                     )
                 )
         else:
@@ -151,6 +177,36 @@ class OllamaModel:
             return generate_response
 
     @staticmethod
+    def _build_multimodal_chat_response(
+        chat_response: ollama_api.ChatResponse,
+    ) -> list[Part]:
+        content = []
+        chat_response_message = chat_response.message
+        if chat_response_message.content:
+            content.append(TextPart(text=chat_response.message.content))
+        if chat_response_message.images:
+            for image in chat_response_message.images:
+                content.append(
+                    MediaPart(
+                        media=Media(
+                            content_type=mimetypes.guess_type(image.value, strict=False)[0],
+                            url=image.value,
+                        )
+                    )
+                )
+        if chat_response_message.tool_calls:
+            for tool_call in chat_response_message.tool_calls:
+                content.append(
+                    ToolRequestPart(
+                        tool_request=ToolRequest(
+                            name=tool_call.function.name,
+                            input=tool_call.function.arguments.get('input'),
+                        )
+                    )
+                )
+        return content
+
+    @staticmethod
     def build_request_options(
         config: GenerationCommonConfig | dict,
     ) -> ollama_api.Options:
@@ -176,21 +232,46 @@ class OllamaModel:
                     LOG.error('Non-text messages are not supported')
         return prompt
 
-    @staticmethod
-    def build_chat_messages(request: GenerateRequest) -> list[dict[str, str]]:
+    @classmethod
+    def build_chat_messages(
+        cls, request: GenerateRequest
+    ) -> list[dict[str, str]]:
         messages = []
         for message in request.messages:
-            item = {
-                'role': message.role,
-                'content': '',
-            }
+            item = ollama_api.Message(
+                role=cls._to_ollama_role(role=message.role),
+                content='',
+                images=[],
+            )
             for text_part in message.content:
                 if isinstance(text_part.root, TextPart):
-                    item['content'] += text_part.root.text
-                else:
-                    LOG.error(f'Unsupported part of message: {text_part}')
+                    item.content += text_part.root.text
+                if isinstance(text_part.root, ToolResponsePart):
+                    item.content += str(text_part.root.tool_response.output)
+                if isinstance(text_part.root, MediaPart):
+                    item['images'].append(
+                        ollama_api.Image(
+                            value=text_part.root.media.url,
+                        )
+                    )
             messages.append(item)
         return messages
+
+    @staticmethod
+    def _to_ollama_role(
+        role: Role,
+    ) -> Literal['user', 'assistant', 'system', 'tool']:
+        match role:
+            case Role.USER:
+                return 'user'
+            case Role.MODEL:
+                return 'assistant'
+            case Role.TOOL:
+                return 'tool'
+            case Role.SYSTEM:
+                return 'system'
+            case _:
+                raise ValueError(f'Unknown role: {role}')
 
     @staticmethod
     def is_streaming_request(ctx: ActionRunContext | None) -> bool:
