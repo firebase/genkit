@@ -88,7 +88,7 @@ class ExecutablePrompt:
             tool_choice: The tool choice strategy.
             use: A list of model middlewares to apply.
         """
-        self.registry = registry
+        self._registry = registry
         self._variant = variant
         self._model = model
         self._config = config
@@ -129,7 +129,7 @@ class ExecutablePrompt:
             The generated response.
         """
         return await generate_action(
-            self.registry,
+            self._registry,
             self.render(input=input, config=config),
             on_chunk=on_chunk,
             middleware=self._use,
@@ -184,7 +184,7 @@ class ExecutablePrompt:
         """
         # TODO: run str prompt/system/message through dotprompt using input
         return to_generate_action_options(
-            registry=self.registry,
+            registry=self._registry,
             model=self._model,
             prompt=self._prompt,
             system=self._system,
@@ -322,11 +322,7 @@ def to_generate_action_options(
     model = model or registry.default_model
     if model is None:
         raise Exception('No model configured.')
-    if (
-        config
-        and not isinstance(config, GenerationCommonConfig)
-        and not isinstance(config, dict)
-    ):
+    if (not isinstance(config, GenerationCommonConfig | dict | None)):
         raise AttributeError('Invalid generate config provided')
     resolved_msgs: list[Message] = []
     if system:
