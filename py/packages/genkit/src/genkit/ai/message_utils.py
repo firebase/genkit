@@ -1,6 +1,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utilities for working with messages."""
 
 from genkit.core.typing import (
     Message,
