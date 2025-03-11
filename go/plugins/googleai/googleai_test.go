@@ -19,7 +19,6 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/googleai"
-	"google.golang.org/api/option"
 )
 
 // The tests here only work with an API key set to a valid value.
@@ -175,8 +174,7 @@ func TestHeader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	opts := []option.ClientOption{option.WithHTTPClient(server.Client()), option.WithEndpoint(server.URL)}
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x"}); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = genkit.Generate(ctx, g, ai.WithTextPrompt("hi"))
