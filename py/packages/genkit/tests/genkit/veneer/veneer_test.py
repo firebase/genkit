@@ -10,12 +10,6 @@ import json
 import pytest
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import MessageWrapper, _text_from_message
-from genkit.ai.testing_utils import (
-    EchoModel,
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
-)
 from genkit.core.typing import (
     FinishReason,
     GenerateRequest,
@@ -34,6 +28,12 @@ from genkit.core.typing import (
     ToolRequestPart,
     ToolResponse,
     ToolResponsePart,
+)
+from genkit.testing import (
+    EchoModel,
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field

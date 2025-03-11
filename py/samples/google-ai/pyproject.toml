@@ -15,17 +15,18 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "opentelemetry-api>=1.29.0",
-  "opentelemetry-sdk>=1.29.0",
+  "genkit",
+  "genkit-firebase-plugin",
+  "genkit-google-ai-plugin",
+  "genkit-google-cloud-plugin",
+  "genkit-ollama-plugin",
+  "genkit-pinecone-plugin",
+  "genkit-vertex-ai-plugin",
   "pydantic>=2.10.5",
-  "requests>=2.32.3",
-  "dotprompt",
-  "partial-json-parser>=0.2.1.1.post5",
-  "json5>=0.10.0",
 ]
-description = "Genkit AI Framework"
+description = "Hello world sample"
 license = { text = "Apache-2.0" }
-name = "genkit"
+name = "hello_genai"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
@@ -35,8 +36,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/genkit"]
-
-[tool.pytest.ini_options]
-pythonpath = [".", "tests", "src"]
-testpaths  = ["tests"]
+packages = ["src/hello"]
