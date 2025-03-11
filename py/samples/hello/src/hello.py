@@ -260,6 +260,8 @@ async def describe_picture(url: str):
             ),
         ],
     )
+
+
 myprompt = ai.define_prompt(model='my_model', prompt='tell me a long dad joke')
 
 
