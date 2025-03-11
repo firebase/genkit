@@ -5,15 +5,15 @@
 """Tests for the action module."""
 
 import pytest
-from genkit.ai.testing_utils import (
-    define_echo_model,
-    define_programmable_model,
-)
 from genkit.core.typing import (
     Message,
     Role,
     TextPart,
     ToolChoice,
+)
+from genkit.testing import (
+    define_echo_model,
+    define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
