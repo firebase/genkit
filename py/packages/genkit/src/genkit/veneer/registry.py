@@ -39,12 +39,19 @@ from typing import Any
 
 from genkit.ai.embedding import EmbedderFn
 from genkit.ai.formats.types import FormatDef
-from genkit.ai.model import ModelFn
+from genkit.ai.model import ModelFn, ModelMiddleware
+from genkit.ai.prompt import define_prompt
 from genkit.core.action import Action, ActionKind
 from genkit.core.codec import dump_dict
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
-from genkit.core.typing import ModelInfo
+from genkit.core.typing import (
+    GenerationCommonConfig,
+    Message,
+    ModelInfo,
+    Part,
+    ToolChoice,
+)
 from pydantic import BaseModel
 
 
@@ -227,3 +234,73 @@ class GenkitRegistry:
     def define_format(self, format: FormatDef):
         """Registers a custom format in the registry."""
         self.registry.register_value('format', format.name, format)
+
+    def define_prompt(
+        self,
+        variant: str | None = None,
+        model: str | None = None,
+        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, Any] | None = None,
+        system: str | Part | list[Part] | None = None,
+        prompt: str | Part | list[Part] | None = None,
+        messages: str | list[Message] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, Any] | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, Any] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        # TODO:
+        #  docs: list[Document]
+    ):
+        """Define a prompt.
+
+        Args:
+            variant: Optional variant name for the prompt.
+            model: Optional model name to use for the prompt.
+            config: Optional configuration for the model.
+            description: Optional description for the prompt.
+            input_schema: Optional schema for the input to the prompt.
+            system: Optional system message for the prompt.
+            prompt: Optional prompt for the model.
+            messages: Optional messages for the model.
+            output_format: Optional output format for the prompt.
+            output_content_type: Optional output content type for the prompt.
+            output_instructions: Optional output instructions for the prompt.
+            output_schema: Optional schema for the output from the prompt.
+            output_constrained: Optional flag indicating whether the output should be constrained.
+            max_turns: Optional maximum number of turns for the prompt.
+            return_tool_requests: Optional flag indicating whether tool requests should be returned.
+            metadata: Optional metadata for the prompt.
+            tools: Optional list of tools to use for the prompt.
+            tool_choice: Optional tool choice for the prompt.
+            use: Optional list of model middlewares to use for the prompt.
+        """
+        return define_prompt(
+            self.registry,
+            variant=variant,
+            model=model,
+            config=config,
+            description=description,
+            input_schema=input_schema,
+            system=system,
+            prompt=prompt,
+            messages=messages,
+            output_format=output_format,
+            output_content_type=output_content_type,
+            output_instructions=output_instructions,
+            output_schema=output_schema,
+            output_constrained=output_constrained,
+            max_turns=max_turns,
+            return_tool_requests=return_tool_requests,
+            metadata=metadata,
+            tools=tools,
+            tool_choice=tool_choice,
+            use=use,
+        )
