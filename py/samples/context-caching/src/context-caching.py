@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the context caching sample.
+
+    This function demonstrates how to use context caching in Genkit for
+    improved performance.
+    """
     print('Hey')
 
 

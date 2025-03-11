@@ -28,7 +28,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func main() {
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := googleai.Model(g, "gemini-1.5-flash")
+		m := googleai.Model(g, "gemini-2.0-flash")
 		if m == nil {
 			return "", errors.New("jokesFlow: failed to find model")
 		}
@@ -52,7 +52,7 @@ func main() {
 			ai.WithModel(m),
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
-				Version:     "gemini-1.5-flash-002",
+				Version:     "gemini-2.0-flash-001",
 			}),
 			ai.WithTextPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)))
 		if err != nil {
@@ -63,7 +63,5 @@ func main() {
 		return text, nil
 	})
 
-	if err := g.Start(ctx, nil); err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }

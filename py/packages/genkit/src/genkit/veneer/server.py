@@ -25,8 +25,10 @@ from pathlib import Path
 
 @dataclass
 class ServerSpec:
-    """ServerSpec encapsulates the scheme, host and port information for a
-    server to bind to and listen on."""
+    """ServerSpec encapsulates the scheme, host and port information.
+
+    This class defines the server binding and listening configuration.
+    """
 
     port: int
     scheme: str = 'http'
@@ -44,13 +46,16 @@ def create_runtime(
     at_exit_fn: Callable[[Path], None] | None = None,
 ) -> Path:
     """Create a runtime configuration for use with the genkit CLI.
+
     The runtime information is stored in the form of a timestamped JSON file.
     Note that the file will be cleaned up as soon as the program terminates.
+
     Args:
         runtime_dir: The directory to store the runtime file in.
         reflection_server_spec: The server specification for the reflection
-        server.
+            server.
         at_exit_fn: A function to call when the runtime file is deleted.
+
     Returns:
         A path object representing the created runtime metadata file.
     """
@@ -60,24 +65,15 @@ def create_runtime(
     current_datetime = datetime.now()
     runtime_file_name = f'{current_datetime.isoformat()}.json'
     runtime_file_path = Path(os.path.join(runtime_dir, runtime_file_name))
-    metadata = json.dumps(
-        {
-            'id': f'{os.getpid()}',
-            'pid': os.getpid(),
-            'reflectionServerUrl': reflection_server_spec.url,
-            'timestamp': f'{current_datetime.isoformat()}',
-        }
-    )
+    metadata = json.dumps({
+        'reflectionApiSpecVersion': 1,
+        'id': f'{os.getpid()}',
+        'pid': os.getpid(),
+        'reflectionServerUrl': reflection_server_spec.url,
+        'timestamp': f'{current_datetime.isoformat()}',
+    })
     runtime_file_path.write_text(metadata, encoding='utf-8')
 
     if at_exit_fn:
         atexit.register(lambda: at_exit_fn(runtime_file_path))
     return runtime_file_path
-
-
-def is_dev_environment() -> bool:
-    """Returns True if the current environment is a development environment.
-    Returns:
-        True if the current environment is a development environment.
-    """
-    return os.getenv('GENKIT_ENV') == 'dev'

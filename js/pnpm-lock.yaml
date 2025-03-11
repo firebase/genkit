@@ -426,8 +426,8 @@ importers:
         specifier: workspace:^
         version: link:../google-cloud
       '@google-cloud/firestore':
-        specifier: ^7.6.0
-        version: 7.6.0(encoding@0.1.13)
+        specifier: ^7.11.0
+        version: 7.11.0(encoding@0.1.13)
       firebase-admin:
         specifier: '>=12.2'
         version: 12.3.1(encoding@0.1.13)
@@ -1379,7 +1379,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.0.0-rc.16)(@genkit-ai/core@1.0.0-rc.16)
+        version: 0.10.1(@genkit-ai/ai@1.0.5)(@genkit-ai/core@1.0.5)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2301,11 +2301,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@1.0.0-rc.16':
-    resolution: {integrity: sha512-8gfniKrDB4igHcHgyt2vmZmpwbPFXKKFeevoBjTQZOlkKrs6LnHRGrRYfpltRUITm/MLS11eW+2KmcTte5e0Tw==}
+  '@genkit-ai/ai@1.0.5':
+    resolution: {integrity: sha512-3OOi/q5K7Ab6UenazPHK1VBUiFRUG3y+7tF7pE678ik0uVwdVNXVfNoWqznSdfsnjrf+k28ZfBCiJzeWvISebQ==}
 
-  '@genkit-ai/core@1.0.0-rc.16':
-    resolution: {integrity: sha512-xSc8cnOpwL7Add+XlWt4lEoSAXWpXmaEAOmmk+Qw4YXD4KDrN2k0q4r+e4QW7EhZPEXO5/ITe3SxdugU1AAP4w==}
+  '@genkit-ai/core@1.0.5':
+    resolution: {integrity: sha512-K8U2nAfbizzgmy7Kvb+YeWTMdBWy6n23r9OzBAl8bVI+FaBqY6b6avVWku7/HsJHEhxyQ+PI/uCXXzdHuVcV3Q==}
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -2324,10 +2324,6 @@ packages:
 
   '@google-cloud/firestore@7.11.0':
     resolution: {integrity: sha512-88uZ+jLsp1aVMj7gh3EKYH1aulTAMFAp8sH/v5a9w8q8iqSG27RiWLoxSAFr/XocZ9hGiWH1kEnBw+zl3xAgNA==}
-    engines: {node: '>=14.0.0'}
-
-  '@google-cloud/firestore@7.6.0':
-    resolution: {integrity: sha512-WUDbaLY8UnPxgwsyIaxj6uxCtSDAaUyvzWJykNH5rZ9i92/SZCsPNNMN0ajrVpAR81hPIL4amXTaMJ40y5L+Yg==}
     engines: {node: '>=14.0.0'}
 
   '@google-cloud/logging-winston@6.0.0':
@@ -7360,9 +7356,9 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@genkit-ai/ai@1.0.0-rc.16':
+  '@genkit-ai/ai@1.0.5':
     dependencies:
-      '@genkit-ai/core': 1.0.0-rc.16
+      '@genkit-ai/core': 1.0.5
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
@@ -7374,7 +7370,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.0.0-rc.16':
+  '@genkit-ai/core@1.0.5':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.30.1(@opentelemetry/api@1.9.0)
@@ -7450,16 +7446,6 @@ snapshots:
       functional-red-black-tree: 1.0.1
       google-gax: 4.4.1(encoding@0.1.13)
       protobufjs: 7.3.2
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@google-cloud/firestore@7.6.0(encoding@0.1.13)':
-    dependencies:
-      fast-deep-equal: 3.1.3
-      functional-red-black-tree: 1.0.1
-      google-gax: 4.3.2(encoding@0.1.13)
-      protobufjs: 7.2.6
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -10214,10 +10200,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.0-rc.16)(@genkit-ai/core@1.0.0-rc.16):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.0.5)(@genkit-ai/core@1.0.5):
     dependencies:
-      '@genkit-ai/ai': 1.0.0-rc.16
-      '@genkit-ai/core': 1.0.0-rc.16
+      '@genkit-ai/ai': 1.0.5
+      '@genkit-ai/core': 1.0.5
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
     transitivePeerDependencies:
@@ -12610,7 +12596,7 @@ snapshots:
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
       '@types/node': 20.16.9
-      acorn: 8.11.3
+      acorn: 8.14.0
       acorn-walk: 8.3.4
       arg: 4.1.3
       create-require: 1.1.1

@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package weaviate
 
 import (
@@ -275,7 +274,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 
 	// Use the embedder to convert the document to a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Document},
+		Documents: []*ai.Document{req.Query},
 		Options:   ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)

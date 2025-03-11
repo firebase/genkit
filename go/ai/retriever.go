@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package ai
 
 import (
@@ -30,25 +29,25 @@ type Indexer interface {
 }
 
 type (
-	indexerActionDef   core.Action[*IndexerRequest, struct{}, struct{}]
-	retrieverActionDef core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+	indexerActionDef   core.ActionDef[*IndexerRequest, struct{}, struct{}]
+	retrieverActionDef core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 
-	indexerAction   = core.Action[*IndexerRequest, struct{}, struct{}]
-	retrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+	indexerAction   = core.ActionDef[*IndexerRequest, struct{}, struct{}]
+	retrieverAction = core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 )
 
 // IndexerRequest is the data we pass to add documents to the database.
 // The Options field is specific to the actual retriever implementation.
 type IndexerRequest struct {
-	Documents []*Document `json:"docs"`
+	Documents []*Document `json:"documents"`
 	Options   any         `json:"options,omitempty"`
 }
 
 // RetrieverRequest is the data we pass to retrieve documents from the database.
 // The Options field is specific to the actual retriever implementation.
 type RetrieverRequest struct {
-	Document *Document `json:"content"`
-	Options  any       `json:"options,omitempty"`
+	Query   *Document `json:"query"`
+	Options any       `json:"options,omitempty"`
 }
 
 // RetrieverResponse is the response to a document lookup.
@@ -116,7 +115,7 @@ type RetrieveOption func(req *RetrieverRequest) error
 // WithRetrieverText adds a simple text as document to RetrieveRequest.
 func WithRetrieverText(text string) RetrieveOption {
 	return func(req *RetrieverRequest) error {
-		req.Document = DocumentFromText(text, nil)
+		req.Query = DocumentFromText(text, nil)
 		return nil
 	}
 }
@@ -124,7 +123,7 @@ func WithRetrieverText(text string) RetrieveOption {
 // WithRetrieverDoc adds a document to RetrieveRequest.
 func WithRetrieverDoc(doc *Document) RetrieveOption {
 	return func(req *RetrieverRequest) error {
-		req.Document = doc
+		req.Query = doc
 		return nil
 	}
 }

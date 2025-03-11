@@ -23,7 +23,8 @@ type MyModelConfig struct {
 // [END cfg]
 
 func Init() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -40,11 +41,11 @@ func Init() error {
 				Media:      false, // Can the model accept media input?
 				Tools:      false, // Does the model support function calling (tools)?
 			},
-			Versions: []string{},
+			Versions: []string{"my-model-001", "..."},
 		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,
-			_ ai.ModelStreamingCallback,
+			_ ai.ModelStreamCallback,
 		) (*ai.ModelResponse, error) {
 			// Verify that the request includes a configuration that conforms to
 			// your schema .

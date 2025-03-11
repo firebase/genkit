@@ -45,7 +45,10 @@ class MockBigQuery {
 describe('getBigQueryDocumentRetriever', () => {
   it('returns a function that retrieves documents from BigQuery', async () => {
     const doc1 = Document.fromText('content1');
-    const doc2 = Document.fromText('content2');
+    const doc2Metadata = {
+      restricts: [{ namespace: 'color', allowList: 'red' }],
+    };
+    const doc2 = Document.fromText('content2', doc2Metadata);
 
     const mockRows = [
       {
@@ -56,7 +59,7 @@ describe('getBigQueryDocumentRetriever', () => {
       {
         id: '2',
         content: JSON.stringify(doc2.content),
-        metadata: null,
+        metadata: JSON.stringify(doc2.metadata),
       },
     ];
 

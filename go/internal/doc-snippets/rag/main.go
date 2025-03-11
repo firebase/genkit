@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package rag
 
 import (
@@ -24,7 +23,7 @@ func main() {
 	// [START vec]
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -94,10 +93,7 @@ func main() {
 	)
 	// [END indexflow]
 
-	err = g.Start(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }
 
 // [START readpdf]
@@ -130,7 +126,7 @@ func menuQA() {
 	// [START retrieve]
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -163,7 +159,7 @@ func menuQA() {
 		func(ctx context.Context, question string) (string, error) {
 			// Retrieve text relevant to the user's question.
 			docs, err := menuPdfRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-				Document: ai.DocumentFromText(question, nil),
+				Query: ai.DocumentFromText(question, nil),
 			})
 			if err != nil {
 				return "", err
@@ -192,7 +188,8 @@ make up an answer. Do not add or change items on the menu.`),
 }
 
 func customret() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -228,8 +225,8 @@ func customret() {
 
 			// Call the retriever as in the simple case.
 			response, err := menuPDFRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-				Document: req.Document,
-				Options:  localvec.RetrieverOptions{K: opts.PreRerankK},
+				Query:   req.Query,
+				Options: localvec.RetrieverOptions{K: opts.PreRerankK},
 			})
 			if err != nil {
 				return nil, err

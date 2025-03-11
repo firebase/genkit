@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 import { MessageData } from '@genkit-ai/ai/model';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { gemini20Flash } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { defineAgent, HistoryStore } from './agent.js';
 import { ai } from './genkit.js';
@@ -50,7 +50,7 @@ const datePicker = ai.defineTool(
 
 export const chatbotFlow = defineAgent(ai, {
   name: 'chatbotFlow',
-  model: gemini15Flash,
+  model: gemini20Flash,
   tools: [weatherTool, datePicker],
   returnToolRequests: true,
   systemPrompt:

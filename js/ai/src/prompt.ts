@@ -395,11 +395,12 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
   return {
     ...options.metadata,
     prompt: {
+      ...options.metadata?.prompt,
       config: options.config,
       input: {
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
-      name: options.name,
+      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
       model: modelName(options.model),
     },
     type: 'prompt',
@@ -784,7 +785,7 @@ function loadPrompt(
           type: 'prompt',
           prompt: {
             ...promptMetadata,
-            template: source,
+            template: parsedPrompt.template,
           },
         },
         maxTurns: promptMetadata.raw?.['maxTurns'],

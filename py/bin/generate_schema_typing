@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+# The convention in Python used by several libraries for names of modules
+# containing type hints is `typing`. For example, the ASGI ref module from
+# Django called `asgiref` also uses this convention.
+
+set -euo pipefail
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+TYPING_FILE="${TOP_DIR}/py/packages/genkit/src/genkit/core/typing.py"
+
+# Generate types using configuration from pyproject.toml
+uv run --directory "${TOP_DIR}/py" datamodel-codegen
+
+# This isn't causing runtime errors at the moment so letting it be.
+#sed -i '' '/^class Model(RootModel\[Any\]):$/,/^    root: Any$/d' "${TYPING_FILE}"
+
+# Sanitize the generated schema.
+python3 "${TOP_DIR}/py/bin/sanitize_schema_typing.py" "${TYPING_FILE}"
+
+# Checks and formatting.
+uv run --directory "${TOP_DIR}/py" \
+  ruff format "${TOP_DIR}"
+uv run --directory "${TOP_DIR}/py" \
+  ruff check --fix "${TYPING_FILE}"
+uv run --directory "${TOP_DIR}/py" \
+  ruff format "${TOP_DIR}"

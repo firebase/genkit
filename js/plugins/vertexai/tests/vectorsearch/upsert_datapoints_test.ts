@@ -38,7 +38,18 @@ describe('upsertDatapoints', () => {
 
     const params = {
       datapoints: [
-        { datapointId: 'dp1', featureVector: [0.1, 0.2, 0.3] },
+        {
+          datapointId: 'dp1',
+          featureVector: [0.1, 0.2, 0.3],
+          restricts: [
+            {
+              namespace: 'colour',
+              allowList: ['blue'],
+              denyList: ['red', 'purple'],
+            },
+          ],
+          numericRestricts: [{ namespace: 'shipping code', valueInt: 24 }],
+        },
         { datapointId: 'dp2', featureVector: [0.4, 0.5, 0.6] },
       ] as IIndexDatapoint[],
       authClient: mockAuthClient,
@@ -73,7 +84,18 @@ describe('upsertDatapoints', () => {
     const body = JSON.parse(options.body);
     assert.deepStrictEqual(body, {
       datapoints: [
-        { datapoint_id: 'dp1', feature_vector: [0.1, 0.2, 0.3] },
+        {
+          datapoint_id: 'dp1',
+          feature_vector: [0.1, 0.2, 0.3],
+          restricts: [
+            {
+              namespace: 'colour',
+              allow_list: ['blue'],
+              deny_list: ['red', 'purple'],
+            },
+          ],
+          numeric_restricts: [{ namespace: 'shipping code', value_int: 24 }],
+        },
         { datapoint_id: 'dp2', feature_vector: [0.4, 0.5, 0.6] },
       ],
     });

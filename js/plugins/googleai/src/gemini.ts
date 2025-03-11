@@ -15,6 +15,7 @@
  */
 
 import {
+  EnhancedGenerateContentResponse,
   FileDataPart,
   FunctionCallingMode,
   FunctionCallPart,
@@ -451,7 +452,10 @@ function toFunctionCall(part: ToolRequestPart): FunctionCallPart {
   };
 }
 
-function fromFunctionCall(part: FunctionCallPart): ToolRequestPart {
+function fromFunctionCall(
+  part: FunctionCallPart,
+  ref: string
+): ToolRequestPart {
   if (!part.functionCall) {
     throw Error('Invalid FunctionCallPart');
   }
@@ -459,6 +463,7 @@ function fromFunctionCall(part: FunctionCallPart): ToolRequestPart {
     toolRequest: {
       name: part.functionCall.name,
       input: part.functionCall.args,
+      ref,
     },
   };
 }
@@ -543,26 +548,37 @@ function toGeminiPart(part: Part): GeminiPart {
   throw new Error('Unsupported Part type' + JSON.stringify(part));
 }
 
-function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  // if (jsonMode && part.text !== undefined) {
-  //   return { data: JSON.parse(part.text) };
-  // }
+function fromGeminiPart(
+  part: GeminiPart,
+  jsonMode: boolean,
+  ref: string
+): Part {
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
-  if (part.functionCall) return fromFunctionCall(part);
+  if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
   throw new Error('Unsupported GeminiPart type');
 }
-
 export function toGeminiMessage(
   message: MessageData,
   model?: ModelReference<z.ZodTypeAny>
 ): GeminiMessage {
+  let sortedParts = message.content;
+  if (message.role === 'tool') {
+    sortedParts = [...message.content].sort((a, b) => {
+      const aRef = a.toolResponse?.ref;
+      const bRef = b.toolResponse?.ref;
+      if (!aRef && !bRef) return 0;
+      if (!aRef) return 1;
+      if (!bRef) return -1;
+      return parseInt(aRef, 10) - parseInt(bRef, 10);
+    });
+  }
   return {
     role: toGeminiRole(message.role, model),
-    parts: message.content.map(toGeminiPart),
+    parts: sortedParts.map(toGeminiPart),
   };
 }
 
@@ -594,12 +610,13 @@ export function fromGeminiCandidate(
   candidate: GeminiCandidate,
   jsonMode: boolean = false
 ): CandidateData {
-  return {
-    index: candidate.index || 0, // reasonable default?
+  const parts = candidate.content?.parts || [];
+  const genkitCandidate: CandidateData = {
+    index: candidate.index || 0,
     message: {
       role: 'model',
-      content: (candidate.content?.parts || []).map((part) =>
-        fromGeminiPart(part, jsonMode)
+      content: parts.map((part, index) =>
+        fromGeminiPart(part, jsonMode, index.toString())
       ),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
@@ -609,8 +626,9 @@ export function fromGeminiCandidate(
       citationMetadata: candidate.citationMetadata,
     },
   };
-}
 
+  return genkitCandidate;
+}
 export function cleanSchema(schema: JSONSchema): JSONSchema {
   const out = structuredClone(schema);
   for (const key in out) {
@@ -844,10 +862,13 @@ export function defineGoogleAIModel({
       }
 
       const callGemini = async () => {
+        let response: EnhancedGenerateContentResponse;
+
         if (sendChunk) {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessageStream(msg.parts, options);
+
           for await (const item of result.stream) {
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
@@ -859,42 +880,42 @@ export function defineGoogleAIModel({
               }
             );
           }
-          const response = await result.response;
-          const candidates = response.candidates || [];
-          if (response.candidates?.['undefined']) {
-            candidates.push(response.candidates['undefined']);
-          }
-          if (!candidates.length) {
-            throw new GenkitError({
-              status: 'FAILED_PRECONDITION',
-              message: 'No valid candidates returned.',
-            });
-          }
-          return {
-            candidates: candidates.map(fromJSONModeScopedGeminiCandidate) || [],
-            custom: response,
-          };
+
+          response = await result.response;
         } else {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessage(msg.parts, options);
-          if (!result.response.candidates?.length)
-            throw new Error('No valid candidates returned.');
-          const responseCandidates =
-            result.response.candidates.map(fromJSONModeScopedGeminiCandidate) ||
-            [];
-          return {
-            candidates: responseCandidates,
-            custom: result.response,
-            usage: {
-              ...getBasicUsageStats(request.messages, responseCandidates),
-              inputTokens: result.response.usageMetadata?.promptTokenCount,
-              outputTokens: result.response.usageMetadata?.candidatesTokenCount,
-              totalTokens: result.response.usageMetadata?.totalTokenCount,
-            },
-          };
+
+          response = result.response;
         }
+
+        const candidates = response.candidates || [];
+        if (response.candidates?.['undefined']) {
+          candidates.push(response.candidates['undefined']);
+        }
+        if (!candidates.length) {
+          throw new GenkitError({
+            status: 'FAILED_PRECONDITION',
+            message: 'No valid candidates returned.',
+          });
+        }
+
+        const candidateData =
+          candidates.map(fromJSONModeScopedGeminiCandidate) || [];
+
+        return {
+          candidates: candidateData,
+          custom: response,
+          usage: {
+            ...getBasicUsageStats(request.messages, candidateData),
+            inputTokens: response.usageMetadata?.promptTokenCount,
+            outputTokens: response.usageMetadata?.candidatesTokenCount,
+            totalTokens: response.usageMetadata?.totalTokenCount,
+          },
+        };
       };
+
       // If debugTraces is enable, we wrap the actual model call with a span, add raw
       // API params as for input.
       return debugTraces

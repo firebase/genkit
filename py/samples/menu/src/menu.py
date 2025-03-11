@@ -5,6 +5,11 @@
 
 
 def main() -> None:
+    """Main entry point for the menu sample.
+
+    This function demonstrates how to use Genkit to build an interactive
+    menu system.
+    """
     print('Hey')
 
 

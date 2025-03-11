@@ -38,9 +38,7 @@ func TestLive(t *testing.T) {
 	if *testAll {
 		t.Skip("-all provided")
 	}
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "googleai/gemini-1.5-flash",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -144,12 +142,26 @@ func TestLive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("avoid tool", func(t *testing.T) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool),
+			ai.WithToolChoice(ai.ToolChoiceNone))
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Message.Content[0].Text
+		const doNotWant = "11.31"
+		if strings.Contains(out, doNotWant) {
+			t.Errorf("got %q, expecting it NOT to contain %q", out, doNotWant)
+		}
+	})
 }
 
 func TestHeader(t *testing.T) {
-	g, err := genkit.New(&genkit.Options{
-		DefaultModel: "googleai/gemini-1.5-flash",
-	})
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
 	if err != nil {
 		log.Fatal(err)
 	}

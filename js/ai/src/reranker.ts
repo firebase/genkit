@@ -25,13 +25,18 @@ export type RerankerFn<RerankerOptions extends z.ZodTypeAny> = (
   queryOpts: z.infer<RerankerOptions>
 ) => Promise<RerankerResponse>;
 
+/**
+ * Zod schema for a reranked document metadata.
+ */
+export const RankedDocumentMetadataSchema = z
+  .object({
+    score: z.number(), // Enforces that 'score' must be a number
+  })
+  .passthrough(); // Allows other properties in 'metadata' with any type
+
 export const RankedDocumentDataSchema = z.object({
   content: z.array(PartSchema),
-  metadata: z
-    .object({
-      score: z.number(), // Enforces that 'score' must be a number
-    })
-    .passthrough(), // Allows other properties in 'metadata' with any type
+  metadata: RankedDocumentMetadataSchema,
 });
 
 export type RankedDocumentData = z.infer<typeof RankedDocumentDataSchema>;

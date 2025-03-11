@@ -19,6 +19,7 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
@@ -52,7 +53,7 @@ type Prompt struct {
 	// A hash of the prompt contents.
 	hash string
 	// A prompt that renders the prompt.
-	prompt *ai.Prompt
+	prompt *prompt.Prompt
 }
 
 // Config is optional configuration for a [Prompt].
@@ -99,7 +100,7 @@ func Open(g *genkit.Genkit, name string) (*Prompt, error) {
 // OpenVariant opens a parses a dotprompt file with a variant.
 // If the variant does not exist, the non-variant version is tried.
 func OpenVariant(g *genkit.Genkit, name, variant string) (*Prompt, error) {
-	if g.Opts.PromptDir == "" {
+	if g.Params.PromptDir == "" {
 		// The TypeScript code defaults to ./prompts,
 		// but that makes the program change behavior
 		// depending on where it is run.
@@ -111,7 +112,7 @@ func OpenVariant(g *genkit.Genkit, name, variant string) (*Prompt, error) {
 		vname = name + "." + variant
 	}
 
-	fileName := filepath.Join(g.Opts.PromptDir, vname+".prompt")
+	fileName := filepath.Join(g.Params.PromptDir, vname+".prompt")
 
 	data, err := os.ReadFile(fileName)
 	if err != nil {
@@ -280,7 +281,7 @@ func Define(g *genkit.Genkit, name, templateText string, opts ...PromptOption) (
 
 	// fallback to default model name if no model was specified
 	if p.Config.ModelName == "" && p.Config.Model == nil {
-		p.Config.ModelName = g.Opts.DefaultModel
+		p.Config.ModelName = g.Params.DefaultModel
 	}
 
 	p.Register(g)

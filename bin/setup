@@ -24,7 +24,7 @@ fi
 TOP_DIR=$(git rev-parse --show-toplevel)
 
 PNPM_VERSION="10.2.0"
-NODE_VERSION="22"
+NODE_VERSION="23"
 NVM_VERSION="0.40.1"
 
 AUDIENCE="eng"
@@ -96,6 +96,7 @@ function genkit::install_prerequisites() {
   if [[ ${OS_NAME} == "Darwin" && -x "$(command -v brew)" ]]; then
     # Darwin-based systems.
     brew install \
+      cmake \
       curl \
       fd \
       gh \
@@ -139,6 +140,7 @@ function genkit::install_prerequisites() {
       ripgrep
   else
     echo "Unsupported OS. Please install tools manually."
+    exit 1
   fi
 
   genkit::install_rust
@@ -264,7 +266,11 @@ function genkit::configure_commit_template() {
 # Install pre-commit hooks.
 function genkit::install_pre_commit_hooks() {
   genkit::configure_commit_template
-  captainhook install -f -c "${TOP_DIR}/captainhook.json"
+  read -p "Would you like to install git hooks (recommended to catch errors early)? [Y/n] " response
+  response=${response:-Y}
+  if [[ $response =~ ^[Yy]$ ]]; then
+    captainhook install -f -c "${TOP_DIR}/captainhook.json"
+  fi
 }
 
 # Setup genkit.

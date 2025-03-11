@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // [START main]
 package main
 
@@ -20,7 +19,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,13 +58,7 @@ func main() {
 		return text, nil
 	})
 
-	// Initialize Genkit and start a flow server. This call must come last,
-	// after all of your plug-in configuration and flow definitions. When you
-	// pass a nil configuration to Init, Genkit starts a local flow server,
-	// which you can interact with using the developer UI.
-	if err := g.Start(ctx, nil); err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }
 
 // [END main]

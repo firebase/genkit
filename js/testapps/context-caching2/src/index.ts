@@ -52,7 +52,10 @@ export const warAndPeaceFlow = ai.defineFlow(
         'https://www.gutenberg.org/cache/epub/2600/pg2600.txt'
       );
       if (!response.ok) {
-        throw new Error('Failed to fetch default text content');
+        const errMsg = (await response.json()).error?.message || '';
+        throw new Error(
+          `Failed to fetch default text content: ${response.statusText}. ${errMsg}`
+        );
       }
       textContent = await response.text();
     }

@@ -1154,7 +1154,7 @@ describe('prompt', () => {
     );
   });
 
-  it('loads a varaint from from the folder', async () => {
+  it('loads a variant from from the folder', async () => {
     const testPrompt = ai.prompt('test', { variant: 'variant' }); // see tests/prompts folder
 
     const { text } = await testPrompt();
@@ -1163,6 +1163,37 @@ describe('prompt', () => {
       text,
       'Echo: Hello from a variant of the hello prompt; config: {"temperature":13}'
     );
+  });
+
+  it('includes metadata expected by the dev ui', async () => {
+    const testPrompt: PromptAction = await ai.registry.lookupAction(
+      '/prompt/test.variant'
+    );
+
+    assert.deepStrictEqual(testPrompt.__action.metadata, {
+      prompt: {
+        config: {
+          temperature: 13,
+        },
+        description: 'a prompt variant in a file',
+        ext: {},
+        input: {
+          schema: null,
+        },
+        metadata: {},
+        model: undefined,
+        name: 'test.variant',
+        raw: {
+          config: {
+            temperature: 13,
+          },
+          description: 'a prompt variant in a file',
+        },
+        template: 'Hello from a variant of the hello prompt',
+        variant: 'variant',
+      },
+      type: 'prompt',
+    });
   });
 
   it('returns a ref to functional prompts', async () => {

@@ -1,8 +1,11 @@
-# Genkit Monitoring: Troubleshooting
+# Genkit Monitoring: Troubleshooting {: #troubleshooting }
 
-## I can’t see traces and/or metrics in Firebase Genkit Monitoring
+The following sections detail solutions to common issues that developers run
+into when using Firebase Genkit Monitoring.
 
-1. Ensure that the following APIs are enabled for your underlying GCP
+## I can't see traces or metrics in Firebase Genkit Monitoring {: #missing-metrics }
+
+1. Ensure that the following APIs are enabled for your underlying Google Cloud
    project:
    * [Cloud Logging API](https://console.cloud.google.com/apis/library/logging.googleapis.com)
    * [Cloud Trace API](https://console.cloud.google.com/apis/library/cloudtrace.googleapis.com)
@@ -14,7 +17,7 @@
    * **Cloud Trace Agent** (`roles/cloudtrace.agent`)
    * **Logs Writer** (`roles/logging.logWriter`)
 3. Inspect the application logs for errors writing to Cloud Logging, Cloud
-   Trace, and/or Cloud Monitoring. On GCP infrastructure such as Firebase
+   Trace, and Cloud Monitoring. On Google Cloud infrastructure such as Firebase
    Functions and Cloud Run, even when telemetry is misconfigured, logs to
    `stdout/stderr` are automatically ingested by the Cloud Logging Agent,
    allowing you to diagnose issues in the in the
@@ -30,12 +33,12 @@
     });
     ```
 
-   To test with your personal user credentials, use the [gcloud CLI] to
-   authenticate with [Google Cloud](https://cloud.google.com/sdk/docs/install).
-   Doing so can help diagnose enabled/disabled APIs, but does not test the
-   gcloud auth application-default login.
+   To test with your personal user credentials, use the
+   [gcloud CLI](https://cloud.google.com/sdk/docs/install) to authenticate with
+   Google Cloud. Doing so can help diagnose enabled or disabled APIs, but does
+   not test the gcloud auth application-default login.
 
-   Alternatively, impersonating the service account allows you to test
+   Alternatively, impersonating the service account lets you test
    production-like access. You must have the
    `roles/iam. serviceAccountTokenCreator` IAM role applied to your user account
    in order to impersonate service accounts:
@@ -48,7 +51,7 @@
    [ADC](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment)
    documentation for more information.
 
-### Telemetry upload reliability in Firebase Functions / Cloud Run
+### Telemetry upload reliability in Firebase Functions / Cloud Run {: #telemetry-reliability }
 
 When Genkit is hosted in Google Cloud Run (including Cloud Functions for
 Firebase), telemetry-data upload may be less reliable as the container switches

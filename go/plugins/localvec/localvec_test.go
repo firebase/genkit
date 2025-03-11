@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package localvec
 
 import (
@@ -18,7 +17,7 @@ import (
 func TestLocalVec(t *testing.T) {
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,8 +64,8 @@ func TestLocalVec(t *testing.T) {
 	}
 
 	retrieverReq := &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
+		Query:   d1,
+		Options: retrieverOptions,
 	}
 	retrieverResp, err := ds.retrieve(ctx, retrieverReq)
 	if err != nil {
@@ -88,7 +87,7 @@ func TestLocalVec(t *testing.T) {
 func TestPersistentIndexing(t *testing.T) {
 	ctx := context.Background()
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,8 +132,8 @@ func TestPersistentIndexing(t *testing.T) {
 	}
 
 	retrieverReq := &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
+		Query:   d1,
+		Options: retrieverOptions,
 	}
 	retrieverResp, err := ds.retrieve(ctx, retrieverReq)
 	if err != nil {
@@ -164,8 +163,8 @@ func TestPersistentIndexing(t *testing.T) {
 	}
 
 	retrieverReq = &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
+		Query:   d1,
+		Options: retrieverOptions,
 	}
 	retrieverResp, err = dsAnother.retrieve(ctx, retrieverReq)
 	if err != nil {
@@ -189,7 +188,7 @@ func TestSimilarity(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

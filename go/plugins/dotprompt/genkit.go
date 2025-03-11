@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -24,14 +25,14 @@ type PromptRequest struct {
 	Input any `json:"input,omitempty"`
 	// Model configuration. If nil will be taken from the prompt config.
 	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
-	// Context to pass to model, if any.
-	Context []any `json:"context,omitempty"`
+	// Documents to pass to the model as context, if any.
+	Context []*ai.Document `json:"context,omitempty"`
 	// The model to use. This overrides any model specified by the prompt.
 	Model ai.Model `json:"model,omitempty"`
 	// The name of the model to use. This overrides any model specified by the prompt.
 	ModelName string `json:"modelname,omitempty"`
 	// Streaming callback function
-	Stream ai.ModelStreamingCallback
+	Stream ai.ModelStreamCallback
 	// Maximum number of tool call iterations for the prompt.
 	MaxTurns int `json:"maxTurns,omitempty"`
 	// Whether to return tool requests instead of making the tool calls and continuing the generation.
@@ -40,6 +41,8 @@ type PromptRequest struct {
 	IsReturnToolRequestsSet bool `json:"-"`
 	// Whether tool calls are required, disabled, or optional for the prompt.
 	ToolChoice ai.ToolChoice `json:"toolChoice,omitempty"`
+	// Middleware to apply to the prompt.
+	Middleware []ai.ModelMiddleware `json:"-"`
 }
 
 // GenerateOption configures params for Generate function
@@ -173,9 +176,17 @@ func (p *Prompt) Register(g *genkit.Genkit) error {
 			"template": p.TemplateText,
 		},
 	}
-	p.prompt = genkit.DefinePrompt(g, "dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
 
-	return nil
+	var err error
+	p.prompt, err = genkit.DefinePrompt(
+		g,
+		"dotprompt",
+		name,
+		prompt.WithMetadata(metadata),
+		prompt.WithInputType(p.Config.DefaultInput),
+		prompt.WithRender(p.buildRequest),
+	)
+	return err
 }
 
 // Generate executes a prompt. It does variable substitution and
@@ -259,7 +270,7 @@ func (p *Prompt) Generate(ctx context.Context, g *genkit.Genkit, opts ...Generat
 		ReturnToolRequests: returnToolRequests,
 	}
 
-	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, toolCfg, pr.Stream)
+	resp, err := genkit.GenerateWithRequest(ctx, g, model, mr, pr.Middleware, toolCfg, pr.Stream)
 	if err != nil {
 		return nil, err
 	}
@@ -319,13 +330,13 @@ func WithConfig(config *ai.GenerationCommonConfig) GenerateOption {
 	}
 }
 
-// WithContext add context to pass to model, if any.
-func WithContext(context []any) GenerateOption {
+// WithContext adds documents to pass to model as context, if any.
+func WithContext(docs ...*ai.Document) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Context != nil {
 			return errors.New("dotprompt.WithContext: cannot set Context more than once")
 		}
-		p.Context = context
+		p.Context = docs
 		return nil
 	}
 }
@@ -353,7 +364,7 @@ func WithModelName(model string) GenerateOption {
 }
 
 // WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ai.ModelStreamingCallback) GenerateOption {
+func WithStreaming(cb ai.ModelStreamCallback) GenerateOption {
 	return func(p *PromptRequest) error {
 		if p.Stream != nil {
 			return errors.New("dotprompt.WithStreaming: cannot set Stream more than once")
@@ -396,6 +407,17 @@ func WithToolChoice(toolChoice ai.ToolChoice) GenerateOption {
 			return errors.New("dotprompt.WithToolChoice: cannot set ToolChoice more than once")
 		}
 		p.ToolChoice = toolChoice
+		return nil
+	}
+}
+
+// WithMiddleware adds middleware to the prompt request.
+func WithMiddleware(middleware ...ai.ModelMiddleware) GenerateOption {
+	return func(p *PromptRequest) error {
+		if p.Middleware != nil {
+			return errors.New("dotprompt.WithMiddleware: cannot set Middleware more than once")
+		}
+		p.Middleware = middleware
 		return nil
 	}
 }
