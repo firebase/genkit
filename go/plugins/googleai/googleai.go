@@ -435,7 +435,7 @@ func applyGenerationConfig(gm *genai.GenerativeModel, c GenerationGoogleAIConfig
 		gm.SetTopP(float32(c.TopP))
 	}
 	if len(c.SafetySettings) > 0 {
-		gm.SafetySettings = c.SafetySettings
+		gm.SafetySettings = convertSafetySettings(c.SafetySettings)
 	}
 }
 
@@ -793,3 +793,19 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 }
 
 //copy:stop
+
+// convertSafetySettings converts local SafetySetting to genai.SafetySetting
+func convertSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
+	if len(settings) == 0 {
+		return nil
+	}
+
+	result := make([]*genai.SafetySetting, len(settings))
+	for i, s := range settings {
+		result[i] = &genai.SafetySetting{
+			Category:  genai.HarmCategory(s.Category),
+			Threshold: genai.HarmBlockThreshold(s.Threshold),
+		}
+	}
+	return result
+}
