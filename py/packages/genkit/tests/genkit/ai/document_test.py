@@ -6,11 +6,9 @@
 from genkit.ai.document import Document
 from genkit.core.typing import (
     Embedding,
+    Media,
     MediaPart,
     TextPart,
-)
-from genkit.core.typing import (
-    Media1 as MediaPartModel,
 )
 
 
@@ -36,7 +34,7 @@ def test_media_document() -> None:
     doc = Document.from_media(url='data:one')
 
     assert doc.media() == [
-        MediaPartModel(url='data:one'),
+        Media(url='data:one'),
     ]
 
 
@@ -58,7 +56,7 @@ def test_from_data_media_document() -> None:
     doc = Document.from_data(data, data_type, metadata)
 
     assert doc.media() == [
-        MediaPartModel(url=data, content_type=data_type),
+        Media(url=data, content_type=data_type),
     ]
     assert doc.metadata == metadata
     assert doc.data_type() == data_type
@@ -73,14 +71,14 @@ def test_concatenates_text() -> None:
 
 def test_multiple_media_document() -> None:
     content = [
-        MediaPart(media=MediaPartModel(url='data:one')),
-        MediaPart(media=MediaPartModel(url='data:two')),
+        MediaPart(media=Media(url='data:one')),
+        MediaPart(media=Media(url='data:two')),
     ]
     doc = Document(content=content)
 
     assert doc.media() == [
-        MediaPartModel(url='data:one'),
-        MediaPartModel(url='data:two'),
+        Media(url='data:one'),
+        Media(url='data:two'),
     ]
 
 

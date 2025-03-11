@@ -16,10 +16,10 @@ from genkit.core.typing import (
     DocumentData,
     DocumentPart,
     Embedding,
+    Media,
     MediaPart,
     TextPart,
 )
-from genkit.core.typing import Media1 as MediaPartModel
 
 TEXT_DATA_TYPE: str = 'text'
 
@@ -57,9 +57,7 @@ class Document(DocumentData):
         """Construct a Document from a single media part."""
         return Document(
             content=[
-                MediaPart(
-                    media=MediaPartModel(url=url, content_type=content_type)
-                )
+                MediaPart(media=Media(url=url, content_type=content_type))
             ],
             metadata=metadata,
         )
@@ -80,7 +78,7 @@ class Document(DocumentData):
         text_parts = map(lambda part: part.root.text or '', self.content)
         return ''.join(text_parts)
 
-    def media(self) -> list[MediaPartModel]:
+    def media(self) -> list[Media]:
         """Media array getter."""
         media_parts = map(lambda part: part.root.media, self.content)
         return list(filter(lambda m: m is not None, media_parts))
