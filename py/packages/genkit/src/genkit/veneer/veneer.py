@@ -435,13 +435,17 @@ class Genkit(GenkitRegistry):
         return (stream, stream.closed)
 
     async def embed(
-        self, model: str | None = None, documents: list[str] | None = None
+        self,
+        model: str | None = None,
+        documents: list[str] | None = None,
+        options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Calculates embeddings for documents.
 
         Args:
             model: Optional embedder model name to use.
             documents: Texts to embed.
+            options: embedding options
 
         Returns:
             The generated response with embeddings.
@@ -449,7 +453,9 @@ class Genkit(GenkitRegistry):
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
 
         return (
-            await embed_action.arun(EmbedRequest(documents=documents))
+            await embed_action.arun(
+                EmbedRequest(documents=documents, options=options)
+            )
         ).response
 
 
