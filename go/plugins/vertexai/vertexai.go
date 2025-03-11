@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"sync"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -21,39 +20,63 @@ import (
 const (
 	provider    = "vertexai"
 	labelPrefix = "Vertex AI"
+
+	// supported model names
+	gemini15Flash                = "gemini-1.5-flash"
+	gemini15Pro                  = "gemini-1.5-pro"
+	gemini20Flash                = "gemini-2.0-flash"
+	gemini20FlashLite            = "gemini-2.0-flash-lite"
+	gemini20FlashLitePrev0205    = "gemini-2.0-flash-lite-preview-02-05"
+	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
+	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
 )
 
 var (
 	supportedModels = map[string]ai.ModelInfo{
-		"gemini-1.5-flash": {
-			Versions: []string{"gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-flash-002"},
+		gemini15Flash: {
+			Label: labelPrefix + " - " + gemini15Flash,
+			Versions: []string{
+				"gemini-1.5-flash-latest",
+				"gemini-1.5-flash-001",
+				"gemini-1.5-flash-002",
+			},
 			Supports: &gemini.Multimodal,
 		},
-		"gemini-1.5-pro": {
-			Versions: []string{"gemini-1.5-pro-latest", "gemini-1.5-pro-001", "gemini-1.5-pro-002"},
+		gemini15Pro: {
+			Label: labelPrefix + " - " + gemini15Pro,
+			Versions: []string{
+				"gemini-1.5-pro-latest",
+				"gemini-1.5-pro-001",
+				"gemini-1.5-pro-002",
+			},
 			Supports: &gemini.Multimodal,
 		},
-		"gemini-2.0-flash": {
+		gemini20Flash: {
+			Label: labelPrefix + " - " + gemini20Flash,
 			Versions: []string{
 				"gemini-2.0-flash-001",
 			},
 			Supports: &gemini.Multimodal,
 		},
-		"gemini-2.0-flash-lite": {
+		gemini20FlashLite: {
+			Label: labelPrefix + " - " + gemini20FlashLite,
 			Versions: []string{
 				"gemini-2.0-flash-lite-001",
 			},
 			Supports: &gemini.Multimodal,
 		},
-		"gemini-2.0-flash-lite-preview-02-05": {
+		gemini20FlashLitePrev0205: {
+			Label:    labelPrefix + " - " + gemini20FlashLitePrev0205,
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
-		"gemini-2.0-pro-exp-02-05": {
+		gemini20ProExp0205: {
+			Label:    labelPrefix + " - " + gemini20ProExp0205,
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
-		"gemini-2.0-flash-thinking-exp-01-21": {
+		gemini20FlashThinkingExp0121: {
+			Label:    labelPrefix + " - " + gemini20FlashThinkingExp0121,
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
@@ -129,17 +152,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", state.location)
-	numConns := max(runtime.GOMAXPROCS(0), 4)
-	o := []option.ClientOption{
-		option.WithEndpoint(endpoint),
-		option.WithGRPCConnectionPool(numConns),
-	}
 
-	state.pclient, err = aiplatform.NewPredictionClient(ctx, o...)
-	if err != nil {
-		return err
-	}
 	state.initted = true
 	for model, info := range supportedModels {
 		defineModel(g, model, info)

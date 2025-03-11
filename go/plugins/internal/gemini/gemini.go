@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -124,22 +125,22 @@ func Generate(
 // *genai.GenerateContentParameters
 func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
-	gc.CandidateCount = int64Ptr(1)
+	gc.CandidateCount = genai.Ptr[int32](1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
-			gc.MaxOutputTokens = int64Ptr(c.MaxOutputTokens)
+			gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
 		}
 		if len(c.StopSequences) > 0 {
 			gc.StopSequences = c.StopSequences
 		}
 		if c.Temperature != 0 {
-			gc.Temperature = &c.Temperature
+			gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
 		}
 		if c.TopK != 0 {
-			gc.TopK = float64Ptr(c.TopK)
+			gc.TopK = genai.Ptr[float32](float32(c.TopK))
 		}
 		if c.TopP != 0 {
-			gc.TopP = &c.TopP
+			gc.TopP = genai.Ptr[float32](float32(c.TopP))
 		}
 	}
 
@@ -428,14 +429,43 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 	}
 }
 
-// int64Ptr converts an int to *int64
-func int64Ptr(n int) *int64 {
-	val := int64(n)
-	return &val
+// DefineEmbedder defines embeddings for the provided contents and embedder
+// model
+func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name, provider string) ai.Embedder {
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		var content []*genai.Content
+		for _, doc := range input.Documents {
+			parts, err := convertParts(doc.Content)
+			if err != nil {
+				return nil, err
+			}
+			content = append(content, &genai.Content{
+				Parts: parts,
+			})
+		}
+
+		r, err := genai.Models.EmbedContent(*client.Models, ctx, name, content, nil)
+		if err != nil {
+			return nil, err
+		}
+		var res ai.EmbedResponse
+		for _, emb := range r.Embeddings {
+			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: emb.Values})
+		}
+		return &res, nil
+	})
 }
 
-// float64Ptr converts an int to *float64
-func float64Ptr(n int) *float64 {
-	val := float64(n)
-	return &val
+func DefineModel(g *genkit.Genkit, client *genai.Client, name, provider string, info ai.ModelInfo) ai.Model {
+	meta := &ai.ModelInfo{
+		Supports: info.Supports,
+		Versions: info.Versions,
+	}
+	return genkit.DefineModel(g, provider, name, meta, func(
+		ctx context.Context,
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
+		return Generate(ctx, client, name, input, cb)
+	})
 }
