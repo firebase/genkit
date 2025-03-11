@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 from genkit.ai.formats import FormatDef, Formatter
-from genkit.ai.message_utils import inject_instructions
+from genkit.ai.messages import inject_instructions
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,

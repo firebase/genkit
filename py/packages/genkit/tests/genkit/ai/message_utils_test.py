@@ -5,7 +5,7 @@
 
 """Tests for the message utils."""
 
-from genkit.ai.message_utils import inject_instructions
+from genkit.ai.messages import inject_instructions
 from genkit.core.typing import (
     Message,
     Metadata,
