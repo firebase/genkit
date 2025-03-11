@@ -72,6 +72,14 @@ describe('toGeminiMessages', () => {
             toolResponse: {
               name: 'tellAFunnyJoke',
               output: 'Why did the dogs cross the road?',
+              ref: '1',
+            },
+          },
+          {
+            toolResponse: {
+              name: 'tellAFunnyJoke',
+              output: 'Why did the chicken cross the road?',
+              ref: '0',
             },
           },
         ],
@@ -79,6 +87,15 @@ describe('toGeminiMessages', () => {
       expectedOutput: {
         role: 'function',
         parts: [
+          {
+            functionResponse: {
+              name: 'tellAFunnyJoke',
+              response: {
+                name: 'tellAFunnyJoke',
+                content: 'Why did the chicken cross the road?',
+              },
+            },
+          },
           {
             functionResponse: {
               name: 'tellAFunnyJoke',
@@ -306,7 +323,11 @@ describe('fromGeminiCandidate', () => {
           role: 'model',
           content: [
             {
-              toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dog' } },
+              toolRequest: {
+                name: 'tellAFunnyJoke',
+                input: { topic: 'dog' },
+                ref: '0',
+              },
             },
           ],
         },
@@ -347,7 +368,7 @@ describe('fromGeminiCandidate', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         fromGeminiCandidate(test.geminiCandidate as GenerateContentCandidate),
         test.expectedOutput
       );

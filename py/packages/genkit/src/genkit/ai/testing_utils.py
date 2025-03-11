@@ -3,7 +3,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Testing utils/helpers for genkit.ai"""
+"""Testing utils/helpers for genkit.ai."""
 
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_json
@@ -42,8 +42,8 @@ class ProgrammableModel:
     def model_fn(self, request: GenerateRequest, ctx: ActionRunContext):
         """Process a generation request and return a programmed response.
 
-        This function returns pre-configured responses and streams pre-configured
-        chunks based on the current request index.
+        This function returns pre-configured responses and streams
+        pre-configured chunks based on the current request index.
 
         Args:
             request: The generation request to process.
@@ -62,8 +62,7 @@ class ProgrammableModel:
 
 
 def define_programmable_model(ai: Genkit, name: str = 'programmableModel'):
-    """Defines a programmable model which can be configured to respond with
-    specific responses and streaming chunks."""
+    """Defines a configurable programmable model."""
     pm = ProgrammableModel()
 
     def model_fn(request: GenerateRequest, ctx: ActionRunContext):
@@ -117,7 +116,7 @@ class EchoModel:
 
 
 def define_echo_model(ai: Genkit, name: str = 'echoModel'):
-    """Defines a simple echo model that echos requests"""
+    """Defines a simple echo model that echos requests."""
     echo = EchoModel()
 
     def model_fn(request: GenerateRequest):

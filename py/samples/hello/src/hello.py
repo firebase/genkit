@@ -11,12 +11,17 @@ from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateActionOptions,
     GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    Media1,
+    MediaPart,
     Message,
     Role,
     TextPart,
 )
 from genkit.plugins.vertex_ai import (
     EmbeddingModels,
+    EmbeddingsTaskType,
     GeminiVersion,
     VertexAI,
     vertexai_name,
@@ -93,9 +98,11 @@ async def embed_docs(docs: list[str]):
     Returns:
         The generated embedding.
     """
+    options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=docs,
+        options=options,
     )
 
 
@@ -200,6 +207,60 @@ async def main() -> None:
     print(sum_two_numbers2(MyInput(a=1, b=3)))
     print(
         await embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
+    )
+
+
+def my_model(request: GenerateRequest, ctx: ActionRunContext):
+    if ctx.is_streaming:
+        ctx.send_chunk(
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')])
+        )
+        ctx.send_chunk(
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='2')])
+        )
+        ctx.send_chunk(
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')])
+        )
+
+    return GenerateResponse(
+        message=Message(
+            role=Role.MODEL,
+            content=[TextPart(text='hello')],
+        )
+    )
+
+
+ai.define_model(name='my_model', fn=my_model)
+
+
+@ai.flow()
+async def streaming_model_tester(_: str, ctx: ActionRunContext):
+    stream, res = ai.generate_stream(
+        prompt='tell me a long joke',
+        model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
+    )
+
+    async for chunk in stream:
+        print(chunk.text)
+        ctx.send_chunk(f'chunk: {chunk.text}')
+
+    return (await res).text
+
+
+@ai.flow()
+async def describe_picture():
+    # HTTP URI or Google Cloud Storage URI
+    url = '<your url>'
+    return await ai.generate(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    TextPart(text='What is shown in this image?'),
+                    MediaPart(media=Media1(contentType='image/jpg', url=url)),
+                ],
+            ),
+        ],
     )
 
 

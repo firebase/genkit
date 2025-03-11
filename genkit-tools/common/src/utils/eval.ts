@@ -30,8 +30,10 @@ import {
   isEvalField,
 } from '../plugin';
 import {
+  Action,
   Dataset,
   DatasetSchema,
+  DocumentData,
   EvalInputDataset,
   EvalInputDatasetSchema,
   EvaluationDatasetSchema,
@@ -43,10 +45,10 @@ import {
   InferenceSample,
   InferenceSampleSchema,
   MessageData,
+  NestedSpanData,
+  RetrieverResponse,
+  TraceData,
 } from '../types';
-import { Action } from '../types/action';
-import { DocumentData, RetrieverResponse } from '../types/retrievers';
-import { NestedSpanData, TraceData } from '../types/trace';
 import { logger } from './logger';
 import { stackTraceSpans } from './trace';
 

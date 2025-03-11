@@ -45,7 +45,7 @@ func Init() error {
 		},
 		func(ctx context.Context,
 			genRequest *ai.ModelRequest,
-			_ ai.ModelStreamingCallback,
+			_ ai.ModelStreamCallback,
 		) (*ai.ModelResponse, error) {
 			// Verify that the request includes a configuration that conforms to
 			// your schema .

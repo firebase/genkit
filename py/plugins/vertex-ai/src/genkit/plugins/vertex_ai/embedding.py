@@ -28,7 +28,7 @@ class EmbeddingModels(StrEnum):
     TEXT_EMBEDDING_002_MULTILINGUAL = 'text-multilingual-embedding-002'
 
 
-class TaskType(StrEnum):
+class EmbeddingsTaskType(StrEnum):
     """Task types supported by Vertex AI.
 
     Attributes:
@@ -47,24 +47,21 @@ class TaskType(StrEnum):
     CLUSTERING = 'CLUSTERING'
     RETRIEVAL_DOCUMENT = 'RETRIEVAL_DOCUMENT'
     RETRIEVAL_QUERY = 'RETRIEVAL_QUERY'
+    QUESTION_ANSWERING = 'QUESTION_ANSWERING'
+    FACT_VERIFICATION = 'FACT_VERIFICATION'
+    CODE_RETRIEVAL_QUERY = 'CODE_RETRIEVAL_QUERY'
 
 
 class Embedder:
-    """Embedder for Vertex AI.
+    """Embedder for Vertex AI."""
 
-    Attributes:
-        version: The version of the embedding model to use.
-        task: The task type to use for the embedding.
-        dimensionality: The dimensionality of the embedding.
-    """
-
-    TASK = TaskType.RETRIEVAL_QUERY
+    TASK_KEY = 'task'
+    DEFAULT_TASK = EmbeddingsTaskType.RETRIEVAL_QUERY
 
     # By default, the model generates embeddings with 768 dimensions.
     # Models such as `text-embedding-004`, `text-embedding-005`,
     # and `text-multilingual-embedding-002`allow the output dimensionality
     # to be adjusted between 1 and 768.
-    DIMENSIONALITY = 768
 
     def __init__(self, version: EmbeddingModels):
         """Initialize the embedder.
@@ -81,9 +78,11 @@ class Embedder:
         Returns:
             The embedding model.
         """
+
+        # TODO: pass additional parameters
         return TextEmbeddingModel.from_pretrained(self._version)
 
-    def handle_request(self, request: EmbedRequest) -> EmbedResponse:
+    def generate(self, request: EmbedRequest) -> EmbedResponse:
         """Handle an embedding request.
 
         Args:
@@ -92,11 +91,18 @@ class Embedder:
         Returns:
             The embedding response.
         """
-        inputs = [
-            TextEmbeddingInput(text, self.TASK) for text in request.documents
-        ]
-        vertexai_embeddings = self.embedding_model.get_embeddings(inputs)
+        options = request.options
+        task = options.get(self.TASK_KEY) if options else self.DEFAULT_TASK
+        if task not in EmbeddingsTaskType:
+            raise ValueError(f'Unsupported task {task} for VertexAI.')
+
+        del options[self.TASK_KEY]
+        inputs = [TextEmbeddingInput(text, task) for text in request.documents]
+        vertexai_embeddings = self.embedding_model.get_embeddings(
+            inputs, **options
+        )
         embeddings = [embedding.values for embedding in vertexai_embeddings]
+
         return EmbedResponse(embeddings=embeddings)
 
     @property
