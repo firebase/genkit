@@ -11,7 +11,6 @@ import pytest
 import yaml
 from genkit.ai.generate import generate_action
 from genkit.ai.model import _text_from_content, _text_from_message
-from genkit.ai.testing_utils import define_echo_model, define_programmable_model
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
@@ -23,6 +22,10 @@ from genkit.core.typing import (
     Message,
     Role,
     TextPart,
+)
+from genkit.testing import (
+    define_echo_model,
+    define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
 from pydantic import TypeAdapter
