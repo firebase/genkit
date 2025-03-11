@@ -23,7 +23,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googleai"
-	"github.com/google/generative-ai-go/genai"
 )
 
 func main() {
@@ -57,10 +56,10 @@ func main() {
 					MaxOutputTokens: 256,
 				},
 				// Set custom safety settings - reduce restriction on harmfulness
-				SafetySettings: []*genai.SafetySetting{
+				SafetySettings: []*googleai.SafetySetting{
 					{
-						Category:  genai.HarmCategoryHarassment,
-						Threshold: genai.HarmBlockMediumAndAbove,
+						Category:  googleai.HarmCategoryHarassment,
+						Threshold: googleai.HarmBlockMediumAndAbove,
 					},
 				},
 			}),

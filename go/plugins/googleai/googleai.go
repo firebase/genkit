@@ -39,6 +39,57 @@ var state struct {
 	initted          bool
 }
 
+type HarmCategory int32
+
+const (
+	// HarmCategoryUnspecified means category is unspecified.
+	HarmCategoryUnspecified HarmCategory = 0
+	// HarmCategoryDerogatory means negative or harmful comments targeting identity and/or protected attribute.
+	HarmCategoryDerogatory HarmCategory = 1
+	// HarmCategoryToxicity means content that is rude, disrespectful, or profane.
+	HarmCategoryToxicity HarmCategory = 2
+	// HarmCategoryViolence means describes scenarios depicting violence against an individual or group, or
+	// general descriptions of gore.
+	HarmCategoryViolence HarmCategory = 3
+	// HarmCategorySexual means contains references to sexual acts or other lewd content.
+	HarmCategorySexual HarmCategory = 4
+	// HarmCategoryMedical means promotes unchecked medical advice.
+	HarmCategoryMedical HarmCategory = 5
+	// HarmCategoryDangerous means dangerous content that promotes, facilitates, or encourages harmful acts.
+	HarmCategoryDangerous HarmCategory = 6
+	// HarmCategoryHarassment means harasment content.
+	HarmCategoryHarassment HarmCategory = 7
+	// HarmCategoryHateSpeech means hate speech and content.
+	HarmCategoryHateSpeech HarmCategory = 8
+	// HarmCategorySexuallyExplicit means sexually explicit content.
+	HarmCategorySexuallyExplicit HarmCategory = 9
+	// HarmCategoryDangerousContent means dangerous content.
+	HarmCategoryDangerousContent HarmCategory = 10
+)
+
+// HarmBlockThreshold specifies block at and beyond a specified harm probability.
+type HarmBlockThreshold int32
+
+const (
+	// HarmBlockUnspecified means threshold is unspecified.
+	HarmBlockUnspecified HarmBlockThreshold = 0
+	// HarmBlockLowAndAbove means content with NEGLIGIBLE will be allowed.
+	HarmBlockLowAndAbove HarmBlockThreshold = 1
+	// HarmBlockMediumAndAbove means content with NEGLIGIBLE and LOW will be allowed.
+	HarmBlockMediumAndAbove HarmBlockThreshold = 2
+	// HarmBlockOnlyHigh means content with NEGLIGIBLE, LOW, and MEDIUM will be allowed.
+	HarmBlockOnlyHigh HarmBlockThreshold = 3
+	// HarmBlockNone means all content will be allowed.
+	HarmBlockNone HarmBlockThreshold = 4
+)
+
+type SafetySetting struct {
+	// Required. The category for this setting.
+	Category HarmCategory
+	// Required. Controls the probability threshold at which harm is blocked.
+	Threshold HarmBlockThreshold
+}
+
 var (
 	supportedModels = map[string]ai.ModelInfo{
 		"gemini-1.5-flash": {
@@ -71,7 +122,7 @@ var (
 // GenerationGoogleAIConfig extends GenerationCommonConfig with Google AI specific settings.
 type GenerationGoogleAIConfig struct {
 	ai.GenerationCommonConfig
-	SafetySettings []*genai.SafetySetting
+	SafetySettings []*SafetySetting
 }
 
 // Config is the configuration for the plugin.
