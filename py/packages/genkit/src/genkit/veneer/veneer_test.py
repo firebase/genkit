@@ -30,9 +30,9 @@ from genkit.core.typing import (
     TextPart,
     ToolChoice,
     ToolDefinition,
-    ToolRequest1,
+    ToolRequest,
     ToolRequestPart,
-    ToolResponse1,
+    ToolResponse,
     ToolResponsePart,
 )
 from genkit.veneer.veneer import Genkit
@@ -361,7 +361,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
             role=Role.MODEL,
             content=[
                 ToolRequestPart(
-                    toolRequest=ToolRequest1(
+                    toolRequest=ToolRequest(
                         input={'value': 5}, name='testTool', ref='123'
                     )
                 )
@@ -399,7 +399,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         role=Role.TOOL,
         content=[
             ToolResponsePart(
-                tool_response=ToolResponse1(
+                tool_response=ToolResponse(
                     ref='123', name='testTool', output='abc'
                 )
             )
@@ -443,7 +443,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
             role=Role.MODEL,
             content=[
                 ToolRequestPart(
-                    toolRequest=ToolRequest1(
+                    toolRequest=ToolRequest(
                         input={'value': 5}, name='testTool', ref='123'
                     )
                 )
@@ -507,7 +507,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         role=Role.TOOL,
         content=[
             ToolResponsePart(
-                tool_response=ToolResponse1(
+                tool_response=ToolResponse(
                     ref='123', name='testTool', output='abc'
                 )
             )

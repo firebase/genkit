@@ -8,7 +8,7 @@ from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
-    Media1,
+    Media,
     MediaPart,
     Message,
     ModelInfo,
@@ -110,7 +110,7 @@ class Imagen:
 
         media_content = [
             MediaPart(
-                media=Media1(
+                media=Media(
                     contentType=image._mime_type, url=image._as_base64_string()
                 )
             )

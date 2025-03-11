@@ -29,15 +29,20 @@ import { DocumentDataSchema, DocumentPartSchema } from './document';
 //
 
 /**
+ * Zod schema for a reranked document metadata.
+ */
+export const RankedDocumentMetadataSchema = z
+  .object({
+    score: z.number(), // Enforces that 'score' must be a number
+  })
+  .passthrough(); // Allows other properties in 'metadata' with any type
+
+/**
  * Zod schema for a reranked document.
  */
 export const RankedDocumentDataSchema = z.object({
   content: z.array(DocumentPartSchema),
-  metadata: z
-    .object({
-      score: z.number(), // Enforces that 'score' must be a number
-    })
-    .passthrough(), // Allows other properties in 'metadata' with any type
+  metadata: RankedDocumentMetadataSchema,
 });
 export type RankedDocumentData = z.infer<typeof RankedDocumentDataSchema>;
 

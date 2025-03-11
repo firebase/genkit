@@ -43,15 +43,20 @@ export const TextPartSchema = EmptyPartSchema.extend({
 export type TextPart = z.infer<typeof TextPartSchema>;
 
 /**
+ * Zod schema of media.
+ */
+export const MediaSchema = z.object({
+  /** The media content type. Inferred from data uri if not provided. */
+  contentType: z.string().optional(),
+  /** A `data:` or `https:` uri containing the media content.  */
+  url: z.string(),
+});
+
+/**
  * Zod schema of a media part.
  */
 export const MediaPartSchema = EmptyPartSchema.extend({
-  media: z.object({
-    /** The media content type. Inferred from data uri if not provided. */
-    contentType: z.string().optional(),
-    /** A `data:` or `https:` uri containing the media content.  */
-    url: z.string(),
-  }),
+  media: MediaSchema,
 });
 
 /**
@@ -60,18 +65,23 @@ export const MediaPartSchema = EmptyPartSchema.extend({
 export type MediaPart = z.infer<typeof MediaPartSchema>;
 
 /**
+ * Zod schema of a tool request.
+ */
+export const ToolRequestSchema = z.object({
+  /** The call id or reference for a specific request. */
+  ref: z.string().optional(),
+  /** The name of the tool to call. */
+  name: z.string(),
+  /** The input parameters for the tool, usually a JSON object. */
+  input: z.unknown().optional(),
+});
+
+/**
  * Zod schema of a tool request part.
  */
 export const ToolRequestPartSchema = EmptyPartSchema.extend({
   /** A request for a tool to be executed, usually provided by a model. */
-  toolRequest: z.object({
-    /** The call id or reference for a specific request. */
-    ref: z.string().optional(),
-    /** The name of the tool to call. */
-    name: z.string(),
-    /** The input parameters for the tool, usually a JSON object. */
-    input: z.unknown().optional(),
-  }),
+  toolRequest: ToolRequestSchema,
 });
 
 /**
@@ -80,18 +90,23 @@ export const ToolRequestPartSchema = EmptyPartSchema.extend({
 export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
 
 /**
+ * Zod schema of a tool response.
+ */
+export const ToolResponseSchema = z.object({
+  /** The call id or reference for a specific request. */
+  ref: z.string().optional(),
+  /** The name of the tool. */
+  name: z.string(),
+  /** The output data returned from the tool, usually a JSON object. */
+  output: z.unknown().optional(),
+});
+
+/**
  * Zod schema of a tool response part.
  */
 export const ToolResponsePartSchema = EmptyPartSchema.extend({
   /** A provided response to a tool call. */
-  toolResponse: z.object({
-    /** The call id or reference for a specific request. */
-    ref: z.string().optional(),
-    /** The name of the tool. */
-    name: z.string(),
-    /** The output data returned from the tool, usually a JSON object. */
-    output: z.unknown().optional(),
-  }),
+  toolResponse: ToolResponseSchema,
 });
 
 /**

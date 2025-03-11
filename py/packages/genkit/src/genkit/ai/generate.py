@@ -28,7 +28,7 @@ from genkit.core.typing import (
     Role,
     TextPart,
     ToolDefinition,
-    ToolResponse1,
+    ToolResponse,
     ToolResponsePart,
 )
 
@@ -496,10 +496,9 @@ async def resolve_tool_requests(
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
         tool_response = (await tool.arun_raw(tool_request.input)).response
-        # TODO: figure out why pydantic generates ToolResponse1
         response_parts.append(
             ToolResponsePart(
-                toolResponse=ToolResponse1(
+                toolResponse=ToolResponse(
                     name=tool_request.name,
                     ref=tool_request.ref,
                     output=dump_dict(tool_response),

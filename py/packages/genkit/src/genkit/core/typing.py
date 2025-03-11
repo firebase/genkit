@@ -37,16 +37,16 @@ class CustomPart(BaseModel):
     custom: dict[str, Any]
 
 
-class Media1(BaseModel):
-    """Model for media1 data."""
+class Media(BaseModel):
+    """Model for media data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content_type: str | None = Field(None, alias='contentType')
     url: str
 
 
-class ToolRequest1(BaseModel):
-    """Model for toolrequest1 data."""
+class ToolRequest(BaseModel):
+    """Model for toolrequest data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     ref: str | None = None
@@ -54,8 +54,8 @@ class ToolRequest1(BaseModel):
     input: Any | None = None
 
 
-class ToolResponse1(BaseModel):
-    """Model for toolresponse1 data."""
+class ToolResponse(BaseModel):
+    """Model for toolresponse data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     ref: str | None = None
@@ -279,8 +279,8 @@ class CommonRerankerOptions(BaseModel):
     k: float | None = Field(None, description='Number of documents to rerank')
 
 
-class Metadata1(BaseModel):
-    """Model for metadata1 data."""
+class RankedDocumentMetadata(BaseModel):
+    """Model for rankeddocumentmetadata data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     score: float
@@ -418,8 +418,8 @@ class Data(RootModel[Any]):
     root: Any
 
 
-class Media(RootModel[Any]):
-    """Media data type class."""
+class MediaModel(RootModel[Any]):
+    """MediaModel data type class."""
 
     root: Any
 
@@ -436,14 +436,14 @@ class Text(RootModel[Any]):
     root: Any
 
 
-class ToolRequest(RootModel[Any]):
-    """ToolRequest data type class."""
+class ToolRequestModel(RootModel[Any]):
+    """ToolRequestModel data type class."""
 
     root: Any
 
 
-class ToolResponse(RootModel[Any]):
-    """ToolResponse data type class."""
+class ToolResponseModel(RootModel[Any]):
+    """ToolResponseModel data type class."""
 
     root: Any
 
@@ -519,9 +519,9 @@ class DataPart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: Media | None = None
-    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
     data: Any | None = None
     metadata: Metadata | None = None
     custom: dict[str, Any] | None = None
@@ -532,9 +532,9 @@ class MediaPart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: Media1
-    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
+    media: Media
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -545,9 +545,9 @@ class TextPart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: str
-    media: Media | None = None
-    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -558,9 +558,9 @@ class ToolRequestPart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: Media | None = None
-    tool_request: ToolRequest1 = Field(..., alias='toolRequest')
-    tool_response: ToolResponse | None = Field(None, alias='toolResponse')
+    media: MediaModel | None = None
+    tool_request: ToolRequest = Field(..., alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -571,9 +571,9 @@ class ToolResponsePart(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     text: Text | None = None
-    media: Media | None = None
-    tool_request: ToolRequest | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponse1 = Field(..., alias='toolResponse')
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponse = Field(..., alias='toolResponse')
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -755,7 +755,7 @@ class RankedDocumentData(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content: list[DocumentPart]
-    metadata: Metadata1
+    metadata: RankedDocumentMetadata
 
 
 class RerankerResponse(BaseModel):
