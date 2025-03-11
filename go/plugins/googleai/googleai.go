@@ -148,10 +148,10 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 	state.gclient = client
 	state.initted = true
 	for model, details := range supportedModels {
-		gemini.DefineModel(g, state.gclient, model, provider, details)
+		gemini.DefineModel(g, state.gclient, model, details)
 	}
 	for _, e := range knownEmbedders {
-		gemini.DefineEmbedder(g, state.gclient, e, provider)
+		gemini.DefineEmbedder(g, state.gclient, e)
 	}
 	return nil
 }
@@ -177,7 +177,7 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 		// TODO: unknown models could also specify versions?
 		mi = *info
 	}
-	return gemini.DefineModel(g, state.gclient, name, provider, mi), nil
+	return gemini.DefineModel(g, state.gclient, name, mi), nil
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -192,7 +192,7 @@ func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	return gemini.DefineEmbedder(g, state.gclient, name, provider)
+	return gemini.DefineEmbedder(g, state.gclient, name)
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.

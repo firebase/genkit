@@ -13,7 +13,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
-	"google.golang.org/api/option"
 	"google.golang.org/genai"
 )
 
@@ -110,8 +109,6 @@ type Config struct {
 	ProjectID string
 	// The location of the Vertex AI service. The default is "us-central1".
 	Location string
-	// Options to the Vertex AI client.
-	ClientOptions []option.ClientOption
 }
 
 // Init initializes the plugin and all known models and embedders.
@@ -155,10 +152,10 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 
 	state.initted = true
 	for model, info := range supportedModels {
-		defineModel(g, model, info)
+		gemini.DefineModel(g, state.gclient, model, info)
 	}
 	for _, e := range knownEmbedders {
-		defineEmbedder(g, e)
+		gemini.DefineEmbedder(g, state.gclient, e)
 	}
 	return nil
 }
@@ -187,23 +184,7 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 		// TODO: unknown models could also specify versions?
 		mi = *info
 	}
-	return defineModel(g, name, mi), nil
-}
-
-// requires state.mu
-func defineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
-	meta := &ai.ModelInfo{
-		Label:    labelPrefix + " - " + name,
-		Supports: info.Supports,
-		Versions: info.Versions,
-	}
-	return genkit.DefineModel(g, provider, name, meta, func(
-		ctx context.Context,
-		input *ai.ModelRequest,
-		cb func(context.Context, *ai.ModelResponseChunk) error,
-	) (*ai.ModelResponse, error) {
-		return gemini.Generate(ctx, state.gclient, name, input, cb)
-	})
+	return gemini.DefineModel(g, state.gclient, name, mi), nil
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -224,7 +205,7 @@ func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
-	return defineEmbedder(g, name)
+	return gemini.DefineEmbedder(g, state.gclient, name)
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
@@ -234,14 +215,6 @@ func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 
 // DO NOT MODIFY above ^^^^
 //copy:endsink defineEmbedder
-
-// requires state.mu
-func defineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", state.projectID, state.location, name)
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-		return embed(ctx, fullName, state.pclient, req)
-	})
-}
 
 //copy:sink lookups from ../googleai/googleai.go
 // DO NOT MODIFY below vvvv

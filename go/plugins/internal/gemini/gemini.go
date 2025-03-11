@@ -16,6 +16,11 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	GoogleAIProvider = "googleai"
+	VertexAIProvider = "vertexai"
+)
+
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
 	BasicText = ai.ModelInfoSupports{
@@ -36,6 +41,85 @@ var (
 	}
 )
 
+// EmbedOptions are options for the Vertex AI embedder.
+// Set [ai.EmbedRequest.Options] to a value of type *[EmbedOptions].
+type EmbedOptions struct {
+	// Document title.
+	Title string `json:"title,omitempty"`
+	// Task type: RETRIEVAL_QUERY, RETRIEVAL_DOCUMENT, and so forth.
+	// See the Vertex AI text embedding docs.
+	TaskType string `json:"task_type,omitempty"`
+}
+
+// DefineModel defines a model in the registry
+func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
+	provider := GoogleAIProvider
+	if client.ClientConfig().Backend == genai.BackendVertexAI {
+		provider = VertexAIProvider
+	}
+
+	meta := &ai.ModelInfo{
+		Label:    info.Label,
+		Supports: info.Supports,
+		Versions: info.Versions,
+	}
+	return genkit.DefineModel(g, provider, name, meta, func(
+		ctx context.Context,
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
+		return Generate(ctx, client, name, input, cb)
+	})
+}
+
+// DefineEmbedder defines embeddings for the provided contents and embedder
+// model
+func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+	provider := GoogleAIProvider
+	if client.ClientConfig().Backend == genai.BackendVertexAI {
+		provider = VertexAIProvider
+	}
+
+	// NOTE: how is `input` being provided?
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		var content []*genai.Content
+		var embedConfig *genai.EmbedContentConfig
+
+		// check if request options matches VertexAI configuration
+		if opts, _ := input.Options.(*EmbedOptions); opts != nil {
+			if provider == GoogleAIProvider {
+				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
+			}
+			embedConfig = &genai.EmbedContentConfig{
+				Title:    opts.Title,
+				TaskType: opts.TaskType,
+			}
+		}
+
+		for _, doc := range input.Documents {
+			parts, err := convertParts(doc.Content)
+			if err != nil {
+				return nil, err
+			}
+			content = append(content, &genai.Content{
+				Parts: parts,
+			})
+		}
+
+		r, err := genai.Models.EmbedContent(*client.Models, ctx, name, content, embedConfig)
+		if err != nil {
+			return nil, err
+		}
+		var res ai.EmbedResponse
+		for _, emb := range r.Embeddings {
+			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: emb.Values})
+		}
+		return &res, nil
+	})
+}
+
+// Generate requests a generate call to the specified model with the provided
+// configuration
 func Generate(
 	ctx context.Context,
 	client *genai.Client,
@@ -427,45 +511,4 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 	default:
 		panic("unknown part type in a request")
 	}
-}
-
-// DefineEmbedder defines embeddings for the provided contents and embedder
-// model
-func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name, provider string) ai.Embedder {
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-		var content []*genai.Content
-		for _, doc := range input.Documents {
-			parts, err := convertParts(doc.Content)
-			if err != nil {
-				return nil, err
-			}
-			content = append(content, &genai.Content{
-				Parts: parts,
-			})
-		}
-
-		r, err := genai.Models.EmbedContent(*client.Models, ctx, name, content, nil)
-		if err != nil {
-			return nil, err
-		}
-		var res ai.EmbedResponse
-		for _, emb := range r.Embeddings {
-			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: emb.Values})
-		}
-		return &res, nil
-	})
-}
-
-func DefineModel(g *genkit.Genkit, client *genai.Client, name, provider string, info ai.ModelInfo) ai.Model {
-	meta := &ai.ModelInfo{
-		Supports: info.Supports,
-		Versions: info.Versions,
-	}
-	return genkit.DefineModel(g, provider, name, meta, func(
-		ctx context.Context,
-		input *ai.ModelRequest,
-		cb func(context.Context, *ai.ModelResponseChunk) error,
-	) (*ai.ModelResponse, error) {
-		return Generate(ctx, client, name, input, cb)
-	})
 }
