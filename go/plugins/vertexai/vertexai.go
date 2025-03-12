@@ -6,12 +6,14 @@ package vertexai
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"sync"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"google.golang.org/genai"
 )
@@ -19,21 +21,12 @@ import (
 const (
 	provider    = "vertexai"
 	labelPrefix = "Vertex AI"
-
-	// supported model names
-	gemini15Flash                = "gemini-1.5-flash"
-	gemini15Pro                  = "gemini-1.5-pro"
-	gemini20Flash                = "gemini-2.0-flash"
-	gemini20FlashLite            = "gemini-2.0-flash-lite"
-	gemini20FlashLitePrev0205    = "gemini-2.0-flash-lite-preview-02-05"
-	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
-	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
 )
 
 var (
 	supportedModels = map[string]ai.ModelInfo{
-		gemini15Flash: {
-			Label: labelPrefix + " - " + gemini15Flash,
+		"gemini-1.5-flash": {
+			Label: labelPrefix + " - " + "Gemini 1.5 Flash",
 			Versions: []string{
 				"gemini-1.5-flash-latest",
 				"gemini-1.5-flash-001",
@@ -41,8 +34,8 @@ var (
 			},
 			Supports: &gemini.Multimodal,
 		},
-		gemini15Pro: {
-			Label: labelPrefix + " - " + gemini15Pro,
+		"gemini-1.5-pro": {
+			Label: labelPrefix + " - " + "Gemini 1.5 Pro",
 			Versions: []string{
 				"gemini-1.5-pro-latest",
 				"gemini-1.5-pro-001",
@@ -50,32 +43,32 @@ var (
 			},
 			Supports: &gemini.Multimodal,
 		},
-		gemini20Flash: {
-			Label: labelPrefix + " - " + gemini20Flash,
+		"gemini-2.0-flash": {
+			Label: labelPrefix + " - " + "Gemini 2.0 Flash",
 			Versions: []string{
 				"gemini-2.0-flash-001",
 			},
 			Supports: &gemini.Multimodal,
 		},
-		gemini20FlashLite: {
-			Label: labelPrefix + " - " + gemini20FlashLite,
+		"gemini-2.0-flash-lite": {
+			Label: labelPrefix + " - " + "Gemini 2.0 Flash Lite",
 			Versions: []string{
 				"gemini-2.0-flash-lite-001",
 			},
 			Supports: &gemini.Multimodal,
 		},
-		gemini20FlashLitePrev0205: {
-			Label:    labelPrefix + " - " + gemini20FlashLitePrev0205,
+		"gemini-2.0-flash-lite-preview": {
+			Label:    labelPrefix + " - " + "Gemini 2.0 Flash Lite Preview 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
-		gemini20ProExp0205: {
-			Label:    labelPrefix + " - " + gemini20ProExp0205,
+		"gemini-2.0-pro-exp-02-05": {
+			Label:    labelPrefix + " - " + "Gemini 2.0 Pro Exp 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
-		gemini20FlashThinkingExp0121: {
-			Label:    labelPrefix + " - " + gemini20FlashThinkingExp0121,
+		"gemini-2.0-flash-thinking-exp-01-21": {
+			Label:    labelPrefix + " - " + "Gemini 2.0 Flash Thinking Exp 01-21",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
@@ -141,10 +134,16 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 	var err error
 	// Client for Gemini SDK.
+	xGoogApiClientHeader := http.CanonicalHeaderKey("x-goog-api-client")
 	state.gclient, err = genai.NewClient(ctx, &genai.ClientConfig{
 		Backend:  genai.BackendVertexAI,
 		Project:  state.projectID,
 		Location: state.location,
+		HTTPOptions: genai.HTTPOptions{
+			Headers: http.Header{
+				xGoogApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
+			},
+		},
 	})
 	if err != nil {
 		return err

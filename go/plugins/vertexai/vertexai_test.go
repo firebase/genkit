@@ -94,8 +94,7 @@ func TestLive(t *testing.T) {
 			t.Errorf("expecting more than one part")
 		}
 		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
-			// TODO: vertexai client doesn't return stats in streaming mode.
-			// t.Errorf("Empty usage stats %#v", *final.Usage)
+			t.Errorf("Empty usage stats %#v", *final.Usage)
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
