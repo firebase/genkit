@@ -10,7 +10,7 @@ Genkit.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, ClassVar
+from typing import Any
 
 from genkit.core.typing import (
     DocumentData,
@@ -75,12 +75,13 @@ class Document(DocumentData):
 
     def text(self) -> str:
         """Concatenates all `text` parts with no delimiter."""
-        text_parts = map(lambda part: part.root.text or '', self.content)
-        return ''.join(text_parts)
+        return ''.join(
+            p.root.text if p.root.text is not None else '' for p in self.content
+        )
 
     def media(self) -> list[Media]:
         """Media array getter."""
-        media_parts = map(lambda part: part.root.media, self.content)
+        media_parts = [part.root.media for part in self.content]
         return list(filter(lambda m: m is not None, media_parts))
 
     def data(self) -> str:
