@@ -313,7 +313,7 @@ func TestGenerate(t *testing.T) {
 				NewModelTextMessage("yes, banana"),
 				NewModelTextMessage("banana again"),
 			),
-			WithContext(&Document{Content: []*Part{NewTextPart("Banana")}}),
+			WithDocs(&Document{Content: []*Part{NewTextPart("Banana")}}),
 			WithOutputType(&GameCharacter{}),
 			WithTools(gablorkenTool),
 			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {

@@ -21,7 +21,7 @@ type promptFn = func(context.Context, any) (string, error)
 type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // renderFn is a function that renders a prompt intoa model request.
-type renderFn = func(context.Context, any) (*ModelRequest, error)
+type renderFn = func(context.Context, any) (*GenerateActionOptions, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
@@ -443,8 +443,8 @@ func WithOutputFormat(format OutputFormat) OutputOption {
 
 // executionOptions are options for the execution of a prompt or generate request.
 type executionOptions struct {
-	Context []*Document         // Context to pass to model, if any.
-	Stream  ModelStreamCallback // Function to call with each chunk of the generated response.
+	Documents []*Document         // Docs to pass to the model as context.
+	Stream    ModelStreamCallback // Function to call with each chunk of the generated response.
 }
 
 // ExecutionOption is an option for the execution of a prompt or generate request. It applies only to Generate() and prompt.Execute().
@@ -455,19 +455,19 @@ type ExecutionOption interface {
 }
 
 // applyExecution applies the option to the runtime options.
-func (o *executionOptions) applyExecution(runOpts *executionOptions) error {
-	if o.Context != nil {
-		if runOpts.Context != nil {
-			return errors.New("cannot set context more than once (WithContext)")
+func (o *executionOptions) applyExecution(execOpts *executionOptions) error {
+	if o.Documents != nil {
+		if execOpts.Documents != nil {
+			return errors.New("cannot set context more than once (WithDocs)")
 		}
-		runOpts.Context = o.Context
+		execOpts.Documents = o.Documents
 	}
 
 	if o.Stream != nil {
-		if runOpts.Stream != nil {
+		if execOpts.Stream != nil {
 			return errors.New("cannot set stream callback more than once (WithStream)")
 		}
-		runOpts.Stream = o.Stream
+		execOpts.Stream = o.Stream
 	}
 
 	return nil
@@ -479,13 +479,13 @@ func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // applyPromptGenerate applies the option to the prompt request options.
-func (o *executionOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
-	return o.applyExecution(&reqOpts.executionOptions)
+func (o *executionOptions) applyPromptGenerate(genOpts *promptGenerateOptions) error {
+	return o.applyExecution(&genOpts.executionOptions)
 }
 
-// WithContext sets the retrieved documents to be used as context for the generate request.
-func WithContext(docs ...*Document) ExecutionOption {
-	return &executionOptions{Context: docs}
+// WithDocs sets the retrieved documents to be used as context for the generate request.
+func WithDocs(docs ...*Document) ExecutionOption {
+	return &executionOptions{Documents: docs}
 }
 
 // WithStreaming sets the stream callback for the generate request.

@@ -635,7 +635,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 				return nil
 			}),
 			WithModel(testModel),
-			WithContext(&Document{Content: []*Part{NewTextPart("Banana")}}),
+			WithDocs(&Document{Content: []*Part{NewTextPart("Banana")}}),
 		)
 		if err != nil {
 			t.Fatal(err)

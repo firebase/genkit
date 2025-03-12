@@ -25,6 +25,7 @@ import (
 
 	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -32,18 +33,12 @@ import (
 // Prompt is a prompt template that can be executed to generate a model response.
 type Prompt struct {
 	promptOptions
-	registry     *registry.Registry
-	action       core.ActionDef[any, *ModelRequest, struct{}]
-	Template     *raymond.Template // Parsed prompt template.
-	TemplateText string            // Original prompt template text.
+	registry *registry.Registry
+	action   core.ActionDef[any, *GenerateActionOptions, struct{}]
 }
 
 // DefinePrompt creates and registers a new Prompt.
 func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOption) (*Prompt, error) {
-	p := &Prompt{
-		registry: r,
-	}
-
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
 		err := opt.applyPrompt(pOpts)
@@ -51,20 +46,22 @@ func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOpt
 			return nil, err
 		}
 	}
-	p.promptOptions = *pOpts
 
-	renderFn := func(ctx context.Context, input any) (*ModelRequest, error) {
+	p := &Prompt{
+		registry:      r,
+		promptOptions: *pOpts,
+	}
+
+	renderFn := func(ctx context.Context, input any) (*GenerateActionOptions, error) {
 		return buildRequest(ctx, p, input)
 	}
 	if p.RenderFn != nil {
 		renderFn = p.RenderFn
 	}
 
-	var modelName string
-	if p.Model != nil {
+	modelName := p.ModelName
+	if modelName == "" && p.Model != nil {
 		modelName = p.Model.Name()
-	} else {
-		modelName = p.ModelName
 	}
 
 	meta := p.Metadata
@@ -73,11 +70,10 @@ func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOpt
 	}
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
-			"name":     p.Name(),
-			"model":    modelName,
-			"config":   p.Config,
-			"input":    map[string]any{"schema": p.InputSchema},
-			"template": p.TemplateText,
+			"name":   p.Name(),
+			"model":  modelName,
+			"config": p.Config,
+			"input":  map[string]any{"schema": p.InputSchema},
 		},
 	}
 	maps.Copy(meta, promptMeta)
@@ -94,7 +90,7 @@ func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
-	action := core.LookupActionFor[any, *ModelRequest, struct{}](r, atype.Prompt, provider, name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.Prompt, provider, name)
 	p := &Prompt{
 		action: *action,
 	}
@@ -109,7 +105,7 @@ func (p *Prompt) Name() string { return p.action.Name() }
 // the prompt.
 func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*ModelResponse, error) {
 	if p == nil {
-		return nil, errors.New("prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
+		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
 	genOpts := &promptGenerateOptions{}
@@ -122,63 +118,57 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 
 	p.MessagesFn = mergeMessagesFn(p.MessagesFn, genOpts.MessagesFn)
 
-	mr, err := p.Render(ctx, genOpts.Input)
+	actionOpts, err := p.Render(ctx, genOpts.Input)
 	if err != nil {
 		return nil, err
 	}
 
 	if genOpts.Config != nil {
-		mr.Config = genOpts.Config
+		actionOpts.Config = genOpts.Config
 	}
-	if len(genOpts.Context) > 0 {
-		mr.Context = genOpts.Context
+	if len(genOpts.Documents) > 0 {
+		actionOpts.Docs = genOpts.Documents
 	}
 	if genOpts.ToolChoice != "" {
-		mr.ToolChoice = genOpts.ToolChoice
+		actionOpts.ToolChoice = genOpts.ToolChoice
 	}
 
-	model := p.Model
-	if genOpts.Model != nil {
-		model = genOpts.Model
+	modelName := genOpts.ModelName
+	if modelName == "" && genOpts.Model != nil {
+		modelName = genOpts.Model.Name()
 	}
-	if model == nil {
-		modelName := p.ModelName
-		if genOpts.ModelName != "" {
-			modelName = genOpts.ModelName
-		}
-
-		model, err = LookupModelByName(p.registry, modelName)
-		if err != nil {
-			return nil, err
-		}
+	if modelName == "" {
+		modelName = p.ModelName
 	}
+	if modelName == "" {
+		return nil, errors.New("ai.Execute: model is required (WithModel or WithModelName)")
+	}
+	actionOpts.Model = modelName
 
-	maxTurns := p.MaxTurns
 	if genOpts.MaxTurns != 0 {
-		maxTurns = genOpts.MaxTurns
+		actionOpts.MaxTurns = genOpts.MaxTurns
 	}
-	if maxTurns < 0 {
-		return nil, fmt.Errorf("max turns must be greater than 0, got %d", maxTurns)
+	if actionOpts.MaxTurns < 0 {
+		return nil, fmt.Errorf("max turns must be greater than 0, got %d", actionOpts.MaxTurns)
 	}
 
-	returnToolRequests := p.ReturnToolRequests
 	if genOpts.IsReturnToolRequestsSet {
-		returnToolRequests = genOpts.ReturnToolRequests
+		actionOpts.ReturnToolRequests = genOpts.ReturnToolRequests
 	}
 
-	toolCfg := &ToolConfig{
-		MaxTurns:           maxTurns,
-		ReturnToolRequests: returnToolRequests,
-	}
-
-	return model.Generate(ctx, p.registry, mr, genOpts.Middleware, toolCfg, genOpts.Stream)
+	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
-func (p *Prompt) Render(ctx context.Context, input any) (*ModelRequest, error) {
+func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	if p == nil {
-		return nil, errors.New("prompt.Render: called on a nil Prompt; check that all prompts are defined")
+		return nil, errors.New("Prompt.Render: called on a nil prompt; check that all prompts are defined")
 	}
+
+	if len(p.Middleware) > 0 {
+		logger.FromContext(ctx).Warn(fmt.Sprintf("middleware set on prompt %q will be ignored during Prompt.Render", p.Name()))
+	}
+
 	return p.action.Run(ctx, input, nil)
 }
 
@@ -262,9 +252,9 @@ fieldLoop:
 	return m, nil
 }
 
-// buildRequest prepares an [ModelRequest] based on the prompt,
-// using the input variables and other information in the [PromptRequest].
-func buildRequest(ctx context.Context, p *Prompt, input any) (*ModelRequest, error) {
+// buildRequest prepares an [GenerateActionOptions] based on the prompt,
+// using the input variables and other information in the [Prompt].
+func buildRequest(ctx context.Context, p *Prompt, input any) (*GenerateActionOptions, error) {
 	m, err := buildVariables(input)
 	if err != nil {
 		return nil, err
@@ -275,30 +265,31 @@ func buildRequest(ctx context.Context, p *Prompt, input any) (*ModelRequest, err
 	if err != nil {
 		return nil, err
 	}
-
 	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input)
 	if err != nil {
 		return nil, err
 	}
-
 	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input)
 	if err != nil {
 		return nil, err
 	}
 
-	var tds []*ToolDefinition
+	var tools []string
 	for _, t := range p.Tools {
-		tds = append(tds, t.Definition())
+		tools = append(tools, t.Definition().Name)
 	}
 
-	return &ModelRequest{
-		Messages:   messages,
-		Config:     p.Config,
-		ToolChoice: p.ToolChoice,
-		Tools:      tds,
-		Output: &ModelRequestOutput{
-			Format: p.OutputFormat,
-			Schema: p.OutputSchema,
+	return &GenerateActionOptions{
+		Config:             p.Config,
+		ToolChoice:         p.ToolChoice,
+		Model:              p.ModelName,
+		MaxTurns:           p.MaxTurns,
+		ReturnToolRequests: p.ReturnToolRequests,
+		Messages:           messages,
+		Tools:              tools,
+		Output: &GenerateActionOptionsOutput{
+			Format:     p.OutputFormat,
+			JsonSchema: p.OutputSchema,
 		},
 	}, nil
 }
