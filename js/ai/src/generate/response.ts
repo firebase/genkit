@@ -46,6 +46,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   custom: unknown;
   /** The request that generated this response. */
   request?: GenerateRequest;
+  /** The raw response from the LLM. */
+  rawResponse?: unknown;
   /** The parser for output parsing of this response. */
   parser?: MessageParser<O>;
 
@@ -64,6 +66,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         parser: options?.parser,
       });
     }
+    this.rawResponse = response;
     this.finishReason =
       response.finishReason || response.candidates?.[0]?.finishReason!;
     this.finishMessage =
