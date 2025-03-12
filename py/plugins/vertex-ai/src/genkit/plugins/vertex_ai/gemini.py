@@ -14,9 +14,10 @@ from typing import Any
 
 import vertexai.generative_models as genai
 from genkit.core.action import ActionRunContext
+from genkit.veneer.registry import GenkitRegistry
 from genkit.core.typing import (
     CustomPart,
-    DataPart,
+    ToolDefinition,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -29,6 +30,7 @@ from genkit.core.typing import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.core.action import ActionKind
 
 LOG = logging.getLogger(__name__)
 
@@ -93,7 +95,7 @@ class Gemini:
     handling message formatting and response processing.
     """
 
-    def __init__(self, version: str | GeminiVersion):
+    def __init__(self, version: str | GeminiVersion, ai: GenkitRegistry):
         """Initialize a Gemini client.
 
         Args:
@@ -101,6 +103,7 @@ class Gemini:
                 one of the values from GeminiVersion.
         """
         self._version = version
+        self._ai = ai
 
     def is_multimode(self):
         return SUPPORTED_MODELS[self._version].supports.media
@@ -153,6 +156,14 @@ class Gemini:
         """
         return genai.GenerativeModel(self._version)
 
+    def _to_gemini_tool(self, tool: ToolDefinition) -> genai.Tool:
+        func = genai.FunctionDeclaration(name=tool.name,
+                                         description=tool.description,
+                                         parameters=tool.input_schema)
+
+        return genai.Tool(function_declarations=[func])
+
+
     def generate(
         self, request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse | None:
@@ -167,8 +178,29 @@ class Gemini:
         """
 
         messages = self.build_messages(request)
+
+        tools = []
+        tool_names = []
+        if request.tools:
+            for tool in request.tools:
+
+                tool_names.append(tool.name)
+                gemini_tool = self._to_gemini_tool(tool)
+                tools.append(gemini_tool)
+
+            response = self.gemini_model.generate_content(
+                contents=messages, stream=ctx.is_streaming, tools=tools
+            )
+            function_calls = response.candidates[0].function_calls
+
+            for call in function_calls:
+                action = self._ai.registry.lookup_action(ActionKind.TOOL, call.name)
+                tool_response = action.run(**call.args)
+                print(tool_response)
+
+
         response = self.gemini_model.generate_content(
-            contents=messages, stream=ctx.is_streaming
+            contents=messages, stream=ctx.is_streaming, tools=tools
         )
 
         text_response = ''

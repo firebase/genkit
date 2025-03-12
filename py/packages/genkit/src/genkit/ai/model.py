@@ -33,7 +33,7 @@ from pydantic import Field
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse
-type ModelFn = Callable[[GenerateRequest], GenerateResponse]
+type ModelFn = Callable[[GenerateRequest, ActionRunContext], GenerateResponse]
 
 # These types are duplicated in genkit.ai.formats.types due to circular deps
 type MessageParser[T] = Callable[[MessageWrapper], T]

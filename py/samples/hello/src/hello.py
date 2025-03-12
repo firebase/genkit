@@ -136,16 +136,16 @@ class GablorkenInput(BaseModel):
 
 
 @ai.tool('calculates a gablorken')
-def gablorkenTool(input: GablorkenInput):
-    return input.value * 3 - 5
+def gablorkenTool(gb: GablorkenInput):
+    return gb.value * 3 - 5
 
 
 @ai.flow()
-async def simple_generate_action_with_tools_flow(value: int) -> Any:
+async def simple_generate_action_with_tools_flow(value: int) -> str:
     """Generate a greeting for the given name.
 
     Args:
-        name: The name of the person to greet.
+        value: The name of the person to greet.
 
     Returns:
         The generated greeting response.
@@ -265,4 +265,5 @@ async def describe_picture():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    # asyncio.run(main())
+    asyncio.run(simple_generate_action_with_tools_flow(6))

@@ -207,10 +207,10 @@ async def generate_action(
         )
 
     next_request = copy.copy(raw_request)
-    nextMessages = copy.copy(raw_request.messages)
-    nextMessages.append(generated_msg)
-    nextMessages.append(tool_msg)
-    next_request.messages = nextMessages
+    next_messages = copy.copy(raw_request.messages)
+    next_messages.append(generated_msg)
+    next_messages.append(tool_msg)
+    next_request.messages = next_messages
     next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
     # then recursively call for another loop
@@ -357,7 +357,7 @@ def resolve_instructions(
     if isinstance(instructions_opt, str):
         # user provided instructions
         return instructions_opt
-    if instructions_opt == False:
+    if not instructions_opt:
         # user says no instructions
         return None
     if not formatter:
