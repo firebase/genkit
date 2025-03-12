@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
@@ -30,7 +31,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, MessageSchema, genkit, z } from 'genkit/beta';
+import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit/beta';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
@@ -59,6 +60,13 @@ const ai = genkit({
   plugins: [
     googleAI({ experimental_debugTraces: true }),
     vertexAI({ location: 'us-central1', experimental_debugTraces: true }),
+    genkitEval({
+      metrics: [
+        GenkitMetric.REGEX,
+        GenkitMetric.DEEP_EQUAL,
+        GenkitMetric.JSONATA,
+      ],
+    }),
   ],
 });
 
@@ -789,4 +797,22 @@ ai.defineFlow('formatJsonl', async (input, { sendChunk }) => {
     onChunk: (c) => sendChunk(c.output),
   });
   return output;
+});
+
+ai.defineFlow('simpleDataExtractor', async (input) => {
+  const { output } = await ai.generate({
+    model: gemini15Flash,
+    prompt: `extract data from:\n\n${input}`,
+    output: {
+      schema: z.object({
+        name: z.string(),
+        age: z.number(),
+      }),
+    },
+  });
+  return output;
+});
+
+ai.defineFlow('echo', async (input) => {
+  return input;
 });
