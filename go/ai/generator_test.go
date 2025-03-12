@@ -404,67 +404,98 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
-		roundCount := 0
-		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
-				Multiturn: true,
-				Tools:     true,
+		testCases := []struct {
+			name    string
+			ref1    string
+			ref2    string
+			wantErr bool
+		}{
+			{
+				name:    "handles different refs",
+				ref1:    "ref1",
+				ref2:    "ref2",
+				wantErr: false,
+			},
+			{
+				name:    "returns error with same refs",
+				wantErr: true,
 			},
 		}
-		parallelModel := DefineModel(r, "test", "parallel", info,
-			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
-				roundCount++
-				if roundCount == 1 {
-					return &ModelResponse{
-						Request: gr,
-						Message: &Message{
-							Role: RoleModel,
-							Content: []*Part{
-								NewToolRequestPart(&ToolRequest{
-									Name:  "gablorken",
-									Input: map[string]any{"Value": 2, "Over": 3},
-								}),
-								NewToolRequestPart(&ToolRequest{
-									Name:  "gablorken",
-									Input: map[string]any{"Value": 3, "Over": 2},
-								}),
-							},
-						},
-					}, nil
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				roundCount := 0
+				info := &ModelInfo{
+					Supports: &ModelInfoSupports{
+						Multiturn: true,
+						Tools:     true,
+					},
 				}
-				var sum float64
-				for _, msg := range gr.Messages {
-					if msg.Role == RoleTool {
-						for _, part := range msg.Content {
-							if part.ToolResponse != nil {
-								sum += part.ToolResponse.Output.(float64)
+				modelName := fmt.Sprintf("parallel_%d", i)
+				parallelModel := DefineModel(r, "test", modelName, info,
+					func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+						roundCount++
+						if roundCount == 1 {
+							return &ModelResponse{
+								Request: gr,
+								Message: &Message{
+									Role: RoleModel,
+									Content: []*Part{
+										NewToolRequestPart(&ToolRequest{
+											Name:  "gablorken",
+											Ref:   tc.ref1,
+											Input: map[string]any{"Value": 2, "Over": 3},
+										}),
+										NewToolRequestPart(&ToolRequest{
+											Name:  "gablorken",
+											Ref:   tc.ref2,
+											Input: map[string]any{"Value": 3, "Over": 2},
+										}),
+									},
+								},
+							}, nil
+						}
+						var sum float64
+						for _, msg := range gr.Messages {
+							if msg.Role == RoleTool {
+								for _, part := range msg.Content {
+									if part.ToolResponse != nil {
+										sum += part.ToolResponse.Output.(float64)
+									}
+								}
 							}
 						}
+						return &ModelResponse{
+							Request: gr,
+							Message: &Message{
+								Role: RoleModel,
+								Content: []*Part{
+									NewTextPart(fmt.Sprintf("Final result: %d", int(sum))),
+								},
+							},
+						}, nil
+					})
+
+				res, err := Generate(context.Background(), r,
+					WithModel(parallelModel),
+					WithTextPrompt("trigger parallel tools"),
+					WithTools(gablorkenTool),
+				)
+
+				if tc.wantErr {
+					if err == nil {
+						t.Fatal("expected error, got none")
 					}
+					return
 				}
-				return &ModelResponse{
-					Request: gr,
-					Message: &Message{
-						Role: RoleModel,
-						Content: []*Part{
-							NewTextPart(fmt.Sprintf("Final result: %d", int(sum))),
-						},
-					},
-				}, nil
+				if err != nil {
+					t.Fatalf("expected no error: got %q", err)
+				}
+
+				finalPart := res.Message.Content[0]
+				if finalPart.Text != "Final result: 17" {
+					t.Errorf("expected final result text to be 'Final result: 17', got %q", finalPart.Text)
+				}
 			})
-
-		res, err := Generate(context.Background(), r,
-			WithModel(parallelModel),
-			WithTextPrompt("trigger parallel tools"),
-			WithTools(gablorkenTool),
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		finalPart := res.Message.Content[0]
-		if finalPart.Text != "Final result: 17" {
-			t.Errorf("expected final result text to be 'Final result: 17', got %q", finalPart.Text)
 		}
 	})
 
