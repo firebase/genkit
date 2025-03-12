@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import mimetypes
-
 from typing import Literal
 
 from genkit.core.action import ActionRunContext
@@ -19,7 +18,7 @@ from genkit.core.typing import (
     TextPart,
     ToolRequest,
     ToolRequestPart,
-    ToolResponsePart
+    ToolResponsePart,
 )
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
@@ -189,7 +188,9 @@ class OllamaModel:
                 content.append(
                     MediaPart(
                         media=Media(
-                            content_type=mimetypes.guess_type(image.value, strict=False)[0],
+                            content_type=mimetypes.guess_type(
+                                image.value, strict=False
+                            )[0],
                             url=image.value,
                         )
                     )

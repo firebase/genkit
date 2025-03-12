@@ -29,7 +29,7 @@ plugin_params = OllamaPluginParams(
         ModelDefinition(
             name=MISTRAL_MODEL,
             api_type=OllamaAPITypes.CHAT,
-        )
+        ),
     ],
 )
 
@@ -39,6 +39,7 @@ ai = Genkit(
             plugin_params=plugin_params,
         )
     ],
+    model=ollama_name(GEMMA_MODEL),
 )
 
 
@@ -51,8 +52,12 @@ def on_chunk(chunk):
     print('received chunk: ', chunk)
 
 
+class GablorkenOutputSchema(BaseModel):
+    result: int
+
+
 @ai.tool('calculates a gablorken')
-def gablorken_tool(input: int):
+def gablorken_tool(input: int) -> int:
     return input * 3 - 5
 
 
@@ -89,18 +94,21 @@ async def calculate_gablorken(value: int):
     Returns:
         A GenerateRequest object with the evaluation output
     """
-    return await ai.generate(
+    response = await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=f'run tool "gablorken_tool" for {value}. Output format: ```{{output:output_number}}'),
+                    TextPart(text=f'run "gablorken_tool" for {value}'),
                 ],
             )
         ],
+        output_schema=GablorkenOutputSchema,
         model=ollama_name(MISTRAL_MODEL),
         tools=['gablorken_tool'],
     )
+    message_raw = response.message.content[0].root.text
+    return GablorkenOutputSchema.model_validate(json.loads(message_raw))
 
 
 @ai.flow()
@@ -131,8 +139,8 @@ async def say_hi_constrained(hi_input: str):
 
 async def main() -> None:
     print(await say_hi('John Doe'))
-    print(await calculate_gablorken(3))
     print(await say_hi_constrained('John Doe'))
+    print(await calculate_gablorken(3))
 
 
 if __name__ == '__main__':
