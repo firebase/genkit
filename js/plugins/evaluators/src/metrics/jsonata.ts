@@ -35,7 +35,6 @@ export async function jsonataMetric(
 
   const expression = jsonata(dataPoint.reference);
   const result = await expression.evaluate(dataPoint.output);
-  console.log(JSON.stringify(result));
 
   return {
     score: !!result,

@@ -62,8 +62,8 @@ const ai = genkit({
     vertexAI({ location: 'us-central1', experimental_debugTraces: true }),
     genkitEval({
       metrics: [
-        GenkitMetric.REGEX,
         GenkitMetric.DEEP_EQUAL,
+        GenkitMetric.REGEX,
         GenkitMetric.JSONATA,
       ],
     }),
