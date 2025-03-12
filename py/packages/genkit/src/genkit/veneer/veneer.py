@@ -83,6 +83,7 @@ from collections.abc import AsyncIterator
 from http.server import HTTPServer
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
@@ -437,7 +438,7 @@ class Genkit(GenkitRegistry):
     async def embed(
         self,
         model: str | None = None,
-        documents: list[str] | None = None,
+        documents: list[Document] | None = None,
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Calculates embeddings for documents.
@@ -454,7 +455,7 @@ class Genkit(GenkitRegistry):
 
         return (
             await embed_action.arun(
-                EmbedRequest(documents=documents, options=options)
+                EmbedRequest(input=documents, options=options)
             )
         ).response
 
