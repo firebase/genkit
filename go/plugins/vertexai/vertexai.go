@@ -10,7 +10,6 @@ import (
 	"os"
 	"sync"
 
-	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
@@ -91,7 +90,6 @@ var state struct {
 	projectID string
 	location  string
 	gclient   *genai.Client
-	pclient   *aiplatform.PredictionClient
 }
 
 // Config is the configuration for the plugin.

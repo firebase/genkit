@@ -80,7 +80,6 @@ func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		provider = VertexAIProvider
 	}
 
-	// NOTE: how is `input` being provided?
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
