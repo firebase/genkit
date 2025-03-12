@@ -106,6 +106,8 @@ class EchoModel:
         echo_resp = f'[ECHO]{merged_txt}'
         if request.config:
             echo_resp += f' {dump_json(request.config)}'
+        if request.tools:
+            echo_resp += f' tools={",".join(t.name for t in request.tools)}'
         if request.tool_choice is not None:
             echo_resp += f' tool_choice={request.tool_choice}'
         if request.output and dump_json(request.output) != '{}':
