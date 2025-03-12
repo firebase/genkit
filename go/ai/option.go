@@ -175,9 +175,6 @@ func WithMiddleware(middleware ...ModelMiddleware) CommonOption {
 // A tool call happens when tools are provided in the request and a model decides to call one or more as a response.
 // Each round trip, including multiple tools in parallel, counts as one turn.
 func WithMaxTurns(maxTurns int) CommonOption {
-	if maxTurns <= 0 {
-		panic(fmt.Errorf("maxTurns must be greater than 0, got %d", maxTurns))
-	}
 	return &commonOptions{MaxTurns: maxTurns}
 }
 
