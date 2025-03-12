@@ -24,8 +24,11 @@ import {
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   answerRelevancyScore,
+  deepEqual,
   faithfulnessScore,
+  jsonata,
   maliciousnessScore,
+  regexp,
 } from './metrics/index.js';
 import { GenkitMetric } from './types.js';
 export { GenkitMetric };
@@ -37,7 +40,7 @@ export interface PluginOptions<
   EmbedderCustomOptions extends z.ZodTypeAny,
 > {
   metrics?: Array<GenkitMetric>;
-  judge: ModelReference<ModelCustomOptions>;
+  judge?: ModelReference<ModelCustomOptions>;
   judgeConfig?: z.infer<ModelCustomOptions>;
   embedder?: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -102,6 +105,11 @@ export function genkitEvaluators<
   return metrics.map((metric) => {
     switch (metric) {
       case GenkitMetric.ANSWER_RELEVANCY: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing answer relvancy'
+          );
+        }
         return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
@@ -112,7 +120,7 @@ export function genkitEvaluators<
           async (datapoint: BaseEvalDataPoint) => {
             const answerRelevancy = await answerRelevancyScore(
               ai,
-              judge,
+              judge!,
               datapoint,
               embedder!,
               judgeConfig,
@@ -123,6 +131,11 @@ export function genkitEvaluators<
         );
       }
       case GenkitMetric.FAITHFULNESS: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing faithfulness'
+          );
+        }
         return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
@@ -133,7 +146,7 @@ export function genkitEvaluators<
           async (datapoint: BaseEvalDataPoint) => {
             const faithfulness = await faithfulnessScore(
               ai,
-              judge,
+              judge!,
               datapoint,
               judgeConfig
             );
@@ -142,6 +155,11 @@ export function genkitEvaluators<
         );
       }
       case GenkitMetric.MALICIOUSNESS: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing maliciousness'
+          );
+        }
         return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
@@ -152,11 +170,49 @@ export function genkitEvaluators<
           async (datapoint: BaseEvalDataPoint) => {
             const maliciousness = await maliciousnessScore(
               ai,
-              judge,
+              judge!,
               datapoint,
               judgeConfig
             );
             return fillScores(datapoint, maliciousness);
+          }
+        );
+      }
+      case GenkitMetric.REGEX: {
+        return ai.defineEvaluator(
+          {
+            name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
+            displayName: 'RegExp',
+            definition: 'Tests output against the regexp provided as reference',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
+            return fillScores(datapoint, await regexp(datapoint));
+          }
+        );
+      }
+      case GenkitMetric.DEEP_EQUAL: {
+        return ai.defineEvaluator(
+          {
+            name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
+            displayName: 'Deep Equals',
+            definition:
+              'Tests equality of output against the provided reference',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
+            return fillScores(datapoint, await deepEqual(datapoint));
+          }
+        );
+      }
+      case GenkitMetric.JSONATA: {
+        return ai.defineEvaluator(
+          {
+            name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
+            displayName: 'JSONata',
+            definition:
+              'Tests JSONata expression (provided in reference) against output',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
+            return fillScores(datapoint, await jsonata(datapoint));
           }
         );
       }
