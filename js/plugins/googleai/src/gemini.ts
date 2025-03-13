@@ -719,10 +719,22 @@ export function defineGoogleAIModel({
       downloadRequestMedia({
         maxBytes: 1024 * 1024 * 10,
         // don't downlaod files that have been uploaded using the Files API
-        filter: (part) =>
-          !part.media.url.startsWith(
-            'https://generativelanguage.googleapis.com/'
-          ),
+        filter: (part) => {
+          try {
+            const url = new URL(part.media.url);
+            if (
+              // Gemini can handle these URLs
+              [
+                'generativelanguage.googleapis.com',
+                'www.youtube.com',
+                'youtube.com',
+                'youtu.be',
+              ].includes(url.hostname)
+            )
+              return false;
+          } catch {}
+          return true;
+        },
       })
     );
   }

@@ -83,6 +83,7 @@ from collections.abc import AsyncIterator
 from http.server import HTTPServer
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
@@ -143,18 +144,9 @@ class Genkit(GenkitRegistry):
         self.registry.default_model = model
 
         if is_dev_environment():
-            runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-            server.create_runtime(
-                runtime_dir=runtimes_dir,
-                reflection_server_spec=reflection_server_spec,
-                at_exit_fn=os.remove,
-            )
             self.thread = threading.Thread(
                 target=self.start_server,
-                args=(
-                    reflection_server_spec.host,
-                    reflection_server_spec.port,
-                ),
+                args=[reflection_server_spec],
             )
             self.thread.start()
 
@@ -180,16 +172,24 @@ class Genkit(GenkitRegistry):
                         f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
-    def start_server(self, host: str, port: int) -> None:
+    def start_server(self, spec: server.ServerSpec) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
-            host: The hostname to bind to.
-            port: The port number to listen on.
+            spec: Server spec for the reflection server.
         """
         httpd = HTTPServer(
-            (host, port),
+            (spec.host, spec.port),
             make_reflection_server(registry=self.registry),
+        )
+        # We need to write the runtime file closest to the point of starting up
+        # the server to avoid race conditions with the manager's runtime
+        # handler.
+        runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
+        server.create_runtime(
+            runtime_dir=runtimes_dir,
+            reflection_server_spec=spec,
+            at_exit_fn=os.remove,
         )
         httpd.serve_forever()
 
@@ -402,7 +402,7 @@ class Genkit(GenkitRegistry):
     async def embed(
         self,
         model: str | None = None,
-        documents: list[str] | None = None,
+        documents: list[Document] | None = None,
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Calculates embeddings for documents.
@@ -419,6 +419,6 @@ class Genkit(GenkitRegistry):
 
         return (
             await embed_action.arun(
-                EmbedRequest(documents=documents, options=options)
+                EmbedRequest(input=documents, options=options)
             )
         ).response

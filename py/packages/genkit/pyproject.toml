@@ -22,6 +22,7 @@ dependencies = [
   "dotprompt",
   "partial-json-parser>=0.2.1.1.post5",
   "json5>=0.10.0",
+  "structlog>=25.2.0",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }

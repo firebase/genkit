@@ -17,7 +17,8 @@ class OllamaEmbedder:
         self.embedding_definition = embedding_definition
 
     async def embed(self, request: EmbedRequest) -> EmbedResponse:
-        return await self.client.embed(
+        response = await self.client.embed(
             model=self.embedding_definition.name,
-            input=request.documents,
+            input=request.input,
         )
+        return EmbedResponse(embeddings=response.embeddings)
