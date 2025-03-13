@@ -14,7 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
 """OpenAI Compatible Model handlers for Genkit."""
 
 from collections.abc import Callable
@@ -25,7 +24,9 @@ from openai import OpenAI
 from genkit.ai import ActionRunContext, GenkitRegistry
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
+    SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
+    PluginSource,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
@@ -37,17 +38,34 @@ from genkit.types import (
 class OpenAIModelHandler:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: Any) -> None:
+    def __init__(self, model: Any, source: PluginSource = PluginSource.OPENAI) -> None:
         """Initializes the OpenAIModelHandler with a specified model.
 
         Args:
             model: An instance of a Model subclass representing the OpenAI model.
+            source: Helps distinguish if model handler is called from model-garden plugin.
+                    Default source is openai.
         """
         self._model = model
+        self._source = source
+
+    @staticmethod
+    def _get_supported_models(source: PluginSource) -> dict[str, Any]:
+        """Returns the supported models based on the plugin source.
+        Args:
+            source: Helps distinguish if model handler is called from model-garden plugin.
+                    Default source is openai.
+
+        Returns:
+            Openai models if source is openai. Merges supported openai models with openai-compat models if source is model-garden.
+
+        """
+
+        return SUPPORTED_OPENAI_COMPAT_MODELS if source == PluginSource.MODEL_GARDEN else SUPPORTED_OPENAI_MODELS
 
     @classmethod
     def get_model_handler(
-        cls, model: str, client: OpenAI, registry: GenkitRegistry
+        cls, model: str, client: OpenAI, registry: GenkitRegistry, source: PluginSource = PluginSource.OPENAI
     ) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
@@ -61,6 +79,8 @@ class OpenAIModelHandler:
             model: The OpenAI model name.
             client: OpenAI client instance.
             registry: Genkit registry instance.
+            source: Helps distinguish if model handler is called from model-garden plugin.
+                    Default source is openai.
 
         Returns:
             A callable function that acts as an action handler.
@@ -68,11 +88,13 @@ class OpenAIModelHandler:
         Raises:
             ValueError: If the specified model is not supported.
         """
-        if model not in SUPPORTED_OPENAI_MODELS:
+        supported_models = cls._get_supported_models(source)
+
+        if model not in supported_models:
             raise ValueError(f"Model '{model}' is not supported.")
 
         openai_model = OpenAIModel(model, client, registry)
-        return cls(openai_model).generate
+        return cls(openai_model, source).generate
 
     def _validate_version(self, version: str) -> None:
         """Validates whether the specified model version is supported.
@@ -83,7 +105,8 @@ class OpenAIModelHandler:
         Raises:
             ValueError: If the specified model version is not supported.
         """
-        model_info = SUPPORTED_OPENAI_MODELS[self._model.name]
+        supported_models = self._get_supported_models(self._source)
+        model_info = supported_models[self._model.name]
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 

@@ -14,23 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from .model_garden import model_garden_name
+from .modelgarden_plugin import VertexAIModelGarden
 
-"""OpenAI Compatible Models for Genkit."""
-
-from .handler import OpenAIModelHandler
-from .model import OpenAIModel
-from .model_info import SUPPORTED_OPENAI_COMPAT_MODELS, SUPPORTED_OPENAI_MODELS, PluginSource
-
-
-def package_name() -> str:
-    return 'genkit.plugins.compat_oai.models'
-
-
-__all__ = [
-    'OpenAIModel',
-    'PluginSource',
-    'SUPPORTED_OPENAI_MODELS',
-    'SUPPORTED_OPENAI_COMPAT_MODELS',
-    'OpenAIModelHandler',
-    'package_name',
-]
+__all__ = [model_garden_name, VertexAIModelGarden]

@@ -17,11 +17,27 @@
 
 """OpenAI Compatible Models for Genkit."""
 
+import sys
+
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
+
 from genkit.plugins.compat_oai.typing import SupportedOutputFormat
 from genkit.types import (
     ModelInfo,
     Supports,
 )
+
+OPENAI = 'openai'
+MODEL_GARDEN = 'model-garden'
+
+
+class PluginSource(StrEnum):
+    OPENAI = 'openai'
+    MODEL_GARDEN = 'model-garden'
+
 
 GPT_3_5_TURBO = 'gpt-3.5-turbo'
 GPT_4 = 'gpt-4'
@@ -30,6 +46,8 @@ GPT_4O = 'gpt-4o'
 GPT_4O_MINI = 'gpt-4o-mini'
 O1_MINI = 'o1-mini'
 
+LLAMA_3_1 = 'llama-3.1'
+LLAMA_3_2 = 'llama-3.2'
 
 SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     GPT_3_5_TURBO: ModelInfo(
@@ -118,6 +136,31 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
         supports=Supports(
             multiturn=True,
             media=False,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+        ),
+    ),
+}
+
+SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
+    LLAMA_3_1: ModelInfo(
+        versions=['meta/llama3-405b-instruct-maas'],
+        label='llama-3.1',
+        supports=Supports(
+            multiturn=True,
+            media=False,
+            tools=True,
+            systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+        ),
+    ),
+    LLAMA_3_2: ModelInfo(
+        versions=['meta/llama-3.2-90b-vision-instruct-maas'],
+        label='llama-3.2',
+        supports=Supports(
+            multiturn=True,
+            media=True,
             tools=True,
             systemRole=True,
             output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
