@@ -23,11 +23,13 @@ import os from 'os';
 import path from 'path';
 import { GenkitToolsError } from '../manager';
 import { RuntimeManager } from '../manager/manager';
+import { writeToolsInfoFile } from '../utils';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
 import { TOOLS_SERVER_ROUTER } from './router';
 
+const MAX_PAYLOAD_SIZE = 30000000;
 const UI_ASSETS_GCS_BUCKET = `https://storage.googleapis.com/genkit-assets`;
 const UI_ASSETS_ZIP_FILE_NAME = `${toolsPackage.version}.zip`;
 const UI_ASSETS_ZIP_GCS_PATH = `${UI_ASSETS_GCS_BUCKET}/${UI_ASSETS_ZIP_FILE_NAME}`;
@@ -64,28 +66,32 @@ export function startServer(manager: RuntimeManager, port: number) {
     res.status(200).send('');
   });
 
-  app.post('/api/streamAction', bodyParser.json(), async (req, res) => {
-    const { key, input, context } = req.body;
-    res.writeHead(200, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Content-Type': 'text/plain',
-      'Transfer-Encoding': 'chunked',
-    });
+  app.post(
+    '/api/streamAction',
+    bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
+    async (req, res) => {
+      const { key, input, context } = req.body;
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Content-Type': 'text/plain',
+        'Transfer-Encoding': 'chunked',
+      });
 
-    try {
-      const result = await manager.runAction(
-        { key, input, context },
-        (chunk) => {
-          res.write(JSON.stringify(chunk) + '\n');
-        }
-      );
-      res.write(JSON.stringify(result));
-    } catch (err) {
-      res.write(JSON.stringify({ error: (err as GenkitToolsError).data }));
+      try {
+        const result = await manager.runAction(
+          { key, input, context },
+          (chunk) => {
+            res.write(JSON.stringify(chunk) + '\n');
+          }
+        );
+        res.write(JSON.stringify(result));
+      } catch (err) {
+        res.write(JSON.stringify({ error: (err as GenkitToolsError).data }));
+      }
+      res.end();
     }
-    res.end();
-  });
+  );
 
   app.get('/api/__health', (_, res) => {
     res.status(200).send('');
@@ -110,6 +116,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     },
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(manager),
+      maxBodySize: MAX_PAYLOAD_SIZE,
     })
   );
 
@@ -132,9 +139,10 @@ export function startServer(manager: RuntimeManager, port: number) {
   };
   app.use(errorHandler);
 
-  server = app.listen(port, () => {
+  server = app.listen(port, async () => {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
+    await writeToolsInfoFile(uiUrl);
   });
 
   return new Promise<void>((resolve) => {

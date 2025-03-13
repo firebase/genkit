@@ -159,7 +159,7 @@ func menuQA() {
 		func(ctx context.Context, question string) (string, error) {
 			// Retrieve text relevant to the user's question.
 			docs, err := menuPdfRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-				Document: ai.DocumentFromText(question, nil),
+				Query: ai.DocumentFromText(question, nil),
 			})
 			if err != nil {
 				return "", err
@@ -225,8 +225,8 @@ func customret() {
 
 			// Call the retriever as in the simple case.
 			response, err := menuPDFRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-				Document: req.Document,
-				Options:  localvec.RetrieverOptions{K: opts.PreRerankK},
+				Query:   req.Query,
+				Options: localvec.RetrieverOptions{K: opts.PreRerankK},
 			})
 			if err != nil {
 				return nil, err

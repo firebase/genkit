@@ -513,9 +513,20 @@ export function toGeminiMessage(
   message: MessageData,
   modelInfo?: ModelInfo
 ): Content {
+  let sortedParts = message.content;
+  if (message.role === 'tool') {
+    sortedParts = [...message.content].sort((a, b) => {
+      const aRef = a.toolResponse?.ref;
+      const bRef = b.toolResponse?.ref;
+      if (!aRef && !bRef) return 0;
+      if (!aRef) return 1;
+      if (!bRef) return -1;
+      return parseInt(aRef, 10) - parseInt(bRef, 10);
+    });
+  }
   return {
     role: toGeminiRole(message.role, modelInfo),
-    parts: message.content.map(toGeminiPart),
+    parts: sortedParts.map(toGeminiPart),
   };
 }
 
@@ -589,7 +600,7 @@ function fromGeminiFileDataPart(part: GeminiPart): MediaPart {
   };
 }
 
-function fromGeminiFunctionCallPart(part: GeminiPart): Part {
+function fromGeminiFunctionCallPart(part: GeminiPart, ref?: string): Part {
   if (!part.functionCall) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
@@ -599,11 +610,12 @@ function fromGeminiFunctionCallPart(part: GeminiPart): Part {
     toolRequest: {
       name: part.functionCall.name,
       input: part.functionCall.args,
+      ref,
     },
   };
 }
 
-function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
+function fromGeminiFunctionResponsePart(part: GeminiPart, ref?: string): Part {
   if (!part.functionResponse) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
@@ -613,33 +625,40 @@ function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
     toolResponse: {
       name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
+      ref,
     },
   };
 }
 
 // Converts vertex part to genkit part
-function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
-  // functionCall is first to work around https://github.com/googleapis/nodejs-vertexai/issues/494
-  if (part.functionCall) return fromGeminiFunctionCallPart(part);
+function fromGeminiPart(
+  part: GeminiPart,
+  jsonMode: boolean,
+  ref?: string
+): Part {
   if (part.text !== undefined) return { text: part.text };
-  if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
+  if (part.functionCall) return fromGeminiFunctionCallPart(part, ref);
+  if (part.functionResponse) return fromGeminiFunctionResponsePart(part, ref);
+
   throw new Error(
     'Part type is unsupported/corrupted. Either data is missing or type cannot be inferred from type.'
   );
 }
-
 export function fromGeminiCandidate(
   candidate: GenerateContentCandidate,
   jsonMode: boolean
 ): CandidateData {
   const parts = candidate.content.parts || [];
+
   const genkitCandidate: CandidateData = {
-    index: candidate.index || 0, // reasonable default?
+    index: candidate.index || 0,
     message: {
       role: 'model',
-      content: parts.map((p) => fromGeminiPart(p, jsonMode)),
+      content: parts.map((part, index) => {
+        return fromGeminiPart(part, jsonMode, index.toString());
+      }),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,
@@ -650,7 +669,6 @@ export function fromGeminiCandidate(
   };
   return genkitCandidate;
 }
-
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
@@ -790,7 +808,24 @@ export function defineGeminiModel({
   }
   if (modelInfo?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
-    middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
+    middlewares.push(
+      downloadRequestMedia({
+        maxBytes: 1024 * 1024 * 20,
+        filter: (part) => {
+          try {
+            const url = new URL(part.media.url);
+            if (
+              // Gemini can handle these URLs
+              ['www.youtube.com', 'youtube.com', 'youtu.be'].includes(
+                url.hostname
+              )
+            )
+              return false;
+          } catch {}
+          return true;
+        },
+      })
+    );
   }
 
   return ai.defineModel(

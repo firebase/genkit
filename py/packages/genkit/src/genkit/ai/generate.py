@@ -7,11 +7,15 @@ from collections.abc import Callable
 from typing import Any
 
 from genkit.ai.formats import FormatDef, Formatter
+from genkit.ai.messages import inject_instructions
+from genkit.ai.middleware import augment_with_context
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     MessageWrapper,
+    ModelMiddleware,
 )
+from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
@@ -20,13 +24,10 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Message,
-    Metadata,
     OutputConfig,
-    Part,
     Role,
-    TextPart,
     ToolDefinition,
-    ToolResponse1,
+    ToolResponse,
     ToolResponsePart,
 )
 
@@ -43,9 +44,9 @@ async def generate_action(
     on_chunk: StreamingCallback | None = None,
     message_index: int = 0,
     current_turn: int = 0,
+    middleware: list[ModelMiddleware] | None = None,
+    context: dict[str, Any] | None = None,
 ) -> GenerateResponseWrapper:
-    # TODO: middleware
-
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
@@ -100,11 +101,52 @@ async def generate_action(
         """
         return on_chunk(make_chunk(Role.MODEL, chunk))
 
-    model_response = (
-        await model.arun(
-            input=request, on_chunk=wrap_chunks if on_chunk else None
-        )
-    ).response
+    if not middleware:
+        middleware = []
+
+    supports_context = (
+        model.metadata
+        and model.metadata.get('model')
+        and model.metadata.get('model').get('supports')
+        and model.metadata.get('model').get('supports').get('context')
+    )
+    # if it doesn't support contextm inject context middleware
+    if raw_request.docs and not supports_context:
+        middleware.append(augment_with_context())
+
+    async def dispatch(
+        index: int, req: GenerateRequest, ctx: ActionRunContext
+    ) -> GenerateResponse:
+        """Dispatches the model request, passes it through middleware if present."""
+        if not middleware or index == len(middleware):
+            # end of the chain, call the original model action
+            return (
+                await model.arun(
+                    input=req,
+                    context=ctx.context,
+                    on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+                )
+            ).response
+
+        current_middleware = middleware[index]
+
+        async def next_fn(modified_req=None, modified_ctx=None):
+            return await dispatch(
+                index + 1,
+                modified_req if modified_req else req,
+                modified_ctx if modified_ctx else ctx,
+            )
+
+        return await current_middleware(req, ctx, next_fn)
+
+    model_response = await dispatch(
+        0,
+        request,
+        ActionRunContext(
+            on_chunk=wrap_chunks if on_chunk else None,
+            context=context,
+        ),
+    )
 
     def message_parser(msg: MessageWrapper):
         """Parse a message using the current formatter.
@@ -168,7 +210,12 @@ async def generate_action(
     # if the loop will continue, stream out the tool response message...
     if on_chunk:
         on_chunk(
-            make_chunk('tool', GenerateResponseChunk(content=tool_msg.content))
+            make_chunk(
+                'tool',
+                GenerateResponseChunk(
+                    role=tool_msg.role, content=tool_msg.content
+                ),
+            )
         )
 
     next_request = copy.copy(raw_request)
@@ -185,6 +232,7 @@ async def generate_action(
         # middleware: middleware,
         current_turn=current_turn + 1,
         message_index=message_index + 1,
+        on_chunk=on_chunk,
     )
 
 
@@ -227,83 +275,6 @@ def apply_format(
         out_request.output.format = format_def.config.format
 
     return (out_request, formatter)
-
-
-def inject_instructions(
-    messages: list[Message], instructions: str
-) -> list[Message]:
-    """
-    Injects instructions into a list of messages.
-
-    Args:
-        messages: A list of MessageData objects.
-        instructions: The instructions to inject, or False or None to skip injection.
-
-    Returns:
-        A new list of MessageData objects with the instructions injected,
-        or the original list if injection was skipped.
-    """
-    if not instructions:
-        return messages
-
-    # bail out if a non-pending output part is already present
-    if any(
-        any(
-            part.root.metadata
-            and part.root.metadata['purpose'] == 'output'
-            and not part.root.metadata['pending']
-            for part in message.content
-        )
-        for message in messages
-    ):
-        return messages
-
-    new_part = Part(
-        TextPart(text=instructions, metadata=Metadata({'purpose': 'output'}))
-    )
-
-    # find the system message or the last user message
-    target_index = next(
-        (i for i, message in enumerate(messages) if message.role == 'system'),
-        -1,  # Default to -1 if not found
-    )
-    if target_index < 0:
-        target_index = next(
-            (
-                i
-                for i, message in reversed(list(enumerate(messages)))
-                if message.role == 'user'
-            ),
-            -1,  # Default to -1 if not found
-        )
-    if target_index < 0:
-        return messages
-
-    m = Message(
-        role=messages[target_index].role,
-        # Create a copy of the content
-        content=messages[target_index].content[:],
-    )
-
-    part_index = next(
-        (
-            i
-            for i, part in enumerate(m.content)
-            if part.root.metadata
-            and part.root.metadata['purpose'] == 'output'
-            and part.root.metadata['pending']
-        ),
-        -1,  # Default to -1 if not found
-    )
-    if part_index >= 0:
-        m.content[part_index] = new_part
-    else:
-        m.content.append(new_part)
-
-    out_messages = messages[:]  # Create a copy of the messages list
-    out_messages[target_index] = m
-
-    return out_messages
 
 
 def resolve_instructions(
@@ -406,7 +377,7 @@ async def action_to_generate_request(
     return GenerateRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
-        context=options.docs,
+        docs=options.docs,
         tools=tool_defs,
         tool_choice=options.tool_choice,
         output=OutputConfig(
@@ -460,10 +431,9 @@ async def resolve_tool_requests(
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
         tool_response = (await tool.arun_raw(tool_request.input)).response
-        # TODO: figure out why pydantic generates ToolResponse1
         response_parts.append(
             ToolResponsePart(
-                toolResponse=ToolResponse1(
+                toolResponse=ToolResponse(
                     name=tool_request.name,
                     ref=tool_request.ref,
                     output=dump_dict(tool_response),

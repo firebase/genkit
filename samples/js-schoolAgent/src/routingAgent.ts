@@ -32,7 +32,7 @@ export const routingAgent = ai.definePrompt(
 
   You have some specialized agents in different departments that you can transfer to. 
 
-  1. Grades Agent - This agent can provide informtion about previous scores for assignments and tests.
+  1. Grades Agent - This agent can provide information about previous scores for assignments and tests.
   2. Attendance Agent - This agent can help with attendance requests, such as marking a student as late/tardy or absent.
 
   Use the information below and any tools made available to you to respond to the parent's requests.

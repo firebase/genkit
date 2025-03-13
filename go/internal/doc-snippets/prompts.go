@@ -10,8 +10,8 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/invopop/jsonschema"
 )
 
 func pr01() {
@@ -71,24 +71,21 @@ func pr03() error {
 	type HelloPromptInput struct {
 		UserName string
 	}
-	helloPrompt := genkit.DefinePrompt(
+	helloPrompt, err := genkit.DefinePrompt(
 		g,
 		"prompts",
 		"helloPrompt",
-		nil, // Additional model config
-		jsonschema.Reflect(&HelloPromptInput{}),
-		func(ctx context.Context, input any) (*ai.ModelRequest, error) {
+		prompt.WithInputType(HelloPromptInput{}),
+		prompt.WithSystemFn(func(ctx context.Context, input any) (string, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
-				return nil, errors.New("input doesn't satisfy schema")
+				return "", errors.New("input doesn't satisfy schema")
 			}
 			prompt := fmt.Sprintf(
 				"You are a helpful AI assistant named Walt. Say hello to %s.",
 				params.UserName)
-			return &ai.ModelRequest{Messages: []*ai.Message{
-				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
-			}}, nil
-		},
+			return prompt, nil
+		}),
 	)
 	// [END pr03_1]
 

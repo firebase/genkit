@@ -19,40 +19,44 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-// Model represents a model that can perform content generation tasks.
-type Model interface {
-	// Name returns the registry name of the model.
-	Name() string
-	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
-	Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error)
-}
+type (
+	// Model represents a model that can generate content based on a request.
+	Model interface {
+		// Name returns the registry name of the model.
+		Name() string
+		// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
+		Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamCallback) (*ModelResponse, error)
+	}
 
-// ModelFunc is a function that generates a model response.
-type ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+	// ToolConfig handles configuration around tool calls during generation.
+	ToolConfig struct {
+		MaxTurns           int  // Maximum number of tool call iterations before erroring.
+		ReturnToolRequests bool // Whether to return tool requests instead of making the tool calls and continuing the generation.
+	}
 
-// ModelMiddleware is middleware for model generate requests.
-type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+	// ModelFunc is a streaming function that takes in a ModelRequest and generates a ModelResponse, optionally streaming ModelResponseChunks.
+	ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-// ModelAction is an action for model generation.
-type ModelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+	// ModelStreamCallback is a stream callback of a ModelAction.
+	ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
 
-type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+	// ModelMiddleware is middleware for model generate requests that takes in a ModelFunc, does something, then returns another ModelFunc.
+	ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-type modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+	// ModelAction is the type for model generation actions.
+	ModelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-// ModelStreamingCallback is the type for the streaming callback of a model.
-type ModelStreamingCallback = func(context.Context, *ModelResponseChunk) error
+	// modelActionDef is an action with functions specific to model generation such as Generate().
+	modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-// ToolConfig handles configuration around tool calls during generation.
-type ToolConfig struct {
-	MaxTurns           int
-	ReturnToolRequests bool
-}
+	// generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
+	generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+)
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
 	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, nil,
-		func(ctx context.Context, req *GenerateActionOptions, cb ModelStreamingCallback) (output *ModelResponse, err error) {
+		func(ctx context.Context, req *GenerateActionOptions, cb ModelStreamCallback) (output *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", req))
 			defer func() {
@@ -137,7 +141,7 @@ func DefineModel(
 	metadataMap["supports"] = supports
 	metadataMap["versions"] = info.Versions
 
-	generate = core.ChainMiddleware(ValidateSupport(name, info.Supports))(generate)
+	generate = core.ChainMiddleware(ValidateSupport(name, info))(generate)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{"model": metadataMap}, generate))
 }
@@ -157,11 +161,31 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 	return (*modelActionDef)(action)
 }
 
+// LookupModelByName looks up a [Model] registered by [DefineModel].
+// It returns an error if the model was not defined.
+func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
+	if modelName == "" {
+		return nil, errors.New("generate.LookupModelByName: model not specified")
+	}
+
+	parts := strings.Split(modelName, "/")
+	if len(parts) != 2 {
+		return nil, errors.New("generate.LookupModelByName: prompt model not in provider/name format")
+	}
+
+	model := LookupModel(r, parts[0], parts[1])
+	if model == nil {
+		return nil, fmt.Errorf("generate.LookupModelByName: no model named %q for provider %q", parts[1], parts[0])
+	}
+
+	return model, nil
+}
+
 // generateParams represents various params of the Generate call.
 type generateParams struct {
 	Request            *ModelRequest
 	Model              Model
-	Stream             ModelStreamingCallback
+	Stream             ModelStreamCallback
 	History            []*Message
 	SystemPrompt       *Message
 	MaxTurns           int
@@ -287,7 +311,7 @@ func WithOutputFormat(format OutputFormat) GenerateOption {
 }
 
 // WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ModelStreamingCallback) GenerateOption {
+func WithStreaming(cb ModelStreamCallback) GenerateOption {
 	return func(req *generateParams) error {
 		if req.Stream != nil {
 			return errors.New("generate.WithStreaming: cannot set streaming callback more than once")
@@ -361,18 +385,6 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		return nil, errors.New("model is required")
 	}
 
-	var modelVersion string
-	if config, ok := req.Request.Config.(*GenerationCommonConfig); ok {
-		modelVersion = config.Version
-	}
-
-	if modelVersion != "" {
-		ok, err := validateModelVersion(r, modelVersion, req)
-		if !ok {
-			return nil, err
-		}
-	}
-
 	if req.History != nil {
 		prev := req.Request.Messages
 		req.Request.Messages = req.History
@@ -393,44 +405,6 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	return req.Model.Generate(ctx, r, req.Request, req.Middleware, toolCfg, req.Stream)
-}
-
-// validateModelVersion checks in the registry the action of the
-// given model version and determines whether its supported or not.
-func validateModelVersion(r *registry.Registry, v string, req *generateParams) (bool, error) {
-	parts := strings.Split(req.Model.Name(), "/")
-	if len(parts) != 2 {
-		return false, errors.New("wrong model name")
-	}
-
-	m := LookupModel(r, parts[0], parts[1])
-	if m == nil {
-		return false, fmt.Errorf("model %s not found", v)
-	}
-
-	// at the end, a Model is an action so type conversion is required
-	if a, ok := m.(*modelActionDef); ok {
-		if !(modelVersionSupported(v, (*ModelAction)(a).Desc().Metadata)) {
-			return false, fmt.Errorf("version %s not supported", v)
-		}
-	} else {
-		return false, errors.New("unable to validate model version")
-	}
-
-	return true, nil
-}
-
-// modelVersionSupported iterates over model's metadata to find the requested
-// supported model version
-func modelVersionSupported(modelVersion string, modelMetadata map[string]any) bool {
-	if md, ok := modelMetadata["model"].(map[string]any); ok {
-		for _, v := range md["versions"].([]string) {
-			if modelVersion == v {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
@@ -459,7 +433,7 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 }
 
 // Generate applies the [Action] to provided request, handling tool requests and handles streaming.
-func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamingCallback) (*ModelResponse, error) {
+func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -557,7 +531,7 @@ func cloneMessage(m *Message) *Message {
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamingCallback) (*ModelRequest, *Message, error) {
+func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
 	toolCount := 0
 	for _, part := range resp.Message.Content {
 		if part.IsToolRequest() {
@@ -701,17 +675,24 @@ func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
 			return nil, errors.New("message has no content")
 		}
 
-		text := base.ExtractJSONFromMarkdown(m.Text())
-		var schemaBytes []byte
-		schemaBytes, err := json.Marshal(output.Schema)
-		if err != nil {
-			return nil, fmt.Errorf("expected schema is not valid: %w", err)
+		for i, part := range m.Content {
+			if !part.IsText() {
+				continue
+			}
+
+			text := base.ExtractJSONFromMarkdown(part.Text)
+
+			var schemaBytes []byte
+			schemaBytes, err := json.Marshal(output.Schema)
+			if err != nil {
+				return nil, fmt.Errorf("expected schema is not valid: %w", err)
+			}
+			if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
+				return nil, err
+			}
+
+			m.Content[i] = NewJSONPart(text)
 		}
-		if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
-			return nil, err
-		}
-		// TODO: Verify that it okay to replace all content with JSON.
-		m.Content = []*Part{NewJSONPart(text)}
 	}
 	return m, nil
 }

@@ -89,6 +89,23 @@ export function defineFirestoreRetriever(
     /** The distance measure to use when comparing vectors. Defaults to 'COSINE'. */
     distanceMeasure?: 'EUCLIDEAN' | 'COSINE' | 'DOT_PRODUCT';
     /**
+     * Specifies a threshold for which no less similar documents will be returned. The behavior
+     * of the specified `distanceMeasure` will affect the meaning of the distance threshold.
+     *
+     *  - For `distanceMeasure: "EUCLIDEAN"`, the meaning of `distanceThreshold` is:
+     *     SELECT docs WHERE euclidean_distance <= distanceThreshold
+     *  - For `distanceMeasure: "COSINE"`, the meaning of `distanceThreshold` is:
+     *     SELECT docs WHERE cosine_distance <= distanceThreshold
+     *  - For `distanceMeasure: "DOT_PRODUCT"`, the meaning of `distanceThreshold` is:
+     *     SELECT docs WHERE dot_product_distance >= distanceThreshold
+     */
+    distanceThreshold?: number;
+    /**
+     * Optionally specifies the name of a metadata field that will be set on each returned Document,
+     * which will contain the computed distance for the document.
+     */
+    distanceResultField?: string;
+    /**
      * A list of fields to include in the returned document metadata. If not supplied, all fields other
      * than the vector are included. Alternatively, provide a transform function to extract the desired
      * metadata fields from a snapshot.
@@ -108,6 +125,8 @@ export function defineFirestoreRetriever(
     metadataFields,
     contentField,
     distanceMeasure,
+    distanceThreshold,
+    distanceResultField,
   } = config;
   return ai.defineRetriever(
     {
@@ -118,6 +137,14 @@ export function defineFirestoreRetriever(
       configSchema: z.object({
         where: z.record(z.any()).optional(),
         limit: z.number(),
+        /* Supply or override the distanceMeasure */
+        distanceMeasure: z
+          .enum(['COSINE', 'DOT_PRODUCT', 'EUCLIDEAN'])
+          .optional(),
+        /* Supply or override the distanceThreshold */
+        distanceThreshold: z.number().optional(),
+        /* Supply or override the metadata field where distances are stored. */
+        distanceResultField: z.string().optional(),
         /* Supply or override the collection for retrieval. */
         collection: z.string().optional(),
       }),
@@ -135,11 +162,18 @@ export function defineFirestoreRetriever(
         query = query.where(field, '==', options.where![field]);
       }
       // Single embedding for text input
-      const embedding = (await ai.embed({ embedder, content }))[0].embedding;
+      const queryVector = (await ai.embed({ embedder, content }))[0].embedding;
+
       const result = await query
-        .findNearest(vectorField, embedding, {
+        .findNearest({
+          vectorField,
+          queryVector,
           limit: options.limit || 10,
-          distanceMeasure: distanceMeasure || 'COSINE',
+          distanceMeasure:
+            options.distanceMeasure || distanceMeasure || 'COSINE',
+          distanceResultField:
+            options.distanceResultField || distanceResultField,
+          distanceThreshold: options.distanceThreshold || distanceThreshold,
         })
         .get();
 

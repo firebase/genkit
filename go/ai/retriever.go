@@ -39,15 +39,15 @@ type (
 // IndexerRequest is the data we pass to add documents to the database.
 // The Options field is specific to the actual retriever implementation.
 type IndexerRequest struct {
-	Documents []*Document `json:"docs"`
+	Documents []*Document `json:"documents"`
 	Options   any         `json:"options,omitempty"`
 }
 
 // RetrieverRequest is the data we pass to retrieve documents from the database.
 // The Options field is specific to the actual retriever implementation.
 type RetrieverRequest struct {
-	Document *Document `json:"query"`
-	Options  any       `json:"options,omitempty"`
+	Query   *Document `json:"query"`
+	Options any       `json:"options,omitempty"`
 }
 
 // RetrieverResponse is the response to a document lookup.
@@ -115,7 +115,7 @@ type RetrieveOption func(req *RetrieverRequest) error
 // WithRetrieverText adds a simple text as document to RetrieveRequest.
 func WithRetrieverText(text string) RetrieveOption {
 	return func(req *RetrieverRequest) error {
-		req.Document = DocumentFromText(text, nil)
+		req.Query = DocumentFromText(text, nil)
 		return nil
 	}
 }
@@ -123,7 +123,7 @@ func WithRetrieverText(text string) RetrieveOption {
 // WithRetrieverDoc adds a document to RetrieveRequest.
 func WithRetrieverDoc(doc *Document) RetrieveOption {
 	return func(req *RetrieverRequest) error {
-		req.Document = doc
+		req.Query = doc
 		return nil
 	}
 }

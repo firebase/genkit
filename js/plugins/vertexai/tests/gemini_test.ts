@@ -42,6 +42,52 @@ describe('toGeminiMessages', () => {
     },
     {
       should:
+        'should transform genkit message (tool response content with ref) correctly',
+      inputMessage: {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'tellAFunnyJoke',
+              output: 'Why did the dogs cross the road?',
+              ref: '1',
+            },
+          },
+          {
+            toolResponse: {
+              name: 'tellAnotherFunnyJoke',
+              output: 'To get to the other side.',
+              ref: '0',
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'function',
+        parts: [
+          {
+            functionResponse: {
+              name: 'tellAnotherFunnyJoke',
+              response: {
+                name: 'tellAnotherFunnyJoke',
+                content: 'To get to the other side.',
+              },
+            },
+          },
+          {
+            functionResponse: {
+              name: 'tellAFunnyJoke',
+              response: {
+                name: 'tellAFunnyJoke',
+                content: 'Why did the dogs cross the road?',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      should:
         'should transform genkit message (tool request content) correctly',
       inputMessage: {
         role: 'model',
@@ -116,7 +162,7 @@ describe('toGeminiMessages', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         toGeminiMessage(test.inputMessage as MessageData),
         test.expectedOutput
       );
@@ -157,7 +203,7 @@ describe('toGeminiSystemInstruction', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         toGeminiSystemInstruction(test.inputMessage as MessageData),
         test.expectedOutput
       );
@@ -300,7 +346,11 @@ describe('fromGeminiCandidate', () => {
           role: 'model',
           content: [
             {
-              toolRequest: { name: 'tellAFunnyJoke', input: { topic: 'dog' } },
+              toolRequest: {
+                name: 'tellAFunnyJoke',
+                input: { topic: 'dog' },
+                ref: '0',
+              },
             },
           ],
         },
@@ -341,7 +391,7 @@ describe('fromGeminiCandidate', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(
+      assert.deepStrictEqual(
         fromGeminiCandidate(
           test.geminiCandidate as GenerateContentCandidate,
           false

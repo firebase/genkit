@@ -13,7 +13,6 @@ import asyncio
 import json
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
-from typing import Any
 
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
@@ -54,7 +53,8 @@ def make_reflection_server(
             keys to their metadata, including input/output schemas.
             """
             if self.path == '/api/__health':
-                self.send_response(200)
+                self.send_response(200, 'OK')
+                self.end_headers()
 
             elif self.path == '/api/actions':
                 self.send_response(200)
