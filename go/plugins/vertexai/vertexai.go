@@ -6,13 +6,11 @@ package vertexai
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"google.golang.org/genai"
 )
@@ -130,17 +128,14 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	if state.location == "" {
 		state.location = "us-central1"
 	}
-	var err error
 	// Client for Gemini SDK.
-	xGoogApiClientHeader := http.CanonicalHeaderKey("x-goog-api-client")
+	var err error
 	state.gclient, err = genai.NewClient(ctx, &genai.ClientConfig{
 		Backend:  genai.BackendVertexAI,
 		Project:  state.projectID,
 		Location: state.location,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: http.Header{
-				xGoogApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
-			},
+			Headers: gemini.GenkitClientHeader,
 		},
 	})
 	if err != nil {

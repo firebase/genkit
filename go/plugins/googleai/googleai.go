@@ -10,13 +10,11 @@ package googleai
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/gemini"
 
 	"google.golang.org/genai"
@@ -130,14 +128,11 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		}
 	}
 
-	xGoogApiClientHeader := http.CanonicalHeaderKey("x-goog-api-client")
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  apiKey,
 		Backend: genai.BackendGeminiAPI,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: http.Header{
-				xGoogApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
-			},
+			Headers: gemini.GenkitClientHeader,
 		},
 	})
 	if err != nil {
