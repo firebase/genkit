@@ -6,6 +6,7 @@
 import asyncio
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -101,7 +102,7 @@ async def embed_docs(docs: list[str]):
     options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
-        documents=docs,
+        documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
 
