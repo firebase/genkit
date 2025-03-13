@@ -17,6 +17,8 @@ from genkit.core.typing import (
     Media,
     MediaPart,
     Message,
+    RetrieverRequest,
+    RetrieverResponse,
     Role,
     TextPart,
 )
@@ -28,7 +30,6 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 from genkit.veneer.veneer import Genkit
-from genkit.ai.document import Document
 from pydantic import BaseModel, Field
 
 ai = Genkit(
@@ -233,6 +234,15 @@ def my_model(request: GenerateRequest, ctx: ActionRunContext):
 
 
 ai.define_model(name='my_model', fn=my_model)
+
+
+def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+    return RetrieverResponse(
+        documents=[Document.from_text('Hello'), Document.from_text('World')]
+    )
+
+
+ai.define_retriever(name='my_retriever', fn=my_retriever)
 
 
 @ai.flow()

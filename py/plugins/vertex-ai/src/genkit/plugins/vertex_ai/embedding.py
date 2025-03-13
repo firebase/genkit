@@ -6,6 +6,7 @@
 from enum import StrEnum
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
@@ -78,7 +79,6 @@ class Embedder:
         Returns:
             The embedding model.
         """
-
         # TODO: pass additional parameters
         return TextEmbeddingModel.from_pretrained(self._version)
 
@@ -91,13 +91,17 @@ class Embedder:
         Returns:
             The embedding response.
         """
-        options = request.options
-        task = options.get(self.TASK_KEY) if options else self.DEFAULT_TASK
+        options = request.options or {'task': self.DEFAULT_TASK}
+        task = options.get(self.TASK_KEY)
         if task not in EmbeddingsTaskType:
             raise ValueError(f'Unsupported task {task} for VertexAI.')
 
         del options[self.TASK_KEY]
-        inputs = [TextEmbeddingInput(doc.text(), task) for doc in request.input]
+
+        inputs = [
+            TextEmbeddingInput(Document.from_document_data(doc).text(), task)
+            for doc in request.input
+        ]
         vertexai_embeddings = self.embedding_model.get_embeddings(
             inputs, **options
         )

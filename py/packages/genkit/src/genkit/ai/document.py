@@ -42,6 +42,13 @@ class Document(DocumentData):
         super().__init__(content=doc_content, metadata=doc_metadata)
 
     @staticmethod
+    def from_document_data(document_data: DocumentData) -> Document:
+        """Construct a Document from DocumentData."""
+        return Document(
+            content=document_data.content, metadata=document_data.metadata
+        )
+
+    @staticmethod
     def from_text(
         text: str, metadata: dict[str, Any] | None = None
     ) -> Document:

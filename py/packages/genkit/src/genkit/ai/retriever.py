@@ -12,25 +12,7 @@ to accomplish a task.
 from typing import Any, Callable
 from xml.dom.minidom import Document
 
-from genkit.core.typing import RetrieverRequest, RetrieverResponse
-from genkit.core.registry import Action, ActionKind, Registry
-from pydantic import BaseModel
-
+from genkit.core.typing import RetrieverResponse
 
 # User-provided retriever function that queries the datastore
 type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
-
-
-# async def retriever_action(
-#     registry: Registry,
-#     name: str,
-#     fn: RetrieverFn,
-#     config_schema: BaseModel | dict[str, Any] | None = None,
-#     metadata: dict[str, Any] | None = None,
-# ) -> Action:
-#     return await registry.define_retriever(
-#         name,
-#         fn=fn,
-#         config_schema=config_schema,
-#         metadata=metadata,
-#     )
