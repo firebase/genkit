@@ -175,8 +175,7 @@ class Genkit(GenkitRegistry):
         """Start the HTTP server for handling requests.
 
         Args:
-            host: The hostname to bind to.
-            port: The port number to listen on.
+            spec: Server spec for the reflection server.
         """
         httpd = HTTPServer(
             (spec.host, spec.port),
