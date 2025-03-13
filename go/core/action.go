@@ -133,12 +133,12 @@ func newAction[In, Out, Stream any](
 	var o Out
 	if inputSchema == nil {
 		if reflect.ValueOf(i).Kind() != reflect.Invalid {
-			inputSchema = base.InferJSONSchemaNonReferencing(i)
+			inputSchema = base.InferJSONSchema(i)
 		}
 	}
 	var outputSchema *jsonschema.Schema
 	if reflect.ValueOf(o).Kind() != reflect.Invalid {
-		outputSchema = base.InferJSONSchemaNonReferencing(o)
+		outputSchema = base.InferJSONSchema(o)
 	}
 	return &ActionDef[In, Out, Stream]{
 		name:   name,
