@@ -100,6 +100,7 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
+    DocumentData,
     GenerationCommonConfig,
     Message,
     Part,
@@ -212,8 +213,8 @@ class Genkit(GenkitRegistry):
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
         # TODO:
-        #  docs: list[Document]
         #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
@@ -261,6 +262,7 @@ class Genkit(GenkitRegistry):
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
+            docs: Optional. A list of documents to be used for grounding.
 
 
         Returns:
@@ -292,6 +294,7 @@ class Genkit(GenkitRegistry):
                 output_instructions=output_instructions,
                 output_schema=output_schema,
                 output_constrained=output_constrained,
+                docs=docs,
             ),
             on_chunk=on_chunk,
             middleware=use,
@@ -316,6 +319,7 @@ class Genkit(GenkitRegistry):
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
@@ -362,6 +366,7 @@ class Genkit(GenkitRegistry):
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
+            docs: Optional. A list of documents to be used for grounding.
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -392,6 +397,7 @@ class Genkit(GenkitRegistry):
             output_instructions=output_instructions,
             output_schema=output_schema,
             output_constrained=output_constrained,
+            docs=docs,
             use=use,
             on_chunk=lambda c: stream.send(c),
         )

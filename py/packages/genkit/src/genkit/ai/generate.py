@@ -8,6 +8,7 @@ from typing import Any
 
 from genkit.ai.formats import FormatDef, Formatter
 from genkit.ai.messages import inject_instructions
+from genkit.ai.middleware import augment_with_context
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -99,6 +100,19 @@ async def generate_action(
             The result of passing the processed chunk to the callback.
         """
         return on_chunk(make_chunk(Role.MODEL, chunk))
+
+    if not middleware:
+        middleware = []
+
+    supports_context = (
+        model.metadata
+        and model.metadata.get('model')
+        and model.metadata.get('model').get('supports')
+        and model.metadata.get('model').get('supports').get('context')
+    )
+    # if it doesn't support contextm inject context middleware
+    if raw_request.docs and not supports_context:
+        middleware.append(augment_with_context())
 
     async def dispatch(
         index: int, req: GenerateRequest, ctx: ActionRunContext

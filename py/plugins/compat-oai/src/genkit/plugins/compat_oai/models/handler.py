@@ -72,7 +72,7 @@ class OpenAIModelHandler:
 
     def generate(
         self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse | None:
+    ) -> GenerateResponse:
         """
         Processes the request using OpenAI's chat completion API.
 
@@ -87,6 +87,6 @@ class OpenAIModelHandler:
             self.validate_version(request.config.model)
 
         if ctx.is_streaming:
-            self._model.generate_stream(request, ctx.send_chunk)
+            return self._model.generate_stream(request, ctx.send_chunk)
         else:
             return self._model.generate(request)
