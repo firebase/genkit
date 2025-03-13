@@ -466,7 +466,7 @@ describe.only('simulateConstrainedGeneration', () => {
     };
 
     const { output } = await generate(registry, {
-      model: 'programmableModel',
+      model: 'test/programmableModel',
       prompt: 'generate json',
       use: [
         simulateConstrainedGeneration({
@@ -519,7 +519,7 @@ describe.only('simulateConstrainedGeneration', () => {
     };
 
     const { output } = await generate(registry, {
-      model: 'programmableModel',
+      model: 'test/programmableModel',
       prompt: 'generate json',
       output: {
         schema: z.object({
@@ -570,7 +570,7 @@ describe.only('simulateConstrainedGeneration', () => {
     };
 
     const { output } = await generate(registry, {
-      model: 'programmableModel',
+      model: 'test/programmableModel',
       prompt: 'generate json',
       output: {
         instructions: true,
