@@ -9,8 +9,6 @@ source .venv/bin/activate
 
 ## Run the sample
 
-TODO
-
 ```bash
-genkit start -- uv run --directory py samples/rag/main.py
+genkit start -- uv run src/rag.py
 ```

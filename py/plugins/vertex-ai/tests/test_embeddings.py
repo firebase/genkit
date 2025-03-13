@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from genkit.ai.embedding import EmbedRequest, EmbedResponse
+from genkit.ai.document import Document
+from genkit.core.typing import EmbedRequest, EmbedResponse
 from genkit.plugins.vertex_ai.embedding import (
     Embedder,
     EmbeddingModels,
@@ -17,9 +18,12 @@ from genkit.plugins.vertex_ai.embedding import (
 def test_generate_response(mocker, version, task):
     """Tests generate method for embeddings."""
     mocked_respond = []
-    request = EmbedRequest(
-        documents=['Text1', 'Text2', 'Text3'], options={'task': task}
-    )
+    docs = [
+        Document.from_text(text='Text1'),
+        Document.from_text(text='Text2'),
+        Document.from_text(text='Text3'),
+    ]
+    request = EmbedRequest(input=docs, options={'task': task})
     embedder = Embedder(version)
     genai_model_mock = mocker.MagicMock()
     model_response_mock = mocker.MagicMock()
