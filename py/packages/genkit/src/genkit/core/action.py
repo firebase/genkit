@@ -99,7 +99,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
         raise ValueError(msg)
 
     kind_str = tokens[1]
-    name = tokens[2]
+    name = '/'.join(tokens[2:])
     try:
         kind = ActionKind(kind_str)
     except ValueError as e:
