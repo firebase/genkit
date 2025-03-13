@@ -6,7 +6,7 @@
 from enum import StrEnum
 from typing import Any
 
-from genkit.ai.embedding import EmbedRequest, EmbedResponse
+from genkit.core.typing import EmbedRequest, EmbedResponse, Embedding
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
 
@@ -101,7 +101,10 @@ class Embedder:
         vertexai_embeddings = self.embedding_model.get_embeddings(
             inputs, **options
         )
-        embeddings = [embedding.values for embedding in vertexai_embeddings]
+        embeddings = [
+            Embedding(embedding=embedding.values)
+            for embedding in vertexai_embeddings
+        ]
 
         return EmbedResponse(embeddings=embeddings)
 

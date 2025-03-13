@@ -27,6 +27,7 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 from genkit.veneer.veneer import Genkit
+from genkit.ai.document import Document
 from pydantic import BaseModel, Field
 
 ai = Genkit(
@@ -101,7 +102,7 @@ async def embed_docs(docs: list[str]):
     options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
-        documents=docs,
+        documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
 
