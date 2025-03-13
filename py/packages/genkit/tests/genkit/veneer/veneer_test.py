@@ -9,8 +9,9 @@ import json
 
 import pytest
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import MessageWrapper, _text_from_message
+from genkit.ai.model import MessageWrapper, text_from_message
 from genkit.core.typing import (
+    DocumentData,
     FinishReason,
     GenerateRequest,
     GenerateResponse,
@@ -749,7 +750,7 @@ async def test_generate_with_middleware(
     ai, *_ = setup_test
 
     async def pre_middle(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -763,7 +764,7 @@ async def test_generate_with_middleware(
 
     async def post_middle(req, ctx, next):
         resp: GenerateResponse = await next(req, ctx)
-        txt = _text_from_message(resp.message)
+        txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
             message=Message(
@@ -794,7 +795,7 @@ async def test_generate_passes_through_current_action_context(
     ai, *_ = setup_test
 
     async def inject_context(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -831,7 +832,7 @@ async def test_generate_uses_explicitly_passed_in_context(
     ai, *_ = setup_test
 
     async def inject_context(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -932,6 +933,49 @@ async def test_generate_json_format_unconstrained_with_instructions(
     )
 
     assert (await response).request == want
+
+
+@pytest.mark.asyncio
+async def test_generate_simulates_doc_grounding(
+    setup_test: SetupFixture,
+) -> None:
+    ai, *_ = setup_test
+
+    want_msg = Message(
+        role=Role.USER,
+        content=[
+            TextPart(text='hi'),
+            TextPart(
+                text='\n\nUse the following information to complete your task:'
+                + '\n\n- [0]: doc content 1\n\n',
+                metadata={'purpose': 'context'},
+            ),
+        ],
+    )
+
+    response = await ai.generate(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='hi')],
+            ),
+        ],
+        docs=[DocumentData(content=[TextPart(text='doc content 1')])],
+    )
+
+    assert response.request.messages[0] == want_msg
+
+    _, response = ai.generate_stream(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='hi')],
+            ),
+        ],
+        docs=[DocumentData(content=[TextPart(text='doc content 1')])],
+    )
+
+    assert (await response).request.messages[0] == want_msg
 
 
 class TestFormat(FormatDef):
