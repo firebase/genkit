@@ -50,16 +50,12 @@ func handleCache(
 	request *ai.ModelRequest,
 	model string,
 ) (*genai.CachedContent, error) {
-	// since context caching is only available for specific model versions, we
-	// must make sure the configuration has the right version
-	err := validateContextCacheRequest(request, model)
-	if err != nil {
-		return nil, err
-	}
-
 	cc, err := prepareCacheContent(request, model)
 	if err != nil {
 		return nil, err
+	}
+	if cc == nil {
+		return nil, nil
 	}
 
 	cache, err := lookupCache(ctx, client, cc.DisplayName)
@@ -91,6 +87,13 @@ func prepareCacheContent(
 	// index out of bounds
 	if cacheEndIdx < 0 || cacheEndIdx >= len(request.Messages) {
 		return nil, fmt.Errorf("end of cached contents, index %d is invalid", cacheEndIdx)
+	}
+
+	// since context caching is only available for specific model versions, we
+	// must make sure the configuration has the right version
+	err = validateContextCacheRequest(request, model)
+	if err != nil {
+		return nil, err
 	}
 
 	var messagesToCache []*genai.Content

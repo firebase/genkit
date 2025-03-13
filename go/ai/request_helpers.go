@@ -69,11 +69,28 @@ func NewTextMessage(role Role, text string) *Message {
 
 // Cached adds cache configuration for the desired message
 func (m *Message) Cached(ttlSeconds int) *Message {
-	metadata := map[string]any{
-		"cache": map[string]any{
-			"ttlSeconds": ttlSeconds,
-		},
+	metadata := m.Metadata
+	cache := map[string]any{
+		"ttlSeconds": ttlSeconds,
 	}
+	if len(metadata) == 0 {
+		return &Message{
+			Content: m.Content,
+			Role:    m.Role,
+			Metadata: map[string]any{
+				"cache": cache,
+			},
+		}
+	}
+
+	if c, ok := metadata["cache"]; ok {
+		if v, ok := c.(map[string]any); ok {
+			v["ttlSeconds"] = ttlSeconds
+		}
+	} else {
+		metadata["cache"] = cache
+	}
+
 	return &Message{
 		Content:  m.Content,
 		Role:     m.Role,

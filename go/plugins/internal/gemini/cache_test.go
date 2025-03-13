@@ -48,7 +48,7 @@ func TestGetContentForCache_NoContentToCache(t *testing.T) {
 	}
 }
 
-func TestGetContentForCache_Valid(t *testing.T) {
+func TestGetContentForCache_Invalid(t *testing.T) {
 	req := &ai.ModelRequest{
 		Messages: []*ai.Message{
 			{
@@ -66,15 +66,9 @@ func TestGetContentForCache_Valid(t *testing.T) {
 			},
 		},
 	}
-	content, err := prepareCacheContent(req, "gemini-1.5-flash-001")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if content == nil {
-		t.Fatal("expected a non-nil CachedContent")
-	}
-	if len(content.Contents) == 0 || content.Contents[0].Role != "user" {
-		t.Errorf("expected user content, got %v", content.Contents)
+	_, err := prepareCacheContent(req, "gemini-1.5-flash-001")
+	if err == nil {
+		t.Fatal("expecting error, system instructions are not supported with Context Cache")
 	}
 }
 
