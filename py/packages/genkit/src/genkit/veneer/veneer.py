@@ -99,11 +99,11 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
+    DocumentData,
     GenerationCommonConfig,
     Message,
     Part,
     ToolChoice,
-    DocumentData,
 )
 from genkit.veneer import server
 from genkit.veneer.plugin import Plugin

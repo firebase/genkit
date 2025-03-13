@@ -11,6 +11,7 @@ import pytest
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import MessageWrapper, text_from_message
 from genkit.core.typing import (
+    DocumentData,
     FinishReason,
     GenerateRequest,
     GenerateResponse,
@@ -28,7 +29,6 @@ from genkit.core.typing import (
     ToolRequestPart,
     ToolResponse,
     ToolResponsePart,
-    DocumentData,
 )
 from genkit.testing import (
     EchoModel,

@@ -14,6 +14,7 @@ from genkit.ai.model import text_from_content, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
+    DocumentData,
     FinishReason,
     GenerateActionOptions,
     GenerateRequest,
@@ -22,7 +23,6 @@ from genkit.core.typing import (
     Message,
     Role,
     TextPart,
-    DocumentData,
 )
 from genkit.testing import (
     define_echo_model,
