@@ -417,6 +417,18 @@ describe('plugin', () => {
     assert.ok(ai);
   });
 
+  describe('plugin - no env', () => {
+    it('should throw when registering models with no apiKey and no env', async () => {
+      const ai = genkit({ plugins: [googleAI()] });
+      assert.rejects(ai.registry.initializeAllPlugins());
+    });
+
+    it('should not throw when registering models with {apiKey: false} and no env', () => {
+      const ai = genkit({ plugins: [googleAI({ apiKey: false })] });
+      assert.doesNotReject(ai.registry.initializeAllPlugins());
+    });
+  });
+
   describe('plugin', () => {
     beforeEach(() => {
       process.env.GOOGLE_GENAI_API_KEY = 'testApiKey';
