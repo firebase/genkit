@@ -19,7 +19,7 @@ import (
 
 const CacheContentsPerPage = 5
 
-var cacheSupportedVersions = [...]string{
+var cacheSupportedVersions = []string{
 	"gemini-2.0-flash-lite-001",
 	"gemini-2.0-flash-001",
 
@@ -124,7 +124,7 @@ func prepareCacheContent(
 // validateContextCacheRequest checks for supported models and checks if Tools
 // are being provided in the request
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
-	if modelVersion == "" || !slices.Contains(cacheSupportedVersions[:], modelVersion) {
+	if modelVersion == "" || !slices.Contains(cacheSupportedVersions, modelVersion) {
 		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.modelVersion)
 	}
 	if len(request.Tools) > 0 {
