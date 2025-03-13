@@ -194,6 +194,13 @@ class GenkitRegistry:
             metadata: Optional metadata for the retriever.
         """
         retriever_meta = metadata if metadata else {}
+        if 'retriever' not in retriever_meta:
+            retriever_meta['retriever'] = {}
+        if (
+            'label' not in retriever_meta['retriever']
+            or not retriever_meta['retriever']['label']
+        ):
+            retriever_meta['retriever']['label'] = name
         if config_schema:
             retriever_meta['retriever']['customOptions'] = to_json_schema(
                 config_schema
