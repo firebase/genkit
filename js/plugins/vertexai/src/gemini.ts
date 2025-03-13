@@ -808,7 +808,24 @@ export function defineGeminiModel({
   }
   if (modelInfo?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
-    middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
+    middlewares.push(
+      downloadRequestMedia({
+        maxBytes: 1024 * 1024 * 20,
+        filter: (part) => {
+          try {
+            const url = new URL(part.media.url);
+            if (
+              // Gemini can handle these URLs
+              ['www.youtube.com', 'youtube.com', 'youtu.be'].includes(
+                url.hostname
+              )
+            )
+              return false;
+          } catch {}
+          return true;
+        },
+      })
+    );
   }
 
   return ai.defineModel(
