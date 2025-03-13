@@ -6,6 +6,7 @@
 import asyncio
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (

@@ -6,7 +6,7 @@
 from enum import StrEnum
 from typing import Any
 
-from genkit.core.typing import EmbedRequest, EmbedResponse, Embedding
+from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
 
