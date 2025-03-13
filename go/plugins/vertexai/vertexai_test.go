@@ -18,8 +18,10 @@ import (
 // The tests here only work with a project set to a valid value.
 // The user running these tests must be authenticated, for example by
 // setting a valid GOOGLE_APPLICATION_CREDENTIALS environment variable.
-var projectID = flag.String("projectid", "", "VertexAI project")
-var location = flag.String("location", "us-central1", "geographic location")
+var (
+	projectID = flag.String("projectid", "", "VertexAI project")
+	location  = flag.String("location", "us-central1", "geographic location")
+)
 
 func TestLive(t *testing.T) {
 	if *projectID == "" {
@@ -40,7 +42,8 @@ func TestLive(t *testing.T) {
 		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			return math.Pow(input.Value, input.Over), nil
 		},
 	)
@@ -91,8 +94,7 @@ func TestLive(t *testing.T) {
 			t.Errorf("expecting more than one part")
 		}
 		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
-			// TODO: vertexai client doesn't return stats in streaming mode.
-			//t.Errorf("Empty usage stats %#v", *final.Usage)
+			t.Errorf("Empty usage stats %#v", *final.Usage)
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
