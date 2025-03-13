@@ -10,7 +10,6 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -75,8 +74,9 @@ func pr03() error {
 		g,
 		"prompts",
 		"helloPrompt",
-		prompt.WithInputType(HelloPromptInput{}),
-		prompt.WithSystemFn(func(ctx context.Context, input any) (string, error) {
+		ai.WithModel(model),
+		ai.WithInputType(HelloPromptInput{}),
+		ai.WithSystemFn(func(ctx context.Context, input any) (string, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
 				return "", errors.New("input doesn't satisfy schema")
@@ -94,7 +94,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil, nil)
+	response, err := genkit.GenerateWithRequest(context.Background(), g, request, nil, nil)
 	// [END pr03_2]
 
 	_ = response
