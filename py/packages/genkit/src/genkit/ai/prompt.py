@@ -33,6 +33,7 @@ from genkit.core.typing import (
     Role,
     TextPart,
     ToolChoice,
+    DocumentData,
 )
 
 
@@ -293,8 +294,8 @@ def to_generate_action_options(
     output_instructions: bool | str | None = None,
     output_schema: type | dict[str, Any] | None = None,
     output_constrained: bool | None = None,
+    docs: list[DocumentData] | None = None,
     # TODO:
-    #  docs: list[Document]
     #  resume: ResumeOptions
 ) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
@@ -315,6 +316,7 @@ def to_generate_action_options(
         output_instructions: Instructions for formatting the output.
         output_schema: The output schema.
         output_constrained: Whether the output should be constrained to the output schema.
+        docs: A list of documents to be used for grounding.
 
     Returns:
         A GenerateActionOptions object.
@@ -362,6 +364,7 @@ def to_generate_action_options(
         tool_choice=tool_choice,
         output=output,
         max_turns=max_turns,
+        docs=docs,
     )
 
 

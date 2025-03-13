@@ -69,7 +69,7 @@ class MessageWrapper(Message):
         Returns:
             str: The combined text content from the current chunk.
         """
-        return _text_from_message(self)
+        return text_from_message(self)
 
 
 class GenerateResponseWrapper(GenerateResponse):
@@ -205,12 +205,12 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         return extract_json(self.accumulated_text)
 
 
-def _text_from_message(msg: Message) -> str:
+def text_from_message(msg: Message) -> str:
     """Extracts text from message object."""
-    return _text_from_content(msg.content)
+    return text_from_content(msg.content)
 
 
-def _text_from_content(content: list[Part]) -> str:
+def text_from_content(content: list[Part]) -> str:
     """Extracts text from message content (parts)."""
     return ''.join(
         p.root.text if p.root.text is not None else '' for p in content
