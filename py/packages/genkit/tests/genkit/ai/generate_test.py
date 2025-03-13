@@ -10,17 +10,22 @@ import pathlib
 import pytest
 import yaml
 from genkit.ai.generate import generate_action
-from genkit.ai.testing_utils import define_programmable_model
+from genkit.ai.model import _text_from_content, _text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
     FinishReason,
     GenerateActionOptions,
+    GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Message,
     Role,
     TextPart,
+)
+from genkit.testing import (
+    define_echo_model,
+    define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
 from pydantic import TypeAdapter
@@ -53,7 +58,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
-            model='programmableModel',
+            model='test/programmableModel',
             messages=[
                 Message(
                     role=Role.USER,
@@ -64,6 +69,224 @@ async def test_simple_text_generate_request(setup_test) -> None:
     )
 
     assert response.text == 'bye'
+
+
+@pytest.mark.asyncio
+async def test_generate_applies_middleware(
+    setup_test,
+) -> None:
+    """When middleware is provided, apply it."""
+    ai, *_ = setup_test
+    define_echo_model(ai)
+
+    async def pre_middle(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER, content=[TextPart(text=f'PRE {txt}')]
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def post_middle(req, ctx, next):
+        resp: GenerateResponse = await next(req, ctx)
+        txt = _text_from_message(resp.message)
+        return GenerateResponse(
+            finishReason=resp.finish_reason,
+            message=Message(
+                role=Role.USER, content=[TextPart(text=f'{txt} POST')]
+            ),
+        )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='echoModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text='hi')],
+                ),
+            ],
+        ),
+        middleware=[pre_middle, post_middle],
+    )
+
+    assert response.text == '[ECHO] user: "PRE hi" POST'
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_next_fn_args_optional(
+    setup_test,
+) -> None:
+    """Can call next function without args (convenience)."""
+    ai, *_ = setup_test
+    define_echo_model(ai)
+
+    async def post_middle(_, __, next):
+        resp: GenerateResponse = await next()
+        txt = _text_from_message(resp.message)
+        return GenerateResponse(
+            finishReason=resp.finish_reason,
+            message=Message(
+                role=Role.USER, content=[TextPart(text=f'{txt} POST')]
+            ),
+        )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='echoModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text='hi')],
+                ),
+            ],
+        ),
+        middleware=[post_middle],
+    )
+
+    assert response.text == '[ECHO] user: "hi" POST'
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_can_modify_context(
+    setup_test,
+) -> None:
+    """Test that middleware can modify context."""
+    ai, *_ = setup_test
+    define_echo_model(ai)
+
+    async def add_context(req, ctx, next):
+        return await next(
+            req, ActionRunContext(context={**ctx.context, 'banana': True})
+        )
+
+    async def inject_context(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[TextPart(text=f'{txt} {ctx.context}')],
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='echoModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text='hi')],
+                ),
+            ],
+        ),
+        middleware=[add_context, inject_context],
+        context={'foo': 'bar'},
+    )
+
+    assert (
+        response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_middleware_can_modify_stream(
+    setup_test,
+) -> None:
+    """Test that middleware can modify streams."""
+    ai, pm = setup_test
+
+    pm.responses.append(
+        GenerateResponse(
+            finishReason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[TextPart(text='bye')]),
+        )
+    )
+    pm.chunks = [
+        [
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='1')]
+            ),
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='2')]
+            ),
+            GenerateResponseChunk(
+                role=Role.MODEL, content=[TextPart(text='3')]
+            ),
+        ]
+    ]
+
+    async def modify_stream(req, ctx, next):
+        ctx.send_chunk(
+            GenerateResponseChunk(
+                role=Role.MODEL,
+                content=[TextPart(text='something extra before')],
+            )
+        )
+
+        def chunk_handler(chunk):
+            ctx.send_chunk(
+                GenerateResponseChunk(
+                    role=Role.MODEL,
+                    content=[
+                        TextPart(
+                            text=f'intercepted: {_text_from_content(chunk.content)}'
+                        )
+                    ],
+                )
+            )
+
+        resp = await next(
+            req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler)
+        )
+        ctx.send_chunk(
+            GenerateResponseChunk(
+                role='model',
+                content=[TextPart(text='something extra after')],
+            )
+        )
+        return resp
+
+    got_chunks = []
+
+    def collect_chunks(c):
+        got_chunks.append(_text_from_content(c.content))
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='test/programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text='hi')],
+                ),
+            ],
+        ),
+        middleware=[modify_stream],
+        on_chunk=collect_chunks,
+    )
+
+    assert response.text == 'bye'
+    assert got_chunks == [
+        'something extra before',
+        'intercepted: 1',
+        'intercepted: 2',
+        'intercepted: 3',
+        'something extra after',
+    ]
 
 
 ##########################################################################

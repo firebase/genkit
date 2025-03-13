@@ -13,12 +13,15 @@ from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    Media,
+    MediaPart,
     Message,
     Role,
     TextPart,
 )
 from genkit.plugins.vertex_ai import (
     EmbeddingModels,
+    EmbeddingsTaskType,
     GeminiVersion,
     VertexAI,
     vertexai_name,
@@ -95,9 +98,11 @@ async def embed_docs(docs: list[str]):
     Returns:
         The generated embedding.
     """
+    options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=docs,
+        options=options,
     )
 
 
@@ -208,18 +213,18 @@ async def main() -> None:
 def my_model(request: GenerateRequest, ctx: ActionRunContext):
     if ctx.is_streaming:
         ctx.send_chunk(
-            GenerateResponseChunk(role='model', content=[TextPart(text='1')])
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')])
         )
         ctx.send_chunk(
-            GenerateResponseChunk(role='model', content=[TextPart(text='2')])
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='2')])
         )
         ctx.send_chunk(
-            GenerateResponseChunk(role='model', content=[TextPart(text='3')])
+            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')])
         )
 
     return GenerateResponse(
         message=Message(
-            role='model',
+            role=Role.MODEL,
             content=[TextPart(text='hello')],
         )
     )
@@ -231,8 +236,43 @@ ai.define_model(name='my_model', fn=my_model)
 @ai.flow()
 async def streaming_model_tester(_: str, ctx: ActionRunContext):
     stream, res = ai.generate_stream(
-        prompt='tell me a long joke', model='my_model'
+        prompt='tell me a long joke',
+        model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
     )
+
+    async for chunk in stream:
+        print(chunk.text)
+        ctx.send_chunk(f'chunk: {chunk.text}')
+
+    return (await res).text
+
+
+@ai.flow()
+async def describe_picture(url: str):
+    return await ai.generate(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    TextPart(text='What is shown in this image?'),
+                    MediaPart(media=Media(contentType='image/jpg', url=url)),
+                ],
+            ),
+        ],
+    )
+
+
+myprompt = ai.define_prompt(model='my_model', prompt='tell me a long dad joke')
+
+
+@ai.flow()
+async def call_a_prompt(_: str):
+    return (await myprompt()).text
+
+
+@ai.flow()
+async def stream_a_prompt(_: str, ctx: ActionRunContext):
+    stream, res = myprompt.stream()
 
     async for chunk in stream:
         ctx.send_chunk(f'chunk: {chunk.text}')

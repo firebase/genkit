@@ -15,10 +15,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// structured output
-type GameCharacter struct {
-	Name      string
-	Backstory string
+type StructuredResponse struct {
+	Subject  string
+	Location string
 }
 
 var r, _ = registry.New()
@@ -46,12 +45,12 @@ var (
 		textResponse := ""
 		for _, m := range gr.Messages {
 			if m.Role == RoleUser {
-				textResponse += m.Content[0].Text
+				textResponse = m.Text()
 			}
 		}
 		return &ModelResponse{
 			Request: gr,
-			Message: NewUserTextMessage(textResponse),
+			Message: NewModelTextMessage(textResponse),
 		}, nil
 	})
 )
@@ -220,61 +219,52 @@ func TestValidMessage(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
+	JSON := "\n{\"subject\": \"bananas\", \"location\": \"tropics\"}\n"
+	JSONmd := "```json" + JSON + "```"
+
+	bananaModel := DefineModel(r, "test", "banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+		if msc != nil {
+			msc(ctx, &ModelResponseChunk{
+				Content: []*Part{NewTextPart("stream!")},
+			})
+		}
+
+		return &ModelResponse{
+			Request: gr,
+			Message: NewModelTextMessage(JSONmd),
+		}, nil
+	})
+
 	t.Run("constructs request", func(t *testing.T) {
-		charJSON := "{\"Name\": \"foo\", \"Backstory\": \"bar\"}"
-		charJSONmd := "```json" + charJSON + "```"
-		wantText := charJSON
+		wantText := JSON
+		wantStreamText := "stream!"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
-				// system prompt -- always first
+				NewSystemTextMessage("You are a helpful assistant."),
+				NewUserTextMessage("How many bananas are there?"),
+				NewModelTextMessage("There are at least 10 bananas."),
 				{
-					Role:    RoleSystem,
-					Content: []*Part{{ContentType: "plain/text", Text: "you are"}},
-				},
-				// then history
-				{
-					Role: "user",
+					Role: RoleUser,
 					Content: []*Part{
-						{ContentType: "plain/text", Text: "banana"},
-					},
-				},
-				{
-					Role: "model",
-					Content: []*Part{
-						{ContentType: "plain/text", Text: "yes, banana"},
-					},
-				},
-				// then messages in order specified
-				{
-					Role: "user",
-					Content: []*Part{
-						{ContentType: "plain/text", Text: charJSONmd},
-					},
-				},
-				{
-					Role: "model",
-					Content: []*Part{
-						{ContentType: "plain/text", Text: "banana again"},
-						// structured output prompt
+						NewTextPart("Where can they be found?"),
 						{
 							ContentType: "plain/text",
-							Text:        "!!Ignored!!", // structured output prompt, noisy, ignored
+							Text:        "ignored (conformance message)",
 						},
 					},
 				},
 			},
-			Config:  GenerationCommonConfig{Temperature: 1},
-			Context: []*Document{&Document{Content: []*Part{NewTextPart("Banana")}}},
+			Config:  &GenerationCommonConfig{Temperature: 1},
+			Context: []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
 			Output: &ModelRequestOutput{
-				Format: "json",
+				Format: OutputFormatJSON,
 				Schema: map[string]any{
-					"$id":                  string("https://github.com/firebase/genkit/go/ai/game-character"),
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
-						"Backstory": map[string]any{"type": string("string")},
-						"Name":      map[string]any{"type": string("string")},
+						"subject":  map[string]any{"type": string("string")},
+						"location": map[string]any{"type": string("string")},
 					},
-					"required": []any{string("Name"), string("Backstory")},
+					"required": []any{string("subject"), string("location")},
 					"type":     string("object"),
 				},
 			},
@@ -287,43 +277,44 @@ func TestGenerate(t *testing.T) {
 							"Over":  map[string]any{"type": string("number")},
 							"Value": map[string]any{"type": string("number")},
 						},
-						"required": []any{
-							string("Value"),
-							string("Over"),
-						},
-						"type": string("object"),
+						"required": []any{string("Value"), string("Over")},
+						"type":     string("object"),
 					},
 					Name:         "gablorken",
 					OutputSchema: map[string]any{"type": string("number")},
 				},
 			},
+			ToolChoice: ToolChoiceAuto,
 		}
 
-		wantStreamText := "stream!"
 		streamText := ""
 		res, err := Generate(context.Background(), r,
-			WithModel(echoModel),
-			WithPromptText(charJSONmd),
-			WithSystemText("you are"),
+			WithModel(bananaModel),
+			WithSystemText("You are a helpful assistant."),
+			WithMessages(
+				NewUserTextMessage("How many bananas are there?"),
+				NewModelTextMessage("There are at least 10 bananas."),
+			),
+			WithPromptText("Where can they be found?"),
 			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
-			WithMessages(
-				NewUserTextMessage("banana"),
-				NewModelTextMessage("yes, banana"),
-				NewModelTextMessage("banana again"),
-			),
-			WithDocs(&Document{Content: []*Part{NewTextPart("Banana")}}),
-			WithOutputType(&GameCharacter{}),
+			WithDocs(DocumentFromText("Bananas are plentiful in the tropics.", nil)),
+			WithOutputType(struct {
+				Subject  string `json:"subject"`
+				Location string `json:"location"`
+			}{}),
 			WithTools(gablorkenTool),
+			WithToolChoice(ToolChoiceAuto),
 			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
 				streamText += grc.Text()
 				return nil
 			}),
 		)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
+
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
@@ -332,7 +323,7 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
-			"{*ai.ModelRequest}.Messages[4].Content[1].Text",
+			"{*ai.ModelRequest}.Messages[3].Content[1].Text",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}
@@ -601,7 +592,7 @@ func TestGenerate(t *testing.T) {
 			t.Error("middleware was not called")
 		}
 
-		expectedText := "test middlewaremiddleware was here"
+		expectedText := "middleware was here"
 		if res.Text() != expectedText {
 			t.Errorf("got text %q, want %q", res.Text(), expectedText)
 		}

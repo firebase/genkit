@@ -10,8 +10,9 @@ source .venv/bin/activate
 
 ## Run the sample
 
-The sample generates the image of flower in a folder you run it on
+The sample generates images of flower in a folder you run it on
 in a directory you mention by --directory.
+You can specify the number of images in the example.
 
 The command to run:
 

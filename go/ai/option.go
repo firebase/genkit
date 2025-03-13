@@ -278,7 +278,7 @@ func WithMetadata(metadata map[string]any) PromptOption {
 
 // WithInputType uses the type provided to derive the input schema.
 // The inputted value will serve as the default input if no input is given at generation time.
-func WithInputType(input any) *promptOptions {
+func WithInputType(input any) PromptOption {
 	// TODO: Switch case is incomplete and neither covers all types nor is opinionated.
 
 	var defaultInput map[string]any
@@ -401,28 +401,38 @@ type outputOptions struct {
 // OutputOption is an option for the output of a prompt or generate request.
 // It applies only to DefinePrompt() and Generate().
 type OutputOption interface {
+	applyOutput(*outputOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
 }
 
-// applyPrompt applies the option to the prompt options.
-func (o *outputOptions) applyPrompt(opts *promptOptions) error {
-	if opts.OutputSchema != nil || opts.OutputFormat != "" {
-		return errors.New("cannot set output options more than once (WithOutputType)")
+// applyOutput applies the option to the output options.
+func (o *outputOptions) applyOutput(opts *outputOptions) error {
+	if o.OutputSchema != nil {
+		if opts.OutputSchema != nil {
+			return errors.New("cannot set output schema more than once (WithOutputType)")
+		}
+		opts.OutputSchema = o.OutputSchema
 	}
-	opts.outputOptions = *o
+
+	if o.OutputFormat != "" {
+		if opts.OutputFormat != "" {
+			return errors.New("cannot set output format more than once (WithOutputFormat)")
+		}
+		opts.OutputFormat = o.OutputFormat
+	}
 
 	return nil
 }
 
-// applyGenerate applies the option to the generate options.
-func (o *outputOptions) applyGenerate(opts *generateOptions) error {
-	if opts.OutputSchema != nil || opts.OutputFormat != "" {
-		return errors.New("cannot set output options more than once (WithOutputType)")
-	}
-	opts.outputOptions = *o
+// applyPrompt applies the option to the prompt options.
+func (o *outputOptions) applyPrompt(pOpts *promptOptions) error {
+	return o.applyOutput(&pOpts.outputOptions)
+}
 
-	return nil
+// applyGenerate applies the option to the generate options.
+func (o *outputOptions) applyGenerate(genOpts *generateOptions) error {
+	return o.applyOutput(&genOpts.outputOptions)
 }
 
 // WithOutputType sets the schema and format of the output based on the value provided.

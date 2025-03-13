@@ -9,13 +9,7 @@ import json
 
 import pytest
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import MessageWrapper
-from genkit.ai.testing_utils import (
-    EchoModel,
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
-)
+from genkit.ai.model import MessageWrapper, _text_from_message
 from genkit.core.typing import (
     FinishReason,
     GenerateRequest,
@@ -30,10 +24,16 @@ from genkit.core.typing import (
     TextPart,
     ToolChoice,
     ToolDefinition,
-    ToolRequest1,
+    ToolRequest,
     ToolRequestPart,
-    ToolResponse1,
+    ToolResponse,
     ToolResponsePart,
+)
+from genkit.testing import (
+    EchoModel,
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
 from pydantic import BaseModel, Field
@@ -308,7 +308,9 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
         tools=['testTool'],
     )
 
-    want_txt = f'[ECHO] user: "hi" tool_choice={ToolChoice.REQUIRED}'
+    want_txt = (
+        f'[ECHO] user: "hi" tools=testTool tool_choice={ToolChoice.REQUIRED}'
+    )
 
     want_request = [
         ToolDefinition(
@@ -361,7 +363,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
             role=Role.MODEL,
             content=[
                 ToolRequestPart(
-                    toolRequest=ToolRequest1(
+                    toolRequest=ToolRequest(
                         input={'value': 5}, name='testTool', ref='123'
                     )
                 )
@@ -384,7 +386,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     )
 
     response = await ai.generate(
-        model='programmableModel',
+        model='test/programmableModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
@@ -399,7 +401,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         role=Role.TOOL,
         content=[
             ToolResponsePart(
-                tool_response=ToolResponse1(
+                tool_response=ToolResponse(
                     ref='123', name='testTool', output='abc'
                 )
             )
@@ -443,7 +445,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
             role=Role.MODEL,
             content=[
                 ToolRequestPart(
-                    toolRequest=ToolRequest1(
+                    toolRequest=ToolRequest(
                         input={'value': 5}, name='testTool', ref='123'
                     )
                 )
@@ -479,7 +481,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     ]
 
     stream, aresponse = ai.generate_stream(
-        model='programmableModel',
+        model='test/programmableModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
@@ -507,7 +509,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         role=Role.TOOL,
         content=[
             ToolResponsePart(
-                tool_response=ToolResponse1(
+                tool_response=ToolResponse(
                     ref='123', name='testTool', output='abc'
                 )
             )
@@ -546,7 +548,7 @@ async def test_generate_stream_no_need_to_await_response(
         ],
     ]
 
-    stream, _ = ai.generate_stream(model='programmableModel', prompt='do it')
+    stream, _ = ai.generate_stream(model='test/programmableModel', prompt='do it')
     chunks = ''
     async for chunk in stream:
         chunks += chunk.text
@@ -740,6 +742,127 @@ async def test_generate_json_format_unconstrained(
 
 
 @pytest.mark.asyncio
+async def test_generate_with_middleware(
+    setup_test: SetupFixture,
+) -> None:
+    """When middleware is provided, applies it."""
+    ai, *_ = setup_test
+
+    async def pre_middle(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER, content=[TextPart(text=f'PRE {txt}')]
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def post_middle(req, ctx, next):
+        resp: GenerateResponse = await next(req, ctx)
+        txt = _text_from_message(resp.message)
+        return GenerateResponse(
+            finishReason=resp.finish_reason,
+            message=Message(
+                role=Role.USER, content=[TextPart(text=f'{txt} POST')]
+            ),
+        )
+
+    want = '[ECHO] user: "PRE hi" POST'
+
+    response = await ai.generate(
+        model='echoModel', prompt='hi', use=[pre_middle, post_middle]
+    )
+
+    assert response.text == want
+
+    _, response = ai.generate_stream(
+        model='echoModel', prompt='hi', use=[pre_middle, post_middle]
+    )
+
+    assert (await response).text == want
+
+
+@pytest.mark.asyncio
+async def test_generate_passes_through_current_action_context(
+    setup_test,
+) -> None:
+    """Test that generate uses current action context by default."""
+    ai, *_ = setup_test
+
+    async def inject_context(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[TextPart(text=f'{txt} {ctx.context}')],
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def action_fn():
+        return await ai.generate(
+            model='echoModel', prompt='hi', use=[inject_context]
+        )
+
+    action = ai.registry.register_action(
+        name='test_action', kind='custom', fn=action_fn
+    )
+    action_response = await action.arun(context={'foo': 'bar'})
+
+    assert (
+        action_response.response.text == '''[ECHO] user: "hi {'foo': 'bar'}"'''
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_uses_explicitly_passed_in_context(
+    setup_test,
+) -> None:
+    """Test that generate will use explicitly passed in context instead of
+    current action action context."""
+    ai, *_ = setup_test
+
+    async def inject_context(req, ctx, next):
+        txt = ''.join(_text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(
+                        role=Role.USER,
+                        content=[TextPart(text=f'{txt} {ctx.context}')],
+                    ),
+                ],
+            ),
+            ctx,
+        )
+
+    async def action_fn():
+        return await ai.generate(
+            model='echoModel',
+            prompt='hi',
+            use=[inject_context],
+            context={'bar': 'baz'},
+        )
+
+    action = ai.registry.register_action(
+        name='test_action', kind='custom', fn=action_fn
+    )
+    action_response = await action.arun(context={'foo': 'bar'})
+
+    assert (
+        action_response.response.text == '''[ECHO] user: "hi {'bar': 'baz'}"'''
+    )
+
+
+@pytest.mark.asyncio
 async def test_generate_json_format_unconstrained_with_instructions(
     setup_test: SetupFixture,
 ) -> None:
@@ -880,7 +1003,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     chunks = []
 
     stream, aresponse = ai.generate_stream(
-        model='programmableModel',
+        model='test/programmableModel',
         prompt='hi',
         output_format='banana',
         output_schema=TestSchema,

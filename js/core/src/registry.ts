@@ -30,17 +30,17 @@ export type AsyncProvider<T> = () => Promise<T>;
  */
 export type ActionType =
   | 'custom'
-  | 'retriever'
-  | 'indexer'
   | 'embedder'
   | 'evaluator'
+  | 'executable-prompt'
   | 'flow'
+  | 'indexer'
   | 'model'
   | 'prompt'
-  | 'executable-prompt'
-  | 'util'
+  | 'reranker'
+  | 'retriever'
   | 'tool'
-  | 'reranker';
+  | 'util';
 
 /**
  * A schema is either a Zod schema or a JSON schema.

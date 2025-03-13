@@ -11,6 +11,7 @@ uninterrupted operations that can operate in streaming or non-streaming mode.
 import asyncio
 import inspect
 from collections.abc import Callable
+from contextvars import ContextVar
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
@@ -23,6 +24,10 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 StreamingCallback = Callable[[Any], None]
 
 
+_action_context: ContextVar[dict[str, Any] | None] = ContextVar('context')
+_action_context.set(None)
+
+
 class ActionKind(StrEnum):
     """Enumerates all the types of action that can be registered.
 
@@ -30,16 +35,16 @@ class ActionKind(StrEnum):
     including chat models, embedders, evaluators, and other utility functions.
     """
 
-    CHATLLM = 'chat-llm'
     CUSTOM = 'custom'
     EMBEDDER = 'embedder'
     EVALUATOR = 'evaluator'
+    EXECUTABLE_PROMPT = 'executable-prompt'
     FLOW = 'flow'
     INDEXER = 'indexer'
     MODEL = 'model'
     PROMPT = 'prompt'
+    RERANKER = 'reranker'
     RETRIEVER = 'retriever'
-    TEXTLLM = 'text-llm'
     TOOL = 'tool'
     UTIL = 'util'
 
@@ -104,8 +109,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
 
 
 def parse_plugin_name_from_action_name(name: str) -> str | None:
-    """
-    Parses the plugin name from an action name.
+    """Parses the plugin name from an action name.
 
     As per convention, the plugin name is optional. If present, it's the first
     part of the action name, separated by a forward slash: `pluginname/*`.
@@ -119,6 +123,7 @@ def parse_plugin_name_from_action_name(name: str) -> str | None:
     tokens = name.split('/')
     if len(tokens) > 1:
         return tokens[0]
+    return None
 
 
 def create_action_key(kind: ActionKind, name: str) -> str:
@@ -148,7 +153,7 @@ class ActionRunContext:
     def __init__(
         self,
         on_chunk: StreamingCallback | None = None,
-        context: Any | None = None,
+        context: dict[str, Any] | None = None,
     ):
         """Initialize an ActionRunContext.
 
@@ -163,16 +168,30 @@ class ActionRunContext:
 
     @cached_property
     def is_streaming(self) -> bool:
-        """Returns true if context contains on chunk callback, False otherwise"""
+        """Determines whether context contains on chunk callback.
+
+        Returns:
+            Boolean indicating whether the context contains a streaming
+            callback.
+        """
         return self._on_chunk != noop_streaming_callback
 
-    def send_chunk(self, chunk: Any):
+    def send_chunk(self, chunk: Any) -> None:
         """Send a chunk to from the action to the client.
 
         Args:
             chunk: The chunk to send to the client.
         """
         self._on_chunk(chunk)
+
+    @staticmethod
+    def _current_context() -> dict[str, Any] | None:
+        """Obtains current context if running within an action.
+
+        Returns:
+            The current context if running within an action, None otherwise.
+        """
+        return _action_context.get(None)
 
 
 class Action:
@@ -331,9 +350,13 @@ class Action:
             The action response.
         """
         # TODO: handle telemetry_labels
-        # TODO: propagate context down the callstack via contextvars
+
+        if context:
+            _action_context.set(context)
+
         return self.__fn(
-            input, ActionRunContext(on_chunk=on_chunk, context=context)
+            input,
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
         )
 
     async def arun(
@@ -355,9 +378,15 @@ class Action:
             The action response.
         """
         # TODO: handle telemetry_labels
-        # TODO: propagate context down the callstack via contextvars
+
+        if context:
+            _action_context.set(context)
+
         return await self.__afn(
-            input, ActionRunContext(on_chunk=on_chunk, context=context)
+            input,
+            ActionRunContext(
+                on_chunk=on_chunk, context=_action_context.get(None)
+            ),
         )
 
     async def arun_raw(
@@ -380,7 +409,7 @@ class Action:
         """
         input_action = (
             self.input_type.validate_python(raw_input)
-            if self.input_type != None
+            if self.input_type is not None
             else None
         )
         return await self.arun(

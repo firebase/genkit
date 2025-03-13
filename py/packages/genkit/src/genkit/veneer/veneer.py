@@ -1,7 +1,79 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Veneer user-facing API for application developers who use the SDK."""
+"""User-facing API for Genkit.
+
+To use Genkit in your application, construct an instance of the `Genkit`
+class while customizing it with any plugins, models, and tooling.  Then use the
+instance to define application flows.
+
+??? example "Examples"
+
+    === "Chat bot"
+
+        ```python
+        # TODO
+        ai = Genkit(...)
+
+        @ai.flow()
+        async def foo(...):
+            await ...
+        ```
+
+    === "Structured Output"
+
+
+        ```python
+        # TODO
+        ai = Genkit(...)
+
+        @ai.flow()
+        async def foo(...):
+            await ...
+        ```
+
+    === "Tool Calling"
+
+
+        ```python
+        # TODO
+        ai = Genkit(...)
+
+        @ai.flow()
+        async def foo(...):
+            await ...
+        ```
+
+## Operations
+
+The `Genkit` class defines the following methods to allow users to generate
+content, define flows, define formats, etc.
+
+| Category         | Method                                                                       | Description                          |
+|------------------|------------------------------------------------------------------------------|--------------------------------------|
+| **AI**           | [`generate()`][genkit.veneer.veneer.Genkit.generate]                         | Generates content.                   |
+|                  | [`generate_stream()`][genkit.veneer.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
+|                  | [`embed()`][genkit.veneer.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
+| **Registration** | [`define_embedder()`][genkit.veneer.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
+|                  | [`define_format()`][genkit.veneer.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
+|                  | [`define_model()`][genkit.veneer.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
+
+??? info "Under the hood"
+
+    Creating an instance of [Genkit][genkit.veneer.veneer.Genkit]:
+
+    * creates a runtime configuration in the working directory
+    * initializes a registry of actions including plugins, formats, etc.
+    * starts server daemons to expose actions over HTTP
+
+    The following servers are started depending on the environment:
+
+    | Server Type | Purpose                                                         | Notes                                                   |
+    |-------------|-----------------------------------------------------------------|---------------------------------------------------------|
+    | Reflection  | Development-time API for inspecting and interacting with Genkit | Only starts in development mode (`GENKIT_ENV=dev`).     |
+    | Flow        | Exposes registered flows as HTTP endpoints                      | Main server for production environment.                 |
+
+"""
 
 import logging
 import os
@@ -18,20 +90,18 @@ from genkit.ai.generate import generate_action
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
+    ModelMiddleware,
 )
-from genkit.core.action import ActionKind
+from genkit.ai.prompt import to_generate_action_options
+from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
-    GenerateActionOptions,
-    GenerateActionOutputConfig,
     GenerationCommonConfig,
     Message,
     Part,
-    Role,
-    TextPart,
     ToolChoice,
 )
 from genkit.veneer import server
@@ -46,20 +116,27 @@ logger = logging.getLogger(__name__)
 
 
 class Genkit(GenkitRegistry):
-    """Veneer user-facing API for application developers who use the SDK."""
+    """Veneer user-facing API for application developers who use the SDK.
+
+    The methods exposed by the
+    [GenkitRegistry][genkit.veneer.registry.GenkitRegistry] class are also part
+    of the API.
+
+
+    """
 
     def __init__(
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec=DEFAULT_REFLECTION_SERVER_SPEC,
+        reflection_server_spec: server.ServerSpec = DEFAULT_REFLECTION_SERVER_SPEC,
     ) -> None:
         """Initialize a new Genkit instance.
 
         Args:
-            plugins: Optional list of plugins to initialize.
-            model: Optional model name to use.
-            reflection_server_spec: Optional server spec for the reflection
+            plugins: List of plugins to initialize.
+            model: Model name to use.
+            reflection_server_spec: Server spec for the reflection
                 server.
         """
         super().__init__()
@@ -134,9 +211,9 @@ class Genkit(GenkitRegistry):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = None,
         # TODO:
         #  docs: list[Document]
-        #  use: list[ModelMiddleware]
         #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
@@ -181,6 +258,10 @@ class Genkit(GenkitRegistry):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            use: Optional. A list of `ModelMiddleware` functions to apply to the
+                generation process. Middleware can be used to intercept and
+                modify requests and responses.
+
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -193,58 +274,28 @@ class Genkit(GenkitRegistry):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        model = model or self.registry.default_model
-        if model is None:
-            raise Exception('No model configured.')
-        if (
-            config
-            and not isinstance(config, GenerationCommonConfig)
-            and not isinstance(config, dict)
-        ):
-            raise AttributeError('Invalid generate config provided')
-
-        resolved_msgs: list[Message] = []
-        if system:
-            resolved_msgs.append(
-                Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
-            )
-        if messages:
-            resolved_msgs += messages
-        if prompt:
-            resolved_msgs.append(
-                Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
-            )
-
-        # If is schema is set but format is not explicitly set, default to
-        # `json` format.
-        if output_schema and not output_format:
-            output_format = 'json'
-
-        output = GenerateActionOutputConfig()
-        if output_format:
-            output.format = output_format
-        if output_content_type:
-            output.content_type = output_content_type
-        if output_instructions is not None:
-            output.instructions = output_instructions
-        if output_schema:
-            output.json_schema = to_json_schema(output_schema)
-        if output_constrained is not None:
-            output.constrained = output_constrained
-
         return await generate_action(
             self.registry,
-            GenerateActionOptions(
+            to_generate_action_options(
+                registry=self.registry,
                 model=model,
-                messages=resolved_msgs,
-                config=config,
+                prompt=prompt,
+                system=system,
+                messages=messages,
                 tools=tools,
                 return_tool_requests=return_tool_requests,
                 tool_choice=tool_choice,
-                output=output,
+                config=config,
                 max_turns=max_turns,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
             ),
             on_chunk=on_chunk,
+            middleware=use,
+            context=context if context else ActionRunContext._current_context(),
         )
 
     def generate_stream(
@@ -264,6 +315,7 @@ class Genkit(GenkitRegistry):
         output_instructions: bool | str | None = None,
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
@@ -296,9 +348,6 @@ class Genkit(GenkitRegistry):
                 containing configuration parameters for the generation process.
                 This allows fine-tuning the model's behavior.
             max_turns: Optional. The maximum number of turns in a conversation.
-            on_chunk: Optional. A callback function of type
-                `ModelStreamingCallback` that is called for each chunk of
-                generated text during streaming.
             context: Optional. A dictionary containing additional context
                 information that can be used during generation.
             output_format: Optional. The format to use for the output (e.g.,
@@ -310,6 +359,9 @@ class Genkit(GenkitRegistry):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
+            use: Optional. A list of `ModelMiddleware` functions to apply to the
+                generation process. Middleware can be used to intercept and
+                modify requests and responses.
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -340,6 +392,7 @@ class Genkit(GenkitRegistry):
             output_instructions=output_instructions,
             output_schema=output_schema,
             output_constrained=output_constrained,
+            use=use,
             on_chunk=lambda c: stream.send(c),
         )
         stream.set_close_future(resp)
@@ -347,13 +400,17 @@ class Genkit(GenkitRegistry):
         return (stream, stream.closed)
 
     async def embed(
-        self, model: str | None = None, documents: list[str] | None = None
+        self,
+        model: str | None = None,
+        documents: list[str] | None = None,
+        options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
-        """Calculates embeddings for the given texts.
+        """Calculates embeddings for documents.
 
         Args:
             model: Optional embedder model name to use.
             documents: Texts to embed.
+            options: embedding options
 
         Returns:
             The generated response with embeddings.
@@ -361,26 +418,7 @@ class Genkit(GenkitRegistry):
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
 
         return (
-            await embed_action.arun(EmbedRequest(documents=documents))
+            await embed_action.arun(
+                EmbedRequest(documents=documents, options=options)
+            )
         ).response
-
-
-def _normalize_prompt_arg(
-    prompt: str | Part | list[Part] | None,
-) -> list[Part] | None:
-    """Normalize the prompt argument to a list of `Part` objects.
-
-    This function ensures that the prompt argument is a list of `Part` objects,
-    which is the expected format for the `generate` function.
-
-    Args:
-        prompt: The prompt argument to normalize.
-    """
-    if not prompt:
-        return None
-    if isinstance(prompt, str):
-        return [TextPart(text=prompt)]
-    elif hasattr(prompt, '__len__'):
-        return prompt
-    else:
-        return [prompt]
