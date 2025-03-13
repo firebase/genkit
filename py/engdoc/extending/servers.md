@@ -13,7 +13,7 @@ the runtime. The initialization process deals with:
 * **Runtime files**: Reflection servers write metadata files to enable tool
   discovery (`<working-directory>/.genkit/runtimes/<timestamp>.json`).
 * **Traces**: Traces metadata (`<working-directory>/.genkit/traces`).
-  
+
 ## Types
 
 | Server Type               | Purpose                                                               | Implementation                            | Notes                                                   |
@@ -26,13 +26,13 @@ the runtime. The initialization process deals with:
 
 ## Networking
 
-| Server                   | Host        | Port                                     | Deployment Environment |
-|--------------------------|-------------|------------------------------------------|------------------------|
-| Flows                    | `localhost` | 3400 (override `PORT`)                   | `'dev'`, `'prod'`      |
-| Dev UI/Tools API         | `localhost` | 4000-4099                                | `'dev'`, `'prod'`      |
-| Reflection API           | `localhost` | 3100 (override `GENKIT_REFLECTION_PORT`) | `'dev'`                |
-| Telemetry                | `localhost` | 4033 (specified programmatically)        | `'dev'`, `'prod'`      |
-| Enginering documentation | `localhost` | 8000                                     | `'dev'`                |
+| Server                    | Host        | Port                                     | Deployment Environment |
+|---------------------------|-------------|------------------------------------------|------------------------|
+| Flows                     | `localhost` | 3400 (override `PORT`)                   | `'dev'`, `'prod'`      |
+| Dev UI/Tools API          | `localhost` | 4000-4099                                | `'dev'`, `'prod'`      |
+| Reflection API            | `localhost` | 3100 (override `GENKIT_REFLECTION_PORT`) | `'dev'`                |
+| Telemetry                 | `localhost` | 4033 (specified programmatically)        | `'dev'`, `'prod'`      |
+| Engineering documentation | `localhost` | 8000                                     | `'dev'`                |
 
 ## Implementations
 

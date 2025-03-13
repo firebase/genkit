@@ -27,123 +27,48 @@ import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
-import { DocumentDataSchema } from './document.js';
+import {
+  CustomPart,
+  CustomPartSchema,
+  DataPart,
+  DataPartSchema,
+  DocumentDataSchema,
+  MediaPart,
+  MediaPartSchema,
+  TextPart,
+  TextPartSchema,
+  ToolRequestPart,
+  ToolRequestPartSchema,
+  ToolResponsePart,
+  ToolResponsePartSchema,
+} from './document.js';
 import {
   augmentWithContext,
   simulateConstrainedGeneration,
   validateSupport,
 } from './model/middleware.js';
 export { defineGenerateAction } from './generate/action.js';
-export { simulateConstrainedGeneration };
+// Export imports from document.js to retain API compatibility
+export {
+  CustomPartSchema,
+  DataPartSchema,
+  MediaPartSchema,
+  simulateConstrainedGeneration,
+  TextPartSchema,
+  ToolRequestPartSchema,
+  ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
+};
 
 //
 // IMPORTANT: Please keep type definitions in sync with
 //   genkit-tools/src/types/model.ts
 //
-
-const EmptyPartSchema = z.object({
-  text: z.never().optional(),
-  media: z.never().optional(),
-  toolRequest: z.never().optional(),
-  toolResponse: z.never().optional(),
-  data: z.unknown().optional(),
-  metadata: z.record(z.unknown()).optional(),
-  custom: z.record(z.unknown()).optional(),
-});
-
-/**
- * Zod schema for a text part.
- */
-export const TextPartSchema = EmptyPartSchema.extend({
-  /** The text of the message. */
-  text: z.string(),
-});
-
-/**
- * Text part.
- */
-export type TextPart = z.infer<typeof TextPartSchema>;
-
-/**
- * Zod schema of a media part.
- */
-export const MediaPartSchema = EmptyPartSchema.extend({
-  media: z.object({
-    /** The media content type. Inferred from data uri if not provided. */
-    contentType: z.string().optional(),
-    /** A `data:` or `https:` uri containing the media content.  */
-    url: z.string(),
-  }),
-});
-
-/**
- * Media part.
- */
-export type MediaPart = z.infer<typeof MediaPartSchema>;
-
-/**
- * Zod schema of a tool request part.
- */
-export const ToolRequestPartSchema = EmptyPartSchema.extend({
-  /** A request for a tool to be executed, usually provided by a model. */
-  toolRequest: z.object({
-    /** The call id or reference for a specific request. */
-    ref: z.string().optional(),
-    /** The name of the tool to call. */
-    name: z.string(),
-    /** The input parameters for the tool, usually a JSON object. */
-    input: z.unknown().optional(),
-  }),
-});
-
-/**
- * Tool part.
- */
-export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
-
-/**
- * Zod schema of a tool response part.
- */
-export const ToolResponsePartSchema = EmptyPartSchema.extend({
-  /** A provided response to a tool call. */
-  toolResponse: z.object({
-    /** The call id or reference for a specific request. */
-    ref: z.string().optional(),
-    /** The name of the tool. */
-    name: z.string(),
-    /** The output data returned from the tool, usually a JSON object. */
-    output: z.unknown().optional(),
-  }),
-});
-
-/**
- * Tool response part.
- */
-export type ToolResponsePart = z.infer<typeof ToolResponsePartSchema>;
-
-/**
- * Zod schema of a data part.
- */
-export const DataPartSchema = EmptyPartSchema.extend({
-  data: z.unknown(),
-});
-
-/**
- * Data part.
- */
-export type DataPart = z.infer<typeof DataPartSchema>;
-
-/**
- * Zod schema of a custom part.
- */
-export const CustomPartSchema = EmptyPartSchema.extend({
-  custom: z.record(z.any()),
-});
-
-/**
- * Custom part.
- */
-export type CustomPart = z.infer<typeof CustomPartSchema>;
 
 /**
  * Zod schema of message part.

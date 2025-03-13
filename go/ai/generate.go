@@ -161,6 +161,26 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 	return (*modelActionDef)(action)
 }
 
+// LookupModelByName looks up a [Model] registered by [DefineModel].
+// It returns an error if the model was not defined.
+func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
+	if modelName == "" {
+		return nil, errors.New("generate.LookupModelByName: model not specified")
+	}
+
+	parts := strings.Split(modelName, "/")
+	if len(parts) != 2 {
+		return nil, errors.New("generate.LookupModelByName: prompt model not in provider/name format")
+	}
+
+	model := LookupModel(r, parts[0], parts[1])
+	if model == nil {
+		return nil, fmt.Errorf("generate.LookupModelByName: no model named %q for provider %q", parts[1], parts[0])
+	}
+
+	return model, nil
+}
+
 // generateParams represents various params of the Generate call.
 type generateParams struct {
 	Request            *ModelRequest
@@ -655,17 +675,24 @@ func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
 			return nil, errors.New("message has no content")
 		}
 
-		text := base.ExtractJSONFromMarkdown(m.Text())
-		var schemaBytes []byte
-		schemaBytes, err := json.Marshal(output.Schema)
-		if err != nil {
-			return nil, fmt.Errorf("expected schema is not valid: %w", err)
+		for i, part := range m.Content {
+			if !part.IsText() {
+				continue
+			}
+
+			text := base.ExtractJSONFromMarkdown(part.Text)
+
+			var schemaBytes []byte
+			schemaBytes, err := json.Marshal(output.Schema)
+			if err != nil {
+				return nil, fmt.Errorf("expected schema is not valid: %w", err)
+			}
+			if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
+				return nil, err
+			}
+
+			m.Content[i] = NewJSONPart(text)
 		}
-		if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
-			return nil, err
-		}
-		// TODO: Verify that it okay to replace all content with JSON.
-		m.Content = []*Part{NewJSONPart(text)}
 	}
 	return m, nil
 }

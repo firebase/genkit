@@ -52,7 +52,16 @@ export {
 };
 
 export interface PluginOptions {
-  apiKey?: string;
+  /**
+   * Provide the API key to use to authenticate with the Gemini API. By
+   * default, an API key must be provided explicitly here or through the
+   * `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variables.
+   *
+   * If `false` is explicitly passed, the plugin will be configured to
+   * expect an `apiKey` option to be provided to the model config at
+   * call time.
+   **/
+  apiKey?: string | false;
   apiVersion?: string | string[];
   baseUrl?: string;
   models?: (

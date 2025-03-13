@@ -4,6 +4,7 @@
 """Test Gemini models."""
 
 import pytest
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
@@ -12,6 +13,12 @@ from genkit.core.typing import (
     TextPart,
 )
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
+
+MULTILINE_CONTENT = [
+    'Hi, Gemini!',
+    'I have a question for you.',
+    'Where can I read a Genkit documentation?',
+]
 
 
 @pytest.mark.parametrize('version', [x for x in GeminiVersion])
@@ -36,7 +43,8 @@ def test_generate_text_response(mocker, version):
         'genkit.plugins.vertex_ai.gemini.Gemini.gemini_model', genai_model_mock
     )
 
-    response = gemini.handle_request(request)
+    ctx = ActionRunContext()
+    response = gemini.generate(request, ctx)
     assert isinstance(response, GenerateResponse)
     assert response.message.content[0].root.text == mocked_respond
 
@@ -50,3 +58,40 @@ def test_gemini_metadata(version):
     assert supports['media']
     assert supports['tools']
     assert supports['system_role']
+
+
+def test_built_gemini_message_multiple_parts():
+    request = GenerateRequest(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=x) for x in MULTILINE_CONTENT],
+            ),
+        ],
+    )
+    gemini = Gemini(GeminiVersion.GEMINI_1_5_FLASH)
+    result = gemini.build_messages(request)
+    assert isinstance(result, list)
+    assert isinstance(result[0].parts, list)
+    assert len(result[0].parts) == len(MULTILINE_CONTENT)
+
+    for part, text in zip(result[0].parts, MULTILINE_CONTENT):
+        assert part.text == text
+
+
+def test_built_gemini_message_multiple_messages():
+    request = GenerateRequest(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=text)],
+            )
+            for text in MULTILINE_CONTENT
+        ],
+    )
+    gemini = Gemini(GeminiVersion.GEMINI_1_5_FLASH)
+    result = gemini.build_messages(request)
+    assert isinstance(result, list)
+    assert len(result) == len(MULTILINE_CONTENT)
+    for message, text in zip(result, MULTILINE_CONTENT):
+        assert message.parts[0].text == text
