@@ -42,6 +42,10 @@ def test_parse_action_key_valid() -> None:
     test_cases = [
         ('/prompt/my-prompt', (ActionKind.PROMPT, 'my-prompt')),
         ('/model/gpt-4', (ActionKind.MODEL, 'gpt-4')),
+        (
+            '/model/vertexai/gemini-1.0',
+            (ActionKind.MODEL, 'vertexai/gemini-1.0'),
+        ),
         ('/custom/test-action', (ActionKind.CUSTOM, 'test-action')),
         ('/flow/my-flow', (ActionKind.FLOW, 'my-flow')),
     ]

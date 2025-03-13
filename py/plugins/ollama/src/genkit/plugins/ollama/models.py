@@ -83,10 +83,22 @@ class OllamaModel:
         messages = self.build_chat_messages(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
+        if request.output:
+            # ollama api either accepts 'json' literal, or the JSON schema
+            if request.output.schema_:
+                fmt = request.output.schema_
+            elif request.output.format:
+                fmt = request.output.format
+            else:
+                fmt = ''
+        else:
+            fmt = ''
+
         chat_response = await self.client.chat(
             model=self.model_definition.name,
             messages=messages,
             options=self.build_request_options(config=request.config),
+            format=fmt,
             stream=streaming_request,
         )
 
@@ -140,16 +152,18 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig,
+        config: GenerationCommonConfig | dict,
     ) -> ollama_api.Options:
-        if config:
-            return ollama_api.Options(
+        if isinstance(config, GenerationCommonConfig):
+            config = dict(
                 top_k=config.top_k,
                 top_p=config.top_p,
                 stop=config.stop_sequences,
                 temperature=config.temperature,
                 num_predict=config.max_output_tokens,
             )
+        if config:
+            return ollama_api.Options(**config)
 
     @staticmethod
     def build_prompt(request: GenerateRequest) -> str:
