@@ -19,7 +19,7 @@ import (
 
 const CacheContentsPerPage = 5
 
-var ContextCacheSupportedModels = [...]string{
+var cacheSupportedVersions = [...]string{
 	"gemini-2.0-flash-lite-001",
 	"gemini-2.0-flash-001",
 
@@ -37,7 +37,7 @@ var INVALID_ARGUMENT_MESSAGES = struct {
 }{
 	modelVersion: fmt.Sprintf(
 		"unsupported model version, expected: %s",
-		strings.Join(ContextCacheSupportedModels[:], ", ")),
+		strings.Join(cacheSupportedVersions[:], ", ")),
 	tools:        "tools are not supported with context caching",
 	systemPrompt: "system prompts are not supported with context caching",
 }
@@ -67,11 +67,9 @@ func handleCache(
 		return nil, err
 	}
 	if cache == nil {
-		fmt.Printf("creating new cache, key: %s\n\n", cc.DisplayName)
 		return client.Caches.Create(ctx, model, cc)
 	}
 
-	fmt.Printf("reusing cache: %s\n\n", cache.DisplayName)
 	return cache, nil
 }
 
@@ -113,7 +111,6 @@ func prepareCacheContent(
 
 	key := calculateCacheKey(messagesToCache)
 
-	fmt.Printf("cache key: %s\n\n", key)
 	return &genai.CreateCachedContentConfig{
 		DisplayName: key,
 		TTL:         strconv.Itoa(ttl) + "s",
@@ -124,7 +121,7 @@ func prepareCacheContent(
 // validateContextCacheRequest checks for supported models and checks if Tools
 // are being provided in the request
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
-	if modelVersion == "" || !slices.Contains(ContextCacheSupportedModels[:], modelVersion) {
+	if modelVersion == "" || !slices.Contains(cacheSupportedVersions[:], modelVersion) {
 		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.modelVersion)
 	}
 	if len(request.Tools) > 0 {
@@ -141,7 +138,7 @@ func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) 
 
 // findCacheMarker finds the cache mark in the list of request messages.
 // All of the messages preceding this mark will be cached
-func findCacheMarker(request *ai.ModelRequest) (int, int, error) {
+func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, ttl int, err error) {
 	for i := len(request.Messages) - 1; i >= 0; i-- {
 		m := request.Messages[i]
 		if m.Metadata == nil {
@@ -182,16 +179,14 @@ func lookupCache(ctx context.Context, client *genai.Client, key string) (*genai.
 		if err != nil && err != genai.ErrPageDone {
 			return nil, err
 		}
-		fmt.Printf("page found with %d elements\n\n", len(page.Items))
 		// check page contents to see if cache is found
 		for _, cache := range page.Items {
 			if cache.DisplayName == key {
-				fmt.Printf("cache hit!\n\n")
 				return cache, nil
 			}
 		}
+		// no cache found in the list, it might not be created yet
 		if err == genai.ErrPageDone {
-			fmt.Printf("no cache with key: %s found", key)
 			return nil, nil
 		}
 
