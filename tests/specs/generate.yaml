@@ -7,7 +7,7 @@ tests:
   - name: simple generate call
     input:
       {
-        model: 'programmableModel',
+        model: 'test/programmableModel',
         messages: [{ role: 'user', content: [{ text: 'hi' }] }],
         config: { temperature: 11 },
       }
@@ -34,7 +34,7 @@ tests:
     stream: true
     input:
       {
-        model: 'programmableModel',
+        model: 'test/programmableModel',
         messages: [{ role: 'user', content: [{ text: 'hi' }] }],
         config: { temperature: 11 },
       }
@@ -72,7 +72,7 @@ tests:
   - name: calls tools
     input:
       {
-        model: 'programmableModel',
+        model: 'test/programmableModel',
         messages: [{ role: 'user', content: [{ text: 'hi' }] }],
         config: { temperature: 11 },
         tools: ['testTool'],

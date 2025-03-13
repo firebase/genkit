@@ -50,7 +50,7 @@ func ollamaEx(ctx context.Context) error {
 	// [START gen]
 	text, err := genkit.GenerateText(ctx, g,
 		ai.WithModel(model),
-		ai.WithTextPrompt("Tell me a joke."))
+		ai.WithPromptText("Tell me a joke."))
 	if err != nil {
 		return err
 	}

@@ -45,7 +45,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
-			ai.WithTextPrompt(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)))
+			ai.WithPromptText(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)))
 		if err != nil {
 			return "", err
 		}

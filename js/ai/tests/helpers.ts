@@ -48,7 +48,7 @@ export function defineProgrammableModel(
     registry,
     {
       ...info,
-      name: 'programmableModel',
+      name: 'test/programmableModel',
     },
     async (request, streamingCallback) => {
       pm.lastRequest = JSON.parse(JSON.stringify(request));

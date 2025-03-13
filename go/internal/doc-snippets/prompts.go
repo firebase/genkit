@@ -26,7 +26,7 @@ func pr01() {
 	// [START pr01]
 	genkit.Generate(context.Background(), g,
 		ai.WithModel(model),
-		ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
+		ai.WithPromptText("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 

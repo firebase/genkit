@@ -128,7 +128,10 @@ func (p *Prompt) Execute(ctx context.Context, opts ...GenerateOption) (*ai.Model
 		ReturnToolRequests: returnToolRequests,
 	}
 
-	return model.Generate(ctx, p.registry, mr, pr.Middleware, toolCfg, pr.Stream)
+	// TODO: Tool config and middleware will be handled in the future.
+	_ = toolCfg
+
+	return model.Generate(ctx, mr, pr.Stream)
 }
 
 // buildVariables returns a map holding prompt field values based

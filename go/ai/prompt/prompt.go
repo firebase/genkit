@@ -260,7 +260,7 @@ func WithInputType(input any) PromptOption {
 			input = map[string]any{"value": strconv.FormatBool(v)}
 		}
 
-		p.Config.InputSchema = base.InferJSONSchemaNonReferencing(input)
+		p.Config.InputSchema = base.InferJSONSchema(input)
 
 		// Set values as default input
 		defaultInput := base.SchemaAsMap(p.Config.InputSchema)
@@ -286,7 +286,7 @@ func WithOutputType(output any) PromptOption {
 			return errors.New("prompt.WithOutputType: cannot set OutputType more than once")
 		}
 
-		p.Config.OutputSchema = base.InferJSONSchemaNonReferencing(output)
+		p.Config.OutputSchema = base.InferJSONSchema(output)
 		p.Config.OutputFormat = ai.OutputFormatJSON
 
 		return nil

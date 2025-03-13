@@ -61,7 +61,7 @@ class ProgrammableModel:
         return response
 
 
-def define_programmable_model(ai: Genkit, name: str = 'programmableModel'):
+def define_programmable_model(ai: Genkit, name: str = 'test/programmableModel'):
     """Defines a configurable programmable model."""
     pm = ProgrammableModel()
 

@@ -82,7 +82,7 @@ func TestSchemaAsMap(t *testing.T) {
 		"type":     string("object"),
 	}
 
-	got := SchemaAsMap(InferJSONSchemaNonReferencing(Foo{}))
+	got := SchemaAsMap(InferJSONSchema(Foo{}))
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("SchemaAsMap diff (+got -want):\n%s", diff)
 	}
