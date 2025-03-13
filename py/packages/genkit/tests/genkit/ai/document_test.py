@@ -5,6 +5,7 @@
 
 from genkit.ai.document import Document
 from genkit.core.typing import (
+    DocumentData,
     Embedding,
     Media,
     MediaPart,
@@ -22,6 +23,14 @@ def test_makes_deep_copy() -> None:
 
     assert doc.content[0].root.text == 'some text'
     assert doc.metadata['foo'] == 'bar'
+
+
+def test_from_dcoument_data() -> None:
+    doc = Document.from_document_data(
+        DocumentData(content=[TextPart(text='some text')])
+    )
+
+    assert doc.text() == 'some text'
 
 
 def test_simple_text_document() -> None:
