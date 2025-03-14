@@ -166,7 +166,7 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
             tools=['gablorkenTool'],
         ),
     )
-    return response.text()
+    return response.text
 
 
 @ai.flow()
@@ -294,3 +294,4 @@ async def stream_a_prompt(_: str, ctx: ActionRunContext):
 
 if __name__ == '__main__':
     asyncio.run(main())
+    print(asyncio.run(simple_generate_action_with_tools_flow(100)))
