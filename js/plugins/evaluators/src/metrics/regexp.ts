@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
 
 /**
  * A simple regexp evaluator -- matches regexp from the reference against the output.
@@ -37,7 +37,9 @@ export async function regexp(dataPoint: BaseEvalDataPoint): Promise<Score> {
       ? JSON.stringify(dataPoint.output)
       : dataPoint.output;
 
+  const score = re.test(outputStr);
   return {
-    score: re.test(outputStr),
+    score,
+    status: score ? EvalStatusEnum.PASS : EvalStatusEnum.FAIL,
   };
 }
