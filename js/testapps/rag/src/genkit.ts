@@ -38,26 +38,6 @@ async function getCloudRunAuthClient(aud: string) {
   }
   return authClient;
 }
-const PERMISSIVE_SAFETY_SETTINGS = {
-  safetySettings: [
-    {
-      category: 'HARM_CATEGORY_HATE_SPEECH',
-      threshold: 'BLOCK_NONE',
-    },
-    {
-      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-      threshold: 'BLOCK_NONE',
-    },
-    {
-      category: 'HARM_CATEGORY_HARASSMENT',
-      threshold: 'BLOCK_NONE',
-    },
-    {
-      category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-      threshold: 'BLOCK_NONE',
-    },
-  ],
-} as any;
 
 export const ai = genkit({
   plugins: [
@@ -111,18 +91,28 @@ export const ai = genkit({
       },
     ]),
     genkitEval({
-      metrics: [
-        {
-          type: GenkitMetric.FAITHFULNESS,
-          judge: gemini15Flash,
-          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-        },
-        {
-          type: GenkitMetric.MALICIOUSNESS,
-          judge: gemini15Flash,
-          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-        },
-      ],
+      judge: gemini15Flash,
+      judgeConfig: {
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_NONE',
+          },
+        ],
+      } as any,
+      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
     }),
   ],
   model: gemini15Flash,
