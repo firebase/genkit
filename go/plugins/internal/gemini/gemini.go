@@ -173,6 +173,9 @@ func Generate(
 		}
 		r := translateResponse(resp)
 		r.Request = input
+		if cache != nil {
+			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+		}
 		return r, nil
 	}
 
@@ -220,6 +223,10 @@ func Generate(
 		r = &ai.ModelResponse{}
 	}
 	r.Request = input
+	if cache != nil {
+		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+	}
+
 	return r, nil
 }
 
@@ -257,7 +264,6 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 		}
 	}
 
-	// configure system instruction
 	if len(systemParts) > 0 {
 		gc.SystemInstruction = &genai.Content{
 			Parts: systemParts,
@@ -265,19 +271,17 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 		}
 	}
 
-	// configure tools
 	tools, err := convertTools(input.Tools)
 	if err != nil {
 		return nil, err
 	}
 	gc.Tools = tools
 
-	// configure tool choice
 	choice := convertToolChoice(input.ToolChoice, input.Tools)
 	gc.ToolConfig = choice
 
-	// configure cache
 	if cache != nil {
+		fmt.Printf("cache name: %s\ncache displayName: %s\n", cache.Name, cache.DisplayName)
 		gc.CachedContent = cache.Name
 	}
 

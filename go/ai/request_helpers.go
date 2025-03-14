@@ -69,24 +69,45 @@ func NewTextMessage(role Role, text string) *Message {
 
 // Cached adds cache configuration for the desired message
 func (m *Message) Cached(ttlSeconds int) *Message {
-	metadata := m.Metadata
-	cache := map[string]any{
-		"ttlSeconds": ttlSeconds,
-	}
-	if len(metadata) == 0 {
-		return &Message{
-			Content: m.Content,
-			Role:    m.Role,
-			Metadata: map[string]any{
-				"cache": cache,
-			},
+	metadata := make(map[string]any)
+
+	if m.Metadata != nil {
+		for k, v := range m.Metadata {
+			metadata[k] = v
 		}
 	}
 
-	if c, ok := metadata["cache"]; ok {
-		if v, ok := c.(map[string]any); ok {
-			v["ttlSeconds"] = ttlSeconds
+	cache := make(map[string]any)
+	cache["ttlSeconds"] = ttlSeconds
+
+	if existingCache, ok := metadata["cache"].(map[string]any); ok {
+		existingCache["ttlSeconds"] = ttlSeconds
+	} else {
+		metadata["cache"] = cache
+	}
+
+	return &Message{
+		Content:  m.Content,
+		Role:     m.Role,
+		Metadata: metadata,
+	}
+}
+
+// Cached adds cache configuration for the desired message
+func (m *Message) WithCacheName(n string) *Message {
+	metadata := make(map[string]any)
+
+	if m.Metadata != nil {
+		for k, v := range m.Metadata {
+			metadata[k] = v
 		}
+	}
+
+	cache := make(map[string]any)
+	cache["name"] = n
+
+	if existingCache, ok := metadata["cache"].(map[string]any); ok {
+		existingCache["name"] = n
 	} else {
 		metadata["cache"] = cache
 	}

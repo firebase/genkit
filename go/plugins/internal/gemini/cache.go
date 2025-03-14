@@ -17,7 +17,7 @@ import (
 	"google.golang.org/genai"
 )
 
-const CacheContentsPerPage = 5
+const cacheContentsPerPage = 5
 
 var cacheSupportedVersions = []string{
 	"gemini-2.0-flash-lite-001",
@@ -30,19 +30,19 @@ var cacheSupportedVersions = []string{
 	"gemini-1.5-pro-002",
 }
 
-var INVALID_ARGUMENT_MESSAGES = struct {
+var invalidArgMessages = struct {
 	modelVersion string
 	tools        string
 	systemPrompt string
 }{
 	modelVersion: fmt.Sprintf(
 		"unsupported model version, expected: %s",
-		strings.Join(cacheSupportedVersions[:], ", ")),
+		strings.Join(cacheSupportedVersions, ", ")),
 	tools:        "tools are not supported with context caching",
 	systemPrompt: "system prompts are not supported with context caching",
 }
 
-// HandleCache checks if caching should be used, attempts to find or create the cache,
+// handleCache checks if caching should be used, attempts to find or create the cache,
 // and returns the cached content if applicable.
 func handleCache(
 	ctx context.Context,
@@ -50,33 +50,7 @@ func handleCache(
 	request *ai.ModelRequest,
 	model string,
 ) (*genai.CachedContent, error) {
-	cc, err := prepareCacheContent(request, model)
-	if err != nil {
-		return nil, err
-	}
-	if cc == nil {
-		return nil, nil
-	}
-
-	cache, err := lookupCache(ctx, client, cc.DisplayName)
-	if err != nil {
-		return nil, err
-	}
-	if cache == nil {
-		return client.Caches.Create(ctx, model, cc)
-	}
-
-	return cache, nil
-}
-
-// prepareCacheContent inspects the request and modelVersion, and constructs a
-// genai.CachedContent that should be cached.
-// This is where you decide what goes into the cache: large documents, system instructions, etc.
-func prepareCacheContent(
-	request *ai.ModelRequest,
-	model string,
-) (*genai.CreateCachedContentConfig, error) {
-	cacheEndIdx, ttl, err := findCacheMarker(request)
+	cacheEndIdx, cacheSetting, err := findCacheMarker(request)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +70,45 @@ func prepareCacheContent(
 		return nil, err
 	}
 
+	var cache *genai.CachedContent
+	messages, err := getMessagesToCache(request.Messages, cacheEndIdx)
+	if err != nil {
+		return nil, err
+	}
+	hash := calculateCacheHash(messages)
+
+	switch s := cacheSetting.(type) {
+	case string:
+		cache, err = lookupCache(ctx, client, s)
+		if err != nil {
+			// TODO: if cache expired or not found, create a fresh one
+			return nil, fmt.Errorf("cache lookup error, got %v", err)
+		}
+		// make sure the cache contents matches the request messages hash
+		if cache.DisplayName != hash {
+			return nil, fmt.Errorf("invalid cache name: hash mismatch between cached content and request messages")
+		}
+	case int:
+		cache, err = client.Caches.Create(ctx, model, &genai.CreateCachedContentConfig{
+			DisplayName: hash,
+			TTL:         strconv.Itoa(s) + "s",
+			Contents:    messages,
+		})
+		if err == nil {
+			return nil, fmt.Errorf("cache creation error, got %v", err)
+		}
+	default:
+		return nil, fmt.Errorf("invalid cache setting type, want: (string|int) got: %v", err)
+	}
+
+	return cache, err
+}
+
+// getMessagesToCache collects all the messages that should be cached
+func getMessagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error) {
 	var messagesToCache []*genai.Content
 	for i := cacheEndIdx; i >= 0; i-- {
-		m := request.Messages[i]
+		m := m[i]
 		if m.Role == ai.RoleSystem {
 			continue
 		}
@@ -111,28 +121,21 @@ func prepareCacheContent(
 			Role:  string(m.Role),
 		})
 	}
-
-	key := calculateCacheKey(messagesToCache)
-
-	return &genai.CreateCachedContentConfig{
-		DisplayName: key,
-		TTL:         strconv.Itoa(ttl) + "s",
-		Contents:    messagesToCache,
-	}, nil
+	return messagesToCache, nil
 }
 
 // validateContextCacheRequest checks for supported models and checks if Tools
 // are being provided in the request
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
 	if modelVersion == "" || !slices.Contains(cacheSupportedVersions, modelVersion) {
-		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.modelVersion)
+		return fmt.Errorf("%s", invalidArgMessages.modelVersion)
 	}
 	if len(request.Tools) > 0 {
-		return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.tools)
+		return fmt.Errorf("%s", invalidArgMessages.tools)
 	}
 	for _, m := range request.Messages {
 		if m.Role == ai.RoleSystem {
-			return fmt.Errorf("%s", INVALID_ARGUMENT_MESSAGES.systemPrompt)
+			return fmt.Errorf("%s", invalidArgMessages.systemPrompt)
 		}
 	}
 
@@ -140,8 +143,8 @@ func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) 
 }
 
 // findCacheMarker finds the cache mark in the list of request messages.
-// All of the messages preceding this mark will be cached
-func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, ttl int, err error) {
+// All of the messages preceding this mark will be cached.
+func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, cacheSetting any, err error) {
 	for i := len(request.Messages) - 1; i >= 0; i-- {
 		m := request.Messages[i]
 		if m.Metadata == nil {
@@ -158,6 +161,10 @@ func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, ttl int, err er
 			return -1, 0, fmt.Errorf("cache metadata should be map but got: %T", cacheVal)
 		}
 
+		if n, ok := c["name"].(string); ok {
+			return i, n, nil
+		}
+
 		if t, ok := c["ttlSeconds"].(int); ok {
 			return i, t, nil
 		}
@@ -167,44 +174,18 @@ func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, ttl int, err er
 	return -1, 0, nil
 }
 
-// lookupCache retrieves a *genai.CachedContent from a given cache key
-func lookupCache(ctx context.Context, client *genai.Client, key string) (*genai.CachedContent, error) {
-	if key == "" {
-		return nil, fmt.Errorf("empty cache key detected")
+// lookupCache retrieves a *genai.CachedContent from a given cache name
+func lookupCache(ctx context.Context, client *genai.Client, name string) (*genai.CachedContent, error) {
+	if name == "" {
+		return nil, fmt.Errorf("empty cache name detected")
 	}
 
-	var nextPageToken string
-	for {
-		page, err := client.Caches.List(ctx, &genai.ListCachedContentsConfig{
-			PageSize:  CacheContentsPerPage,
-			PageToken: nextPageToken,
-		})
-		if err != nil && err != genai.ErrPageDone {
-			return nil, err
-		}
-		// check page contents to see if cache is found
-		for _, cache := range page.Items {
-			if cache.DisplayName == key {
-				return cache, nil
-			}
-		}
-		// no cache found in the list, it might not be created yet
-		if err == genai.ErrPageDone {
-			return nil, nil
-		}
-
-		nextPageToken = page.NextPageToken
-		if nextPageToken == "" {
-			break
-		}
-	}
-
-	return nil, nil
+	return client.Caches.Get(ctx, name, nil)
 }
 
 // calculateCacheKey generates a sha256 key for cached content used to
-// create or lookup caches during generate requests
-func calculateCacheKey(content []*genai.Content) string {
+// validate the proper usage of the requested cache
+func calculateCacheHash(content []*genai.Content) string {
 	hash := sha256.New()
 
 	// Incorporate content parts to ensure uniqueness
@@ -219,4 +200,26 @@ func calculateCacheKey(content []*genai.Content) string {
 		}
 	}
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// setCacheMetadata writes in the metadata map the cache name used in the
+// request
+func setCacheMetadata(m map[string]any, cc *genai.CachedContent) map[string]any {
+	// keep the original metadata if no cache was used in the request
+	if cc == nil {
+		return m
+	}
+
+	cache, ok := m["cache"].(map[string]any)
+	if !ok {
+		m = map[string]any{
+			"cache": map[string]any{
+				"name": cc.Name,
+			},
+		}
+		return m
+	}
+
+	cache["name"] = cc.Name
+	return m
 }
