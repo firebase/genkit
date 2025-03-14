@@ -6,11 +6,34 @@ import (
 	"os"
 	"sync"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/openai/openai-go"
 )
 
 const provider = "openai"
+
+// Supported model capabilities
+var (
+	gpt4Capabilities = ai.ModelInfoSupports{
+		Multiturn:  true,
+		Tools:      true,
+		ToolChoice: true,
+		SystemRole: true,
+		Media:      false,
+	}
+
+	supportedModels = map[string]ai.ModelInfo{
+		"gpt-4": {
+			Label:    "GPT-4",
+			Supports: &gpt4Capabilities,
+		},
+		"gpt-3.5-turbo": {
+			Label:    "GPT-3.5 Turbo",
+			Supports: &gpt4Capabilities,
+		},
+	}
+)
 
 // State management
 var state struct {
@@ -54,4 +77,26 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 
 	return nil
+}
+
+// DefineModel defines a model in the registry
+func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("openai.Init not called")
+	}
+
+	return genkit.DefineModel(g, provider, name, &info, func(
+		ctx context.Context,
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
+		return generate(ctx, state.client, name, input, cb)
+	})
+}
+
+// Model returns the model with the given name
+func Model(g *genkit.Genkit, name string) ai.Model {
+	return genkit.LookupModel(g, provider, name)
 }
