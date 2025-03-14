@@ -14,6 +14,7 @@ Example:
 
     model_fn: ModelFn = my_model
 """
+
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -21,14 +22,15 @@ from typing import Any
 from genkit.core.action import ActionRunContext
 from genkit.core.extract import extract_json
 from genkit.core.typing import (
+    Candidate,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
     Message,
-    Part, Candidate,
+    Part,
 )
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse
@@ -223,8 +225,9 @@ def text_from_content(content: list[Part]) -> str:
     )
 
 
-def get_basic_usage_stats(input_: list[Message], response: Message | list[Candidate]) -> GenerationUsage:
-
+def get_basic_usage_stats(
+    input_: list[Message], response: Message | list[Candidate]
+) -> GenerationUsage:
     request_parts = []
 
     for msg in input_:
@@ -256,7 +259,6 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
     part_counts = PartCounts()
 
     for part in parts:
-
         part_counts.characters += len(part.root.text) if part.root.text else 0
 
         media = part.root.media
@@ -264,9 +266,15 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
         if media:
             content_type = media.content_type or ''
             url = media.url or ''
-            is_image = content_type.startswith("image") or url.startswith("data:image")
-            is_video = content_type.startswith("video") or url.startswith("data:video")
-            is_audio = content_type.startswith("audio") or url.startswith("data:audio")
+            is_image = content_type.startswith('image') or url.startswith(
+                'data:image'
+            )
+            is_video = content_type.startswith('video') or url.startswith(
+                'data:video'
+            )
+            is_audio = content_type.startswith('audio') or url.startswith(
+                'data:audio'
+            )
 
             part_counts.images += 1 if is_image else 0
             part_counts.videos += 1 if is_video else 0
