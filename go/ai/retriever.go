@@ -87,7 +87,7 @@ func IsDefinedRetriever(r *registry.Registry, provider, name string) bool {
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the model was not defined.
+// It returns nil if the retriever was not defined.
 func LookupRetriever(r *registry.Registry, provider, name string) Retriever {
 	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name))
 }
