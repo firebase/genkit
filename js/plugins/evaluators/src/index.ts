@@ -34,12 +34,12 @@ import {
 import {
   AnswerRelevancyGenkitMetricConfig,
   GenkitMetric,
-  GenkitMetricConfig,
   PluginOptions,
   ResolvedConfig,
   isGenkitMetricConfig,
+  type GenkitMetricConfig,
 } from './types.js';
-export { GenkitMetric, GenkitMetricConfig, PluginOptions };
+export { GenkitMetric, PluginOptions, type GenkitMetricConfig };
 
 const PLUGIN_NAME = 'genkitEval';
 
