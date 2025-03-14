@@ -14,7 +14,6 @@ Example:
 
     model_fn: ModelFn = my_model
 """
-
 from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
@@ -27,9 +26,9 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     GenerationUsage,
     Message,
-    Part,
+    Part, Candidate,
 )
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse
@@ -205,6 +204,13 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         return extract_json(self.accumulated_text)
 
 
+class PartCounts(BaseModel):
+    characters: int = 0
+    images: int = 0
+    videos: int = 0
+    audio: int = 0
+
+
 def text_from_message(msg: Message) -> str:
     """Extracts text from message object."""
     return text_from_content(msg.content)
@@ -215,3 +221,55 @@ def text_from_content(content: list[Part]) -> str:
     return ''.join(
         p.root.text if p.root.text is not None else '' for p in content
     )
+
+
+def get_basic_usage_stats(input_: list[Message], response: Message | list[Candidate]) -> GenerationUsage:
+
+    request_parts = []
+
+    for msg in input_:
+        request_parts.extend(msg.content)
+
+    response_parts = []
+    if isinstance(response, list):
+        for candidate in response:
+            response_parts.extend(candidate.message.content)
+    else:
+        response_parts = response.content
+
+    input_counts = get_part_counts(parts=request_parts)
+    output_counts = get_part_counts(parts=response_parts)
+
+    return GenerationUsage(
+        input_characters=input_counts.characters,
+        input_images=input_counts.images,
+        input_videos=input_counts.videos,
+        input_audio_files=input_counts.audio,
+        output_characters=output_counts.characters,
+        output_images=output_counts.images,
+        output_videos=output_counts.videos,
+        output_audio_files=output_counts.audio,
+    )
+
+
+def get_part_counts(parts: list[Part]) -> PartCounts:
+    part_counts = PartCounts()
+
+    for part in parts:
+
+        part_counts.characters += len(part.root.text) if part.root.text else 0
+
+        media = part.root.media
+
+        if media:
+            content_type = media.content_type or ''
+            url = media.url or ''
+            is_image = content_type.startswith("image") or url.startswith("data:image")
+            is_video = content_type.startswith("video") or url.startswith("data:video")
+            is_audio = content_type.startswith("audio") or url.startswith("data:audio")
+
+            part_counts.images += 1 if is_image else 0
+            part_counts.videos += 1 if is_video else 0
+            part_counts.audio += 1 if is_audio else 0
+
+    return part_counts
