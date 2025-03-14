@@ -17,8 +17,8 @@
 export {
   BaseDataPointSchema,
   BaseEvalDataPointSchema,
-  EvalActionResponseSchema,
   EvalResponseSchema,
+  EvalResponsesSchema,
   EvalStatusEnum,
   EvaluatorInfoSchema,
   ScoreSchema,

@@ -85,8 +85,8 @@ export const EvalResponseSchema = z.object({
 });
 export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 
-export const EvalActionResponseSchema = z.array(EvalResponseSchema);
-export type EvalResponses = z.infer<typeof EvalActionResponseSchema>;
+export const EvalResponsesSchema = z.array(EvalResponseSchema);
+export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
 
 export type EvaluatorFn<
   EvalDataPoint extends
@@ -100,7 +100,7 @@ export type EvaluatorFn<
 export type EvaluatorAction<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<typeof EvalRequestSchema, typeof EvalActionResponseSchema> & {
+> = Action<typeof EvalRequestSchema, typeof EvalResponsesSchema> & {
   __dataPointType?: DataPoint;
   __configSchema?: CustomOptions;
 };
@@ -109,7 +109,7 @@ function withMetadata<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  evaluator: Action<typeof EvalRequestSchema, typeof EvalActionResponseSchema>,
+  evaluator: Action<typeof EvalRequestSchema, typeof EvalResponsesSchema>,
   dataPointType?: DataPoint,
   configSchema?: CustomOptions
 ): EvaluatorAction<DataPoint, CustomOptions> {
@@ -172,7 +172,7 @@ export function defineEvaluator<
         options: options.configSchema ?? z.unknown(),
         evalRunId: z.string(),
       }),
-      outputSchema: EvalActionResponseSchema,
+      outputSchema: EvalResponsesSchema,
       metadata: metadata,
     },
     async (i) => {
@@ -239,7 +239,7 @@ export function defineEvaluator<
   const ewm = withMetadata(
     evaluator as any as Action<
       typeof EvalRequestSchema,
-      typeof EvalActionResponseSchema
+      typeof EvalResponsesSchema
     >,
     options.dataPointType,
     options.configSchema
