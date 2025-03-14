@@ -138,8 +138,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	ctx := context.Background()
-
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +244,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	inputDocument := ai.DocumentFromText(queryText, nil)
 
 	req := &ai.RetrieverRequest{
-		Document: inputDocument,
+		Query: inputDocument,
 	}
 
 	// Perform the retrieval

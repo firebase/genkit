@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package snippets
 
 import (
@@ -15,7 +14,7 @@ import (
 )
 
 func pineconeEx(ctx context.Context) error {
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,8 +67,8 @@ func pineconeEx(ctx context.Context) error {
 
 	// [START retrieve]
 	resp, err := menuRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-		Document: ai.DocumentFromText(userInput, nil),
-		Options:  nil,
+		Query:   ai.DocumentFromText(userInput, nil),
+		Options: nil,
 	})
 	if err != nil {
 		return err

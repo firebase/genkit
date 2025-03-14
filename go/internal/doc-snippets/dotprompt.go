@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package snippets
 
 import (
@@ -18,10 +17,9 @@ import (
 )
 
 func dot01() error {
+	ctx := context.Background()
 	// [START dot01_1]
-	g, err := genkit.New(&genkit.Options{
-		PromptDir: "prompts",
-	})
+	g, err := genkit.Init(ctx, genkit.WithPromptDir("prompts"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,16 +27,16 @@ func dot01() error {
 	// [END dot01_1]
 
 	// [START dot01_2]
-	ctx := context.Background()
+	ctx = context.Background()
 
 	// Default to the project in GCLOUD_PROJECT and the location "us-central1".
 	vertexai.Init(ctx, g, nil)
 
-	// The .prompt file specifies vertexai/gemini-1.5-flash, which is
+	// The .prompt file specifies vertexai/gemini-2.0-flash, which is
 	// automatically defined by Init(). However, if it specified a model that
 	// isn't automatically loaded (such as a specific version), you would need
 	// to define it here:
-	// vertexai.DefineModel("gemini-1.0-pro-002", &ai.ModelCapabilities{
+	// vertexai.DefineModel("gemini-2.0-flash", &ai.ModelCapabilities{
 	// 	Multiturn:  true,
 	// 	Tools:      true,
 	// 	SystemRole: true,
@@ -78,7 +76,8 @@ func dot01() error {
 }
 
 func dot02() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +91,7 @@ func dot02() {
 
 	// [START dot02]
 	// Make sure you set up the model you're using.
-	vertexai.DefineModel(g, "gemini-1.5-flash", nil)
+	vertexai.DefineModel(g, "gemini-2.0-flash", nil)
 
 	response, err := prompt.Generate(
 		context.Background(),
@@ -102,7 +101,7 @@ func dot02() {
 			Style:    "a fancy pirate",
 			Name:     "Ed",
 		}),
-		dotprompt.WithModelName("vertexai/gemini-1.5-flash"),
+		dotprompt.WithModelName("vertexai/gemini-2.0-flash"),
 		dotprompt.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 1.0,
 		}),
@@ -116,9 +115,8 @@ func dot02() {
 
 func dot03() error {
 	// [START dot03]
-	g, err := genkit.New(&genkit.Options{
-		PromptDir: "prompts",
-	})
+	ctx := context.Background()
+	g, err := genkit.Init(ctx, genkit.WithPromptDir("prompts"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -151,7 +149,8 @@ func dot03() error {
 }
 
 func dot04() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -164,9 +163,8 @@ func dot04() {
 }
 
 func dot05() {
-	g, err := genkit.New(&genkit.Options{
-		PromptDir: "prompts",
-	})
+	ctx := context.Background()
+	g, err := genkit.Init(ctx, genkit.WithPromptDir("prompts"))
 	if err != nil {
 		log.Fatal(err)
 	}

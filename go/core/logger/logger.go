@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // Package logger provides a context-scoped slog.Logger.
 package logger
 
@@ -15,27 +14,27 @@ import (
 )
 
 var (
-    logLevel  = slog.LevelDebug
-    mu          sync.RWMutex
+	logLevel  = slog.LevelDebug
+	mu        sync.RWMutex
 	loggerKey = base.NewContextKey[*slog.Logger]()
 )
 
 // SetLevel sets the global log level
 func SetLevel(level slog.Level) {
-    mu.Lock()
-    defer mu.Unlock()
-    logLevel = level
+	mu.Lock()
+	defer mu.Unlock()
+	logLevel = level
 	h := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-        Level: logLevel,
-    }))
-    slog.SetDefault(h)
+		Level: logLevel,
+	}))
+	slog.SetDefault(h)
 }
 
 // GetLevel gets the current global log level
 func GetLevel() slog.Level {
-    mu.RLock()
-    defer mu.RUnlock()
-    return logLevel
+	mu.RLock()
+	defer mu.RUnlock()
+	return logLevel
 }
 
 // FromContext returns the Logger in ctx, or the default Logger

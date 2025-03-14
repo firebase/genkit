@@ -10,8 +10,8 @@ of these resources during runtime.
 
 Example:
     >>> registry = Registry()
-    >>> registry.register_action(my_action)
-    >>> action = registry.get_action('my_action')
+    >>> registry.register_action('<action kind>', 'my_action', ...)
+    >>> action = registry.lookup_action('<action kind>', 'my_action')
 """
 
 from collections.abc import Callable
@@ -22,9 +22,27 @@ from genkit.core.action import (
     ActionKind,
     create_action_key,
     parse_action_key,
+    parse_plugin_name_from_action_name,
 )
 
 type ActionName = str
+
+type ActionResolver = Callable[[ActionKind, str], None]
+
+# An action store is a nested dictionary mapping ActionKind to a dictionary of
+# action names and their corresponding Action instances.
+#
+# Structure for illustration:
+#
+# ```python
+# {
+#     ActionKind.MODEL: {
+#         'gemini-2.0-flash': Action(...),
+#         'gemini-2.0-pro': Action(...)
+#     },
+# }
+# ```
+type ActionStore = dict[ActionKind, dict[ActionName, Action]]
 
 
 class Registry:
@@ -36,15 +54,36 @@ class Registry:
     looking them up at runtime.
 
     Attributes:
-        actions: A nested dictionary mapping ActionKind to a dictionary of
+        entries: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
     """
 
+    default_model: str | None = None
+
     def __init__(self):
         """Initialize an empty Registry instance."""
-        self.entries: dict[ActionKind, dict[ActionName, Action]] = {}
+        self._action_resolvers: dict[str, ActionResolver] = {}
+        self._entries: ActionStore = {}
+        self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
+
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
+
+    def register_action_resolver(
+        self, plugin_name: str, resolver: ActionResolver
+    ):
+        """Registers an ActionResolver function for a given plugin.
+
+        Args:
+            plugin_name: The name of the plugin.
+            resolver: The ActionResolver instance to register.
+
+        Raises:
+            ValueError: If a resolver is already registered for the plugin.
+        """
+        if plugin_name in self._action_resolvers:
+            raise ValueError(f'Plugin {plugin_name} already registered')
+        self._action_resolvers[plugin_name] = resolver
 
     def register_action(
         self,
@@ -79,9 +118,9 @@ class Registry:
             metadata=metadata,
             span_metadata=span_metadata,
         )
-        if kind not in self.entries:
-            self.entries[kind] = {}
-        self.entries[kind][name] = action
+        if kind not in self._entries:
+            self._entries[kind] = {}
+        self._entries[kind][name] = action
         return action
 
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
@@ -94,8 +133,17 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
-        if kind in self.entries and name in self.entries[kind]:
-            return self.entries[kind][name]
+        # If the entry does not exist, we fist try to call the action resolver
+        # for the plugin to give it a chance to dynamically add the action.
+        if kind not in self._entries or name not in self._entries[kind]:
+            plugin_name = parse_plugin_name_from_action_name(name)
+            if plugin_name and plugin_name in self._action_resolvers:
+                self._action_resolvers[plugin_name](kind, name)
+
+        if kind in self._entries and name in self._entries[kind]:
+            return self._entries[kind][name]
+
+        return None
 
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
@@ -123,16 +171,57 @@ class Registry:
             A dictionary of serializable Actions.
         """
         actions = {}
-        for kind in self.entries:
-            for name in self.entries[kind]:
+        for kind in self._entries:
+            for name in self._entries[kind]:
                 action = self.lookup_action(kind, name)
-                key = create_action_key(kind, name)
-                # TODO: Serialize the Action instance
-                actions[key] = {
-                    'key': key,
-                    'name': action.name,
-                    'inputSchema': action.input_schema,
-                    'outputSchema': action.output_schema,
-                    'metadata': action.metadata,
-                }
+                if action is not None:
+                    key = create_action_key(kind, name)
+                    # TODO: Serialize the Action instance
+                    actions[key] = {
+                        'key': key,
+                        'name': action.name,
+                        'inputSchema': action.input_schema,
+                        'outputSchema': action.output_schema,
+                        'metadata': action.metadata,
+                    }
         return actions
+
+    def register_value(self, kind: str, name: str, value: Any):
+        """Registers a value with a given kind and name.
+
+        This method stores a value in a nested dictionary, where the first level
+        is keyed by the 'kind' and the second level is keyed by the 'name'.
+        It prevents duplicate registrations for the same kind and name.
+
+        Args:
+            kind: The kind of the value (e.g., "format", "default-model").
+            name: The name of the value (e.g., "json", "text").
+            value: The value to be registered. Can be of any non-serializable
+                type.
+
+        Raises:
+            ValueError: If a value with the given kind and name is already
+            registered.
+        """
+        if kind not in self._value_by_kind_and_name:
+            self._value_by_kind_and_name[kind] = {}
+
+        if name in self._value_by_kind_and_name[kind]:
+            raise ValueError(
+                f'value for kind "{kind}" '
+                f'and name "{name}" is already registered'
+            )
+
+        self._value_by_kind_and_name[kind][name] = value
+
+    def lookup_value(self, kind: str, name: str) -> Any | None:
+        """Looks up value that us previously registered by `register_value`.
+
+        Args:
+            kind: The kind of the value (e.g., "format", "default-model").
+            name: The name of the value (e.g., "json", "text").
+
+        Returns:
+            The value or None if not found.
+        """
+        return self._value_by_kind_and_name.get(kind, {}).get(name)

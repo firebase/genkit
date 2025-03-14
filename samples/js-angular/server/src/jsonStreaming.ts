@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { gemini20Flash } from '@genkit-ai/googleai';
 import { z } from 'genkit';
 import { Allow, parse } from 'partial-json';
 import { ai } from './genkit.js';
@@ -43,7 +43,7 @@ export const streamCharacters = ai.defineFlow(
   },
   async (count, { sendChunk }) => {
     const { response, stream } = await ai.generateStream({
-      model: gemini15Flash,
+      model: gemini20Flash,
       output: {
         format: 'json',
         schema: GameCharactersSchema,

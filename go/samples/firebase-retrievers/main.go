@@ -61,7 +61,7 @@ func main() {
 		App: firebaseApp, // Pass the pre-initialized Firebase app
 	}
 
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func main() {
 	genkit.DefineFlow(g, "flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
 		// Perform Firestore retrieval based on user input
 		req := &ai.RetrieverRequest{
-			Document: ai.DocumentFromText(query, nil),
+			Query: ai.DocumentFromText(query, nil),
 		}
 		log.Println("Starting retrieval with query:", query)
 		resp, err := retriever.Retrieve(ctx, req)
@@ -153,10 +153,7 @@ func main() {
 		return fmt.Sprintf("Retrieved document: %s", resp.Documents[0].Content[0].Text), nil
 	})
 
-	// Initialize Genkit
-	if err := g.Start(ctx, nil); err != nil {
-		log.Fatal(err)
-	}
+	<-ctx.Done()
 }
 
 // MockEmbedder is used to simulate an AI embedder for testing purposes.

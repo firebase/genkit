@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package base
 
 import (
@@ -10,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"regexp"
 
 	"github.com/invopop/jsonschema"
@@ -72,6 +72,19 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 func InferJSONSchemaNonReferencing(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
 		DoNotReference: true,
+		Mapper: func(t reflect.Type) *jsonschema.Schema {
+			// []any generates `{ type: "array", items: true }` which is not valid JSON schema.
+			if t.Kind() == reflect.Slice && t.Elem().Kind() == reflect.Interface {
+				return &jsonschema.Schema{
+					Type: "array",
+					Items: &jsonschema.Schema{
+						// This field is not necessary but it's the most benign way for the object to not be empty.
+						AdditionalProperties: jsonschema.TrueSchema,
+					},
+				}
+			}
+			return nil // Return nil to use default schema generation for other types
+		},
 	}
 	s = r.Reflect(x)
 	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
@@ -79,7 +92,7 @@ func InferJSONSchemaNonReferencing(x any) (s *jsonschema.Schema) {
 	return s
 }
 
-// SchemaAsMap convers json schema struct to a map (JSON representation).
+// SchemaAsMap converts json schema struct to a map (JSON representation).
 func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	jsb, err := s.MarshalJSON()
 	if err != nil {

@@ -26,7 +26,7 @@ func TestInit(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	g, err := genkit.New(nil)
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

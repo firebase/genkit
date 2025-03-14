@@ -64,21 +64,59 @@ export const pdfChatRetrieverFirebase = defineFirestoreRetriever(ai, {
   contentField: 'facts',
   vectorField: 'embedding',
   embedder: textEmbedding004,
-  distanceMeasure: 'COSINE',
+  //distanceMeasure: 'COSINE', // optional
+  //distanceResultField: 'vector_distance', // optional
+  //distanceThreshold: 0.8,  // optional
 });
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQAFirebase = ai.defineFlow(
   {
     name: 'pdfQAFirebase',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
+    inputSchema: z.object({
+      distanceMeasure: z
+        .string()
+        .describe("One of 'COSINE', 'DOT_PRODUCT', 'EUCLIDEAN'")
+        .default('COSINE')
+        .optional(),
+      distanceThreshold: z
+        .number()
+        .describe(
+          'The numeric distance threshold. The significance depends on distanceMeasure'
+        )
+        .default(0.56)
+        .optional(),
+      distanceResultField: z
+        .string()
+        .describe('The name of the metadata field that stores distance results')
+        .default('vector_distance')
+        .optional(),
+      query: z
+        .string()
+        .describe('Ask questions about the pdf')
+        .default('Summarize the pdf'),
+    }),
+    outputSchema: z.object({
+      documentCount: z.string(),
+      distances: z.string(),
+      response: z.string(),
+    }),
   },
-  async (query) => {
+  async ({
+    distanceMeasure,
+    distanceThreshold,
+    distanceResultField,
+    query,
+  }) => {
     const docs = await ai.retrieve({
       retriever: pdfChatRetrieverFirebase,
       query,
-      options: { limit: 3 },
+      options: {
+        limit: 10,
+        distanceMeasure,
+        distanceThreshold,
+        distanceResultField,
+      },
     });
     console.log(docs);
 
@@ -90,7 +128,31 @@ export const pdfQAFirebase = ai.defineFlow(
       model: gemini15Flash,
       prompt: augmentedPrompt,
     });
-    return llmResponse.text;
+
+    let distances: Array<number> = [];
+    let maxDistance = NaN;
+    let minDistance = NaN;
+    if (distanceResultField) {
+      // Note: if you change the default distanceResultField by setting it in
+      // defineFirestoreRetriever, then you need to change this code to look
+      // for that field as well i.e. distanceResultField || <default you set>
+      distances = docs
+        .map((d) => {
+          if (d.metadata && d.metadata[distanceResultField]) {
+            return d.metadata[distanceResultField];
+          }
+          return undefined;
+        })
+        .filter((n) => n !== undefined);
+      maxDistance = Math.max(...distances);
+      minDistance = Math.min(...distances);
+    }
+
+    return {
+      documentCount: `${docs.length} of 10`,
+      distances: `min: ${minDistance}, max: ${maxDistance}`,
+      response: llmResponse.text,
+    };
   }
 );
 
@@ -115,7 +177,10 @@ const chunkingConfig = {
 export const indexPdfFirebase = ai.defineFlow(
   {
     name: 'indexPdfFirestore',
-    inputSchema: z.string().describe('PDF file path'),
+    inputSchema: z
+      .string()
+      .describe('PDF file path')
+      .default('./docs/flume-java.pdf'),
   },
   async (filePath) => {
     filePath = path.resolve(filePath);

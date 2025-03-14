@@ -102,17 +102,46 @@ const ai = genkit({
   ],
 });
 
-// // Define indexing flow
+// Define indexing flow
 export const indexFlow = ai.defineFlow(
   {
     name: 'indexFlow',
     inputSchema: z.object({
-      texts: z.array(z.string()),
+      datapoints: z.array(
+        z.object({
+          text: z.string(),
+          restricts: z.optional(
+            z.array(
+              z.object({
+                namespace: z.string(),
+                allowList: z.array(z.string()),
+                denyList: z.array(z.string()),
+              })
+            )
+          ),
+          numericRestricts: z.optional(
+            z.array(
+              z.object({
+                valueInt: z.union([z.number(), z.string()]).optional(),
+                valueFloat: z.number().optional(),
+                valueDouble: z.number().optional(),
+                namespace: z.string(),
+              })
+            )
+          ),
+        })
+      ),
     }),
     outputSchema: z.any(),
   },
-  async ({ texts }) => {
-    const documents = texts.map((text) => Document.fromText(text));
+  async ({ datapoints }) => {
+    const documents: Document[] = datapoints.map((dp) => {
+      const metadata = {
+        restricts: structuredClone(dp.restricts),
+        numericRestricts: structuredClone(dp.numericRestricts),
+      };
+      return Document.fromText(dp.text, metadata);
+    });
     await ai.index({
       indexer: vertexAiIndexerRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
@@ -131,11 +160,40 @@ export const queryFlow = ai.defineFlow(
     inputSchema: z.object({
       query: z.string(),
       k: z.number(),
+      restricts: z.optional(
+        z.array(
+          z.object({
+            namespace: z.string(),
+            allowList: z.array(z.string()),
+            denyList: z.array(z.string()),
+          })
+        )
+      ),
+      numericRestricts: z.optional(
+        z.array(
+          z.object({
+            valueInt: z.union([z.number(), z.string()]).optional(),
+            valueFloat: z.number().optional(),
+            valueDouble: z.number().optional(),
+            namespace: z.string(),
+            op: z.enum([
+              'OPERATOR_UNSPECIFIED',
+              'LESS',
+              'LESS_EQUAL',
+              'EQUAL',
+              'GREATER_EQUAL',
+              'GREATER',
+              'NOT_EQUAL',
+            ]),
+          })
+        )
+      ),
     }),
     outputSchema: z.object({
       result: z.array(
         z.object({
           text: z.string(),
+          metadata: z.string(),
           distance: z.number(),
         })
       ),
@@ -143,9 +201,13 @@ export const queryFlow = ai.defineFlow(
       time: z.number(),
     }),
   },
-  async ({ query, k }) => {
+  async ({ query, k, restricts, numericRestricts }) => {
     const startTime = performance.now();
-    const queryDocument = Document.fromText(query);
+    const metadata = {
+      restricts: structuredClone(restricts),
+      numericRestricts: structuredClone(numericRestricts),
+    };
+    const queryDocument = Document.fromText(query, metadata);
     const res = await ai.retrieve({
       retriever: vertexAiRetrieverRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
@@ -159,6 +221,7 @@ export const queryFlow = ai.defineFlow(
       result: res
         .map((doc) => ({
           text: doc.content[0].text!,
+          metadata: JSON.stringify(doc.metadata),
           distance: doc.metadata?.distance,
         }))
         .sort((a, b) => b.distance - a.distance),

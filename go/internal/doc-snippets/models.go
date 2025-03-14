@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package snippets
 
 import (
@@ -24,7 +23,8 @@ var ctx = context.Background()
 var gemini15pro ai.Model
 
 func m1() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,7 +53,8 @@ func m1() error {
 }
 
 func opts() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +79,8 @@ func opts() error {
 }
 
 func streaming() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +106,8 @@ func streaming() error {
 }
 
 func multi() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,7 +134,8 @@ func multi() error {
 }
 
 func tools() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,7 +159,8 @@ func tools() error {
 }
 
 func history() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

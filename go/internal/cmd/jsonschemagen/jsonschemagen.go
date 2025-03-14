@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // A simple, self-contained code generator for JSON Schema.
 // It converts a JSON Schema to equivalent Go types.
 package main

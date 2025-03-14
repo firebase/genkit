@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 package snippets
 
 import (
@@ -11,12 +10,13 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/invopop/jsonschema"
 )
 
 func pr01() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,7 +39,8 @@ func helloPrompt(name string) *ai.Part {
 // [END hello]
 
 func pr02() {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,7 +59,8 @@ func pr02() {
 }
 
 func pr03() error {
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,24 +71,21 @@ func pr03() error {
 	type HelloPromptInput struct {
 		UserName string
 	}
-	helloPrompt := genkit.DefinePrompt(
+	helloPrompt, err := genkit.DefinePrompt(
 		g,
 		"prompts",
 		"helloPrompt",
-		nil, // Additional model config
-		jsonschema.Reflect(&HelloPromptInput{}),
-		func(ctx context.Context, input any) (*ai.ModelRequest, error) {
+		prompt.WithInputType(HelloPromptInput{}),
+		prompt.WithSystemFn(func(ctx context.Context, input any) (string, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
-				return nil, errors.New("input doesn't satisfy schema")
+				return "", errors.New("input doesn't satisfy schema")
 			}
 			prompt := fmt.Sprintf(
 				"You are a helpful AI assistant named Walt. Say hello to %s.",
 				params.UserName)
-			return &ai.ModelRequest{Messages: []*ai.Message{
-				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
-			}}, nil
-		},
+			return prompt, nil
+		}),
 	)
 	// [END pr03_1]
 
@@ -95,7 +94,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil)
+	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil, nil)
 	// [END pr03_2]
 
 	_ = response

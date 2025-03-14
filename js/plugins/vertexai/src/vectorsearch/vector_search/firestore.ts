@@ -41,7 +41,8 @@ export const getFirestoreDocumentRetriever = (
         .doc(neighbor.datapoint?.datapointId!);
       const docSnapshot = await docRef.get();
       if (docSnapshot.exists) {
-        const docData = { ...docSnapshot.data(), metadata: { ...neighbor } };
+        const docData = { ...docSnapshot.data() }; // includes content & metadata
+        docData.metadata = { ...docData.metadata, ...neighbor }; // add neighbor
         const parsedDocData = DocumentDataSchema.safeParse(docData);
         if (parsedDocData.success) {
           docs.push(new Document(parsedDocData.data));

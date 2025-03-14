@@ -6,162 +6,171 @@ package genkit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai/prompt"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // Genkit encapsulates a Genkit instance including the registry and configuration.
 type Genkit struct {
-	// The registry for this instance.
+	// Registry for all actions contained in this instance.
 	reg *registry.Registry
-	// Options to configure the instance.
-	Opts *Options
+	// Params to configure calls using this instance.
+	Params *GenkitParams
 }
 
-type Options struct {
-	// The default model to use if no model is specified.
-	DefaultModel string
-	// Directory where dotprompts are stored.
-	PromptDir string
+type genkitOption = func(params *GenkitParams) error
+
+type GenkitParams struct {
+	DefaultModel string // The default model to use if no model is specified.
+	PromptDir    string // Directory where dotprompts are stored.
 }
 
-// StartOptions are options to [Start].
-type StartOptions struct {
-	// If "-", do not start a FlowServer.
-	// Otherwise, start a FlowServer on the given address, or the
-	// default of ":3400" if empty.
-	FlowAddr string
-	// The names of flows to serve.
-	// If empty, all registered flows are served.
-	Flows []string
+// WithDefaultModel sets the default model to use if no model is specified.
+func WithDefaultModel(model string) genkitOption {
+	return func(params *GenkitParams) error {
+		if params.DefaultModel != "" {
+			return errors.New("genkit.WithDefaultModel: cannot set DefaultModel more than once")
+		}
+		params.DefaultModel = model
+		return nil
+	}
 }
 
-// New creates a new Genkit instance.
-func New(opts *Options) (*Genkit, error) {
+// WithPromptDir sets the directory where dotprompts are stored. Defaults to "prompts" at project root.
+func WithPromptDir(dir string) genkitOption {
+	return func(params *GenkitParams) error {
+		if params.PromptDir != "" {
+			return errors.New("genkit.WithPromptDir: cannot set PromptDir more than once")
+		}
+		params.PromptDir = dir
+		return nil
+	}
+}
+
+// Init creates a new Genkit instance.
+//
+// During local development (GENKIT_ENV=dev), it starts the Reflection API server (default :3100) as a side effect.
+func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
+	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+
 	r, err := registry.New()
 	if err != nil {
 		return nil, err
 	}
-	if opts == nil {
-		opts = &Options{}
-	}
-	if opts.DefaultModel != "" {
-		parts := strings.Split(opts.DefaultModel, "/")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid default model format %q, expected provider/name", opts.DefaultModel)
+
+	params := &GenkitParams{}
+	for _, opt := range opts {
+		if err := opt(params); err != nil {
+			return nil, err
 		}
 	}
+
+	if params.DefaultModel != "" {
+		_, err := modelRefParts(params.DefaultModel)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if registry.CurrentEnvironment() == registry.EnvironmentDev {
+		errCh := make(chan error, 1)
+		serverStartCh := make(chan struct{})
+
+		go func() {
+			if s := startReflectionServer(ctx, r, errCh, serverStartCh); s == nil {
+				return
+			}
+			if err := <-errCh; err != nil {
+				slog.Error("reflection server error", "err", err)
+			}
+		}()
+
+		select {
+		case err := <-errCh:
+			return nil, fmt.Errorf("reflection server startup failed: %w", err)
+		case <-serverStartCh:
+			slog.Debug("reflection server started successfully")
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
 	return &Genkit{
-		reg:  r,
-		Opts: opts,
+		reg:    r,
+		Params: params,
 	}, nil
 }
 
-// Start initializes Genkit.
-// After it is called, no further actions can be defined.
-//
-// Start starts servers depending on the value of the GENKIT_ENV
-// environment variable and the provided options.
-//
-// If GENKIT_ENV = "dev", a development server is started
-// in a separate goroutine at the address in opts.DevAddr, or the default
-// of ":3100" if empty.
-//
-// If opts.FlowAddr is a value other than "-", a flow server is started
-// and the call to Start waits for the server to shut down.
-// If opts.FlowAddr == "-", no flow server is started and Start returns immediately.
-//
-// Thus Start(nil) will start a dev server in the "dev" environment, will always start
-// a flow server, and will pause execution until the flow server terminates.
-func (g *Genkit) Start(ctx context.Context, opts *StartOptions) error {
-	ai.DefineGenerateAction(ctx, g.reg)
-
-	if opts == nil {
-		opts = &StartOptions{}
-	}
-	g.reg.Freeze()
-
-	var mu sync.Mutex
-	var servers []*http.Server
-	var wg sync.WaitGroup
-	errCh := make(chan error, 2)
-
-	if registry.CurrentEnvironment() == registry.EnvironmentDev {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			s := startReflectionServer(ctx, g.reg, errCh)
-			mu.Lock()
-			servers = append(servers, s)
-			mu.Unlock()
-		}()
-	}
-
-	if opts.FlowAddr != "-" {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			s := startFlowServer(g, opts.FlowAddr, opts.Flows, errCh)
-			mu.Lock()
-			servers = append(servers, s)
-			mu.Unlock()
-		}()
-	}
-
-	serverStartCh := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(serverStartCh)
-	}()
-
-	// It will block here until either all servers start up or there is an error in starting one.
-	select {
-	case <-serverStartCh:
-		slog.Info("all servers started successfully")
-	case err := <-errCh:
-		return fmt.Errorf("failed to start servers: %w", err)
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	// It will block here (i.e. servers will run) until we get an interrupt signal.
-	select {
-	case sig := <-sigCh:
-		slog.Info("received signal, initiating shutdown", "signal", sig)
-	case err := <-errCh:
-		slog.Error("server error", "err", err)
-		return err
-	case <-ctx.Done():
-		slog.Info("context cancelled, initiating shutdown")
-	}
-
-	return shutdownServers(servers)
+// DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
+func DefineFlow[In, Out any](
+	g *Genkit,
+	name string,
+	fn core.Func[In, Out],
+) *core.Flow[In, Out, struct{}] {
+	return core.DefineFlow(g.reg, name, fn)
 }
 
-// DefineModel registers the given generate function as an action, and returns a
-// [Model] that runs it.
+// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
+//
+// fn takes an input of type In and returns an output of type Out, optionally
+// streaming values of type Stream incrementally by invoking a callback.
+//
+// If the function supports streaming and the callback is non-nil, it should
+// stream the results by invoking the callback periodically, ultimately returning
+// with a final return value that includes all the streamed data.
+// Otherwise, it should ignore the callback and just return a result.
+func DefineStreamingFlow[In, Out, Stream any](
+	g *Genkit,
+	name string,
+	fn core.StreamingFunc[In, Out, Stream],
+) *core.Flow[In, Out, Stream] {
+	return core.DefineStreamingFlow(g.reg, name, fn)
+}
+
+// Run runs the function f in the context of the current flow
+// and returns what f returns.
+// It returns an error if no flow is active.
+//
+// Each call to Run results in a new step in the flow.
+// A step has its own span in the trace, and its result is cached so that if the flow
+// is restarted, f will not be called a second time.
+func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
+	return core.Run(ctx, name, f)
+}
+
+// ListFlows returns all flows registered in the Genkit instance.
+func ListFlows(g *Genkit) []core.Action {
+	acts := g.reg.ListActions()
+	flows := []core.Action{}
+	for _, act := range acts {
+		if strings.HasPrefix(act.Key, "/"+string(atype.Flow)+"/") {
+			flows = append(flows, g.reg.LookupAction(act.Key))
+		}
+	}
+	return flows
+}
+
+// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(
 	g *Genkit,
 	provider, name string,
-	metadata *ai.ModelInfo,
-	generate func(context.Context, *ai.ModelRequest, ai.ModelStreamingCallback) (*ai.ModelResponse, error),
+	info *ai.ModelInfo,
+	generate ai.ModelFunc,
 ) ai.Model {
-	return ai.DefineModel(g.reg, provider, name, metadata, generate)
+	return ai.DefineModel(g.reg, provider, name, info, generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -193,22 +202,20 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 func DefinePrompt(
 	g *Genkit,
 	provider, name string,
-	metadata map[string]any,
-	inputSchema *jsonschema.Schema,
-	render func(context.Context, any) (*ai.ModelRequest, error),
-) *ai.Prompt {
-	return ai.DefinePrompt(g.reg, provider, name, metadata, inputSchema, render)
+	opts ...prompt.PromptOption,
+) (*prompt.Prompt, error) {
+	return prompt.Define(g.reg, provider, name, opts...)
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
 func IsDefinedPrompt(g *Genkit, provider, name string) bool {
-	return ai.IsDefinedPrompt(g.reg, provider, name)
+	return prompt.IsDefinedPrompt(g.reg, provider, name)
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
-	return ai.LookupPrompt(g.reg, provider, name)
+func LookupPrompt(g *Genkit, provider, name string) *prompt.Prompt {
+	return prompt.LookupPrompt(g.reg, provider, name)
 }
 
 // Generate run generate request for this model. Returns ModelResponse struct.
@@ -239,8 +246,8 @@ func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.Generate
 }
 
 // GenerateWithRequest runs the model with the given request and streaming callback.
-func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, toolCfg *ai.ToolConfig, cb ai.ModelStreamingCallback) (*ai.ModelResponse, error) {
-	return m.Generate(ctx, g.reg, req, toolCfg, cb)
+func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, mw []ai.ModelMiddleware, toolCfg *ai.ToolConfig, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+	return m.Generate(ctx, g.reg, req, mw, toolCfg, cb)
 }
 
 // DefineIndexer registers the given index function as an action, and returns an
@@ -301,16 +308,25 @@ func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 
 // optsWithDefaults prepends defaults to the options so that they can be overridden by the caller.
 func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) ([]ai.GenerateOption, error) {
-	if g.Opts.DefaultModel != "" {
-		parts := strings.Split(g.Opts.DefaultModel, "/")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid default model format %q, expected provider/name", g.Opts.DefaultModel)
+	if g.Params.DefaultModel != "" {
+		parts, err := modelRefParts(g.Params.DefaultModel)
+		if err != nil {
+			return nil, err
 		}
 		model := LookupModel(g, parts[0], parts[1])
 		if model == nil {
-			return nil, fmt.Errorf("default model %q not found", g.Opts.DefaultModel)
+			return nil, fmt.Errorf("default model %q not found", g.Params.DefaultModel)
 		}
 		opts = append([]ai.GenerateOption{ai.WithModel(model)}, opts...)
 	}
 	return opts, nil
+}
+
+// modelRefParts parses a model string into a provider and name.
+func modelRefParts(model string) ([]string, error) {
+	parts := strings.Split(model, "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid model format %q, expected provider/name", model)
+	}
+	return parts, nil
 }

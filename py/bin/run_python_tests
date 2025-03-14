@@ -9,11 +9,12 @@ set -euo pipefail
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 PYTHON_VERSIONS=(
-  "3.12"
-  "3.13"
+  "python3.12"
+  "python3.13"
+  #"pypy3.12" # TODO: Enable when it is released.
 )
 
 for VERSION in "${PYTHON_VERSIONS[@]}"; do
   echo "Running tests with Python ${VERSION}..."
-  uv run --python "python${VERSION}" --directory "${TOP_DIR}/py" pytest -vv .
+  uv run --python "${VERSION}" --directory "${TOP_DIR}/py" pytest -vv .
 done

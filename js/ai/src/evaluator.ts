@@ -85,28 +85,13 @@ export const EvalResponseSchema = z.object({
 });
 export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 
-const StatusOverrideFnSchema = z
-  .function()
-  .args(ScoreSchema)
-  .returns(EvalStatusEnumSchema);
-export type StatusOverrideFn = z.infer<typeof StatusOverrideFnSchema>;
-// Base options object
-export const BaseEvalOptionsSchema = z
-  .object({
-    statusOverrideFn: StatusOverrideFnSchema.optional(),
-  })
-  .passthrough()
-  .optional();
-export type BaseEvalOptions = z.infer<typeof BaseEvalOptionsSchema>;
-
 export const EvalActionResponseSchema = z.array(EvalResponseSchema);
 export type EvalResponses = z.infer<typeof EvalActionResponseSchema>;
 
 export type EvaluatorFn<
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-  CustomOptions extends
-    typeof BaseEvalOptionsSchema = typeof BaseEvalOptionsSchema,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   input: z.infer<EvalDataPoint>,
   evaluatorOptions?: z.infer<CustomOptions>
@@ -157,8 +142,7 @@ export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-  EvaluatorOptions extends
-    typeof BaseEvalOptionsSchema = typeof BaseEvalOptionsSchema,
+  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
   options: {
@@ -185,7 +169,7 @@ export function defineEvaluator<
         dataset: options.dataPointType
           ? z.array(options.dataPointType)
           : z.array(BaseDataPointSchema),
-        options: options.configSchema ?? BaseEvalOptionsSchema.optional(),
+        options: options.configSchema ?? z.unknown(),
         evalRunId: z.string(),
       }),
       outputSchema: EvalActionResponseSchema,
@@ -224,14 +208,7 @@ export function defineEvaluator<
                 testCaseOutput.spanId = spanId;
                 testCaseOutput.traceId = traceId;
                 metadata.output = testCaseOutput;
-                evalResponses.push(
-                  i.options?.statusOverrideFn
-                    ? augementStatus(
-                        testCaseOutput,
-                        i.options?.statusOverrideFn
-                      )
-                    : testCaseOutput
-                );
+                evalResponses.push(testCaseOutput);
                 return testCaseOutput;
               } catch (e) {
                 evalResponses.push({
@@ -330,21 +307,4 @@ export function evaluatorRef<
   options: EvaluatorReference<CustomOptionsSchema>
 ): EvaluatorReference<CustomOptionsSchema> {
   return { ...options };
-}
-
-function augementStatus(
-  response: EvalResponse,
-  statusOverrideFn: StatusOverrideFn
-): EvalResponse {
-  let scores = Array.isArray(response.evaluation)
-    ? response.evaluation
-    : [response.evaluation];
-  const newScores = scores.map((s) => ({
-    ...s,
-    status: statusOverrideFn(s) ?? EvalStatusEnum.UNKNOWN,
-  }));
-  return {
-    ...response,
-    evaluation: newScores.length == 1 ? newScores[0] : newScores,
-  };
 }

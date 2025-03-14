@@ -60,9 +60,8 @@ export const localIndexVideo = ai.defineFlow(
     name: 'localIndexVideo',
     inputSchema: z
       .string()
-      .describe(
-        `Video URL. e.g. 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'`
-      ),
+      .describe('A Video URL')
+      .default('gs://cloud-samples-data/generative-ai/video/pixel8.mp4'),
   },
   async (videoUrl: string) => {
     const documents = await ai.run('extract-video', () =>
@@ -82,9 +81,8 @@ export const pineconeIndexVideo = ai.defineFlow(
     name: 'pineconeIndexVideo',
     inputSchema: z
       .string()
-      .describe(
-        `Video URL. e.g. 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'`
-      ),
+      .describe('A Video URL')
+      .default('gs://cloud-samples-data/generative-ai/video/pixel8.mp4'),
   },
   async (videoUrl: string) => {
     const documents = await ai.run('extract-video', () =>
@@ -104,9 +102,8 @@ export const chromaIndexVideo = ai.defineFlow(
     name: 'chromaIndexVideo',
     inputSchema: z
       .string()
-      .describe(
-        `Video URL. e.g. 'gs://cloud-samples-data/generative-ai/video/pixel8.mp4'`
-      ),
+      .describe('A Video URL')
+      .default('gs://cloud-samples-data/generative-ai/video/pixel8.mp4'),
   },
   async (videoUrl: string) => {
     const documents = await ai.run('extract-video', () =>
@@ -204,7 +201,10 @@ async function extractVideo(filePath: string): Promise<Document[]> {
 export const localVideoQAFlow = ai.defineFlow(
   {
     name: 'localVideoQuestions',
-    inputSchema: z.string(),
+    inputSchema: z
+      .string()
+      .describe('A question about the video')
+      .default('describe the video'),
     outputSchema: z.string(),
   },
   async (query: string, { sendChunk }) => {
@@ -245,7 +245,10 @@ export const localVideoQAFlow = ai.defineFlow(
 export const pineconeVideoQAFlow = ai.defineFlow(
   {
     name: 'pineconeVideoQuestions',
-    inputSchema: z.string(),
+    inputSchema: z
+      .string()
+      .describe('A question about the video')
+      .default('describe the video'),
     outputSchema: z.string(),
   },
   async (query: string, { sendChunk }) => {
@@ -285,7 +288,10 @@ export const pineconeVideoQAFlow = ai.defineFlow(
 export const chromaVideoQAFlow = ai.defineFlow(
   {
     name: 'chromaVideoQuestions',
-    inputSchema: z.string(),
+    inputSchema: z
+      .string()
+      .describe('A question about the video')
+      .default('describe the video'),
     outputSchema: z.string(),
   },
   async (query: string, { sendChunk }) => {

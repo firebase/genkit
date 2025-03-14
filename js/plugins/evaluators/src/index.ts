@@ -17,30 +17,31 @@
 import { Genkit, z } from 'genkit';
 import {
   BaseEvalDataPoint,
-  BaseEvalOptions,
   EvalResponse,
   EvalStatusEnum,
   Score,
-  StatusOverrideFn,
   evaluatorRef,
 } from 'genkit/evaluator';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   answerRelevancyScore,
+  deepEqual,
   faithfulnessScore,
+  jsonata,
   maliciousnessScore,
+  regexp,
 } from './metrics/index.js';
-import { GenkitMetric, GenkitMetricConfig } from './types.js';
-export { GenkitMetric, GenkitMetricConfig };
+import {
+  AnswerRelevancyGenkitMetricConfig,
+  GenkitMetric,
+  GenkitMetricConfig,
+  PluginOptions,
+  ResolvedConfig,
+  isGenkitMetricConfig,
+} from './types.js';
+export { GenkitMetric, GenkitMetricConfig, PluginOptions };
 
 const PLUGIN_NAME = 'genkitEval';
-
-export interface PluginOptions<
-  ModelCustomOptions extends z.ZodTypeAny,
-  EmbedderCustomOptions extends z.ZodTypeAny,
-> {
-  metrics: Array<GenkitMetricConfig<ModelCustomOptions, EmbedderCustomOptions>>;
-}
 
 /**
  * Reference to the Genkit evaluator for a specified metric
@@ -74,13 +75,13 @@ export default genkitEval;
 function fillScores(
   dataPoint: BaseEvalDataPoint,
   score: Score,
-  statusOverrideFn?: StatusOverrideFn
+  statusOverrideFn?: (s: Score) => EvalStatusEnum
 ): EvalResponse {
-  const status = statusOverrideFn
-    ? statusOverrideFn(score)
-    : EvalStatusEnum.UNKNOWN;
-  const evaluation = { ...score, status };
-  return { testCaseId: dataPoint.testCaseId, evaluation };
+  let status = score.status;
+  if (statusOverrideFn) {
+    status = statusOverrideFn(score);
+  }
+  return { testCaseId: dataPoint.testCaseId, evaluation: { ...score, status } };
 }
 
 /**
@@ -98,78 +99,163 @@ export function genkitEvaluators<
     throw new Error('No metrics configured in genkitEval plugin');
   }
   return metrics.map((metric) => {
-    switch (metric.type) {
+    const {
+      type,
+      judge,
+      judgeConfig,
+      embedder,
+      embedderOptions,
+      statusOverrideFn,
+    } = resolveConfig(metric, params);
+    switch (type) {
       case GenkitMetric.ANSWER_RELEVANCY: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing answer relvancy'
+          );
+        }
+        if (!embedder) {
+          throw new Error(
+            'Embedder must be specified if computing answer relvancy'
+          );
+        }
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${metric.type.toLocaleLowerCase()}`,
+            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
             displayName: 'Answer Relevancy',
             definition:
               'Assesses how pertinent the generated answer is to the given prompt',
           },
-          async (datapoint: BaseEvalDataPoint, options: BaseEvalOptions) => {
+          async (datapoint: BaseEvalDataPoint) => {
             const answerRelevancy = await answerRelevancyScore(
               ai,
-              metric.judge,
+              judge!,
               datapoint,
-              metric.embedder,
-              metric.judgeConfig,
-              metric.embedderOptions
+              embedder!,
+              judgeConfig,
+              embedderOptions
             );
-            return fillScores(
-              datapoint,
-              answerRelevancy,
-              metric.statusOverrideFn ?? options?.statusOverrideFn
-            );
+            return fillScores(datapoint, answerRelevancy, statusOverrideFn);
           }
         );
       }
       case GenkitMetric.FAITHFULNESS: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing faithfulness'
+          );
+        }
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${metric.type.toLocaleLowerCase()}`,
+            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
             displayName: 'Faithfulness',
             definition:
               'Measures the factual consistency of the generated answer against the given context',
           },
-          async (datapoint: BaseEvalDataPoint, options: BaseEvalOptions) => {
+          async (datapoint: BaseEvalDataPoint) => {
             const faithfulness = await faithfulnessScore(
               ai,
-              metric.judge,
+              judge!,
               datapoint,
-              metric.judgeConfig
+              judgeConfig
             );
-            return fillScores(
-              datapoint,
-              faithfulness,
-              metric.statusOverrideFn ?? options?.statusOverrideFn
-            );
+            return fillScores(datapoint, faithfulness, statusOverrideFn);
           }
         );
       }
       case GenkitMetric.MALICIOUSNESS: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing maliciousness'
+          );
+        }
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${metric.type.toLocaleLowerCase()}`,
+            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
             displayName: 'Maliciousness',
             definition:
               'Measures whether the generated output intends to deceive, harm, or exploit',
           },
-          async (datapoint: BaseEvalDataPoint, options: BaseEvalOptions) => {
+          async (datapoint: BaseEvalDataPoint) => {
             const maliciousness = await maliciousnessScore(
               ai,
-              metric.judge,
+              judge!,
               datapoint,
-              metric.judgeConfig
+              judgeConfig
             );
+            return fillScores(datapoint, maliciousness, statusOverrideFn);
+          }
+        );
+      }
+      case GenkitMetric.REGEX: {
+        return ai.defineEvaluator(
+          {
+            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            displayName: 'RegExp',
+            definition: 'Tests output against the regexp provided as reference',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
+            return fillScores(datapoint, await regexp(datapoint));
+          }
+        );
+      }
+      case GenkitMetric.DEEP_EQUAL: {
+        return ai.defineEvaluator(
+          {
+            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            displayName: 'Deep Equals',
+            definition:
+              'Tests equality of output against the provided reference',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
             return fillScores(
               datapoint,
-              maliciousness,
-              metric.statusOverrideFn ?? options?.statusOverrideFn
+              await deepEqual(datapoint),
+              statusOverrideFn
+            );
+          }
+        );
+      }
+      case GenkitMetric.JSONATA: {
+        return ai.defineEvaluator(
+          {
+            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            displayName: 'JSONata',
+            definition:
+              'Tests JSONata expression (provided in reference) against output',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
+            return fillScores(
+              datapoint,
+              await jsonata(datapoint),
+              statusOverrideFn
             );
           }
         );
       }
     }
   });
+}
+
+function resolveConfig<M extends z.ZodTypeAny, E extends z.ZodTypeAny>(
+  metric: GenkitMetricConfig<M, E>,
+  params: PluginOptions<M, E>
+): ResolvedConfig<M, E> {
+  if (isGenkitMetricConfig(metric)) {
+    return {
+      type: metric.type,
+      statusOverrideFn: metric.statusOverrideFn,
+      judge: metric.judge ?? params.judge,
+      judgeConfig: metric.judgeConfig ?? params.judgeConfig,
+      embedder:
+        metric.type === GenkitMetric.ANSWER_RELEVANCY
+          ? (metric as AnswerRelevancyGenkitMetricConfig<M, E>).embedder
+          : undefined,
+      embedderOptions:
+        metric.type === GenkitMetric.ANSWER_RELEVANCY
+          ? (metric as AnswerRelevancyGenkitMetricConfig<M, E>).embedderOptions
+          : undefined,
+    } as ResolvedConfig<M, E>;
+  }
+  return { type: metric, ...params };
 }

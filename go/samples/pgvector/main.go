@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // This program shows how to use Postgres's pgvector extension with Genkit.
 
 // This program can be manually tested like so:
@@ -39,7 +38,8 @@ var (
 
 func main() {
 	flag.Parse()
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,7 +101,8 @@ func run(g *genkit.Genkit) error {
 	})
 	// [END use-retr]
 
-	return g.Start(ctx, nil)
+	<-ctx.Done()
+	return nil
 }
 
 const provider = "pgvector"
@@ -109,7 +110,7 @@ const provider = "pgvector"
 // [START retr]
 func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Document))
+		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Query))
 		if err != nil {
 			return nil, err
 		}

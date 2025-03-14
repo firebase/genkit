@@ -32,12 +32,10 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Format all Go code.
-pushd ${TOP_DIR}
-go fmt go/...
+go fmt -C "${TOP_DIR}/go" ./...
 if [[ $? -ne 0 ]]; then
   exit 1
 fi
-popd
 
 # Format all TypeScript code.
 #

@@ -111,7 +111,7 @@ import {
   z,
 } from '@genkit-ai/core';
 import { HasRegistry } from '@genkit-ai/core/registry';
-import { BaseEvalDataPointSchema, BaseEvalOptionsSchema } from './evaluator.js';
+import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin } from './plugin.js';
 import { Registry } from './registry.js';
@@ -415,8 +415,7 @@ export class Genkit implements HasRegistry {
     DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
     EvalDataPoint extends
       typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-    EvaluatorOptions extends
-      typeof BaseEvalOptionsSchema = typeof BaseEvalOptionsSchema,
+    EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: {
       name: string;

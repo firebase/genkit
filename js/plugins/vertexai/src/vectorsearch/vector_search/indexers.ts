@@ -83,7 +83,6 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
       },
       async (docs, options) => {
         let docIds: string[] = [];
-
         try {
           docIds = await documentIndexer(docs, options);
         } catch (error) {
@@ -98,13 +97,22 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
           options: embedderOptions,
         });
 
-        const datapoints = embeddings.map(
-          ({ embedding }, i) =>
-            new Datapoint({
-              datapointId: docIds[i],
-              featureVector: embedding,
-            })
-        );
+        const datapoints = embeddings.map(({ embedding }, i) => {
+          const dp = new Datapoint({
+            datapointId: docIds[i],
+            featureVector: embedding,
+          });
+          if (docs[i].metadata?.restricts) {
+            dp.restricts = docs[i].metadata?.restricts;
+          }
+          if (docs[i].metadata?.numericRestricts) {
+            dp.numericRestricts = docs[i].metadata?.numericRestricts;
+          }
+          if (docs[i].metadata?.crowdingTag) {
+            dp.crowdingTag = docs[i].metadata?.crowdingTag;
+          }
+          return dp;
+        });
 
         try {
           await upsertDatapoints({

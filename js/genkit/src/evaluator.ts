@@ -17,7 +17,6 @@
 export {
   BaseDataPointSchema,
   BaseEvalDataPointSchema,
-  BaseEvalOptionsSchema,
   EvalActionResponseSchema,
   EvalResponseSchema,
   EvalStatusEnum,
@@ -26,7 +25,6 @@ export {
   evaluatorRef,
   type BaseDataPoint,
   type BaseEvalDataPoint,
-  type BaseEvalOptions,
   type Dataset,
   type EvalResponse,
   type EvalResponses,
@@ -36,5 +34,4 @@ export {
   type EvaluatorParams,
   type EvaluatorReference,
   type Score,
-  type StatusOverrideFn,
 } from '@genkit-ai/ai/evaluator';

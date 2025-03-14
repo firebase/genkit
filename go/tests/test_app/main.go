@@ -1,7 +1,6 @@
 // Copyright 2024 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-
 // This program doesn't do anything interesting.
 // It is used by go/tests/api_test.go.
 package main
@@ -11,22 +10,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 func main() {
-	opts := genkit.StartOptions{
-		FlowAddr: "127.0.0.1:3400",
-	}
-
 	// used for streamed flows
 	type chunk struct {
 		Count int `json:"count"`
 	}
 
-	g, err := genkit.New(nil)
+	ctx := context.Background()
+	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,9 +50,11 @@ func main() {
 		return fmt.Sprintf("done %d, streamed: %d times", count, i), nil
 	})
 
-	if err := g.Start(context.Background(), &opts); err != nil {
-		log.Fatal(err)
+	mux := http.NewServeMux()
+	for _, a := range genkit.ListFlows(g) {
+		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
 	}
+	log.Fatal(server.Start(ctx, "127.0.0.1:3400", mux))
 }
 
 func echo(ctx context.Context, req *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
