@@ -64,9 +64,8 @@ export const ai = genkit({
           judge: gemini15Pro,
           judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
           statusOverrideFn: (score: Score) => {
-            return (score.score as number) < 0.5
-              ? EvalStatusEnum.PASS
-              : EvalStatusEnum.FAIL;
+            // Always set to fail to test override
+            return EvalStatusEnum.FAIL;
           },
         },
       ],

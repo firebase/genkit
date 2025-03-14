@@ -92,5 +92,5 @@ export type ResolvedConfig<
 export function isGenkitMetricConfig(
   input: any
 ): input is BaseGenkitMetricConfig {
-  return 'type' in input;
+  return Object.hasOwn(input, 'type');
 }
