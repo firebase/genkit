@@ -122,6 +122,7 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	if options == nil {
 		return nil, errors.New("EvaluatorOptions must be provided")
 	}
+	// TODO(ssbushi): Set this on `evaluator` key on action metadata
 	metadataMap := map[string]any{}
 	metadataMap["evaluatorIsBilled"] = options.IsBilled
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
