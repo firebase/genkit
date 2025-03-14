@@ -185,8 +185,3 @@ func SetCustomMetadataAttr(ctx context.Context, key, value string) {
 func SpanPath(ctx context.Context) string {
 	return spanMetaKey.FromContext(ctx).Path
 }
-
-// SpanMetadata returns the span metadata
-func SpanMetadata(ctx context.Context) *spanMetadata {
-	return spanMetaKey.FromContext(ctx)
-}

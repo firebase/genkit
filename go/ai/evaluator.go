@@ -138,8 +138,6 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 			}
 			_, err := tracing.RunInNewSpan(ctx, r.TracingState(), fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
 				func(ctx context.Context, input Example) (*EvaluatorCallbackResponse, error) {
-					spanMetadata := tracing.SpanMetadata(ctx)
-					spanMetadata.Input = input
 					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 					spanId := trace.SpanContextFromContext(ctx).SpanID().String()
 					callbackRequest := EvaluatorCallbackRequest{
