@@ -23,6 +23,9 @@ dependencies = [
   "partial-json-parser>=0.2.1.1.post5",
   "json5>=0.10.0",
   "structlog>=25.2.0",
+  "opentelemetry-exporter-otlp>=1.30.0",
+  "aiohttp>=3.11.13",
+  "opentelemetry-instrumentation-aiohttp-client>=0.51b0",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }
