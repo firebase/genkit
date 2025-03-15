@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-export { Document, DocumentDataSchema, type DocumentData } from './document.js';
+export {
+  Document,
+  DocumentDataSchema,
+  type DocumentData,
+  type ToolRequest,
+  type ToolResponse,
+} from './document.js';
 export {
   embed,
   embedderRef,
