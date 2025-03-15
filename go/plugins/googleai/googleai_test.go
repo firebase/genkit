@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -22,7 +23,10 @@ import (
 )
 
 // The tests here only work with an API key set to a valid value.
-var apiKey = flag.String("key", "", "Gemini API key")
+var (
+	apiKey = flag.String("key", "", "Gemini API key")
+	cache  = flag.String("cache", "", "Local file to cache (large text document)")
+)
 
 var header = flag.Bool("header", false, "run test for x-goog-client-api header")
 
@@ -154,6 +158,75 @@ func TestLive(t *testing.T) {
 		const doNotWant = "11.31"
 		if strings.Contains(out, doNotWant) {
 			t.Errorf("got %q, expecting it NOT to contain %q", out, doNotWant)
+		}
+	})
+	t.Run("cache", func(t *testing.T) {
+		if *cache == "" {
+			t.Skip("no cache contents provided, use -cache flag")
+		}
+
+		textContent, err := os.ReadFile(*cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserTextMessage(string(textContent)).Cached(360),
+			),
+			ai.WithTextPrompt("write a summary of the content"),
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// inspect metadata just to make sure the cache was created
+		m := resp.Message.Metadata
+		cacheName := ""
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				cacheName = n
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}),
+			ai.WithHistory(resp.History()...),
+			ai.WithTextPrompt("rewrite the previous summary but now talking like a pirate, say a lot of times Ahoy"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := resp.Text()
+		if !strings.Contains(text, "Ahoy") {
+			t.Fatalf("expecting a response as a pirate but got %v", text)
+		}
+
+		// cache metadata should have not changed...
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				if cacheName != n {
+					t.Fatalf("cache name mismatch, want: %s, got: %s", cacheName, n)
+				}
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
 }

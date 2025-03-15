@@ -21,7 +21,7 @@ func TestGetContentForCache_NoCacheMetadata(t *testing.T) {
 			},
 		},
 	}
-	gotContent, err := prepareCacheContent(req, "gemini-1.5-flash-001")
+	gotContent, err := findCacheMarker(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -42,9 +42,9 @@ func TestGetContentForCache_NoContentToCache(t *testing.T) {
 			},
 		},
 	}
-	_, err := prepareCacheContent(req, "gemini-1.5-flash-001")
-	if err != nil {
-		t.Errorf("expected error due to no content to cache, but got nil error")
+	_, err := findCacheMarker(req)
+	if err == nil {
+		t.Fatalf("should fail due no text in message")
 	}
 }
 
@@ -66,7 +66,7 @@ func TestGetContentForCache_Invalid(t *testing.T) {
 			},
 		},
 	}
-	_, err := prepareCacheContent(req, "gemini-1.5-flash-001")
+	err := validateContextCacheRequest(req, "gemini-1.5-fash-001")
 	if err == nil {
 		t.Fatal("expecting error, system instructions are not supported with Context Cache")
 	}
@@ -78,8 +78,8 @@ func TestValidateContextCacheRequest_EmptyModelVersion(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error if modelVersion is empty")
 	}
-	if !strings.Contains(err.Error(), INVALID_ARGUMENT_MESSAGES.modelVersion) {
-		t.Errorf("expected error to contain %q, got %v", INVALID_ARGUMENT_MESSAGES.modelVersion, err)
+	if !strings.Contains(err.Error(), invalidArgMessages.modelVersion) {
+		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.modelVersion, err)
 	}
 }
 
@@ -89,8 +89,8 @@ func TestValidateContextCacheRequest_UnknownModelVersion(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error if modelVersion is unknown")
 	}
-	if !strings.Contains(err.Error(), INVALID_ARGUMENT_MESSAGES.modelVersion) {
-		t.Errorf("expected error to contain %q, got %v", INVALID_ARGUMENT_MESSAGES.modelVersion, err)
+	if !strings.Contains(err.Error(), invalidArgMessages.modelVersion) {
+		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.modelVersion, err)
 	}
 }
 
@@ -102,8 +102,8 @@ func TestValidateContextCacheRequest_HasTools(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error if Tools are present")
 	}
-	if !strings.Contains(err.Error(), INVALID_ARGUMENT_MESSAGES.tools) {
-		t.Errorf("expected error to contain %q, got %v", INVALID_ARGUMENT_MESSAGES.tools, err)
+	if !strings.Contains(err.Error(), invalidArgMessages.tools) {
+		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.tools, err)
 	}
 }
 
@@ -121,15 +121,12 @@ func TestExtractCacheConfig_NoMetadata(t *testing.T) {
 			{Role: ai.RoleUser, Content: []*ai.Part{{Text: "Hello"}}},
 		},
 	}
-	endIndex, ttl, err := findCacheMarker(req)
+	cs, err := findCacheMarker(req)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
-	if endIndex != -1 {
-		t.Errorf("expected end of cache index = -1, got %d", endIndex)
-	}
-	if ttl != 0 {
-		t.Errorf("expected cache ttlSeconds = 0, got %d", ttl)
+	if cs != nil {
+		t.Fatalf("expecting cache settings to be nil, got %#v", cs)
 	}
 }
 
@@ -149,15 +146,15 @@ func TestExtractCacheConfig_MapTTL(t *testing.T) {
 			},
 		},
 	}
-	endIndex, ttl, err := findCacheMarker(req)
+	cs, err := findCacheMarker(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if endIndex != 0 {
-		t.Errorf("expected endIndex=0, got %d", endIndex)
+	if cs.endIndex != 0 {
+		t.Errorf("expected endIndex=0, got %d", cs.endIndex)
 	}
-	if ttl != 123 {
-		t.Errorf("expected TTLSeconds=123, got %v", ttl)
+	if cs.ttl != 123 {
+		t.Errorf("expected TTLSeconds=123, got %v", cs.ttl)
 	}
 }
 
@@ -175,14 +172,11 @@ func TestExtractCacheConfig_InvalidCacheType(t *testing.T) {
 			},
 		},
 	}
-	endIndex, ttl, err := findCacheMarker(req)
+	cs, err := findCacheMarker(req)
 	if err == nil {
 		t.Fatal("expected error for invalid cache type")
 	}
-	if endIndex != -1 {
-		t.Errorf("expected endIndex=-1, got %d", endIndex)
-	}
-	if ttl != 0 {
-		t.Errorf("expected cache ttlSeconds = 0, got %d", ttl)
+	if cs != nil {
+		t.Fatalf("expecting empty cache settings but got: %v", cs)
 	}
 }

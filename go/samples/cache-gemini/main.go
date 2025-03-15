@@ -53,10 +53,7 @@ func main() {
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithMessages(
-				ai.NewUserMessage(
-					ai.NewTextPart(string(textContent))),
-				ai.NewModelMessage(
-					ai.NewTextPart("Here's what I can tell you about the text you provided")).Cached(360),
+				ai.NewUserTextMessage(string(textContent)).Cached(360),
 			),
 			ai.WithTextPrompt(prompt),
 		)
@@ -64,32 +61,18 @@ func main() {
 			return "", nil
 		}
 
-		text := resp.Text()
-
-		m := resp.Message.Metadata
-		name := ""
-		if cache, ok := m["cache"].(map[string]any); ok {
-			if n, ok := cache["name"].(string); ok {
-				name = n
-			}
-		}
-
 		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
-			Temperature: 0.9,
+			Temperature: 0.7,
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithHistory(resp.History()...),
-			ai.WithMessages(
-				ai.NewUserMessage(
-					ai.NewTextPart("now start talking as a pirate")).WithCacheName(name),
-			),
 			ai.WithTextPrompt("what is the ecosystem from Arrakis?"),
 		)
 		if err != nil {
 			return "", nil
 		}
 
-		text = resp.Text()
+		text := resp.Text()
 		return text, nil
 	})
 

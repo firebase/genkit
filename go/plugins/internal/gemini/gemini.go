@@ -281,7 +281,6 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 	gc.ToolConfig = choice
 
 	if cache != nil {
-		fmt.Printf("cache name: %s\ncache displayName: %s\n", cache.Name, cache.DisplayName)
 		gc.CachedContent = cache.Name
 	}
 

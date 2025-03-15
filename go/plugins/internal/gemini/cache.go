@@ -50,17 +50,20 @@ func handleCache(
 	request *ai.ModelRequest,
 	model string,
 ) (*genai.CachedContent, error) {
-	cacheEndIdx, cacheSetting, err := findCacheMarker(request)
+	cs, err := findCacheMarker(request)
 	if err != nil {
 		return nil, err
 	}
+	if cs == nil {
+		return nil, nil
+	}
 	// no cache mark found
-	if cacheEndIdx == -1 {
+	if cs.endIndex == -1 {
 		return nil, err
 	}
 	// index out of bounds
-	if cacheEndIdx < 0 || cacheEndIdx >= len(request.Messages) {
-		return nil, fmt.Errorf("end of cached contents, index %d is invalid", cacheEndIdx)
+	if cs.endIndex < 0 || cs.endIndex >= len(request.Messages) {
+		return nil, fmt.Errorf("end of cached contents, index %d is invalid", cs.endIndex)
 	}
 
 	// since context caching is only available for specific model versions, we
@@ -70,16 +73,15 @@ func handleCache(
 		return nil, err
 	}
 
-	var cache *genai.CachedContent
-	messages, err := getMessagesToCache(request.Messages, cacheEndIdx)
+	messages, err := getMessagesToCache(request.Messages, cs.endIndex)
 	if err != nil {
 		return nil, err
 	}
 	hash := calculateCacheHash(messages)
 
-	switch s := cacheSetting.(type) {
-	case string:
-		cache, err = lookupCache(ctx, client, s)
+	var cache *genai.CachedContent
+	if cs.name != "" {
+		cache, err = lookupCache(ctx, client, cs.name)
 		if err != nil {
 			// TODO: if cache expired or not found, create a fresh one
 			return nil, fmt.Errorf("cache lookup error, got %v", err)
@@ -88,20 +90,22 @@ func handleCache(
 		if cache.DisplayName != hash {
 			return nil, fmt.Errorf("invalid cache name: hash mismatch between cached content and request messages")
 		}
-	case int:
-		cache, err = client.Caches.Create(ctx, model, &genai.CreateCachedContentConfig{
-			DisplayName: hash,
-			TTL:         strconv.Itoa(s) + "s",
-			Contents:    messages,
-		})
-		if err == nil {
-			return nil, fmt.Errorf("cache creation error, got %v", err)
-		}
-	default:
-		return nil, fmt.Errorf("invalid cache setting type, want: (string|int) got: %v", err)
+
+		return cache, nil
 	}
 
-	return cache, err
+	if cs.ttl > 0 {
+		cache, err = client.Caches.Create(ctx, model, &genai.CreateCachedContentConfig{
+			DisplayName: hash,
+			TTL:         strconv.Itoa(cs.ttl) + "s",
+			Contents:    messages,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("cache creation error, got %v", err)
+		}
+	}
+
+	return cache, nil
 }
 
 // getMessagesToCache collects all the messages that should be cached
@@ -142,9 +146,17 @@ func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) 
 	return nil
 }
 
+type cacheSettings struct {
+	ttl      int
+	name     string
+	endIndex int
+}
+
 // findCacheMarker finds the cache mark in the list of request messages.
 // All of the messages preceding this mark will be cached.
-func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, cacheSetting any, err error) {
+func findCacheMarker(request *ai.ModelRequest) (*cacheSettings, error) {
+	var cacheName string
+
 	for i := len(request.Messages) - 1; i >= 0; i-- {
 		m := request.Messages[i]
 		if m.Metadata == nil {
@@ -158,20 +170,30 @@ func findCacheMarker(request *ai.ModelRequest) (cacheEndIdx int, cacheSetting an
 
 		c, ok := cacheVal.(map[string]any)
 		if !ok {
-			return -1, 0, fmt.Errorf("cache metadata should be map but got: %T", cacheVal)
+			return nil, fmt.Errorf("cache metadata should be map but got: %T", cacheVal)
 		}
 
+		// cache name should be only used to indicate the request already
+		// generated a cache
 		if n, ok := c["name"].(string); ok {
-			return i, n, nil
+			cacheName = n
+			continue
 		}
 
 		if t, ok := c["ttlSeconds"].(int); ok {
-			return i, t, nil
+			if m.Text() == "" {
+				return nil, fmt.Errorf("no content to cache, message is empty")
+			}
+			return &cacheSettings{
+				ttl:      t,
+				name:     cacheName,
+				endIndex: i,
+			}, nil
 		}
 
-		return -1, 0, fmt.Errorf("invalid type for cache ttlSeconds, expected int, got %T", c["ttlSeconds"])
+		return nil, fmt.Errorf("invalid type for cache ttlSeconds, expected int, got %T", c["ttlSeconds"])
 	}
-	return -1, 0, nil
+	return nil, nil
 }
 
 // lookupCache retrieves a *genai.CachedContent from a given cache name
