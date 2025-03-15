@@ -53,7 +53,7 @@ func main() {
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithMessages(
-				ai.NewUserTextMessage(string(textContent)).Cached(360),
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
 			ai.WithTextPrompt(prompt),
 		)
