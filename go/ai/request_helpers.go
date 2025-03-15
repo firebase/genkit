@@ -67,8 +67,8 @@ func NewTextMessage(role Role, text string) *Message {
 	}
 }
 
-// Cached adds cache configuration for the desired message
-func (m *Message) Cached(ttlSeconds int) *Message {
+// WithCacheTTL adds cache TTL configuration for the desired message
+func (m *Message) WithCacheTTL(ttlSeconds int) *Message {
 	metadata := make(map[string]any)
 
 	if m.Metadata != nil {
@@ -93,7 +93,7 @@ func (m *Message) Cached(ttlSeconds int) *Message {
 	}
 }
 
-// Cached adds cache configuration for the desired message
+// WithCacheName adds cache name to use in the generate request
 func (m *Message) WithCacheName(n string) *Message {
 	metadata := make(map[string]any)
 

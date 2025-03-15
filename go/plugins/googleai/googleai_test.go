@@ -172,7 +172,7 @@ func TestLive(t *testing.T) {
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithMessages(
-				ai.NewUserTextMessage(string(textContent)).Cached(360),
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
 			ai.WithTextPrompt("write a summary of the content"),
 			ai.WithConfig(&ai.GenerationCommonConfig{
@@ -239,7 +239,7 @@ func TestCacheHelper(t *testing.T) {
 					ai.NewTextPart(("this is just a test")),
 				),
 				ai.NewModelMessage(
-					ai.NewTextPart("oh really? is it?")).Cached(100),
+					ai.NewTextPart("oh really? is it?")).WithCacheTTL(100),
 			},
 		}
 
@@ -260,7 +260,7 @@ func TestCacheHelper(t *testing.T) {
 		}
 	})
 	t.Run("cache metadata overwrite", func(t *testing.T) {
-		m := ai.NewModelMessage(ai.NewTextPart("foo bar")).Cached(100)
+		m := ai.NewModelMessage(ai.NewTextPart("foo bar")).WithCacheTTL(100)
 		metadata := m.Metadata
 		if len(metadata) == 0 {
 			t.Fatal("expected metadata with contents, got empty")
@@ -274,7 +274,7 @@ func TestCacheHelper(t *testing.T) {
 		}
 
 		m.Metadata["foo"] = "bar"
-		m.Cached(50)
+		m.WithCacheTTL(50)
 
 		metadata = m.Metadata
 		cache, ok = metadata["cache"].(map[string]any)
