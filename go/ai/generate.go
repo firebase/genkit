@@ -532,10 +532,24 @@ func cloneMessage(m *Message) *Message {
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
 func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
+	// name/ref pairs must be unique in a request
+	type toolKey struct {
+		Name string
+		Ref  string
+	}
+	uniqueToolKeys := make(map[toolKey]bool)
 	toolCount := 0
 	for _, part := range resp.Message.Content {
 		if part.IsToolRequest() {
 			toolCount++
+			key := toolKey{
+				Name: part.ToolRequest.Name,
+				Ref:  part.ToolRequest.Ref,
+			}
+			if uniqueToolKeys[key] {
+				return nil, nil, fmt.Errorf("ambiguous tool requests found: %q", part.ToolRequest.Name)
+			}
+			uniqueToolKeys[key] = true
 		}
 	}
 
