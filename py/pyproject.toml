@@ -1,6 +1,7 @@
 [project]
 dependencies = [
   "dotpromptz",
+  "aioia",
   "genkit",
   "genkit-chroma-plugin",
   "genkit-compat-oai-plugin",
@@ -62,6 +63,7 @@ fail_under = 85
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+aioia                      = { workspace = true }
 basic-gemini               = { workspace = true }
 coffee-shop                = { workspace = true }
 context-caching            = { workspace = true }
