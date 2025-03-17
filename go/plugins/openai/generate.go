@@ -57,38 +57,20 @@ func (g *Generator) WithConfig(modelRequest *ai.ModelRequest) *Generator {
 
 // WithTools adds tools to the request
 func (g *Generator) WithTools(tools []ai.Tool, choice ai.ToolChoice) *Generator {
-	if len(tools) > 0 {
-		oaiTools := make([]openai.ChatCompletionToolParam, 0, len(tools))
-		for _, t := range tools {
-			oaiTools = append(oaiTools, openai.ChatCompletionToolParam{
-				Type: openai.F(openai.ChatCompletionToolTypeFunction),
-				Function: openai.F(openai.FunctionDefinitionParam{
-					Name:        openai.F(t.Name()),
-					Description: openai.F(t.Description()),
-					Parameters:  openai.F(t.Schema()),
-				}),
-			})
-		}
-		g.request.Tools = openai.F(oaiTools)
-
-		switch choice {
-		case ai.ToolChoiceAuto:
-			g.request.ToolChoice = openai.F("auto")
-		case ai.ToolChoiceNone:
-			g.request.ToolChoice = openai.F("none")
-		}
-	}
+	// TODO: Implement tools from model request
+	// see vertex ai recent pr here for reference: https://github.com/firebase/genkit/pull/2259
 	return g
 }
 
 // Generate executes the generation request
-func (g *Generator) Generate(ctx context.Context, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
-	if cb != nil {
-		return g.generateStream(ctx, cb)
+func (g *Generator) Generate(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+	if handleChunk != nil {
+		return g.generateStream(ctx, handleChunk)
 	}
-	return g.generateSync(ctx)
+	return g.generateComplete(ctx)
 }
 
+// concatenateContent concatenates text content into a single string
 func (g *Generator) concatenateContent(parts []*ai.Part) string {
 	content := ""
 	for _, part := range parts {
@@ -98,13 +80,13 @@ func (g *Generator) concatenateContent(parts []*ai.Part) string {
 }
 
 // Private generation methods
-func (g *Generator) generateStream(ctx context.Context, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+func (g *Generator) generateStream(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	stream := g.client.Chat.Completions.NewStreaming(ctx, *g.request)
 	defer stream.Close()
 
 	var fullResponse ai.ModelResponse
 	fullResponse.Message = &ai.Message{
-		Role:    ai.RoleAssistant,
+		Role:    ai.RoleModel,
 		Content: make([]*ai.Part, 0),
 	}
 
@@ -116,7 +98,7 @@ func (g *Generator) generateStream(ctx context.Context, cb func(context.Context,
 				Content: []*ai.Part{ai.NewTextPart(content)},
 			}
 
-			if err := cb(ctx, modelChunk); err != nil {
+			if err := handleChunk(ctx, modelChunk); err != nil {
 				return nil, fmt.Errorf("callback error: %w", err)
 			}
 
@@ -131,7 +113,7 @@ func (g *Generator) generateStream(ctx context.Context, cb func(context.Context,
 	return &fullResponse, nil
 }
 
-func (g *Generator) generateSync(ctx context.Context) (*ai.ModelResponse, error) {
+func (g *Generator) generateComplete(ctx context.Context) (*ai.ModelResponse, error) {
 	completion, err := g.client.Chat.Completions.New(ctx, *g.request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create completion: %w", err)
@@ -139,16 +121,11 @@ func (g *Generator) generateSync(ctx context.Context) (*ai.ModelResponse, error)
 
 	return &ai.ModelResponse{
 		Message: &ai.Message{
-			Role: ai.RoleAssistant,
+			Role: ai.RoleModel,
 			Content: []*ai.Part{
 				ai.NewTextPart(completion.Choices[0].Message.Content),
 			},
 		},
-		FinishReason: string(completion.Choices[0].FinishReason),
-		Usage: &ai.Usage{
-			InputTokens:  completion.Usage.PromptTokens,
-			OutputTokens: completion.Usage.CompletionTokens,
-			TotalTokens:  completion.Usage.TotalTokens,
-		},
+		FinishReason: ai.FinishReason("stop"),
 	}, nil
 }
