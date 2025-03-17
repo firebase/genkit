@@ -391,7 +391,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     )
 
     response = await ai.generate(
-        model='test/programmableModel',
+        model='programmableModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
@@ -486,7 +486,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     ]
 
     stream, aresponse = ai.generate_stream(
-        model='test/programmableModel',
+        model='programmableModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
@@ -553,7 +553,7 @@ async def test_generate_stream_no_need_to_await_response(
         ],
     ]
 
-    stream, _ = ai.generate_stream(model='test/programmableModel', prompt='do it')
+    stream, _ = ai.generate_stream(model='programmableModel', prompt='do it')
     chunks = ''
     async for chunk in stream:
         chunks += chunk.text
@@ -1051,7 +1051,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     chunks = []
 
     stream, aresponse = ai.generate_stream(
-        model='test/programmableModel',
+        model='programmableModel',
         prompt='hi',
         output_format='banana',
         output_schema=TestSchema,
