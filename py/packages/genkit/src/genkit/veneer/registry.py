@@ -41,6 +41,7 @@ from genkit.ai.embedding import EmbedderFn
 from genkit.ai.formats.types import FormatDef
 from genkit.ai.model import ModelFn, ModelMiddleware
 from genkit.ai.prompt import define_prompt
+from genkit.ai.retriever import RetrieverFn
 from genkit.core.action import Action, ActionKind
 from genkit.core.codec import dump_dict
 from genkit.core.registry import Registry
@@ -63,6 +64,7 @@ class GenkitRegistry:
 
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.
+
         Args:
             name: Optional name for the flow. If not provided, uses the
                 function name.
@@ -121,6 +123,7 @@ class GenkitRegistry:
         self, description: str, name: str | None = None
     ) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
+
         Args:
             description: Description for the tool to be passed to the model.
             name: Optional name for the flow. If not provided, uses the function name.
@@ -175,6 +178,40 @@ class GenkitRegistry:
 
         return wrapper
 
+    def define_retriever(
+        self,
+        name: str,
+        fn: RetrieverFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define a retriever action.
+
+        Args:
+            name: Name of the retriever.
+            fn: Function implementing the retriever behavior.
+            config_schema: Optional schema for retriever configuration.
+            metadata: Optional metadata for the retriever.
+        """
+        retriever_meta = metadata if metadata else {}
+        if 'retriever' not in retriever_meta:
+            retriever_meta['retriever'] = {}
+        if (
+            'label' not in retriever_meta['retriever']
+            or not retriever_meta['retriever']['label']
+        ):
+            retriever_meta['retriever']['label'] = name
+        if config_schema:
+            retriever_meta['retriever']['customOptions'] = to_json_schema(
+                config_schema
+            )
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.RETRIEVER,
+            fn=fn,
+            metadata=retriever_meta,
+        )
+
     def define_model(
         self,
         name: str,
@@ -184,6 +221,7 @@ class GenkitRegistry:
         info: ModelInfo | None = None,
     ) -> Action:
         """Define a custom model action.
+
         Args:
             name: Name of the model.
             fn: Function implementing the model behavior.
@@ -219,6 +257,7 @@ class GenkitRegistry:
         metadata: dict[str, Any] | None = None,
     ) -> Action:
         """Define a custom embedder action.
+
         Args:
             name: Name of the model.
             fn: Function implementing the embedder behavior.

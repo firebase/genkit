@@ -816,3 +816,21 @@ ai.defineFlow('simpleDataExtractor', async (input) => {
 ai.defineFlow('echo', async (input) => {
   return input;
 });
+
+ai.defineFlow(
+  {
+    name: 'youtube',
+    inputSchema: z.object({
+      url: z.string(),
+      prompt: z.string(),
+      model: z.string().optional(),
+    }),
+  },
+  async ({ url, prompt, model }) => {
+    const { text } = await ai.generate({
+      model: model || 'googleai/gemini-2.0-flash',
+      prompt: [{ text: prompt }, { media: { url, contentType: 'video/mp4' } }],
+    });
+    return text;
+  }
+);
