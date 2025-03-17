@@ -4,12 +4,14 @@ import logging
 import mimetypes
 from typing import Literal
 
+from genkit.ai.model import get_basic_usage_stats
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
+    GenerationUsage,
     Media,
     MediaPart,
     Message,
@@ -61,12 +63,12 @@ class OllamaModel:
         content = [TextPart(text='Failed to get response from Ollama API')]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
-            chat_response = await self._chat_with_ollama(
+            api_response = await self._chat_with_ollama(
                 request=request, ctx=ctx
             )
-            if chat_response:
+            if api_response:
                 content = self._build_multimodal_chat_response(
-                    chat_response=chat_response,
+                    chat_response=api_response,
                 )
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
             api_response = await self._generate_ollama_response(
@@ -75,16 +77,32 @@ class OllamaModel:
             if api_response:
                 content = [TextPart(text=api_response.response)]
         else:
-            LOG.error(f'Unresolved API type: {self.model_definition.api_type}')
+            raise ValueError(
+                f'Unresolved API type: {self.model_definition.api_type}'
+            )
 
         if self.is_streaming_request(ctx=ctx):
             content = []
+
+        response_message = Message(
+            role=Role.MODEL,
+            content=content,
+        )
+
+        basic_generation_usage = get_basic_usage_stats(
+            input_=request.messages,
+            response=response_message,
+        )
 
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
                 content=content,
-            )
+            ),
+            usage=self.get_usage_info(
+                basic_generation_usage=basic_generation_usage,
+                api_response=api_response,
+            ),
         )
 
     async def _chat_with_ollama(
@@ -277,3 +295,19 @@ class OllamaModel:
     @staticmethod
     def is_streaming_request(ctx: ActionRunContext | None) -> bool:
         return ctx and ctx.is_streaming
+
+    @staticmethod
+    def get_usage_info(
+        basic_generation_usage: GenerationUsage,
+        api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse,
+    ) -> GenerationUsage:
+        if api_response:
+            basic_generation_usage.input_tokens = (
+                api_response.prompt_eval_count or 0
+            )
+            basic_generation_usage.output_tokens = api_response.eval_count or 0
+            basic_generation_usage.total_tokens = (
+                basic_generation_usage.input_tokens
+                + basic_generation_usage.output_tokens
+            )
+        return basic_generation_usage
