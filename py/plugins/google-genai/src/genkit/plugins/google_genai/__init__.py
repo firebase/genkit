@@ -3,7 +3,6 @@
 
 from genkit.plugins.google_genai.google import GoogleGenai, google_genai_name
 from genkit.plugins.google_genai.models.gemini import GeminiVersion
-from genkit.plugins.google_genai.schemas import GoogleGenaiPluginOptions
 
 
 def package_name() -> str:
@@ -18,7 +17,6 @@ def package_name() -> str:
 __all__ = [
     package_name.__name__,
     GoogleGenai.__name__,
-    GoogleGenaiPluginOptions.__name__,
     google_genai_name.__name__,
     GeminiVersion.__name__,
 ]

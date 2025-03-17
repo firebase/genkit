@@ -7,14 +7,13 @@ from genkit.core.typing import GenerationCommonConfig, Message, Role, TextPart
 from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     GoogleGenai,
-    GoogleGenaiPluginOptions,
     google_genai_name,
 )
 from genkit.veneer import Genkit
 
 ai = Genkit(
     plugins=[GoogleGenai()],
-    model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+    model=google_genai_name('gemini-2.0-flash'),
 )
 
 
