@@ -198,12 +198,8 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 // The prompt expects some input described by inputSchema.
 // DefinePrompt registers the function as an action,
 // and returns a [Prompt] that runs it.
-func DefinePrompt(
-	g *Genkit,
-	provider, name string,
-	opts ...ai.PromptOption,
-) (*ai.Prompt, error) {
-	return ai.DefinePrompt(g.reg, provider, name, opts...)
+func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, error) {
+	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.

@@ -74,17 +74,13 @@ func TestOutputFormat(t *testing.T) {
 
 			if test.output == nil {
 				_, err = DefinePrompt(
-					r,
-					"aModel",
-					"aModel",
+					r, "aModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputFormat(test.format),
 				)
 			} else {
 				_, err = DefinePrompt(
-					r,
-					"bModel",
-					"bModel",
+					r, "bModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputType(test.output),
 					WithOutputFormat(test.format),
@@ -168,20 +164,12 @@ func TestInputFormat(t *testing.T) {
 			var p *Prompt
 
 			if test.inputType != nil {
-				p, err = DefinePrompt(
-					r,
-					"provider",
-					test.name,
+				p, err = DefinePrompt(r, test.name,
 					WithPromptText(test.templateText),
 					WithInputType(test.inputType),
 				)
 			} else {
-				p, err = DefinePrompt(
-					r,
-					"provider",
-					"inputFormat",
-					WithPromptText(test.templateText),
-				)
+				p, err = DefinePrompt(r, test.name, WithPromptText(test.templateText))
 			}
 
 			if err != nil {
@@ -564,12 +552,7 @@ func TestValidPrompt(t *testing.T) {
 				opts = append(opts, WithMessagesFn(test.messagesFn))
 			}
 
-			p, err := DefinePrompt(
-				r,
-				"prompts",
-				test.name,
-				opts...,
-			)
+			p, err := DefinePrompt(r, test.name, opts...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -619,7 +602,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	testModel := DefineModel(r, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := DefinePrompt(r, "TestExecute", "TestExecute", WithInputType(InputOutput{}), WithPromptText("TestExecute"))
+		p, err := DefinePrompt(r, "TestExecute", WithInputType(InputOutput{}), WithPromptText("TestExecute"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -648,7 +631,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := DefinePrompt(r, "TestModelname", "TestModelname", WithInputType(InputOutput{}), WithPromptText("TestModelname"))
+		p, err := DefinePrompt(r, "TestModelname", WithInputType(InputOutput{}), WithPromptText("TestModelname"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -831,12 +814,7 @@ func TestDefaultsOverride(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p, err := DefinePrompt(
-				r,
-				"prompts",
-				test.name,
-				test.define...,
-			)
+			p, err := DefinePrompt(r, test.name, test.define...)
 			if err != nil {
 				t.Fatal(err)
 			}

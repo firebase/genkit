@@ -72,7 +72,6 @@ func pr03() error {
 	}
 	helloPrompt, err := genkit.DefinePrompt(
 		g,
-		"prompts",
 		"helloPrompt",
 		ai.WithModel(model),
 		ai.WithInputType(HelloPromptInput{}),

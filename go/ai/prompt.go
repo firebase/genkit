@@ -38,7 +38,7 @@ type Prompt struct {
 }
 
 // DefinePrompt creates and registers a new Prompt.
-func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOption) (*Prompt, error) {
+func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Prompt, error) {
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
 		err := opt.applyPrompt(pOpts)
@@ -52,9 +52,7 @@ func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOpt
 		promptOptions: *pOpts,
 	}
 
-	renderFn := func(ctx context.Context, input any) (*GenerateActionOptions, error) {
-		return buildRequest(ctx, p, input)
-	}
+	renderFn := p.buildRequest
 	if p.RenderFn != nil {
 		renderFn = p.RenderFn
 	}
@@ -70,7 +68,7 @@ func DefinePrompt(r *registry.Registry, provider, name string, opts ...PromptOpt
 	}
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
-			"name":   p.Name(),
+			"name":   name,
 			"model":  modelName,
 			"config": p.Config,
 			"input":  map[string]any{"schema": p.InputSchema},
@@ -140,16 +138,13 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 	if modelName == "" {
 		modelName = p.ModelName
 	}
-	if modelName == "" {
-		return nil, errors.New("ai.Execute: model is required (WithModel or WithModelName)")
+	if modelName == "" && p.Model != nil {
+		modelName = p.Model.Name()
 	}
 	actionOpts.Model = modelName
 
 	if genOpts.MaxTurns != 0 {
 		actionOpts.MaxTurns = genOpts.MaxTurns
-	}
-	if actionOpts.MaxTurns < 0 {
-		return nil, fmt.Errorf("max turns must be greater than 0, got %d", actionOpts.MaxTurns)
 	}
 
 	if genOpts.IsReturnToolRequestsSet {
@@ -254,7 +249,7 @@ fieldLoop:
 
 // buildRequest prepares an [GenerateActionOptions] based on the prompt,
 // using the input variables and other information in the [Prompt].
-func buildRequest(ctx context.Context, p *Prompt, input any) (*GenerateActionOptions, error) {
+func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	m, err := buildVariables(input)
 	if err != nil {
 		return nil, err
