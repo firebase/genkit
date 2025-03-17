@@ -194,6 +194,23 @@ export const gemini20Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini20FlashLite = modelRef({
+  name: 'googleai/gemini-2.0-flash-lite',
+  info: {
+    label: 'Google AI - Gemini 2.0 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini20ProExp0205 = modelRef({
   name: 'googleai/gemini-2.0-pro-exp-02-05',
   info: {
@@ -220,6 +237,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
   'gemini-2.0-flash': gemini20Flash,
+  'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
 };
 
