@@ -1,15 +1,17 @@
 [project]
 dependencies = [
   "dotpromptz",
+  "aioia",
   "genkit",
   "genkit-chroma-plugin",
+  "genkit-compat-oai-plugin",
   "genkit-firebase-plugin",
+  "genkit-google-genai-plugin",
   "genkit-google-ai-plugin",
   "genkit-google-cloud-plugin",
   "genkit-ollama-plugin",
   "genkit-pinecone-plugin",
   "genkit-vertex-ai-plugin",
-  "genkit-compat-oai-plugin",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -21,7 +23,7 @@ version = "0.1.0"
 [dependency-groups]
 dev = [
   "bpython>=0.25",
-  "ipython>=8.32.0",
+  "ipython>=9.0.2",
   "jupyter>=1.1.1",
   "pytest-asyncio>=0.25.3",
   "pytest>=8.3.4",
@@ -50,7 +52,7 @@ python_files = [
 testpaths = ["packages", "plugins", "samples"]
 
 [tool.pytest.ini_options]
-addopts                            = "--cov"
+addopts                            = ["--cov"]
 asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
@@ -61,6 +63,7 @@ fail_under = 85
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+aioia                      = { workspace = true }
 basic-gemini               = { workspace = true }
 coffee-shop                = { workspace = true }
 context-caching            = { workspace = true }
@@ -72,6 +75,7 @@ genkit-compat-oai-plugin   = { workspace = true }
 genkit-firebase-plugin     = { workspace = true }
 genkit-google-ai-plugin    = { workspace = true }
 genkit-google-cloud-plugin = { workspace = true }
+genkit-google-genai-plugin = { workspace = true }
 genkit-ollama-plugin       = { workspace = true }
 genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }

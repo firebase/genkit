@@ -85,6 +85,8 @@ const SafetySettingsSchema = z.object({
 });
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  /** When supplied, override the plugin-configured API key and use this instead. */
+  apiKey: z.string().optional(),
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
   contextCache: z.boolean().optional(),
@@ -192,6 +194,23 @@ export const gemini20Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini20FlashLite = modelRef({
+  name: 'googleai/gemini-2.0-flash-lite',
+  info: {
+    label: 'Google AI - Gemini 2.0 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini20ProExp0205 = modelRef({
   name: 'googleai/gemini-2.0-pro-exp-02-05',
   info: {
@@ -218,6 +237,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
   'gemini-2.0-flash': gemini20Flash,
+  'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
 };
 
@@ -655,7 +675,7 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
 export function defineGoogleAIModel({
   ai,
   name,
-  apiKey,
+  apiKey: apiKeyOption,
   apiVersion,
   baseUrl,
   info,
@@ -664,22 +684,27 @@ export function defineGoogleAIModel({
 }: {
   ai: Genkit;
   name: string;
-  apiKey?: string;
+  apiKey?: string | false;
   apiVersion?: string;
   baseUrl?: string;
   info?: ModelInfo;
   defaultConfig?: GeminiConfig;
   debugTraces?: boolean;
 }): ModelAction {
-  if (!apiKey) {
-    apiKey = getApiKeyFromEnvVar();
+  let apiKey: string | undefined;
+  // DO NOT infer API key from environment variable if plugin was configured with `{apiKey: false}`.
+  if (apiKeyOption !== false) {
+    apiKey = apiKeyOption || getApiKeyFromEnvVar();
+    if (!apiKey) {
+      throw new GenkitError({
+        status: 'FAILED_PRECONDITION',
+        message:
+          'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
+      });
+    }
   }
-  if (!apiKey) {
-    throw new Error(
-      'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-        'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
-    );
-  }
+
   const apiModelName = name.startsWith('googleai/')
     ? name.substring('googleai/'.length)
     : name;
@@ -712,10 +737,22 @@ export function defineGoogleAIModel({
       downloadRequestMedia({
         maxBytes: 1024 * 1024 * 10,
         // don't downlaod files that have been uploaded using the Files API
-        filter: (part) =>
-          !part.media.url.startsWith(
-            'https://generativelanguage.googleapis.com/'
-          ),
+        filter: (part) => {
+          try {
+            const url = new URL(part.media.url);
+            if (
+              // Gemini can handle these URLs
+              [
+                'generativelanguage.googleapis.com',
+                'www.youtube.com',
+                'youtube.com',
+                'youtu.be',
+              ].includes(url.hostname)
+            )
+              return false;
+          } catch {}
+          return true;
+        },
       })
     );
   }
@@ -841,7 +878,14 @@ export function defineGoogleAIModel({
           cacheConfigDetails
         );
 
-      const client = new GoogleGenerativeAI(apiKey!);
+      if (!requestConfig.apiKey && !apiKey) {
+        throw new GenkitError({
+          status: 'INVALID_ARGUMENT',
+          message:
+            'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
+        });
+      }
+      const client = new GoogleGenerativeAI(requestConfig.apiKey || apiKey!);
       let genModel: GenerativeModel;
 
       if (cache) {

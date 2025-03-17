@@ -6,6 +6,7 @@
 import asyncio
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -16,6 +17,8 @@ from genkit.core.typing import (
     Media,
     MediaPart,
     Message,
+    RetrieverRequest,
+    RetrieverResponse,
     Role,
     TextPart,
 )
@@ -101,7 +104,7 @@ async def embed_docs(docs: list[str]):
     options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
-        documents=docs,
+        documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
 
@@ -163,7 +166,7 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
             tools=['gablorkenTool'],
         ),
     )
-    return response.text()
+    return response.text
 
 
 @ai.flow()
@@ -233,6 +236,15 @@ def my_model(request: GenerateRequest, ctx: ActionRunContext):
 ai.define_model(name='my_model', fn=my_model)
 
 
+def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+    return RetrieverResponse(
+        documents=[Document.from_text('Hello'), Document.from_text('World')]
+    )
+
+
+ai.define_retriever(name='my_retriever', fn=my_retriever)
+
+
 @ai.flow()
 async def streaming_model_tester(_: str, ctx: ActionRunContext):
     stream, res = ai.generate_stream(
@@ -282,3 +294,4 @@ async def stream_a_prompt(_: str, ctx: ActionRunContext):
 
 if __name__ == '__main__':
     asyncio.run(main())
+    print(asyncio.run(simple_generate_action_with_tools_flow(100)))

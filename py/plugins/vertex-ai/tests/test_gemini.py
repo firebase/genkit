@@ -34,7 +34,7 @@ def test_generate_text_response(mocker, version):
             ),
         ]
     )
-    gemini = Gemini(version)
+    gemini = Gemini(version, mocker.MagicMock())
     genai_model_mock = mocker.MagicMock()
     model_response_mock = mocker.MagicMock()
     model_response_mock.text = mocked_respond
@@ -50,8 +50,8 @@ def test_generate_text_response(mocker, version):
 
 
 @pytest.mark.parametrize('version', [x for x in GeminiVersion])
-def test_gemini_metadata(version):
-    gemini = Gemini(version)
+def test_gemini_metadata(mocker, version):
+    gemini = Gemini(version, mocker.MagicMock())
     supports = gemini.model_metadata['model']['supports']
     assert isinstance(supports, dict)
     assert supports['multiturn']
@@ -60,7 +60,7 @@ def test_gemini_metadata(version):
     assert supports['system_role']
 
 
-def test_built_gemini_message_multiple_parts():
+def test_built_gemini_message_multiple_parts(mocker):
     request = GenerateRequest(
         messages=[
             Message(
@@ -69,7 +69,7 @@ def test_built_gemini_message_multiple_parts():
             ),
         ],
     )
-    gemini = Gemini(GeminiVersion.GEMINI_1_5_FLASH)
+    gemini = Gemini(GeminiVersion.GEMINI_1_5_FLASH, mocker.MagicMock())
     result = gemini.build_messages(request)
     assert isinstance(result, list)
     assert isinstance(result[0].parts, list)
@@ -79,7 +79,7 @@ def test_built_gemini_message_multiple_parts():
         assert part.text == text
 
 
-def test_built_gemini_message_multiple_messages():
+def test_built_gemini_message_multiple_messages(mocker):
     request = GenerateRequest(
         messages=[
             Message(
@@ -89,7 +89,7 @@ def test_built_gemini_message_multiple_messages():
             for text in MULTILINE_CONTENT
         ],
     )
-    gemini = Gemini(GeminiVersion.GEMINI_1_5_FLASH)
+    gemini = Gemini(GeminiVersion.GEMINI_1_5_FLASH, mocker.MagicMock())
     result = gemini.build_messages(request)
     assert isinstance(result, list)
     assert len(result) == len(MULTILINE_CONTENT)
