@@ -131,25 +131,9 @@ export class ReflectionServer {
         const actions = await this.registry.listActions();
         const convertedActions = {};
         Object.keys(actions).forEach((key) => {
-          const action = actions[key].__action;
-          convertedActions[key] = {
-            key,
-            name: action.name,
-            description: action.description,
-            metadata: action.metadata,
-          };
-          if (action.inputSchema || action.inputJsonSchema) {
-            convertedActions[key].inputSchema = toJsonSchema({
-              schema: action.inputSchema,
-              jsonSchema: action.inputJsonSchema,
-            });
-          }
-          if (action.outputSchema || action.outputJsonSchema) {
-            convertedActions[key].outputSchema = toJsonSchema({
-              schema: action.outputSchema,
-              jsonSchema: action.outputJsonSchema,
-            });
-          }
+          const action = this.convertAction(actions[key].__action);
+          action.key = key;
+          convertedActions[key] = action;
         });
         response.send(convertedActions);
       } catch (err) {
@@ -257,6 +241,35 @@ export class ReflectionServer {
       response.status(200).send('OK');
     });
 
+    server.get('/api/values/:type', async (request, response, next) => {
+      const { type } = request.params;
+      logger.debug(`Fetching values, type=${type}`);
+      const convertedValues: Record<string, unknown> = {};
+      try {
+        const values = await this.registry.listValues(type);
+        for (const key in values) {
+          const val = values[key] as any;
+          if (
+            key === 'defaultModel' &&
+            val != null &&
+            typeof val === 'object'
+          ) {
+            // Special handling for the default model
+            const model = await this.registry.lookupAction(
+              `/model/${val.name}`
+            );
+            convertedValues[key] = this.convertAction(model.__action);
+          } else {
+            convertedValues[key] = val;
+          }
+        }
+      } catch (err) {
+        const { message, stack } = err as Error;
+        next({ message, stack });
+      }
+      response.send(convertedValues);
+    });
+
     server.use((err, req, res, next) => {
       logger.error(err.stack);
       const error = err as Error;
@@ -312,6 +325,27 @@ export class ReflectionServer {
         resolve();
       });
     });
+  }
+
+  private convertAction(action: any): any {
+    const convertedAction = {
+      name: action.name,
+      description: action.description,
+      metadata: action.metadata,
+    } as any;
+    if (action.inputSchema || action.inputJsonSchema) {
+      convertedAction.inputSchema = toJsonSchema({
+        schema: action.inputSchema,
+        jsonSchema: action.inputJsonSchema,
+      });
+    }
+    if (action.outputSchema || action.outputJsonSchema) {
+      convertedAction.outputSchema = toJsonSchema({
+        schema: action.outputSchema,
+        jsonSchema: action.outputJsonSchema,
+      });
+    }
+    return convertedAction;
   }
 
   /**
