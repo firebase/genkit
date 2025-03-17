@@ -62,14 +62,6 @@ func ReadJSONFile(filename string, pvalue any) error {
 }
 
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
-	r := jsonschema.Reflector{}
-	s = r.Reflect(x)
-	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
-	s.Version = ""
-	return s
-}
-
-func InferJSONSchemaNonReferencing(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
 		DoNotReference: true,
 		Mapper: func(t reflect.Type) *jsonschema.Schema {
