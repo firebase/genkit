@@ -13,10 +13,9 @@ from enum import StrEnum
 from typing import Any
 
 import vertexai.generative_models as genai
-from genkit.core.action import ActionRunContext
+from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.typing import (
     CustomPart,
-    DataPart,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -29,6 +28,7 @@ from genkit.core.typing import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.veneer.registry import GenkitRegistry
 
 LOG = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class Gemini:
     handling message formatting and response processing.
     """
 
-    def __init__(self, version: str | GeminiVersion):
+    def __init__(self, version: str | GeminiVersion, registry: GenkitRegistry):
         """Initialize a Gemini client.
 
         Args:
@@ -101,6 +101,7 @@ class Gemini:
                 one of the values from GeminiVersion.
         """
         self._version = version
+        self._registry = registry
 
     def is_multimode(self):
         return SUPPORTED_MODELS[self._version].supports.media
@@ -153,6 +154,52 @@ class Gemini:
         """
         return genai.GenerativeModel(self._version)
 
+    def _get_gemini_tools(self, request: GenerateRequest) -> list[genai.Tool]:
+        """Generates VertexAI Gemini compatible tool definitions.
+
+        Args:
+            request: The generation request.
+
+         Returns:
+             list of Gemini tools
+        """
+        tools = []
+        for tool in request.tools:
+            function = genai.FunctionDeclaration(
+                name=tool.name,
+                description=tool.description,
+                parameters=tool.input_schema,
+                response=tool.output_schema,
+            )
+            tools.append(genai.Tool(function_declarations=[function]))
+
+        return tools
+
+    def _call_tool(self, call: genai.FunctionCall) -> genai.Content:
+        """Calls tool's function from the registry.
+
+        Args:
+            call: FunctionCall from Gemini response
+
+        Returns:
+            Gemini message content to add to the message
+        """
+        tool_function = self._registry.registry.lookup_action(
+            ActionKind.TOOL, call.name
+        )
+        args = tool_function.input_type.validate_python(call.args)
+        tool_answer = tool_function.run(args)
+        return genai.Content(
+            parts=[
+                genai.Part.from_function_response(
+                    name=call.name,
+                    response={
+                        'content': tool_answer.response,
+                    },
+                )
+            ]
+        )
+
     def generate(
         self, request: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse | None:
@@ -167,8 +214,18 @@ class Gemini:
         """
 
         messages = self.build_messages(request)
+        tools = self._get_gemini_tools(request) if request.tools else None
+        if request.tools:
+            nn_tool_choice = self.gemini_model.generate_content(
+                contents=messages, stream=ctx.is_streaming, tools=tools
+            )
+            for candidate in nn_tool_choice.candidates:
+                messages.append(candidate.content)
+                for call in candidate.function_calls:
+                    messages.append(self._call_tool(call))
+
         response = self.gemini_model.generate_content(
-            contents=messages, stream=ctx.is_streaming
+            contents=messages, stream=ctx.is_streaming, tools=tools
         )
 
         text_response = ''

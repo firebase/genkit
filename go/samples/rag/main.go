@@ -65,6 +65,9 @@ func main() {
 	}
 	model := googleai.Model(g, "gemini-2.0-flash")
 	embedder := googleai.Embedder(g, "embedding-001")
+	if embedder == nil {
+		log.Fatal("embedder is not defined")
+	}
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}

@@ -10,10 +10,11 @@ import pathlib
 import pytest
 import yaml
 from genkit.ai.generate import generate_action
-from genkit.ai.model import _text_from_content, _text_from_message
+from genkit.ai.model import text_from_content, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
+    DocumentData,
     FinishReason,
     GenerateActionOptions,
     GenerateRequest,
@@ -72,6 +73,44 @@ async def test_simple_text_generate_request(setup_test) -> None:
 
 
 @pytest.mark.asyncio
+async def test_simulates_doc_grounding(setup_test) -> None:
+    ai, pm = setup_test
+
+    pm.responses.append(
+        GenerateResponse(
+            finishReason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[TextPart(text='bye')]),
+        )
+    )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[TextPart(text='hi')],
+                ),
+            ],
+            docs=[DocumentData(content=[TextPart(text='doc content 1')])],
+        ),
+    )
+
+    assert response.request.messages[0] == Message(
+        role=Role.USER,
+        content=[
+            TextPart(text='hi'),
+            TextPart(
+                text='\n\nUse the following information to complete your task:'
+                + '\n\n- [0]: doc content 1\n\n',
+                metadata={'purpose': 'context'},
+            ),
+        ],
+    )
+
+
+@pytest.mark.asyncio
 async def test_generate_applies_middleware(
     setup_test,
 ) -> None:
@@ -80,7 +119,7 @@ async def test_generate_applies_middleware(
     define_echo_model(ai)
 
     async def pre_middle(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -94,7 +133,7 @@ async def test_generate_applies_middleware(
 
     async def post_middle(req, ctx, next):
         resp: GenerateResponse = await next(req, ctx)
-        txt = _text_from_message(resp.message)
+        txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
             message=Message(
@@ -129,7 +168,7 @@ async def test_generate_middleware_next_fn_args_optional(
 
     async def post_middle(_, __, next):
         resp: GenerateResponse = await next()
-        txt = _text_from_message(resp.message)
+        txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
             message=Message(
@@ -168,7 +207,7 @@ async def test_generate_middleware_can_modify_context(
         )
 
     async def inject_context(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -242,7 +281,7 @@ async def test_generate_middleware_can_modify_stream(
                     role=Role.MODEL,
                     content=[
                         TextPart(
-                            text=f'intercepted: {_text_from_content(chunk.content)}'
+                            text=f'intercepted: {text_from_content(chunk.content)}'
                         )
                     ],
                 )
@@ -262,7 +301,7 @@ async def test_generate_middleware_can_modify_stream(
     got_chunks = []
 
     def collect_chunks(c):
-        got_chunks.append(_text_from_content(c.content))
+        got_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
         ai.registry,
