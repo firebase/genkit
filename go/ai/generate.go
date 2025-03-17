@@ -126,14 +126,18 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 		return nil, errors.New("ai.LookupModelByName: model not specified")
 	}
 
-	parts := strings.Split(modelName, "/")
-	if len(parts) != 2 {
-		return nil, errors.New("ai.LookupModelByName: prompt model not in provider/name format")
+	provider, name, found := strings.Cut(modelName, "/")
+	if !found {
+		name = provider
+		provider = ""
 	}
 
-	model := LookupModel(r, parts[0], parts[1])
+	model := LookupModel(r, provider, name)
 	if model == nil {
-		return nil, fmt.Errorf("ai.LookupModelByName: no model named %q for provider %q", parts[1], parts[0])
+		if provider == "" {
+			return nil, fmt.Errorf("ai.LookupModelByName: no model named %q", name)
+		}
+		return nil, fmt.Errorf("ai.LookupModelByName: no model named %q for provider %q", name, provider)
 	}
 
 	return model, nil

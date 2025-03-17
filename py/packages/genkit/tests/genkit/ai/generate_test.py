@@ -58,7 +58,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
-            model='test/programmableModel',
+            model='programmableModel',
             messages=[
                 Message(
                     role=Role.USER,
@@ -267,7 +267,7 @@ async def test_generate_middleware_can_modify_stream(
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
-            model='test/programmableModel',
+            model='programmableModel',
             messages=[
                 Message(
                     role=Role.USER,

@@ -158,7 +158,7 @@ describe('jsonFormat e2e', () => {
     };
 
     const { response, stream } = await generateStream(registry, {
-      model: 'test/programmableModel',
+      model: 'programmableModel',
       prompt: 'generate json',
       output: {
         format: 'json',
