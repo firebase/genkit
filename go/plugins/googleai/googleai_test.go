@@ -174,7 +174,7 @@ func TestLive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithTextPrompt("write a summary of the content"),
+			ai.WithPromptText("write a summary of the content"),
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
@@ -202,8 +202,8 @@ func TestLive(t *testing.T) {
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Version: "gemini-1.5-flash-001",
 			}),
-			ai.WithHistory(resp.History()...),
-			ai.WithTextPrompt("rewrite the previous summary but now talking like a pirate, say a lot of times Ahoy"),
+			ai.WithMessages(resp.History()...),
+			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
 		if err != nil {
 			t.Fatal(err)
