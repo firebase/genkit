@@ -136,7 +136,7 @@ export function defineFirestoreRetriever(
       },
       configSchema: z.object({
         where: z.record(z.any()).optional(),
-        /** Maximum number of results to return. Defaults to 10. */
+        /** Max number of results to return. Defaults to 10. */
         limit: z.number().optional(),
         /* Supply or override the distanceMeasure */
         distanceMeasure: z
