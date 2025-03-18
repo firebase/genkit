@@ -142,5 +142,9 @@ func runAction(ctx context.Context, def *ToolDefinition, action core.Action, inp
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
 func LookupTool(r *registry.Registry, name string) Tool {
-	return &toolAction{action: r.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
+	action := r.LookupAction(fmt.Sprintf("/%s/%s/%s", atype.Tool, provider, name))
+	if action == nil {
+		return nil
+	}
+	return &toolAction{action: action}
 }

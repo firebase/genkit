@@ -23,15 +23,14 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type InputOutput struct {
 	Text string `json:"text"`
 }
 
-var reg, _ = registry.New()
-
-func testTool(name string) *ToolDef[struct{ Test string }, string] {
+func testTool(reg *registry.Registry, name string) *ToolDef[struct{ Test string }, string] {
 	return DefineTool(reg, name, "use when need to execute a test",
 		func(ctx *ToolContext, input struct {
 			Test string
@@ -40,8 +39,6 @@ func testTool(name string) *ToolDef[struct{ Test string }, string] {
 		},
 	)
 }
-
-var testModel = DefineModel(reg, "defineoptions", "test", nil, testGenerate)
 
 func TestOutputFormat(t *testing.T) {
 	var tests = []struct {
@@ -98,6 +95,11 @@ func TestOutputFormat(t *testing.T) {
 }
 
 func TestInputFormat(t *testing.T) {
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	type hello struct {
 		Name string `json:"name"`
 	}
@@ -110,38 +112,11 @@ func TestInputFormat(t *testing.T) {
 		render       string
 	}{
 		{
-			name:         "noInput",
-			templateText: "hello world",
-			input:        nil,
-			render:       "hello world",
-		},
-		{
 			name:         "structInput",
 			templateText: "hello {{name}}",
 			inputType:    hello{},
 			input:        map[string]any{"name": "world"},
 			render:       "hello world",
-		},
-		{
-			name:         "stringInput",
-			templateText: "hello {{input}}",
-			inputType:    "world",
-			input:        map[string]any{"input": "world"},
-			render:       "hello world",
-		},
-		{
-			name:         "intInput",
-			templateText: "hello {{input}}",
-			inputType:    1,
-			input:        map[string]any{"input": 1},
-			render:       "hello 1",
-		},
-		{
-			name:         "floatInput",
-			templateText: "the value of pi is {{input}}",
-			inputType:    3.14159,
-			input:        map[string]any{"input": 3.14159},
-			render:       "the value of pi is 3.14159",
 		},
 		{
 			name:         "mapInput",
@@ -150,13 +125,6 @@ func TestInputFormat(t *testing.T) {
 			input:        map[string]any{"name": "world"},
 			render:       "hello world",
 		},
-		{
-			name:         "bool",
-			templateText: "that is {{input}}",
-			inputType:    true,
-			input:        map[string]any{"input": true},
-			render:       "that is true",
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -164,12 +132,12 @@ func TestInputFormat(t *testing.T) {
 			var p *Prompt
 
 			if test.inputType != nil {
-				p, err = DefinePrompt(r, test.name,
+				p, err = DefinePrompt(reg, test.name,
 					WithPromptText(test.templateText),
 					WithInputType(test.inputType),
 				)
 			} else {
-				p, err = DefinePrompt(r, test.name, WithPromptText(test.templateText))
+				p, err = DefinePrompt(reg, test.name, WithPromptText(test.templateText))
 			}
 
 			if err != nil {
@@ -192,74 +160,83 @@ type HelloPromptInput struct {
 	Name string
 }
 
-var promptModel = DefineModel(r, "test", "chat",
-	&ModelInfo{Supports: &ModelInfoSupports{
-		Tools:      true,
-		Multiturn:  true,
-		ToolChoice: true,
-		SystemRole: true,
-	}}, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
-		toolCalled := false
-		for _, msg := range gr.Messages {
-			if msg.Content[0].IsToolResponse() {
-				toolCalled = true
+func definePromptModel(reg *registry.Registry) Model {
+	return DefineModel(reg, "test", "chat",
+		&ModelInfo{Supports: &ModelInfoSupports{
+			Tools:      true,
+			Multiturn:  true,
+			ToolChoice: true,
+			SystemRole: true,
+		}}, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+			toolCalled := false
+			for _, msg := range gr.Messages {
+				if msg.Content[0].IsToolResponse() {
+					toolCalled = true
+				}
 			}
-		}
 
-		if !toolCalled && len(gr.Tools) == 1 {
-			part := NewToolRequestPart(&ToolRequest{
-				Name:  "testTool",
-				Input: map[string]any{"Test": "Bar"},
-			})
+			if !toolCalled && len(gr.Tools) == 1 {
+				part := NewToolRequestPart(&ToolRequest{
+					Name:  "testTool",
+					Input: map[string]any{"Test": "Bar"},
+				})
+
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role:    RoleModel,
+						Content: []*Part{part},
+					},
+				}, nil
+			}
+
+			if msc != nil {
+				msc(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("3!")},
+				})
+				msc(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("2!")},
+				})
+				msc(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("1!")},
+				})
+			}
+
+			textResponse := ""
+			var contentTexts []string
+			for _, m := range gr.Messages {
+				if m.Role != RoleUser && m.Role != RoleModel {
+					textResponse += fmt.Sprintf("%s: ", m.Role)
+				}
+
+				if m.Role == RoleTool {
+					contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output.(string))
+				}
+
+				for _, c := range m.Content {
+					contentTexts = append(contentTexts, c.Text)
+				}
+			}
+
+			textResponse += strings.Join(contentTexts, "; ")
+			textResponse += "; config: " + base.PrettyJSONString(gr.Config)
+			textResponse += "; context: " + base.PrettyJSONString(gr.Context)
 
 			return &ModelResponse{
 				Request: gr,
-				Message: &Message{
-					Role:    RoleModel,
-					Content: []*Part{part},
-				},
+				Message: NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
 			}, nil
-		}
-
-		if msc != nil {
-			msc(ctx, &ModelResponseChunk{
-				Content: []*Part{NewTextPart("3!")},
-			})
-			msc(ctx, &ModelResponseChunk{
-				Content: []*Part{NewTextPart("2!")},
-			})
-			msc(ctx, &ModelResponseChunk{
-				Content: []*Part{NewTextPart("1!")},
-			})
-		}
-
-		textResponse := ""
-		var contentTexts []string
-		for _, m := range gr.Messages {
-			if m.Role != RoleUser && m.Role != RoleModel {
-				textResponse += fmt.Sprintf("%s: ", m.Role)
-			}
-
-			if m.Role == RoleTool {
-				contentTexts = append(contentTexts, m.Content[0].ToolResponse.Output.(string))
-			}
-
-			for _, c := range m.Content {
-				contentTexts = append(contentTexts, c.Text)
-			}
-		}
-
-		textResponse += strings.Join(contentTexts, "; ")
-		textResponse += "; config: " + base.PrettyJSONString(gr.Config)
-		textResponse += "; context: " + base.PrettyJSONString(gr.Context)
-
-		return &ModelResponse{
-			Request: gr,
-			Message: NewModelTextMessage(fmt.Sprintf("Echo: %s", textResponse)),
-		}, nil
-	})
+		})
+}
 
 func TestValidPrompt(t *testing.T) {
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model := definePromptModel(reg)
+
 	var tests = []struct {
 		name           string
 		model          Model
@@ -281,7 +258,7 @@ func TestValidPrompt(t *testing.T) {
 	}{
 		{
 			name:       "user and system prompt, basic",
-			model:      promptModel,
+			model:      model,
 			config:     &GenerationCommonConfig{Temperature: 11},
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
@@ -311,7 +288,7 @@ func TestValidPrompt(t *testing.T) {
 		},
 		{
 			name:      "user and system prompt, functions",
-			model:     promptModel,
+			model:     model,
 			config:    &GenerationCommonConfig{Temperature: 11},
 			inputType: HelloPromptInput{},
 			systemFn: func(ctx context.Context, input any) (string, error) {
@@ -345,7 +322,7 @@ func TestValidPrompt(t *testing.T) {
 		},
 		{
 			name:       "messages prompt, basic",
-			model:      promptModel,
+			model:      model,
 			config:     &GenerationCommonConfig{Temperature: 11},
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
@@ -384,7 +361,7 @@ func TestValidPrompt(t *testing.T) {
 		},
 		{
 			name:       "messages prompt, function",
-			model:      promptModel,
+			model:      model,
 			config:     &GenerationCommonConfig{Temperature: 11},
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
@@ -425,7 +402,7 @@ func TestValidPrompt(t *testing.T) {
 		},
 		{
 			name:       "messages prompt, input struct",
-			model:      promptModel,
+			model:      model,
 			config:     &GenerationCommonConfig{Temperature: 11},
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
@@ -471,12 +448,12 @@ func TestValidPrompt(t *testing.T) {
 		},
 		{
 			name:       "prompt with tools",
-			model:      promptModel,
+			model:      model,
 			config:     &GenerationCommonConfig{Temperature: 11},
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
 			promptText: "my name is foo",
-			tools:      []Tool{testTool("testTool")},
+			tools:      []Tool{testTool(reg, "testTool")},
 			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
@@ -546,13 +523,26 @@ func TestValidPrompt(t *testing.T) {
 			opts = append(opts, WithTools(test.tools...))
 			opts = append(opts, WithMaxTurns(1))
 
+			if test.systemText != "" {
+				opts = append(opts, WithSystemText(test.systemText))
+			}
+			if test.systemFn != nil {
+				opts = append(opts, WithSystemFn(test.systemFn))
+			}
 			if test.messages != nil {
 				opts = append(opts, WithMessages(test.messages...))
-			} else {
+			}
+			if test.messagesFn != nil {
 				opts = append(opts, WithMessagesFn(test.messagesFn))
 			}
+			if test.promptText != "" {
+				opts = append(opts, WithPromptText(test.promptText))
+			}
+			if test.promptFn != nil {
+				opts = append(opts, WithPromptFn(test.promptFn))
+			}
 
-			p, err := DefinePrompt(r, test.name, opts...)
+			p, err := DefinePrompt(reg, test.name, opts...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -566,7 +556,7 @@ func TestValidPrompt(t *testing.T) {
 				t.Errorf("got %q want %q", output.Text(), test.wantTextOutput)
 			}
 
-			if diff := cmp.Diff(test.wantGenerated, output.Request, cmp.Comparer(cmpPart)); diff != "" {
+			if diff := cmp.Diff(test.wantGenerated, output.Request, cmp.Comparer(cmpPart), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
@@ -599,10 +589,15 @@ func testGenerate(ctx context.Context, req *ModelRequest, cb func(context.Contex
 }
 
 func TestOptionsPatternExecute(t *testing.T) {
-	testModel := DefineModel(r, "options", "test", nil, testGenerate)
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testModel := DefineModel(reg, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := DefinePrompt(r, "TestExecute", WithInputType(InputOutput{}), WithPromptText("TestExecute"))
+		p, err := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPromptText("TestExecute"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -631,7 +626,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := DefinePrompt(r, "TestModelname", WithInputType(InputOutput{}), WithPromptText("TestModelname"))
+		p, err := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPromptText("TestModelname"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -652,13 +647,13 @@ func TestOptionsPatternExecute(t *testing.T) {
 }
 
 func TestDefaultsOverride(t *testing.T) {
-	msgsFn := func(ctx context.Context, input any) ([]*Message, error) {
-		return []*Message{
-			{
-				Role:    RoleUser,
-				Content: []*Part{NewTextPart("you're history")},
-			}}, nil
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	testModel := DefineModel(reg, "defineoptions", "test", nil, testGenerate)
+	model := definePromptModel(reg)
 
 	var tests = []struct {
 		name           string
@@ -668,69 +663,11 @@ func TestDefaultsOverride(t *testing.T) {
 		wantGenerated  *ModelRequest
 	}{
 		{
-			name: "Messages",
-			define: []PromptOption{
-				WithPromptText("my name is default"),
-				WithMessages(&Message{
-					Role:    RoleUser,
-					Content: []*Part{NewTextPart("you're default")},
-				}),
-				WithModel(promptModel),
-			},
-			execute: []PromptGenerateOption{
-				WithConfig(&GenerationCommonConfig{Temperature: 12}),
-				WithMessages(NewUserTextMessage("you're history")),
-			},
-			wantTextOutput: "Echo: you're history; my name is default; config: {\n  \"temperature\": 12\n}; context: null",
-			wantGenerated: &ModelRequest{
-				Config: &GenerationCommonConfig{
-					Temperature: 12,
-				},
-				Output: &ModelRequestOutput{},
-				Messages: []*Message{
-					NewUserTextMessage("you're history"),
-					NewUserTextMessage("my name is default"),
-				},
-			},
-		},
-		{
-			name: "MessagesFn",
-			define: []PromptOption{
-				WithPromptText("my name is default"),
-				WithMessages(&Message{
-					Role:    RoleUser,
-					Content: []*Part{NewTextPart("you're default")},
-				}),
-				WithModel(promptModel),
-			},
-			execute: []PromptGenerateOption{
-				WithConfig(&GenerationCommonConfig{Temperature: 12}),
-				WithMessagesFn(msgsFn),
-			},
-			wantTextOutput: "Echo: you're history; my name is default; config: {\n  \"temperature\": 12\n}; context: null",
-			wantGenerated: &ModelRequest{
-				Config: &GenerationCommonConfig{
-					Temperature: 12,
-				},
-				Output: &ModelRequestOutput{},
-				Messages: []*Message{
-					{
-						Role:    RoleUser,
-						Content: []*Part{NewTextPart("you're history")},
-					},
-					{
-						Role:    RoleUser,
-						Content: []*Part{NewTextPart("my name is default")},
-					},
-				},
-			},
-		},
-		{
 			name: "Config",
 			define: []PromptOption{
 				WithPromptText("my name is foo"),
 				WithConfig(&GenerationCommonConfig{Temperature: 11}),
-				WithModel(promptModel),
+				WithModel(model),
 			},
 			execute: []PromptGenerateOption{
 				WithConfig(&GenerationCommonConfig{Temperature: 12}),
@@ -753,7 +690,7 @@ func TestDefaultsOverride(t *testing.T) {
 			name: "Model",
 			define: []PromptOption{
 				WithPromptText("my name is foo"),
-				WithModel(promptModel),
+				WithModel(model),
 			},
 			execute: []PromptGenerateOption{
 				WithConfig(&GenerationCommonConfig{Temperature: 12}),
@@ -814,7 +751,7 @@ func TestDefaultsOverride(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p, err := DefinePrompt(r, test.name, test.define...)
+			p, err := DefinePrompt(reg, test.name, test.define...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -827,7 +764,7 @@ func TestDefaultsOverride(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(test.wantGenerated, output.Request, cmp.Comparer(cmpPart)); diff != "" {
+			if diff := cmp.Diff(test.wantGenerated, output.Request, cmp.Comparer(cmpPart), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 

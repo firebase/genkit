@@ -52,11 +52,6 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 		promptOptions: *pOpts,
 	}
 
-	renderFn := p.buildRequest
-	if p.RenderFn != nil {
-		renderFn = p.RenderFn
-	}
-
 	modelName := p.ModelName
 	if modelName == "" && p.Model != nil {
 		modelName = p.Model.Name()
@@ -76,7 +71,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, renderFn)
+	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
 	return p, nil
 }
 
@@ -89,10 +84,13 @@ func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
 	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.Prompt, provider, name)
-	p := &Prompt{
-		action: *action,
+	if action == nil {
+		return nil
 	}
-	return p
+	return &Prompt{
+		registry: r,
+		action:   *action,
+	}
 }
 
 // Name returns the name of the prompt.

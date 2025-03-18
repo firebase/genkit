@@ -159,7 +159,13 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		if _, ok := toolDefMap[t]; ok {
 			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
 		}
-		toolDefMap[t] = LookupTool(r, t).Definition()
+
+		tool := LookupTool(r, t)
+		if tool == nil {
+			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
+		}
+
+		toolDefMap[t] = tool.Definition()
 	}
 	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
 	for _, t := range toolDefMap {
