@@ -1297,9 +1297,6 @@
               }
             }
           },
-          "required": [
-            "timeEvent"
-          ],
           "additionalProperties": false
         },
         "truncated": {
