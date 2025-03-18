@@ -402,7 +402,9 @@ class Action:
 
         return self.__fn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
+            ActionRunContext(
+                on_chunk=on_chunk, context=_action_context.get(None)
+            ),
         )
 
     async def arun(
