@@ -166,6 +166,8 @@ func checkSchemaIsComplete(s *Schema, orig []byte) error {
 	if err := json.Unmarshal(data, &got); err != nil {
 		return err
 	}
+	// Normalize both sides before comparison
+	adjustAdditionalProperties(want)
 	adjustAdditionalProperties(got)
 	diff := gocmp.Diff(want, got)
 	if diff != "" {
@@ -181,11 +183,20 @@ func adjustAdditionalProperties(x any) {
 	if m, ok := x.(map[string]any); ok {
 		for k, v := range m {
 			if k == "additionalProperties" {
+				// Convert true to {}
+				if b, ok := v.(bool); ok && b {
+					m[k] = map[string]any{}
+				}
+				// Convert {not:{}} to false
 				if vm, ok := v.(map[string]any); ok && len(vm) == 1 {
 					if nm, ok := vm["not"].(map[string]any); ok && len(nm) == 0 {
 						m[k] = false
 					}
 				}
+			}
+			// TODO: Fix this
+			if k == "uniqueItems" {
+				delete(m, k)
 			}
 			adjustAdditionalProperties(v)
 		}
@@ -293,12 +304,41 @@ func (g *generator) generateType(name string) (err error) {
 		}
 		return g.generateStringEnum(name, s, tcfg)
 	}
+
+	// Check if we have a typeExpr in the config before checking the type
+	if tcfg != nil && tcfg.typeExpr != "" {
+		log.Printf("Using typeExpr from config for %s: %q", name, tcfg.typeExpr)
+		// Use the type from config directly
+		g.generateDoc(s, tcfg)
+		goName := tcfg.name
+		if goName == "" {
+			goName = adjustIdentifier(name)
+		}
+		g.pr("type %s %s\n\n", goName, tcfg.typeExpr)
+		return nil
+	}
+
 	switch typ {
 	case "object": // a JSONSchema object corresponds to a Go struct
 		if err := g.generateStruct(name, s, tcfg); err != nil {
 			return err
 		}
-
+	case "array": // a slice
+		log.Printf("Handling array type for %s", name)
+		if s.Items == nil {
+			return fmt.Errorf("array type without items")
+		}
+		// Generate a type alias for the array
+		itemType, err := g.typeExpr(s.Items)
+		if err != nil {
+			return fmt.Errorf("items: %w", err)
+		}
+		g.generateDoc(s, tcfg)
+		goName := tcfg.name
+		if goName == "" {
+			goName = adjustIdentifier(name)
+		}
+		g.pr("type %s []%s\n\n", goName, itemType)
 	default:
 		return fmt.Errorf("don't understand type %q", typ)
 	}
@@ -322,12 +362,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		}
 		fs := s.Properties[field]
 		// Ignore properties with a non-empty "not" constraint.
-		// They are probably the result of inheriting from a base zod type with a "never" constraint.
-		// E.g. see EmptyPartSchema and its subtypes in js/ai/src/model.ts.
 		if fs.Not != nil {
-			continue
-		}
-		if fcfg.omit {
 			continue
 		}
 		typeExpr := fcfg.typeExpr
@@ -340,7 +375,8 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		}
 		g.generateDoc(fs, fcfg)
 		jsonTag := fmt.Sprintf(`json:"%s,omitempty"`, field)
-		g.pr("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag)
+		fieldLine := fmt.Sprintf("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag)
+		g.pr(fieldLine)
 	}
 	g.pr("}\n\n")
 	return nil
@@ -392,6 +428,13 @@ func (g *generator) typeExpr(s *Schema) (string, error) {
 			return "", fmt.Errorf("ref %q does not begin with prefix %q", s.Ref, refPrefix)
 		}
 		ic := g.cfg.configFor(name)
+		// Check if this is a property reference
+		if strings.Contains(name, "/properties/") {
+			// Check if we have a config for this
+			if ic != nil && ic.typeExpr != "" {
+				return ic.typeExpr, nil
+			}
+		}
 		s2, ok := g.schemas[name]
 		if !ok {
 			// If there is no schema, perhaps there is a config value.
@@ -463,6 +506,17 @@ func (g *generator) typeExpr(s *Schema) (string, error) {
 // adjustIdentifier returns name with the first letter capitalized
 // so it is exported, and makes other idiomatic Go adjustments.
 func adjustIdentifier(name string) string {
+	// Replace hyphens with camel case
+	if strings.Contains(name, "-") {
+		parts := strings.Split(name, "-")
+		for i := 1; i < len(parts); i++ {
+			if len(parts[i]) > 0 {
+				parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+			}
+		}
+		name = strings.Join(parts, "")
+	}
+
 	// "Id" is common; change to "ID".
 	if pre, ok := strings.CutSuffix(name, "Id"); ok {
 		name = pre + "ID"

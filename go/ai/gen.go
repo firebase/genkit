@@ -5,10 +5,65 @@
 
 package ai
 
+type BaseDataPoint struct {
+	Context    []any    `json:"context,omitempty"`
+	Input      any      `json:"input,omitempty"`
+	Output     any      `json:"output,omitempty"`
+	Reference  any      `json:"reference,omitempty"`
+	TestCaseID string   `json:"testCaseId,omitempty"`
+	TraceIDs   []string `json:"traceIds,omitempty"`
+}
+
+type BaseEvalDataPoint struct {
+	Context    map[string]any `json:"context,omitempty"`
+	Input      map[string]any `json:"input,omitempty"`
+	Output     map[string]any `json:"output,omitempty"`
+	Reference  map[string]any `json:"reference,omitempty"`
+	TestCaseID string         `json:"testCaseId,omitempty"`
+	TraceIDs   []string       `json:"traceIds,omitempty"`
+}
+
+type CommonRerankerOptions struct {
+	// Number of documents to rerank
+	K float64 `json:"k,omitempty"`
+}
+
+type CommonRetrieverOptions struct {
+	// Number of documents to retrieve
+	K float64 `json:"k,omitempty"`
+}
+
+type customPart struct {
+	Custom   map[string]any `json:"custom,omitempty"`
+	Data     any            `json:"data,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
 type dataPart struct {
 	Data     any            `json:"data,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
+
+type Embedding struct {
+	Embedding []float64      `json:"embedding,omitempty"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
+}
+
+type EvalFnResponse struct {
+	Evaluation  any     `json:"evaluation,omitempty"`
+	SampleIndex float64 `json:"sampleIndex,omitempty"`
+	SpanID      string  `json:"spanId,omitempty"`
+	TestCaseID  string  `json:"testCaseId,omitempty"`
+	TraceID     string  `json:"traceId,omitempty"`
+}
+
+type EvalRequest struct {
+	Dataset   []*BaseDataPoint `json:"dataset,omitempty"`
+	EvalRunID string           `json:"evalRunId,omitempty"`
+	Options   any              `json:"options,omitempty"`
+}
+
+type EvalResponse []any
 
 type FinishReason string
 
@@ -27,16 +82,17 @@ type GenerateActionOptions struct {
 	MaxTurns           int                          `json:"maxTurns,omitempty"`
 	Messages           []*Message                   `json:"messages,omitempty"`
 	Model              string                       `json:"model,omitempty"`
-	Output             *GenerateActionOptionsOutput `json:"output,omitempty"`
+	Output             *GenerateActionOutputConfig  `json:"output,omitempty"`
+	Resume             *GenerateActionOptionsResume `json:"resume,omitempty"`
 	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
 	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
-	Tools              []string                     `json:"tools,omitempty"`
+	Tools              []*ToolDefinition            `json:"tools,omitempty"`
 }
 
-type GenerateActionOptionsOutput struct {
-	ContentType string         `json:"contentType,omitempty"`
-	Format      OutputFormat   `json:"format,omitempty"`
-	JsonSchema  map[string]any `json:"jsonSchema,omitempty"`
+type GenerateActionOptionsResume struct {
+	Metadata map[string]any      `json:"metadata,omitempty"`
+	Respond  []*toolResponsePart `json:"respond,omitempty"`
+	Restart  []*toolRequestPart  `json:"restart,omitempty"`
 }
 
 type ToolChoice string
@@ -47,18 +103,12 @@ const (
 	ToolChoiceNone     ToolChoice = "none"
 )
 
-type ModelRequestOutput struct {
-	Format OutputFormat   `json:"format,omitempty"`
-	Schema map[string]any `json:"schema,omitempty"`
+type GenerateActionOutputConfig struct {
+	Constrained bool           `json:"constrained,omitempty"`
+	ContentType string         `json:"contentType,omitempty"`
+	Format      string         `json:"format,omitempty"`
+	JsonSchema  map[string]any `json:"jsonSchema,omitempty"`
 }
-
-type OutputFormat string
-
-const (
-	OutputFormatJSON  OutputFormat = "json"
-	OutputFormatText  OutputFormat = "text"
-	OutputFormatMedia OutputFormat = "media"
-)
 
 // GenerationCommonConfig holds configuration for generation.
 type GenerationCommonConfig struct {
@@ -87,7 +137,6 @@ type GenerationUsage struct {
 }
 
 type mediaPart struct {
-	Data     any             `json:"data,omitempty"`
 	Media    *mediaPartMedia `json:"media,omitempty"`
 	Metadata map[string]any  `json:"metadata,omitempty"`
 }
@@ -106,30 +155,48 @@ type Message struct {
 
 type ModelInfo struct {
 	Label    string             `json:"label,omitempty"`
+	Stage    ModelInfoStage     `json:"stage,omitempty"`
 	Supports *ModelInfoSupports `json:"supports,omitempty"`
 	Versions []string           `json:"versions,omitempty"`
 }
 
+type ModelInfoStage string
+
+const (
+	ModelInfoStageFeatured   ModelInfoStage = "featured"
+	ModelInfoStageStable     ModelInfoStage = "stable"
+	ModelInfoStageUnstable   ModelInfoStage = "unstable"
+	ModelInfoStageLegacy     ModelInfoStage = "legacy"
+	ModelInfoStageDeprecated ModelInfoStage = "deprecated"
+)
+
 type ModelInfoSupports struct {
-	Constrained bool         `json:"constrained,omitempty"`
-	ContentType []string     `json:"contentType,omitempty"`
-	Context     bool         `json:"context,omitempty"`
-	Media       bool         `json:"media,omitempty"`
-	Multiturn   bool         `json:"multiturn,omitempty"`
-	Output      OutputFormat `json:"output,omitempty"`
-	SystemRole  bool         `json:"systemRole,omitempty"`
-	ToolChoice  bool         `json:"toolChoice,omitempty"`
-	Tools       bool         `json:"tools,omitempty"`
+	ContentType []string `json:"contentType,omitempty"`
+	Context     bool     `json:"context,omitempty"`
+	Media       bool     `json:"media,omitempty"`
+	Multiturn   bool     `json:"multiturn,omitempty"`
+	Output      []string `json:"output,omitempty"`
+	SystemRole  bool     `json:"systemRole,omitempty"`
+	ToolChoice  bool     `json:"toolChoice,omitempty"`
+	Tools       bool     `json:"tools,omitempty"`
 }
+
+type ModelInfoSupportsConstrained string
+
+const (
+	ModelInfoSupportsConstrainedNone    ModelInfoSupportsConstrained = "none"
+	ModelInfoSupportsConstrainedAll     ModelInfoSupportsConstrained = "all"
+	ModelInfoSupportsConstrainedNoTools ModelInfoSupportsConstrained = "no-tools"
+)
 
 // A ModelRequest is a request to generate completions from a model.
 type ModelRequest struct {
 	Config   any         `json:"config,omitempty"`
-	Context  []*Document `json:"context,omitempty"`
+	Docs     []*Document `json:"docs,omitempty"`
 	Messages []*Message  `json:"messages,omitempty"`
 	// Output describes the desired response format.
-	Output     *ModelRequestOutput `json:"output,omitempty"`
-	ToolChoice ToolChoice          `json:"toolChoice,omitempty"`
+	Output     OutputConfigFormat `json:"output,omitempty"`
+	ToolChoice ToolChoice         `json:"toolChoice,omitempty"`
 	// Tools lists the available tools that the model can ask the client to run.
 	Tools []*ToolDefinition `json:"tools,omitempty"`
 }
@@ -158,6 +225,40 @@ type ModelResponseChunk struct {
 	Role       Role    `json:"role,omitempty"`
 }
 
+type OutputConfig struct {
+	Constrained  bool           `json:"constrained,omitempty"`
+	ContentType  string         `json:"contentType,omitempty"`
+	Format       string         `json:"format,omitempty"`
+	Instructions string         `json:"instructions,omitempty"`
+	Schema       map[string]any `json:"schema,omitempty"`
+}
+
+type PathMetadata struct {
+	Error   string  `json:"error,omitempty"`
+	Latency float64 `json:"latency,omitempty"`
+	Path    string  `json:"path,omitempty"`
+	Status  string  `json:"status,omitempty"`
+}
+
+type RankedDocumentData struct {
+	Content  []*Part                     `json:"content,omitempty"`
+	Metadata *RankedDocumentDataMetadata `json:"metadata,omitempty"`
+}
+
+type RankedDocumentDataMetadata struct {
+	Score float64 `json:"score,omitempty"`
+}
+
+type RerankerRequest struct {
+	Documents []*Document `json:"documents,omitempty"`
+	Options   any         `json:"options,omitempty"`
+	Query     *Document   `json:"query,omitempty"`
+}
+
+type RerankerResponse struct {
+	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
 // Role indicates which entity is responsible for the content of a message.
 type Role string
 
@@ -173,6 +274,12 @@ const (
 	RoleTool Role = "tool"
 )
 
+type Score any
+
+type ScoreDetails struct {
+	Reasoning string `json:"reasoning,omitempty"`
+}
+
 type textPart struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 	Text     string         `json:"text,omitempty"`
@@ -182,12 +289,12 @@ type textPart struct {
 type ToolDefinition struct {
 	Description string `json:"description,omitempty"`
 	// Valid JSON Schema representing the input of the tool.
-	InputSchema map[string]any `json:"inputSchema,omitempty"`
+	InputSchema any `json:"inputSchema,omitempty"`
 	// additional metadata for this tool definition
 	Metadata map[string]any `json:"metadata,omitempty"`
 	Name     string         `json:"name,omitempty"`
 	// Valid JSON Schema describing the output of the tool.
-	OutputSchema map[string]any `json:"outputSchema,omitempty"`
+	OutputSchema any `json:"outputSchema,omitempty"`
 }
 
 type toolRequestPart struct {
@@ -220,4 +327,10 @@ type ToolResponse struct {
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output any    `json:"output,omitempty"`
 	Ref    string `json:"ref,omitempty"`
+}
+
+type TraceMetadata struct {
+	FeatureName string          `json:"featureName,omitempty"`
+	Paths       []*PathMetadata `json:"paths,omitempty"`
+	Timestamp   float64         `json:"timestamp,omitempty"`
 }

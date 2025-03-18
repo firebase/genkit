@@ -470,15 +470,7 @@
           "$ref": "#/$defs/GenerationUsage"
         },
         "finishReason": {
-          "type": "string",
-          "enum": [
-            "stop",
-            "length",
-            "blocked",
-            "interrupted",
-            "other",
-            "unknown"
-          ]
+          "$ref": "#/$defs/FinishReason"
         },
         "finishMessage": {
           "type": "string"
@@ -491,6 +483,17 @@
         "finishReason"
       ],
       "additionalProperties": false
+    },
+    "FinishReason": {
+      "type": "string",
+      "enum": [
+        "stop",
+        "length",
+        "blocked",
+        "interrupted",
+        "other",
+        "unknown"
+      ]
     },
     "GenerateActionOptions": {
       "type": "object",
@@ -659,7 +662,7 @@
           "$ref": "#/$defs/Message"
         },
         "finishReason": {
-          "$ref": "#/$defs/Candidate/properties/finishReason"
+          "$ref": "#/$defs/FinishReason"
         },
         "finishMessage": {
           "type": "string"
@@ -906,7 +909,7 @@
           "$ref": "#/$defs/GenerateResponse/properties/message"
         },
         "finishReason": {
-          "$ref": "#/$defs/Candidate/properties/finishReason"
+          "$ref": "#/$defs/FinishReason"
         },
         "finishMessage": {
           "$ref": "#/$defs/GenerateResponse/properties/finishMessage"
