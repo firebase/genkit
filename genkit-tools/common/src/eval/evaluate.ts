@@ -355,7 +355,7 @@ async function gatherEvalInput(params: {
     return {
       ...state,
       error: state.evalError,
-      testCaseId: randomUUID(),
+      testCaseId: state.testCaseId,
       traceIds: [],
     };
   }

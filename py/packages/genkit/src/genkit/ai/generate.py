@@ -7,6 +7,8 @@ from collections.abc import Callable
 from typing import Any
 
 from genkit.ai.formats import FormatDef, Formatter
+from genkit.ai.messages import inject_instructions
+from genkit.ai.middleware import augment_with_context
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
@@ -22,13 +24,10 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Message,
-    Metadata,
     OutputConfig,
-    Part,
     Role,
-    TextPart,
     ToolDefinition,
-    ToolResponse1,
+    ToolResponse,
     ToolResponsePart,
 )
 
@@ -101,6 +100,19 @@ async def generate_action(
             The result of passing the processed chunk to the callback.
         """
         return on_chunk(make_chunk(Role.MODEL, chunk))
+
+    if not middleware:
+        middleware = []
+
+    supports_context = (
+        model.metadata
+        and model.metadata.get('model')
+        and model.metadata.get('model').get('supports')
+        and model.metadata.get('model').get('supports').get('context')
+    )
+    # if it doesn't support contextm inject context middleware
+    if raw_request.docs and not supports_context:
+        middleware.append(augment_with_context())
 
     async def dispatch(
         index: int, req: GenerateRequest, ctx: ActionRunContext
@@ -265,83 +277,6 @@ def apply_format(
     return (out_request, formatter)
 
 
-def inject_instructions(
-    messages: list[Message], instructions: str
-) -> list[Message]:
-    """
-    Injects instructions into a list of messages.
-
-    Args:
-        messages: A list of MessageData objects.
-        instructions: The instructions to inject, or False or None to skip injection.
-
-    Returns:
-        A new list of MessageData objects with the instructions injected,
-        or the original list if injection was skipped.
-    """
-    if not instructions:
-        return messages
-
-    # bail out if a non-pending output part is already present
-    if any(
-        any(
-            part.root.metadata
-            and part.root.metadata['purpose'] == 'output'
-            and not part.root.metadata['pending']
-            for part in message.content
-        )
-        for message in messages
-    ):
-        return messages
-
-    new_part = Part(
-        TextPart(text=instructions, metadata=Metadata({'purpose': 'output'}))
-    )
-
-    # find the system message or the last user message
-    target_index = next(
-        (i for i, message in enumerate(messages) if message.role == 'system'),
-        -1,  # Default to -1 if not found
-    )
-    if target_index < 0:
-        target_index = next(
-            (
-                i
-                for i, message in reversed(list(enumerate(messages)))
-                if message.role == 'user'
-            ),
-            -1,  # Default to -1 if not found
-        )
-    if target_index < 0:
-        return messages
-
-    m = Message(
-        role=messages[target_index].role,
-        # Create a copy of the content
-        content=messages[target_index].content[:],
-    )
-
-    part_index = next(
-        (
-            i
-            for i, part in enumerate(m.content)
-            if part.root.metadata
-            and part.root.metadata['purpose'] == 'output'
-            and part.root.metadata['pending']
-        ),
-        -1,  # Default to -1 if not found
-    )
-    if part_index >= 0:
-        m.content[part_index] = new_part
-    else:
-        m.content.append(new_part)
-
-    out_messages = messages[:]  # Create a copy of the messages list
-    out_messages[target_index] = m
-
-    return out_messages
-
-
 def resolve_instructions(
     formatter: Formatter, instructions_opt: bool | str | None
 ):
@@ -496,10 +431,9 @@ async def resolve_tool_requests(
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
         tool_response = (await tool.arun_raw(tool_request.input)).response
-        # TODO: figure out why pydantic generates ToolResponse1
         response_parts.append(
             ToolResponsePart(
-                toolResponse=ToolResponse1(
+                toolResponse=ToolResponse(
                     name=tool_request.name,
                     ref=tool_request.ref,
                     output=dump_dict(tool_response),

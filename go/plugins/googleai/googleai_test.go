@@ -19,7 +19,6 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/googleai"
-	"google.golang.org/api/option"
 )
 
 // The tests here only work with an API key set to a valid value.
@@ -55,7 +54,8 @@ func TestLive(t *testing.T) {
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			return math.Pow(float64(input.Value), input.Over), nil
 		},
 	)
@@ -79,11 +79,11 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of? Name the country, nothing else"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		out := resp.Message.Content[0].Text
+		out := strings.ReplaceAll(resp.Message.Content[0].Text, "\n", "")
 		const want = "France"
 		if out != want {
 			t.Errorf("got %q, expecting %q", out, want)
@@ -99,7 +99,7 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("Write one paragraph about the North Pole."),
+			ai.WithPromptText("Write one paragraph about the North Pole."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				out += c.Content[0].Text
@@ -129,9 +129,8 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
-
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -144,10 +143,9 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithToolChoice(ai.ToolChoiceNone))
-
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -176,11 +174,10 @@ func TestHeader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	opts := []option.ClientOption{option.WithHTTPClient(server.Client()), option.WithEndpoint(server.URL)}
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x"}); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = genkit.Generate(ctx, g, ai.WithTextPrompt("hi"))
+	_, _ = genkit.Generate(ctx, g, ai.WithPromptText("hi"))
 	got := header.Get("x-goog-api-client")
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {

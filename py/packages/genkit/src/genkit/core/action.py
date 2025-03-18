@@ -10,12 +10,13 @@ uninterrupted operations that can operate in streaming or non-streaming mode.
 
 import asyncio
 import inspect
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextvars import ContextVar
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
 
+from genkit.core.aio import Channel
 from genkit.core.codec import dump_json
 from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -99,7 +100,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
         raise ValueError(msg)
 
     kind_str = tokens[1]
-    name = tokens[2]
+    name = '/'.join(tokens[2:])
     try:
         kind = ActionKind(kind_str)
     except ValueError as e:
@@ -191,7 +192,7 @@ class ActionRunContext:
         Returns:
             The current context if running within an action, None otherwise.
         """
-        return _action_context.get()
+        return _action_context.get(None)
 
 
 class Action:
@@ -227,9 +228,24 @@ class Action:
         self.name = name
 
         input_spec = inspect.getfullargspec(fn)
-        action_args = [
-            k for k in input_spec.annotations if k != ActionMetadataKey.RETURN
-        ]
+        arg_types = []
+
+        action_args = input_spec.args.copy()
+
+        # special case when using a method as an action, we ignore first "self" arg
+        if (
+            len(action_args) > 0
+            and len(action_args) <= 3
+            and action_args[0] == 'self'
+        ):
+            del action_args[0]
+
+        for arg in action_args:
+            arg_types.append(
+                input_spec.annotations[arg]
+                if arg in input_spec.annotations
+                else Any
+            )
 
         afn = ensure_async(fn)
         self.is_async = asyncio.iscoroutinefunction(fn)
@@ -310,9 +326,9 @@ class Action:
         self.metadata = metadata if metadata else {}
 
         if len(action_args) > 2:
-            raise Exception('can only have one arg')
+            raise Exception(f'can only have up to 2 arg: {action_args}')
         if len(action_args) > 0:
-            type_adapter = TypeAdapter(input_spec.annotations[action_args[0]])
+            type_adapter = TypeAdapter(arg_types[0])
             self.input_schema = type_adapter.json_schema()
             self.input_type = type_adapter
             self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
@@ -384,7 +400,9 @@ class Action:
 
         return await self.__afn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
+            ActionRunContext(
+                on_chunk=on_chunk, context=_action_context.get(None)
+            ),
         )
 
     async def arun_raw(
@@ -416,6 +434,44 @@ class Action:
             context=context,
             telemetry_labels=telemetry_labels,
         )
+
+    def stream(
+        self,
+        input: Any = None,
+        context: dict[str, Any] | None = None,
+        telemetry_labels: dict[str, Any] | None = None,
+    ) -> tuple[
+        AsyncIterator,
+        asyncio.Future,
+    ]:
+        """Run the action and return an async iterator of the results.
+
+        Args:
+            input: The input to the action.
+            context: The context to pass to the action.
+            telemetry_labels: The telemetry labels to pass to the action.
+
+        Returns:
+            A tuple containing:
+            - An AsyncIterator of the chunks from the action.
+            - An asyncio.Future that resolves to the final result of the action.
+        """
+        stream = Channel()
+
+        resp = self.arun(
+            input=input,
+            context=context,
+            telemetry_labels=telemetry_labels,
+            on_chunk=lambda c: stream.send(c),
+        )
+        stream.set_close_future(resp)
+
+        result_future = asyncio.Future()
+        stream.closed.add_done_callback(
+            lambda _: result_future.set_result(stream.closed.result().response)
+        )
+
+        return (stream, result_future)
 
 
 def record_input_metadata(span, kind, name, span_metadata, input):

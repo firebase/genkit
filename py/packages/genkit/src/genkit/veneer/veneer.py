@@ -83,6 +83,7 @@ from collections.abc import AsyncIterator
 from http.server import HTTPServer
 from typing import Any
 
+from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
 from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
@@ -92,19 +93,17 @@ from genkit.ai.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
+from genkit.ai.prompt import to_generate_action_options
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
-    GenerateActionOptions,
-    GenerateActionOutputConfig,
+    DocumentData,
     GenerationCommonConfig,
     Message,
     Part,
-    Role,
-    TextPart,
     ToolChoice,
 )
 from genkit.veneer import server
@@ -146,18 +145,9 @@ class Genkit(GenkitRegistry):
         self.registry.default_model = model
 
         if is_dev_environment():
-            runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-            server.create_runtime(
-                runtime_dir=runtimes_dir,
-                reflection_server_spec=reflection_server_spec,
-                at_exit_fn=os.remove,
-            )
             self.thread = threading.Thread(
                 target=self.start_server,
-                args=(
-                    reflection_server_spec.host,
-                    reflection_server_spec.port,
-                ),
+                args=[reflection_server_spec],
             )
             self.thread.start()
 
@@ -183,16 +173,24 @@ class Genkit(GenkitRegistry):
                         f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
-    def start_server(self, host: str, port: int) -> None:
+    def start_server(self, spec: server.ServerSpec) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
-            host: The hostname to bind to.
-            port: The port number to listen on.
+            spec: Server spec for the reflection server.
         """
         httpd = HTTPServer(
-            (host, port),
+            (spec.host, spec.port),
             make_reflection_server(registry=self.registry),
+        )
+        # We need to write the runtime file closest to the point of starting up
+        # the server to avoid race conditions with the manager's runtime
+        # handler.
+        runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
+        server.create_runtime(
+            runtime_dir=runtimes_dir,
+            reflection_server_spec=spec,
+            at_exit_fn=os.remove,
         )
         httpd.serve_forever()
 
@@ -215,8 +213,8 @@ class Genkit(GenkitRegistry):
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
         # TODO:
-        #  docs: list[Document]
         #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
@@ -264,6 +262,7 @@ class Genkit(GenkitRegistry):
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
+            docs: Optional. A list of documents to be used for grounding.
 
 
         Returns:
@@ -277,56 +276,25 @@ class Genkit(GenkitRegistry):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        model = model or self.registry.default_model
-        if model is None:
-            raise Exception('No model configured.')
-        if (
-            config
-            and not isinstance(config, GenerationCommonConfig)
-            and not isinstance(config, dict)
-        ):
-            raise AttributeError('Invalid generate config provided')
-
-        resolved_msgs: list[Message] = []
-        if system:
-            resolved_msgs.append(
-                Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
-            )
-        if messages:
-            resolved_msgs += messages
-        if prompt:
-            resolved_msgs.append(
-                Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
-            )
-
-        # If is schema is set but format is not explicitly set, default to
-        # `json` format.
-        if output_schema and not output_format:
-            output_format = 'json'
-
-        output = GenerateActionOutputConfig()
-        if output_format:
-            output.format = output_format
-        if output_content_type:
-            output.content_type = output_content_type
-        if output_instructions is not None:
-            output.instructions = output_instructions
-        if output_schema:
-            output.json_schema = to_json_schema(output_schema)
-        if output_constrained is not None:
-            output.constrained = output_constrained
-
         return await generate_action(
             self.registry,
-            GenerateActionOptions(
+            to_generate_action_options(
+                registry=self.registry,
                 model=model,
-                messages=resolved_msgs,
-                config=config,
+                prompt=prompt,
+                system=system,
+                messages=messages,
                 tools=tools,
                 return_tool_requests=return_tool_requests,
                 tool_choice=tool_choice,
-                output=output,
+                config=config,
                 max_turns=max_turns,
+                output_format=output_format,
+                output_content_type=output_content_type,
+                output_instructions=output_instructions,
+                output_schema=output_schema,
+                output_constrained=output_constrained,
+                docs=docs,
             ),
             on_chunk=on_chunk,
             middleware=use,
@@ -351,6 +319,7 @@ class Genkit(GenkitRegistry):
         output_schema: type | dict[str, Any] | None = None,
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
@@ -397,6 +366,7 @@ class Genkit(GenkitRegistry):
             use: Optional. A list of `ModelMiddleware` functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
+            docs: Optional. A list of documents to be used for grounding.
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -427,6 +397,7 @@ class Genkit(GenkitRegistry):
             output_instructions=output_instructions,
             output_schema=output_schema,
             output_constrained=output_constrained,
+            docs=docs,
             use=use,
             on_chunk=lambda c: stream.send(c),
         )
@@ -435,13 +406,17 @@ class Genkit(GenkitRegistry):
         return (stream, stream.closed)
 
     async def embed(
-        self, model: str | None = None, documents: list[str] | None = None
+        self,
+        model: str | None = None,
+        documents: list[Document] | None = None,
+        options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Calculates embeddings for documents.
 
         Args:
             model: Optional embedder model name to use.
             documents: Texts to embed.
+            options: embedding options
 
         Returns:
             The generated response with embeddings.
@@ -449,26 +424,7 @@ class Genkit(GenkitRegistry):
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
 
         return (
-            await embed_action.arun(EmbedRequest(documents=documents))
+            await embed_action.arun(
+                EmbedRequest(input=documents, options=options)
+            )
         ).response
-
-
-def _normalize_prompt_arg(
-    prompt: str | Part | list[Part] | None,
-) -> list[Part] | None:
-    """Normalize the prompt argument to a list of `Part` objects.
-
-    This function ensures that the prompt argument is a list of `Part` objects,
-    which is the expected format for the `generate` function.
-
-    Args:
-        prompt: The prompt argument to normalize.
-    """
-    if not prompt:
-        return None
-    if isinstance(prompt, str):
-        return [TextPart(text=prompt)]
-    elif hasattr(prompt, '__len__'):
-        return prompt
-    else:
-        return [prompt]

@@ -30,7 +30,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
@@ -66,6 +65,9 @@ func main() {
 	}
 	model := googleai.Model(g, "gemini-2.0-flash")
 	embedder := googleai.Embedder(g, "embedding-001")
+	if embedder == nil {
+		log.Fatal("embedder is not defined")
+	}
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
@@ -74,11 +76,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := dotprompt.Define(g, "simpleQaPrompt",
-		simpleQaPromptTemplate,
-		dotprompt.WithDefaultModel(model),
-		dotprompt.WithInputType(simpleQaPromptInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
+	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
+		ai.WithModel(model),
+		ai.WithInputType(simpleQaPromptInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -111,7 +112,7 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx, g, dotprompt.WithInput(promptInput))
+		resp, err := simpleQaPrompt.Execute(ctx, ai.WithInput(promptInput))
 		if err != nil {
 			return "", err
 		}
