@@ -17,6 +17,8 @@ from genkit.core.typing import (
     Media,
     MediaPart,
     Message,
+    RetrieverRequest,
+    RetrieverResponse,
     Role,
     TextPart,
 )
@@ -164,7 +166,7 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
             tools=['gablorkenTool'],
         ),
     )
-    return response.text()
+    return response.text
 
 
 @ai.flow()
@@ -234,6 +236,15 @@ def my_model(request: GenerateRequest, ctx: ActionRunContext):
 ai.define_model(name='my_model', fn=my_model)
 
 
+def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+    return RetrieverResponse(
+        documents=[Document.from_text('Hello'), Document.from_text('World')]
+    )
+
+
+ai.define_retriever(name='my_retriever', fn=my_retriever)
+
+
 @ai.flow()
 async def streaming_model_tester(_: str, ctx: ActionRunContext):
     stream, res = ai.generate_stream(
@@ -283,3 +294,4 @@ async def stream_a_prompt(_: str, ctx: ActionRunContext):
 
 if __name__ == '__main__':
     asyncio.run(main())
+    print(asyncio.run(simple_generate_action_with_tools_flow(100)))

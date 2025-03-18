@@ -96,7 +96,6 @@ async def test_define_sync_action() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip('bug, action ignores args without type annotation')
 async def test_define_sync_action_with_input_without_type_annotation() -> None:
     """Test that a sync action can be defined and run with an input without a type annotation."""
 
@@ -165,6 +164,29 @@ async def test_define_sync_streaming_action() -> None:
             'foo', context={'foo': 'bar'}, on_chunk=on_chunk
         )
     ).response == 3
+    assert chunks == ['1', '2']
+
+
+@pytest.mark.asyncio
+async def test_define_streaming_action_and_stream_it() -> None:
+    """Test that a sync streaming action can be streamed."""
+
+    def syncFoo(input: str, ctx: ActionRunContext):
+        """A sync action that returns 'syncFoo' with streaming output."""
+        ctx.send_chunk('1')
+        ctx.send_chunk('2')
+        return 3
+
+    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+
+    chunks = []
+
+    stream, response = syncFooAction.stream('foo', context={'foo': 'bar'})
+
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert (await response) == 3
     assert chunks == ['1', '2']
 
 

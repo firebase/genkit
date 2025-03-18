@@ -19,6 +19,8 @@ import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
+  gemini20Flash,
+  gemini20FlashExp,
   googleAI,
   gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
@@ -834,3 +836,35 @@ ai.defineFlow(
     return text;
   }
 );
+
+ai.defineFlow(
+  {
+    name: 'geminiImages',
+    inputSchema: z.string().optional(),
+  },
+  async (setting) => {
+    const { message } = await ai.generate({
+      model: gemini20FlashExp,
+      prompt: `Generate a choose your own adventure intro${setting ? ` in ${setting}` : ''}, then generate a first-person image as if I'm in the story.`,
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+      },
+    });
+
+    return message?.content;
+  }
+);
+
+ai.defineFlow('geminiEnum', async (thing) => {
+  const { output } = await ai.generate({
+    model: gemini20Flash,
+    prompt: `What type of thing is ${thing || 'a banana'}?`,
+    output: {
+      schema: z.object({
+        type: z.enum(['FRUIT', 'VEGETABLE', 'MINERAL']),
+      }),
+    },
+  });
+
+  return output;
+});

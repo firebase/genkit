@@ -8,9 +8,12 @@
 import json
 
 import pytest
+from genkit.ai.document import Document
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import MessageWrapper, _text_from_message
+from genkit.ai.model import MessageWrapper, text_from_message
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
+    DocumentData,
     FinishReason,
     GenerateRequest,
     GenerateResponse,
@@ -19,6 +22,8 @@ from genkit.core.typing import (
     Metadata,
     ModelInfo,
     OutputConfig,
+    RetrieverRequest,
+    RetrieverResponse,
     Role,
     Supports,
     TextPart,
@@ -749,7 +754,7 @@ async def test_generate_with_middleware(
     ai, *_ = setup_test
 
     async def pre_middle(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -763,7 +768,7 @@ async def test_generate_with_middleware(
 
     async def post_middle(req, ctx, next):
         resp: GenerateResponse = await next(req, ctx)
-        txt = _text_from_message(resp.message)
+        txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
             message=Message(
@@ -794,7 +799,7 @@ async def test_generate_passes_through_current_action_context(
     ai, *_ = setup_test
 
     async def inject_context(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -831,7 +836,7 @@ async def test_generate_uses_explicitly_passed_in_context(
     ai, *_ = setup_test
 
     async def inject_context(req, ctx, next):
-        txt = ''.join(_text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             GenerateRequest(
                 messages=[
@@ -932,6 +937,49 @@ async def test_generate_json_format_unconstrained_with_instructions(
     )
 
     assert (await response).request == want
+
+
+@pytest.mark.asyncio
+async def test_generate_simulates_doc_grounding(
+    setup_test: SetupFixture,
+) -> None:
+    ai, *_ = setup_test
+
+    want_msg = Message(
+        role=Role.USER,
+        content=[
+            TextPart(text='hi'),
+            TextPart(
+                text='\n\nUse the following information to complete your task:'
+                + '\n\n- [0]: doc content 1\n\n',
+                metadata={'purpose': 'context'},
+            ),
+        ],
+    )
+
+    response = await ai.generate(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='hi')],
+            ),
+        ],
+        docs=[DocumentData(content=[TextPart(text='doc content 1')])],
+    )
+
+    assert response.request.messages[0] == want_msg
+
+    _, response = ai.generate_stream(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text='hi')],
+            ),
+        ],
+        docs=[DocumentData(content=[TextPart(text='doc content 1')])],
+    )
+
+    assert (await response).request.messages[0] == want_msg
 
 
 class TestFormat(FormatDef):
@@ -1144,3 +1192,112 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
             'tools': True,
         },
     }
+
+
+def test_define_retriever_default_metadata(setup_test: SetupFixture) -> None:
+    """Test that the define retriever function works."""
+    ai, _, _, *_ = setup_test
+
+    def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+        return RetrieverResponse(
+            documents=[Document.from_text('Hello'), Document.from_text('World')]
+        )
+
+    action = ai.define_retriever(
+        name='fooRetriever',
+        fn=my_retriever,
+    )
+
+    assert action.metadata['retriever'] == {
+        'label': 'fooRetriever',
+    }
+
+
+def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
+    """Test that the define retriever function with schema works."""
+    ai, _, _, *_ = setup_test
+
+    class Config(BaseModel):
+        field_a: str = Field(description='a field')
+        field_b: str = Field(description='b field')
+
+    def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
+        return RetrieverResponse(
+            documents=[Document.from_text('Hello'), Document.from_text('World')]
+        )
+
+    action = ai.define_retriever(
+        name='fooRetriever',
+        fn=my_retriever,
+        config_schema=Config,
+    )
+
+    assert action.metadata['retriever'] == {
+        'customOptions': {
+            'properties': {
+                'field_a': {
+                    'description': 'a field',
+                    'title': 'Field A',
+                    'type': 'string',
+                },
+                'field_b': {
+                    'description': 'b field',
+                    'title': 'Field B',
+                    'type': 'string',
+                },
+            },
+            'required': [
+                'field_a',
+                'field_b',
+            ],
+            'title': 'Config',
+            'type': 'object',
+        },
+        'label': 'fooRetriever',
+    }
+
+
+@pytest.mark.asyncio
+async def test_define_sync_flow(setup_test: SetupFixture) -> None:
+    ai, _, _, *_ = setup_test
+
+    @ai.flow()
+    def my_flow(input: str, ctx):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
+        return input
+
+    assert my_flow('banana') == 'banana'
+
+    stream, response = my_flow.stream('banana2')
+
+    chunks = []
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert chunks == [1, 2, 3]
+    assert (await response) == 'banana2'
+
+
+@pytest.mark.asyncio
+async def test_define_async_flow(setup_test: SetupFixture) -> None:
+    ai, _, _, *_ = setup_test
+
+    @ai.flow()
+    async def my_flow(input: str, ctx):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
+        return input
+
+    assert (await my_flow('banana')) == 'banana'
+
+    stream, response = my_flow.stream('banana2')
+
+    chunks = []
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert chunks == [1, 2, 3]
+    assert (await response) == 'banana2'
