@@ -78,6 +78,7 @@ func main() {
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
 		ai.WithModel(model),
+		ai.WithPromptText(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 	)
