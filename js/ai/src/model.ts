@@ -279,7 +279,7 @@ export const GenerationUsageSchema = z.object({
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
 
 /** Model response finish reason enum. */
-const FinishReasonSchema = z.enum([
+export const FinishReasonSchema = z.enum([
   'stop',
   'length',
   'blocked',
