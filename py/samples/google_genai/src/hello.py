@@ -37,13 +37,21 @@ async def say_hi_with_configured_temperature(data: str):
     )
 
 
+@ai.flow()
+async def say_hi_stream(name: str):
+    stream, _ = ai.generate_stream(
+        prompt=f'hi {name}',
+    )
+    result = ''
+    async for data in stream:
+        for part in data.content:
+            result += part.root.text
+    return result
+
+
 def main() -> None:
     print(asyncio.run(say_hi(', tell me a joke')).message.content)
-    # print(
-    #     asyncio.run(
-    #         say_hi_with_configured_temperature(', tell me a joke')
-    #     ).message.content
-    # )
+    print(asyncio.run(say_hi_stream(', tell me a joke')))
 
 
 if __name__ == '__main__':
