@@ -948,11 +948,7 @@
       "type": "object",
       "properties": {
         "format": {
-          "type": "string",
-          "enum": [
-            "text",
-            "json"
-          ]
+          "type": "string"
         },
         "schema": {
           "type": "object",
