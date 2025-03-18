@@ -184,7 +184,7 @@ export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
  * Zod schema of output config.
  */
 export const OutputConfigSchema = z.object({
-  format: z.enum(['text', 'json']).optional(),
+  format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
   instructions: z.string().optional(),
