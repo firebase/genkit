@@ -136,14 +136,14 @@ type GenerationUsage struct {
 	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
-type mediaPart struct {
-	Media    *mediaPartMedia `json:"media,omitempty"`
-	Metadata map[string]any  `json:"metadata,omitempty"`
-}
-
-type mediaPartMedia struct {
+type Media struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`
+}
+
+type mediaPart struct {
+	Media    *Media         `json:"media,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // Message is the contents of a model response.
@@ -195,8 +195,8 @@ type ModelRequest struct {
 	Docs     []*Document `json:"docs,omitempty"`
 	Messages []*Message  `json:"messages,omitempty"`
 	// Output describes the desired response format.
-	Output     OutputConfigFormat `json:"output,omitempty"`
-	ToolChoice ToolChoice         `json:"toolChoice,omitempty"`
+	Output     *GenerateActionOutputConfig `json:"output,omitempty"`
+	ToolChoice ToolChoice                  `json:"toolChoice,omitempty"`
 	// Tools lists the available tools that the model can ask the client to run.
 	Tools []*ToolDefinition `json:"tools,omitempty"`
 }
@@ -248,11 +248,11 @@ type PathMetadata struct {
 }
 
 type RankedDocumentData struct {
-	Content  []*Part                     `json:"content,omitempty"`
-	Metadata *RankedDocumentDataMetadata `json:"metadata,omitempty"`
+	Content  []*Part                 `json:"content,omitempty"`
+	Metadata *RankedDocumentMetadata `json:"metadata,omitempty"`
 }
 
-type RankedDocumentDataMetadata struct {
+type RankedDocumentMetadata struct {
 	Score float64 `json:"score,omitempty"`
 }
 
@@ -304,36 +304,26 @@ type ToolDefinition struct {
 	OutputSchema any `json:"outputSchema,omitempty"`
 }
 
-type toolRequestPart struct {
-	Metadata    map[string]any `json:"metadata,omitempty"`
-	ToolRequest *ToolRequest   `json:"toolRequest,omitempty"`
-}
-
-// A ToolRequest is a message from the model to the client that it should run a
-// specific tool and pass a [ToolResponse] to the model on the next chat request it makes.
-// Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
 type ToolRequest struct {
-	// Input is a JSON object describing the input values to the tool.
-	// An example might be map[string]any{"country":"USA", "president":3}.
 	Input any    `json:"input,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Ref   string `json:"ref,omitempty"`
 }
 
+type toolRequestPart struct {
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	ToolRequest *ToolRequest   `json:"toolRequest,omitempty"`
+}
+
+type ToolResponse struct {
+	Name   string `json:"name,omitempty"`
+	Output any    `json:"output,omitempty"`
+	Ref    string `json:"ref,omitempty"`
+}
+
 type toolResponsePart struct {
 	Metadata     map[string]any `json:"metadata,omitempty"`
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"`
-}
-
-// A ToolResponse is a message from the client to the model containing
-// the results of running a specific tool on the arguments passed to the client
-// by the model in a [ToolRequest].
-type ToolResponse struct {
-	Name string `json:"name,omitempty"`
-	// Output is a JSON object describing the results of running the tool.
-	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
-	Output any    `json:"output,omitempty"`
-	Ref    string `json:"ref,omitempty"`
 }
 
 type TraceMetadata struct {

@@ -156,16 +156,16 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
-		if _, ok := toolDefMap[t]; ok {
+		if _, ok := toolDefMap[t.Name]; ok {
 			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
 		}
 
-		tool := LookupTool(r, t)
+		tool := LookupTool(r, t.Name)
 		if tool == nil {
 			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
 		}
 
-		toolDefMap[t] = tool.Definition()
+		toolDefMap[t.Name] = tool.Definition()
 	}
 	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
 	for _, t := range toolDefMap {
@@ -180,21 +180,21 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *ModelRequestOutput
+	var output *GenerateActionOutputConfig
 	if opts.Output != nil {
-		output = &ModelRequestOutput{
-			Format: opts.Output.Format,
-			Schema: opts.Output.JsonSchema,
+		output = &GenerateActionOutputConfig{
+			Format:     opts.Output.Format,
+			JsonSchema: opts.Output.JsonSchema,
 		}
-		if output.Schema != nil && output.Format == "" {
-			output.Format = OutputFormatJSON
+		if output.JsonSchema != nil && output.Format == "" {
+			output.Format = string(OutputConfigFormatJson)
 		}
 	}
 
 	req := &ModelRequest{
 		Messages:   opts.Messages,
 		Config:     opts.Config,
-		Context:    opts.Docs,
+		Docs:       opts.Docs,
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
 		Output:     output,
@@ -266,9 +266,9 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		modelName = genOpts.Model.Name()
 	}
 
-	tools := make([]string, len(genOpts.Tools))
+	tools := make([]*ToolDefinition, len(genOpts.Tools))
 	for i, tool := range genOpts.Tools {
-		tools[i] = tool.Definition().Name
+		tools[i] = tool.Definition()
 	}
 
 	messages := []*Message{}
@@ -307,7 +307,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
 		// TODO: Rename this to nicer names during type generation.
-		Output: &GenerateActionOptionsOutput{
+		Output: &GenerateActionOutputConfig{
 			JsonSchema: genOpts.OutputSchema,
 			Format:     genOpts.OutputFormat,
 		},
@@ -487,8 +487,8 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
-		jsonBytes, err := json.Marshal(req.Output.Schema)
+	if req.Output != nil && req.Output.Format == string(OutputConfigFormatJson) && len(req.Messages) > 0 {
+		jsonBytes, err := json.Marshal(req.Output.JsonSchema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
 		}
@@ -513,8 +513,8 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
-	if output != nil && output.Format == OutputFormatJSON {
+func validMessage(m *Message, output *GenerateActionOutputConfig) (*Message, error) {
+	if output != nil && output.Format == string(OutputConfigFormatJson) {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -530,7 +530,7 @@ func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
 			text := base.ExtractJSONFromMarkdown(part.Text)
 
 			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(output.Schema)
+			schemaBytes, err := json.Marshal(output.JsonSchema)
 			if err != nil {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}
