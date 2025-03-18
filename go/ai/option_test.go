@@ -99,7 +99,6 @@ func TestPromptOptions(t *testing.T) {
 			name: "valid options",
 			opts: []PromptOption{
 				WithDescription("test description"),
-				WithRenderFn(func(context.Context, any) (*GenerateActionOptions, error) { return nil, nil }),
 				WithMetadata(map[string]any{"key": "value"}),
 				WithInputType(struct {
 					Test string `json:"test"`
@@ -445,7 +444,6 @@ func TestPromptOptionsComplete(t *testing.T) {
 	mw := func(next ModelFunc) ModelFunc { return next }
 	model := &mockModel{name: "test/model"}
 	tool := &mockTool{name: "test/tool"}
-	renderFunc := func(context.Context, any) (*GenerateActionOptions, error) { return nil, nil }
 	input := struct {
 		Test string `json:"test"`
 	}{
@@ -464,7 +462,6 @@ func TestPromptOptionsComplete(t *testing.T) {
 		WithSystemText("system prompt"),
 		WithPromptText("user prompt"),
 		WithDescription("test description"),
-		WithRenderFn(renderFunc),
 		WithMetadata(map[string]any{"key": "value"}),
 		WithOutputType(map[string]string{"key": "value"}),
 		WithInputType(input),
@@ -496,7 +493,6 @@ func TestPromptOptionsComplete(t *testing.T) {
 			OutputSchema: opts.OutputSchema,
 		},
 		Description:  "test description",
-		RenderFn:     renderFunc,
 		Metadata:     map[string]any{"key": "value"},
 		InputSchema:  opts.InputSchema,
 		DefaultInput: map[string]any{"test": "value"},
@@ -505,7 +501,6 @@ func TestPromptOptionsComplete(t *testing.T) {
 	if diff := cmp.Diff(expected, opts,
 		cmpopts.IgnoreFields(commonOptions{}, "MessagesFn", "Middleware"),
 		cmpopts.IgnoreFields(promptingOptions{}, "SystemFn", "PromptFn"),
-		cmpopts.IgnoreFields(promptOptions{}, "RenderFn"),
 		cmpopts.IgnoreFields(outputOptions{}, "OutputSchema"),
 		cmpopts.IgnoreFields(promptOptions{}, "InputSchema"),
 		cmpopts.IgnoreUnexported(mockModel{}, mockTool{}),
@@ -525,9 +520,6 @@ func TestPromptOptionsComplete(t *testing.T) {
 	}
 	if opts.PromptFn == nil {
 		t.Errorf("PromptFn should not be nil")
-	}
-	if opts.RenderFn == nil {
-		t.Errorf("RenderFn should not be nil")
 	}
 	if opts.OutputSchema == nil {
 		t.Errorf("OutputSchema should not be nil")
