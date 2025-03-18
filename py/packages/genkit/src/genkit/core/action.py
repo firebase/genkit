@@ -233,7 +233,7 @@ class Action:
         action_args = input_spec.args.copy()
 
         # special case when using a method as an action, we ignore first "self" arg
-        if len(action_args) == 3 and action_args[0] == 'self':
+        if len(action_args) <= 3 and action_args[0] == 'self':
             del action_args[0]
 
         for arg in action_args:
