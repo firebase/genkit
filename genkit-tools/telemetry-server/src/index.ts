@@ -58,7 +58,6 @@ export function startTelemetryServer(params: {
   });
 
   api.post('/api/traces', async (request, response, next) => {
-    console.log('post trace:\n' + JSON.stringify(request.body, undefined, 2));
     try {
       const traceData = TraceDataSchema.parse(request.body);
       await params.traceStore.save(traceData.traceId, traceData);
