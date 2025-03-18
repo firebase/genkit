@@ -22,47 +22,77 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// Genkit encapsulates a Genkit instance including the registry and configuration.
-type Genkit struct {
-	// Registry for all actions contained in this instance.
-	reg *registry.Registry
-	// Params to configure calls using this instance.
-	Params *GenkitParams
+// Plugin is a common interface for plugins.
+type Plugin interface {
+	// Name returns the name of the plugin.
+	Name() string
+	// Init initializes the plugin.
+	Init(ctx context.Context, g *Genkit) error
 }
 
-type genkitOption = func(params *GenkitParams) error
+// Genkit encapsulates a Genkit instance including the registry and configuration.
+type Genkit struct {
+	reg          *registry.Registry // Registry for all actions contained in this instance.
+	DefaultModel string             // The default model to use if no model is specified.
+	PromptDir    string             // Directory where dotprompts are stored.
+}
 
-type GenkitParams struct {
-	DefaultModel string // The default model to use if no model is specified.
-	PromptDir    string // Directory where dotprompts are stored.
+// genkitOptions are options for configuring the Genkit instance.
+type genkitOptions struct {
+	DefaultModel string   // The default model to use if no model is specified.
+	PromptDir    string   // Directory where dotprompts are stored.
+	Plugins      []Plugin // Plugin to initialize automatically.
+}
+
+type GenkitOption interface {
+	apply(g *genkitOptions) error
+}
+
+// apply applies the options to the Genkit options.
+func (o *genkitOptions) apply(gOpts *genkitOptions) error {
+	if o.DefaultModel != "" {
+		if gOpts.DefaultModel != "" {
+			return errors.New("cannot set default model more than once (WithDefaultModel)")
+		}
+		gOpts.DefaultModel = o.DefaultModel
+	}
+
+	if o.PromptDir != "" {
+		if gOpts.PromptDir != "" {
+			return errors.New("cannot set prompt directory more than once (WithPromptDir)")
+		}
+		gOpts.PromptDir = o.PromptDir
+	}
+
+	if len(o.Plugins) > 0 {
+		if gOpts.Plugins != nil {
+			return errors.New("cannot set plugins more than once (WithPlugins)")
+		}
+		gOpts.Plugins = o.Plugins
+	}
+
+	return nil
+}
+
+// WithPlugins sets the plugins to use.
+func WithPlugins(plugins ...Plugin) GenkitOption {
+	return &genkitOptions{Plugins: plugins}
 }
 
 // WithDefaultModel sets the default model to use if no model is specified.
-func WithDefaultModel(model string) genkitOption {
-	return func(params *GenkitParams) error {
-		if params.DefaultModel != "" {
-			return errors.New("genkit.WithDefaultModel: cannot set DefaultModel more than once")
-		}
-		params.DefaultModel = model
-		return nil
-	}
+func WithDefaultModel(model string) GenkitOption {
+	return &genkitOptions{DefaultModel: model}
 }
 
 // WithPromptDir sets the directory where dotprompts are stored. Defaults to "prompts" at project root.
-func WithPromptDir(dir string) genkitOption {
-	return func(params *GenkitParams) error {
-		if params.PromptDir != "" {
-			return errors.New("genkit.WithPromptDir: cannot set PromptDir more than once")
-		}
-		params.PromptDir = dir
-		return nil
-	}
+func WithPromptDir(dir string) GenkitOption {
+	return &genkitOptions{PromptDir: dir}
 }
 
 // Init creates a new Genkit instance.
 //
 // During local development (GENKIT_ENV=dev), it starts the Reflection API server (default :3100) as a side effect.
-func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
+func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
 	r, err := registry.New()
@@ -70,17 +100,22 @@ func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
 		return nil, err
 	}
 
-	params := &GenkitParams{}
+	gOpts := &genkitOptions{}
 	for _, opt := range opts {
-		if err := opt(params); err != nil {
-			return nil, err
+		if err := opt.apply(gOpts); err != nil {
+			return nil, fmt.Errorf("genkit.Init: error applying options: %w", err)
 		}
 	}
 
-	if params.DefaultModel != "" {
-		_, err := modelRefParts(params.DefaultModel)
-		if err != nil {
-			return nil, err
+	g := &Genkit{
+		reg:          r,
+		DefaultModel: gOpts.DefaultModel,
+		PromptDir:    gOpts.PromptDir,
+	}
+
+	for _, plugin := range gOpts.Plugins {
+		if err := plugin.Init(ctx, g); err != nil {
+			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
 		}
 	}
 
@@ -99,7 +134,7 @@ func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
 
 		select {
 		case err := <-errCh:
-			return nil, fmt.Errorf("reflection server startup failed: %w", err)
+			return nil, fmt.Errorf("genkit.Init: reflection server startup failed: %w", err)
 		case <-serverStartCh:
 			slog.Debug("reflection server started successfully")
 		case <-ctx.Done():
@@ -107,18 +142,11 @@ func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
 		}
 	}
 
-	return &Genkit{
-		reg:    r,
-		Params: params,
-	}, nil
+	return g, nil
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
-func DefineFlow[In, Out any](
-	g *Genkit,
-	name string,
-	fn core.Func[In, Out],
-) *core.Flow[In, Out, struct{}] {
+func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *core.Flow[In, Out, struct{}] {
 	return core.DefineFlow(g.reg, name, fn)
 }
 
@@ -131,11 +159,7 @@ func DefineFlow[In, Out any](
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
-func DefineStreamingFlow[In, Out, Stream any](
-	g *Genkit,
-	name string,
-	fn core.StreamingFunc[In, Out, Stream],
-) *core.Flow[In, Out, Stream] {
+func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.StreamingFunc[In, Out, Stream]) *core.Flow[In, Out, Stream] {
 	return core.DefineStreamingFlow(g.reg, name, fn)
 }
 
@@ -163,13 +187,8 @@ func ListFlows(g *Genkit) []core.Action {
 }
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(
-	g *Genkit,
-	provider, name string,
-	info *ai.ModelInfo,
-	generate ai.ModelFunc,
-) ai.Model {
-	return ai.DefineModel(g.reg, provider, name, info, generate)
+func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.ModelFunc) ai.Model {
+	return ai.DefineModel(g.reg, provider, name, info, fn)
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -291,17 +310,8 @@ func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 
 // optsWithDefaults prepends defaults to the options so that they can be overridden by the caller.
 func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) []ai.GenerateOption {
-	if g.Params.DefaultModel != "" {
-		opts = append([]ai.GenerateOption{ai.WithModelName(g.Params.DefaultModel)}, opts...)
+	if g.DefaultModel != "" {
+		opts = append([]ai.GenerateOption{ai.WithModelName(g.DefaultModel)}, opts...)
 	}
 	return opts
-}
-
-// modelRefParts parses a model string into a provider and name.
-func modelRefParts(model string) ([]string, error) {
-	parts := strings.Split(model, "/")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid model format %q, expected provider/name", model)
-	}
-	return parts, nil
 }
