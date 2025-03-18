@@ -939,7 +939,11 @@
       "type": "object",
       "properties": {
         "format": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "text",
+            "json"
+          ]
         },
         "schema": {
           "type": "object",

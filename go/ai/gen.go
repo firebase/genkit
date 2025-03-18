@@ -226,12 +226,19 @@ type ModelResponseChunk struct {
 }
 
 type OutputConfig struct {
-	Constrained  bool           `json:"constrained,omitempty"`
-	ContentType  string         `json:"contentType,omitempty"`
-	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
-	Schema       map[string]any `json:"schema,omitempty"`
+	Constrained  bool               `json:"constrained,omitempty"`
+	ContentType  string             `json:"contentType,omitempty"`
+	Format       OutputConfigFormat `json:"format,omitempty"`
+	Instructions string             `json:"instructions,omitempty"`
+	Schema       map[string]any     `json:"schema,omitempty"`
 }
+
+type OutputConfigFormat string
+
+const (
+	OutputConfigFormatText OutputConfigFormat = "text"
+	OutputConfigFormatJson OutputConfigFormat = "json"
+)
 
 type PathMetadata struct {
 	Error   string  `json:"error,omitempty"`
