@@ -9,12 +9,14 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
 )
 
 const provider = "openai"
 
-// Supported model capabilities
 var (
+	// support values defined from openai docs
+	// https://platform.openai.com/docs/api-reference/chat
 	gpt4Capabilities = ai.ModelInfoSupports{
 		Multiturn:  true,
 		Tools:      true,
@@ -26,10 +28,6 @@ var (
 	supportedModels = map[string]ai.ModelInfo{
 		"gpt-4": {
 			Label:    "GPT-4",
-			Supports: &gpt4Capabilities,
-		},
-		"gpt-3.5-turbo": {
-			Label:    "GPT-3.5 Turbo",
 			Supports: &gpt4Capabilities,
 		},
 	}
@@ -59,6 +57,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 		panic("openai.Init already called")
 	}
 
+	// fetch api key
 	apiKey := cfg.APIKey
 	if apiKey == "" {
 		apiKey = os.Getenv("OPENAI_API_KEY")
@@ -67,11 +66,12 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 		}
 	}
 
-	client := openai.NewClient(apiKey)
+	// create client
+	client := openai.NewClient(option.WithAPIKey(apiKey))
 	state.client = client
 	state.initted = true
 
-	// Define default models
+	// define default models
 	for model, info := range supportedModels {
 		DefineModel(g, model, info)
 	}
@@ -92,7 +92,8 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return generate(ctx, state.client, name, input, cb)
+		generator := NewGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input)
+		return generator.Generate(ctx, cb)
 	})
 }
 

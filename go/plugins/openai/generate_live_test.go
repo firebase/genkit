@@ -2,6 +2,7 @@ package openai_test
 
 import (
 	"context"
+	"flag"
 	"os"
 	"strings"
 	"testing"
@@ -16,10 +17,16 @@ import (
 const defaultModel = "gpt-3.5-turbo"
 
 func setupTestClient(t *testing.T) *openai.Generator {
-	// Try to get API key from environment, fallback to test flag
-	apiKey := os.Getenv("OPENAI_API_KEY")
+	var apiKey string
+	flag.StringVar(&apiKey, "key", "", "OpenAI API key for testing")
+	flag.Parse()
+
+	// If flag not set, try environment variable
 	if apiKey == "" {
-		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
+		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if apiKey == "" {
+		t.Skip("Skipping test: Neither -openai-api-key flag nor OPENAI_API_KEY environment variable is set")
 	}
 
 	client := openaiClient.NewClient(option.WithAPIKey(apiKey))
