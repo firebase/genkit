@@ -8,19 +8,18 @@ retract (
 )
 
 require (
-	cloud.google.com/go/aiplatform v1.68.0
 	cloud.google.com/go/firestore v1.16.0
 	cloud.google.com/go/logging v1.11.0
 	firebase.google.com/go/v4 v4.14.1
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/google/generative-ai-go v0.19.0
 	github.com/google/go-cmp v0.6.0
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
 	github.com/pgvector/pgvector-go v0.2.0
+	github.com/stretchr/testify v1.9.0
 	github.com/weaviate/weaviate v1.26.0-rc.1
 	github.com/weaviate/weaviate-go-client/v4 v4.15.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
@@ -34,21 +33,22 @@ require (
 	golang.org/x/tools v0.23.0
 	google.golang.org/api v0.197.0
 	google.golang.org/genai v0.5.0
-	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 )
 
 require (
 	cloud.google.com/go v0.116.0 // indirect
-	cloud.google.com/go/ai v0.8.0 // indirect
 	cloud.google.com/go/auth v0.9.3 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
