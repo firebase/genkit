@@ -97,8 +97,7 @@ func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
 func (p *Prompt) Name() string { return p.action.Name() }
 
 // Execute renders a prompt, does variable substitution and
-// passes the rendered template to the AI model specified by
-// the prompt.
+// passes the rendered template to the AI model specified by the prompt.
 func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*ModelResponse, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
