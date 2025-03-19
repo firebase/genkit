@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 package rag
@@ -10,8 +10,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/google"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/vertexai"
 
 	// "github.com/ledongthuc/pdf"
 	// "github.com/tmc/langchaingo/textsplitter"
@@ -28,7 +28,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = vertexai.Init(ctx, g, &vertexai.Config{})
+	err = google.Init(ctx, g, &google.Config{VertexAI: true})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func main() {
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder(g, "text-embedding-004"),
+			Embedder: google.Embedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -131,7 +131,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	err = vertexai.Init(ctx, g, &vertexai.Config{})
+	err = google.Init(ctx, g, &google.Config{VertexAI: true})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,13 +140,13 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := google.Model(g, "gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder(g, "text-embedding-004"),
+			Embedder: google.Embedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -198,7 +198,7 @@ func customret() {
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder(g, "text-embedding-004"),
+			Embedder: google.Embedder(g, "text-embedding-004"),
 		},
 	)
 
