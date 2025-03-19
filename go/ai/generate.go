@@ -511,6 +511,8 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 	return msg, nil
 }
 
+const OutputConfigFormatJson = "json"
+
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
 func validMessage(m *Message, output *GenerateActionOutputConfig) (*Message, error) {
