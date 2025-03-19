@@ -106,7 +106,7 @@ func TestGenerateAction(t *testing.T) {
 					resp := tc.ModelResponses[reqCounter]
 					resp.Request = req
 					resp.Custom = map[string]any{}
-					resp.Request.Output = &ModelRequestOutput{}
+					resp.Request.Output = &OutputConfig{}
 					resp.Usage = &GenerationUsage{}
 					reqCounter++
 					return resp, nil

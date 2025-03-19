@@ -220,7 +220,7 @@ func definePromptModel(reg *registry.Registry) Model {
 
 			textResponse += strings.Join(contentTexts, "; ")
 			textResponse += "; config: " + base.PrettyJSONString(gr.Config)
-			textResponse += "; context: " + base.PrettyJSONString(gr.Context)
+			textResponse += "; context: " + base.PrettyJSONString(gr.Docs)
 
 			return &ModelResponse{
 				Request: gr,
@@ -272,7 +272,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -306,7 +306,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -341,7 +341,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -382,7 +382,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -428,7 +428,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -463,7 +463,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -677,7 +677,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelRequestOutput{},
+				Output: &OutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -701,7 +701,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelRequestOutput{},
+				Output: &OutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -725,7 +725,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelRequestOutput{},
+				Output: &OutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
