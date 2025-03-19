@@ -434,13 +434,6 @@ func (g *generator) typeExpr(s *Schema) (string, error) {
 			return "", fmt.Errorf("ref %q does not begin with prefix %q", s.Ref, refPrefix)
 		}
 		ic := g.cfg.configFor(name)
-		// Check if this is a property reference
-		if strings.Contains(name, "/properties/") {
-			// Check if we have a config for this
-			if ic != nil && ic.typeExpr != "" {
-				return ic.typeExpr, nil
-			}
-		}
 		s2, ok := g.schemas[name]
 		if !ok {
 			// If there is no schema, perhaps there is a config value.

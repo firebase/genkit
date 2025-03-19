@@ -180,14 +180,14 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *GenerateActionOutputConfig
+	var output *OutputConfig
 	if opts.Output != nil {
-		output = &GenerateActionOutputConfig{
-			Format:     opts.Output.Format,
-			JsonSchema: opts.Output.Schema,
+		output = &OutputConfig{
+			Format: opts.Output.Format,
+			Schema: opts.Output.JsonSchema,
 		}
-		if output.JsonSchema != nil && output.Format == "" {
-			output.Format = string(OutputConfigFormatJson)
+		if output.Schema != nil && output.Format == "" {
+			output.Format = string(OutputFormatJSON)
 		}
 	}
 
@@ -306,10 +306,9 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
-		// TODO: Rename this to nicer names during type generation.
-		Output: &OutputConfig{
-			Schema: genOpts.OutputSchema,
-			Format: string(genOpts.OutputFormat),
+		Output: &GenerateActionOutputConfig{
+			JsonSchema: genOpts.OutputSchema,
+			Format:     string(genOpts.OutputFormat),
 		},
 	}
 
@@ -487,8 +486,8 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == string(OutputConfigFormatJson) && len(req.Messages) > 0 {
-		jsonBytes, err := json.Marshal(req.Output.JsonSchema)
+	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
+		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
 		}
@@ -511,12 +510,10 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 	return msg, nil
 }
 
-const OutputConfigFormatJson = "json"
-
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *GenerateActionOutputConfig) (*Message, error) {
-	if output != nil && output.Format == string(OutputConfigFormatJson) {
+func validMessage(m *Message, output *OutputConfig) (*Message, error) {
+	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -532,7 +529,7 @@ func validMessage(m *Message, output *GenerateActionOutputConfig) (*Message, err
 			text := base.ExtractJSONFromMarkdown(part.Text)
 
 			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(output.JsonSchema)
+			schemaBytes, err := json.Marshal(output.Schema)
 			if err != nil {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}
