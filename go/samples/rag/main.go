@@ -30,7 +30,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
@@ -77,11 +76,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := dotprompt.Define(g, "simpleQaPrompt",
-		simpleQaPromptTemplate,
-		dotprompt.WithDefaultModel(model),
-		dotprompt.WithInputType(simpleQaPromptInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
+	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
+		ai.WithModel(model),
+		ai.WithPromptText(simpleQaPromptTemplate),
+		ai.WithInputType(simpleQaPromptInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -114,7 +113,7 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx, g, dotprompt.WithInput(promptInput))
+		resp, err := simpleQaPrompt.Execute(ctx, ai.WithInput(promptInput))
 		if err != nil {
 			return "", err
 		}

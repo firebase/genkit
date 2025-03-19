@@ -15,7 +15,13 @@
  */
 
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
-import { EmbedderAction, EmbedderReference, Genkit, z } from 'genkit';
+import {
+  EmbedderAction,
+  EmbedderReference,
+  Genkit,
+  GenkitError,
+  z,
+} from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { getApiKeyFromEnvVar } from './common.js';
 import { PluginOptions } from './index.js';
@@ -30,6 +36,8 @@ export const TaskTypeSchema = z.enum([
 export type TaskType = z.infer<typeof TaskTypeSchema>;
 
 export const GeminiEmbeddingConfigSchema = z.object({
+  /** Override the API key provided at plugin initialization. */
+  apiKey: z.string().optional(),
   /**
    * The `task_type` parameter is defined as the intended downstream application to help the model
    * produce better quality embeddings.
@@ -81,14 +89,18 @@ export const SUPPORTED_MODELS = {
 export function defineGoogleAIEmbedder(
   ai: Genkit,
   name: string,
-  options: PluginOptions
+  pluginOptions: PluginOptions
 ): EmbedderAction<any> {
-  let apiKey = options?.apiKey || getApiKeyFromEnvVar();
-  if (!apiKey)
-    throw new Error(
-      'Please pass in the API key or set either GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-        'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
-    );
+  let apiKey: string | undefined;
+  // DO NOT throw if {apiKey: false} was supplied to options.
+  if (pluginOptions.apiKey !== false) {
+    apiKey = pluginOptions?.apiKey || getApiKeyFromEnvVar();
+    if (!apiKey)
+      throw new Error(
+        'Please pass in the API key or set either GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
+      );
+  }
   const embedder: EmbedderReference =
     SUPPORTED_MODELS[name] ??
     embedderRef({
@@ -112,7 +124,16 @@ export function defineGoogleAIEmbedder(
       info: embedder.info!,
     },
     async (input, options) => {
-      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel({
+      if (pluginOptions.apiKey === false && !options?.apiKey) {
+        throw new GenkitError({
+          status: 'INVALID_ARGUMENT',
+          message:
+            'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
+        });
+      }
+      const client = new GoogleGenerativeAI(
+        options?.apiKey || apiKey!
+      ).getGenerativeModel({
         model:
           options?.version ||
           embedder.config?.version ||

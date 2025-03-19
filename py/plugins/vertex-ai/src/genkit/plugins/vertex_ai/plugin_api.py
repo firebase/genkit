@@ -7,7 +7,6 @@ import logging
 import os
 
 import vertexai
-from genkit.core.action import ActionKind
 from genkit.plugins.vertex_ai import constants as const
 from genkit.plugins.vertex_ai.embedding import Embedder, EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
@@ -66,16 +65,16 @@ class VertexAI(Plugin):
         registry, making them available for use in the Genkit framework.
 
         Args:
-            registry: The registry to register actions with.
+            ai: The registry to register actions with.
 
         Returns:
             None
         """
         for model_version in GeminiVersion:
-            gemini = Gemini(model_version)
+            gemini = Gemini(model_version, ai)
             ai.define_model(
                 name=vertexai_name(model_version),
-                fn=gemini.handle_request,
+                fn=gemini.generate,
                 metadata=gemini.model_metadata,
             )
 
@@ -83,7 +82,7 @@ class VertexAI(Plugin):
             embedder = Embedder(embed_model)
             ai.define_embedder(
                 name=vertexai_name(embed_model),
-                fn=embedder.handle_request,
+                fn=embedder.generate,
                 metadata=embedder.model_metadata,
             )
 
@@ -91,6 +90,6 @@ class VertexAI(Plugin):
             imagen = Imagen(imagen_version)
             ai.define_model(
                 name=vertexai_name(imagen_version),
-                fn=imagen.handle_request,
+                fn=imagen.generate,
                 metadata=imagen.model_metadata,
             )

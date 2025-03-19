@@ -8,10 +8,12 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -38,6 +40,12 @@ var (
 		ToolChoice: true,
 		SystemRole: true,
 		Media:      true,
+	}
+
+	// Attribution header
+	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
+	GenkitClientHeader   = http.Header{
+		xGoogApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
 	}
 )
 
@@ -80,7 +88,6 @@ func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		provider = VertexAIProvider
 	}
 
-	// NOTE: how is `input` being provided?
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig

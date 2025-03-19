@@ -35,6 +35,7 @@ import {
   loadInferenceDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
+import * as clc from 'colorette';
 import { Command } from 'commander';
 import { runWithManager } from '../utils/manager-utils';
 
@@ -167,9 +168,18 @@ export const evalFlow = new Command('eval:flow')
           await exportFn(evalRun, options.output);
         }
 
-        console.log(
-          `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
-        );
+        const toolsInfo = manager.getMostRecentDevUI();
+        if (toolsInfo) {
+          logger.info(
+            clc.green(
+              `\nView the evaluation results at: ${toolsInfo.url}/evaluate/${evalRun.key.evalRunId}`
+            )
+          );
+        } else {
+          logger.info(
+            `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
+          );
+        }
       });
     }
   );

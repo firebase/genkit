@@ -15,5 +15,8 @@
  */
 
 export { answerRelevancyScore } from './answer_relevancy.js';
+export { deepEqual } from './deep-equal.js';
 export { faithfulnessScore } from './faithfulness.js';
+export { jsonataMetric as jsonata } from './jsonata.js';
 export { maliciousnessScore } from './maliciousness.js';
+export { regexp } from './regexp.js';

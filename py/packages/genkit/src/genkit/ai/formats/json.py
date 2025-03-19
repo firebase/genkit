@@ -84,7 +84,7 @@ class JsonFormat(FormatDef):
             """
             return extract_json(chunk.accumulated_text)
 
-        instructions: str | None
+        instructions: str | None = None
 
         if schema:
             instructions = f"""Output should be in JSON format and conform to the following schema:

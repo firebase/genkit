@@ -17,6 +17,14 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Runtime } from '../manager/types';
+import { logger } from './logger';
+
+export interface DevToolsInfo {
+  /** URL of the dev tools server. */
+  url: string;
+  /** Timestamp of when the dev tools server was started. */
+  timestamp: string;
+}
 
 /**
  * Finds the project root by looking for a `package.json` file.
@@ -213,5 +221,49 @@ export async function retriable<T>(
       }
     }
     attempt++;
+  }
+}
+
+/**
+ * Checks if the provided data is a valid dev tools server state file.
+ */
+export function isValidDevToolsInfo(data: any): data is DevToolsInfo {
+  return (
+    typeof data === 'object' &&
+    typeof data.url === 'string' &&
+    typeof data.timestamp === 'string'
+  );
+}
+
+/**
+ * Writes the toolsInfo file to the project root
+ */
+export async function writeToolsInfoFile(url: string, projectRoot?: string) {
+  const serversDir = await findServersDir(projectRoot);
+  const toolsJsonPath = path.join(serversDir, `tools-${process.pid}.json`);
+  try {
+    const serverInfo = {
+      url,
+      timestamp: new Date().toISOString(),
+    } as DevToolsInfo;
+    await fs.mkdir(serversDir, { recursive: true });
+    await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
+    logger.debug(`Tools Info file written: ${toolsJsonPath}`);
+  } catch (error) {
+    logger.info('Error writing tools config', error);
+  }
+}
+
+/**
+ * Removes the toolsInfo file.
+ */
+export async function removeToolsInfoFile(fileName: string) {
+  try {
+    const serversDir = await findServersDir();
+    const filePath = path.join(serversDir, fileName);
+    await fs.unlink(filePath);
+    logger.debug(`Removed unhealthy toolsInfo file ${fileName} from manager.`);
+  } catch (error) {
+    logger.debug(`Failed to delete toolsInfo file: ${error}`);
   }
 }

@@ -1,17 +1,17 @@
 <!--
- Copyright 2024 Google LLC
+Copyright 2025 Google LLC
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 -->
 
 <div class="wrapper">
@@ -23,16 +23,26 @@
   } @else {
     <h2>Chat with {{ llmNames[llmIndex] }}</h2>
 
-    <div *ngFor="let entry of history; let i = index">
-      <div *ngIf="entry.role === 'user'" class="user-bubble">
-        {{ entry.text }}
+    @for (entry of history; track entry; let i = $index) {
+      <div>
+        @if (entry.role === 'user') {
+          <div class="user-bubble">
+            {{ entry.text }}
+          </div>
+        }
+        @if (entry.role === 'model') {
+          <div class="model-bubble">
+            @if (entry.text) {
+              <span class="text">
+                <markdown
+                  class="variable-binding"
+                  [data]="entry.text"></markdown>
+              </span>
+            }
+          </div>
+        }
       </div>
-      <div *ngIf="entry.role === 'model'" class="model-bubble">
-        <span *ngIf="entry.text" class="text">
-          <markdown class="variable-binding" [data]="entry.text"></markdown>
-        </span>
-      </div>
-    </div>
+    }
 
     @if (error) {
       <pre class="error">{{ error }}</pre>
@@ -49,9 +59,9 @@
           (keypress)="keyPress($event)"
           [formControl]="chatFormControl"
           placeholder="Hi..."></textarea>
-        <mat-progress-bar
-          mode="indeterminate"
-          *ngIf="loading"></mat-progress-bar>
+        @if (loading) {
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        }
       </mat-form-field>
     </form>
   }
