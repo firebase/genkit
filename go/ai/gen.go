@@ -82,11 +82,11 @@ type GenerateActionOptions struct {
 	MaxTurns           int                          `json:"maxTurns,omitempty"`
 	Messages           []*Message                   `json:"messages,omitempty"`
 	Model              string                       `json:"model,omitempty"`
-	Output             *GenerateActionOutputConfig  `json:"output,omitempty"`
+	Output             *OutputConfig                `json:"output,omitempty"`
 	Resume             *GenerateActionOptionsResume `json:"resume,omitempty"`
 	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
 	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
-	Tools              []*ToolDefinition            `json:"tools,omitempty"`
+	Tools              []string                     `json:"tools,omitempty"`
 }
 
 type GenerateActionOptionsResume struct {

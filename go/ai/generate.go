@@ -156,16 +156,16 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
-		if _, ok := toolDefMap[t.Name]; ok {
+		if _, ok := toolDefMap[t]; ok {
 			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
 		}
 
-		tool := LookupTool(r, t.Name)
+		tool := LookupTool(r, t)
 		if tool == nil {
 			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
 		}
 
-		toolDefMap[t.Name] = tool.Definition()
+		toolDefMap[t] = tool.Definition()
 	}
 	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
 	for _, t := range toolDefMap {
@@ -184,7 +184,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	if opts.Output != nil {
 		output = &GenerateActionOutputConfig{
 			Format:     opts.Output.Format,
-			JsonSchema: opts.Output.JsonSchema,
+			JsonSchema: opts.Output.Schema,
 		}
 		if output.JsonSchema != nil && output.Format == "" {
 			output.Format = string(OutputConfigFormatJson)
@@ -266,9 +266,9 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		modelName = genOpts.Model.Name()
 	}
 
-	tools := make([]*ToolDefinition, len(genOpts.Tools))
+	tools := make([]string, len(genOpts.Tools))
 	for i, tool := range genOpts.Tools {
-		tools[i] = tool.Definition()
+		tools[i] = tool.Definition().Name
 	}
 
 	messages := []*Message{}
@@ -307,9 +307,9 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
 		// TODO: Rename this to nicer names during type generation.
-		Output: &GenerateActionOutputConfig{
-			JsonSchema: genOpts.OutputSchema,
-			Format:     genOpts.OutputFormat,
+		Output: &OutputConfig{
+			Schema: genOpts.OutputSchema,
+			Format: genOpts.OutputFormat,
 		},
 	}
 
