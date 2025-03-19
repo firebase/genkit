@@ -309,7 +309,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		// TODO: Rename this to nicer names during type generation.
 		Output: &OutputConfig{
 			Schema: genOpts.OutputSchema,
-			Format: genOpts.OutputFormat,
+			Format: string(genOpts.OutputFormat),
 		},
 	}
 
