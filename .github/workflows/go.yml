@@ -20,11 +20,29 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@main
+      - uses: actions/checkout@main
+      
+      - name: Set up Node
+        uses: actions/setup-node@main
+        with:
+          node-version: '18'
+          
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install
+          
+      - name: Generate JSON Schema from Zod
+        run: npm --prefix genkit-tools run export:schemas
+          
       - name: Set up Go
         uses: actions/setup-go@main
         with:
           go-version: '1.22.x'
+          
+      - name: Generate Go code from schema
+        run: cd go/core && go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json ai
+      
       - name: Run tests
         run: go test -C go -v ./...
