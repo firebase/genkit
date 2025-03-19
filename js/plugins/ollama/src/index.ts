@@ -254,27 +254,21 @@ function toOllamaRequest(
           toolResponses.push(c.toolResponse);
         }
       });
-      if (role == 'tool') {
-        toolResponses.forEach((t) => {
-          messages.push({
-            role,
-            content:
-              typeof t.output === 'string'
-                ? t.output
-                : JSON.stringify(t.output),
-          });
-        });
-      } else {
+      // Add tool responses, if any.
+      toolResponses.forEach((t) => {
         messages.push({
-          role: role,
-          content: toolRequests.length > 0 ? '' : messageText,
-          images: images.length > 0 ? images : undefined,
-          tool_calls:
-            toolRequests.length > 0
-              ? toOllamaToolCall(toolRequests)
-              : undefined,
+          role,
+          content:
+            typeof t.output === 'string' ? t.output : JSON.stringify(t.output),
         });
-      }
+      });
+      messages.push({
+        role: role,
+        content: toolRequests.length > 0 ? '' : messageText,
+        images: images.length > 0 ? images : undefined,
+        tool_calls:
+          toolRequests.length > 0 ? toOllamaToolCall(toolRequests) : undefined,
+      });
     });
     request.messages = messages;
   } else {
@@ -358,10 +352,9 @@ function getSystemMessage(input: GenerateRequest): string {
 
 function isValidOllamaTool(tool: ToolDefinition): boolean {
   if (tool.inputSchema?.type !== 'object') {
-    logger.warn(
-      `Ollama only supports tools with object inputs. Ignoring tool ${tool.name}`
+    throw new Error(
+      `Unsupported tool: '${tool.name}'. Ollama only supports tools with object inputs`
     );
-    return false;
   }
   return true;
 }
