@@ -10,7 +10,6 @@ package googleai
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"sync"
 

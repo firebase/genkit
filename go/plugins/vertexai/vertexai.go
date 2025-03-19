@@ -6,7 +6,6 @@ package vertexai
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"sync"
 
