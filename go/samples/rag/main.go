@@ -25,6 +25,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -106,6 +107,29 @@ func main() {
 			Evaluation: []ai.Score{score},
 		}
 		return &callbackResponse, nil
+	})
+
+	genkit.DefineBatchEvaluator(g, "custom", "simpleBatchEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
+		var evalResponses []ai.EvaluationResult
+		dataset := *req.Dataset
+		for i := 0; i < len(dataset); i++ {
+			input := dataset[i]
+
+			m := make(map[string]any)
+			m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+			score := ai.Score{
+				Id:      "testScore",
+				Score:   true,
+				Status:  ai.ScoreStatusPass.String(),
+				Details: m,
+			}
+			callbackResponse := ai.EvaluationResult{
+				TestCaseId: input.TestCaseId,
+				Evaluation: []ai.Score{score},
+			}
+			evalResponses = append(evalResponses, callbackResponse)
+		}
+		return &evalResponses, nil
 	})
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
