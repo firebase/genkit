@@ -364,7 +364,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		}
 		fs := s.Properties[field]
 		// Ignore properties with a non-empty "not" constraint.
-		// They are probably the result of inheriting from a base zod type with a "never" constarint.
+		// They are probably the result of inheriting from a base zod type with a "never" constraint.
 		// E.g. see EmptyPartSchema and its subtypes in js/ai/src/model.ts.
 		if fs.Not != nil {
 			continue
