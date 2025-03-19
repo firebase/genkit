@@ -279,9 +279,9 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		ReturnToolRequests: p.ReturnToolRequests,
 		Messages:           messages,
 		Tools:              tools,
-		Output: &OutputConfig{
-			Format: string(p.OutputFormat),
-			Schema: p.OutputSchema,
+		Output: &GenerateActionOutputConfig{
+			Format:     string(p.OutputFormat),
+			JsonSchema: p.OutputSchema,
 		},
 	}, nil
 }

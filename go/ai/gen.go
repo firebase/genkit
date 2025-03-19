@@ -6,12 +6,12 @@
 package ai
 
 type BaseDataPoint struct {
-	Context    []any    `json:"context,omitempty"`
-	Input      any      `json:"input,omitempty"`
-	Output     any      `json:"output,omitempty"`
-	Reference  any      `json:"reference,omitempty"`
-	TestCaseID string   `json:"testCaseId,omitempty"`
-	TraceIDs   []string `json:"traceIds,omitempty"`
+	Context    map[string]any `json:"context,omitempty"`
+	Input      map[string]any `json:"input,omitempty"`
+	Output     map[string]any `json:"output,omitempty"`
+	Reference  map[string]any `json:"reference,omitempty"`
+	TestCaseID string         `json:"testCaseId,omitempty"`
+	TraceIDs   []string       `json:"traceIds,omitempty"`
 }
 
 type BaseEvalDataPoint struct {
@@ -22,6 +22,20 @@ type BaseEvalDataPoint struct {
 	TestCaseID string         `json:"testCaseId,omitempty"`
 	TraceIDs   []string       `json:"traceIds,omitempty"`
 }
+
+type CandidateError struct {
+	Code    CandidateErrorCode `json:"code,omitempty"`
+	Index   float64            `json:"index,omitempty"`
+	Message string             `json:"message,omitempty"`
+}
+
+type CandidateErrorCode string
+
+const (
+	CandidateErrorCodeBlocked CandidateErrorCode = "blocked"
+	CandidateErrorCodeOther   CandidateErrorCode = "other"
+	CandidateErrorCodeUnknown CandidateErrorCode = "unknown"
+)
 
 type CommonRerankerOptions struct {
 	// Number of documents to rerank
@@ -82,7 +96,7 @@ type GenerateActionOptions struct {
 	MaxTurns           int                          `json:"maxTurns,omitempty"`
 	Messages           []*Message                   `json:"messages,omitempty"`
 	Model              string                       `json:"model,omitempty"`
-	Output             *OutputConfig                `json:"output,omitempty"`
+	Output             *GenerateActionOutputConfig  `json:"output,omitempty"`
 	Resume             *GenerateActionOptionsResume `json:"resume,omitempty"`
 	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
 	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
@@ -104,10 +118,11 @@ const (
 )
 
 type GenerateActionOutputConfig struct {
-	Constrained bool           `json:"constrained,omitempty"`
-	ContentType string         `json:"contentType,omitempty"`
-	Format      string         `json:"format,omitempty"`
-	JsonSchema  map[string]any `json:"jsonSchema,omitempty"`
+	Constrained  bool           `json:"constrained,omitempty"`
+	ContentType  string         `json:"contentType,omitempty"`
+	Format       string         `json:"format,omitempty"`
+	Instructions string         `json:"instructions,omitempty"`
+	JsonSchema   map[string]any `json:"jsonSchema,omitempty"`
 }
 
 // GenerationCommonConfig holds configuration for generation.
@@ -195,8 +210,8 @@ type ModelRequest struct {
 	Docs     []*Document `json:"docs,omitempty"`
 	Messages []*Message  `json:"messages,omitempty"`
 	// Output describes the desired response format.
-	Output     *GenerateActionOutputConfig `json:"output,omitempty"`
-	ToolChoice ToolChoice                  `json:"toolChoice,omitempty"`
+	Output     *OutputConfig `json:"output,omitempty"`
+	ToolChoice ToolChoice    `json:"toolChoice,omitempty"`
 	// Tools lists the available tools that the model can ask the client to run.
 	Tools []*ToolDefinition `json:"tools,omitempty"`
 }
@@ -289,12 +304,12 @@ type textPart struct {
 type ToolDefinition struct {
 	Description string `json:"description,omitempty"`
 	// Valid JSON Schema representing the input of the tool.
-	InputSchema any `json:"inputSchema,omitempty"`
+	InputSchema map[string]any `json:"inputSchema,omitempty"`
 	// additional metadata for this tool definition
 	Metadata map[string]any `json:"metadata,omitempty"`
 	Name     string         `json:"name,omitempty"`
 	// Valid JSON Schema describing the output of the tool.
-	OutputSchema any `json:"outputSchema,omitempty"`
+	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
 type ToolRequest struct {
