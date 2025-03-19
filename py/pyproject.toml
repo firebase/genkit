@@ -30,6 +30,7 @@ dev = [
   "pytest-cov>=6.0.0",
   "datamodel-code-generator>=0.27.3",
   "pytest-watcher>=0.4.3",
+  "pytest-mock>=3.14.0",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]

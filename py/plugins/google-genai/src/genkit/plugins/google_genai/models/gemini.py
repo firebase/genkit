@@ -1,7 +1,6 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-import abc
 from enum import StrEnum
 from functools import cached_property
 
@@ -242,7 +241,7 @@ class PartConverter:
             }
 
 
-class GeminiModel(abc.ABC):
+class GeminiModel:
     def __init__(self, version: str | GeminiVersion, client: genai.Client):
         self._version = version
         self._client = client
@@ -268,14 +267,84 @@ class GeminiModel(abc.ABC):
             else None
         )
 
+        if ctx.is_streaming:
+            return await self._streaming_generate(
+                request_contents, request_cfg, ctx
+            )
+        else:
+            return await self._generate(request_contents, request_cfg)
+
+    async def _generate(
+        self,
+        request_contents: list[genai.types.Content],
+        request_cfg: genai.types.GenerateContentConfig,
+    ) -> GenerateResponse:
+        """Call google-genai generate
+
+        Args:
+            request_contents: request contents
+            request_cfg: request configuration
+
+        Returns:
+            genai response
+        """
         response = await self._client.aio.models.generate_content(
             model=self._version, contents=request_contents, config=request_cfg
         )
 
-        return self._respond(response, ctx)
+        content = self._contents_from_response(response)
+
+        return GenerateResponse(
+            message=Message(
+                content=content,
+                role=Role.MODEL,
+            )
+        )
+
+    async def _streaming_generate(
+        self,
+        request_contents: list[genai.types.Content],
+        request_cfg: genai.types.GenerateContentConfig,
+        ctx: ActionRunContext,
+    ) -> GenerateResponse:
+        """Call google-genai generate for streaming
+
+        Args:
+            request_contents: request contents
+            request_cfg: request configuration
+            ctx:
+
+        Returns:
+            empty genai response
+        """
+
+        async for (
+            response_chunk
+        ) in await self._client.aio.models.generate_content_stream(
+            model=self._version, contents=request_contents, config=request_cfg
+        ):
+            content = self._contents_from_response(response_chunk)
+
+            ctx.send_chunk(
+                chunk=GenerateResponseChunk(
+                    content=content,
+                    role=Role.MODEL,
+                )
+            )
+        return GenerateResponse(
+            message=Message(
+                role=Role.MODEL,
+                content=[TextPart(text='')],
+            )
+        )
 
     @cached_property
     def metadata(self) -> dict:
+        """Get model metadata
+
+        Returns:
+            model metadata
+        """
         supports = SUPPORTED_MODELS[self._version].supports.model_dump()
         return {
             'model': {
@@ -289,6 +358,15 @@ class GeminiModel(abc.ABC):
     def _build_messages(
         self, request: GenerateRequest
     ) -> list[genai.types.Content]:
+        """Build google-genai request contents from Genkit request
+
+        Args:
+            request: Genkit request
+
+        Returns:
+            list of google-genai contents
+        """
+
         reqest_contents: list[genai.types.Content] = []
         for msg in request.messages:
             content_parts: list[genai.types.Part] = []
@@ -300,37 +378,25 @@ class GeminiModel(abc.ABC):
 
         return reqest_contents
 
-    def _respond(
-        self,
-        response: genai.types.GenerateContentResponse,
-        ctx: ActionRunContext,
-    ) -> GenerateResponse | None:
+    def _contents_from_response(
+        self, response: genai.types.GenerateContentResponse
+    ) -> list:
+        """Retrieve contents from google-genai response
+
+        Args:
+            response: google-genai response
+
+        Returns:
+            list of generated contents
+        """
+
         content = []
         if response.candidates:
             for candidate in response.candidates:
                 for part in candidate.content.parts:
                     content.append(PartConverter.from_gemini(part=part))
 
-        if ctx.is_streaming:
-            ctx.send_chunk(
-                chunk=GenerateResponseChunk(
-                    content=content,
-                    role=Role.MODEL,
-                )
-            )
-            return GenerateResponse(
-                message=Message(
-                    role=Role.MODEL,
-                    content=[TextPart(text='')],
-                )
-            )
-        else:
-            return GenerateResponse(
-                message=Message(
-                    content=content,
-                    role=Role.MODEL,
-                )
-            )
+        return content
 
     def _genkit_to_googleai_cfg(
         self, genkit_cfg: GenerationCommonConfig
