@@ -31,7 +31,9 @@ jobs:
         run: corepack enable
 
       - name: Install dependencies
-        run: pnpm install
+        run: |
+          pnpm install
+          cd genkit-tools && pnpm install
           
       - name: Generate JSON Schema from Zod
         run: npm --prefix genkit-tools run export:schemas
