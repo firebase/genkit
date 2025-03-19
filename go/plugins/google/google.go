@@ -77,7 +77,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		gc.Project = cfg.ProjectID
 		gc.Location = cfg.Location
 	default:
-		fmt.Errorf("unknown backend detected: %q", gc.Backend)
+		return fmt.Errorf("unknown backend detected: %q", gc.Backend)
 	}
 
 	client, err := genai.NewClient(ctx, &gc)

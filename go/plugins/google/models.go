@@ -148,7 +148,6 @@ func getSupportedModels(backend genai.Backend) (map[string]*ai.ModelInfo, error)
 			Versions: m.Versions,
 			Supports: m.Supports,
 		}
-
 	}
 	return models, nil
 }
@@ -163,6 +162,8 @@ func getSupportedEmbedders(backend genai.Backend) ([]string, error) {
 		embedders = googleAIEmbedders
 	case genai.BackendVertexAI:
 		embedders = vertexAIEmbedders
+	default:
+		return nil, fmt.Errorf("embedders for backend %s not found", backend)
 	}
 
 	return embedders, nil
