@@ -16,19 +16,16 @@ from http.server import BaseHTTPRequestHandler
 
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
+from genkit.core.error import get_callable_json
 from genkit.core.registry import Registry
 from genkit.core.web import HTTPHeader
 
 
-def make_reflection_server(
-    registry: Registry, version=DEFAULT_GENKIT_VERSION, encoding='utf-8'
-):
+def make_reflection_server(registry: Registry, encoding='utf-8'):
     """Create and return a ReflectionServer class with the given registry.
 
     Args:
         registry: The registry to use for the reflection server.
-        version: The version string to use when setting the value of
-            the X-GENKIT-VERSION HTTP header.
         encoding: The text encoding to use; default 'utf-8'.
 
     Returns:
@@ -105,50 +102,84 @@ def make_reflection_server(
                         self.wfile.write(bytes('\n', encoding))
 
                     self.send_response(200)
-                    self.send_header(HTTPHeader.X_GENKIT_VERSION, '0.0.1')
+                    self.send_header(
+                        HTTPHeader.X_GENKIT_VERSION, DEFAULT_GENKIT_VERSION
+                    )
                     self.send_header(
                         HTTPHeader.CONTENT_TYPE, 'application/json'
                     )
                     self.end_headers()
 
-                    output = asyncio.run(
-                        action.arun_raw(
-                            raw_input=payload['input'],
-                            on_chunk=send_chunk,
-                            context=context,
+                    try:
+                        output = asyncio.run(
+                            action.arun_raw(
+                                raw_input=payload['input'],
+                                on_chunk=send_chunk,
+                                context=context,
+                            )
                         )
-                    )
-                    self.wfile.write(
-                        bytes(
-                            json.dumps({
-                                'result': dump_dict(output.response),
-                                'telemetry': {'traceId': output.trace_id},
-                            }),
-                            encoding,
+                        self.wfile.write(
+                            bytes(
+                                json.dumps({
+                                    'result': dump_dict(output.response),
+                                    'telemetry': {'traceId': output.trace_id},
+                                }),
+                                encoding,
+                            )
                         )
-                    )
+                    except Exception as e:
+                        errorResponse = get_callable_json(e).model_dump(
+                            by_alias=True
+                        )
+
+                        # since we're streaming, we must do special error handling here -- the headers are already sent.
+                        self.wfile.write(
+                            bytes(
+                                json.dumps({'error': errorResponse}), encoding
+                            )
+                        )
                 else:
-                    output = asyncio.run(
-                        action.arun_raw(
-                            raw_input=payload['input'], context=context
+                    try:
+                        output = asyncio.run(
+                            action.arun_raw(
+                                raw_input=payload['input'], context=context
+                            )
                         )
-                    )
 
-                    self.send_response(200)
-                    self.send_header(HTTPHeader.X_GENKIT_VERSION, '0.0.1')
-                    self.send_header(
-                        HTTPHeader.CONTENT_TYPE, 'application/json'
-                    )
-                    self.end_headers()
-
-                    self.wfile.write(
-                        bytes(
-                            json.dumps({
-                                'result': dump_dict(output.response),
-                                'telemetry': {'traceId': output.trace_id},
-                            }),
-                            encoding,
+                        self.send_response(200)
+                        self.send_header(
+                            HTTPHeader.X_GENKIT_VERSION, DEFAULT_GENKIT_VERSION
                         )
-                    )
+                        self.send_header(
+                            HTTPHeader.CONTENT_TYPE, 'application/json'
+                        )
+                        self.end_headers()
+
+                        self.wfile.write(
+                            bytes(
+                                json.dumps({
+                                    'result': dump_dict(output.response),
+                                    'telemetry': {'traceId': output.trace_id},
+                                }),
+                                encoding,
+                            )
+                        )
+                    except Exception as e:
+                        # since we're streaming, we must do special error handling here -- the headers are already sent.
+                        errorResponse = get_callable_json(e).model_dump(
+                            by_alias=True
+                        )
+
+                        self.send_response(500)
+                        self.send_header(
+                            HTTPHeader.X_GENKIT_VERSION, DEFAULT_GENKIT_VERSION
+                        )
+                        self.send_header(
+                            HTTPHeader.CONTENT_TYPE, 'application/json'
+                        )
+                        self.end_headers()
+                        self.wfile.write(
+                            bytes(json.dumps(errorResponse), encoding)
+                        )
 
     return ReflectionServer

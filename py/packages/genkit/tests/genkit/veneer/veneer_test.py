@@ -1255,3 +1255,49 @@ def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
         },
         'label': 'fooRetriever',
     }
+
+
+@pytest.mark.asyncio
+async def test_define_sync_flow(setup_test: SetupFixture) -> None:
+    ai, _, _, *_ = setup_test
+
+    @ai.flow()
+    def my_flow(input: str, ctx):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
+        return input
+
+    assert my_flow('banana') == 'banana'
+
+    stream, response = my_flow.stream('banana2')
+
+    chunks = []
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert chunks == [1, 2, 3]
+    assert (await response) == 'banana2'
+
+
+@pytest.mark.asyncio
+async def test_define_async_flow(setup_test: SetupFixture) -> None:
+    ai, _, _, *_ = setup_test
+
+    @ai.flow()
+    async def my_flow(input: str, ctx):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
+        return input
+
+    assert (await my_flow('banana')) == 'banana'
+
+    stream, response = my_flow.stream('banana2')
+
+    chunks = []
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert chunks == [1, 2, 3]
+    assert (await response) == 'banana2'

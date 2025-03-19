@@ -10,10 +10,9 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
-func menu(ctx *ai.ToolContext, _ *any) ([]*menuItem, error) {
+func menu(ctx *ai.ToolContext, _ any) ([]*menuItem, error) {
 	f, err := os.Open("testdata/menu.json")
 	if err != nil {
 		return nil, err
@@ -29,20 +28,21 @@ func menu(ctx *ai.ToolContext, _ *any) ([]*menuItem, error) {
 func setup02(g *genkit.Genkit, m ai.Model) error {
 	menuTool := genkit.DefineTool(g, "todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
-	dataMenuPrompt, err := dotprompt.Define(g, "s02_dataMenu",
-		`You are acting as a helpful AI assistant named Walt that can answer
-		 questions about the food available on the menu at Walt's Burgers.
+	dataMenuPrompt, err := genkit.DefinePrompt(g, "s02_dataMenu",
+		ai.WithPromptText(`
+You are acting as a helpful AI assistant named Walt that can answer
+questions about the food available on the menu at Walt's Burgers.
 
-		 Answer this customer's question, in a concise and helpful manner,
-		 as long as it is about food on the menu or something harmless like sports.
-		 Use the tools available to answer menu questions.
-		 DO NOT INVENT ITEMS NOT ON THE MENU.
+Answer this customer's question, in a concise and helpful manner,
+as long as it is about food on the menu or something harmless like sports.
+Use the tools available to answer menu questions.
+DO NOT INVENT ITEMS NOT ON THE MENU.
 
-		 Question:
-		 {{question}} ?`,
-		dotprompt.WithDefaultModel(m),
-		dotprompt.WithInputType(menuQuestionInput{}),
-		dotprompt.WithTools(menuTool),
+Question:
+{{question}} ?`),
+		ai.WithModel(m),
+		ai.WithInputType(menuQuestionInput{}),
+		ai.WithTools(menuTool),
 	)
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 
 	genkit.DefineFlow(g, "s02_menuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			resp, err := dataMenuPrompt.Generate(ctx, g, dotprompt.WithInput(input))
+			resp, err := dataMenuPrompt.Execute(ctx, ai.WithInput(input))
 			if err != nil {
 				return nil, err
 			}

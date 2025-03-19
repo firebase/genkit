@@ -292,6 +292,27 @@ async def stream_a_prompt(_: str, ctx: ActionRunContext):
     return (await res).text
 
 
-if __name__ == '__main__':
-    asyncio.run(main())
-    print(asyncio.run(simple_generate_action_with_tools_flow(100)))
+@ai.flow()
+def throwy(_: str):
+    raise Exception('oops')
+
+
+@ai.flow()
+async def async_throwy(_: str):
+    raise Exception('oops')
+
+
+@ai.flow()
+def streamy_throwy(inp: str, ctx: ActionRunContext):
+    ctx.send_chunk(1)
+    ctx.send_chunk({'chunk': 'blah'})
+    ctx.send_chunk(3)
+    raise Exception('oops')
+
+
+@ai.flow()
+async def async_streamy_throwy(inp: str, ctx: ActionRunContext):
+    ctx.send_chunk(1)
+    ctx.send_chunk({'chunk': 'blah'})
+    ctx.send_chunk(3)
+    raise Exception('oops')

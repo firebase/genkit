@@ -52,11 +52,11 @@ func TestLive(t *testing.T) {
 	}
 
 	// Generate a response from the model
-	resp, err := genkit.GenerateWithRequest(ctx, g, m,
-		ai.NewModelRequest(
-			&ai.GenerationCommonConfig{Temperature: 1},
-			ai.NewUserTextMessage("I'm hungry, what should I eat?")),
-		nil, nil, nil)
+	resp, err := genkit.Generate(ctx, g,
+		ai.WithModel(m),
+		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
+		ai.WithPromptText("I'm hungry, what should I eat?"),
+	)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)
 	}

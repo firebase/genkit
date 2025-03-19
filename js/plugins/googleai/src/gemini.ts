@@ -96,6 +96,11 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       allowedFunctionNames: z.array(z.string()).optional(),
     })
     .optional(),
+  /**
+   * Specify what modalities should be used in response. Only supported in
+   * 'gemini-2.0-flash-exp' model at present.
+   **/
+  responseModalities: z.array(z.enum(['TEXT', 'IMAGE', 'AUDIO'])).optional(),
 });
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
@@ -194,6 +199,40 @@ export const gemini20Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini20FlashExp = modelRef({
+  name: 'googleai/gemini-2.0-flash-exp',
+  info: {
+    label: 'Google AI - Gemini 2.0 Flash (Experimental)',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini20FlashLite = modelRef({
+  name: 'googleai/gemini-2.0-flash-lite',
+  info: {
+    label: 'Google AI - Gemini 2.0 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini20ProExp0205 = modelRef({
   name: 'googleai/gemini-2.0-pro-exp-02-05',
   info: {
@@ -220,7 +259,9 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
   'gemini-2.0-flash': gemini20Flash,
+  'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
+  'gemini-2.0-flash-exp': gemini20FlashExp,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -342,7 +383,9 @@ function convertSchemaProperty(property) {
     baseSchema.description = property.description;
   }
   if (property.enum) {
-    baseSchema.enum = property.enum;
+    baseSchema.type = SchemaType.STRING;
+    // supported in API but not in SDK
+    (baseSchema as any).enum = property.enum;
   }
   if (property.nullable) {
     baseSchema.nullable = property.nullable;
@@ -823,6 +866,11 @@ export function defineGoogleAIModel({
         stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
+      if (requestConfig.responseModalities) {
+        // HACK: cast to any since this isn't officially supported in the old SDK yet
+        (generationConfig as any).responseModalities =
+          requestConfig.responseModalities;
+      }
 
       if (request.output?.constrained && jsonMode) {
         generationConfig.responseSchema = cleanSchema(request.output.schema);

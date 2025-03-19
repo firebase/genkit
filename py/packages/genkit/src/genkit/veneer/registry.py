@@ -33,7 +33,8 @@ It defines the following methods:
 |                  | [`define_model()`][genkit.veneer.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
 """
 
-from collections.abc import Callable
+import asyncio
+from collections.abc import AsyncIterator, Callable
 from functools import wraps
 from typing import Any
 
@@ -115,7 +116,10 @@ class GenkitRegistry:
                 """
                 return action.run(*args, **kwargs).response
 
-            return async_wrapper if action.is_async else sync_wrapper
+            return FlowWrapper(
+                fn=async_wrapper if action.is_async else sync_wrapper,
+                action=action,
+            )
 
         return wrapper
 
@@ -342,4 +346,40 @@ class GenkitRegistry:
             tools=tools,
             tool_choice=tool_choice,
             use=use,
+        )
+
+
+class FlowWrapper:
+    """A wapper for flow functions to add `stream` method."""
+
+    def __init__(self, fn, action: Action):
+        self._fn = fn
+        self._action = action
+
+    def __call__(self, *args, **kwds):
+        return self._fn(*args, **kwds)
+
+    def stream(
+        self,
+        input: Any = None,
+        context: dict[str, Any] | None = None,
+        telemetry_labels: dict[str, Any] | None = None,
+    ) -> tuple[
+        AsyncIterator,
+        asyncio.Future,
+    ]:
+        """Run the flow and return an async iterator of the results.
+
+        Args:
+            input: The input to the action.
+            context: The context to pass to the action.
+            telemetry_labels: The telemetry labels to pass to the action.
+
+        Returns:
+            A tuple containing:
+            - An AsyncIterator of the chunks from the action.
+            - An asyncio.Future that resolves to the final result of the action.
+        """
+        return self._action.stream(
+            input=input, context=context, telemetry_labels=telemetry_labels
         )
