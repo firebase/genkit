@@ -86,6 +86,28 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Dummy evaluator for testing
+	evalOptions := ai.EvaluatorOptions{
+		DisplayName: "Simple Evaluator",
+		Definition:  "Just says true or false randomly",
+		IsBilled:    false,
+	}
+	genkit.DefineEvaluator(g, "custom", "simpleEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+		m := make(map[string]any)
+		m["reasoning"] = "No good reason"
+		score := ai.Score{
+			Id:      "testScore",
+			Score:   1,
+			Status:  ai.ScoreStatusPass.String(),
+			Details: m,
+		}
+		callbackResponse := ai.EvaluatorCallbackResponse{
+			TestCaseId: req.Input.TestCaseId,
+			Evaluation: []ai.Score{score},
+		}
+		return &callbackResponse, nil
+	})
+
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
