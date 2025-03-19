@@ -240,6 +240,9 @@ type ModelResponseChunk struct {
 	Role       Role    `json:"role,omitempty"`
 }
 
+// OutputConfig describes the structure that the model's output
+// should conform to. If Format is [OutputFormatJSON], then Schema
+// can describe the desired form of the generated JSON.
 type OutputConfig struct {
 	Constrained  bool           `json:"constrained,omitempty"`
 	ContentType  string         `json:"contentType,omitempty"`
@@ -312,7 +315,12 @@ type ToolDefinition struct {
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
+// A ToolRequest is a message from the model to the client that it should run a
+// specific tool and pass a [ToolResponse] to the model on the next chat request it makes.
+// Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
 type ToolRequest struct {
+	// Input is a JSON object describing the input values to the tool.
+	// An example might be map[string]any{"country":"USA", "president":3}.
 	Input any    `json:"input,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Ref   string `json:"ref,omitempty"`
@@ -323,8 +331,13 @@ type toolRequestPart struct {
 	ToolRequest *ToolRequest   `json:"toolRequest,omitempty"`
 }
 
+// A ToolResponse is a message from the client to the model containing
+// the results of running a specific tool on the arguments passed to the client
+// by the model in a [ToolRequest].
 type ToolResponse struct {
-	Name   string `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
+	// Output is a JSON object describing the results of running the tool.
+	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output any    `json:"output,omitempty"`
 	Ref    string `json:"ref,omitempty"`
 }
