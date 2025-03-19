@@ -19,6 +19,10 @@ type promptFn = func(context.Context, any) (string, error)
 // messagesFn is a function that generates messages.
 type messagesFn = func(context.Context, any) ([]*Message, error)
 
+type OutputFormat string
+
+const OutputFormatJSON = "json"
+
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
 	ModelName               string                  // Name of the model to use.
