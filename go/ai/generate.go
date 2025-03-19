@@ -141,7 +141,7 @@ func DefineModel(
 	metadataMap["supports"] = supports
 	metadataMap["versions"] = info.Versions
 
-	generate = core.ChainMiddleware(ValidateSupport(name, info))(generate)
+	generate = core.ChainMiddleware(simulateSystemPrompt(info, nil), ValidateSupport(name, info))(generate)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{"model": metadataMap}, generate))
 }
