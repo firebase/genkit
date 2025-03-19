@@ -23,6 +23,9 @@ export type ApiType = 'chat' | 'generate';
 export interface ModelDefinition {
   name: string;
   type?: ApiType;
+  supports?: {
+    tools?: boolean;
+  };
 }
 
 // Definition for embedding models
@@ -126,3 +129,31 @@ export interface RequestHeaderFunction {
 export type RequestHeaders = Record<string, string> | RequestHeaderFunction;
 
 export type OllamaRole = 'assistant' | 'tool' | 'system' | 'user';
+
+// Tool definition from Ollama Chat API
+export interface OllamaTool {
+  type: string;
+  function: {
+    name: string;
+    description: string;
+    // `parameters` should be valid JSON Schema
+    parameters: Record<string, any>;
+  };
+}
+
+// Tool Call from Ollama Chat API
+export interface OllamaToolCall {
+  function: {
+    index?: number;
+    name: string;
+    arguments: Record<string, any>;
+  };
+}
+
+// Message format as defined by Ollama API
+export interface Message {
+  role: string;
+  content: string;
+  images?: string[];
+  tool_calls?: any[];
+}
