@@ -14,12 +14,36 @@ jobs:
       matrix:
         python-version:
           - "3.12"
+          - "3.13"
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pre-requisites
-        run: bin/setup -a ci
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libffi-dev cmake curl ripgrep
+
+      - name: Set up Go
+        uses: actions/setup-go@main
+        with:
+          go-version: stable
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.2.0
 
       - name: Install uv and setup Python version
         uses: astral-sh/setup-uv@v5
@@ -27,8 +51,22 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
 
+      - name: Install Python dependencies
+        run: |
+          cd py
+          uv pip install -e .[dev,test,docs]
+
+      - name: Install NPM packages
+        run: |
+          npm install -g license-checker
+
+      - name: Install Go tools
+        run: |
+          go install github.com/google/go-licenses@latest
+          go install oss.terrastruct.com/d2@latest
+
       - name: Generate schema typing
-        run: ./py/bin/generate_schema_typing
+        run: ./py/bin/generate_schema_typing --ci
 
       - name: Format check
         run: uv run --directory py ruff format --check .
@@ -39,8 +77,20 @@ jobs:
       - name: Check licenses
         run: ./bin/check_license
 
-      - name: Run tests
-        run: ./py/bin/run_python_tests
+      - name: Run Python tests
+        run: uv run --directory py pytest -xvs --log-level=DEBUG .
+
+      - name: Install mkdocs
+        run: |
+          uv tool install \
+          mkdocs \
+          --with mkdocs-autorefs \
+          --with mkdocs-d2-plugin \
+          --with mkdocs-literate-nav \
+          --with mkdocs-material \
+          --with mkdocs-mermaid2-plugin \
+          --with mkdocs-minify-plugin \
+          --with mkdocstrings[python]
 
       - name: Build documentation
         run: uv run --directory py mkdocs build --strict
