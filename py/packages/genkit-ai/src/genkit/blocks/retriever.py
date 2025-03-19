@@ -25,7 +25,13 @@ to accomplish a task.
 from typing import Any, Callable
 from xml.dom.minidom import Document
 
+from pydantic import BaseModel, Field
+
 from genkit.core.typing import RetrieverResponse
 
 # User-provided retriever function that queries the datastore
 type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
+
+
+class CommonRetrieverOptionsSchema(BaseModel):
+    k: int | None = Field(title='Number of documents to retrieve', default=None)
