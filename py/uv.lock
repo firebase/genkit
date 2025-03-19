@@ -16,6 +16,7 @@ members = [
     "genkit",
     "genkit-chroma-plugin",
     "genkit-compat-oai-plugin",
+    "genkit-dev-local-vectorstore-plugin",
     "genkit-firebase-plugin",
     "genkit-google-ai-plugin",
     "genkit-google-cloud-plugin",
@@ -817,6 +818,23 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "openai" },
+]
+
+[[package]]
+name = "genkit-dev-local-vectorstore-plugin"
+version = "0.1.0"
+source = { editable = "plugins/dev-local-vector-store" }
+dependencies = [
+    { name = "genkit" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
 ]
 
 [[package]]

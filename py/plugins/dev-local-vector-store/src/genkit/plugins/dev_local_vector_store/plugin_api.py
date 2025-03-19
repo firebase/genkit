@@ -1,0 +1,108 @@
+# Copyright 2025 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+"""Local file-based vectorstore plugin that provides retriever and indexer for Genkit."""
+
+import logging
+
+from genkit.ai.retriever import CommonRetrieverOptionsSchema
+from genkit.core.action import Action
+from genkit.plugins.dev_local_vector_store.constant import Params
+from genkit.plugins.dev_local_vector_store.indexer import (
+    DevLocalVectorStoreIndexer,
+)
+from genkit.plugins.dev_local_vector_store.retriever import (
+    DevLocalVectorStoreRetriever,
+)
+from genkit.veneer.plugin import Plugin
+from genkit.veneer.registry import GenkitRegistry
+
+LOG = logging.getLogger(__name__)
+
+
+def dev_local_vectorstore_name(name: str) -> str:
+    """Create a Dev Local Vector Store action name.
+
+    Args:
+        name: Base name for the action.
+
+    Returns:
+        The fully qualified Dev Local Vector Store action name.
+    """
+    return f'devLocalVectorstore/{name}'
+
+
+class DevLocalVectorStore(Plugin):
+    """Local file-based vectorstore plugin that provides retriever and indexer.
+
+    NOT INTENDED FOR USE IN PRODUCTION
+    """
+
+    name = 'devLocalVectorstore'
+
+    def __init__(self, params: list[Params]):
+        self.params = params
+
+    def initialize(self, ai: GenkitRegistry) -> None:
+        """Initialize the plugin by registering actions with the registry.
+
+        This method registers the Local Vector Store actions with the provided
+        registry, making them available for use in the Genkit framework.
+
+        Args:
+            ai: The registry to register actions with.
+
+        Returns:
+            None
+        """
+
+        for params in self.params:
+            self._configure_dev_local_retriever(ai=ai, params=params)
+            self._configure_dev_local_indexer(ai=ai, params=params)
+
+    @classmethod
+    def _configure_dev_local_retriever(
+        cls, ai: GenkitRegistry, params: Params
+    ) -> Action:
+        """Registers Local Vector Store retriever for provided parameters
+
+        Args:
+            ai: The registry to register retriever with.
+            params: Parameters to register retriever with.
+
+        Returns:
+            registered Action instance
+        """
+        retriever = DevLocalVectorStoreRetriever(
+            ai=ai,
+            params=params,
+        )
+
+        return ai.define_retriever(
+            name=dev_local_vectorstore_name(params.index_name),
+            config_schema=CommonRetrieverOptionsSchema,
+            fn=retriever.retrieve,
+        )
+
+    @classmethod
+    def _configure_dev_local_indexer(
+        cls, ai: GenkitRegistry, params: Params
+    ) -> Action:
+        """Registers Local Vector Store indexer for provided parameters
+
+        Args:
+            ai: The registry to register indexer with.
+            params: Parameters to register indexer with.
+
+        Returns:
+            registered Action instance
+        """
+        indexer = DevLocalVectorStoreIndexer(
+            ai=ai,
+            params=params,
+        )
+
+        return ai.define_indexer(
+            name=dev_local_vectorstore_name(params.index_name),
+            fn=indexer.index,
+        )
