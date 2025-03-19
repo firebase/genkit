@@ -33,11 +33,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google plugin will get the API key from the
-	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
-	// practice.
-	if err := google.Init(ctx, g, nil); err != nil {
+	// Initialize the Google plugin. When you pass VertexAI=true
+	// Config parameter, the Google plugin will look for the following
+	// environment variables:
+	// projectId: GOOGLE_CLOUD_PROJECT
+	// location: GOOGLE_CLOUD_LOCATION then GOOGLE_CLOUD_REGION
+	// These parameters could also be set in the plugin configuration.
+	// If that's the case, there's no need to set VertexAI flag to true
+	if err := google.Init(ctx, g, &google.Config{VertexAI: true}); err != nil {
 		log.Fatal(err)
 	}
 

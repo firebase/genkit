@@ -30,7 +30,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/google"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
@@ -59,12 +59,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = googleai.Init(context.Background(), g, nil)
+	err = google.Init(context.Background(), g, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.Model(g, "gemini-2.0-flash")
-	embedder := googleai.Embedder(g, "embedding-001")
+	model := google.Model(g, "gemini-2.0-flash")
+	embedder := google.Embedder(g, "embedding-001")
 	if embedder == nil {
 		log.Fatal("embedder is not defined")
 	}
