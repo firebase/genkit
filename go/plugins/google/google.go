@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 package google
@@ -6,18 +6,20 @@ package google
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"os"
 	"sync"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"google.golang.org/genai"
 )
 
 const (
-	GoogleAIProvider = "googleai"
-	VertexAIProvider = "vertexai"
+	googleAIProvider = "googleai"
+	vertexAIProvider = "vertexai"
+
+	googleAILabelPrefix = "Google AI"
+	vertexAILabelPrefix = "Vertex AI"
 )
 
 var state struct {
@@ -35,49 +37,8 @@ type Config struct {
 	ProjectID string
 	// GCP Location/Region for VertexAI
 	Location string
-}
-
-func resolveBackend(cfg *Config) (genai.Backend, *Config, error) {
-	backend := genai.BackendUnspecified
-	var config Config
-
-	// GoogleAI
-	apiKey := cfg.APIKey
-	if apiKey == "" {
-		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
-		if apiKey == "" {
-			apiKey = os.Getenv("GOOGLE_API_KEY")
-		}
-	}
-
-	// make sure no VertexAI config is present
-	projectId := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if apiKey != "" && cfg.ProjectID != "" && projectId != "" {
-		return backend, nil, fmt.Errorf("APIKey and ProjectID are mutually exclusive")
-	}
-	if apiKey != "" && cfg.Location != "" && location != "" {
-		return backend, nil, fmt.Errorf("APIKey and Location are mutually exclusive")
-	}
-	if apiKey != "" {
-		return genai.BackendGeminiAPI, &Config{APIKey: apiKey}, nil
-	}
-
-	// VertexAI
-	if cfg.ProjectID == "" {
-		if projectId == "" {
-			return backend, nil, fmt.Errorf("ProjectID required for VertexAI, make sure to provide Config.ProjectID or set GOOGLE_CLOUD_PROJECT env var")
-		}
-		config.ProjectID = projectId
-	}
-	if cfg.Location == "" {
-		if location == "" {
-			return backend, nil, fmt.Errorf("Location required for VertexAI, make sure to provide config.Location or set GOOGLE_CLOUD_LOCATION env var")
-		}
-		config.Location = location
-	}
-
-	return genai.BackendVertexAI, &config, nil
+	// Toggle to use VertexAI instead of GoogleAI plugin
+	VertexAI bool
 }
 
 // Init initializes the plugin and all known models and embedders.
@@ -98,28 +59,25 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		}
 	}()
 
-	backend, c, err := resolveBackend(cfg)
-	if err != nil {
-		return err
-	}
-
-	xGoogleApiClientHeader := http.CanonicalHeaderKey("x-goog-api-client")
 	gc := genai.ClientConfig{
+		Backend: genai.BackendGeminiAPI,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: http.Header{
-				xGoogleApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
-			},
+			Headers: gemini.GenkitClientHeader,
 		},
 	}
-	gc.Backend = backend
-	switch backend {
+
+	if cfg.VertexAI || cfg.Location != "" || cfg.ProjectID != "" {
+		gc.Backend = genai.BackendVertexAI
+	}
+
+	switch gc.Backend {
 	case genai.BackendGeminiAPI:
-		gc.APIKey = c.APIKey
+		gc.APIKey = cfg.APIKey
 	case genai.BackendVertexAI:
-		gc.Project = c.ProjectID
-		gc.Location = c.Location
+		gc.Project = cfg.ProjectID
+		gc.Location = cfg.Location
 	default:
-		fmt.Errorf("unknown backend detected: %q", backend)
+		fmt.Errorf("unknown backend detected: %q", gc.Backend)
 	}
 
 	client, err := genai.NewClient(ctx, &gc)
@@ -128,6 +86,41 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 	}
 	state.gclient = client
 
-	// TODO: define model and embedders
+	models, err := getSupportedModels(gc.Backend)
+	if err != nil {
+		return err
+	}
+	for k, v := range models {
+		gemini.DefineModel(g, state.gclient, k, *v)
+	}
+
+	embedders, err := getSupportedEmbedders(gc.Backend)
+	if err != nil {
+		return err
+	}
+	for _, e := range embedders {
+		gemini.DefineEmbedder(g, state.gclient, e)
+	}
+
 	return nil
+}
+
+// Model returns the [ai.Model] with the given name.
+// It returns nil if the model was not defined.
+func Model(g *genkit.Genkit, name string) ai.Model {
+	provider := googleAIProvider
+	if state.gclient.ClientConfig().Backend == genai.BackendVertexAI {
+		provider = vertexAIProvider
+	}
+	return genkit.LookupModel(g, provider, name)
+}
+
+// Embedder returns the [ai.Embedder] with the given name.
+// It returns nil if the embedder was not defined.
+func Embedder(g *genkit.Genkit, name string) ai.Embedder {
+	provider := googleAIProvider
+	if state.gclient.ClientConfig().Backend == genai.BackendVertexAI {
+		provider = vertexAIProvider
+	}
+	return genkit.LookupEmbedder(g, provider, name)
 }
