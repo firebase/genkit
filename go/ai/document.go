@@ -113,7 +113,7 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 		return json.Marshal(v)
 	case PartMedia:
 		v := mediaPart{
-			Media: &mediaPartMedia{
+			Media: &Media{
 				ContentType: p.ContentType,
 				Url:         p.Text,
 			},
@@ -144,12 +144,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 }
 
 type partSchema struct {
-	Text         string          `json:"text,omitempty" yaml:"text,omitempty"`
-	Media        *mediaPartMedia `json:"media,omitempty" yaml:"media,omitempty"`
-	Data         string          `json:"data,omitempty" yaml:"data,omitempty"`
-	ToolRequest  *ToolRequest    `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
-	ToolResponse *ToolResponse   `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
-	Metadata     map[string]any  `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Text         string         `json:"text,omitempty" yaml:"text,omitempty"`
+	Media        *Media         `json:"media,omitempty" yaml:"media,omitempty"`
+	Data         string         `json:"data,omitempty" yaml:"data,omitempty"`
+	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
+	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 // unmarshalPartFromSchema updates Part p based on the schema s.
