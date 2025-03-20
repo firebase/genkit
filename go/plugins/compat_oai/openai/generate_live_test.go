@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/openai"
+	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	openaiClient "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/stretchr/testify/assert"
