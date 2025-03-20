@@ -96,8 +96,8 @@ from genkit.ai.model import (
     ModelMiddleware,
 )
 from genkit.ai.prompt import to_generate_action_options
+from genkit.aio import Channel
 from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema

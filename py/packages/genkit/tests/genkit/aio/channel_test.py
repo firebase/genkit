@@ -1,7 +1,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the genkit.core.aio module."""
+"""Tests for genkit.aio.Channel."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import asyncio
 
 import pytest
 
-from genkit.core.aio import Channel
+from genkit.aio import Channel
 
 
 @pytest.mark.asyncio
@@ -119,7 +119,7 @@ async def test_channel_timeout_with_close_future():
 
 
 @pytest.mark.asyncio
-async def test_channel_invalid_timeout():
+async def test_channel_invalid_timeout_negative():
     """Tests that negative timeout values raise ValueError."""
     with pytest.raises(ValueError) as excinfo:
         Channel(timeout=-1.0)

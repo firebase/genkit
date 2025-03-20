@@ -5,8 +5,8 @@
 
 """Testing utils/helpers for genkit.ai."""
 
+from genkit.codec import dump_json
 from genkit.core.action import ActionRunContext
-from genkit.core.codec import dump_json
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,

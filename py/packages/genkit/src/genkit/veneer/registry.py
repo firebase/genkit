@@ -21,16 +21,6 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 | `'text-llm'`  | Text LLM    |
 | `'tool'`      | Tool        |
 | `'util'`      | Utility     |
-
-## Operations
-
-It defines the following methods:
-
-| Category         | Method                                                                       | Description                          |
-|------------------|------------------------------------------------------------------------------|--------------------------------------|
-| **Registration** | [`define_embedder()`][genkit.veneer.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
-|                  | [`define_format()`][genkit.veneer.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
-|                  | [`define_model()`][genkit.veneer.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
 """
 
 import asyncio
@@ -45,8 +35,8 @@ from genkit.ai.formats.types import FormatDef
 from genkit.ai.model import ModelFn, ModelMiddleware
 from genkit.ai.prompt import define_prompt
 from genkit.ai.retriever import RetrieverFn
+from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionKind
-from genkit.core.codec import dump_dict
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
@@ -62,6 +52,7 @@ class GenkitRegistry:
     """User-facing API for interacting with Genkit registry."""
 
     def __init__(self):
+        """Initialize the Genkit registry."""
         self.registry = Registry()
 
     def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
@@ -70,6 +61,7 @@ class GenkitRegistry:
         Args:
             name: Optional name for the flow. If not provided, uses the
                 function name.
+
         Returns:
             A decorator function that registers the flow.
         """
@@ -132,6 +124,7 @@ class GenkitRegistry:
         Args:
             description: Description for the tool to be passed to the model.
             name: Optional name for the flow. If not provided, uses the function name.
+
         Returns:
             A decorator function that registers the tool.
         """
@@ -318,9 +311,11 @@ class GenkitRegistry:
             output_content_type: Optional output content type for the prompt.
             output_instructions: Optional output instructions for the prompt.
             output_schema: Optional schema for the output from the prompt.
-            output_constrained: Optional flag indicating whether the output should be constrained.
+            output_constrained: Optional flag indicating whether the output
+                should be constrained.
             max_turns: Optional maximum number of turns for the prompt.
-            return_tool_requests: Optional flag indicating whether tool requests should be returned.
+            return_tool_requests: Optional flag indicating whether tool requests
+                should be returned.
             metadata: Optional metadata for the prompt.
             tools: Optional list of tools to use for the prompt.
             tool_choice: Optional tool choice for the prompt.
@@ -354,10 +349,25 @@ class FlowWrapper:
     """A wapper for flow functions to add `stream` method."""
 
     def __init__(self, fn, action: Action):
+        """Initialize the FlowWrapper.
+
+        Args:
+            fn: The function to wrap.
+            action: The action to wrap.
+        """
         self._fn = fn
         self._action = action
 
     def __call__(self, *args, **kwds):
+        """Call the wrapped function.
+
+        Args:
+            *args: Positional arguments to pass to the function.
+            **kwds: Keyword arguments to pass to the function.
+
+        Returns:
+            The result of the function call.
+        """
         return self._fn(*args, **kwds)
 
     def stream(

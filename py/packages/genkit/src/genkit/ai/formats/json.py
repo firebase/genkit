@@ -10,13 +10,12 @@ from genkit.ai.model import (
     GenerateResponseWrapper,
     MessageWrapper,
 )
-from genkit.core.codec import dump_json
+from genkit.codec import dump_json
 from genkit.core.extract import extract_json
 
 
 class JsonFormat(FormatDef):
-    """
-    Defines a JSON format for use with AI models.
+    """Defines a JSON format for use with AI models.
 
     This class provides functionality for parsing and formatting JSON data
     to interact with AI models, ensuring that the output conforms to a
@@ -24,8 +23,7 @@ class JsonFormat(FormatDef):
     """
 
     def __init__(self):
-        """
-        Initializes a JsonFormat instance.
+        """Initializes a JsonFormat instance.
 
         Sets up the format definition with configurations suitable for JSON,
         including content type, constraints, and default instructions.
@@ -41,8 +39,7 @@ class JsonFormat(FormatDef):
         )
 
     def handle(self, schema: dict[str, Any] | None) -> Formatter:
-        """
-        Creates a Formatter for handling JSON data based on an optional schema.
+        """Creates a Formatter for handling JSON data based on an optional schema.
 
         Args:
             schema: An optional dictionary representing the JSON schema.
@@ -56,8 +53,7 @@ class JsonFormat(FormatDef):
         """
 
         def message_parser(msg: MessageWrapper):
-            """
-            Extracts JSON from a Message object.
+            """Extracts JSON from a Message object.
 
             Concatenates the text content of all parts in the message and
             attempts to extract a JSON object from the resulting string.
@@ -71,8 +67,7 @@ class JsonFormat(FormatDef):
             return extract_json(msg.text)
 
         def chunk_parser(chunk: GenerateResponseWrapper):
-            """
-            Extracts JSON from a GenerateResponseWrapper object.
+            """Extracts JSON from a GenerateResponseWrapper object.
 
             Extracts a JSON object from the accumulated text in the given chunk.
 
@@ -87,7 +82,8 @@ class JsonFormat(FormatDef):
         instructions: str | None = None
 
         if schema:
-            instructions = f"""Output should be in JSON format and conform to the following schema:
+            instructions = f"""\
+Output should be in JSON format and conform to the following schema:
 
 ```
 {dump_json(schema, indent=2)}
