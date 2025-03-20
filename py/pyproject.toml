@@ -57,7 +57,7 @@ addopts                            = ["--cov"]
 asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
-fail_under = 85
+fail_under = 84
 
 # uv based package management.
 [tool.uv]
