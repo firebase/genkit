@@ -8,6 +8,8 @@ OpenAI Compatible Models for Genkit.
 
 from collections.abc import Callable
 
+from openai import OpenAI
+
 from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
@@ -17,7 +19,6 @@ from genkit.core.typing import (
     TextPart,
 )
 from genkit.plugins.compat_oai.typing import ChatMessage
-from openai import OpenAI
 
 
 class OpenAIModel:

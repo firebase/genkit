@@ -5,6 +5,7 @@ from unittest import mock
 
 import ollama as ollama_api
 import pytest
+
 from genkit.core.action import ActionKind
 from genkit.core.typing import GenerateResponse, Message, Role, TextPart
 from genkit.veneer import Genkit

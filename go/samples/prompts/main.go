@@ -22,7 +22,6 @@ import (
 	"math"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
@@ -45,25 +44,23 @@ func main() {
 	PromptWithMessageHistory(ctx, g)
 	PromptWithExecuteOverrides(ctx, g)
 	PromptWithFunctions(ctx, g)
+
+	<-ctx.Done()
 }
 
 func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	// Define prompt with default model and system text.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"SimplePrompt",
-		prompt.WithDefaultModel(m),
-		prompt.WithSystemText("You are a helpful AI assistant named Walt"),
+		g, "SimplePrompt",
+		ai.WithModel(m),
+		ai.WithSystemText("You are a helpful AI assistant named Walt. Greet the user."),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Call the model
 	resp, err := helloPrompt.Execute(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -73,28 +70,26 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	type HelloPromptInput struct {
 		UserName string
+		Theme    string
 	}
 
-	// Define prompt with input type.
+	// Define prompt with input type and default input.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"PromptWithInput",
-		prompt.WithDefaultModel(m),
-		prompt.WithInputType(HelloPromptInput{}),
-		prompt.WithSystemText("You are a helpful AI assistant named Walt. Say hello to {{UserName}}."),
+		g, "PromptWithInput",
+		ai.WithModel(m),
+		ai.WithInputType(HelloPromptInput{UserName: "Alex", Theme: "beach vacation"}),
+		ai.WithSystemText("You are a helpful AI assistant named Walt. Today's theme is {{Theme}}, respond in this style. Say hello to {{UserName}}."),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Call the model with input.
-	resp, err := helloPrompt.Execute(ctx, prompt.WithInput(HelloPromptInput{UserName: "Bob"}))
+	// Call the model with input that will override the default input.
+	resp, err := helloPrompt.Execute(ctx, ai.WithInput(HelloPromptInput{UserName: "Bob"}))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,7 +98,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	type CountryList struct {
 		Countries []string
@@ -111,14 +106,12 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 
 	// Define prompt with output type.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"PromptWithOutputType",
-		prompt.WithDefaultModel(m),
-		prompt.WithOutputType(CountryList{}),
-		prompt.WithDefaultConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
-		prompt.WithSystemText("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
-		prompt.WithPromptText("Give me the 10 biggest countries in the world by habitants."),
+		g, "PromptWithOutputType",
+		ai.WithModel(m),
+		ai.WithOutputType(CountryList{}),
+		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
+		ai.WithSystemText("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
+		ai.WithPromptText("Give me the 10 biggest countries in the world by habitants."),
 	)
 
 	if err != nil {
@@ -143,7 +136,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -156,14 +149,12 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 
 	// Define prompt with tool and tool settings.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"PromptWithTool",
-		prompt.WithDefaultModel(m),
-		prompt.WithDefaultToolChoice(ai.ToolChoiceRequired),
-		prompt.WithDefaultMaxTurns(1),
-		prompt.WithTools(gablorkenTool),
-		prompt.WithPromptText("what is a gablorken of 2 over 3.5?"),
+		g, "PromptWithTool",
+		ai.WithModel(m),
+		ai.WithToolChoice(ai.ToolChoiceAuto),
+		ai.WithMaxTurns(1),
+		ai.WithTools(gablorkenTool),
+		ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 	)
 
 	if err != nil {
@@ -180,33 +171,23 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	// Define prompt with default messages prepended.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"PromptWithMessageHistory",
-		prompt.WithDefaultModel(m),
-		prompt.WithDefaultMessages([]*ai.Message{
-			{
-				Role:    ai.RoleUser,
-				Content: []*ai.Part{ai.NewTextPart("Hi, my name is Bob")},
-			},
-			{
-				Role:    ai.RoleModel,
-				Content: []*ai.Part{ai.NewTextPart("Hi, my name is Walt, what can I help you with?")},
-			},
-		}),
-		prompt.WithSystemText("You are a helpful AI assistant named Walt"),
-		prompt.WithPromptText("So Walt, What is my name?"),
+		g, "PromptWithMessageHistory",
+		ai.WithModel(m),
+		ai.WithSystemText("You are a helpful AI assistant named Walt"),
+		ai.WithMessages(
+			ai.NewUserTextMessage("Hi, my name is Bob"),
+			ai.NewModelTextMessage("Hi, my name is Walt, what can I help you with?"),
+		),
+		ai.WithPromptText("So Walt, What is my name?"),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Call the model
 	resp, err := helloPrompt.Execute(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -216,36 +197,23 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	// Define prompt with default settings.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"PromptWithExecuteOverrides",
-		prompt.WithDefaultModel(m),
-		prompt.WithSystemText("You are a helpful AI assistant named Walt, say hi"),
-		prompt.WithDefaultMessages([]*ai.Message{
-			{
-				Role:    ai.RoleUser,
-				Content: []*ai.Part{ai.NewTextPart("Hi, my name is Bob")},
-			},
-		}),
+		g, "PromptWithExecuteOverrides",
+		ai.WithModel(m),
+		ai.WithSystemText("You are a helpful AI assistant named Walt."),
+		ai.WithMessages(ai.NewUserTextMessage("Hi, my name is Bob!")),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Call the model and override default
+	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		prompt.WithModel(vertexai.Model(g, "gemini-1.5-pro")),
-		prompt.WithMessages([]*ai.Message{
-			{
-				Role:    ai.RoleUser,
-				Content: []*ai.Part{ai.NewTextPart("Hi, my name is Kurt")},
-			},
-		}),
+		ai.WithModel(vertexai.Model(g, "gemini-2.0-pro")),
+		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -255,37 +223,30 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-1.5-flash")
+	m := vertexai.Model(g, "gemini-2.0-flash")
 
 	type HelloPromptInput struct {
 		UserName string
+		Theme    string
 	}
 
-	// Define prompt.
+	// Define prompt with system and prompt functions.
 	helloPrompt, err := genkit.DefinePrompt(
-		g,
-		"prompts",
-		"PromptWithFunctions",
-		prompt.WithDefaultModel(m),
-		prompt.WithSystemFn(func(ctx context.Context, input any) (string, error) {
-			return "You are a helpful AI assistant named Walt. Say hello to {{Name}}", nil
+		g, "PromptWithFunctions",
+		ai.WithModel(m),
+		ai.WithInputType(HelloPromptInput{Theme: "pirate"}),
+		ai.WithSystemFn(func(ctx context.Context, input any) (string, error) {
+			return fmt.Sprintf("You are a helpful AI assistant named Walt. Talk in the style of: %s", input.(HelloPromptInput).Theme), nil
 		}),
-		prompt.WithPromptFn(func(ctx context.Context, input any) (string, error) {
-			var p HelloPromptInput
-			switch param := input.(type) {
-			case HelloPromptInput:
-				p = param
-			}
-			return fmt.Sprintf("Hello Walt, my name is  %s", p.UserName), nil
+		ai.WithPromptFn(func(ctx context.Context, input any) (string, error) {
+			return fmt.Sprintf("Hello, my name is %s", input.(HelloPromptInput).UserName), nil
 		}),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Call the model
-	resp, err := helloPrompt.Execute(ctx, prompt.WithInput(HelloPromptInput{UserName: "Bob"}))
+	resp, err := helloPrompt.Execute(ctx, ai.WithInput(HelloPromptInput{UserName: "Bob"}))
 	if err != nil {
 		log.Fatal(err)
 	}

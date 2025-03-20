@@ -30,7 +30,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
@@ -77,15 +76,37 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := dotprompt.Define(g, "simpleQaPrompt",
-		simpleQaPromptTemplate,
-		dotprompt.WithDefaultModel(model),
-		dotprompt.WithInputType(simpleQaPromptInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
+	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
+		ai.WithModel(model),
+		ai.WithPromptText(simpleQaPromptTemplate),
+		ai.WithInputType(simpleQaPromptInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Dummy evaluator for testing
+	evalOptions := ai.EvaluatorOptions{
+		DisplayName: "Simple Evaluator",
+		Definition:  "Just says true or false randomly",
+		IsBilled:    false,
+	}
+	genkit.DefineEvaluator(g, "custom", "simpleEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+		m := make(map[string]any)
+		m["reasoning"] = "No good reason"
+		score := ai.Score{
+			Id:      "testScore",
+			Score:   1,
+			Status:  ai.ScoreStatusPass.String(),
+			Details: m,
+		}
+		callbackResponse := ai.EvaluatorCallbackResponse{
+			TestCaseId: req.Input.TestCaseId,
+			Evaluation: []ai.Score{score},
+		}
+		return &callbackResponse, nil
+	})
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
@@ -114,7 +135,7 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx, g, dotprompt.WithInput(promptInput))
+		resp, err := simpleQaPrompt.Execute(ctx, ai.WithInput(promptInput))
 		if err != nil {
 			return "", err
 		}

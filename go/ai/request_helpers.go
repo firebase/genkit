@@ -3,6 +3,8 @@
 
 package ai
 
+import "maps"
+
 // NewModelRequest create a new ModelRequest with provided config and
 // messages.
 func NewModelRequest(config any, messages ...*Message) *ModelRequest {
@@ -64,5 +66,50 @@ func NewTextMessage(role Role, text string) *Message {
 	return &Message{
 		Role:    role,
 		Content: []*Part{NewTextPart(text)},
+	}
+}
+
+// WithCacheTTL adds cache TTL configuration for the desired message
+func (m *Message) WithCacheTTL(ttlSeconds int) *Message {
+	metadata := make(map[string]any)
+
+	if m.Metadata != nil {
+		metadata = m.Metadata
+	}
+
+	cache := map[string]any{
+		"cache": map[string]any{
+			"ttlSeconds": ttlSeconds,
+		},
+	}
+	maps.Copy(metadata, cache)
+
+	return &Message{
+		Content:  m.Content,
+		Role:     m.Role,
+		Metadata: metadata,
+	}
+}
+
+// WithCacheName adds cache name to use in the generate request
+func (m *Message) WithCacheName(n string) *Message {
+	metadata := make(map[string]any)
+
+	if m.Metadata != nil {
+		metadata = m.Metadata
+	}
+
+	cache := map[string]any{
+		"cache": map[string]any{
+			"name": n,
+		},
+	}
+
+	maps.Copy(metadata, cache)
+
+	return &Message{
+		Content:  m.Content,
+		Role:     m.Role,
+		Metadata: metadata,
 	}
 }

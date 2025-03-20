@@ -4,4 +4,4 @@
 """Module containing various core constants."""
 
 # The version of Genkit sent over HTTP in the headers.
-DEFAULT_GENKIT_VERSION = '1.0.5'
+DEFAULT_GENKIT_VERSION = '0.0.1'

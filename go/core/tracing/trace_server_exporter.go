@@ -97,7 +97,9 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 	if p := span.Parent(); p.HasSpanID() {
 		sd.ParentSpanID = p.SpanID().String()
 	}
-	sd.TimeEvents.TimeEvent = convertEvents(span.Events())
+	if len(span.Events()) > 0 {
+		sd.TimeEvents.TimeEvent = convertEvents(span.Events())
+	}
 	return sd
 }
 

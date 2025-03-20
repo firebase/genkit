@@ -8,6 +8,8 @@
 import json
 
 import pytest
+from pydantic import BaseModel, Field
+
 from genkit.ai.document import Document
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import MessageWrapper, text_from_message
@@ -41,7 +43,6 @@ from genkit.testing import (
     define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
-from pydantic import BaseModel, Field
 
 type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 
@@ -831,8 +832,7 @@ async def test_generate_passes_through_current_action_context(
 async def test_generate_uses_explicitly_passed_in_context(
     setup_test,
 ) -> None:
-    """Test that generate will use explicitly passed in context instead of
-    current action action context."""
+    """Generate uses specific context instead of current action context."""
     ai, *_ = setup_test
 
     async def inject_context(req, ctx, next):
@@ -885,7 +885,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
                 content=[
                     TextPart(text='hi'),
                     TextPart(
-                        text='Output should be in JSON format and conform to the following schema:\n\n```\n{"properties": {"foo": {"default": null, "description": "foo field", "title": "Foo", "type": "integer"}, "bar": {"default": null, "description": "bar field", "title": "Bar", "type": "string"}}, "title": "TestSchema", "type": "object"}\n```\n',
+                        text='Output should be in JSON format and conform to the following schema:\n\n```\n{\n  "properties": {\n    "foo": {\n      "default": null,\n      "description": "foo field",\n      "title": "Foo",\n      "type": "integer"\n    },\n    "bar": {\n      "default": null,\n      "description": "bar field",\n      "title": "Bar",\n      "type": "string"\n    }\n  },\n  "title": "TestSchema",\n  "type": "object"\n}\n```\n',
                         metadata=Metadata(root={'purpose': 'output'}),
                     ),
                 ],
@@ -943,6 +943,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
 async def test_generate_simulates_doc_grounding(
     setup_test: SetupFixture,
 ) -> None:
+    """Test that generate simulates doc grounding."""
     ai, *_ = setup_test
 
     want_msg = Message(
@@ -1255,3 +1256,49 @@ def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
         },
         'label': 'fooRetriever',
     }
+
+
+@pytest.mark.asyncio
+async def test_define_sync_flow(setup_test: SetupFixture) -> None:
+    ai, _, _, *_ = setup_test
+
+    @ai.flow()
+    def my_flow(input: str, ctx):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
+        return input
+
+    assert my_flow('banana') == 'banana'
+
+    stream, response = my_flow.stream('banana2')
+
+    chunks = []
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert chunks == [1, 2, 3]
+    assert (await response) == 'banana2'
+
+
+@pytest.mark.asyncio
+async def test_define_async_flow(setup_test: SetupFixture) -> None:
+    ai, _, _, *_ = setup_test
+
+    @ai.flow()
+    async def my_flow(input: str, ctx):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
+        return input
+
+    assert (await my_flow('banana')) == 'banana'
+
+    stream, response = my_flow.stream('banana2')
+
+    chunks = []
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert chunks == [1, 2, 3]
+    assert (await response) == 'banana2'
