@@ -12,7 +12,7 @@ import time
 import unittest
 from unittest import IsolatedAsyncioTestCase, mock
 
-from aioia.servers.signals import SignalHandler
+from genkit.web.servers.signals import SignalHandler
 
 
 class SignalHandlerTest(unittest.TestCase):

@@ -28,17 +28,13 @@ async def handle_not_found(
         receive: ASGI receive function.
         send: ASGI send function.
     """
-    await send({
-        'type': 'http.response.start',
-        'status': 404,
-        'headers': [
-            (b'content-type', b'application/json'),
-        ],
-    })
-    await send({
-        'type': 'http.response.body',
-        'body': b'{"error": "Not Found"}',
-    })
+    await json_response(
+        scope,
+        receive,
+        send,
+        {'error': 'Not Found'},
+        status_code=404,
+    )
 
 
 async def handle_health_check(
@@ -50,19 +46,14 @@ async def handle_health_check(
         scope: ASGI HTTP scope.
         receive: ASGI receive function.
         send: ASGI send function.
-        query_params: Parsed query parameters.
     """
-    await send({
-        'type': 'http.response.start',
-        'status': 200,
-        'headers': [
-            (b'content-type', b'application/json'),
-        ],
-    })
-    await send({
-        'type': 'http.response.body',
-        'body': b'{"status": "ok"}',
-    })
+    await json_response(
+        scope,
+        receive,
+        send,
+        {'status': 'OK'},
+        status_code=200,
+    )
 
 
 def create_lifespan_handler(

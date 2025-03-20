@@ -19,7 +19,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from aioia.servers import (
+from aioia.servers.middleware import LitestarLoggingMiddleware
+from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.registry import Registry
+from genkit.web.servers import (
     AbstractBaseServer,
     Server,
     ServerConfig,
@@ -29,11 +32,8 @@ from aioia.servers import (
     get_server_info,
     run_loop,
 )
-from aioia.servers.middleware import LitestarLoggingMiddleware
-from aioia.servers.signals import terminate_all_servers
-from aioia.servers.typing import Application, Receive, Scope, Send
-from genkit.core.reflection import create_reflection_asgi_app
-from genkit.core.registry import Registry
+from genkit.web.servers.signals import terminate_all_servers
+from genkit.web.typing import Application, Receive, Scope, Send
 
 logger = structlog.get_logger(__name__)
 

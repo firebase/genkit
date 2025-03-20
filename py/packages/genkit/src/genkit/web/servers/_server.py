@@ -1,7 +1,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configuration and lifecycle protocol for ServersManager-managed ASGI servers."""
+"""Configuration & lifecycle protocol for ServersManager ASGI servers."""
 
 from __future__ import annotations
 
@@ -9,8 +9,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol
 
+from genkit.web.typing import Application
+
 from ._adapters import ASGIServerAdapter, ServerType
-from .typing import Application
 
 DEFAULT_HOST = '127.0.0.1'
 DEFAULT_LOG_LEVEL = 'info'

@@ -13,9 +13,9 @@ different ports that need to share resources and coordinate shutdown.
 import asyncio
 import structlog
 import signal
-from aioia.servers import ServersManager
-from aioia.servers import Server, ServerConfig
-from aioia.servers._adapters import ASGIServerAdapter, ServerType
+from genkit.web.servers import ServersManager
+from genkit.web.servers import Server, ServerConfig
+from genkit.web.servers import ASGIServerAdapter, ServerType
 
 logger = structlog.get_logger(__name__)
 

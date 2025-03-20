@@ -7,8 +7,9 @@ import abc
 
 import structlog
 
+from genkit.web.typing import Application
+
 from ._server import ServerConfig
-from .typing import Application
 
 logger = structlog.get_logger(__name__)
 

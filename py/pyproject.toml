@@ -82,6 +82,7 @@ genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
 hello                      = { workspace = true }
 menu                       = { workspace = true }
+multi_server               = { workspace = true }
 prompt-file                = { workspace = true }
 rag                        = { workspace = true }
 vertex-ai-imagen           = { workspace = true }

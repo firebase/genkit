@@ -25,6 +25,7 @@ dependencies = [
   "structlog>=25.2.0",
   "asgiref>=3.8.1",
   "httpx>=0.28.1",
+  "psutil>=7.0.0",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }
