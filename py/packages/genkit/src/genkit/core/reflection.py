@@ -29,10 +29,10 @@ from genkit.web import (
     extract_query_params,
     is_query_flag_enabled,
 )
-from genkit.web.enums import ContentType, HTTPHeader
+from genkit.web.enums import HTTPHeader
 from genkit.web.handlers import handle_health_check
 from genkit.web.requests import read_json_body
-from genkit.web.responses import json_chunk_response, json_response
+from genkit.web.responses import write_json_chunk_response, write_json_response
 from genkit.web.typing import (
     Application,
     HTTPScope,
@@ -277,7 +277,7 @@ def create_reflection_asgi_app(
             receive: ASGI receive function.
             send: ASGI send function.
         """
-        await json_response(
+        await write_json_response(
             scope,
             receive,
             send,
@@ -296,7 +296,7 @@ def create_reflection_asgi_app(
             receive: ASGI receive function.
             send: ASGI send function.
         """
-        await json_response(
+        await write_json_response(
             scope,
             receive,
             send,
@@ -328,7 +328,7 @@ def create_reflection_asgi_app(
         action = registry.lookup_action_by_key(payload['key'])
 
         if action is None:
-            await json_response(
+            await write_json_response(
                 scope,
                 receive,
                 send,
@@ -374,8 +374,18 @@ def create_reflection_asgi_app(
                 and no more body is sent after that.
         """
 
-        async def send_chunk(chunk):
-            await send(json_chunk_response(chunk, encoding))
+        async def send_chunk(chunk) -> None:
+            """Sends a JSON chunk response.
+
+            Args:
+                chunk: The chunk to send.
+
+            Returns:
+                None
+            """
+            await write_json_chunk_response(
+                scope, receive, send, chunk, encoding
+            )
 
         try:
             output = await action.arun_raw(
@@ -387,7 +397,7 @@ def create_reflection_asgi_app(
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
             }
-            await json_response(
+            await write_json_response(
                 scope,
                 receive,
                 send,
@@ -401,7 +411,7 @@ def create_reflection_asgi_app(
         except Exception as e:
             error_response = get_callable_json(e).model_dump(by_alias=True)
             await logger.aerror('Error streaming action', error=error_response)
-            await json_response(
+            await write_json_response(
                 scope,
                 receive,
                 send,
@@ -442,7 +452,7 @@ def create_reflection_asgi_app(
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
             }
-            await json_response(
+            await write_json_response(
                 scope,
                 receive,
                 send,
@@ -456,7 +466,7 @@ def create_reflection_asgi_app(
         except Exception as e:
             error_response = get_callable_json(e).model_dump(by_alias=True)
             await logger.aerror('Error executing action', error=error_response)
-            await json_response(
+            await write_json_response(
                 scope,
                 receive,
                 send,

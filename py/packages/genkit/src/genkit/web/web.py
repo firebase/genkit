@@ -12,7 +12,7 @@ import structlog
 from .handlers import (
     create_lifespan_handler,
 )
-from .responses import not_found_response
+from .responses import write_not_found_response
 from .typing import (
     Application,
     LifespanHandler,
@@ -104,6 +104,6 @@ def create_asgi_app(
                 await route.handler(scope, receive, send)
                 return
 
-        await not_found_response(scope, receive, send)
+        await write_not_found_response(scope, receive, send)
 
     return app
