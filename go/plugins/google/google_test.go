@@ -23,25 +23,18 @@ import (
 )
 
 var (
-	// Set apiKey to test GoogleAI.
-	apiKey = flag.String("key", "", "Gemini API key")
-	header = flag.Bool("header", false, "run test for x-goog-client-api header")
-	cache  = flag.String("cache", "", "local file to cache (large text document)")
-	// We can't test the DefineAll functions along with the other tests because
-	// we get duplicate definitions of models.
-	testAll = flag.Bool("all", false, "test DefineAllXXX functions")
+	apiKey = flag.String("key", "", "Gemini API key to enable live tests for GoogleAI")
 
-	// set these two to test VertexAI
-	projectID = flag.String("projectid", "", "VertexAI project")
+	projectID = flag.String("projectid", "", "VertexAI project identifier")
 	location  = flag.String("location", "us-central1", "geographic location")
+
+	header = flag.Bool("header", false, "run test for x-goog-client-api header")
+	cache  = flag.String("cache", "", "local file to test context-cache (large text document)")
 )
 
 func TestGoogleAILive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
-	}
-	if *testAll {
-		t.Skip("-all provided")
 	}
 
 	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
