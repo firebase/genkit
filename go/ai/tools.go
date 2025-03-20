@@ -17,20 +17,36 @@ import (
 
 const provider = "local"
 
+// ToolRef is a reference to a tool.
+type ToolRef interface {
+	Name() string
+}
+
+// ToolName is a distinct type for a tool name.
+// It is meant to be passed where a ToolRef is expected but no Tool is had.
+type ToolName string
+
+// Name returns the name of the tool.
+func (t ToolName) Name() string {
+	return string(t)
+}
+
 // A ToolDef is an implementation of a single tool.
 type ToolDef[In, Out any] struct {
 	action *core.ActionDef[In, Out, struct{}]
 }
 
-// toolAction is genericless version of ToolDef. It's required to make
+// tool is genericless version of ToolDef. It's required to make
 // LookupTool possible.
-type toolAction struct {
+type tool struct {
 	// action is the underlying internal action. It's needed for the descriptor.
 	action action.Action
 }
 
 // Tool represents an instance of a tool.
 type Tool interface {
+	// Name returns the name of the tool.
+	Name() string
 	// Definition returns ToolDefinition for for this tool.
 	Definition() *ToolDefinition
 	// RunRaw runs this tool using the provided raw input.
@@ -84,14 +100,24 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	}
 }
 
-// Definition returns ToolDefinition for for this tool.
+// Name returns the name of the tool.
+func (ta *ToolDef[In, Out]) Name() string {
+	return ta.Definition().Name
+}
+
+// Name returns the name of the tool.
+func (t *tool) Name() string {
+	return t.Definition().Name
+}
+
+// Definition returns [ToolDefinition] for for this tool.
 func (ta *ToolDef[In, Out]) Definition() *ToolDefinition {
 	return definition(ta.action.Desc())
 }
 
-// Definition returns ToolDefinition for for this tool.
-func (ta *toolAction) Definition() *ToolDefinition {
-	return definition(ta.action.Desc())
+// Definition returns [ToolDefinition] for for this tool.
+func (t *tool) Definition() *ToolDefinition {
+	return definition(t.action.Desc())
 }
 
 func definition(desc action.Desc) *ToolDefinition {
@@ -110,7 +136,7 @@ func definition(desc action.Desc) *ToolDefinition {
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
-func (ta *toolAction) RunRaw(ctx context.Context, input any) (any, error) {
+func (ta *tool) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, ta.Definition(), ta.action, input)
 
 }
@@ -146,5 +172,5 @@ func LookupTool(r *registry.Registry, name string) Tool {
 	if action == nil {
 		return nil
 	}
-	return &toolAction{action: action}
+	return &tool{action: action}
 }
