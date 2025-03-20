@@ -1,0 +1,83 @@
+// Copyright 2025 Google LLC
+// SPDX-License-Identifier: Apache-2.0
+
+package snippets
+
+import (
+	"context"
+	"log"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/google"
+)
+
+func googleEx(ctx context.Context) error {
+	g, err := genkit.Init(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// [START init]
+	if err := google.Init(ctx, g, nil); err != nil {
+		return err
+	}
+	// [END init]
+
+	yourKey := ""
+	// [START initkey]
+	if err := google.Init(ctx, g, &google.Config{APIKey: yourKey}); err != nil {
+		return err
+	}
+	// [END initkey]
+
+	// [START model]
+	model := google.Model(g, "gemini-1.5-flash")
+	// [END model]
+
+	// [START gen]
+	text, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPromptText("Tell me a joke."))
+	if err != nil {
+		return err
+	}
+	// [END gen]
+
+	_ = text
+
+	var userInput string
+
+	// [START embedder]
+	embeddingModel := google.Embedder(g, "text-embedding-004")
+	// [END embedder]
+
+	// [START embed]
+	embedRes, err := ai.Embed(ctx, embeddingModel, ai.WithEmbedText(userInput))
+	if err != nil {
+		return err
+	}
+	// [END embed]
+
+	_ = embedRes
+
+	var myRetriever ai.Retriever
+
+	// [START retrieve]
+	retrieveRes, err := ai.Retrieve(ctx, myRetriever, ai.WithRetrieverText(userInput))
+	if err != nil {
+		return err
+	}
+	// [END retrieve]
+
+	_ = retrieveRes
+
+	var myIndexer ai.Indexer
+	var docsToIndex []*ai.Document
+
+	// [START index]
+	if err := ai.Index(ctx, myIndexer, ai.WithIndexerDocs(docsToIndex...)); err != nil {
+		return err
+	}
+	// [END index]
+
+	return nil
+}
