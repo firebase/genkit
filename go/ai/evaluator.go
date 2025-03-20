@@ -175,7 +175,22 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	return actionDef, nil
 }
 
-// TODO(ssbushi): Add defineBatchEvaluator()
+// DefineBatchEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method provide the full
+// [EvaluatorRequest] to the callback function, giving more flexibilty to the
+// user for processing the data, such as batching or parallelization.
+func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, batchEval func(context.Context, *EvaluatorRequest) (*EvaluatorResponse, error)) (Evaluator, error) {
+	if options == nil {
+		return nil, errors.New("EvaluatorOptions must be provided")
+	}
+
+	metadataMap := map[string]any{}
+	metadataMap["evaluatorIsBilled"] = options.IsBilled
+	metadataMap["evaluatorDisplayName"] = options.DisplayName
+	metadataMap["evaluatorDefinition"] = options.Definition
+
+	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, batchEval)), nil
+}
 
 // IsDefinedEvaluator reports whether an [Evaluator] is defined.
 func IsDefinedEvaluator(r *registry.Registry, provider, name string) bool {
