@@ -3,6 +3,8 @@
 
 package ai
 
+import "maps"
+
 // NewModelRequest create a new ModelRequest with provided config and
 // messages.
 func NewModelRequest(config any, messages ...*Message) *ModelRequest {
@@ -72,19 +74,15 @@ func (m *Message) WithCacheTTL(ttlSeconds int) *Message {
 	metadata := make(map[string]any)
 
 	if m.Metadata != nil {
-		for k, v := range m.Metadata {
-			metadata[k] = v
-		}
+		metadata = m.Metadata
 	}
 
-	cache := make(map[string]any)
-	cache["ttlSeconds"] = ttlSeconds
-
-	if existingCache, ok := metadata["cache"].(map[string]any); ok {
-		existingCache["ttlSeconds"] = ttlSeconds
-	} else {
-		metadata["cache"] = cache
+	cache := map[string]any{
+		"cache": map[string]any{
+			"ttlSeconds": ttlSeconds,
+		},
 	}
+	maps.Copy(metadata, cache)
 
 	return &Message{
 		Content:  m.Content,
@@ -98,19 +96,16 @@ func (m *Message) WithCacheName(n string) *Message {
 	metadata := make(map[string]any)
 
 	if m.Metadata != nil {
-		for k, v := range m.Metadata {
-			metadata[k] = v
-		}
+		metadata = m.Metadata
 	}
 
-	cache := make(map[string]any)
-	cache["name"] = n
-
-	if existingCache, ok := metadata["cache"].(map[string]any); ok {
-		existingCache["name"] = n
-	} else {
-		metadata["cache"] = cache
+	cache := map[string]any{
+		"cache": map[string]any{
+			"name": n,
+		},
 	}
+
+	maps.Copy(metadata, cache)
 
 	return &Message{
 		Content:  m.Content,

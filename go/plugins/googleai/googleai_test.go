@@ -251,7 +251,7 @@ func TestCacheHelper(t *testing.T) {
 				}
 				cache, ok := metadata["cache"].(map[string]any)
 				if !ok {
-					t.Fatal("cache should be a map")
+					t.Fatalf("cache should be a map, got: %T", cache)
 				}
 				if cache["ttlSeconds"] != 100 {
 					t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
@@ -267,7 +267,7 @@ func TestCacheHelper(t *testing.T) {
 		}
 		cache, ok := metadata["cache"].(map[string]any)
 		if !ok {
-			t.Fatal("cache should be a map")
+			t.Fatalf("cache should be a map, got: %T", cache)
 		}
 		if cache["ttlSeconds"] != 100 {
 			t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
@@ -279,7 +279,7 @@ func TestCacheHelper(t *testing.T) {
 		metadata = m.Metadata
 		cache, ok = metadata["cache"].(map[string]any)
 		if !ok {
-			t.Fatal("cache should be a map")
+			t.Fatalf("cache should be a map, got: %T", cache)
 		}
 		if cache["ttlSeconds"] != 50 {
 			t.Fatalf("expecting ttlSeconds to be 50s, got: %d", cache["ttlSeconds"])
@@ -294,6 +294,24 @@ func TestCacheHelper(t *testing.T) {
 		}
 		if bar != "bar" {
 			t.Fatalf("expecting to be bar but got: %q", bar)
+		}
+
+		m.WithCacheName("dummy-name")
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		ttl, ok := cache["ttlSeconds"].(int)
+		if ok {
+			t.Fatalf("cache should have been overwriten, expecting cache name, not ttl: %d", ttl)
+		}
+		name, ok := cache["name"].(string)
+		if !ok {
+			t.Fatalf("cache should have been overwriten, expecting cache name, got: %v", name)
+		}
+		if name != "dummy-name" {
+			t.Fatalf("cache name mismatch, want dummy-name, got: %s", name)
 		}
 	})
 }
