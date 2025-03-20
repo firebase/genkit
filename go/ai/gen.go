@@ -292,8 +292,6 @@ const (
 	RoleTool Role = "tool"
 )
 
-type Score any
-
 type ScoreDetails struct {
 	Reasoning string `json:"reasoning,omitempty"`
 }
