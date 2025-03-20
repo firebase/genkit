@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from genkit.core.extract import extract_items, extract_json, parse_partial_json
 
 # TODO: consider extracting these tests into shared yaml spec. They are already

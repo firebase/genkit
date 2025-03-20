@@ -34,7 +34,7 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
-          "run": "py/bin/generate_schema_typing"
+          "run": "py/bin/generate_schema_typing --ci"
         },
         {
           "run": "bin/fmt"
@@ -71,7 +71,7 @@
           "run": "pnpm i --frozen-lockfile"
         },
         {
-          "run": "py/bin/generate_schema_typing"
+          "run": "py/bin/generate_schema_typing --ci"
         },
         {
           "run": "bin/fmt"

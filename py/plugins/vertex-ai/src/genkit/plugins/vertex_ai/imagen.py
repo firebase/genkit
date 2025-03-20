@@ -4,6 +4,9 @@ import logging
 from enum import StrEnum
 from typing import Any, Literal
 
+from pydantic import BaseModel
+from vertexai.preview.vision_models import ImageGenerationModel
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
@@ -16,8 +19,6 @@ from genkit.core.typing import (
     Supports,
     TextPart,
 )
-from pydantic import BaseModel
-from vertexai.preview.vision_models import ImageGenerationModel
 
 LOG = logging.getLogger(__name__)
 

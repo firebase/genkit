@@ -6,6 +6,8 @@
 """Tests for the action module."""
 
 import pytest
+
+from genkit.codec import dump_json
 from genkit.core.action import (
     Action,
     ActionKind,
@@ -14,7 +16,7 @@ from genkit.core.action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-from genkit.core.codec import dump_json
+from genkit.core.error import GenkitError
 
 
 def test_action_enum_behaves_like_str() -> None:
@@ -96,7 +98,6 @@ async def test_define_sync_action() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip('bug, action ignores args without type annotation')
 async def test_define_sync_action_with_input_without_type_annotation() -> None:
     """Test that a sync action can be defined and run with an input without a type annotation."""
 
@@ -165,6 +166,29 @@ async def test_define_sync_streaming_action() -> None:
             'foo', context={'foo': 'bar'}, on_chunk=on_chunk
         )
     ).response == 3
+    assert chunks == ['1', '2']
+
+
+@pytest.mark.asyncio
+async def test_define_streaming_action_and_stream_it() -> None:
+    """Test that a sync streaming action can be streamed."""
+
+    def syncFoo(input: str, ctx: ActionRunContext):
+        """A sync action that returns 'syncFoo' with streaming output."""
+        ctx.send_chunk('1')
+        ctx.send_chunk('2')
+        return 3
+
+    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+
+    chunks = []
+
+    stream, response = syncFooAction.stream('foo', context={'foo': 'bar'})
+
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert (await response) == 3
     assert chunks == ['1', '2']
 
 
@@ -271,3 +295,41 @@ async def test_propagates_context_via_contextvar() -> None:
 
     assert (await second).response == '{"bar": "baz"}'
     assert (await first).response == '{"foo": "bar"}'
+
+
+@pytest.mark.asyncio
+async def test_sync_action_raises_errors() -> None:
+    """Test that sync action raises error with necessary metadata."""
+
+    def fooAction():
+        raise Exception('oops')
+
+    fooAction = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=fooAction)
+
+    with pytest.raises(
+        GenkitError, match=r'.*Error while running action fooAction.*'
+    ) as e:
+        await fooAction.arun()
+
+    assert 'stack' in e.value.details
+    assert 'trace_id' in e.value.details
+    assert str(e.value.cause) == 'oops'
+
+
+@pytest.mark.asyncio
+async def test_async_action_raises_errors() -> None:
+    """Test that async action raises error with necessary metadata."""
+
+    async def fooAction():
+        raise Exception('oops')
+
+    fooAction = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=fooAction)
+
+    with pytest.raises(
+        GenkitError, match=r'.*Error while running action fooAction.*'
+    ) as e:
+        await fooAction.arun()
+
+    assert 'stack' in e.value.details
+    assert 'trace_id' in e.value.details
+    assert str(e.value.cause) == 'oops'

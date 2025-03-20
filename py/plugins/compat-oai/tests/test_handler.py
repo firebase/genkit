@@ -4,6 +4,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import GenerateResponse, Message, Role, TextPart
 from genkit.plugins.compat_oai.models import OpenAIModelHandler

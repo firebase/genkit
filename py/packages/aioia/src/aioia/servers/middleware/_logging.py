@@ -9,7 +9,7 @@ import structlog
 from litestar.middleware.base import AbstractMiddleware
 from litestar.types import Message
 
-from ...servers.typing import Receive, Scope, Send
+from genkit.web.typing import Receive, Scope, Send
 
 logger = structlog.get_logger(__name__)
 

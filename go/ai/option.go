@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
@@ -19,9 +18,6 @@ type promptFn = func(context.Context, any) (string, error)
 
 // messagesFn is a function that generates messages.
 type messagesFn = func(context.Context, any) ([]*Message, error)
-
-// renderFn is a function that renders a prompt intoa model request.
-type renderFn = func(context.Context, any) (*GenerateActionOptions, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
@@ -199,7 +195,6 @@ type promptOptions struct {
 	Description  string             // Description of the prompt.
 	InputSchema  *jsonschema.Schema // Schema of the input.
 	DefaultInput map[string]any     // Default input that will be used if no input is provided.
-	RenderFn     renderFn           // Function to render the prompt.
 	Metadata     map[string]any     // Arbitrary metadata.
 }
 
@@ -244,13 +239,6 @@ func (o *promptOptions) applyPrompt(opts *promptOptions) error {
 		opts.DefaultInput = o.DefaultInput
 	}
 
-	if o.RenderFn != nil {
-		if opts.RenderFn != nil {
-			return errors.New("cannot set render function more than once (WithRenderFn)")
-		}
-		opts.RenderFn = o.RenderFn
-	}
-
 	if o.Metadata != nil {
 		if opts.Metadata != nil {
 			return errors.New("cannot set metadata more than once (WithMetadata)")
@@ -266,11 +254,6 @@ func WithDescription(description string) PromptOption {
 	return &promptOptions{Description: description}
 }
 
-// WithRenderFn sets the function to render the prompt.
-func WithRenderFn(fn renderFn) PromptOption {
-	return &promptOptions{RenderFn: fn}
-}
-
 // WithMetadata sets arbitrary metadata for the prompt.
 func WithMetadata(metadata map[string]any) PromptOption {
 	return &promptOptions{Metadata: metadata}
@@ -278,37 +261,23 @@ func WithMetadata(metadata map[string]any) PromptOption {
 
 // WithInputType uses the type provided to derive the input schema.
 // The inputted value will serve as the default input if no input is given at generation time.
+// Only supports structs and map[string]any types.
 func WithInputType(input any) PromptOption {
-	// TODO: Switch case is incomplete and neither covers all types nor is opinionated.
-
 	var defaultInput map[string]any
+
 	switch v := input.(type) {
-	case bool:
-		defaultInput = map[string]any{"value": strconv.FormatBool(v)}
-	case int:
-		defaultInput = map[string]any{"value": strconv.Itoa(v)}
-	case float32:
-		defaultInput = map[string]any{"value": fmt.Sprintf("%f", v)}
-	case float64:
-		defaultInput = map[string]any{"value": fmt.Sprintf("%f", v)}
-	case string:
-		defaultInput = map[string]any{"value": v}
-	case []any:
-		defaultInput = map[string]any{"value": v}
 	case map[string]any:
 		defaultInput = v
 	default:
-		// Structs.
-	}
+		data, err := json.Marshal(input)
+		if err != nil {
+			panic(fmt.Errorf("failed to marshal default input (WithInputType): %w", err))
+		}
 
-	data, err := json.Marshal(input)
-	if err != nil {
-		panic(fmt.Errorf("failed to marshal default input (WithInputType): %w", err))
-	}
-
-	err = json.Unmarshal(data, &defaultInput)
-	if err != nil {
-		panic(fmt.Errorf("failed to unmarshal default input (WithInputType): %w", err))
+		err = json.Unmarshal(data, &defaultInput)
+		if err != nil {
+			panic(fmt.Errorf("type %T is not supported, only structs and map[string]any are supported (WithInputType)", input))
+		}
 	}
 
 	return &promptOptions{
@@ -417,7 +386,7 @@ func (o *outputOptions) applyOutput(opts *outputOptions) error {
 	}
 
 	if o.OutputFormat != "" {
-		if opts.OutputFormat != "" {
+		if opts.OutputFormat != "" && opts.OutputFormat != o.OutputFormat {
 			return errors.New("cannot set output format more than once (WithOutputFormat)")
 		}
 		opts.OutputFormat = o.OutputFormat

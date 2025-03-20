@@ -661,7 +661,7 @@ class TimeEvents(BaseModel):
     """Model for timeevents data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    time_event: list[TimeEvent] = Field(..., alias='timeEvent')
+    time_event: list[TimeEvent] | None = Field(None, alias='timeEvent')
 
 
 class SpanData(BaseModel):

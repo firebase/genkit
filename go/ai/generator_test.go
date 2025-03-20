@@ -76,8 +76,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart("Hello, World!"),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatText,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatText),
 		}
 		_, err := validMessage(message, outputSchema)
 		if err != nil {
@@ -100,8 +100,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(json)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type":     "object",
 				"required": []string{"name", "age", "address"},
@@ -137,8 +137,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": "30"}`)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -157,16 +157,16 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30`)), // Missing trailing }.
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
@@ -174,8 +174,8 @@ func TestValidMessage(t *testing.T) {
 
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
@@ -187,8 +187,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "height": 190}`)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -208,8 +208,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30}`)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &OutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "invalid",
 			},
@@ -255,10 +255,10 @@ func TestGenerate(t *testing.T) {
 				NewModelTextMessage("There are at least 10 bananas."),
 				NewUserTextMessage("Where can they be found?"),
 			},
-			Config:  &GenerationCommonConfig{Temperature: 1},
-			Context: []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
-			Output: &ModelRequestOutput{
-				Format: OutputFormatJSON,
+			Config: &GenerationCommonConfig{Temperature: 1},
+			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
+			Output: &OutputConfig{
+				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{

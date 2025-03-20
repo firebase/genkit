@@ -4,6 +4,7 @@
 from unittest import mock
 
 import pytest
+
 from genkit.plugins.ollama import Ollama
 from genkit.plugins.ollama.models import (
     ModelDefinition,

@@ -13,6 +13,7 @@ from enum import StrEnum
 from typing import Any
 
 import vertexai.generative_models as genai
+
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.typing import (
     CustomPart,

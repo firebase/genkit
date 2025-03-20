@@ -5,10 +5,79 @@
 
 package ai
 
+type BaseDataPoint struct {
+	Context    map[string]any `json:"context,omitempty"`
+	Input      map[string]any `json:"input,omitempty"`
+	Output     map[string]any `json:"output,omitempty"`
+	Reference  map[string]any `json:"reference,omitempty"`
+	TestCaseID string         `json:"testCaseId,omitempty"`
+	TraceIDs   []string       `json:"traceIds,omitempty"`
+}
+
+type BaseEvalDataPoint struct {
+	Context    map[string]any `json:"context,omitempty"`
+	Input      map[string]any `json:"input,omitempty"`
+	Output     map[string]any `json:"output,omitempty"`
+	Reference  map[string]any `json:"reference,omitempty"`
+	TestCaseID string         `json:"testCaseId,omitempty"`
+	TraceIDs   []string       `json:"traceIds,omitempty"`
+}
+
+type CandidateError struct {
+	Code    CandidateErrorCode `json:"code,omitempty"`
+	Index   float64            `json:"index,omitempty"`
+	Message string             `json:"message,omitempty"`
+}
+
+type CandidateErrorCode string
+
+const (
+	CandidateErrorCodeBlocked CandidateErrorCode = "blocked"
+	CandidateErrorCodeOther   CandidateErrorCode = "other"
+	CandidateErrorCodeUnknown CandidateErrorCode = "unknown"
+)
+
+type CommonRerankerOptions struct {
+	// Number of documents to rerank
+	K float64 `json:"k,omitempty"`
+}
+
+type CommonRetrieverOptions struct {
+	// Number of documents to retrieve
+	K float64 `json:"k,omitempty"`
+}
+
+type customPart struct {
+	Custom   map[string]any `json:"custom,omitempty"`
+	Data     any            `json:"data,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
 type dataPart struct {
 	Data     any            `json:"data,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
+
+type Embedding struct {
+	Embedding []float64      `json:"embedding,omitempty"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
+}
+
+type EvalFnResponse struct {
+	Evaluation  any     `json:"evaluation,omitempty"`
+	SampleIndex float64 `json:"sampleIndex,omitempty"`
+	SpanID      string  `json:"spanId,omitempty"`
+	TestCaseID  string  `json:"testCaseId,omitempty"`
+	TraceID     string  `json:"traceId,omitempty"`
+}
+
+type EvalRequest struct {
+	Dataset   []*BaseDataPoint `json:"dataset,omitempty"`
+	EvalRunID string           `json:"evalRunId,omitempty"`
+	Options   any              `json:"options,omitempty"`
+}
+
+type EvalResponse []any
 
 type FinishReason string
 
@@ -27,16 +96,17 @@ type GenerateActionOptions struct {
 	MaxTurns           int                          `json:"maxTurns,omitempty"`
 	Messages           []*Message                   `json:"messages,omitempty"`
 	Model              string                       `json:"model,omitempty"`
-	Output             *GenerateActionOptionsOutput `json:"output,omitempty"`
+	Output             *GenerateActionOutputConfig  `json:"output,omitempty"`
+	Resume             *GenerateActionOptionsResume `json:"resume,omitempty"`
 	ReturnToolRequests bool                         `json:"returnToolRequests,omitempty"`
 	ToolChoice         ToolChoice                   `json:"toolChoice,omitempty"`
 	Tools              []string                     `json:"tools,omitempty"`
 }
 
-type GenerateActionOptionsOutput struct {
-	ContentType string         `json:"contentType,omitempty"`
-	Format      OutputFormat   `json:"format,omitempty"`
-	JsonSchema  map[string]any `json:"jsonSchema,omitempty"`
+type GenerateActionOptionsResume struct {
+	Metadata map[string]any      `json:"metadata,omitempty"`
+	Respond  []*toolResponsePart `json:"respond,omitempty"`
+	Restart  []*toolRequestPart  `json:"restart,omitempty"`
 }
 
 type ToolChoice string
@@ -47,28 +117,13 @@ const (
 	ToolChoiceNone     ToolChoice = "none"
 )
 
-type ModelRequestOutput struct {
-	Format OutputFormat   `json:"format,omitempty"`
-	Schema map[string]any `json:"schema,omitempty"`
-	Contrained bool `json:"constrained,omitempty"`
-	Instructions bool `json:"instructions,omitempty"`
+type GenerateActionOutputConfig struct {
+	Constrained  bool           `json:"constrained,omitempty"`
+	ContentType  string         `json:"contentType,omitempty"`
+	Format       string         `json:"format,omitempty"`
+	Instructions string         `json:"instructions,omitempty"`
+	JsonSchema   map[string]any `json:"jsonSchema,omitempty"`
 }
-
-type OutputFormat string
-
-const (
-	OutputFormatJSON  OutputFormat = "json"
-	OutputFormatText  OutputFormat = "text"
-	OutputFormatMedia OutputFormat = "media"
-)
-
-type ConstrainedGeneration string
-
-const (
-	ConstrainedGenerationNone    ConstrainedGeneration = "none"
-    ConstrainedGenerationAll     ConstrainedGeneration = "all"
-    ConstrainedGenerationNoTools ConstrainedGeneration = "no-tools"
-)
 
 // GenerationCommonConfig holds configuration for generation.
 type GenerationCommonConfig struct {
@@ -96,15 +151,14 @@ type GenerationUsage struct {
 	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
-type mediaPart struct {
-	Data     any             `json:"data,omitempty"`
-	Media    *mediaPartMedia `json:"media,omitempty"`
-	Metadata map[string]any  `json:"metadata,omitempty"`
-}
-
-type mediaPartMedia struct {
+type Media struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`
+}
+
+type mediaPart struct {
+	Media    *Media         `json:"media,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // Message is the contents of a model response.
@@ -116,30 +170,48 @@ type Message struct {
 
 type ModelInfo struct {
 	Label    string             `json:"label,omitempty"`
+	Stage    ModelInfoStage     `json:"stage,omitempty"`
 	Supports *ModelInfoSupports `json:"supports,omitempty"`
 	Versions []string           `json:"versions,omitempty"`
 }
 
+type ModelInfoStage string
+
+const (
+	ModelInfoStageFeatured   ModelInfoStage = "featured"
+	ModelInfoStageStable     ModelInfoStage = "stable"
+	ModelInfoStageUnstable   ModelInfoStage = "unstable"
+	ModelInfoStageLegacy     ModelInfoStage = "legacy"
+	ModelInfoStageDeprecated ModelInfoStage = "deprecated"
+)
+
 type ModelInfoSupports struct {
-	Constrained ConstrainedGeneration         `json:"constrained,omitempty"`
-	ContentType []string     `json:"contentType,omitempty"`
-	Context     bool         `json:"context,omitempty"`
-	Media       bool         `json:"media,omitempty"`
-	Multiturn   bool         `json:"multiturn,omitempty"`
-	Output      OutputFormat `json:"output,omitempty"`
-	SystemRole  bool         `json:"systemRole,omitempty"`
-	ToolChoice  bool         `json:"toolChoice,omitempty"`
-	Tools       bool         `json:"tools,omitempty"`
+	ContentType []string `json:"contentType,omitempty"`
+	Context     bool     `json:"context,omitempty"`
+	Media       bool     `json:"media,omitempty"`
+	Multiturn   bool     `json:"multiturn,omitempty"`
+	Output      []string `json:"output,omitempty"`
+	SystemRole  bool     `json:"systemRole,omitempty"`
+	ToolChoice  bool     `json:"toolChoice,omitempty"`
+	Tools       bool     `json:"tools,omitempty"`
 }
+
+type ModelInfoSupportsConstrained string
+
+const (
+	ModelInfoSupportsConstrainedNone    ModelInfoSupportsConstrained = "none"
+	ModelInfoSupportsConstrainedAll     ModelInfoSupportsConstrained = "all"
+	ModelInfoSupportsConstrainedNoTools ModelInfoSupportsConstrained = "no-tools"
+)
 
 // A ModelRequest is a request to generate completions from a model.
 type ModelRequest struct {
 	Config   any         `json:"config,omitempty"`
-	Context  []*Document `json:"context,omitempty"`
+	Docs     []*Document `json:"docs,omitempty"`
 	Messages []*Message  `json:"messages,omitempty"`
 	// Output describes the desired response format.
-	Output     *ModelRequestOutput `json:"output,omitempty"`
-	ToolChoice ToolChoice          `json:"toolChoice,omitempty"`
+	Output     *OutputConfig `json:"output,omitempty"`
+	ToolChoice ToolChoice    `json:"toolChoice,omitempty"`
 	// Tools lists the available tools that the model can ask the client to run.
 	Tools []*ToolDefinition `json:"tools,omitempty"`
 }
@@ -168,6 +240,43 @@ type ModelResponseChunk struct {
 	Role       Role    `json:"role,omitempty"`
 }
 
+// OutputConfig describes the structure that the model's output
+// should conform to. If Format is [OutputFormatJSON], then Schema
+// can describe the desired form of the generated JSON.
+type OutputConfig struct {
+	Constrained  bool           `json:"constrained,omitempty"`
+	ContentType  string         `json:"contentType,omitempty"`
+	Format       string         `json:"format,omitempty"`
+	Instructions string         `json:"instructions,omitempty"`
+	Schema       map[string]any `json:"schema,omitempty"`
+}
+
+type PathMetadata struct {
+	Error   string  `json:"error,omitempty"`
+	Latency float64 `json:"latency,omitempty"`
+	Path    string  `json:"path,omitempty"`
+	Status  string  `json:"status,omitempty"`
+}
+
+type RankedDocumentData struct {
+	Content  []*Part                 `json:"content,omitempty"`
+	Metadata *RankedDocumentMetadata `json:"metadata,omitempty"`
+}
+
+type RankedDocumentMetadata struct {
+	Score float64 `json:"score,omitempty"`
+}
+
+type RerankerRequest struct {
+	Documents []*Document `json:"documents,omitempty"`
+	Options   any         `json:"options,omitempty"`
+	Query     *Document   `json:"query,omitempty"`
+}
+
+type RerankerResponse struct {
+	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
 // Role indicates which entity is responsible for the content of a message.
 type Role string
 
@@ -182,6 +291,10 @@ const (
 	// from the model in one of its previous responses.
 	RoleTool Role = "tool"
 )
+
+type ScoreDetails struct {
+	Reasoning string `json:"reasoning,omitempty"`
+}
 
 type textPart struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
@@ -200,11 +313,6 @@ type ToolDefinition struct {
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
-type toolRequestPart struct {
-	Metadata    map[string]any `json:"metadata,omitempty"`
-	ToolRequest *ToolRequest   `json:"toolRequest,omitempty"`
-}
-
 // A ToolRequest is a message from the model to the client that it should run a
 // specific tool and pass a [ToolResponse] to the model on the next chat request it makes.
 // Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
@@ -216,9 +324,9 @@ type ToolRequest struct {
 	Ref   string `json:"ref,omitempty"`
 }
 
-type toolResponsePart struct {
-	Metadata     map[string]any `json:"metadata,omitempty"`
-	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"`
+type toolRequestPart struct {
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	ToolRequest *ToolRequest   `json:"toolRequest,omitempty"`
 }
 
 // A ToolResponse is a message from the client to the model containing
@@ -230,4 +338,15 @@ type ToolResponse struct {
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output any    `json:"output,omitempty"`
 	Ref    string `json:"ref,omitempty"`
+}
+
+type toolResponsePart struct {
+	Metadata     map[string]any `json:"metadata,omitempty"`
+	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"`
+}
+
+type TraceMetadata struct {
+	FeatureName string          `json:"featureName,omitempty"`
+	Paths       []*PathMetadata `json:"paths,omitempty"`
+	Timestamp   float64         `json:"timestamp,omitempty"`
 }

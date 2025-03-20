@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -160,7 +161,13 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		if _, ok := toolDefMap[t]; ok {
 			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
 		}
-		toolDefMap[t] = LookupTool(r, t).Definition()
+
+		tool := LookupTool(r, t)
+		if tool == nil {
+			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
+		}
+
+		toolDefMap[t] = tool.Definition()
 	}
 	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
 	for _, t := range toolDefMap {
@@ -175,21 +182,21 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *ModelRequestOutput
+	var output *OutputConfig
 	if opts.Output != nil {
-		output = &ModelRequestOutput{
+		output = &OutputConfig{
 			Format: opts.Output.Format,
 			Schema: opts.Output.JsonSchema,
 		}
 		if output.Schema != nil && output.Format == "" {
-			output.Format = OutputFormatJSON
+			output.Format = string(OutputFormatJSON)
 		}
 	}
 
 	req := &ModelRequest{
 		Messages:   opts.Messages,
 		Config:     opts.Config,
-		Context:    opts.Docs,
+		Docs:       opts.Docs,
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
 		Output:     output,
@@ -297,10 +304,9 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
-		// TODO: Rename this to nicer names during type generation.
-		Output: &GenerateActionOptionsOutput{
+		Output: &GenerateActionOutputConfig{
 			JsonSchema: genOpts.OutputSchema,
-			Format:     genOpts.OutputFormat,
+			Format:     string(genOpts.OutputFormat),
 		},
 	}
 
@@ -478,6 +484,21 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	return newReq, nil, nil
 }
 
+// conformOutput appends a message to the request indicating conformance to the expected schema.
+func conformOutput(req *ModelRequest) error {
+	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
+		jsonBytes, err := json.Marshal(req.Output.Schema)
+		if err != nil {
+			return fmt.Errorf("expected schema is not valid: %w", err)
+		}
+
+		escapedJSON := strconv.Quote(string(jsonBytes))
+		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
+		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
+	}
+	return nil
+}
+
 // validResponse check the message matches the expected schema.
 // It will strip JSON markdown delimiters from the response.
 func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
@@ -491,8 +512,8 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
-	if output != nil && output.Format == OutputFormatJSON {
+func validMessage(m *Message, output *OutputConfig) (*Message, error) {
+	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
