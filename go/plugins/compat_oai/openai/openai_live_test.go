@@ -2,7 +2,7 @@ package openai_test
 
 import (
 	"context"
-	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,13 +11,10 @@ import (
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
 )
 
-var (
-	apiKey = flag.String("apikey", "", "OpenAI API key")
-)
-
 func TestLive(t *testing.T) {
-	if *apiKey == "" {
-		t.Skip("no -apikey provided")
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
 	}
 
 	ctx := context.Background()
@@ -29,7 +26,7 @@ func TestLive(t *testing.T) {
 	}
 
 	// Initialize the OpenAI plugin
-	err = openai.Init(ctx, g, &openai.Config{APIKey: *apiKey})
+	err = openai.Init(ctx, g, &openai.Config{APIKey: apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}

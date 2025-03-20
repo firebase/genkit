@@ -7,11 +7,47 @@ This plugin provides a simple interface for using OpenAI's services.
 - Go installed on your system
 - An OpenAI API key
 
-## Running the Tests
+## Running Tests
 
-Set your OpenAI API key as an environment variable and run the tests:
+First, set your OpenAI API key as an environment variable:
 
 ```bash
 export OPENAI_API_KEY=<your-api-key>
-go test .
 ```
+
+### Running All Tests
+To run all tests in the directory:
+```bash
+go test -v .
+```
+
+### Running Tests from Specific Files
+To run tests from a specific file:
+```bash
+# Run only generate_live_test.go tests
+go test -run "^TestGenerator"
+
+# Run only openai_live_test.go tests
+go test -run "^TestLive"
+```
+
+### Running Individual Tests
+To run a specific test case:
+```bash
+# Run only the streaming test from openai_live_test.go
+go test -run "TestLive/streaming"
+
+# Run only the Complete test from generate_live_test.go
+go test -run "TestGenerator_Complete"
+
+# Run only the Stream test from generate_live_test.go
+go test -run "TestGenerator_Stream"
+```
+
+### Test Output Verbosity
+Add the `-v` flag for verbose output:
+```bash
+go test -v -run "TestLive/streaming"
+```
+
+Note: All live tests require the OPENAI_API_KEY environment variable to be set. Tests will be skipped if the API key is not provided.
