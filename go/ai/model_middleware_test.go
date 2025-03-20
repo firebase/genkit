@@ -238,11 +238,11 @@ func TestValidateSupport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := ValidateSupport("test-model", tt.info)(mockModelFunc)
+			handler := validateSupport("test-model", tt.info)(mockModelFunc)
 			_, err := handler(context.Background(), tt.input, nil)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateSupport() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("validateSupport() error = %v, wantErr %v", err, tt.wantErr)
 				if err != nil {
 					t.Logf("Error message: %v", err)
 				}

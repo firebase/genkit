@@ -38,10 +38,8 @@ func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddl
 						Role:    "user",
 						Content: append([]*Part{NewTextPart(preface)}, systemPrompt...),
 					}
-					modelMessage := &Message{
-						Role:    "model",
-						Content: []*Part{NewTextPart(acknowledgement)},
-					}
+					modelMessage := NewModelTextMessage(acknowledgement)
+
 					modifiedMessages = append(modifiedMessages[:i], append([]*Message{userMessage, modelMessage}, modifiedMessages[i+1:]...)...)
 					break
 				}
@@ -52,8 +50,8 @@ func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddl
 	}
 }
 
-// ValidateSupport creates middleware that validates whether a model supports the requested features.
-func ValidateSupport(model string, info *ModelInfo) ModelMiddleware {
+// validateSupport creates middleware that validates whether a model supports the requested features.
+func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
