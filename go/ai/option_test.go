@@ -391,7 +391,7 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		commonOptions: commonOptions{
 			Model:                   model,
 			Config:                  &GenerationCommonConfig{Temperature: 0.7},
-			Tools:                   []Tool{tool},
+			Tools:                   []ToolRef{tool},
 			ToolChoice:              ToolChoiceAuto,
 			MaxTurns:                3,
 			ReturnToolRequests:      true,
@@ -477,7 +477,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 		commonOptions: commonOptions{
 			Model:                   model,
 			Config:                  &GenerationCommonConfig{Temperature: 0.7},
-			Tools:                   []Tool{tool},
+			Tools:                   []ToolRef{tool},
 			ToolChoice:              ToolChoiceAuto,
 			MaxTurns:                3,
 			ReturnToolRequests:      true,
@@ -563,7 +563,7 @@ func TestPromptGenerateOptionsComplete(t *testing.T) {
 		commonOptions: commonOptions{
 			Model:                   model,
 			Config:                  &GenerationCommonConfig{Temperature: 0.7},
-			Tools:                   []Tool{tool},
+			Tools:                   []ToolRef{tool},
 			ToolChoice:              ToolChoiceAuto,
 			MaxTurns:                3,
 			ReturnToolRequests:      true,
@@ -611,6 +611,10 @@ func (m *mockModel) Generate(ctx context.Context, req *ModelRequest, cb ModelStr
 
 type mockTool struct {
 	name string
+}
+
+func (t *mockTool) Name() string {
+	return t.name
 }
 
 func (t *mockTool) Definition() *ToolDefinition {

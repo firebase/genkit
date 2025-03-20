@@ -246,7 +246,7 @@ func TestValidPrompt(t *testing.T) {
 		promptFn       promptFn
 		messages       []*Message
 		messagesFn     messagesFn
-		tools          []Tool
+		tools          []ToolRef
 		config         *GenerationCommonConfig
 		inputType      any
 		input          any
@@ -453,7 +453,7 @@ func TestValidPrompt(t *testing.T) {
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
 			promptText: "my name is foo",
-			tools:      []Tool{testTool(reg, "testTool")},
+			tools:      []ToolRef{testTool(reg, "testTool")},
 			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
