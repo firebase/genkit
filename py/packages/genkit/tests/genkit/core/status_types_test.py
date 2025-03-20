@@ -4,8 +4,9 @@
 """Unit tests for status_types module."""
 
 import pytest
-from genkit.core.status_types import Status, StatusCodes, http_status_code
 from pydantic import ValidationError
+
+from genkit.core.status_types import Status, StatusCodes, http_status_code
 
 
 def test_status_codes_values() -> None:

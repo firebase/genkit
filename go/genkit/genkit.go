@@ -15,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -199,55 +198,39 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 // The prompt expects some input described by inputSchema.
 // DefinePrompt registers the function as an action,
 // and returns a [Prompt] that runs it.
-func DefinePrompt(
-	g *Genkit,
-	provider, name string,
-	opts ...prompt.PromptOption,
-) (*prompt.Prompt, error) {
-	return prompt.Define(g.reg, provider, name, opts...)
+func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, error) {
+	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
 // IsDefinedPrompt reports whether a [Prompt] is defined.
 func IsDefinedPrompt(g *Genkit, provider, name string) bool {
-	return prompt.IsDefinedPrompt(g.reg, provider, name)
+	return ai.IsDefinedPrompt(g.reg, provider, name)
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(g *Genkit, provider, name string) *prompt.Prompt {
-	return prompt.LookupPrompt(g.reg, provider, name)
+func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
+	return ai.LookupPrompt(g.reg, provider, name)
 }
 
-// Generate run generate request for this model. Returns ModelResponse struct.
+// GenerateWithRequest generates a model response using the given options, middleware, and streaming callback. This is to be used in conjunction with DefinePrompt and Prompt.Render().
+func GenerateWithRequest(ctx context.Context, g *Genkit, req *ai.GenerateActionOptions, mw []ai.ModelMiddleware, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+	return ai.GenerateWithRequest(ctx, g.reg, req, mw, cb)
+}
+
+// Generate generates a model response using the given options.
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
-	opts, err := optsWithDefaults(g, opts)
-	if err != nil {
-		return nil, err
-	}
-	return ai.Generate(ctx, g.reg, opts...)
+	return ai.Generate(ctx, g.reg, optsWithDefaults(g, opts)...)
 }
 
-// GenerateText run generate request for this model. Returns generated text only.
+// GenerateText generates a model response as text using the given options.
 func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (string, error) {
-	opts, err := optsWithDefaults(g, opts)
-	if err != nil {
-		return "", err
-	}
-	return ai.GenerateText(ctx, g.reg, opts...)
+	return ai.GenerateText(ctx, g.reg, optsWithDefaults(g, opts)...)
 }
 
-// GenerateData run generate request for this model. Returns ModelResponse struct and fills value with structured output.
+// GenerateData generates a model response using the given options and fills the value with the structured output.
 func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
-	opts, err := optsWithDefaults(g, opts)
-	if err != nil {
-		return nil, err
-	}
-	return ai.GenerateData(ctx, g.reg, value, opts...)
-}
-
-// GenerateWithRequest runs the model with the given request and streaming callback.
-func GenerateWithRequest(ctx context.Context, g *Genkit, m ai.Model, req *ai.ModelRequest, mw []ai.ModelMiddleware, toolCfg *ai.ToolConfig, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
-	return m.Generate(ctx, g.reg, req, mw, toolCfg, cb)
+	return ai.GenerateData(ctx, g.reg, value, optsWithDefaults(g, opts)...)
 }
 
 // DefineIndexer registers the given index function as an action, and returns an
@@ -279,7 +262,7 @@ func IsDefinedRetriever(g *Genkit, provider, name string) bool {
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the model was not defined.
+// It returns nil if the retriever was not defined.
 func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
@@ -301,25 +284,36 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 	return ai.LookupEmbedder(g.reg, provider, name)
 }
 
+func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) ai.Evaluator {
+	evaluator, err := ai.DefineEvaluator(g.reg, provider, name, options, eval)
+	if err != nil {
+		return nil
+	}
+	return evaluator
+}
+
+// IsDefinedEvaluator reports whether a [Evaluator] is defined.
+func IsDefinedEvaluator(g *Genkit, provider, name string) bool {
+	return ai.IsDefinedEvaluator(g.reg, provider, name)
+}
+
+// LookupEvaluator looks up a [Evaluator] registered by [DefineEvaluator].
+// It returns nil if the evaluator was not defined.
+func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
+	return ai.LookupEvaluator(g.reg, provider, name)
+}
+
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
 func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 	g.reg.RegisterSpanProcessor(sp)
 }
 
 // optsWithDefaults prepends defaults to the options so that they can be overridden by the caller.
-func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) ([]ai.GenerateOption, error) {
+func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) []ai.GenerateOption {
 	if g.Params.DefaultModel != "" {
-		parts, err := modelRefParts(g.Params.DefaultModel)
-		if err != nil {
-			return nil, err
-		}
-		model := LookupModel(g, parts[0], parts[1])
-		if model == nil {
-			return nil, fmt.Errorf("default model %q not found", g.Params.DefaultModel)
-		}
-		opts = append([]ai.GenerateOption{ai.WithModel(model)}, opts...)
+		opts = append([]ai.GenerateOption{ai.WithModelName(g.Params.DefaultModel)}, opts...)
 	}
-	return opts, nil
+	return opts
 }
 
 // modelRefParts parses a model string into a provider and name.

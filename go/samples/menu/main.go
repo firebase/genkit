@@ -11,7 +11,6 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/localvec"
 	"github.com/firebase/genkit/go/plugins/vertexai"
-	"github.com/invopop/jsonschema"
 )
 
 // menuItem is the data model for an item on the menu.
@@ -26,9 +25,6 @@ type menuQuestionInput struct {
 	Question string `json:"question"`
 }
 
-// menuQuestionInputSchema is the JSON schema for a menuQuestionInput.
-var menuQuestionInputSchema = jsonschema.Reflect(menuQuestionInput{})
-
 // answerOutput is an answer to a question.
 type answerOutput struct {
 	Answer string `json:"answer"`
@@ -41,18 +37,12 @@ type dataMenuQuestionInput struct {
 	Question string      `json:"question"`
 }
 
-// dataMenuQuestionInputSchema is the JSON schema for a dataMenuQuestionInput.
-var dataMenuQuestionInputSchema = jsonschema.Reflect(dataMenuQuestionInput{})
-
 // textMenuQuestionInput is for a question about the menu,
 // where the menu is provided as unstructured text.
 type textMenuQuestionInput struct {
 	MenuText string `json:"menuText"`
 	Question string `json:"question"`
 }
-
-// textMenuQuestionInputSchema is the JSON schema for a textMenuQuestionInput.
-var textMenuQuestionInputSchema = jsonschema.Reflect(textMenuQuestionInput{})
 
 func main() {
 	ctx := context.Background()
@@ -64,16 +54,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model(g, "gemini-2.0-flash-001")
-	visionModel := vertexai.Model(g, "gemini-2.0-flash-001")
+
+	model := vertexai.Model(g, "gemini-2.0-flash")
 	embedder := vertexai.Embedder(g, "text-embedding-004")
+
 	if err := setup01(g, model); err != nil {
 		log.Fatal(err)
 	}
 	if err := setup02(g, model); err != nil {
 		log.Fatal(err)
 	}
-
 	if err := setup03(g, model); err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +82,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := setup05(g, model, visionModel); err != nil {
+	if err := setup05(g, model); err != nil {
 		log.Fatal(err)
 	}
 

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from genkit.core.schema import to_json_schema
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+from genkit.core.schema import to_json_schema
 
 
 def test_to_json_schema_pydantic_model():

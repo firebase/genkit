@@ -48,7 +48,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +67,7 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
+			ai.WithPromptText("Write one paragraph about the Golden State Warriors."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				for _, p := range c.Content {
@@ -99,7 +99,7 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -133,6 +133,73 @@ func TestLive(t *testing.T) {
 			if normSquared < 0.9 || normSquared > 1.1 {
 				t.Errorf("embedding vector not unit length: %f", normSquared)
 			}
+		}
+	})
+}
+
+func TestCacheHelper(t *testing.T) {
+	t.Run("cache metadata", func(t *testing.T) {
+		req := ai.ModelRequest{
+			Messages: []*ai.Message{
+				ai.NewUserMessage(
+					ai.NewTextPart(("this is just a test")),
+				),
+				ai.NewModelMessage(
+					ai.NewTextPart("oh really? is it?")).WithCacheTTL(100),
+			},
+		}
+
+		for _, m := range req.Messages {
+			if m.Role == ai.RoleModel {
+				metadata := m.Metadata
+				if len(metadata) == 0 {
+					t.Fatal("expected metadata with contents, got empty")
+				}
+				cache, ok := metadata["cache"].(map[string]any)
+				if !ok {
+					t.Fatal("cache should be a map")
+				}
+				if cache["ttlSeconds"] != 100 {
+					t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+				}
+			}
+		}
+	})
+	t.Run("cache metadata overwrite", func(t *testing.T) {
+		m := ai.NewModelMessage(ai.NewTextPart("foo bar")).WithCacheTTL(100)
+		metadata := m.Metadata
+		if len(metadata) == 0 {
+			t.Fatal("expected metadata with contents, got empty")
+		}
+		cache, ok := metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatal("cache should be a map")
+		}
+		if cache["ttlSeconds"] != 100 {
+			t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+		}
+
+		m.Metadata["foo"] = "bar"
+		m.WithCacheTTL(50)
+
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatal("cache should be a map")
+		}
+		if cache["ttlSeconds"] != 50 {
+			t.Fatalf("expecting ttlSeconds to be 50s, got: %d", cache["ttlSeconds"])
+		}
+		_, ok = metadata["foo"]
+		if !ok {
+			t.Fatal("metadata contents were altered, expecting foo key")
+		}
+		bar, ok := metadata["foo"].(string)
+		if !ok {
+			t.Fatalf(`metadata["foo"] contents got altered, expecting string, got: %T`, bar)
+		}
+		if bar != "bar" {
+			t.Fatalf("expecting to be bar but got: %q", bar)
 		}
 	})
 }

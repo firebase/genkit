@@ -86,16 +86,18 @@ from typing import Any
 from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
-from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
-from genkit.ai.generate import generate_action
+from genkit.ai.generate import (
+    StreamingCallback as ModelStreamingCallback,
+    generate_action,
+)
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     ModelMiddleware,
 )
 from genkit.ai.prompt import to_generate_action_options
+from genkit.aio import Channel
 from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema

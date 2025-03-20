@@ -28,7 +28,15 @@ def test_json_format() -> None:
         == """Output should be in JSON format and conform to the following schema:
 
 ```
-{"properties": {"value": {"description": "value field", "type": "string"}}, "type": "object"}
+{
+  "properties": {
+    "value": {
+      "description": "value field",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}
 ```
 """
     )
