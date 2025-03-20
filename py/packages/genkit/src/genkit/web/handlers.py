@@ -6,7 +6,7 @@
 
 import structlog
 
-from genkit.web.responses import json_response
+from genkit.web.responses import write_json_response
 from genkit.web.typing import (
     HTTPScope,
     LifespanHandler,
@@ -28,7 +28,7 @@ async def handle_health_check(
         receive: ASGI receive function.
         send: ASGI send function.
     """
-    await json_response(
+    await write_json_response(
         scope,
         receive,
         send,

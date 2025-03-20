@@ -68,7 +68,7 @@ class Registry:
         self._action_resolvers: dict[str, ActionResolver] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
-        self._lock = threading.RLock()  # Reentrant lock for thread safety
+        self._lock = threading.RLock()
 
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'

@@ -7,12 +7,11 @@ import json
 from typing import Any
 
 from genkit.codec import dump_json
-from genkit.web.enums import HTTPHeader
 
 from .typing import HTTPScope, Receive, Send
 
 
-async def json_response(
+async def write_json_response(
     scope: HTTPScope,
     receive: Receive,
     send: Send,
@@ -52,7 +51,7 @@ async def json_response(
     })
 
 
-async def not_found_response(
+async def write_not_found_response(
     scope: HTTPScope, receive: Receive, send: Send
 ) -> None:
     """Handle 404 not found responses.
@@ -73,19 +72,25 @@ async def not_found_response(
     })
 
 
-def json_chunk_response(chunk, encoding='utf-8'):
-    """Create a JSON chunk response.
+async def write_json_chunk_response(
+    scope: HTTPScope,
+    receive: Receive,
+    send: Send,
+    chunk: Any,
+    encoding: str = 'utf-8',
+) -> None:
+    """Sends a JSON chunk response.
 
     Args:
+        scope: ASGI HTTP scope.
+        receive: ASGI receive function.
+        send: ASGI send function.
         chunk: The chunk to send.
         encoding: The encoding of the response.
-
-    Returns:
-        A tuple of the response and the body.
     """
     chunk_data = dump_json(chunk).encode(encoding) + b'\n'
-    return {
+    await send({
         'type': 'http.response.body',
         'body': chunk_data,
         'more_body': True,
-    }
+    })
