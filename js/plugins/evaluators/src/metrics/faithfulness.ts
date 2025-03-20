@@ -15,7 +15,7 @@
  */
 
 import { Genkit, ModelArgument, z } from 'genkit';
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName, loadPromptFile, renderText } from './helper.js';
 
@@ -115,8 +115,10 @@ function nliResponseToScore(input: NliResponseBase[] | null): Score {
   const faithfulStatements = input.reduce((total, resp) => {
     return total + (resp.verdict === '1' ? 1 : 0);
   }, 0);
+  const score = faithfulStatements / input.length;
   return {
-    score: faithfulStatements / input.length,
+    score,
     details: { reasoning: input.map((r) => r.reason).join('; ') },
+    status: score > 0.5 ? EvalStatusEnum.PASS : EvalStatusEnum.FAIL,
   };
 }

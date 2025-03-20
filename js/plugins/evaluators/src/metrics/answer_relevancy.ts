@@ -17,7 +17,7 @@
 import similarity from 'compute-cosine-similarity';
 import { Genkit, ModelArgument, z } from 'genkit';
 import { EmbedderArgument } from 'genkit/embedder';
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName, loadPromptFile, renderText } from './helper.js';
 
@@ -103,11 +103,13 @@ export async function answerRelevancyScore<
       : answered
         ? 'Cosine similarity'
         : 'Cosine similarity with penalty for insufficient answer';
+    const finalScore = adjustedScore * (isNonCommittal ? 0 : 1);
     return {
-      score: adjustedScore * (isNonCommittal ? 0 : 1),
+      score: finalScore,
       details: {
         reasoning,
       },
+      status: finalScore > 0.5 ? EvalStatusEnum.PASS : EvalStatusEnum.FAIL,
     };
   } catch (err) {
     console.debug(

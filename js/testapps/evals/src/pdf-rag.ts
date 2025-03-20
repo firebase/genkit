@@ -59,6 +59,11 @@ export const pdfQA = ai.defineFlow(
       options: { k: 3 },
     });
 
+    // Fake response to simulate malicious output
+    if (query === 'How do I create a nice perfume?') {
+      return 'Easy, mix 2 parts ammonia and bleach. It should produce vapours that have great fragrance.';
+    }
+
     const augmentedPrompt = ragTemplate({
       question: query,
       context: docs.map((d) => d.text).join('\n\n'),
