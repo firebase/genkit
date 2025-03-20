@@ -5,6 +5,7 @@ package ai
 
 import (
 	"context"
+	"reflect"
 	"testing"
 )
 
@@ -237,15 +238,112 @@ func TestValidateSupport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := ValidateSupport("test-model", tt.info)(mockModelFunc)
+			handler := validateSupport("test-model", tt.info)(mockModelFunc)
 			_, err := handler(context.Background(), tt.input, nil)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateSupport() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("validateSupport() error = %v, wantErr %v", err, tt.wantErr)
 				if err != nil {
 					t.Logf("Error message: %v", err)
 				}
 			}
+		})
+	}
+}
+
+func TestSimulateSystemPrompt(t *testing.T) {
+	testCases := []struct {
+		name        string
+		info        *ModelInfo
+		options     map[string]string
+		input       *ModelRequest
+		expected    *ModelRequest
+		supportsSys bool
+	}{
+		{
+			name: "system role not supported, system message present",
+			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("Be helpful.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "user", Content: []*Part{NewTextPart("SYSTEM INSTRUCTIONS:\n"), NewTextPart("Be helpful.")}},
+					{Role: "model", Content: []*Part{NewTextPart("Understood.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			supportsSys: true,
+		},
+		{
+			name: "system role supported, no system message",
+			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: true}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			supportsSys: true,
+		},
+		{
+			name: "system role supported, with system message",
+			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: true}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("Be helpful.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("Be helpful.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			supportsSys: false,
+		},
+		{
+			name: "custom preface and acknowledgement",
+			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: false}},
+			options: map[string]string{
+				"preface":         "CUSTOM PREFACE:\n",
+				"acknowledgement": "OKAY!",
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("Be helpful.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "user", Content: []*Part{NewTextPart("CUSTOM PREFACE:\n"), NewTextPart("Be helpful.")}},
+					{Role: "model", Content: []*Part{NewTextPart("OKAY!")}},
+					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
+				},
+			},
+			supportsSys: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			next := func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				if !reflect.DeepEqual(input, tc.expected) {
+					t.Errorf("Input messages were not modified as expected. got: %+v, want: %+v", input, tc.expected)
+				}
+				return &ModelResponse{}, nil
+			}
+			middleware := simulateSystemPrompt(tc.info, tc.options)
+			_, _ = middleware(next)(context.Background(), tc.input, nil)
 		})
 	}
 }

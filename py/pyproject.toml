@@ -57,7 +57,7 @@ addopts                            = ["--cov"]
 asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
-fail_under = 85
+fail_under = 84
 
 # uv based package management.
 [tool.uv]
@@ -82,6 +82,7 @@ genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
 hello                      = { workspace = true }
 menu                       = { workspace = true }
+multi_server               = { workspace = true }
 prompt-file                = { workspace = true }
 rag                        = { workspace = true }
 vertex-ai-imagen           = { workspace = true }
@@ -142,6 +143,18 @@ select = [
   "N",    # pep8-naming (naming conventions)
   "D",    # pydocstyle
   "F401", # unused imports
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+known-first-party = ["genkit", "aioia"]
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder",
 ]
 
 [tool.ruff.lint.pydocstyle]

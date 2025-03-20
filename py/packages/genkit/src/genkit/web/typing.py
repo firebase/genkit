@@ -15,7 +15,12 @@ we support:
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+
 from asgiref import typing as atyping
+
+from genkit.web.enums import HTTPMethod
 
 try:
     import litestar
@@ -70,3 +75,25 @@ else:
     type Receive = atyping.ASGIReceiveCallable
     type Scope = atyping.Scope
     type Send = atyping.ASGISendCallable
+
+# Type aliases for the web framework.
+type HTTPHandler = Callable[[HTTPScope, Receive, Send], Awaitable[None]]
+type LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
+type QueryParams = dict[str, list[str]]
+
+
+@dataclass
+class Route:
+    """API route definition for the reflection server."""
+
+    method: HTTPMethod
+    """HTTP method (GET, POST, etc.)"""
+
+    path: str
+    """URL path for the route"""
+
+    handler: HTTPHandler
+    """Handler function for the route"""
+
+
+type Routes = list[Route]

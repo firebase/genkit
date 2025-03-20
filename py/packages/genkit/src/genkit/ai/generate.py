@@ -1,6 +1,8 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+"""Generate action."""
+
 import copy
 import logging
 from collections.abc import Callable
@@ -15,8 +17,8 @@ from genkit.ai.model import (
     MessageWrapper,
     ModelMiddleware,
 )
+from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
-from genkit.core.codec import dump_dict
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -47,6 +49,20 @@ async def generate_action(
     middleware: list[ModelMiddleware] | None = None,
     context: dict[str, Any] | None = None,
 ) -> GenerateResponseWrapper:
+    """Generate action.
+
+    Args:
+        registry: The registry to use for the action.
+        raw_request: The raw request to generate.
+        on_chunk: The callback to use for the action.
+        message_index: The index of the message to use for the action.
+        current_turn: The current turn of the action.
+        middleware: The middleware to use for the action.
+        context: The context to use for the action.
+
+    Returns:
+        The generated response.
+    """
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
@@ -64,9 +80,19 @@ async def generate_action(
     def make_chunk(
         role: Role, chunk: GenerateResponseChunk
     ) -> GenerateResponseChunk:
-        """Convenience method to create a full chunk from role and data, append
+        """Create a chunk from role and data.
+
+        Convenience method to create a full chunk from role and data, append
         the chunk to the previousChunks array, and increment the message index
-        as needed"""
+        as needed
+
+        Args:
+            role: The role of the chunk.
+            chunk: The chunk to create.
+
+        Returns:
+            The created chunk.
+        """
         nonlocal chunk_role, message_index
 
         if role != chunk_role and len(prev_chunks) > 0:
@@ -117,7 +143,16 @@ async def generate_action(
     async def dispatch(
         index: int, req: GenerateRequest, ctx: ActionRunContext
     ) -> GenerateResponse:
-        """Dispatches the model request, passes it through middleware if present."""
+        """Dispatches model request, passing it through middleware if present.
+
+        Args:
+            index: The index of the middleware to use.
+            req: The request to dispatch.
+            ctx: The context to use for the action.
+
+        Returns:
+            The generated response.
+        """
         if not middleware or index == len(middleware):
             # end of the chain, call the original model action
             return (
@@ -193,7 +228,8 @@ async def generate_action(
         transfer_preamble,
     ) = await resolve_tool_requests(registry, raw_request, generated_msg)
 
-    # if an interrupt message is returned, stop the tool loop and return a response
+    # if an interrupt message is returned, stop the tool loop and return a
+    # response.
     if revised_model_msg:
         interrupted_resp = GenerateResponseWrapper(
             response,
@@ -207,7 +243,7 @@ async def generate_action(
         interrupted_resp.message = revised_model_msg
         return interrupted_resp
 
-    # if the loop will continue, stream out the tool response message...
+    # If the loop will continue, stream out the tool response message...
     if on_chunk:
         on_chunk(
             make_chunk(
@@ -219,10 +255,10 @@ async def generate_action(
         )
 
     next_request = copy.copy(raw_request)
-    nextMessages = copy.copy(raw_request.messages)
-    nextMessages.append(generated_msg)
-    nextMessages.append(tool_msg)
-    next_request.messages = nextMessages
+    next_messages = copy.copy(raw_request.messages)
+    next_messages.append(generated_msg)
+    next_messages.append(tool_msg)
+    next_request.messages = next_messages
     next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
     # then recursively call for another loop
@@ -284,7 +320,8 @@ def resolve_instructions(
 
     Args:
         formatter: The formatter to use for resolving instructions.
-        instructions_opt: The instruction options: True/False, a string, or None.
+        instructions_opt: The instruction options: True/False, a string, or
+            None.
 
     Returns:
         The resolved instructions or None if no instructions should be used.
@@ -334,6 +371,16 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions):
 def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
 ) -> tuple[Action, list[Action], FormatDef | None]:
+    """Resolve parameters for the generate action.
+
+    Args:
+        registry: The registry to use for the action.
+        request: The generation request to resolve parameters for.
+
+    Returns:
+        A tuple containing the model action, the list of tool actions, and the
+        format definition.
+    """
     model = (
         request.model if request.model is not None else registry.default_model
     )
@@ -364,14 +411,24 @@ def resolve_parameters(
 
 
 async def action_to_generate_request(
-    options: GenerateActionOptions, resolvedTools: list[Action], model: Action
+    options: GenerateActionOptions, resolved_tools: list[Action], model: Action
 ) -> GenerateRequest:
+    """Convert generate action options to a generate request.
+
+    Args:
+        options: The generation options to convert.
+        resolved_tools: The resolved tools to use for the action.
+        model: The model to use for the action.
+
+    Returns:
+        The generated request.
+    """
     # TODO: add warning when tools are not supported in ModelInfo
     # TODO: add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = (
-        [to_tool_definition(tool) for tool in resolvedTools]
-        if resolvedTools
+        [to_tool_definition(tool) for tool in resolved_tools]
+        if resolved_tools
         else []
     )
     return GenerateRequest(
@@ -392,6 +449,14 @@ async def action_to_generate_request(
 
 
 def to_tool_definition(tool: Action) -> ToolDefinition:
+    """Convert an action to a tool definition.
+
+    Args:
+        tool: The action to convert.
+
+    Returns:
+        The converted tool definition.
+    """
     original_name: str = tool.name
     name: str = original_name
 
@@ -415,9 +480,19 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 async def resolve_tool_requests(
     registry: Registry, request: GenerateActionOptions, message: Message
 ) -> tuple[Message, Message, GenerateActionOptions]:
+    """Resolve tool requests for the generate action.
+
+    Args:
+        registry: The registry to use for the action.
+        request: The generation request to resolve tool requests for.
+        message: The message to resolve tool requests for.
+
+    Returns:
+        A tuple containing the revised model message, the tool message, and the
+        transfer preamble.
+    """
     # TODO: interrupts
     # TODO: prompt transfer
-
     tool_requests = [
         x.root.tool_request for x in message.content if x.root.tool_request
     ]
@@ -463,6 +538,8 @@ def resolve_tool(registry: Registry, tool_name: str):
 # TODO: extend GenkitError
 class GenerationResponseError(Exception):
     # TODO: use status enum
+    """Error for generation responses."""
+
     def __init__(
         self,
         response: GenerateResponse,
@@ -470,6 +547,14 @@ class GenerationResponseError(Exception):
         status: str,
         details: dict[str, Any],
     ):
+        """Initialize the GenerationResponseError.
+
+        Args:
+            response: The generation response.
+            message: The message to display.
+            status: The status of the generation response.
+            details: The details of the generation response.
+        """
         self.response = response
         self.message = message
         self.status = status

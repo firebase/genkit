@@ -6,6 +6,8 @@
 """Tests for the action module."""
 
 import pytest
+
+from genkit.codec import dump_json
 from genkit.core.action import (
     Action,
     ActionKind,
@@ -14,7 +16,6 @@ from genkit.core.action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-from genkit.core.codec import dump_json
 from genkit.core.error import GenkitError
 
 

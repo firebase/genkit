@@ -4,8 +4,9 @@
 """Tests for the codec module."""
 
 import pytest
-from genkit.core.codec import dump_json
 from pydantic import BaseModel
+
+from genkit.codec import dump_json
 
 
 def test_dump_json_basic():

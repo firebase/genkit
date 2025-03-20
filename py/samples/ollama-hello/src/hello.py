@@ -3,6 +3,8 @@
 import asyncio
 import json
 
+from pydantic import BaseModel
+
 from genkit.core.typing import Message, Role, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
@@ -11,7 +13,6 @@ from genkit.plugins.ollama.models import (
     OllamaPluginParams,
 )
 from genkit.veneer import Genkit
-from pydantic import BaseModel
 
 # model can be pulled with `ollama pull *LLM_VERSION*`
 GEMMA_MODEL = 'gemma2:latest'
