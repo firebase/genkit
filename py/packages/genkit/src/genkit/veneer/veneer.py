@@ -75,13 +75,15 @@ content, define flows, define formats, etc.
 
 """
 
+import asyncio
 import logging
 import os
 import threading
 from asyncio import Future
 from collections.abc import AsyncIterator
-from http.server import HTTPServer
 from typing import Any
+
+import uvicorn
 
 from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
@@ -96,11 +98,10 @@ from genkit.ai.model import (
     ModelMiddleware,
 )
 from genkit.ai.prompt import to_generate_action_options
+from genkit.aio import Channel
 from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.aio import Channel
 from genkit.core.environment import is_dev_environment
-from genkit.core.reflection import make_reflection_server
-from genkit.core.schema import to_json_schema
+from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.typing import (
     DocumentData,
     GenerationCommonConfig,
@@ -145,13 +146,16 @@ class Genkit(GenkitRegistry):
         """
         super().__init__()
         self.registry.default_model = model
+        self._reflection_server_stop_event = threading.Event()
+        self._reflection_server_thread = None
 
         if is_dev_environment():
-            self.thread = threading.Thread(
-                target=self.start_server,
+            self._reflection_server_thread = threading.Thread(
+                target=self._run_asgi_server_in_thread,
                 args=[reflection_server_spec],
+                # daemon=True,
             )
-            self.thread.start()
+            self._reflection_server_thread.start()
 
         for format in built_in_formats:
             self.define_format(format)
@@ -175,26 +179,85 @@ class Genkit(GenkitRegistry):
                         f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
-    def start_server(self, spec: server.ServerSpec) -> None:
-        """Start the HTTP server for handling requests.
+    def _run_asgi_server_in_thread(self, spec: server.ServerSpec) -> None:
+        """Run the ASGI reflection server in a dedicated event loop.
 
         Args:
             spec: Server spec for the reflection server.
         """
-        httpd = HTTPServer(
-            (spec.host, spec.port),
-            make_reflection_server(registry=self.registry),
-        )
-        # We need to write the runtime file closest to the point of starting up
-        # the server to avoid race conditions with the manager's runtime
-        # handler.
+        # Create a runtime for the reflection server before starting the server.
         runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
         server.create_runtime(
             runtime_dir=runtimes_dir,
             reflection_server_spec=spec,
             at_exit_fn=os.remove,
         )
-        httpd.serve_forever()
+
+        # Create a new event loop for this thread.
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # Create the ASGI app
+        app = create_reflection_asgi_app(
+            registry=self.registry,
+            on_lifespan_begin=None,
+            on_lifespan_end=self._signal_server_shutdown,
+        )
+
+        # Config for uvicorn
+        config = uvicorn.Config(
+            app=app,
+            host=spec.host,
+            port=spec.port,
+            log_level='info',
+            loop='asyncio',
+        )
+
+        # Create the server
+        server_instance = uvicorn.Server(config)
+        loop.create_task(
+            self._run_server_with_graceful_shutdown(server_instance)
+        )
+        loop.run_forever()
+        # loop.run_until_complete(
+        #    self._run_server_with_graceful_shutdown(server_instance)
+        # )
+        # loop.close()
+
+    async def _run_server_with_graceful_shutdown(
+        self, server_instance: uvicorn.Server
+    ) -> None:
+        """Run the server with graceful shutdown capability.
+
+        Args:
+            server_instance: The uvicorn server instance to run.
+        """
+        server_task = asyncio.create_task(server_instance.serve())
+        stop_event_task = asyncio.create_task(self._wait_for_stop_event())
+        _, pending = await asyncio.wait(
+            [server_task, stop_event_task], return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in pending:
+            task.cancel()
+        server_instance.should_exit = True
+        await server_task
+
+    async def _wait_for_stop_event(self) -> None:
+        """Wait for the stop event to be set."""
+        # Check the stop event periodically
+        while not self._reflection_server_stop_event.is_set():
+            await asyncio.sleep(0.1)
+
+    def stop_reflection_server(self) -> None:
+        """Stop the reflection server if it's running."""
+        if (
+            self._reflection_server_thread
+            and self._reflection_server_thread.is_alive()
+        ):
+            self._reflection_server_stop_event.set()
+            self._reflection_server_thread.join(timeout=5.0)
+            self._reflection_server_stop_event.clear()
+            self._reflection_server_thread = None
 
     async def generate(
         self,

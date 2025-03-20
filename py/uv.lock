@@ -73,6 +73,7 @@ version = "0.1.0"
 source = { virtual = "samples/aioia_multi_server" }
 dependencies = [
     { name = "aioia" },
+    { name = "asgiref" },
     { name = "litestar" },
     { name = "starlette" },
     { name = "structlog" },
@@ -82,6 +83,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aioia", editable = "packages/aioia" },
+    { name = "asgiref", specifier = ">=3.8.1" },
     { name = "litestar", specifier = ">=2.15.1" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "structlog", specifier = ">=25.2.0" },
@@ -784,6 +786,7 @@ name = "genkit"
 version = "0.1.0"
 source = { editable = "packages/genkit" }
 dependencies = [
+    { name = "asgiref" },
     { name = "dotprompt" },
     { name = "json5" },
     { name = "opentelemetry-api" },
@@ -796,6 +799,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asgiref", specifier = ">=3.8.1" },
     { name = "dotprompt" },
     { name = "json5", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },

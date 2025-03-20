@@ -22,8 +22,8 @@ from genkit.ai.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
+from genkit.aio import Channel
 from genkit.core.action import ActionRunContext
-from genkit.core.aio import Channel
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (

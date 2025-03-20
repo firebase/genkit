@@ -1,6 +1,8 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.
 
+"""Encoding/decoding functions."""
+
 import json
 from typing import Any
 
@@ -8,17 +10,19 @@ from pydantic import BaseModel
 
 
 def dump_dict(obj: Any):
-    """Converts an object to a dictionary, handling Pydantic BaseModel instances specially.
+    """Converts an object or Pydantic to a dictionary.
 
-    If the input object is a Pydantic BaseModel, it returns a dictionary representation
-    of the model, excluding fields with `None` values and using aliases for field names.
-    For any other object type, it returns the object unchanged.
+    If the input object is a Pydantic BaseModel, it returns a dictionary
+    representation of the model, excluding fields with `None` values and using
+    aliases for field names.  For any other object type, it returns the object
+    unchanged.
 
     Args:
         obj: The object to potentially convert to a dictionary.
 
     Returns:
-        A dictionary if the input is a Pydantic BaseModel, otherwise the original object.
+        A dictionary if the input is a Pydantic BaseModel, otherwise the
+        original object.
     """
     if isinstance(obj, BaseModel):
         return obj.model_dump(exclude_none=True, by_alias=True)
@@ -35,6 +39,7 @@ def dump_json(obj: Any, indent=None) -> str:
 
     Args:
         obj: The object to dump.
+        indent: The indentation level for the JSON string.
 
     Returns:
         A JSON string.
@@ -44,4 +49,4 @@ def dump_json(obj: Any, indent=None) -> str:
             by_alias=True, exclude_none=True, indent=indent
         )
     else:
-        return json.dumps(obj)
+        return json.dumps(obj, indent=indent)

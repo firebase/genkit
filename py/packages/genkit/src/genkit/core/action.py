@@ -18,8 +18,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-from genkit.core.aio import Channel
-from genkit.core.codec import dump_json
+from genkit.aio import Channel
+from genkit.codec import dump_json
 from genkit.core.error import GenkitError
 from genkit.core.tracing import tracer
 

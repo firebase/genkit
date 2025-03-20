@@ -6,7 +6,7 @@
 import pytest
 from pydantic import BaseModel
 
-from genkit.core.codec import dump_json
+from genkit.codec import dump_json
 
 
 def test_dump_json_basic():
