@@ -9,53 +9,45 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/googleai"
 )
 
-func vertexaiEx(ctx context.Context) error {
+func googleaiEx(ctx context.Context) error {
 	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// [START init]
-	if err := vertexai.Init(ctx, g, nil); err != nil {
+	if err := googleai.Init(ctx, g, nil); err != nil {
 		return err
 	}
 	// [END init]
 
-	yourProjectID := ""
-	// [START initproj]
-	if err := vertexai.Init(ctx, g, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
+	yourKey := ""
+	// [START initkey]
+	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: yourKey}); err != nil {
 		return err
 	}
-	// [END initproj]
-
-	// [START initloc]
-	if err := vertexai.Init(ctx, g, &vertexai.Config{Location: "asia-south1"}); err != nil {
-		return err
-	}
-	// [END initloc]
+	// [END initkey]
 
 	// [START model]
-	langModel := vertexai.Model(g, "gemini-1.5-flash")
+	model := googleai.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
-	genRes, err := genkit.GenerateText(ctx, g,
-		ai.WithModel(langModel),
-		ai.WithPromptText("Tell me a joke."))
+	text, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPromptText("Tell me a joke."))
 	if err != nil {
 		return err
 	}
 	// [END gen]
 
-	_ = genRes
+	_ = text
 
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := vertexai.Embedder(g, "text-embedding-004")
+	embeddingModel := googleai.Embedder(g, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]
