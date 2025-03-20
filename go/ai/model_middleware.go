@@ -5,9 +5,13 @@ package ai
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"slices"
+	"strings"
 )
 
 // ValidateSupport creates middleware that validates whether a model supports the requested features.
@@ -94,4 +98,57 @@ func validateVersion(model string, versions []string, config any) error {
 	}
 
 	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
+}
+
+func DownloadRequestMedia(options *struct {
+	MaxBytes int
+	Filter   func(part *Part) bool
+}) ModelMiddleware {
+	return func(next ModelFunc) ModelFunc {
+		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			client := &http.Client{}
+			for _, message := range input.Messages {
+				for j, part := range message.Content {
+					if !part.IsMedia() || !strings.HasPrefix(part.Text, "http") || (options != nil && options.Filter != nil && !options.Filter(part)) {
+						continue
+					}
+					
+					mediaUrl := part.Text
+
+					resp, err := client.Get(mediaUrl)
+					if err != nil {
+						return nil, fmt.Errorf("HTTP error downloading media '%s': %v", mediaUrl, err)
+					}
+					defer resp.Body.Close()
+
+					if resp.StatusCode != http.StatusOK {
+						body, _ := io.ReadAll(resp.Body)
+						return nil, fmt.Errorf("HTTP error downloading media '%s': %s", mediaUrl, string(body))
+					}
+
+					contentType := part.ContentType
+					if contentType == "" {
+						contentType = resp.Header.Get("Content-Type")
+					}
+
+					var data []byte
+					if options != nil && options.MaxBytes > 0 {
+						limitedReader := io.LimitReader(resp.Body, int64(options.MaxBytes))
+						data, err = io.ReadAll(limitedReader)
+					} else {
+						data, err = io.ReadAll(resp.Body)
+					}
+					if err != nil {
+						return nil, fmt.Errorf("error reading media '%s': %v", mediaUrl, err)
+					}
+
+					message.Content[j] = &Part{
+						ContentType: contentType,
+						Text:        fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)),
+					}
+				}
+			}
+			return next(ctx, input, cb)
+		}
+	}
 }
