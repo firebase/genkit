@@ -48,6 +48,7 @@ var testBatchEvalFunc = func(ctx context.Context, req *EvaluatorRequest) (*Evalu
 		fmt.Printf("%+v\n", input)
 		m := make(map[string]any)
 		m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+		m["options"] = req.Options
 		score := Score{
 			Id:      "testScore",
 			Score:   true,
