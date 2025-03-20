@@ -32,6 +32,8 @@ from aioia.servers import (
 from aioia.servers.middleware import LitestarLoggingMiddleware
 from aioia.servers.signals import terminate_all_servers
 from aioia.servers.typing import Application, Receive, Scope, Send
+from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.registry import Registry
 
 logger = structlog.get_logger(__name__)
 
@@ -338,6 +340,62 @@ async def append_starlette_reflection_server(
     )
 
 
+class NativeReflectionServerLifecycle(AbstractBaseServer):
+    """Reflection server implemented using plain native ASGI."""
+
+    def __init__(self) -> None:
+        """Initialize the Starlette reflection server."""
+        pass
+
+    def create(self, config: ServerConfig) -> Starlette:
+        """Create a Starlette application instance."""
+
+        async def on_app_startup() -> None:
+            """Handle application startup."""
+            await logger.ainfo(
+                '[LIFESPAN] Starting Starlette Reflection API server...'
+            )
+
+        async def on_app_shutdown() -> None:
+            """Handle application shutdown."""
+            await logger.ainfo(
+                '[LIFESPAN] Shutting down Starlette Reflection API server...'
+            )
+
+        return create_reflection_asgi_app(
+            registry=Registry(),
+            on_app_startup=lambda c, r, s: on_app_startup(),
+            on_app_shutdown=lambda c, r, s: on_app_shutdown(),
+        )
+
+
+async def append_native_reflection_server(
+    mgr: ServersManager, delay: float
+) -> None:
+    """Append a Starlette reflection server to the servers manager.
+
+    Args:
+        mgr: The servers manager.
+        delay: The delay in seconds before adding the server.
+
+    Returns:
+        None
+    """
+    await asyncio.sleep(delay)
+    await mgr.queue_server(
+        Server(
+            config=ServerConfig(
+                name='reflection-asgi',
+                host='localhost',
+                port=3800,
+                ports=[3800],
+            ),
+            lifecycle=NativeReflectionServerLifecycle(),
+            adapter=UvicornAdapter(),
+        )
+    )
+
+
 async def main() -> None:
     """Entry point function."""
     servers = [
@@ -379,6 +437,7 @@ async def main() -> None:
     await logger.ainfo('Starting servers...')
     mgr = ServersManager()
     asyncio.create_task(append_starlette_reflection_server(mgr, 5))
+    asyncio.create_task(append_native_reflection_server(mgr, 2))
     await mgr.run_all(servers)
 
 
