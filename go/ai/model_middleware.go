@@ -14,8 +14,48 @@ import (
 	"strings"
 )
 
-// ValidateSupport creates middleware that validates whether a model supports the requested features.
-func ValidateSupport(model string, info *ModelInfo) ModelMiddleware {
+// Provide a simulated system prompt for models that don't support it natively.
+func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddleware {
+	return func(next ModelFunc) ModelFunc {
+		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			// Short-circuiting middleware if system role is supported in model.
+			if info.Supports.SystemRole {
+				return next(ctx, input, cb)
+			}
+			preface := "SYSTEM INSTRUCTIONS:\n"
+			acknowledgement := "Understood."
+
+			if options != nil {
+				if p, ok := options["preface"]; ok {
+					preface = p
+				}
+				if a, ok := options["acknowledgement"]; ok {
+					acknowledgement = a
+				}
+			}
+			modifiedMessages := make([]*Message, len(input.Messages))
+			copy(modifiedMessages, input.Messages)
+			for i, message := range input.Messages {
+				if message.Role == "system" {
+					systemPrompt := message.Content
+					userMessage := &Message{
+						Role:    "user",
+						Content: append([]*Part{NewTextPart(preface)}, systemPrompt...),
+					}
+					modelMessage := NewModelTextMessage(acknowledgement)
+
+					modifiedMessages = append(modifiedMessages[:i], append([]*Message{userMessage, modelMessage}, modifiedMessages[i+1:]...)...)
+					break
+				}
+			}
+			input.Messages = modifiedMessages
+			return next(ctx, input, cb)
+		}
+	}
+}
+
+// validateSupport creates middleware that validates whether a model supports the requested features.
+func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
@@ -100,7 +140,7 @@ func validateVersion(model string, versions []string, config any) error {
 	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
 }
 
-func DownloadRequestMedia(options *struct {
+func downloadRequestMedia(options *struct {
 	MaxBytes int
 	Filter   func(part *Part) bool
 }) ModelMiddleware {
@@ -112,7 +152,7 @@ func DownloadRequestMedia(options *struct {
 					if !part.IsMedia() || !strings.HasPrefix(part.Text, "http") || (options != nil && options.Filter != nil && !options.Filter(part)) {
 						continue
 					}
-					
+
 					mediaUrl := part.Text
 
 					resp, err := client.Get(mediaUrl)
