@@ -5,8 +5,10 @@ package google_test
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -37,7 +39,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Skipf("no -key provided")
 	}
 
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-2.0-flash"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,6 +229,47 @@ func TestGoogleAILive(t *testing.T) {
 		} else {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
+	})
+	t.Run("media content (unstructured data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystemText("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewDataPart("data:image/png;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		}
+		t.Fatal(resp.Text())
+	})
+	t.Run("media content", func(t *testing.T) {
+		// NOTE: enable this test when #2402 gets merged
+		t.Skipf("skipped due no support for media downloads")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewMediaPart("image/png", "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		}
+		t.Fatal(resp.Text())
 	})
 }
 
@@ -526,4 +569,25 @@ func TestHeader(t *testing.T) {
 	if !want.MatchString(got) {
 		t.Errorf("got x-goog-api-client header value: %s \nwanted it to match regexp %s", got, want)
 	}
+}
+
+// Bluey rocks
+func fetchImgAsBase64() (string, error) {
+	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	resp, err := http.Get(imgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	imageBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	base64string := base64.StdEncoding.EncodeToString(imageBytes)
+	return base64string, nil
 }

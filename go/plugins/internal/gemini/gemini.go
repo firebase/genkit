@@ -505,9 +505,13 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 		if err != nil {
 			return nil, err
 		}
-		return genai.NewPartFromBytes(data, contentType), nil
+		return genai.NewPartFromURI(string(data), contentType), nil
 	case p.IsData():
-		panic("data parts not supported")
+		contentType, data, err := uri.Data(p)
+		if err != nil {
+			return nil, err
+		}
+		return genai.NewPartFromBytes(data, contentType), nil
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		var output map[string]any
