@@ -47,8 +47,8 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 }
 
 // WithConfig adds configuration parameters from the model request
-func (g *ModelGenerator) WithConfig(modelRequest *ai.ModelRequest) *ModelGenerator {
-	if modelRequest.Config != nil {
+func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
+	if config != nil {
 		// TODO: Implement configuration from model request
 		// modelRequest.Config is any type
 	}

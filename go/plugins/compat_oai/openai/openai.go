@@ -26,8 +26,8 @@ var (
 	}
 
 	supportedModels = map[string]ai.ModelInfo{
-		"gpt-4": {
-			Label:    "GPT-4",
+		"gpt-4o-mini": {
+			Label:    "GPT-4o-mini",
 			Supports: &gpt4Capabilities,
 		},
 	}
@@ -92,7 +92,7 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		generator := NewModelGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input)
+		generator := NewModelGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input.Config)
 		return generator.Generate(ctx, cb)
 	})
 }
