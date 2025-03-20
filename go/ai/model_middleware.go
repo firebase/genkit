@@ -56,7 +56,7 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
 				info = &ModelInfo{
-					Supports: &ModelInfoSupports{},
+					Supports: &ModelSupports{},
 					Versions: []string{},
 				}
 			}

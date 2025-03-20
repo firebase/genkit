@@ -27,7 +27,7 @@ var (
 	modelName = "echo"
 	metadata  = ModelInfo{
 		Label: modelName,
-		Supports: &ModelInfoSupports{
+		Supports: &ModelSupports{
 			Multiturn:  true,
 			Tools:      true,
 			SystemRole: true,
@@ -75,7 +75,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart("Hello, World!"),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatText),
 		}
 		_, err := validMessage(message, outputSchema)
@@ -99,7 +99,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(json)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type":     "object",
@@ -136,7 +136,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": "30"}`)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
@@ -156,7 +156,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30`)), // Missing trailing }.
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(message, outputSchema)
@@ -164,7 +164,7 @@ func TestValidMessage(t *testing.T) {
 	})
 
 	t.Run("No message", func(t *testing.T) {
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(nil, outputSchema)
@@ -173,7 +173,7 @@ func TestValidMessage(t *testing.T) {
 
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(message, outputSchema)
@@ -186,7 +186,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "height": 190}`)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
@@ -207,7 +207,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30}`)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "invalid",
@@ -256,7 +256,7 @@ func TestGenerate(t *testing.T) {
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
 			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
-			Output: &OutputConfig{
+			Output: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -341,7 +341,7 @@ func TestGenerate(t *testing.T) {
 		)
 
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -400,7 +400,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
 		roundCount := 0
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -465,7 +465,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
 		roundCount := 0
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -533,7 +533,7 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("exceeds maximum turns", func(t *testing.T) {
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},

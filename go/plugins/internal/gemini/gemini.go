@@ -25,7 +25,7 @@ const (
 
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
-	BasicText = ai.ModelInfoSupports{
+	BasicText = ai.ModelSupports{
 		Multiturn:  true,
 		Tools:      true,
 		ToolChoice: true,
@@ -34,7 +34,7 @@ var (
 	}
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
-	Multimodal = ai.ModelInfoSupports{
+	Multimodal = ai.ModelSupports{
 		Multiturn:  true,
 		Tools:      true,
 		ToolChoice: true,

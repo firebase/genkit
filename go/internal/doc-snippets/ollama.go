@@ -37,7 +37,7 @@ func ollamaEx(ctx context.Context) error {
 		},
 		&ai.ModelInfo{
 			Label: name,
-			Supports: &ai.ModelInfoSupports{
+			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
 				Tools:      false,
