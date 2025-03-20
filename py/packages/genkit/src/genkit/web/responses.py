@@ -18,7 +18,7 @@ async def json_response(
     send: Send,
     data: Any,
     status_code: int = 200,
-    headers: list[tuple[bytes, bytes]] = None,
+    headers: list[tuple[bytes, bytes]] | None = None,
     encoding: str = 'utf-8',
     more_body: bool = False,
 ) -> None:
@@ -52,35 +52,25 @@ async def json_response(
     })
 
 
-async def json_response2(
-    body: Any, status: int = 200, headers: dict[str, str] | None = None
-) -> tuple[dict, dict]:
-    """Create a JSON response.
+async def not_found_response(
+    scope: HTTPScope, receive: Receive, send: Send
+) -> None:
+    """Handle 404 not found responses.
 
     Args:
-        body: The body of the response.
-        status: The status code of the response.
-        headers: The headers of the response.
-
-    Returns:
-        A tuple of the response and the body.
+        scope: ASGI connection HTTP scope.
+        receive: ASGI receive function.
+        send: ASGI send function.
     """
-    response_headers = [
-        (HTTPHeader.CONTENT_TYPE, b'application/json'),
-    ]
-    if headers:
-        response_headers.extend([
-            (k.encode(), v.encode()) for k, v in headers.items()
-        ])
-
-    return {
+    await send({
         'type': 'http.response.start',
-        'status': status,
-        'headers': response_headers,
-    }, {
+        'status': 404,
+        'headers': [],
+    })
+    await send({
         'type': 'http.response.body',
-        'body': json.dumps(body).encode(),
-    }
+        'body': b'Not found',
+    })
 
 
 def json_chunk_response(chunk, encoding='utf-8'):
@@ -98,23 +88,4 @@ def json_chunk_response(chunk, encoding='utf-8'):
         'type': 'http.response.body',
         'body': chunk_data,
         'more_body': True,
-    }
-
-
-async def empty_response(status: int = 200) -> tuple[dict, dict]:
-    """Create an empty response.
-
-    Args:
-        status: The status code of the response.
-
-    Returns:
-        A tuple of the response and the body.
-    """
-    return {
-        'type': 'http.response.start',
-        'status': status,
-        'headers': [],
-    }, {
-        'type': 'http.response.body',
-        'body': b'',
     }

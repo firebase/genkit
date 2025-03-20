@@ -18,25 +18,6 @@ from genkit.web.typing import (
 logger = structlog.get_logger(__name__)
 
 
-async def handle_not_found(
-    scope: HTTPScope, receive: Receive, send: Send
-) -> None:
-    """Handle 404 not found responses.
-
-    Args:
-        scope: ASGI connection HTTP scope.
-        receive: ASGI receive function.
-        send: ASGI send function.
-    """
-    await json_response(
-        scope,
-        receive,
-        send,
-        {'error': 'Not Found'},
-        status_code=404,
-    )
-
-
 async def handle_health_check(
     scope: HTTPScope, receive: Receive, send: Send
 ) -> None:
