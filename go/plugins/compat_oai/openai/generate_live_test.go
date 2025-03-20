@@ -15,14 +15,14 @@ import (
 
 const defaultModel = "gpt-4o-mini"
 
-func setupTestClient(t *testing.T) *openai.Generator {
+func setupTestClient(t *testing.T) *openai.ModelGenerator {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
 	}
 
 	client := openaiClient.NewClient(option.WithAPIKey(apiKey))
-	return openai.NewGenerator(client, defaultModel)
+	return openai.NewModelGenerator(client, defaultModel)
 }
 
 func TestGenerator_Complete(t *testing.T) {

@@ -92,7 +92,7 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		generator := NewGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input)
+		generator := NewModelGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input)
 		return generator.Generate(ctx, cb)
 	})
 }

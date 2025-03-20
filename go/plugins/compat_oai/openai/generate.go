@@ -9,15 +9,15 @@ import (
 )
 
 // Generator handles OpenAI generation requests
-type Generator struct {
+type ModelGenerator struct {
 	client    *openai.Client
 	modelName string
 	request   *openai.ChatCompletionNewParams
 }
 
-// NewGenerator creates a new Generator instance
-func NewGenerator(client *openai.Client, modelName string) *Generator {
-	return &Generator{
+// NewModelGenerator creates a new ModelGenerator instance
+func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator {
+	return &ModelGenerator{
 		client:    client,
 		modelName: modelName,
 		request: &openai.ChatCompletionNewParams{
@@ -27,7 +27,7 @@ func NewGenerator(client *openai.Client, modelName string) *Generator {
 }
 
 // WithMessages adds messages to the request
-func (g *Generator) WithMessages(messages []*ai.Message) *Generator {
+func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 	oaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
 	for _, msg := range messages {
 		content := g.concatenateContent(msg.Content)
@@ -47,7 +47,7 @@ func (g *Generator) WithMessages(messages []*ai.Message) *Generator {
 }
 
 // WithConfig adds configuration parameters from the model request
-func (g *Generator) WithConfig(modelRequest *ai.ModelRequest) *Generator {
+func (g *ModelGenerator) WithConfig(modelRequest *ai.ModelRequest) *ModelGenerator {
 	if modelRequest.Config != nil {
 		// TODO: Implement configuration from model request
 		// modelRequest.Config is any type
@@ -56,14 +56,14 @@ func (g *Generator) WithConfig(modelRequest *ai.ModelRequest) *Generator {
 }
 
 // WithTools adds tools to the request
-func (g *Generator) WithTools(tools []ai.Tool, choice ai.ToolChoice) *Generator {
+func (g *ModelGenerator) WithTools(tools []ai.Tool, choice ai.ToolChoice) *ModelGenerator {
 	// TODO: Implement tools from model request
 	// see vertex ai recent pr here for reference: https://github.com/firebase/genkit/pull/2259
 	return g
 }
 
 // Generate executes the generation request
-func (g *Generator) Generate(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	if handleChunk != nil {
 		return g.generateStream(ctx, handleChunk)
 	}
@@ -71,7 +71,7 @@ func (g *Generator) Generate(ctx context.Context, handleChunk func(context.Conte
 }
 
 // concatenateContent concatenates text content into a single string
-func (g *Generator) concatenateContent(parts []*ai.Part) string {
+func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
 	content := ""
 	for _, part := range parts {
 		content += part.Text
@@ -80,7 +80,7 @@ func (g *Generator) concatenateContent(parts []*ai.Part) string {
 }
 
 // Private generation methods
-func (g *Generator) generateStream(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	stream := g.client.Chat.Completions.NewStreaming(ctx, *g.request)
 	defer stream.Close()
 
@@ -113,7 +113,7 @@ func (g *Generator) generateStream(ctx context.Context, handleChunk func(context
 	return &fullResponse, nil
 }
 
-func (g *Generator) generateComplete(ctx context.Context) (*ai.ModelResponse, error) {
+func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelResponse, error) {
 	completion, err := g.client.Chat.Completions.New(ctx, *g.request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create completion: %w", err)
