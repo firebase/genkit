@@ -32,7 +32,7 @@ from genkit.web import (
 from genkit.web.enums import ContentType, HTTPHeader
 from genkit.web.handlers import handle_health_check
 from genkit.web.requests import read_json_body
-from genkit.web.responses import json_chunk_response
+from genkit.web.responses import json_chunk_response, json_response
 from genkit.web.typing import (
     Application,
     HTTPScope,
@@ -276,22 +276,15 @@ def create_reflection_asgi_app(
             scope: ASGI HTTP scope.
             receive: ASGI receive function.
             send: ASGI send function.
-            query_params: Parsed query parameters.
         """
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [
-                (b'content-type', b'application/json'),
-            ],
-        })
-
-        actions = registry.list_serializable_actions()
-        body = json.dumps(actions).encode(encoding)
-        await send({
-            'type': 'http.response.body',
-            'body': body,
-        })
+        await json_response(
+            scope,
+            receive,
+            send,
+            registry.list_serializable_actions(),
+            status_code=200,
+            encoding=encoding,
+        )
 
     async def handle_notify(
         scope: HTTPScope, receive: Receive, send: Send
@@ -303,15 +296,13 @@ def create_reflection_asgi_app(
             receive: ASGI receive function.
             send: ASGI send function.
         """
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [],
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': b'',
-        })
+        await json_response(
+            scope,
+            receive,
+            send,
+            {},
+            status_code=200,
+        )
 
     async def handle_run_action(
         scope: HTTPScope, receive: Receive, send: Send
@@ -337,34 +328,17 @@ def create_reflection_asgi_app(
         action = registry.lookup_action_by_key(payload['key'])
 
         if action is None:
-            await send({
-                'type': 'http.response.start',
-                'status': 404,
-                'headers': [
-                    (
-                        HTTPHeader.CONTENT_TYPE,
-                        ContentType.APPLICATION_JSON,
-                    ),
-                ],
-            })
-            error_message = {'error': f'Action not found: {payload["key"]}'}
-            await send({
-                'type': 'http.response.body',
-                'body': json.dumps(error_message).encode(encoding),
-            })
+            await json_response(
+                scope,
+                receive,
+                send,
+                {'error': f'Action not found: {payload["key"]}'},
+                status_code=404,
+                encoding=encoding,
+            )
             return
 
         context = payload.get('context', {})
-        headers = [
-            (b'content-type', b'application/json'),
-            (HTTPHeader.X_GENKIT_VERSION.encode(), version.encode()),
-        ]
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': headers,
-        })
-
         if is_streaming_requested(extract_query_params(scope, encoding)):
             await handle_streaming_action(
                 scope, receive, send, action, payload, context
@@ -413,19 +387,28 @@ def create_reflection_asgi_app(
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
             }
-            await send({
-                'type': 'http.response.body',
-                'body': json.dumps(final_response).encode(encoding),
-                'more_body': False,
-            })
+            await json_response(
+                scope,
+                receive,
+                send,
+                final_response,
+                status_code=200,
+                headers=[
+                    (HTTPHeader.X_GENKIT_VERSION.encode(), version.encode()),
+                ],
+                encoding=encoding,
+            )
         except Exception as e:
             error_response = get_callable_json(e).model_dump(by_alias=True)
             await logger.aerror('Error streaming action', error=error_response)
-            await send({
-                'type': 'http.response.body',
-                'body': json.dumps({'error': error_response}).encode(encoding),
-                'more_body': False,
-            })
+            await json_response(
+                scope,
+                receive,
+                send,
+                error_response,
+                status_code=500,
+                encoding=encoding,
+            )
 
     async def handle_standard_action(
         scope: HTTPScope,
@@ -459,26 +442,28 @@ def create_reflection_asgi_app(
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
             }
-            await send({
-                'type': 'http.response.body',
-                'body': json.dumps(response).encode(encoding),
-                'more_body': False,
-            })
+            await json_response(
+                scope,
+                receive,
+                send,
+                response,
+                status_code=200,
+                headers=[
+                    (HTTPHeader.X_GENKIT_VERSION.encode(), version.encode()),
+                ],
+                encoding=encoding,
+            )
         except Exception as e:
             error_response = get_callable_json(e).model_dump(by_alias=True)
             await logger.aerror('Error executing action', error=error_response)
-            await send({
-                'type': 'http.response.start',
-                'status': 500,
-                'headers': [
-                    (b'content-type', b'application/json'),
-                    (HTTPHeader.X_GENKIT_VERSION.encode(), version.encode()),
-                ],
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': json.dumps(error_response).encode(encoding),
-            })
+            await json_response(
+                scope,
+                receive,
+                send,
+                error_response,
+                status_code=500,
+                encoding=encoding,
+            )
 
     routes: Routes = [
         Route('GET', '/api/__health', handle_health_check),
