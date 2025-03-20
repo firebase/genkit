@@ -4,9 +4,9 @@ import logging
 import mimetypes
 from typing import Literal
 
-import ollama as ollama_api
 from pydantic import BaseModel, Field, HttpUrl
 
+import ollama as ollama_api
 from genkit.ai.model import get_basic_usage_stats
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
