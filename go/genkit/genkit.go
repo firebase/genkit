@@ -287,24 +287,24 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 // DefineEvaluator registers the given evaluator function as an action, and
 // returns a [Evaluator] that runs it. This method process the input dataset
 // one-by-one.
-func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) ai.Evaluator {
+func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) (ai.Evaluator, error) {
 	evaluator, err := ai.DefineEvaluator(g.reg, provider, name, options, eval)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return evaluator
+	return evaluator, nil
 }
 
 // DefineBatchEvaluator registers the given evaluator function as an action, and
 // returns a [Evaluator] that runs it. This method provide the full
 // [EvaluatorRequest] to the callback function, giving more flexibilty to the
 // user for processing the data, such as batching or parallelization.
-func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) ai.Evaluator {
+func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) (ai.Evaluator, error) {
 	evaluator, err := ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return evaluator
+	return evaluator, nil
 }
 
 // IsDefinedEvaluator reports whether a [Evaluator] is defined.
