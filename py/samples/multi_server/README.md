@@ -1,11 +1,12 @@
-# aioia multi-server sample
+# Genkit multi-server sample
 
-This sample shows how to run multiple servers using the aioia server manager.
+This sample shows how to run multiple servers using the Genkit Web server
+manager.
 
 ## Running the sample
 
 ```bash
-env APP_ENV=dev uv run samples/aioia_multi_server/aioia_multi_server.py
+env APP_ENV=dev uv run samples/multi_server/multi_server.py
 ```
 
 ## Output

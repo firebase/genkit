@@ -40,7 +40,7 @@ import socket
 
 import structlog
 
-from .typing import Application
+from genkit.web.typing import Application
 
 logger = structlog.get_logger(__name__)
 

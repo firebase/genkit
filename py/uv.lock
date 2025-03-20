@@ -9,7 +9,6 @@ resolution-markers = [
 [manifest]
 members = [
     "aioia",
-    "aioia-multi-server",
     "basic-gemini",
     "coffee-shop",
     "context-caching",
@@ -30,6 +29,7 @@ members = [
     "hello-google-genai",
     "imagen",
     "menu",
+    "multi-server",
     "ollama-example",
     "ollama-simple-embed",
     "openai-sample",
@@ -64,29 +64,6 @@ requires-dist = [
     { name = "types-psutil", specifier = ">=7.0.0.20250218" },
     { name = "typing-extensions", specifier = ">=4.12.2" },
     { name = "uvicorn", specifier = ">=0.34.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-]
-
-[[package]]
-name = "aioia-multi-server"
-version = "0.1.0"
-source = { virtual = "samples/aioia_multi_server" }
-dependencies = [
-    { name = "aioia" },
-    { name = "asgiref" },
-    { name = "litestar" },
-    { name = "starlette" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aioia", editable = "packages/aioia" },
-    { name = "asgiref", specifier = ">=3.8.1" },
-    { name = "litestar", specifier = ">=2.15.1" },
-    { name = "starlette", specifier = ">=0.46.1" },
-    { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
 ]
 
@@ -793,6 +770,7 @@ dependencies = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "partial-json-parser" },
+    { name = "psutil" },
     { name = "pydantic" },
     { name = "requests" },
     { name = "structlog" },
@@ -807,6 +785,7 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
+    { name = "psutil", specifier = ">=7.0.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "structlog", specifier = ">=25.2.0" },
@@ -2105,6 +2084,31 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/53/2f/2b1c2b056894fbaa975f68f81e3014bb447516a8b010f1bed3fb0e016ed7/msgspec-0.19.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:ac7f7c377c122b649f7545810c6cd1b47586e3aa3059126ce3516ac7ccc6a6a9", size = 213996 },
     { url = "https://files.pythonhosted.org/packages/aa/5a/4cd408d90d1417e8d2ce6a22b98a6853c1b4d7cb7669153e4424d60087f6/msgspec-0.19.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:a5bc1472223a643f5ffb5bf46ccdede7f9795078194f14edd69e3aab7020d327", size = 219087 },
     { url = "https://files.pythonhosted.org/packages/23/d8/f15b40611c2d5753d1abb0ca0da0c75348daf1252220e5dda2867bd81062/msgspec-0.19.0-cp313-cp313-win_amd64.whl", hash = "sha256:317050bc0f7739cb30d257ff09152ca309bf5a369854bbf1e57dffc310c1f20f", size = 187432 },
+]
+
+[[package]]
+name = "multi-server"
+version = "0.1.0"
+source = { virtual = "samples/multi_server" }
+dependencies = [
+    { name = "aioia" },
+    { name = "asgiref" },
+    { name = "genkit" },
+    { name = "litestar" },
+    { name = "starlette" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aioia", editable = "packages/aioia" },
+    { name = "asgiref", specifier = ">=3.8.1" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "litestar", specifier = ">=2.15.1" },
+    { name = "starlette", specifier = ">=0.46.1" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
 ]
 
 [[package]]
