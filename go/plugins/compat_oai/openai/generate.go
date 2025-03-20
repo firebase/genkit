@@ -8,7 +8,7 @@ import (
 	"github.com/openai/openai-go"
 )
 
-// Generator handles OpenAI generation requests
+// ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
 	client    *openai.Client
 	modelName string
@@ -79,7 +79,7 @@ func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
 	return content
 }
 
-// Private generation methods
+// generateStream generates a streaming model response
 func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	stream := g.client.Chat.Completions.NewStreaming(ctx, *g.request)
 	defer stream.Close()
@@ -113,6 +113,7 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 	return &fullResponse, nil
 }
 
+// generateComplete generates a complete model response
 func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelResponse, error) {
 	completion, err := g.client.Chat.Completions.New(ctx, *g.request)
 	if err != nil {
