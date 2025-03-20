@@ -6,9 +6,10 @@
 from enum import StrEnum
 from typing import Any
 
+from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
+
 from genkit.ai.document import Document
 from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
-from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
 
 class EmbeddingModels(StrEnum):

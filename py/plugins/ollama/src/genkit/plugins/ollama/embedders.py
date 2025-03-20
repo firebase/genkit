@@ -1,10 +1,9 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
+import ollama as ollama_api
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.plugins.ollama.models import EmbeddingModelDefinition
-
-import ollama as ollama_api
 
 
 class OllamaEmbedder:

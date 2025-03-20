@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import pytest
+
 from genkit.core.action import (
     Action,
     ActionKind,

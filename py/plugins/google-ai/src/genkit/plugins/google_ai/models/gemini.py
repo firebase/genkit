@@ -4,6 +4,8 @@
 from enum import StrEnum
 from functools import cached_property, singledispatch
 
+from google import genai
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     CustomPart,
@@ -24,7 +26,6 @@ from genkit.core.typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from google import genai
 
 gemini10Pro = ModelInfo(
     label='Google AI - Gemini Pro',

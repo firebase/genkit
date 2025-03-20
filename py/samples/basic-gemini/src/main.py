@@ -6,6 +6,8 @@
 import asyncio
 import json
 
+from pydantic import BaseModel, Field
+
 from genkit.ai.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -23,7 +25,6 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 from genkit.veneer.veneer import Genkit
-from pydantic import BaseModel, Field
 
 ai = Genkit(
     plugins=[VertexAI()],

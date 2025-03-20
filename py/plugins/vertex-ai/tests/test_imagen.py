@@ -7,6 +7,7 @@
 """Test Gemini models."""
 
 import pytest
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
