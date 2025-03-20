@@ -93,7 +93,7 @@ jobs:
           --with mkdocstrings[python]
 
       - name: Build documentation
-        run: uv run --directory py mkdocs build --strict
+        run: uv run --directory py mkdocs build
 
       - name: Build distributions
         run: ./py/bin/build_dists

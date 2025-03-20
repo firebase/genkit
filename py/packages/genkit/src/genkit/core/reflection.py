@@ -9,12 +9,14 @@ during development. It exposes endpoints for health checks, action discovery,
 and action execution.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
 
-from genkit.core.codec import dump_dict, dump_json
+from genkit.codec import dump_dict, dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
 from genkit.core.registry import Registry

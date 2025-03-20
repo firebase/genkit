@@ -13,8 +13,8 @@ from pydantic import TypeAdapter
 
 from genkit.ai.generate import generate_action
 from genkit.ai.model import text_from_content, text_from_message
+from genkit.codec import dump_dict, dump_json
 from genkit.core.action import ActionRunContext
-from genkit.core.codec import dump_dict, dump_json
 from genkit.core.typing import (
     DocumentData,
     FinishReason,
