@@ -9,6 +9,8 @@ import pathlib
 
 import pytest
 import yaml
+from pydantic import TypeAdapter
+
 from genkit.ai.generate import generate_action
 from genkit.ai.model import text_from_content, text_from_message
 from genkit.core.action import ActionRunContext
@@ -29,7 +31,6 @@ from genkit.testing import (
     define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
-from pydantic import TypeAdapter
 
 
 @pytest.fixture

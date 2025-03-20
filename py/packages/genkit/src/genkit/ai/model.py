@@ -19,6 +19,8 @@ from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 from genkit.core.action import ActionRunContext
 from genkit.core.extract import extract_json
 from genkit.core.typing import (
@@ -30,7 +32,6 @@ from genkit.core.typing import (
     Message,
     Part,
 )
-from pydantic import BaseModel, Field
 
 # Type alias for a function that takes a GenerateRequest and returns
 # a GenerateResponse

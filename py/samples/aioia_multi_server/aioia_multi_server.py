@@ -10,6 +10,15 @@ import os
 from typing import Any
 
 import structlog
+from litestar import Controller, Litestar, get, post
+from litestar.datastructures import State
+from litestar.logging.config import LoggingConfig
+from litestar.plugins.structlog import StructlogPlugin
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
 from aioia.servers import (
     AbstractBaseServer,
     Server,
@@ -23,14 +32,6 @@ from aioia.servers import (
 from aioia.servers.middleware import LitestarLoggingMiddleware
 from aioia.servers.signals import terminate_all_servers
 from aioia.servers.typing import Application, Receive, Scope, Send
-from litestar import Controller, Litestar, get, post
-from litestar.datastructures import State
-from litestar.logging.config import LoggingConfig
-from litestar.plugins.structlog import StructlogPlugin
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from starlette.routing import Route
 
 logger = structlog.get_logger(__name__)
 

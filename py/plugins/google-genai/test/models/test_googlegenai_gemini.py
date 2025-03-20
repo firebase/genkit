@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+from google import genai
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
@@ -11,7 +13,6 @@ from genkit.core.typing import (
     TextPart,
 )
 from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
-from google import genai
 
 
 @pytest.mark.asyncio

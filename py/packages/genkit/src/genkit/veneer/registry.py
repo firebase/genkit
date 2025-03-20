@@ -38,6 +38,8 @@ from collections.abc import AsyncIterator, Callable
 from functools import wraps
 from typing import Any
 
+from pydantic import BaseModel
+
 from genkit.ai.embedding import EmbedderFn
 from genkit.ai.formats.types import FormatDef
 from genkit.ai.model import ModelFn, ModelMiddleware
@@ -54,7 +56,6 @@ from genkit.core.typing import (
     Part,
     ToolChoice,
 )
-from pydantic import BaseModel
 
 
 class GenkitRegistry:

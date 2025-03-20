@@ -5,6 +5,8 @@
 """Tests for the action module."""
 
 import pytest
+from pydantic import BaseModel, Field
+
 from genkit.core.typing import (
     Message,
     Role,
@@ -16,7 +18,6 @@ from genkit.testing import (
     define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
-from pydantic import BaseModel, Field
 
 
 def setup_test():

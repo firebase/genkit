@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from genkit.ai.document import Document
 from genkit.core.typing import EmbedRequest, EmbedResponse
 from genkit.plugins.vertex_ai.embedding import (

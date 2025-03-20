@@ -144,6 +144,18 @@ select = [
   "F401", # unused imports
 ]
 
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+known-first-party = ["genkit", "aioia"]
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder",
+]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

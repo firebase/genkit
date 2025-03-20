@@ -20,7 +20,6 @@ from collections.abc import Sequence
 from typing import Any
 
 import requests  # type: ignore[import-untyped]
-from genkit.core.environment import is_dev_environment
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -28,6 +27,8 @@ from opentelemetry.sdk.trace.export import (
     SpanExporter,
     SpanExportResult,
 )
+
+from genkit.core.environment import is_dev_environment
 
 
 class TelemetryServerSpanExporter(SpanExporter):

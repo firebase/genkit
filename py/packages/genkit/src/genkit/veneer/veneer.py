@@ -86,8 +86,10 @@ from typing import Any
 from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
-from genkit.ai.generate import StreamingCallback as ModelStreamingCallback
-from genkit.ai.generate import generate_action
+from genkit.ai.generate import (
+    StreamingCallback as ModelStreamingCallback,
+    generate_action,
+)
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,

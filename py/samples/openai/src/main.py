@@ -3,10 +3,11 @@
 
 import asyncio
 
+from pydantic import BaseModel, Field
+
 from genkit.core.typing import Message, TextPart
 from genkit.plugins.compat_oai import OpenAI, openai_model
 from genkit.veneer.veneer import Genkit
-from pydantic import BaseModel, Field
 
 ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4'))
 

@@ -8,6 +8,8 @@
 import json
 
 import pytest
+from pydantic import BaseModel, Field
+
 from genkit.ai.document import Document
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import MessageWrapper, text_from_message
@@ -41,7 +43,6 @@ from genkit.testing import (
     define_programmable_model,
 )
 from genkit.veneer.veneer import Genkit
-from pydantic import BaseModel, Field
 
 type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 

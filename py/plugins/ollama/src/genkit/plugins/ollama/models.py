@@ -4,6 +4,9 @@ import logging
 import mimetypes
 from typing import Literal
 
+from pydantic import BaseModel, Field, HttpUrl
+
+import ollama as ollama_api
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
@@ -24,9 +27,6 @@ from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
 )
-from pydantic import BaseModel, Field, HttpUrl
-
-import ollama as ollama_api
 
 LOG = logging.getLogger(__name__)
 

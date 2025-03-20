@@ -6,8 +6,9 @@
 import traceback
 from typing import Any
 
-from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 from pydantic import BaseModel, ConfigDict, Field
+
+from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 
 
 class HttpErrorDetailsWireFormat(BaseModel):
