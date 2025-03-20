@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"math"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,13 +17,15 @@ import (
 )
 
 var (
-	// The tests here only work with an API key set to a valid value.
+	// Set apiKey to test GoogleAI.
 	apiKey = flag.String("key", "", "Gemini API key")
 	header = flag.Bool("header", false, "run test for x-goog-client-api header")
+	cache  = flag.String("cache", "", "local file to cache (large text document)")
 	// We can't test the DefineAll functions along with the other tests because
 	// we get duplicate definitions of models.
 	testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
+	// set these two to test VertexAI
 	projectID = flag.String("projectid", "", "VertexAI project")
 	location  = flag.String("location", "us-central1", "geographic location")
 )
@@ -157,6 +160,75 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it NOT to contain %q", out, doNotWant)
 		}
 	})
+	t.Run("cache", func(t *testing.T) {
+		if *cache == "" {
+			t.Skip("no cache contents provided, use -cache flag")
+		}
+
+		textContent, err := os.ReadFile(*cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
+			),
+			ai.WithPromptText("write a summary of the content"),
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// inspect metadata just to make sure the cache was created
+		m := resp.Message.Metadata
+		cacheName := ""
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				cacheName = n
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}),
+			ai.WithMessages(resp.History()...),
+			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := resp.Text()
+		if !strings.Contains(text, "Ahoy") {
+			t.Fatalf("expecting a response as a pirate but got %v", text)
+		}
+
+		// cache metadata should have not changed...
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				if cacheName != n {
+					t.Fatalf("cache name mismatch, want: %s, got: %s", cacheName, n)
+				}
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+	})
 }
 
 func TestVertexAILive(t *testing.T) {
@@ -269,6 +341,160 @@ func TestVertexAILive(t *testing.T) {
 			if normSquared < 0.9 || normSquared > 1.1 {
 				t.Errorf("embedding vector not unit length: %f", normSquared)
 			}
+		}
+	})
+	t.Run("cache", func(t *testing.T) {
+		if *cache == "" {
+			t.Skip("no cache contents provided, use -cache flag")
+		}
+
+		textContent, err := os.ReadFile(*cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
+			),
+			ai.WithPromptText("write a summary of the content"),
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// inspect metadata just to make sure the cache was created
+		m := resp.Message.Metadata
+		cacheName := ""
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				cacheName = n
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}),
+			ai.WithMessages(resp.History()...),
+			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := resp.Text()
+		if !strings.Contains(text, "Ahoy") {
+			t.Fatalf("expecting a response as a pirate but got %v", text)
+		}
+
+		// cache metadata should have not changed...
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				if cacheName != n {
+					t.Fatalf("cache name mismatch, want: %s, got: %s", cacheName, n)
+				}
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+	})
+}
+
+func TestCacheHelper(t *testing.T) {
+	t.Run("cache metadata", func(t *testing.T) {
+		req := ai.ModelRequest{
+			Messages: []*ai.Message{
+				ai.NewUserMessage(
+					ai.NewTextPart(("this is just a test")),
+				),
+				ai.NewModelMessage(
+					ai.NewTextPart("oh really? is it?")).WithCacheTTL(100),
+			},
+		}
+
+		for _, m := range req.Messages {
+			if m.Role == ai.RoleModel {
+				metadata := m.Metadata
+				if len(metadata) == 0 {
+					t.Fatal("expected metadata with contents, got empty")
+				}
+				cache, ok := metadata["cache"].(map[string]any)
+				if !ok {
+					t.Fatalf("cache should be a map, got: %T", cache)
+				}
+				if cache["ttlSeconds"] != 100 {
+					t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+				}
+			}
+		}
+	})
+	t.Run("cache metadata overwrite", func(t *testing.T) {
+		m := ai.NewModelMessage(ai.NewTextPart("foo bar")).WithCacheTTL(100)
+		metadata := m.Metadata
+		if len(metadata) == 0 {
+			t.Fatal("expected metadata with contents, got empty")
+		}
+		cache, ok := metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		if cache["ttlSeconds"] != 100 {
+			t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+		}
+
+		m.Metadata["foo"] = "bar"
+		m.WithCacheTTL(50)
+
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		if cache["ttlSeconds"] != 50 {
+			t.Fatalf("expecting ttlSeconds to be 50s, got: %d", cache["ttlSeconds"])
+		}
+		_, ok = metadata["foo"]
+		if !ok {
+			t.Fatal("metadata contents were altered, expecting foo key")
+		}
+		bar, ok := metadata["foo"].(string)
+		if !ok {
+			t.Fatalf(`metadata["foo"] contents got altered, expecting string, got: %T`, bar)
+		}
+		if bar != "bar" {
+			t.Fatalf("expecting to be bar but got: %q", bar)
+		}
+
+		m.WithCacheName("dummy-name")
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		ttl, ok := cache["ttlSeconds"].(int)
+		if ok {
+			t.Fatalf("cache should have been overwriten, expecting cache name, not ttl: %d", ttl)
+		}
+		name, ok := cache["name"].(string)
+		if !ok {
+			t.Fatalf("cache should have been overwriten, expecting cache name, got: %v", name)
+		}
+		if name != "dummy-name" {
+			t.Fatalf("cache name mismatch, want dummy-name, got: %s", name)
 		}
 	})
 }
