@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -85,12 +84,13 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 
 	metadata := map[string]any{
 		"model": map[string]any{
-			"supports": map[string]bool{
-				"media":      info.Supports.Media,
-				"multiturn":  info.Supports.Multiturn,
-				"systemRole": info.Supports.SystemRole,
-				"tools":      info.Supports.Tools,
-				"toolChoice": info.Supports.ToolChoice,
+			"supports": map[string]any{
+				"media":       info.Supports.Media,
+				"multiturn":   info.Supports.Multiturn,
+				"systemRole":  info.Supports.SystemRole,
+				"tools":       info.Supports.Tools,
+				"toolChoice":  info.Supports.ToolChoice,
+				"constrained": info.Supports.Constrained,
 			},
 			"versions": info.Versions,
 		},
@@ -99,7 +99,8 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		metadata["label"] = info.Label
 	}
 
-	fn = core.ChainMiddleware(ValidateSupport(name, info))(fn)
+	fn = core.ChainMiddleware(ValidateSupport(name, info), SimulateConstrainedGeneration(name, info))(fn)
+	//fn = core.ChainMiddleware(ValidateSupport(name, info))(fn)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
@@ -192,10 +193,6 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
 		Output:     output,
-	}
-
-	if err := conformOutput(req); err != nil {
-		return nil, err
 	}
 
 	fn := core.ChainMiddleware(mw...)(model.Generate)
@@ -338,6 +335,8 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 	return resp, nil
 }
 
+// TODO: Generate per format? Rename generateData to GenerateJSON
+
 // Name returns the name of the model.
 func (m *modelActionDef) Name() string { return (*ModelAction)(m).Name() }
 
@@ -477,21 +476,6 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	newReq.Messages = append(append([]*Message{}, req.Messages...), resp.Message, toolMessage)
 
 	return newReq, nil, nil
-}
-
-// conformOutput appends a message to the request indicating conformance to the expected schema.
-func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
-		jsonBytes, err := json.Marshal(req.Output.Schema)
-		if err != nil {
-			return fmt.Errorf("expected schema is not valid: %w", err)
-		}
-
-		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
-		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
-	}
-	return nil
 }
 
 // validResponse check the message matches the expected schema.

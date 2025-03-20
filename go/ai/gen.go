@@ -50,6 +50,8 @@ const (
 type ModelRequestOutput struct {
 	Format OutputFormat   `json:"format,omitempty"`
 	Schema map[string]any `json:"schema,omitempty"`
+	Contrained bool `json:"constrained,omitempty"`
+	Instructions bool `json:"instructions,omitempty"`
 }
 
 type OutputFormat string
@@ -58,6 +60,14 @@ const (
 	OutputFormatJSON  OutputFormat = "json"
 	OutputFormatText  OutputFormat = "text"
 	OutputFormatMedia OutputFormat = "media"
+)
+
+type ConstrainedGeneration string
+
+const (
+	ConstrainedGenerationNone    ConstrainedGeneration = "none"
+    ConstrainedGenerationAll     ConstrainedGeneration = "all"
+    ConstrainedGenerationNoTools ConstrainedGeneration = "no-tools"
 )
 
 // GenerationCommonConfig holds configuration for generation.
@@ -111,7 +121,7 @@ type ModelInfo struct {
 }
 
 type ModelInfoSupports struct {
-	Constrained bool         `json:"constrained,omitempty"`
+	Constrained ConstrainedGeneration         `json:"constrained,omitempty"`
 	ContentType []string     `json:"contentType,omitempty"`
 	Context     bool         `json:"context,omitempty"`
 	Media       bool         `json:"media,omitempty"`

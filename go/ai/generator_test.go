@@ -28,10 +28,11 @@ var (
 	metadata  = ModelInfo{
 		Label: modelName,
 		Supports: &ModelInfoSupports{
-			Multiturn:  true,
-			Tools:      true,
-			SystemRole: true,
-			Media:      false,
+			Multiturn:   true,
+			Tools:       true,
+			SystemRole:  true,
+			Media:       false,
+			Constrained: ConstrainedGenerationNone,
 		},
 		Versions: []string{"echo-001", "echo-002"},
 	}
@@ -240,19 +241,19 @@ func TestGenerate(t *testing.T) {
 		wantStreamText := "stream!"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
-				NewSystemTextMessage("You are a helpful assistant."),
-				NewUserTextMessage("How many bananas are there?"),
-				NewModelTextMessage("There are at least 10 bananas."),
 				{
-					Role: RoleUser,
+					Role: RoleSystem,
 					Content: []*Part{
-						NewTextPart("Where can they be found?"),
+						NewTextPart("You are a helpful assistant."),
 						{
 							ContentType: "plain/text",
 							Text:        "ignored (conformance message)",
 						},
 					},
 				},
+				NewUserTextMessage("How many bananas are there?"),
+				NewModelTextMessage("There are at least 10 bananas."),
+				NewUserTextMessage("Where can they be found?"),
 			},
 			Config:  &GenerationCommonConfig{Temperature: 1},
 			Context: []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
@@ -315,6 +316,8 @@ func TestGenerate(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		//fmt.Print(base.PrettyJSONString(res.Request))
+
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
@@ -323,7 +326,7 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
-			"{*ai.ModelRequest}.Messages[3].Content[1].Text",
+			"{*ai.ModelRequest}.Messages[0].Content[1].Text",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}

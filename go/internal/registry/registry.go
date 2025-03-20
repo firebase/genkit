@@ -24,6 +24,7 @@ type Registry struct {
 	mu      sync.Mutex
 	frozen  bool // when true, no more additions
 	actions map[string]action.Action
+	values  map[string]interface{}
 }
 
 func New() (*Registry, error) {
@@ -90,6 +91,39 @@ func (r *Registry) ListActions() []action.Desc {
 
 func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.tstate.RegisterSpanProcessor(sp)
+}
+
+// RegisterValue records the value in the registry.
+// It panics if an action with the same type and name is already
+// registered.
+func (r *Registry) RegisterValue(valueType, name, value interface{}) {
+	key := fmt.Sprintf("/%s/%s", valueType, name)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.frozen {
+		panic(fmt.Sprintf("attempt to register value %s in a frozen registry. Register before calling genkit.Init", key))
+	}
+	if _, ok := r.values[key]; ok {
+		panic(fmt.Sprintf("value %q is already registered", key))
+	}
+	r.values[key] = value
+	slog.Debug("RegisterValue",
+		"type", valueType,
+		"name", name)
+}
+
+// LookupValue returns the value for the given key, or nil if there is none.
+func (r *Registry) LookupValue(key string) interface{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.values[key]
+}
+
+// ListValues returns a list of values of all registered values.
+func (r *Registry) ListValues() map[string]interface{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.values
 }
 
 // An Environment is the execution context in which the program is running.
