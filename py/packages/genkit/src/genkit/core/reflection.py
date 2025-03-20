@@ -16,11 +16,32 @@ import json
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
 
+import structlog
+
 from genkit.codec import dump_dict, dump_json
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
 from genkit.core.registry import Registry
-from genkit.core.web import HTTPHeader
+from genkit.web import (
+    create_asgi_app,
+    extract_query_params,
+    is_query_flag_enabled,
+)
+from genkit.web.enums import ContentType, HTTPHeader
+
+logger = structlog.get_logger(__name__)
+
+
+def is_streaming_requested(query_params: QueryParams) -> bool:
+    """Check if streaming is requested in the query parameters.
+
+    Args:
+        query_params: Dictionary containing parsed query parameters.
+
+    Returns:
+        True if streaming is requested, False otherwise.
+    """
+    return is_query_flag_enabled(query_params, 'stream')
 
 
 def make_reflection_server(registry: Registry, encoding='utf-8'):
@@ -91,8 +112,8 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                 context = payload['context'] if 'context' in payload else {}
 
                 query = urllib.parse.urlparse(self.path).query
-                query = urllib.parse.parse_qs(query)
-                if 'stream' in query != None and query['stream'][0] == 'true':
+                query_params = urllib.parse.parse_qs(query)
+                if is_streaming_requested(query_params):
 
                     def send_chunk(chunk):
                         self.wfile.write(
@@ -130,14 +151,18 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                             )
                         )
                     except Exception as e:
-                        errorResponse = get_callable_json(e).model_dump(
+                        error_response = get_callable_json(e).model_dump(
                             by_alias=True
                         )
+                        logger.error(
+                            'Error streaming action', error=error_response
+                        )
 
-                        # since we're streaming, we must do special error handling here -- the headers are already sent.
+                        # Since we're streaming, we must do special error
+                        # handling here -- the headers are already sent.
                         self.wfile.write(
                             bytes(
-                                json.dumps({'error': errorResponse}), encoding
+                                json.dumps({'error': error_response}), encoding
                             )
                         )
                 else:
@@ -167,9 +192,13 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                             )
                         )
                     except Exception as e:
-                        # since we're streaming, we must do special error handling here -- the headers are already sent.
-                        errorResponse = get_callable_json(e).model_dump(
+                        # Since we're streaming, we must do special error
+                        # handling here -- the headers are already sent.
+                        error_response = get_callable_json(e).model_dump(
                             by_alias=True
+                        )
+                        logger.error(
+                            'Error streaming action', error=error_response
                         )
 
                         self.send_response(500)
@@ -181,7 +210,7 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                         )
                         self.end_headers()
                         self.wfile.write(
-                            bytes(json.dumps(errorResponse), encoding)
+                            bytes(json.dumps(error_response), encoding)
                         )
 
     return ReflectionServer
