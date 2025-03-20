@@ -3,9 +3,11 @@
 
 import asyncio
 
+from genkit.ai.document import Document
 from genkit.core.typing import GenerationCommonConfig, Message, Role, TextPart
-from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
+    EmbeddingTaskType,
+    GeminiEmbeddingModels,
     GoogleGenai,
     google_genai_name,
 )
@@ -22,7 +24,26 @@ async def say_hi(data: str):
     return await ai.generate(
         messages=[
             Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
-        ]
+        ],
+        output_format='json',
+    )
+
+
+@ai.flow()
+async def embed_docs(docs: list[str]):
+    """Generate an embedding for the words in a list.
+
+    Args:
+        docs: list of texts (string)
+
+    Returns:
+        The generated embedding.
+    """
+    options = {'task_type': EmbeddingTaskType.CLUSTERING}
+    return await ai.embed(
+        model=google_genai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
+        documents=[Document.from_text(doc) for doc in docs],
+        options=options,
     )
 
 
@@ -51,6 +72,12 @@ async def say_hi_stream(name: str):
 def main() -> None:
     print(asyncio.run(say_hi(', tell me a joke')).message.content)
     print(asyncio.run(say_hi_stream(', tell me a joke')))
+
+    print(
+        asyncio.run(
+            embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
+        )
+    )
 
 
 if __name__ == '__main__':

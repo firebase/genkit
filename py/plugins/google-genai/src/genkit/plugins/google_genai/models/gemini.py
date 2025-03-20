@@ -8,24 +8,17 @@ from google import genai
 
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
-    CustomPart,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
-    Media,
-    MediaPart,
     Message,
     ModelInfo,
-    Part,
     Role,
     Supports,
     TextPart,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponse,
-    ToolResponsePart,
 )
+from genkit.plugins.google_genai.models.utils import PartConverter
 
 gemini10Pro = ModelInfo(
     label='Google AI - Gemini Pro',
@@ -136,112 +129,6 @@ SUPPORTED_MODELS = {
 }
 
 
-class PartConverter:
-    EXECUTABLE_CODE = 'executableCode'
-    CODE_EXECUTION_RESULT = 'codeExecutionResult'
-    OUTCOME = 'outcome'
-    OUTPUT = 'output'
-    LANGUAGE = 'language'
-    CODE = 'code'
-    DATA = 'data:'
-    BASE64 = ':base64,'
-
-    @classmethod
-    def to_gemini(cls, part: Part) -> genai.types.Part:
-        if isinstance(part.root, TextPart):
-            return genai.types.Part(text=part.root.text)
-        if isinstance(part.root, ToolRequestPart):
-            return genai.types.Part(
-                function_call=genai.types.FunctionCall(
-                    name=part.root.tool_request.name,
-                    args=part.root.tool_request.args,
-                )
-            )
-        if isinstance(part.root, ToolResponsePart):
-            return genai.types.Part(
-                function_response=genai.types.FunctionResponse(
-                    name=part.root.tool_request.name,
-                    response=part.root.tool_request.output,
-                )
-            )
-        if isinstance(part.root, MediaPart):
-            url = part.root.media.url
-            return genai.types.Part(
-                inline_data=genai.types.Blob(
-                    data=url[
-                        url.find(cls.DATA) + len(cls.DATA) : url.find(
-                            cls.BASE64
-                        )
-                    ],
-                    mime_type=part.root.media.content_type,
-                )
-            )
-        if isinstance(part.root, CustomPart):
-            return cls._to_gemini_custom(part)
-
-    @classmethod
-    def _to_gemini_custom(cls, part: Part) -> genai.types.Part:
-        if cls.EXECUTABLE_CODE in part.root.custom:
-            return genai.types.Part(
-                executable_code=genai.types.ExecutableCode(
-                    code=part.root.custom[cls.EXECUTABLE_CODE][cls.CODE],
-                    language=part.root.custom[cls.EXECUTABLE_CODE][
-                        cls.LANGUAGE
-                    ],
-                )
-            )
-        if cls.CODE_EXECUTION_RESULT in part.root.custom:
-            return genai.types.Part(
-                code_execution_result=genai.types.CodeExecutionResult(
-                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTCOME
-                    ],
-                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTPUT
-                    ],
-                )
-            )
-
-    @classmethod
-    def from_gemini(cls, part: genai.types.Part) -> Part:
-        if part.text:
-            return TextPart(text=part.text)
-        if part.function_call:
-            return ToolRequestPart(
-                toolRequest=ToolRequest(
-                    name=part.function_call.name, args=part.function_call.args
-                )
-            )
-        if part.function_response:
-            return ToolResponsePart(
-                toolResponse=ToolResponse(
-                    name=part.function_response.name,
-                    output=part.function_response.response,
-                )
-            )
-        if part.inline_data:
-            return MediaPart(
-                media=Media(
-                    url=f'{cls.DATA}{part.inline_data.mime_type}{cls.BASE64}{part.inline_data.data}',
-                    contentType=part.inline_data.mime_type,
-                )
-            )
-        if part.executable_code:
-            return {
-                cls.EXECUTABLE_CODE: {
-                    cls.LANGUAGE: part.executable_code.language,
-                    cls.CODE: part.executable_code.code,
-                }
-            }
-        if part.code_execution_result:
-            return {
-                cls.CODE_EXECUTION_RESULT: {
-                    cls.OUTCOME: part.code_execution_result.outcome,
-                    cls.OUTPUT: part.code_execution_result.output,
-                }
-            }
-
-
 class GeminiModel:
     def __init__(self, version: str | GeminiVersion, client: genai.Client):
         self._version = version
@@ -262,12 +149,7 @@ class GeminiModel:
 
         request_contents = self._build_messages(request)
 
-        request_cfg = (
-            self._genkit_to_googleai_cfg(request.config)
-            if request.config
-            else None
-        )
-
+        request_cfg = self._genkit_to_googleai_cfg(request)
         if ctx.is_streaming:
             return await self._streaming_generate(
                 request_contents, request_cfg, ctx
@@ -400,21 +282,40 @@ class GeminiModel:
         return content
 
     def _genkit_to_googleai_cfg(
-        self, genkit_cfg: GenerationCommonConfig
-    ) -> genai.types.GenerateContentConfig:
+        self, request: GenerateRequest
+    ) -> genai.types.GenerateContentConfig | None:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
 
         Args:
-            genkit_cfg: Genkit request config
+            types: Genkit request
 
         Returns:
-            Google Ai request config
+            Google Ai request config or None
         """
 
-        return genai.types.GenerateContentConfig(
-            max_output_tokens=genkit_cfg.max_output_tokens,
-            top_k=genkit_cfg.top_k,
-            top_p=genkit_cfg.top_p,
-            temperature=genkit_cfg.temperature,
-            stop_sequences=genkit_cfg.stop_sequences,
-        )
+        cfg = None
+
+        if request.config:
+            request_config = (
+                request.config
+                if isinstance(request.config, GenerationCommonConfig)
+                else GenerationCommonConfig(**request.config)
+            )
+            cfg = genai.types.GenerateContentConfig(
+                max_output_tokens=request_config.max_output_tokens,
+                top_k=request_config.top_k,
+                top_p=request_config.top_p,
+                temperature=request_config.temperature,
+                stop_sequences=request_config.stop_sequences,
+            )
+        if request.output:
+            response_mime_type = (
+                'application/json' if request.output.format == 'json' else None
+            )
+            if not cfg:
+                cfg = genai.types.GenerateContentConfig(
+                    response_mime_type=response_mime_type
+                )
+            else:
+                cfg.response_mime_type = response_mime_type
+        return cfg

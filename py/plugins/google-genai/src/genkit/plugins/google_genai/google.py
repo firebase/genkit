@@ -8,6 +8,11 @@ from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
+from genkit.plugins.google_genai.models.embedder import (
+    Embedder,
+    GeminiEmbeddingModels,
+    VertexEmbeddingModels,
+)
 from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
 from genkit.veneer.plugin import Plugin
 from genkit.veneer.registry import GenkitRegistry
@@ -75,4 +80,15 @@ class GoogleGenai(Plugin):
                 name=google_genai_name(version),
                 fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
+            )
+
+        embeding_models = (
+            VertexEmbeddingModels
+            if self._client.vertexai
+            else GeminiEmbeddingModels
+        )
+        for version in embeding_models:
+            embedder = Embedder(version=version, client=self._client)
+            ai.define_embedder(
+                name=google_genai_name(version), fn=embedder.generate
             )
