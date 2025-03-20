@@ -81,8 +81,6 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 
 // DefineModel defines a model in the registry
 func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
-	state.mu.Lock()
-	defer state.mu.Unlock()
 	if !state.initted {
 		panic("openai.Init not called")
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
 )
 
-func TestLive(t *testing.T) {
+func TestPlugin(t *testing.T) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
@@ -24,13 +24,14 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("genkit initialized")
 
 	// Initialize the OpenAI plugin
 	err = openai.Init(ctx, g, &openai.Config{APIKey: apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	t.Log("openai plugin initialized")
 	t.Run("basic completion", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithTextPrompt("What is the capital of France?"),
@@ -48,6 +49,8 @@ func TestLive(t *testing.T) {
 		if resp.Usage == nil || resp.Usage.TotalTokens == 0 {
 			t.Error("Expected non-zero usage statistics")
 		}
+
+		t.Logf("basic completion response: %+v", out)
 	})
 
 	t.Run("streaming", func(t *testing.T) {
@@ -81,10 +84,13 @@ func TestLive(t *testing.T) {
 			t.Errorf("Streaming output doesn't match final output\nStreamed: %s\nFinal: %s",
 				streamedOutput, finalOutput)
 		}
+
+		t.Logf("streaming response: %+v", finalOutput)
 	})
 
 	t.Run("tool usage", func(t *testing.T) {
 		// TODO: Implement tool usage
+		t.Log("skipping tool usage")
 	})
 
 	t.Run("system message", func(t *testing.T) {
@@ -100,9 +106,12 @@ func TestLive(t *testing.T) {
 		if !strings.Contains(strings.ToLower(out), "math") {
 			t.Errorf("got %q, expecting response to mention being a math tutor", out)
 		}
+
+		t.Logf("system message response: %+v", out)
 	})
 
 	t.Run("multi-turn conversation", func(t *testing.T) {
 		// TODO: Implement multi-turn conversation
+		t.Log("skipping multi-turn conversation")
 	})
 }

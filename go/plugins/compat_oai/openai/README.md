@@ -28,14 +28,14 @@ To run tests from a specific file:
 go test -run "^TestGenerator"
 
 # Run only openai_live_test.go tests
-go test -run "^TestLive"
+go test -run "^TestPlugin"
 ```
 
 ### Running Individual Tests
 To run a specific test case:
 ```bash
 # Run only the streaming test from openai_live_test.go
-go test -run "TestLive/streaming"
+go test -run "TestPlugin/streaming"
 
 # Run only the Complete test from generate_live_test.go
 go test -run "TestGenerator_Complete"
@@ -47,7 +47,7 @@ go test -run "TestGenerator_Stream"
 ### Test Output Verbosity
 Add the `-v` flag for verbose output:
 ```bash
-go test -v -run "TestLive/streaming"
+go test -v -run "TestPlugin/streaming"
 ```
 
 Note: All live tests require the OPENAI_API_KEY environment variable to be set. Tests will be skipped if the API key is not provided.
