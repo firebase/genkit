@@ -22,7 +22,8 @@ async def read_json_body(receive: Receive, encoding='utf-8') -> dict:
     more_body = True
     while more_body:
         message = await receive()
-        body += message.get('body', b'').decode(encoding)
-        more_body = message.get('more_body', False)
+        if message['type'] == 'http.request':
+            body += message.get('body', b'')
+            more_body = message.get('more_body', False)
 
-    return json.loads(body) if body else {}
+    return json.loads(body.decode(encoding)) if body else {}

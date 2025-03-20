@@ -788,6 +788,7 @@ source = { editable = "packages/genkit" }
 dependencies = [
     { name = "asgiref" },
     { name = "dotprompt" },
+    { name = "httpx" },
     { name = "json5" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
@@ -801,6 +802,7 @@ dependencies = [
 requires-dist = [
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "dotprompt" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "json5", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
