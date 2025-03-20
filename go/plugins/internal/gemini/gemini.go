@@ -133,7 +133,20 @@ func Generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	gc, err := convertRequest(client, model, input)
+	// since context caching is only available for specific model versions, we
+	// must make sure the configuration has the right version
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
+		if c != nil {
+			model = c.Version
+		}
+	}
+
+	cache, err := handleCache(ctx, client, input, model)
+	if err != nil {
+		return nil, err
+	}
+
+	gc, err := convertRequest(client, model, input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +174,9 @@ func Generate(
 		}
 		r := translateResponse(resp)
 		r.Request = input
+		if cache != nil {
+			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+		}
 		return r, nil
 	}
 
@@ -208,12 +224,16 @@ func Generate(
 		r = &ai.ModelResponse{}
 	}
 	r.Request = input
+	if cache != nil {
+		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+	}
+
 	return r, nil
 }
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
+func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = genai.Ptr[int32](1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
@@ -245,7 +265,6 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) 
 		}
 	}
 
-	// configure system instruction
 	if len(systemParts) > 0 {
 		gc.SystemInstruction = &genai.Content{
 			Parts: systemParts,
@@ -253,18 +272,18 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) 
 		}
 	}
 
-	// configure tools
 	tools, err := convertTools(input.Tools)
 	if err != nil {
 		return nil, err
 	}
 	gc.Tools = tools
 
-	// configure tool choice
 	choice := convertToolChoice(input.ToolChoice, input.Tools)
 	gc.ToolConfig = choice
 
-	// TODO: configure cache
+	if cache != nil {
+		gc.CachedContent = cache.Name
+	}
 
 	return &gc, nil
 }

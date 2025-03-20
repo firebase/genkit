@@ -15,6 +15,7 @@ from genkit.core.action import (
     parse_plugin_name_from_action_name,
 )
 from genkit.core.codec import dump_json
+from genkit.core.error import GenkitError
 
 
 def test_action_enum_behaves_like_str() -> None:
@@ -293,3 +294,41 @@ async def test_propagates_context_via_contextvar() -> None:
 
     assert (await second).response == '{"bar": "baz"}'
     assert (await first).response == '{"foo": "bar"}'
+
+
+@pytest.mark.asyncio
+async def test_sync_action_raises_errors() -> None:
+    """Test that sync action raises error with necessary metadata."""
+
+    def fooAction():
+        raise Exception('oops')
+
+    fooAction = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=fooAction)
+
+    with pytest.raises(
+        GenkitError, match=r'.*Error while running action fooAction.*'
+    ) as e:
+        await fooAction.arun()
+
+    assert 'stack' in e.value.details
+    assert 'trace_id' in e.value.details
+    assert str(e.value.cause) == 'oops'
+
+
+@pytest.mark.asyncio
+async def test_async_action_raises_errors() -> None:
+    """Test that async action raises error with necessary metadata."""
+
+    async def fooAction():
+        raise Exception('oops')
+
+    fooAction = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=fooAction)
+
+    with pytest.raises(
+        GenkitError, match=r'.*Error while running action fooAction.*'
+    ) as e:
+        await fooAction.arun()
+
+    assert 'stack' in e.value.details
+    assert 'trace_id' in e.value.details
+    assert str(e.value.cause) == 'oops'
