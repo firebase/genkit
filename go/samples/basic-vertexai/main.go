@@ -22,9 +22,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize the Google AI plugin. When you pass VertexAI=true
-	// Config parameter, the Google AI plugin will look for the following
-	// environment variables:
+	// Initialize the Google AI plugin. When you pass a nil configuration,
+	// the Google AI plugin will look for the following environment variables:
 	// projectId: GOOGLE_CLOUD_PROJECT
 	// location: GOOGLE_CLOUD_LOCATION then GOOGLE_CLOUD_REGION
 	// These parameters could also be set in the plugin configuration.

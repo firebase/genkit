@@ -12,7 +12,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
-func googleEx(ctx context.Context) error {
+func googlegenaiEx(ctx context.Context) error {
 	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
