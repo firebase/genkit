@@ -17,7 +17,7 @@ classifiers = [
 dependencies = ["genkit", "pytest-mock", "pytest-asyncio"]
 description = "Genkit Local Vector Store Plugin"
 license = { text = "Apache-2.0" }
-name = "genkit-dev-local-vectorstore-plugin"
+name = "vectorstore-plugin"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
