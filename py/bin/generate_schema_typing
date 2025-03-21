@@ -13,15 +13,15 @@ CI_ENABLED=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ci)
-      CI_ENABLED=true
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1"
-      echo "Usage: $0 [--ci]"
-      exit 1
-      ;;
+  --ci)
+    CI_ENABLED=true
+    shift
+    ;;
+  *)
+    echo "Unknown option: $1"
+    echo "Usage: $0 [--ci]"
+    exit 1
+    ;;
   esac
 done
 
@@ -57,5 +57,5 @@ if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$BACKUP_FILE" ]]; then
     rm "$BACKUP_FILE"
     exit 1
   fi
-  rm "$BACKUP_FILE"
 fi
+rm "$BACKUP_FILE"

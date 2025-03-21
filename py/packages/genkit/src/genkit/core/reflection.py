@@ -1,7 +1,6 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-
 """Development API for inspecting and interacting with Genkit.
 
 This module provides a reflection API server for inspection and interaction
@@ -14,49 +13,32 @@ from __future__ import annotations
 import asyncio
 import json
 import urllib.parse
+from collections.abc import AsyncGenerator
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
 import structlog
+from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, StreamingResponse
+from starlette.routing import Route
 
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
 from genkit.core.registry import Registry
-from genkit.web import (
-    create_asgi_app,
-    extract_query_params,
-    is_query_flag_enabled,
+from genkit.web.requests import (
+    is_streaming_requested,
 )
-from genkit.web.enums import HTTPHeader
-from genkit.web.handlers import handle_health_check
-from genkit.web.requests import read_json_body
-from genkit.web.responses import write_json_chunk_response, write_json_response
 from genkit.web.typing import (
     Application,
-    HTTPScope,
     LifespanHandler,
-    QueryParams,
-    Receive,
-    Route,
-    Routes,
-    Send,
 )
 
 logger = structlog.get_logger(__name__)
-
-
-def is_streaming_requested(query_params: QueryParams) -> bool:
-    """Check if streaming is requested in the query parameters.
-
-    Args:
-        query_params: Dictionary containing parsed query parameters.
-
-    Returns:
-        True if streaming is requested, False otherwise.
-    """
-    return is_query_flag_enabled(query_params, 'stream')
 
 
 def make_reflection_server(registry: Registry, encoding='utf-8'):
@@ -93,7 +75,7 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
 
             elif self.path == '/api/actions':
                 self.send_response(200)
-                self.send_header(HTTPHeader.CONTENT_TYPE, 'application/json')
+                self.send_header('content-type', 'application/json')
                 self.end_headers()
                 actions = registry.list_serializable_actions()
                 self.wfile.write(bytes(json.dumps(actions), encoding))
@@ -118,9 +100,7 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                 self.end_headers()
 
             elif self.path.startswith('/api/runAction'):
-                content_len = int(
-                    self.headers.get(HTTPHeader.CONTENT_LENGTH) or 0
-                )
+                content_len = int(self.headers.get('content-length') or 0)
                 post_body = self.rfile.read(content_len)
                 payload = json.loads(post_body.decode(encoding=encoding))
                 action = registry.lookup_action_by_key(payload['key'])
@@ -128,7 +108,8 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
 
                 query = urllib.parse.urlparse(self.path).query
                 query_params = urllib.parse.parse_qs(query)
-                if is_streaming_requested(query_params):
+                stream = query_params.get('stream', ['false'])[0] == 'true'
+                if stream:
 
                     def send_chunk(chunk):
                         self.wfile.write(
@@ -140,12 +121,10 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                         self.wfile.write(bytes('\n', encoding))
 
                     self.send_response(200)
-                    self.send_header(
-                        HTTPHeader.X_GENKIT_VERSION, DEFAULT_GENKIT_VERSION
-                    )
-                    self.send_header(
-                        HTTPHeader.CONTENT_TYPE, 'application/json'
-                    )
+                    self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
+                    # TODO: Since each event being sent down the wire is a JSON
+                    # chunk, shouldn't this be set to text/event-stream?
+                    self.send_header('content-type', 'application/json')
                     self.end_headers()
 
                     try:
@@ -166,15 +145,15 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                             )
                         )
                     except Exception as e:
+                        # Since we're streaming, the headers have already been
+                        # sent as a 200 OK, but we must indicate an error
+                        # regardless.
                         error_response = get_callable_json(e).model_dump(
                             by_alias=True
                         )
                         logger.error(
                             'Error streaming action', error=error_response
                         )
-
-                        # Since we're streaming, we must do special error
-                        # handling here -- the headers are already sent.
                         self.wfile.write(
                             bytes(
                                 json.dumps({'error': error_response}), encoding
@@ -190,11 +169,9 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
 
                         self.send_response(200)
                         self.send_header(
-                            HTTPHeader.X_GENKIT_VERSION, DEFAULT_GENKIT_VERSION
+                            'x-genkit-version', DEFAULT_GENKIT_VERSION
                         )
-                        self.send_header(
-                            HTTPHeader.CONTENT_TYPE, 'application/json'
-                        )
+                        self.send_header('content-type', 'application/json')
                         self.end_headers()
 
                         self.wfile.write(
@@ -207,22 +184,20 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                             )
                         )
                     except Exception as e:
-                        # Since we're streaming, we must do special error
-                        # handling here -- the headers are already sent.
+                        # We aren't streaming here so send a JSON-encoded 500
+                        # internal server error response.
                         error_response = get_callable_json(e).model_dump(
                             by_alias=True
                         )
                         logger.error(
-                            'Error streaming action', error=error_response
+                            'Error running action', error=error_response
                         )
 
                         self.send_response(500)
                         self.send_header(
-                            HTTPHeader.X_GENKIT_VERSION, DEFAULT_GENKIT_VERSION
+                            'x-genkit-version', DEFAULT_GENKIT_VERSION
                         )
-                        self.send_header(
-                            HTTPHeader.CONTENT_TYPE, 'application/json'
-                        )
+                        self.send_header('content-type', 'application/json')
                         self.end_headers()
                         self.wfile.write(
                             bytes(json.dumps(error_response), encoding)
@@ -235,19 +210,19 @@ def create_reflection_asgi_app(
     registry: Registry,
     on_app_startup: LifespanHandler | None = None,
     on_app_shutdown: LifespanHandler | None = None,
-    version=DEFAULT_GENKIT_VERSION,
-    encoding='utf-8',
+    version: str = DEFAULT_GENKIT_VERSION,
+    encoding: str = 'utf-8',
 ) -> Application:
-    """Create and return an ASGI application for the Genkit reflection API.
+    """Create and return a ASGI application for the Genkit reflection API.
 
     Key endpoints:
 
         | Method | Path           | Handler               |
         |--------|----------------|-----------------------|
-        | GET    | /api/runAction | handle_run_action     |
-        | POST   | /api/actions   | handle_list_actions   |
-        | GET    | /api/__health  | handle_health_check   |
-        | POST   | /api/notify    | handle_notify         |
+        | GET    | /api/__health  | Health check          |
+        | GET    | /api/actions   | List actions          |
+        | POST   | /api/runAction | Run action (streaming)|
+        | POST   | /api/notify    | Handle notification   |
 
     Args:
         registry: The registry to use for the reflection server.
@@ -262,187 +237,154 @@ def create_reflection_asgi_app(
     Returns:
         An ASGI application configured with the given registry.
     """
-    # TODO: Add middleware support and implement a logging middleware.
-    # NOTE: We don't take on a dependency on third-party libraries such as
-    # starlette, fastapi, or litestar for this server, to keep the dependencies
-    # minimal for the end-user.
 
-    async def handle_list_actions(
-        scope: HTTPScope, receive: Receive, send: Send
-    ) -> None:
-        """Handle the GET request for listing available actions.
+    async def health_check(request: Request) -> JSONResponse:
+        """Handle health check requests.
 
         Args:
-            scope: ASGI HTTP scope.
-            receive: ASGI receive function.
-            send: ASGI send function.
-        """
-        await write_json_response(
-            scope,
-            receive,
-            send,
-            registry.list_serializable_actions(),
-            status_code=200,
-            encoding=encoding,
-        )
+            request: The Starlette request object.
 
-    async def handle_notify(
-        scope: HTTPScope, receive: Receive, send: Send
-    ) -> None:
-        """Handle the POST notification endpoint.
+        Returns:
+            A JSON response with status code 200.
+        """
+        return JSONResponse(content={'status': 'OK'})
+
+    async def list_actions(request: Request) -> JSONResponse:
+        """Handle the request for listing available actions.
 
         Args:
-            scope: ASGI HTTP scope.
-            receive: ASGI receive function.
-            send: ASGI send function.
+            request: The Starlette request object.
+
+        Returns:
+            A JSON response containing all serializable actions.
         """
-        await write_json_response(
-            scope,
-            receive,
-            send,
-            {},
+        return JSONResponse(
+            content=registry.list_serializable_actions(),
             status_code=200,
+            headers={'x-genkit-version': version},
         )
 
-    async def handle_run_action(
-        scope: HTTPScope, receive: Receive, send: Send
-    ) -> None:
+    async def handle_notify(request: Request) -> JSONResponse:
+        """Handle the notification endpoint.
+
+        Args:
+            request: The Starlette request object.
+
+        Returns:
+            An empty JSON response with status code 200.
+        """
+        return JSONResponse(
+            content={},
+            status_code=200,
+            headers={'x-genkit-version': version},
+        )
+
+    async def run_action(
+        request: Request,
+    ) -> JSONResponse | StreamingResponse:
         """Handle the runAction endpoint for executing registered actions.
 
         Flow:
-
         1. Reads and validates the request payload
         2. Looks up the requested action
         3. Executes the action with the provided input
         4. Returns the action result as JSON with trace ID
 
-        The response format varies based on whether the action returns a
-        Pydantic model or a plain value.
-
         Args:
-            scope: ASGI HTTP scope.
-            receive: ASGI receive function.
-            send: ASGI send function.
+            request: The Starlette request object.
+
+        Returns:
+            A JSON or StreamingResponse with the action result, or an error
+            response.
         """
-        payload = await read_json_body(receive, encoding)
+        # Get the action.
+        payload = await request.json()
         action = registry.lookup_action_by_key(payload['key'])
-
         if action is None:
-            await write_json_response(
-                scope,
-                receive,
-                send,
-                {'error': f'Action not found: {payload["key"]}'},
+            return JSONResponse(
+                content={'error': f'Action not found: {payload["key"]}'},
                 status_code=404,
-                encoding=encoding,
             )
-            return
 
+        # Run the action.
         context = payload.get('context', {})
-        if is_streaming_requested(extract_query_params(scope, encoding)):
-            await handle_streaming_action(
-                scope, receive, send, action, payload, context
-            )
-        else:
-            await handle_standard_action(
-                scope, receive, send, action, payload, context
-            )
+        stream = is_streaming_requested(request)
+        handler = run_streaming_action if stream else run_standard_action
+        return await handler(action, payload, context, version)
 
-    async def handle_streaming_action(
-        scope: HTTPScope,
-        receive: Receive,
-        send: Send,
+    async def run_streaming_action(
         action: Action,
         payload: dict[str, Any],
         context: dict[str, Any],
-    ) -> None:
-        """Handle streaming action execution.
+        version: str,
+    ) -> StreamingResponse | JSONResponse:
+        """Handle streaming action execution for Starlette.
 
         Args:
-            scope: ASGI HTTP scope.
-            receive: ASGI receive function.
-            send: ASGI send function.
             action: The action to execute.
             payload: Request payload with input data.
             context: Execution context.
+            version: The Genkit version header value.
 
-        Raises:
-            Exception: Any exception raised by the action execution is caught,
-                logged, and an error response is sent to the client. The error
-                response is a JSON object with an 'error' field containing
-                details about the exception.  The response is sent in the body
-                and no more body is sent after that.
+        Returns:
+            A StreamingResponse with JSON chunks or JSONResponse with error.
         """
 
-        async def send_chunk(chunk) -> None:
-            """Sends a JSON chunk response.
+        async def sse_generator() -> AsyncGenerator[str, None]:
+            """Server-Sent Events Generator for streaming JSON chunks.
 
-            Args:
-                chunk: The chunk to send.
-
-            Returns:
-                None
+            Since we generate a stream of event objects, and the headers will
+            have been sent already if an error occurs at a later stage, we
+            indicate an error status by streaming an error object.
             """
-            await write_json_chunk_response(
-                scope, receive, send, chunk, encoding
-            )
+            try:
 
-        try:
-            output = await action.arun_raw(
-                raw_input=payload['input'],
-                on_chunk=send_chunk,
-                context=context,
-            )
-            final_response = {
-                'result': dump_dict(output.response),
-                'telemetry': {'traceId': output.trace_id},
-            }
-            await write_json_response(
-                scope,
-                receive,
-                send,
-                final_response,
-                status_code=200,
-                headers=[
-                    (HTTPHeader.X_GENKIT_VERSION.encode(), version.encode()),
-                ],
-                encoding=encoding,
-            )
-        except Exception as e:
-            error_response = get_callable_json(e).model_dump(by_alias=True)
-            await logger.aerror('Error streaming action', error=error_response)
-            await write_json_response(
-                scope,
-                receive,
-                send,
-                error_response,
-                status_code=500,
-                encoding=encoding,
-            )
+                async def send_chunk(chunk):
+                    out = json.dumps(chunk)
+                    yield f'{out}\n'
 
-    async def handle_standard_action(
-        scope: HTTPScope,
-        receive: Receive,
-        send: Send,
+                output = await action.arun_raw(
+                    raw_input=payload['input'],
+                    on_chunk=send_chunk,
+                    context=context,
+                )
+
+                final_response = {
+                    'result': dump_dict(output.response),
+                    'telemetry': {'traceId': output.trace_id},
+                }
+                yield f'{json.dumps(final_response)}\n'
+
+            except Exception as e:
+                error_response = get_callable_json(e).model_dump(by_alias=True)
+                await logger.aerror(
+                    'Error streaming action',
+                    error=error_response,
+                )
+                yield f'{json.dumps(error_response)}\n'
+
+        return StreamingResponse(
+            sse_generator(),
+            media_type='text/event-stream',
+            headers={'x-genkit-version': version},
+        )
+
+    async def run_standard_action(
         action: Action,
         payload: dict[str, Any],
         context: dict[str, Any],
-    ) -> None:
-        """Handle standard (non-streaming) action execution.
+        version: str,
+    ) -> JSONResponse:
+        """Handle standard (non-streaming) action execution for Starlette.
 
         Args:
-            scope: ASGI HTTP scope.
-            receive: ASGI receive function.
-            send: ASGI send function.
             action: The action to execute.
             payload: Request payload with input data.
             context: Execution context.
+            version: The Genkit version header value.
 
-        Raises:
-            Exception: Any exception raised by the action execution is caught,
-                logged, and a 500 Internal Server Error response is sent to the
-                client. The error response is a JSON object containing details
-                about the exception, and is sent in the response body.
+        Returns:
+            A JSONResponse with the action result or error.
         """
         try:
             output = await action.arun_raw(
@@ -452,34 +394,34 @@ def create_reflection_asgi_app(
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
             }
-            await write_json_response(
-                scope,
-                receive,
-                send,
-                response,
+            return JSONResponse(
+                content=response,
                 status_code=200,
-                headers=[
-                    (HTTPHeader.X_GENKIT_VERSION.encode(), version.encode()),
-                ],
-                encoding=encoding,
+                headers={'x-genkit-version': version},
             )
         except Exception as e:
             error_response = get_callable_json(e).model_dump(by_alias=True)
             await logger.aerror('Error executing action', error=error_response)
-            await write_json_response(
-                scope,
-                receive,
-                send,
-                error_response,
+            return JSONResponse(
+                content=error_response,
                 status_code=500,
-                encoding=encoding,
             )
 
-    routes: Routes = [
-        Route('GET', '/api/__health', handle_health_check),
-        Route('GET', '/api/actions', handle_list_actions),
-        Route('POST', '/api/runAction', handle_run_action),
-        Route('POST', '/api/notify', handle_notify),
-    ]
-
-    return create_asgi_app(routes, on_app_startup, on_app_shutdown)
+    return Starlette(
+        routes=[
+            Route('/api/__health', health_check, methods=['GET']),
+            Route('/api/actions', list_actions, methods=['GET']),
+            Route('/api/runAction', run_action, methods=['POST']),
+            Route('/api/notify', handle_notify, methods=['POST']),
+        ],
+        middleware=[
+            Middleware(
+                CORSMiddleware,
+                allow_origins=['*'],
+                allow_methods=['*'],
+                allow_headers=['*'],
+            )
+        ],
+        on_startup=[on_app_startup] if on_app_startup else [],
+        on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
+    )
