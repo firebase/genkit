@@ -14,19 +14,29 @@
  * limitations under the License.
  */
 
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { TraceData } from '@genkit-ai/tools-common';
+import { type TraceData } from '@genkit-ai/tools-common';
 import * as z from 'zod';
 
-extendZodWithOpenApi(z);
+export const TraceQueryFilterSchema = z.object({
+  eq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  neq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+});
+
+export type TraceQueryFilter = z.infer<typeof TraceQueryFilterSchema>;
+
+/**
+ * Trace store list query schema.
+ */
+export const TraceQuerySchema = z.object({
+  limit: z.coerce.number().optional(),
+  continuationToken: z.string().optional(),
+  filter: TraceQueryFilterSchema.optional(),
+});
 
 /**
  * Trace store list query.
  */
-export interface TraceQuery {
-  limit?: number;
-  continuationToken?: string;
-}
+export type TraceQuery = z.infer<typeof TraceQuerySchema>;
 
 /**
  * Response from trace store list query.
@@ -40,6 +50,7 @@ export interface TraceQueryResponse {
  * Trace store interface.
  */
 export interface TraceStore {
+  init(): Promise<void>;
   save(traceId: string, trace: TraceData): Promise<void>;
   load(traceId: string): Promise<TraceData | undefined>;
   list(query?: TraceQuery): Promise<TraceQueryResponse>;
