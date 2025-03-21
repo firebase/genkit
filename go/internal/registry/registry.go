@@ -13,6 +13,7 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/google/dotprompt/go/dotprompt"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -20,10 +21,11 @@ import (
 // This file implements registries of actions and other values.
 
 type Registry struct {
-	tstate  *tracing.State
-	mu      sync.Mutex
-	frozen  bool // when true, no more additions
-	actions map[string]action.Action
+	tstate    *tracing.State
+	mu        sync.Mutex
+	frozen    bool // when true, no more additions
+	actions   map[string]action.Action
+	Dotprompt *dotprompt.Dotprompt
 }
 
 func New() (*Registry, error) {
@@ -34,6 +36,7 @@ func New() (*Registry, error) {
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
 		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
 	}
+	r.Dotprompt = dotprompt.NewDotprompt(nil)
 	return r, nil
 }
 

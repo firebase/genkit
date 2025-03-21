@@ -107,6 +107,8 @@ func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
 		}
 	}
 
+	ai.LoadPromptFolder(r, params.PromptDir, "")
+
 	return &Genkit{
 		reg:    r,
 		Params: params,
