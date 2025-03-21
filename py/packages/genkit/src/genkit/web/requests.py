@@ -1,29 +1,37 @@
 # Copyright 2025 Google LLC
-# SPDX-License-Identifier: Apache-2.
+# SPDX-License-Identifier: Apache-2.0
 
 """Helper functions for reading JSON request bodies."""
 
-import json
+from starlette.datastructures import QueryParams
+from starlette.requests import Request
 
-from genkit.web.typing import Receive
 
+def is_streaming_requested(request: Request) -> bool:
+    """Check if streaming is requested.
 
-async def read_json_body(receive: Receive, encoding='utf-8') -> dict:
-    """Helper to read JSON request body.
+    Streaming is requested if the query parameter 'stream' is set to 'true' or
+    if the Accept header is 'text/event-stream'.
 
     Args:
-        receive: The receive function.
-        encoding: The encoding of the request body.
+        request: Starlette request object.
 
     Returns:
-        The JSON request body.
+        True if streaming is requested, False otherwise.
     """
-    body = b''
-    more_body = True
-    while more_body:
-        message = await receive()
-        if message['type'] == 'http.request':
-            body += message.get('body', b'')
-            more_body = message.get('more_body', False)
+    by_header = request.headers.get('accept', '') == 'text/event-stream'
+    by_query = is_query_flag_enabled(request.query_params, 'stream')
+    return by_header or by_query
 
-    return json.loads(body.decode(encoding)) if body else {}
+
+def is_query_flag_enabled(query_params: QueryParams, flag: str) -> bool:
+    """Check if a query flag is enabled.
+
+    Args:
+        query_params: Dictionary containing parsed query parameters.
+        flag: Flag name to check.
+
+    Returns:
+        True if the query flag is enabled, False otherwise.
+    """
+    return query_params.get(flag, ['false'])[0] == 'true'
