@@ -33,12 +33,14 @@ func TestPlugin(t *testing.T) {
 	}
 	t.Log("openai plugin initialized")
 	t.Run("basic completion", func(t *testing.T) {
+		t.Log("generating basic completion response")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithTextPrompt("What is the capital of France?"),
 		)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal("error generating basic completion response: ", err)
 		}
+		t.Logf("basic completion response: %+v", resp)
 
 		out := resp.Message.Content[0].Text
 		if !strings.Contains(strings.ToLower(out), "paris") {
@@ -49,8 +51,6 @@ func TestPlugin(t *testing.T) {
 		if resp.Usage == nil || resp.Usage.TotalTokens == 0 {
 			t.Error("Expected non-zero usage statistics")
 		}
-
-		t.Logf("basic completion response: %+v", out)
 	})
 
 	t.Run("streaming", func(t *testing.T) {

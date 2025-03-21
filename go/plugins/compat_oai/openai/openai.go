@@ -80,9 +80,13 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 }
 
 // DefineModel defines a model in the registry
-func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
+func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
 	if !state.initted {
 		panic("openai.Init not called")
+	}
+
+	if _, ok := supportedModels[name]; !ok {
+		return nil, fmt.Errorf("unsupported model: %s", name)
 	}
 
 	return genkit.DefineModel(g, provider, name, &info, func(
@@ -92,10 +96,5 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) ai.Model {
 	) (*ai.ModelResponse, error) {
 		generator := NewModelGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input.Config)
 		return generator.Generate(ctx, cb)
-	})
-}
-
-// Model returns the model with the given name
-func Model(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, provider, name)
+	}), nil
 }
