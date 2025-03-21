@@ -143,6 +143,8 @@ select = [
   "N",    # pep8-naming (naming conventions)
   "D",    # pydocstyle
   "F401", # unused imports
+  "F403", # wildcard imports
+  "F841", # unused variables
 ]
 
 [tool.ruff.lint.isort]

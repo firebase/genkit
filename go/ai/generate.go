@@ -275,7 +275,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 	tools := make([]string, len(genOpts.Tools))
 	for i, tool := range genOpts.Tools {
-		tools[i] = tool.Definition().Name
+		tools[i] = tool.Name()
 	}
 
 	messages := []*Message{}
