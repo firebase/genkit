@@ -554,7 +554,11 @@ func loadPrompt(registry *registry.Registry, path string, filename string, prefi
 	}
 	regName := registryDefinitionKey(name, variant, ns)
 
-	DefinePrompt(registry, regName, &promptOpt, WithMetadata(metadata.Metadata), WithDescription(metadata.Description), WithOutputType(outputSchemaMap), WithConfig(metadata.Config))
+	toolRefs := make([]ToolRef, len(metadata.Tools))
+	for i, tool := range metadata.Tools {
+		toolRefs[i] = ToolName(tool) // Assuming ToolRef has a Name field
+	}
+	DefinePrompt(registry, regName, &promptOpt, WithMetadata(metadata.Metadata), WithDescription(metadata.Description), WithOutputType(outputSchemaMap), WithConfig(metadata.Config), WithTools(toolRefs...))
 
 }
 
