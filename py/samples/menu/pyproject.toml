@@ -16,6 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
+  "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-firebase",
   "genkit-plugin-google-ai",
   "genkit-plugin-google-cloud",
