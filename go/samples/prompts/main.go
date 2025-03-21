@@ -12,7 +12,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := google.Init(ctx, g, &google.Config{VertexAI: true}); err != nil {
+	if err := googlegenai.InitVertexAI(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 
@@ -38,7 +38,7 @@ func main() {
 }
 
 func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	// Define prompt with default model and system text.
 	helloPrompt, err := genkit.DefinePrompt(
@@ -59,7 +59,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	type HelloPromptInput struct {
 		UserName string
@@ -87,7 +87,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	type CountryList struct {
 		Countries []string
@@ -124,7 +124,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -159,7 +159,7 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	// Define prompt with default messages prepended.
 	helloPrompt, err := genkit.DefinePrompt(
@@ -185,7 +185,7 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	// Define prompt with default settings.
 	helloPrompt, err := genkit.DefinePrompt(
@@ -200,7 +200,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 
 	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		ai.WithModel(google.Model(g, "gemini-2.0-pro")),
+		ai.WithModel(googlegenai.Model(g, "gemini-2.0-pro")),
 		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
@@ -211,7 +211,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
-	m := google.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 
 	type HelloPromptInput struct {
 		UserName string

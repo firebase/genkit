@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
@@ -50,13 +50,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
-	err = google.Init(ctx, g, &google.Config{Location: os.Getenv("GOOGLE_CLOUD_LOCATION")})
+	err = googlegenai.InitVertexAI(ctx, g, &googlegenai.VertexAIConfig{Location: os.Getenv("GOOGLE_CLOUD_LOCATION")})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	model := google.Model(g, "gemini-2.0-flash")
-	embedder := google.Embedder(g, "text-embedding-004")
+	model := googlegenai.Model(g, "gemini-2.0-flash")
+	embedder := googlegenai.Embedder(g, "text-embedding-004")
 
 	if err := setup01(g, model); err != nil {
 		log.Fatal(err)

@@ -1,35 +1,28 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package google_test
+package googlegenai_test
 
 import (
 	"context"
 	"flag"
-	"fmt"
-	"log"
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 var (
-	apiKey = flag.String("key", "", "Gemini API key to enable live tests for GoogleAI")
+	apiKey = flag.String("key", "", "Gemini API key to enable live tests for Google AI")
 
-	projectID = flag.String("projectid", "", "VertexAI project identifier")
+	projectID = flag.String("projectid", "", "Vertex AI project identifier")
 	location  = flag.String("location", "us-central1", "geographic location")
 
-	header = flag.Bool("header", false, "run test for x-goog-client-api header")
-	cache  = flag.String("cache", "", "local file to test context-cache (large text document)")
+	cache = flag.String("cache", "", "local file to test context-cache (large text document)")
 )
 
 func TestGoogleAILive(t *testing.T) {
@@ -43,12 +36,12 @@ func TestGoogleAILive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err = google.Init(ctx, g, &google.Config{APIKey: *apiKey})
+	err = googlegenai.InitGoogleAI(ctx, g, &googlegenai.GoogleAIConfig{APIKey: *apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	embedder := google.Embedder(g, "embedding-001")
+	embedder := googlegenai.Embedder(g, "embedding-001")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,11 +232,11 @@ func TestVertexAILive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = google.Init(ctx, g, &google.Config{ProjectID: *projectID, Location: *location})
+	err = googlegenai.InitVertexAI(ctx, g, &googlegenai.VertexAIConfig{ProjectID: *projectID, Location: *location})
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := google.Embedder(g, "textembedding-gecko@003")
+	embedder := googlegenai.Embedder(g, "textembedding-gecko@003")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -496,34 +489,4 @@ func TestCacheHelper(t *testing.T) {
 			t.Fatalf("cache name mismatch, want dummy-name, got: %s", name)
 		}
 	})
-}
-
-func TestHeader(t *testing.T) {
-	// TODO: (haguirre) re-enable this test when issue #2308 is solved
-	t.Skip("no support for custom HTTP server settings yet")
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*header {
-		t.Skip("skipped; to run, pass -header and don't run the live test")
-	}
-	ctx := context.Background()
-	var header http.Header
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		header = r.Header
-		http.Error(w, "test", http.StatusServiceUnavailable)
-	}))
-	defer server.Close()
-
-	if err := google.Init(ctx, g, &google.Config{APIKey: "x"}); err != nil {
-		t.Fatal(err)
-	}
-	_, _ = genkit.Generate(ctx, g, ai.WithPromptText("hi"))
-	got := header.Get("x-goog-api-client")
-	fmt.Printf("got header: %#v\n\n", got)
-	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
-	if !want.MatchString(got) {
-		t.Errorf("got x-goog-api-client header value: %s \nwanted it to match regexp %s", got, want)
-	}
 }

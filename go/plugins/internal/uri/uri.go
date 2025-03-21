@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package uri extracts the content-type and data from a media part.
-// This is used by the Google plugin.
+// This is used by the googlegenai plugin.
 package uri
 
 import (

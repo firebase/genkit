@@ -11,7 +11,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
@@ -22,17 +22,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize the Google plugin. When you pass nil for the
-	// Config parameter, the Google plugin will get the API key from the
+	// Initialize the Google AI plugin. When you pass nil for the
+	// Config parameter, the Google AI plugin will get the API key from the
 	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
 	// practice.
-	if err := google.Init(ctx, g, nil); err != nil {
+	if err := googlegenai.InitGoogleAI(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := google.Model(g, "gemini-2.0-flash")
+		m := googlegenai.Model(g, "gemini-2.0-flash")
 		if m == nil {
 			return "", errors.New("jokesFlow: failed to find model")
 		}

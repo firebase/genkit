@@ -9,7 +9,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func googleEx(ctx context.Context) error {
@@ -19,20 +19,20 @@ func googleEx(ctx context.Context) error {
 	}
 
 	// [START init]
-	if err := google.Init(ctx, g, nil); err != nil {
+	if err := googlegenai.InitGoogleAI(ctx, g, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourKey := ""
 	// [START initkey]
-	if err := google.Init(ctx, g, &google.Config{APIKey: yourKey}); err != nil {
+	if err := googlegenai.InitGoogleAI(ctx, g, &googlegenai.GoogleAIConfig{APIKey: yourKey}); err != nil {
 		return err
 	}
 	// [END initkey]
 
 	// [START model]
-	model := google.Model(g, "gemini-1.5-flash")
+	model := googlegenai.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
@@ -47,7 +47,7 @@ func googleEx(ctx context.Context) error {
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := google.Embedder(g, "text-embedding-004")
+	embeddingModel := googlegenai.Embedder(g, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]

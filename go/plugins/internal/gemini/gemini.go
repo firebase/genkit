@@ -1,7 +1,8 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-// Package gemini contains code that is common to both the GoogleAI and VertexAI backends used by the Google plugin.
+// Package gemini contains code that is common to both the Google AI and
+// Vertex AI backends used by the googlegenai plugin.
 package gemini
 
 import (

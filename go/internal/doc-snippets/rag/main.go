@@ -10,7 +10,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 
 	// "github.com/ledongthuc/pdf"
@@ -28,7 +28,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = google.Init(ctx, g, &google.Config{VertexAI: true})
+	err = googlegenai.InitVertexAI(ctx, g, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func main() {
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: google.Embedder(g, "text-embedding-004"),
+			Embedder: googlegenai.Embedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -131,7 +131,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	err = google.Init(ctx, g, &google.Config{VertexAI: true})
+	err = googlegenai.InitVertexAI(ctx, g, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,13 +140,13 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := google.Model(g, "gemini-1.5-flash")
+	model := googlegenai.Model(g, "gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: google.Embedder(g, "text-embedding-004"),
+			Embedder: googlegenai.Embedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -198,7 +198,7 @@ func customret() {
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: google.Embedder(g, "text-embedding-004"),
+			Embedder: googlegenai.Embedder(g, "text-embedding-004"),
 		},
 	)
 

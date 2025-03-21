@@ -1,7 +1,7 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package google
+package googlegenai
 
 import (
 	"context"
@@ -28,34 +28,36 @@ var state struct {
 	initted bool
 }
 
-type Config struct {
-	// API Key for GoogleAI
-	// If empty, the values of the environment variables GOOGLE_GENAI_API_KEY
-	// and GOOGLE_API_KEY will be consulted, in that order.
+type GoogleAIConfig struct {
+	// API Key for Google AI
+	// If empty, GOOGLE_API_KEY environment variable will be consulted
 	APIKey string
-	// GCP Project ID for VertexAI
-	ProjectID string
-	// GCP Location/Region for VertexAI
-	Location string
-	// Toggle to use VertexAI instead of GoogleAI plugin
-	VertexAI bool
 }
 
-// Init initializes the plugin and all known models and embedders.
-// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+type VertexAIConfig struct {
+	// GCP Project ID for Vertex AI
+	ProjectID string
+	// GCP Location/Region for Vertex AI
+	// If empty, GOOGLE_CLOUD_LOCATION and GOOGLE_CLOUD_REGION environment variables
+	// will be consulted in that order
+	Location string
+}
+
+// InitGoogleAI initializes the plugin and all known models and embedders.
+// After calling InitGoogleAI, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
+func InitGoogleAI(ctx context.Context, g *genkit.Genkit, cfg *GoogleAIConfig) (err error) {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = &GoogleAIConfig{}
 	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if state.initted {
-		panic("google.Init already called")
+		panic("googlegenai.InitGoogleAI already called")
 	}
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("google.Init: %w", err)
+			err = fmt.Errorf("googlegenai.InitGoogleAI: %w", err)
 		}
 	}()
 
@@ -66,18 +68,56 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		},
 	}
 
-	if cfg.VertexAI || cfg.Location != "" || cfg.ProjectID != "" {
-		gc.Backend = genai.BackendVertexAI
+	client, err := genai.NewClient(ctx, &gc)
+	if err != nil {
+		return err
+	}
+	state.gclient = client
+
+	models, err := listModels(gc.Backend)
+	if err != nil {
+		return err
+	}
+	for k, v := range models {
+		gemini.DefineModel(g, state.gclient, k, *v)
 	}
 
-	switch gc.Backend {
-	case genai.BackendGeminiAPI:
-		gc.APIKey = cfg.APIKey
-	case genai.BackendVertexAI:
-		gc.Project = cfg.ProjectID
-		gc.Location = cfg.Location
-	default:
-		return fmt.Errorf("unknown backend detected: %q", gc.Backend)
+	embedders, err := listEmbedders(gc.Backend)
+	if err != nil {
+		return err
+	}
+	for _, e := range embedders {
+		gemini.DefineEmbedder(g, state.gclient, e)
+	}
+
+	return nil
+}
+
+// InitVertexAI initializes the plugin and all known models and embedders.
+// After calling InitVertexAI, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
+func InitVertexAI(ctx context.Context, g *genkit.Genkit, cfg *VertexAIConfig) (err error) {
+	if cfg == nil {
+		cfg = &VertexAIConfig{}
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("googlegenai.InitVertexAI already called")
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("googlegenai.InitVertexAI: %w", err)
+		}
+	}()
+
+	gc := genai.ClientConfig{
+		Backend:  genai.BackendVertexAI,
+		Project:  cfg.ProjectID,
+		Location: cfg.Location,
+		HTTPOptions: genai.HTTPOptions{
+			Headers: gemini.GenkitClientHeader,
+		},
 	}
 
 	client, err := genai.NewClient(ctx, &gc)
@@ -86,7 +126,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 	}
 	state.gclient = client
 
-	models, err := getSupportedModels(gc.Backend)
+	models, err := listModels(gc.Backend)
 	if err != nil {
 		return err
 	}
@@ -94,7 +134,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		gemini.DefineModel(g, state.gclient, k, *v)
 	}
 
-	embedders, err := getSupportedEmbedders(gc.Backend)
+	embedders, err := listEmbedders(gc.Backend)
 	if err != nil {
 		return err
 	}
@@ -108,17 +148,14 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func Model(g *genkit.Genkit, name string) ai.Model {
-	provider := getProvider()
+	provider := provider()
 	return genkit.LookupModel(g, provider, name)
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
 func Embedder(g *genkit.Genkit, name string) ai.Embedder {
-	provider := googleAIProvider
-	if state.gclient.ClientConfig().Backend == genai.BackendVertexAI {
-		provider = vertexAIProvider
-	}
+	provider := provider()
 	return genkit.LookupEmbedder(g, provider, name)
 }
 
@@ -129,12 +166,12 @@ func Embedder(g *genkit.Genkit, name string) ai.Embedder {
 func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
-	provider := getProvider()
+	provider := provider()
 	if !state.initted {
 		panic(provider + ".Init not called")
 	}
 
-	models, err := getSupportedModels(state.gclient.ClientConfig().Backend)
+	models, err := listModels(state.gclient.ClientConfig().Backend)
 	if err != nil {
 		return nil, err
 	}
@@ -155,13 +192,13 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
-	provider := getProvider()
+	provider := provider()
 	return genkit.IsDefinedModel(g, provider, name)
 }
 
 // DefineEmbedder defines an embedder with a given name.
 func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	provider := getProvider()
+	provider := provider()
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -172,13 +209,13 @@ func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	provider := getProvider()
+	provider := provider()
 	return genkit.IsDefinedEmbedder(g, provider, name)
 }
 
-// getProvider checks the backend used in the Genai SDK and returns the
+// provider checks the backend used in the Genai SDK and returns the
 // appropriate provider name
-func getProvider() string {
+func provider() string {
 	switch state.gclient.ClientConfig().Backend {
 	case genai.BackendGeminiAPI:
 		return googleAIProvider

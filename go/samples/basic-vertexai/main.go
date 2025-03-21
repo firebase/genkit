@@ -11,7 +11,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
@@ -22,20 +22,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize the Google plugin. When you pass VertexAI=true
-	// Config parameter, the Google plugin will look for the following
+	// Initialize the Google AI plugin. When you pass VertexAI=true
+	// Config parameter, the Google AI plugin will look for the following
 	// environment variables:
 	// projectId: GOOGLE_CLOUD_PROJECT
 	// location: GOOGLE_CLOUD_LOCATION then GOOGLE_CLOUD_REGION
 	// These parameters could also be set in the plugin configuration.
-	// If that's the case, there's no need to set VertexAI flag to true
-	if err := google.Init(ctx, g, &google.Config{VertexAI: true}); err != nil {
+	if err := googlegenai.InitVertexAI(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := google.Model(g, "gemini-2.0-flash")
+		m := googlegenai.Model(g, "gemini-2.0-flash")
 		if m == nil {
 			return "", errors.New("jokesFlow: failed to find model")
 		}

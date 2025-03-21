@@ -1,7 +1,7 @@
 // Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package google
+package googlegenai
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	// eventually, vertexAI and googleAI models will match, in the meantime,
+	// eventually, Vertex AI and Google AI models will match, in the meantime,
 	// keep them sepparated
 	vertexAIModels = []string{
 		gemini15Flash,
@@ -48,7 +48,7 @@ var (
 
 	supportedGeminiModels = map[string]ai.ModelInfo{
 		gemini15Flash: {
-			Label: " - " + "Gemini 1.5 Flash",
+			Label: "Gemini 1.5 Flash",
 			Versions: []string{
 				"gemini-1.5-flash-latest",
 				"gemini-1.5-flash-001",
@@ -57,7 +57,7 @@ var (
 			Supports: &gemini.Multimodal,
 		},
 		gemini15Pro: {
-			Label: " - " + "Gemini 1.5 Pro",
+			Label: "Gemini 1.5 Pro",
 			Versions: []string{
 				"gemini-1.5-pro-latest",
 				"gemini-1.5-pro-001",
@@ -66,7 +66,7 @@ var (
 			Supports: &gemini.Multimodal,
 		},
 		gemini15Flash8b: {
-			Label: " - " + "Gemini 1.5 Flash 8B",
+			Label: "Gemini 1.5 Flash 8B",
 			Versions: []string{
 				"gemini-1.5-flash-8b-latest",
 				"gemini-1.5-flash-8b-001",
@@ -74,31 +74,31 @@ var (
 			Supports: &gemini.Multimodal,
 		},
 		gemini20Flash: {
-			Label: " - " + "Gemini 2.0 Flash",
+			Label: "Gemini 2.0 Flash",
 			Versions: []string{
 				"gemini-2.0-flash-001",
 			},
 			Supports: &gemini.Multimodal,
 		},
 		gemini20FlashLite: {
-			Label: " - " + "Gemini 2.0 Flash Lite",
+			Label: "Gemini 2.0 Flash Lite",
 			Versions: []string{
 				"gemini-2.0-flash-lite-001",
 			},
 			Supports: &gemini.Multimodal,
 		},
 		gemini20FlashLitePrev: {
-			Label:    " - " + "Gemini 2.0 Flash Lite Preview 02-05",
+			Label:    "Gemini 2.0 Flash Lite Preview 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
 		gemini20ProExp0205: {
-			Label:    " - " + "Gemini 2.0 Pro Exp 02-05",
+			Label:    "Gemini 2.0 Pro Exp 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
 		gemini20FlashThinkingExp0121: {
-			Label:    " - " + "Gemini 2.0 Flash Thinking Exp 01-21",
+			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
@@ -120,9 +120,9 @@ var (
 	}
 )
 
-// getSupportedModels returns a map of supported models and their capabilities
+// listModels returns a map of supported models and their capabilities
 // based on the detected backend
-func getSupportedModels(backend genai.Backend) (map[string]*ai.ModelInfo, error) {
+func listModels(backend genai.Backend) (map[string]*ai.ModelInfo, error) {
 	var provider string
 	names := []string{}
 
@@ -144,7 +144,7 @@ func getSupportedModels(backend genai.Backend) (map[string]*ai.ModelInfo, error)
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
 		models[n] = &ai.ModelInfo{
-			Label:    provider + m.Label,
+			Label:    provider + " - " + m.Label,
 			Versions: m.Versions,
 			Supports: m.Supports,
 		}
@@ -152,9 +152,9 @@ func getSupportedModels(backend genai.Backend) (map[string]*ai.ModelInfo, error)
 	return models, nil
 }
 
-// getSupportedEmbedders returns a list of supported embedders based on the
+// listEmbedders returns a list of supported embedders based on the
 // detected backend
-func getSupportedEmbedders(backend genai.Backend) ([]string, error) {
+func listEmbedders(backend genai.Backend) ([]string, error) {
 	embedders := []string{}
 
 	switch backend {

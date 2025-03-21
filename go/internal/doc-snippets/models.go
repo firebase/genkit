@@ -13,7 +13,7 @@ import (
 	// [START import]
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/google"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	// [END import]
 )
 
@@ -34,15 +34,15 @@ func m1() error {
 	// [START init]
 	// Default to the value of GOOGLE_CLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
-	// To specify these values directly, pass a google.Config value to Init and
+	// To specify these values directly, pass a googlegenai.Config value to Init and
 	// remove the VertexAI flag.
-	if err := google.Init(ctx, g, &google.Config{VertexAI: true}); err != nil {
+	if err := googlegenai.InitVertexAI(ctx, g, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	// [START model]
-	model := google.Model(g, "gemini-1.5-flash")
+	model := googlegenai.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START call]
@@ -61,7 +61,7 @@ func opts() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := google.Model(g, "gemini-1.5-flash")
+	model := googlegenai.Model(g, "gemini-1.5-flash")
 
 	// [START options]
 	response, err := genkit.Generate(ctx, g,
