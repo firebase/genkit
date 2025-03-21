@@ -5,6 +5,7 @@ package vertexai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -82,58 +83,53 @@ var (
 	}
 )
 
-var state struct {
-	mu        sync.Mutex
-	initted   bool
-	projectID string
-	location  string
-	gclient   *genai.Client
-}
+// VertexAI is a Genkit plugin for interacting with the Google Vertex AI service.
+type VertexAI struct {
+	ProjectID string // Google Cloud project to use for Vertex AI. If empty, the values of the environment variables GCLOUD_PROJECT and GOOGLE_CLOUD_PROJECT will be consulted, in that order.
+	Location  string // Location of the Vertex AI service. The default is "us-central1".
 
-// Config is the configuration for the plugin.
-type Config struct {
-	// The cloud project to use for Vertex AI.
-	// If empty, the values of the environment variables GCLOUD_PROJECT
-	// and GOOGLE_CLOUD_PROJECT will be consulted, in that order.
-	ProjectID string
-	// The location of the Vertex AI service. The default is "us-central1".
-	Location string
+	gclient *genai.Client // Client for the Vertex AI service.
+	mu      sync.Mutex    // Mutex to control access.
+	initted bool          // Whether the plugin has been initialized.
 }
 
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
-		panic("vertexai.Init already called")
+func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	if v == nil {
+		v = &VertexAI{}
 	}
 
-	state.projectID = cfg.ProjectID
-	if state.projectID == "" {
-		state.projectID = os.Getenv("GCLOUD_PROJECT")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("vertexai.Init: %w", err)
+		}
+	}()
+
+	if v.initted {
+		return errors.New("plugin already initialized")
 	}
-	if state.projectID == "" {
-		state.projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+
+	if v.ProjectID == "" {
+		v.ProjectID = os.Getenv("GCLOUD_PROJECT")
 	}
-	if state.projectID == "" {
+	if v.ProjectID == "" {
+		v.ProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+	if v.ProjectID == "" {
 		return fmt.Errorf("vertexai.Init: Vertex AI requires setting GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT in the environment")
 	}
-
-	state.location = cfg.Location
-	if state.location == "" {
-		state.location = "us-central1"
+	if v.Location == "" {
+		v.Location = "us-central1"
 	}
-	// Client for Gemini SDK.
-	var err error
-	state.gclient, err = genai.NewClient(ctx, &genai.ClientConfig{
+
+	v.gclient, err = genai.NewClient(ctx, &genai.ClientConfig{
 		Backend:  genai.BackendVertexAI,
-		Project:  state.projectID,
-		Location: state.location,
+		Project:  v.ProjectID,
+		Location: v.Location,
 		HTTPOptions: genai.HTTPOptions{
 			Headers: gemini.GenkitClientHeader,
 		},
@@ -142,13 +138,16 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 		return err
 	}
 
-	state.initted = true
+	v.initted = true
+
 	for model, info := range supportedModels {
-		gemini.DefineModel(g, state.gclient, model, info)
+		gemini.DefineModel(g, v.gclient, model, info)
 	}
+
 	for _, e := range knownEmbedders {
-		gemini.DefineEmbedder(g, state.gclient, e)
+		gemini.DefineEmbedder(g, v.gclient, e)
 	}
+
 	return nil
 }
 
@@ -159,10 +158,10 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if !v.initted {
 		panic(provider + ".Init not called")
 	}
 	var mi ai.ModelInfo
@@ -176,7 +175,7 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 		// TODO: unknown models could also specify versions?
 		mi = *info
 	}
-	return gemini.DefineModel(g, state.gclient, name, mi), nil
+	return gemini.DefineModel(g, v.gclient, name, mi), nil
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -191,18 +190,18 @@ func IsDefinedModel(g *genkit.Genkit, name string) bool {
 // DO NOT MODIFY below vvvv
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if !v.initted {
 		panic(provider + ".Init not called")
 	}
-	return gemini.DefineEmbedder(g, state.gclient, name)
+	return gemini.DefineEmbedder(g, v.gclient, name)
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedEmbedder(g, provider, name)
+	return genkit.LookupEmbedder(g, provider, name) != nil
 }
 
 // DO NOT MODIFY above ^^^^
