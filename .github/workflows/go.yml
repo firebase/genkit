@@ -20,7 +20,8 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@main
+      - name: Checkout Repo
+        uses: actions/checkout@main
       
       - name: Set up Node
         uses: actions/setup-node@main
@@ -43,8 +44,8 @@ jobs:
         with:
           go-version: '1.22.x'
           
-      - name: Generate Go code from schema
-        run: cd go/core && go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json ai
+      - name: Check if generated code is up to date
+        run: bash .github/workflows/scripts/check-generated-go.sh
       
       - name: Run tests
         run: go test -C go -v ./...
