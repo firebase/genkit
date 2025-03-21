@@ -234,7 +234,8 @@ class Action:
 
         action_args = input_spec.args.copy()
 
-        # special case when using a method as an action, we ignore first "self" arg
+        # Special case when using a method as an action, we ignore first "self"
+        # arg.
         if (
             len(action_args) > 0
             and len(action_args) <= 3
@@ -457,8 +458,8 @@ class Action:
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ) -> tuple[
-        AsyncIterator,
-        asyncio.Future,
+        AsyncIterator[ActionResponse],
+        asyncio.Future[ActionResponse],
     ]:
         """Run the action and return an async iterator of the results.
 
@@ -482,7 +483,7 @@ class Action:
         )
         stream.set_close_future(resp)
 
-        result_future = asyncio.Future()
+        result_future: asyncio.Future[ActionResponse] = asyncio.Future()
         stream.closed.add_done_callback(
             lambda _: result_future.set_result(stream.closed.result().response)
         )
