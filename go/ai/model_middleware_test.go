@@ -347,3 +347,186 @@ func TestSimulateSystemPrompt(t *testing.T) {
 		})
 	}
 }
+
+func TestAugmentWithContext(t *testing.T) {
+	testCases := []struct {
+		name         string
+		info         *ModelInfo
+		options      *AugmentWithContextOptions
+		input        *ModelRequest
+		expected     *ModelRequest
+		wantMetadata map[string]any
+	}{
+		{
+			name: "Model supports context, should bypass middleware",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: true}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+			},
+		},
+		{
+			name: "No docs, should bypass middleware",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+			},
+		},
+		{
+			name: "no user messages, should bypass middleware",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+				},
+			},
+		},
+		{
+			name: "Context already present , should bypass middleware",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					{Role: "user", Content: []*Part{NewTextPart("This is the context")}, Metadata: map[string]any{"purpose": "context"}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					{Role: "user", Content: []*Part{NewTextPart("This is the context")}, Metadata: map[string]any{"purpose": "context"}},
+				},
+			},
+		},
+		{
+			name: "Context not present multiple docs present , should get augment",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("My kid is 4 years old.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+				Docs: []*Document{
+					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+					{Content: []*Part{NewTextPart("this is test doc 2")}, Metadata: map[string]any{"purpose": "context", "ref": "doc2"}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("My kid is 4 years old.")}},
+					{Role: "user", Content: []*Part{
+						NewTextPart("Poem on star."),
+						{Text: "\n\nUse the following information to complete your task:\n\n- [doc1]: this is test doc 1\n- [doc2]: this is test doc 2\n\n",
+							Metadata: map[string]any{"purpose": "context"}}},
+					},
+				},
+				Docs: []*Document{
+					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+					{Content: []*Part{NewTextPart("this is test doc 2")}, Metadata: map[string]any{"purpose": "context", "ref": "doc2"}},
+				},
+			},
+		},
+		{
+			name: "custom preface for middleware",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
+			options: &AugmentWithContextOptions{
+				Preface: func() *string {
+					s := "\n\nCustom Preface : Use the following information to complete your task:\n\n"
+					return &s
+				}(),
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+				Docs: []*Document{
+					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{
+						NewTextPart("Poem on star."),
+						{Text: "\n\nCustom Preface : Use the following information to complete your task:\n\n- [doc1]: this is test doc 1\n\n",
+							Metadata: map[string]any{"purpose": "context"}}},
+					},
+				},
+				Docs: []*Document{
+					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+				},
+			},
+		},
+		{
+			name: "custom item template for middleware",
+			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
+			options: &AugmentWithContextOptions{
+				ItemTemplate: func(d Document, index int, options *AugmentWithContextOptions) string {
+					out := "- The new context is doc3"
+					return out
+				},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+				},
+				Docs: []*Document{
+					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					{Role: "user", Content: []*Part{
+						NewTextPart("Poem on star."),
+						{Text: "\n\nUse the following information to complete your task:\n\n- The new context is doc3\n",
+							Metadata: map[string]any{"purpose": "context"}}},
+					},
+				},
+				Docs: []*Document{
+					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			next := func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				if !reflect.DeepEqual(input, tc.expected) {
+					t.Errorf("Input messages were not modified as expected. got: %+v, want: %+v", input, tc.expected)
+				}
+				return &ModelResponse{}, nil
+			}
+			middleware := augmentWithContext(tc.info, tc.options)
+			_, _ = middleware(next)(context.Background(), tc.input, nil)
+		})
+	}
+}
