@@ -14,8 +14,5 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable
 
-from genkit.core.typing import Docs
-
-type IndexerFn[T] = Callable[[Docs, T], None]
+# TODO: implement it once Genkit AI will have index API
