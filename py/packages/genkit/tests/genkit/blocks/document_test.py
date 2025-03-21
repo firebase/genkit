@@ -3,7 +3,7 @@
 
 """Tests for Genkit document."""
 
-from genkit.ai.document import Document
+from genkit.blocks.document import Document
 from genkit.core.typing import (
     DocumentData,
     Embedding,

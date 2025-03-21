@@ -51,16 +51,16 @@ content, define flows, define formats, etc.
 
 | Category         | Method                                                                       | Description                          |
 |------------------|------------------------------------------------------------------------------|--------------------------------------|
-| **AI**           | [`generate()`][genkit.veneer.veneer.Genkit.generate]                         | Generates content.                   |
-|                  | [`generate_stream()`][genkit.veneer.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
-|                  | [`embed()`][genkit.veneer.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
-| **Registration** | [`define_embedder()`][genkit.veneer.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
-|                  | [`define_format()`][genkit.veneer.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
-|                  | [`define_model()`][genkit.veneer.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
+| **AI**           | [`generate()`][genkit.ai.veneer.Genkit.generate]                         | Generates content.                   |
+|                  | [`generate_stream()`][genkit.ai.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
+|                  | [`embed()`][genkit.ai.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
+| **Registration** | [`define_embedder()`][genkit.ai.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
+|                  | [`define_format()`][genkit.ai.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
+|                  | [`define_model()`][genkit.ai.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
 
 ??? info "Under the hood"
 
-    Creating an instance of [Genkit][genkit.veneer.veneer.Genkit]:
+    Creating an instance of [Genkit][genkit.ai.veneer.Genkit]:
 
     * creates a runtime configuration in the working directory
     * initializes a registry of actions including plugins, formats, etc.
@@ -83,20 +83,23 @@ from collections.abc import AsyncIterator
 from http.server import HTTPServer
 from typing import Any
 
-from genkit.ai.document import Document
-from genkit.ai.embedding import EmbedRequest, EmbedResponse
-from genkit.ai.formats import built_in_formats
-from genkit.ai.generate import (
+from genkit.ai import server
+from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
+from genkit.aio import Channel
+from genkit.blocks.document import Document
+from genkit.blocks.embedding import EmbedRequest, EmbedResponse
+from genkit.blocks.formats import built_in_formats
+from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
-from genkit.ai.model import (
+from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.ai.prompt import to_generate_action_options
-from genkit.aio import Channel
+from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
@@ -108,9 +111,6 @@ from genkit.core.typing import (
     Part,
     ToolChoice,
 )
-from genkit.veneer import server
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
@@ -123,7 +123,7 @@ class Genkit(GenkitRegistry):
     """Veneer user-facing API for application developers who use the SDK.
 
     The methods exposed by the
-    [GenkitRegistry][genkit.veneer.registry.GenkitRegistry] class are also part
+    [GenkitRegistry][genkit.ai.registry.GenkitRegistry] class are also part
     of the API.
 
 
@@ -172,7 +172,7 @@ class Genkit(GenkitRegistry):
                 else:
                     raise ValueError(
                         f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.veneer.plugin.Plugin`'
+                        f'must be of type `genkit.ai.plugin.Plugin`'
                     )
 
     def start_server(self, spec: server.ServerSpec) -> None:

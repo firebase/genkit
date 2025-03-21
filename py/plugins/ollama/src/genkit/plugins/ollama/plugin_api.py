@@ -8,14 +8,14 @@ Ollama Plugin for Genkit.
 import logging
 
 import ollama as ollama_api
+from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.ollama.embedders import OllamaEmbedder
 from genkit.plugins.ollama.models import (
     OllamaAPITypes,
     OllamaModel,
     OllamaPluginParams,
 )
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 
 LOG = logging.getLogger(__name__)
 

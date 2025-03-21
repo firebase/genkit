@@ -13,16 +13,16 @@ from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
 
-from genkit.ai.generate import (
+from genkit.aio import Channel
+from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
 )
-from genkit.ai.model import (
+from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.aio import Channel
 from genkit.core.action import ActionRunContext
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema

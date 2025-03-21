@@ -5,10 +5,10 @@ import os
 
 from google import genai
 
+from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_ai.schemas import GoogleAiPluginOptions
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 
 PLUGIN_NAME = 'googleai'
 

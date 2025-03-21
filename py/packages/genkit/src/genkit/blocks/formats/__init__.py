@@ -4,13 +4,13 @@
 
 """Genkit format package. Provides implementation for various formats like json, jsonl, etc."""
 
-from genkit.ai.formats.json import JsonFormat
-from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
+from genkit.blocks.formats.json import JsonFormat
+from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 
 
 def package_name() -> str:
     """Get the fully qualified package name."""
-    return 'genkit.ai.formats'
+    return 'genkit.blocks.formats'
 
 
 built_in_formats = [JsonFormat()]

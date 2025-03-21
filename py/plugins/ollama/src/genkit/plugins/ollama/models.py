@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, HttpUrl
 
 import ollama as ollama_api
-from genkit.ai.model import get_basic_usage_stats
+from genkit.blocks.model import get_basic_usage_stats
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,

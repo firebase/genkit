@@ -6,6 +6,7 @@
 import asyncio
 import base64
 
+from genkit.ai import Genkit
 from genkit.core.typing import Message, Role, TextPart
 from genkit.plugins.vertex_ai import (
     ImagenOptions,
@@ -13,7 +14,6 @@ from genkit.plugins.vertex_ai import (
     VertexAI,
     vertexai_name,
 )
-from genkit.veneer.veneer import Genkit
 
 ai = Genkit(
     plugins=[VertexAI()], model=vertexai_name(ImagenVersion.IMAGEN3_FAST)

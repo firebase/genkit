@@ -6,9 +6,9 @@ from unittest import mock
 import ollama as ollama_api
 import pytest
 
+from genkit.ai import Genkit
 from genkit.core.action import ActionKind
 from genkit.core.typing import GenerateResponse, Message, Role, TextPart
-from genkit.veneer import Genkit
 
 
 def test_adding_ollama_chat_model_to_genkit_veneer(

@@ -7,7 +7,7 @@
 
 import pytest
 
-from genkit.ai.model import (
+from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     MessageWrapper,

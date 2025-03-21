@@ -5,6 +5,7 @@ from math import sqrt
 
 from pydantic import BaseModel
 
+from genkit.ai import Genkit
 from genkit.core.typing import GenerateResponse
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.constants import OllamaAPITypes
@@ -13,7 +14,6 @@ from genkit.plugins.ollama.models import (
     ModelDefinition,
     OllamaPluginParams,
 )
-from genkit.veneer import Genkit
 
 EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768

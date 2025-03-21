@@ -8,10 +8,10 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from genkit.ai.formats import FormatDef, Formatter
-from genkit.ai.messages import inject_instructions
-from genkit.ai.middleware import augment_with_context
-from genkit.ai.model import (
+from genkit.blocks.formats import FormatDef, Formatter
+from genkit.blocks.messages import inject_instructions
+from genkit.blocks.middleware import augment_with_context
+from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,
     MessageWrapper,

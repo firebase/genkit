@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import Field
 
-from genkit.ai.model import (
+from genkit.blocks.model import (
     ModelMiddleware,
     ModelMiddlewareNext,
     text_from_content,

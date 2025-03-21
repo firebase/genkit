@@ -5,7 +5,8 @@ import asyncio
 
 from pydantic import BaseModel, Field
 
-from genkit.ai.generate import generate_action
+from genkit.ai import Genkit
+from genkit.blocks.generate import generate_action
 from genkit.core.typing import (
     GenerateActionOptions,
     GenerationCommonConfig,
@@ -18,7 +19,6 @@ from genkit.plugins.google_genai import (
     GoogleGenai,
     google_genai_name,
 )
-from genkit.veneer import Genkit
 
 ai = Genkit(
     plugins=[GoogleGenai()],

@@ -7,6 +7,7 @@
 import pytest
 from pydantic import BaseModel, Field
 
+from genkit.ai import Genkit
 from genkit.core.typing import (
     Message,
     Role,
@@ -17,7 +18,6 @@ from genkit.testing import (
     define_echo_model,
     define_programmable_model,
 )
-from genkit.veneer.veneer import Genkit
 
 
 def setup_test():

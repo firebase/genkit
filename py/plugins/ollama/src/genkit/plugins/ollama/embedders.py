@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import ollama as ollama_api
-from genkit.ai.embedding import EmbedRequest, EmbedResponse
+from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.plugins.ollama.models import EmbeddingModelDefinition
 
 

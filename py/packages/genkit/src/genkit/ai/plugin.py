@@ -10,8 +10,8 @@ It provides a way to initialize and register plugin functionality.
 import abc
 from functools import cached_property
 
+from genkit.ai.registry import GenkitRegistry
 from genkit.core.registry import ActionKind
-from genkit.veneer.registry import GenkitRegistry
 
 
 class Plugin(abc.ABC):

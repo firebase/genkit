@@ -8,6 +8,7 @@ from typing import Any
 import google.genai.types as genai_types
 from google import genai
 
+from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.typing import (
     CustomPart,
@@ -29,7 +30,6 @@ from genkit.core.typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.veneer.registry import GenkitRegistry
 
 gemini10Pro = ModelInfo(
     label='Google AI - Gemini Pro',
