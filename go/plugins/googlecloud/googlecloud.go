@@ -26,49 +26,41 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// ID of the project to use. Required.
-	ProjectID string
-	// Export to Google Cloud even in the dev environment.
-	ForceExport bool
-
-	// The interval for exporting metric data.
-	// The default is 60 seconds.
-	MetricInterval time.Duration
-
-	// The minimum level at which logs will be written.
-	// Defaults to [slog.LevelInfo].
-	LogLevel slog.Leveler
+// GoogleCloud is a Genkit plugin for writing logs to Google Cloud.
+type GoogleCloud struct {
+	ProjectID      string        // ID of the Google Cloud project to use. Required.
+	ForceExport    bool          // Export to Google Cloud even in the dev environment.
+	MetricInterval time.Duration // Interval for exporting metric data. The default is 60 seconds.
+	LogLevel       slog.Leveler  // Minimum level at which logs will be written. Defaults to [slog.LevelInfo].
 }
 
 // Init initializes all telemetry in this package.
 // In the dev environment, this does nothing unless [Options.ForceExport] is true.
-func Init(ctx context.Context, g *genkit.Genkit, cfg Config) (err error) {
+func (gc *GoogleCloud) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("googlecloud.Init: %w", err)
 		}
 	}()
 
-	if cfg.ProjectID == "" {
+	if gc.ProjectID == "" {
 		return errors.New("config missing ProjectID")
 	}
-	shouldExport := cfg.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
+	shouldExport := gc.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
 	if !shouldExport {
 		return nil
 	}
 	// Add a SpanProcessor for tracing.
-	texp, err := texporter.New(texporter.WithProjectID(cfg.ProjectID))
+	texp, err := texporter.New(texporter.WithProjectID(gc.ProjectID))
 	if err != nil {
 		return err
 	}
 	aexp := &adjustingTraceExporter{texp}
 	genkit.RegisterSpanProcessor(g, sdktrace.NewBatchSpanProcessor(aexp))
-	if err := setMeterProvider(cfg.ProjectID, cfg.MetricInterval); err != nil {
+	if err := setMeterProvider(gc.ProjectID, gc.MetricInterval); err != nil {
 		return err
 	}
-	return setLogHandler(cfg.ProjectID, cfg.LogLevel)
+	return setLogHandler(gc.ProjectID, gc.LogLevel)
 }
 
 func setMeterProvider(projectID string, interval time.Duration) error {

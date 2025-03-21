@@ -32,7 +32,7 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = vertexai.Init(ctx, g, &vertexai.Config{ProjectID: *projectID, Location: *location})
+	err = (&vertexai.VertexAI{ProjectID: *projectID, Location: *location}).Init(ctx, g)
 	if err != nil {
 		t.Fatal(err)
 	}
