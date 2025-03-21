@@ -24,8 +24,6 @@ import (
 
 // Plugin is a common interface for plugins.
 type Plugin interface {
-	// Name returns the name of the plugin.
-	Name() string
 	// Init initializes the plugin.
 	Init(ctx context.Context, g *Genkit) error
 }
@@ -145,12 +143,12 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 	return g, nil
 }
 
-// DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
+// DefineFlow creates a [core.Flow] that runs fn, and registers it as a [core.Action]. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *core.Flow[In, Out, struct{}] {
 	return core.DefineFlow(g.reg, name, fn)
 }
 
-// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
+// DefineStreamingFlow creates a streaming [core.Flow] that runs fn, and registers it as a [core.Action].
 //
 // fn takes an input of type In and returns an output of type Out, optionally
 // streaming values of type Stream incrementally by invoking a callback.
@@ -186,7 +184,7 @@ func ListFlows(g *Genkit) []core.Action {
 	return flows
 }
 
-// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
+// DefineModel registers the given generate function as an action, and returns a [ai.Model] that runs it.
 func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.ModelFunc) ai.Model {
 	return ai.DefineModel(g.reg, provider, name, info, fn)
 }
@@ -196,13 +194,13 @@ func IsDefinedModel(g *Genkit, provider, name string) bool {
 	return ai.IsDefinedModel(g.reg, provider, name)
 }
 
-// LookupModel looks up a [Model] registered by [DefineModel].
+// LookupModel looks up a [ai.Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(g *Genkit, provider, name string) ai.Model {
 	return ai.LookupModel(g.reg, provider, name)
 }
 
-// DefineTool defines a tool to be passed to a model generate call.
+// DefineTool defines a [ai.Tool] to be passed to a model generate call.
 func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) *ai.ToolDef[In, Out] {
 	return ai.DefineTool(g.reg, name, description, fn)
 }
@@ -233,8 +231,8 @@ func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
 }
 
 // GenerateWithRequest generates a model response using the given options, middleware, and streaming callback. This is to be used in conjunction with DefinePrompt and Prompt.Render().
-func GenerateWithRequest(ctx context.Context, g *Genkit, req *ai.GenerateActionOptions, mw []ai.ModelMiddleware, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
-	return ai.GenerateWithRequest(ctx, g.reg, req, mw, cb)
+func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.GenerateActionOptions, mw []ai.ModelMiddleware, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+	return ai.GenerateWithRequest(ctx, g.reg, actionOpts, mw, cb)
 }
 
 // Generate generates a model response using the given options.
@@ -258,11 +256,6 @@ func DefineIndexer(g *Genkit, provider, name string, index func(context.Context,
 	return ai.DefineIndexer(g.reg, provider, name, index)
 }
 
-// IsDefinedIndexer reports whether an [Indexer] is defined.
-func IsDefinedIndexer(g *Genkit, provider, name string) bool {
-	return ai.IsDefinedIndexer(g.reg, provider, name)
-}
-
 // LookupIndexer looks up an [Indexer] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
 func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
@@ -275,11 +268,6 @@ func DefineRetriever(g *Genkit, provider, name string, ret func(context.Context,
 	return ai.DefineRetriever(g.reg, provider, name, ret)
 }
 
-// IsDefinedRetriever reports whether a [Retriever] is defined.
-func IsDefinedRetriever(g *Genkit, provider, name string) bool {
-	return ai.IsDefinedRetriever(g.reg, provider, name)
-}
-
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the model was not defined.
 func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
@@ -290,11 +278,6 @@ func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 // [Embedder] that runs it.
 func DefineEmbedder(g *Genkit, provider, name string, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
 	return ai.DefineEmbedder(g.reg, provider, name, embed)
-}
-
-// IsDefinedEmbedder reports whether an embedder is defined.
-func IsDefinedEmbedder(g *Genkit, provider, name string) bool {
-	return ai.IsDefinedEmbedder(g.reg, provider, name)
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
