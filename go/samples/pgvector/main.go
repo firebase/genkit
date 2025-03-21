@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 // This program shows how to use Postgres's pgvector extension with Genkit.
@@ -25,7 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/google"
 	_ "github.com/lib/pq"
 	pgv "github.com/pgvector/pgvector-go"
 )
@@ -56,13 +56,13 @@ func run(g *genkit.Genkit) error {
 		return errors.New("need -apikey")
 	}
 	ctx := context.Background()
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey}); err != nil {
+	if err := google.Init(ctx, g, &google.Config{APIKey: *apiKey}); err != nil {
 		return err
 	}
 	const embedderName = "embedding-001"
-	embedder := googleai.Embedder(g, embedderName)
+	embedder := google.Embedder(g, embedderName)
 	if embedder == nil {
-		return fmt.Errorf("embedder %s is not known to the googleai plugin", embedderName)
+		return fmt.Errorf("embedder %s is not known to the google plugin", embedderName)
 	}
 
 	db, err := sql.Open("postgres", *connString)

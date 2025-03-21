@@ -1,8 +1,8 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 // Package uri extracts the content-type and data from a media part.
-// This is used by the googleai and vertexai plugins.
+// This is used by the Google plugin.
 package uri
 
 import (
@@ -15,14 +15,14 @@ import (
 
 // Data returns the content type and bytes of the media part.
 func Data(p *ai.Part) (string, []byte, error) {
-	if !p.IsMedia() {
+	if !p.IsMedia() && !p.IsData() {
 		return "", nil, errors.New("not a media part")
 	}
 
 	uri := p.Text
-	if strings.HasPrefix(uri, "gs://") {
+	if strings.HasPrefix(uri, "gs://") || strings.HasPrefix(uri, "http") {
 		if p.ContentType == "" {
-			return "", nil, errors.New("must supply contentType when using media from gs:// URLs")
+			return "", nil, errors.New("must supply contentType when using media from gs:// or http(s):// URLs")
 		}
 		return p.ContentType, []byte(uri), nil
 	}

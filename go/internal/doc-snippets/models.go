@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 package snippets
@@ -13,14 +13,16 @@ import (
 	// [START import]
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/google"
 	// [END import]
 )
 
 // Globals for simplification only.
 // Bad style: don't do this.
-var ctx = context.Background()
-var gemini15pro ai.Model
+var (
+	ctx         = context.Background()
+	gemini15pro ai.Model
+)
 
 func m1() error {
 	ctx := context.Background()
@@ -30,16 +32,17 @@ func m1() error {
 	}
 
 	// [START init]
-	// Default to the value of GCLOUD_PROJECT for the project,
+	// Default to the value of GOOGLE_CLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
-	// To specify these values directly, pass a vertexai.Config value to Init.
-	if err := vertexai.Init(ctx, g, nil); err != nil {
+	// To specify these values directly, pass a google.Config value to Init and
+	// remove the VertexAI flag.
+	if err := google.Init(ctx, g, &google.Config{VertexAI: true}); err != nil {
 		return err
 	}
 	// [END init]
 
 	// [START model]
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := google.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START call]
@@ -58,7 +61,7 @@ func opts() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := google.Model(g, "gemini-1.5-flash")
 
 	// [START options]
 	response, err := genkit.Generate(ctx, g,

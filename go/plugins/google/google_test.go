@@ -1,12 +1,14 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package googleai_test
+package google_test
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -19,41 +21,40 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/google"
 )
 
-// The tests here only work with an API key set to a valid value.
 var (
-	apiKey = flag.String("key", "", "Gemini API key")
-	cache  = flag.String("cache", "", "Local file to cache (large text document)")
+	apiKey = flag.String("key", "", "Gemini API key to enable live tests for GoogleAI")
+
+	projectID = flag.String("projectid", "", "VertexAI project identifier")
+	location  = flag.String("location", "us-central1", "geographic location")
+
+	header = flag.Bool("header", false, "run test for x-goog-client-api header")
+	cache  = flag.String("cache", "", "local file to test context-cache (large text document)")
 )
 
-var header = flag.Bool("header", false, "run test for x-goog-client-api header")
-
-// We can't test the DefineAll functions along with the other tests because
-// we get duplicate definitions of models.
-var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
-
-func TestLive(t *testing.T) {
+func TestGoogleAILive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
-	if *testAll {
-		t.Skip("-all provided")
-	}
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
+
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-2.0-flash"))
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+
 	ctx := context.Background()
-	err = googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey})
+	err = google.Init(ctx, g, &google.Config{APIKey: *apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := googleai.Embedder(g, "embedding-001")
+
+	embedder := google.Embedder(g, "embedding-001")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
@@ -229,6 +230,230 @@ func TestLive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
+	t.Run("media content (unstructured data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystemText("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewDataPart("data:image/png;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		}
+		t.Fatal(resp.Text())
+	})
+	t.Run("media content", func(t *testing.T) {
+		// NOTE: enable this test when #2402 gets merged
+		t.Skipf("skipped due no support for media downloads")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewMediaPart("image/png", "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		}
+		t.Fatal(resp.Text())
+	})
+}
+
+func TestVertexAILive(t *testing.T) {
+	if *projectID == "" {
+		t.Skipf("no -projectid provided")
+	}
+	ctx := context.Background()
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = google.Init(ctx, g, &google.Config{ProjectID: *projectID, Location: *location})
+	if err != nil {
+		t.Fatal(err)
+	}
+	embedder := google.Embedder(g, "textembedding-gecko@003")
+
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+		func(ctx *ai.ToolContext, input struct {
+			Value float64
+			Over  float64
+		},
+		) (float64, error) {
+			return math.Pow(input.Value, input.Over), nil
+		},
+	)
+	t.Run("model", func(t *testing.T) {
+		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := resp.Message.Content[0].Text
+		if !strings.Contains(out, "France") {
+			t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
+		}
+		if resp.Request == nil {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
+	t.Run("streaming", func(t *testing.T) {
+		out := ""
+		parts := 0
+		final, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Write one paragraph about the Golden State Warriors."),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				parts++
+				for _, p := range c.Content {
+					out += p.Text
+				}
+				return nil
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+		const want = "Golden"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+		if parts == 1 {
+			// Check if streaming actually occurred.
+			t.Errorf("expecting more than one part")
+		}
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *final.Usage)
+		}
+	})
+	t.Run("tool", func(t *testing.T) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Message.Content[0].Text
+		if !strings.Contains(out, "12.25") {
+			t.Errorf("got %s, expecting it to contain \"12.25\"", out)
+		}
+	})
+	t.Run("embedder", func(t *testing.T) {
+		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(
+			ai.DocumentFromText("time flies like an arrow", nil),
+			ai.DocumentFromText("fruit flies like a banana", nil),
+		))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// There's not a whole lot we can test about the result.
+		// Just do a few sanity checks.
+		for _, de := range res.Embeddings {
+			out := de.Embedding
+			if len(out) < 100 {
+				t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+			}
+			var normSquared float32
+			for _, x := range out {
+				normSquared += x * x
+			}
+			if normSquared < 0.9 || normSquared > 1.1 {
+				t.Errorf("embedding vector not unit length: %f", normSquared)
+			}
+		}
+	})
+	t.Run("cache", func(t *testing.T) {
+		if *cache == "" {
+			t.Skip("no cache contents provided, use -cache flag")
+		}
+
+		textContent, err := os.ReadFile(*cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
+			),
+			ai.WithPromptText("write a summary of the content"),
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// inspect metadata just to make sure the cache was created
+		m := resp.Message.Metadata
+		cacheName := ""
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				cacheName = n
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}),
+			ai.WithMessages(resp.History()...),
+			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := resp.Text()
+		if !strings.Contains(text, "Ahoy") {
+			t.Fatalf("expecting a response as a pirate but got %v", text)
+		}
+
+		// cache metadata should have not changed...
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				if cacheName != n {
+					t.Fatalf("cache name mismatch, want: %s, got: %s", cacheName, n)
+				}
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+	})
 }
 
 func TestCacheHelper(t *testing.T) {
@@ -317,6 +542,8 @@ func TestCacheHelper(t *testing.T) {
 }
 
 func TestHeader(t *testing.T) {
+	// TODO: (haguirre) re-enable this test when issue #2308 is solved
+	t.Skip("no support for custom HTTP server settings yet")
 	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
 	if err != nil {
 		log.Fatal(err)
@@ -332,13 +559,35 @@ func TestHeader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x"}); err != nil {
+	if err := google.Init(ctx, g, &google.Config{APIKey: "x"}); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = genkit.Generate(ctx, g, ai.WithPromptText("hi"))
 	got := header.Get("x-goog-api-client")
+	fmt.Printf("got header: %#v\n\n", got)
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {
-		t.Errorf("got x-goog-api-client header value\n%s\nwanted it to match regexp %s", got, want)
+		t.Errorf("got x-goog-api-client header value: %s \nwanted it to match regexp %s", got, want)
 	}
+}
+
+// Bluey rocks
+func fetchImgAsBase64() (string, error) {
+	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	resp, err := http.Get(imgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	imageBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	base64string := base64.StdEncoding.EncodeToString(imageBytes)
+	return base64string, nil
 }

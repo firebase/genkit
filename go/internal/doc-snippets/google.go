@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 package snippets
@@ -9,30 +9,30 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/google"
 )
 
-func googleaiEx(ctx context.Context) error {
+func googleEx(ctx context.Context) error {
 	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// [START init]
-	if err := googleai.Init(ctx, g, nil); err != nil {
+	if err := google.Init(ctx, g, nil); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourKey := ""
 	// [START initkey]
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: yourKey}); err != nil {
+	if err := google.Init(ctx, g, &google.Config{APIKey: yourKey}); err != nil {
 		return err
 	}
 	// [END initkey]
 
 	// [START model]
-	model := googleai.Model(g, "gemini-1.5-flash")
+	model := google.Model(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
@@ -47,7 +47,7 @@ func googleaiEx(ctx context.Context) error {
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := googleai.Embedder(g, "text-embedding-004")
+	embeddingModel := google.Embedder(g, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]
