@@ -8,27 +8,33 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/openai/openai-go"
+	openaiGo "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
 const provider = "openai"
 
 var (
-	// support values defined from openai docs
-	// https://platform.openai.com/docs/api-reference/chat
-	gpt4Capabilities = ai.ModelInfoSupports{
+	// BasicText describes model capabilities for text-only GPT models.
+	BasicText = ai.ModelInfoSupports{
 		Multiturn:  true,
 		Tools:      true,
-		ToolChoice: true,
 		SystemRole: true,
 		Media:      false,
 	}
 
+	//  Multimodal describes model capabilities for multimodal GPT models.
+	Multimodal = ai.ModelInfoSupports{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      true,
+	}
+
 	supportedModels = map[string]ai.ModelInfo{
-		"gpt-4o-mini": {
+		openaiGo.ChatModelGPT4oMini: {
 			Label:    "GPT-4o-mini",
-			Supports: &gpt4Capabilities,
+			Supports: &Multimodal,
 		},
 	}
 )
@@ -37,7 +43,7 @@ var (
 var state struct {
 	mu      sync.Mutex
 	initted bool
-	client  *openai.Client
+	client  *openaiGo.Client
 }
 
 type Config struct {
@@ -67,7 +73,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	}
 
 	// create client
-	client := openai.NewClient(option.WithAPIKey(apiKey))
+	client := openaiGo.NewClient(option.WithAPIKey(apiKey))
 	state.client = client
 	state.initted = true
 
