@@ -75,20 +75,22 @@ content, define flows, define formats, etc.
 
 """
 
-import logging
+from __future__ import annotations
+
 import os
 import threading
-from asyncio import Future
 from collections.abc import AsyncIterator
-from http.server import HTTPServer
+from concurrent.futures import Future
+from pathlib import Path
 from typing import Any
+
+import structlog
 
 from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit.ai.formats import built_in_formats
 from genkit.ai.generate import (
     StreamingCallback as ModelStreamingCallback,
-    generate_action,
 )
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
@@ -99,8 +101,7 @@ from genkit.ai.prompt import to_generate_action_options
 from genkit.aio import Channel
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.environment import is_dev_environment
-from genkit.core.reflection import make_reflection_server
-from genkit.core.schema import to_json_schema
+from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.typing import (
     DocumentData,
     GenerationCommonConfig,
@@ -116,7 +117,7 @@ DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Genkit(GenkitRegistry):
@@ -147,11 +148,11 @@ class Genkit(GenkitRegistry):
         self.registry.default_model = model
 
         if is_dev_environment():
-            self.thread = threading.Thread(
-                target=self.start_server,
+            self.reflection_server_thread = threading.Thread(
+                target=self._start_reflection_server,
                 args=[reflection_server_spec],
             )
-            self.thread.start()
+            self.reflection_server_thread.start()
 
         for format in built_in_formats:
             self.define_format(format)
@@ -175,26 +176,54 @@ class Genkit(GenkitRegistry):
                         f'must be of type `genkit.veneer.plugin.Plugin`'
                     )
 
-    def start_server(self, spec: server.ServerSpec) -> None:
+    def _start_reflection_server(
+        self, spec: server.ServerSpec, runtimes_dir: str = ''
+    ) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
             spec: Server spec for the reflection server.
+            runtimes_dir: Directory to write runtime files.
+                If not specified, defaults to '$(PWD)/.genkit/runtimes'.
+
+        Returns:
+            None
         """
-        httpd = HTTPServer(
-            (spec.host, spec.port),
-            make_reflection_server(registry=self.registry),
-        )
-        # We need to write the runtime file closest to the point of starting up
-        # the server to avoid race conditions with the manager's runtime
-        # handler.
+        import uvicorn
+
+        logger.info('Starting reflection server...')
+
         runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-        server.create_runtime(
-            runtime_dir=runtimes_dir,
-            reflection_server_spec=spec,
-            at_exit_fn=os.remove,
+
+        def on_startup():
+            """Creates a runtime file for the reflection server."""
+            server.create_runtime(
+                runtime_dir=runtimes_dir,
+                reflection_server_spec=spec,
+                at_exit_fn=os.remove,
+            )
+            host_port = f'{spec.host}:{spec.port}'
+            logger.info(f'Reflection server started at {host_port}')
+
+        def on_shutdown():
+            """Cleans up after the reflection server."""
+            logger.info('Reflection server shutting down...')
+            if Path(runtimes_dir).exists():
+                os.remove(runtimes_dir)
+            logger.info('Reflection server shutdown complete')
+
+        app = create_reflection_asgi_app(
+            registry=self.registry,
+            on_app_startup=on_startup,
+            on_app_shutdown=on_shutdown,
         )
-        httpd.serve_forever()
+
+        uvicorn.run(
+            app,
+            host=spec.host,
+            port=spec.port,
+            log_level='info',
+        )
 
     async def generate(
         self,
@@ -216,8 +245,6 @@ class Genkit(GenkitRegistry):
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-        # TODO:
-        #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
 
@@ -243,9 +270,9 @@ class Genkit(GenkitRegistry):
                 tool requests instead of executing them directly.
             tool_choice: Optional. A `ToolChoice` object specifying how the
                 model should choose which tool to use.
-            config: Optional. A `GenerationCommonConfig` object or a dictionary
-                containing configuration parameters for the generation process.
-                This allows fine-tuning the model's behavior.
+            config: Optional. A dictionary containing configuration parameters
+                for the generation process. This allows fine-tuning the model's
+                behavior.
             max_turns: Optional. The maximum number of turns in a conversation.
             on_chunk: Optional. A callback function of type
                 `ModelStreamingCallback` that is called for each chunk of
@@ -261,7 +288,7 @@ class Genkit(GenkitRegistry):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            use: Optional. A list of `ModelMiddleware` functions to apply to the
+            use: Optional. A list of middleware functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
             docs: Optional. A list of documents to be used for grounding.
@@ -278,8 +305,7 @@ class Genkit(GenkitRegistry):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        return await generate_action(
-            self.registry,
+        return await self.registry.generate_action(
             to_generate_action_options(
                 registry=self.registry,
                 model=model,
@@ -350,9 +376,9 @@ class Genkit(GenkitRegistry):
                 tool requests instead of executing them directly.
             tool_choice: Optional. A `ToolChoice` object specifying how the
                 model should choose which tool to use.
-            config: Optional. A `GenerationCommonConfig` object or a dictionary
-                containing configuration parameters for the generation process.
-                This allows fine-tuning the model's behavior.
+            config: Optional. A dictionary containing configuration parameters
+                for the generation process. This allows fine-tuning the model's
+                behavior.
             max_turns: Optional. The maximum number of turns in a conversation.
             context: Optional. A dictionary containing additional context
                 information that can be used during generation.
@@ -365,7 +391,7 @@ class Genkit(GenkitRegistry):
                 output.
             output_constrained: Optional. Whether to constrain the output to the
                 schema.
-            use: Optional. A list of `ModelMiddleware` functions to apply to the
+            use: Optional. A list of middleware functions to apply to the
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
             docs: Optional. A list of documents to be used for grounding.

@@ -27,16 +27,20 @@ from pathlib import Path
 class ServerSpec:
     """ServerSpec encapsulates the scheme, host and port information.
 
-    This class defines the server binding and listening configuration.
+    This data structure is used for configuring HTTP servers throughout the API.
     """
 
+    scheme: str
+    host: str
     port: int
-    scheme: str = 'http'
-    host: str = 'localhost'
 
     @property
     def url(self) -> str:
-        """URL evaluates to the host base URL given the server specs."""
+        """Return URL from the ServerSpec.
+
+        Returns:
+            The URL string.
+        """
         return f'{self.scheme}://{self.host}:{self.port}'
 
 
@@ -65,6 +69,7 @@ def create_runtime(
     current_datetime = datetime.now()
     runtime_file_name = f'{current_datetime.isoformat()}.json'
     runtime_file_path = Path(os.path.join(runtime_dir, runtime_file_name))
+
     metadata = json.dumps({
         'reflectionApiSpecVersion': 1,
         'id': f'{os.getpid()}',
@@ -72,6 +77,7 @@ def create_runtime(
         'reflectionServerUrl': reflection_server_spec.url,
         'timestamp': f'{current_datetime.isoformat()}',
     })
+
     runtime_file_path.write_text(metadata, encoding='utf-8')
 
     if at_exit_fn:
