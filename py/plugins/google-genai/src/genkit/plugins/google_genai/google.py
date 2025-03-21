@@ -63,14 +63,14 @@ class GoogleGenai(Plugin):
         """Initialize the plugin by registering actions in the registry.
 
         Args:
-            registry: the action registry.
+            ai: the action registry.
 
         Returns:
             None
         """
 
         for version in GeminiVersion:
-            gemini_model = GeminiModel(version, self._client)
+            gemini_model = GeminiModel(version, self._client, ai)
             ai.define_model(
                 name=google_genai_name(version),
                 fn=gemini_model.generate,

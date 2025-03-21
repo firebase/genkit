@@ -41,7 +41,7 @@ async def test_generate_text_response(mocker, version):
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.generate_content.return_value = resp
 
-    gemini = GeminiModel(version, googleai_client_mock)
+    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
     response = await gemini.generate(request, ctx)
@@ -51,7 +51,7 @@ async def test_generate_text_response(mocker, version):
             model=version,
             contents=[
                 genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role='user'
+                    parts=[genai.types.Part(text=request_text)], role=Role.USER
                 )
             ],
             config=None,
@@ -90,7 +90,7 @@ async def test_generate_stream_text_response(mocker, version):
         resp
     ]
     on_chunk_mock = mocker.MagicMock()
-    gemini = GeminiModel(version, googleai_client_mock)
+    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
     response = await gemini.generate(request, ctx)
@@ -100,7 +100,7 @@ async def test_generate_stream_text_response(mocker, version):
             model=version,
             contents=[
                 genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role='user'
+                    parts=[genai.types.Part(text=request_text)], role=Role.USER
                 )
             ],
             config=None,
