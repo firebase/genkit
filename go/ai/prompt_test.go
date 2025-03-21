@@ -162,7 +162,7 @@ type HelloPromptInput struct {
 
 func definePromptModel(reg *registry.Registry) Model {
 	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelInfoSupports{
+		&ModelInfo{Supports: &ModelSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -272,7 +272,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -306,7 +306,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -341,7 +341,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -382,7 +382,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -428,7 +428,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -463,7 +463,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -677,7 +677,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -701,7 +701,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -725,7 +725,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,

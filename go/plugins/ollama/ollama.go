@@ -52,7 +52,7 @@ func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai
 	} else {
 		mi = ai.ModelInfo{
 			Label: model.Name,
-			Supports: &ai.ModelInfoSupports{
+			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
 				Media:      slices.Contains(mediaSupportedModels, model.Name),

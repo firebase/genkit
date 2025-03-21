@@ -35,7 +35,7 @@ func Init() error {
 		providerID, name,
 		&ai.ModelInfo{
 			Label: name,
-			Supports: &ai.ModelInfoSupports{
+			Supports: &ai.ModelSupports{
 				Multiturn:  true,  // Does the model support multi-turn chats?
 				SystemRole: true,  // Does the model support syatem messages?
 				Media:      false, // Can the model accept media input?

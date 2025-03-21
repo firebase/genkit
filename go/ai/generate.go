@@ -78,7 +78,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
 			Label:    name,
-			Supports: &ModelInfoSupports{},
+			Supports: &ModelSupports{},
 			Versions: []string{},
 		}
 	}
@@ -180,9 +180,9 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *OutputConfig
+	var output *ModelOutputConfig
 	if opts.Output != nil {
-		output = &OutputConfig{
+		output = &ModelOutputConfig{
 			Format: opts.Output.Format,
 			Schema: opts.Output.JsonSchema,
 		}
@@ -512,7 +512,7 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *OutputConfig) (*Message, error) {
+func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")
