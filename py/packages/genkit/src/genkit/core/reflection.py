@@ -33,6 +33,7 @@ from genkit.core.registry import Registry
 from genkit.web.requests import (
     is_streaming_requested,
 )
+from genkit.web.servers.signals import terminate_all_servers
 from genkit.web.typing import (
     Application,
     LifespanHandler,
@@ -249,6 +250,19 @@ def create_reflection_asgi_app(
         """
         return JSONResponse(content={'status': 'OK'})
 
+    async def terminate(request: Request) -> JSONResponse:
+        """Handle the quit endpoint.
+
+        Args:
+            request: The Starlette request object.
+
+        Returns:
+            An empty JSON response with status code 200.
+        """
+        await logger.ainfo('Shutting down servers...')
+        terminate_all_servers()
+        return JSONResponse(content={'status': 'OK'})
+
     async def list_actions(request: Request) -> JSONResponse:
         """Handle the request for listing available actions.
 
@@ -327,7 +341,8 @@ def create_reflection_asgi_app(
             version: The Genkit version header value.
 
         Returns:
-            A StreamingResponse with JSON chunks or JSONResponse with error.
+            A StreamingResponse with JSON chunks containing result or error
+            events.
         """
 
         async def sse_generator() -> AsyncGenerator[str, None]:
@@ -410,9 +425,10 @@ def create_reflection_asgi_app(
     return Starlette(
         routes=[
             Route('/api/__health', health_check, methods=['GET']),
+            Route('/api/__quitquitquit', terminate, methods=['POST']),
             Route('/api/actions', list_actions, methods=['GET']),
-            Route('/api/runAction', run_action, methods=['POST']),
             Route('/api/notify', handle_notify, methods=['POST']),
+            Route('/api/runAction', run_action, methods=['POST']),
         ],
         middleware=[
             Middleware(
