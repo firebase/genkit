@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 // This program can be manually tested like so:
@@ -31,7 +31,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
@@ -60,12 +60,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = googleai.Init(context.Background(), g, nil)
+	err = googlegenai.InitGoogleAI(context.Background(), g, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.Model(g, "gemini-2.0-flash")
-	embedder := googleai.Embedder(g, "embedding-001")
+	model := googlegenai.Model(g, "gemini-2.0-flash")
+	embedder := googlegenai.Embedder(g, "embedding-001")
 	if embedder == nil {
 		log.Fatal("embedder is not defined")
 	}

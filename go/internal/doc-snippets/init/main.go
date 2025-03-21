@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 // [START main]
@@ -13,7 +13,7 @@ import (
 	// Import Genkit and the Google AI plugin
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
@@ -26,9 +26,9 @@ func main() {
 
 	// Initialize the Google AI plugin. When you pass nil for the
 	// Config parameter, the Google AI plugin will get the API key from the
-	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
+	// GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	if err := googleai.Init(ctx, g, nil); err != nil {
+	if err := googlegenai.InitGoogleAI(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 
@@ -36,7 +36,7 @@ func main() {
 	genkit.DefineFlow(g, "menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
 		// The Google AI API provides access to several generative models. Here,
 		// we specify gemini-1.5-flash.
-		m := googleai.Model(g, "gemini-1.5-flash")
+		m := googlegenai.Model(g, "gemini-1.5-flash")
 		if m == nil {
 			return "", errors.New("menuSuggestionFlow: failed to find model")
 		}

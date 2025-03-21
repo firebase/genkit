@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 // This program can be manually tested like so:
@@ -30,7 +30,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
 )
 
@@ -90,11 +90,11 @@ func main() {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
 
-	if err := googleai.Init(context.Background(), g, nil); err != nil {
+	if err := googlegenai.InitGoogleAI(context.Background(), g, nil); err != nil {
 		log.Fatal(err)
 	}
 
-	m := googleai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.Model(g, "gemini-2.0-flash")
 	simpleGreetingPrompt, err := genkit.DefinePrompt(g, "simpleGreeting2",
 		ai.WithPromptText(simpleGreetingPromptTemplate),
 		ai.WithModel(m),

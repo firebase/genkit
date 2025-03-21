@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -9,8 +9,8 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
 // menuItem is the data model for an item on the menu.
@@ -50,13 +50,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
-	err = vertexai.Init(ctx, g, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
+	err = googlegenai.InitVertexAI(ctx, g, &googlegenai.VertexAIConfig{Location: os.Getenv("GOOGLE_CLOUD_LOCATION")})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model(g, "gemini-2.0-flash")
-	embedder := vertexai.Embedder(g, "text-embedding-004")
+	model := googlegenai.Model(g, "gemini-2.0-flash")
+	embedder := googlegenai.Embedder(g, "text-embedding-004")
 
 	if err := setup01(g, model); err != nil {
 		log.Fatal(err)
