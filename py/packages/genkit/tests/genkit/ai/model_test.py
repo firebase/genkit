@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import pytest
+
 from genkit.ai.model import (
     GenerateResponseChunkWrapper,
     GenerateResponseWrapper,

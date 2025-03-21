@@ -3,13 +3,14 @@
 import os
 from typing import Union
 
-from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
+
+from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
+from genkit.veneer.plugin import Plugin
+from genkit.veneer.registry import GenkitRegistry
 
 PLUGIN_NAME = 'google_genai'
 

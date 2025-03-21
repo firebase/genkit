@@ -9,6 +9,8 @@ OpenAI Compatible Model handlers for Genkit.
 from collections.abc import Callable
 from typing import Any
 
+from openai import OpenAI
+
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
@@ -19,7 +21,6 @@ from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_MODELS,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from openai import OpenAI
 
 
 class OpenAIModelHandler:

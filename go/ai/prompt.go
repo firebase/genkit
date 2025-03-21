@@ -272,7 +272,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 
 	var tools []string
 	for _, t := range p.Tools {
-		tools = append(tools, t.Definition().Name)
+		tools = append(tools, t.Name())
 	}
 
 	return &GenerateActionOptions{
@@ -283,8 +283,8 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		ReturnToolRequests: p.ReturnToolRequests,
 		Messages:           messages,
 		Tools:              tools,
-		Output: &GenerateActionOptionsOutput{
-			Format:     p.OutputFormat,
+		Output: &GenerateActionOutputConfig{
+			Format:     string(p.OutputFormat),
 			JsonSchema: p.OutputSchema,
 		},
 	}, nil

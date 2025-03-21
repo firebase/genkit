@@ -264,7 +264,7 @@ func IsDefinedRetriever(g *Genkit, provider, name string) bool {
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the model was not defined.
+// It returns nil if the retriever was not defined.
 func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
@@ -284,6 +284,40 @@ func IsDefinedEmbedder(g *Genkit, provider, name string) bool {
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 	return ai.LookupEmbedder(g.reg, provider, name)
+}
+
+// DefineEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method process the input dataset
+// one-by-one.
+func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) (ai.Evaluator, error) {
+	evaluator, err := ai.DefineEvaluator(g.reg, provider, name, options, eval)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator, nil
+}
+
+// DefineBatchEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method provide the full
+// [EvaluatorRequest] to the callback function, giving more flexibilty to the
+// user for processing the data, such as batching or parallelization.
+func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) (ai.Evaluator, error) {
+	evaluator, err := ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator, nil
+}
+
+// IsDefinedEvaluator reports whether a [Evaluator] is defined.
+func IsDefinedEvaluator(g *Genkit, provider, name string) bool {
+	return ai.IsDefinedEvaluator(g.reg, provider, name)
+}
+
+// LookupEvaluator looks up a [Evaluator] registered by [DefineEvaluator].
+// It returns nil if the evaluator was not defined.
+func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
+	return ai.LookupEvaluator(g.reg, provider, name)
 }
 
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.

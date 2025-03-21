@@ -15,6 +15,8 @@ we support:
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 from asgiref import typing as atyping
 
 try:
@@ -70,3 +72,6 @@ else:
     type Receive = atyping.ASGIReceiveCallable
     type Scope = atyping.Scope
     type Send = atyping.ASGISendCallable
+
+# Type aliases for the web framework.
+type LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]

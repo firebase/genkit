@@ -16,10 +16,12 @@ from enum import StrEnum
 from functools import cached_property
 from typing import Any
 
-from genkit.core.aio import Channel
-from genkit.core.codec import dump_json
-from genkit.core.tracing import tracer
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+from genkit.aio import Channel
+from genkit.codec import dump_json
+from genkit.core.error import GenkitError
+from genkit.core.tracing import tracer
 
 # TODO: add typing, generics
 StreamingCallback = Callable[[Any], None]
@@ -232,7 +234,8 @@ class Action:
 
         action_args = input_spec.args.copy()
 
-        # special case when using a method as an action, we ignore first "self" arg
+        # Special case when using a method as an action, we ignore first "self"
+        # arg.
         if (
             len(action_args) > 0
             and len(action_args) <= 3
@@ -272,15 +275,22 @@ class Action:
                     input=input,
                 )
 
-                match len(action_args):
-                    case 0:
-                        output = await afn()
-                    case 1:
-                        output = await afn(input)
-                    case 2:
-                        output = await afn(input, ctx)
-                    case _:
-                        raise ValueError('action fn must have 0-2 args...')
+                try:
+                    match len(action_args):
+                        case 0:
+                            output = await afn()
+                        case 1:
+                            output = await afn(input)
+                        case 2:
+                            output = await afn(input, ctx)
+                        case _:
+                            raise ValueError('action fn must have 0-2 args...')
+                except Exception as e:
+                    raise GenkitError(
+                        cause=e,
+                        message=f'Error while running action {self.name}',
+                        trace_id=trace_id,
+                    )
 
                 record_output_metadata(span, output=output)
                 return ActionResponse(response=output, trace_id=trace_id)
@@ -307,15 +317,22 @@ class Action:
                     input=input,
                 )
 
-                match len(action_args):
-                    case 0:
-                        output = fn()
-                    case 1:
-                        output = fn(input)
-                    case 2:
-                        output = fn(input, ctx)
-                    case _:
-                        raise ValueError('action fn must have 0-2 args...')
+                try:
+                    match len(action_args):
+                        case 0:
+                            output = fn()
+                        case 1:
+                            output = fn(input)
+                        case 2:
+                            output = fn(input, ctx)
+                        case _:
+                            raise ValueError('action fn must have 0-2 args...')
+                except Exception as e:
+                    raise GenkitError(
+                        cause=e,
+                        message=f'Error while running action {self.name}',
+                        trace_id=trace_id,
+                    )
 
                 record_output_metadata(span, output=output)
                 return ActionResponse(response=output, trace_id=trace_id)
@@ -441,8 +458,8 @@ class Action:
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ) -> tuple[
-        AsyncIterator,
-        asyncio.Future,
+        AsyncIterator[ActionResponse],
+        asyncio.Future[ActionResponse],
     ]:
         """Run the action and return an async iterator of the results.
 
@@ -466,7 +483,7 @@ class Action:
         )
         stream.set_close_future(resp)
 
-        result_future = asyncio.Future()
+        result_future: asyncio.Future[ActionResponse] = asyncio.Future()
         stream.closed.add_done_callback(
             lambda _: result_future.set_result(stream.closed.result().response)
         )

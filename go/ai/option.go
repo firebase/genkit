@@ -25,7 +25,7 @@ type commonOptions struct {
 	Model                   Model             // Model to use.
 	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
 	Config                  any               // Model configuration. If nil will be taken from the prompt config.
-	Tools                   []Tool            // Tools to use.
+	Tools                   []ToolRef         // References to tools to use.
 	ToolChoice              ToolChoice        // Whether tool calls are required, disabled, or optional.
 	MaxTurns                int               // Maximum number of tool call iterations.
 	ReturnToolRequests      bool              // Whether to return tool requests instead of making the tool calls and continuing the generation.
@@ -142,7 +142,7 @@ func WithMessagesFn(fn messagesFn) CommonOption {
 
 // WithTools sets the tools to use for the generate request.
 // Tools cannot be combined with WithToolChoice(ToolChoiceNone).
-func WithTools(tools ...Tool) CommonOption {
+func WithTools(tools ...ToolRef) CommonOption {
 	return &commonOptions{Tools: tools}
 }
 

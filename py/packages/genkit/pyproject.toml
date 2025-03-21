@@ -23,6 +23,10 @@ dependencies = [
   "partial-json-parser>=0.2.1.1.post5",
   "json5>=0.10.0",
   "structlog>=25.2.0",
+  "asgiref>=3.8.1",
+  "httpx>=0.28.1",
+  "psutil>=7.0.0",
+  "starlette>=0.46.1",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }
@@ -39,5 +43,5 @@ requires      = ["hatchling"]
 packages = ["src/genkit"]
 
 [tool.pytest.ini_options]
-pythonpath = [".", "tests", "src"]
+pythonpath = [".", "src", "tests", "packages/genkit/src"]
 testpaths  = ["tests"]

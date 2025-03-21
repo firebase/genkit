@@ -25,11 +25,11 @@ def run_loop(coro: Coroutine[Any, Any, Any], *args: Any, **kwargs: Any) -> Any:
     try:
         import uvloop
 
-        logger.debug('✅ Event loop is using uvloop (recommended️)')
+        logger.debug('✅ Using uvloop (recommended)')
         return uvloop.run(coro, *args, **kwargs)
     except ImportError as e:
         logger.debug(
-            '❓ Event loop is using asyncio (install uvloop for better performance)',
+            '❓ Using asyncio (install uvloop for better performance)',
             error=e,
         )
         return asyncio.run(coro, *args, **kwargs)

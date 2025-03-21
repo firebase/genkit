@@ -5,6 +5,8 @@ from collections.abc import Awaitable, Callable
 from functools import cached_property
 from typing import Any
 
+from pydantic import Field
+
 from genkit.ai.model import (
     ModelMiddleware,
     ModelMiddlewareNext,
@@ -19,7 +21,6 @@ from genkit.core.typing import (
     Part,
     TextPart,
 )
-from pydantic import Field
 
 CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
 
