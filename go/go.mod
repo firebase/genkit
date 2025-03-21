@@ -14,9 +14,10 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
+	github.com/google/dotprompt/go v0.0.0-20250320235217-796c6442a3c1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/invopop/jsonschema v0.12.0
+	github.com/invopop/jsonschema v0.13.0
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
 	github.com/pgvector/pgvector-go v0.2.0
