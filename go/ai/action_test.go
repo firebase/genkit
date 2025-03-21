@@ -85,6 +85,7 @@ func TestGenerateAction(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create registry: %v", err)
 			}
+			ConfigureFormats(r)
 
 			pm := defineProgrammableModel(r)
 

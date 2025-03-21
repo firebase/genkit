@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -101,7 +100,6 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	}
 
 	fn = core.ChainMiddleware(ValidateSupport(name, info), SimulateConstrainedGeneration(name, info))(fn)
-	//fn = core.ChainMiddleware(ValidateSupport(name, info))(fn)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
@@ -211,9 +209,16 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			return nil, err
 		}
 
-		resp.Message, err = validResponse(ctx, resp)
+		// Parse message with the correct formatter
+		resolvedFormat, err := ResolveFormat(r, req.Output)
 		if err != nil {
 			return nil, err
+		}
+
+		resp.Message, err = resolvedFormat.Handler(req.Output.Schema).ParseMessage(resp.Message)
+		if err != nil {
+			logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
+			return nil, errors.New("generation did not result in a message matching expected schema")
 		}
 
 		toolCount := 0
@@ -340,8 +345,6 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 
 	return resp, nil
 }
-
-// TODO: Generate per format? Rename generateData to GenerateJSON
 
 // Name returns the name of the model.
 func (m *modelActionDef) Name() string { return (*ModelAction)(m).Name() }
@@ -482,65 +485,6 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	newReq.Messages = append(append([]*Message{}, req.Messages...), resp.Message, toolMessage)
 
 	return newReq, nil, nil
-}
-
-// conformOutput appends a message to the request indicating conformance to the expected schema.
-func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
-		jsonBytes, err := json.Marshal(req.Output.Schema)
-		if err != nil {
-			return fmt.Errorf("expected schema is not valid: %w", err)
-		}
-
-		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
-		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
-	}
-	return nil
-}
-
-// validResponse check the message matches the expected schema.
-// It will strip JSON markdown delimiters from the response.
-func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
-	msg, err := validMessage(resp.Message, resp.Request.Output)
-	if err != nil {
-		logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
-		return nil, errors.New("generation did not result in a message matching expected schema")
-	}
-	return msg, nil
-}
-
-// validMessage will validate the message against the expected schema.
-// It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *OutputConfig) (*Message, error) {
-	if output != nil && output.Format == string(OutputFormatJSON) {
-		if m == nil {
-			return nil, errors.New("message is empty")
-		}
-		if len(m.Content) == 0 {
-			return nil, errors.New("message has no content")
-		}
-
-		for i, part := range m.Content {
-			if !part.IsText() {
-				continue
-			}
-
-			text := base.ExtractJSONFromMarkdown(part.Text)
-
-			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(output.Schema)
-			if err != nil {
-				return nil, fmt.Errorf("expected schema is not valid: %w", err)
-			}
-			if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
-				return nil, err
-			}
-
-			m.Content[i] = NewJSONPart(text)
-		}
-	}
-	return m, nil
 }
 
 // Text returns the contents of the first candidate in a

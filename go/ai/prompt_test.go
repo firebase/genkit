@@ -235,6 +235,8 @@ func TestValidPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ConfigureFormats(reg)
+
 	model := definePromptModel(reg)
 
 	var tests = []struct {
@@ -594,6 +596,8 @@ func TestOptionsPatternExecute(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ConfigureFormats(reg)
+
 	testModel := DefineModel(reg, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
@@ -651,6 +655,8 @@ func TestDefaultsOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Set up default formats
+	ConfigureFormats(reg)
 
 	testModel := DefineModel(reg, "defineoptions", "test", nil, testGenerate)
 	model := definePromptModel(reg)

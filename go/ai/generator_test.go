@@ -22,6 +22,11 @@ type StructuredResponse struct {
 
 var r, _ = registry.New()
 
+func init() {
+	// Set up default formats
+	ConfigureFormats(r)
+}
+
 // echoModel attributes
 var (
 	modelName = "echo"
@@ -32,7 +37,7 @@ var (
 			Tools:       true,
 			SystemRole:  true,
 			Media:       false,
-			Constrained: ConstrainedGenerationNone,
+			Constrained: ModelInfoSupportsConstrainedNone,
 		},
 		Versions: []string{"echo-001", "echo-002"},
 	}
@@ -245,10 +250,7 @@ func TestGenerate(t *testing.T) {
 					Role: RoleSystem,
 					Content: []*Part{
 						NewTextPart("You are a helpful assistant."),
-						{
-							ContentType: "plain/text",
-							Text:        "ignored (conformance message)",
-						},
+						NewTextPart("ignored (conformance message)"),
 					},
 				},
 				NewUserTextMessage("How many bananas are there?"),
@@ -268,6 +270,7 @@ func TestGenerate(t *testing.T) {
 					"required": []any{string("subject"), string("location")},
 					"type":     string("object"),
 				},
+				Constrained: false,
 			},
 			Tools: []*ToolDefinition{
 				{
@@ -315,8 +318,6 @@ func TestGenerate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		//fmt.Print(base.PrettyJSONString(res.Request))
 
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
@@ -681,4 +682,13 @@ func errorContains(t *testing.T, err error, want string) {
 	} else if !strings.Contains(err.Error(), want) {
 		t.Errorf("got error message %q, want it to contain %q", err, want)
 	}
+}
+
+func validMessage(m *Message, output *OutputConfig) (*Message, error) {
+	resolvedFormat, err := ResolveFormat(r, output)
+	if err != nil {
+		return nil, err
+	}
+
+	return resolvedFormat.Handler(output.Schema).ParseMessage(m)
 }

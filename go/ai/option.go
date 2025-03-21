@@ -363,9 +363,8 @@ func WithPromptFn(fn promptFn) PromptingOption {
 
 // outputOptions are options for the output of a prompt or generate request.
 type outputOptions struct {
-	OutputSchema map[string]any        // JSON schema of the output.
-	OutputFormat OutputFormat          // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
-	Constrained  ConstrainedGeneration // Whether to use the Models constrained generation. Will default to simulation constraint by injecting instructions.
+	OutputSchema map[string]any // JSON schema of the output.
+	OutputFormat OutputFormat   // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
 }
 
 // OutputOption is an option for the output of a prompt or generate request.
@@ -390,13 +389,6 @@ func (o *outputOptions) applyOutput(opts *outputOptions) error {
 			return errors.New("cannot set output format more than once (WithOutputFormat)")
 		}
 		opts.OutputFormat = o.OutputFormat
-	}
-
-	if o.Constrained != "" {
-		if opts.Constrained != "" {
-			return errors.New("cannot set constrained generation more than once (WithConstrained)")
-		}
-		opts.Constrained = o.Constrained
 	}
 
 	return nil

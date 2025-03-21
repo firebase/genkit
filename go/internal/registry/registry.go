@@ -24,12 +24,13 @@ type Registry struct {
 	mu      sync.Mutex
 	frozen  bool // when true, no more additions
 	actions map[string]action.Action
-	values  map[string]interface{}
+	values  map[string]any
 }
 
 func New() (*Registry, error) {
 	r := &Registry{
 		actions: map[string]action.Action{},
+		values:  map[string]any{},
 	}
 	r.tstate = tracing.NewState()
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
@@ -96,7 +97,7 @@ func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 // RegisterValue records the value in the registry.
 // It panics if an action with the same type and name is already
 // registered.
-func (r *Registry) RegisterValue(valueType, name, value interface{}) {
+func (r *Registry) RegisterValue(valueType, name, value any) {
 	key := fmt.Sprintf("/%s/%s", valueType, name)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -107,20 +108,21 @@ func (r *Registry) RegisterValue(valueType, name, value interface{}) {
 		panic(fmt.Sprintf("value %q is already registered", key))
 	}
 	r.values[key] = value
+
 	slog.Debug("RegisterValue",
 		"type", valueType,
 		"name", name)
 }
 
 // LookupValue returns the value for the given key, or nil if there is none.
-func (r *Registry) LookupValue(key string) interface{} {
+func (r *Registry) LookupValue(key string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.values[key]
 }
 
 // ListValues returns a list of values of all registered values.
-func (r *Registry) ListValues() map[string]interface{} {
+func (r *Registry) ListValues() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.values

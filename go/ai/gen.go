@@ -186,14 +186,15 @@ const (
 )
 
 type ModelInfoSupports struct {
-	ContentType []string `json:"contentType,omitempty"`
-	Context     bool     `json:"context,omitempty"`
-	Media       bool     `json:"media,omitempty"`
-	Multiturn   bool     `json:"multiturn,omitempty"`
-	Output      []string `json:"output,omitempty"`
-	SystemRole  bool     `json:"systemRole,omitempty"`
-	ToolChoice  bool     `json:"toolChoice,omitempty"`
-	Tools       bool     `json:"tools,omitempty"`
+	Constrained ModelInfoSupportsConstrained `json:"constrained,omitempty"`
+	ContentType []string                     `json:"contentType,omitempty"`
+	Context     bool                         `json:"context,omitempty"`
+	Media       bool                         `json:"media,omitempty"`
+	Multiturn   bool                         `json:"multiturn,omitempty"`
+	Output      []string                     `json:"output,omitempty"`
+	SystemRole  bool                         `json:"systemRole,omitempty"`
+	ToolChoice  bool                         `json:"toolChoice,omitempty"`
+	Tools       bool                         `json:"tools,omitempty"`
 }
 
 type ModelInfoSupportsConstrained string

@@ -17,24 +17,23 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 )
 
-// type Format struct {
-// 	Name    string
-// 	Config  ModelRequestOutput
-// 	Handler func(schema *jsonschema.Schema) FormatterHandler
-// }
+var DEFAULT_FORMATS = []Formatter{
+	JSONFormatter{FormatName: "json"},
+	TextFormatter{FormatName: "text"},
+}
 
 // Formatter represents the Formatter interface.
 type Formatter interface {
 	Name() string
-	Config() ModelRequestOutput
-	Handler(schema *jsonschema.Schema) FormatterHandler
+	Config() OutputConfig
+	Handler(schema map[string]any) FormatterHandler
 }
 
 // FormatterHandler represents the handler part of the Formatter interface.
@@ -51,13 +50,42 @@ func DefineFormatter(
 	r.RegisterValue("format", name, formatter)
 }
 
-//Move validResponse(ctx, resp) to formatter?
+func ConfigureFormats(reg *registry.Registry) {
+	for _, format := range DEFAULT_FORMATS {
+		DefineFormatter(reg,
+			format.Name(),
+			format,
+		)
+	}
+}
 
+func ResolveFormat(reg *registry.Registry, config *OutputConfig) (Formatter, error) {
+	var formatter any
+
+	if config.Format == "" {
+		formatter = reg.LookupValue("/format/text")
+	}
+
+	if config.Schema != nil && config.Format == "" {
+		formatter = reg.LookupValue("/format/json")
+	}
+
+	if config.Format != "" {
+		formatter = reg.LookupValue(fmt.Sprintf("/format/%s", config.Format))
+	}
+
+	f, ok := formatter.(Formatter)
+	if ok {
+		return f, nil
+	} else {
+		return nil, errors.New("invalid output format")
+	}
+}
 
 // SimulateConstrainedGeneration simulates constrained generation by injecting generation instructions into the user message.
 func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
-		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
 				info = &ModelInfo{
 					Supports: &ModelInfoSupports{},
@@ -65,16 +93,17 @@ func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddlewar
 				}
 			}
 
-			if info.Supports.Constrained == ConstrainedGenerationNone || (info.Supports.Constrained == ConstrainedGenerationNoTools && len(input.Tools) > 0) {
+			if info.Supports.Constrained == ModelInfoSupportsConstrainedNone || (info.Supports.Constrained == ModelInfoSupportsConstrainedNoTools && len(req.Tools) > 0) {
 				// If constrained in model request is set to true and schema is set
-				if input.Output != nil && input.Output.Format == OutputFormatJSON && len(input.Messages) > 0 {
-					instructions := defaultConstrainedGenerationInstructions(input.Output.Schema)
-					input.Messages = injectInstructions(input.Messages, instructions)
-					input.Output.Contrained = false
+				if req.Output.Format == string(OutputFormatJSON) && req.Output.Schema != nil && len(req.Messages) > 0 {
+					instructions := defaultConstrainedGenerationInstructions(req.Output.Schema)
+					req.Messages = injectInstructions(req.Messages, instructions)
+					// we're simulating it, so to the underlying model it's unconstrained.
+					req.Output.Constrained = false
 				}
 			}
 
-			return next(ctx, input, cb)
+			return next(ctx, req, cb)
 		}
 	}
 }
