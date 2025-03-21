@@ -5,8 +5,8 @@
 
 from typing import Any
 
-from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import (
+from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
+from genkit.blocks.model import (
     GenerateResponseWrapper,
     MessageWrapper,
 )

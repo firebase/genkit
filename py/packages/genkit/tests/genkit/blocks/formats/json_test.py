@@ -5,8 +5,8 @@
 
 """Tests for the JSON format"""
 
-from genkit.ai.formats import JsonFormat
-from genkit.ai.model import GenerateResponseChunkWrapper, MessageWrapper
+from genkit.blocks.formats import JsonFormat
+from genkit.blocks.model import GenerateResponseChunkWrapper, MessageWrapper
 from genkit.core.typing import GenerateResponseChunk, Message, TextPart
 
 

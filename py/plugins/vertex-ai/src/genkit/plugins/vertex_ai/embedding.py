@@ -8,7 +8,7 @@ from typing import Any
 
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
-from genkit.ai.document import Document
+from genkit.blocks.document import Document
 from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
 
 

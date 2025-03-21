@@ -7,7 +7,7 @@ import abc
 from collections.abc import Callable
 from typing import Any
 
-from genkit.ai.model import (
+from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     MessageWrapper,
 )

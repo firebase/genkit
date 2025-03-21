@@ -30,11 +30,11 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from genkit.ai.embedding import EmbedderFn
-from genkit.ai.formats.types import FormatDef
-from genkit.ai.model import ModelFn, ModelMiddleware
-from genkit.ai.prompt import define_prompt
-from genkit.ai.retriever import RetrieverFn
+from genkit.blocks.embedding import EmbedderFn
+from genkit.blocks.formats.types import FormatDef
+from genkit.blocks.model import ModelFn, ModelMiddleware
+from genkit.blocks.prompt import define_prompt
+from genkit.blocks.retriever import RetrieverFn
 from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry

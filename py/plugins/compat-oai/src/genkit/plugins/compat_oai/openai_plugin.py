@@ -8,13 +8,13 @@ OpenAI OpenAI API Compatible Plugin for Genkit.
 
 from openai import OpenAI as OpenAIClient
 
+from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_MODELS,
     OpenAIModelHandler,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 
 
 class OpenAI(Plugin):

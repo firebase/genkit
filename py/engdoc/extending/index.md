@@ -52,8 +52,8 @@ lib: {
   opentelemetry
 }
 
-genkit.ai -> genkit.core
-genkit.ai -> lib.dotprompt
+genkit.blocks -> genkit.core
+genkit.blocks -> lib.dotprompt
 genkit.core -> lib.asgiref
 genkit.core -> lib.opentelemetry
 genkit.core -> lib.pydantic

@@ -5,6 +5,7 @@ from unittest import mock
 
 import pytest
 
+from genkit.ai import Genkit
 from genkit.plugins.ollama import Ollama
 from genkit.plugins.ollama.models import (
     ModelDefinition,
@@ -12,7 +13,6 @@ from genkit.plugins.ollama.models import (
     OllamaPluginParams,
 )
 from genkit.plugins.ollama.plugin_api import ollama_api
-from genkit.veneer import Genkit
 
 
 @pytest.fixture

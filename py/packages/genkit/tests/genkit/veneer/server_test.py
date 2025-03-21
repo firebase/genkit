@@ -8,7 +8,7 @@ import json
 import os
 import tempfile
 
-from genkit.veneer import server
+from genkit.ai import server
 
 
 def test_server_spec() -> None:

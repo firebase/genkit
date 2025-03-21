@@ -14,6 +14,7 @@ from typing import Any
 
 import vertexai.generative_models as genai
 
+from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.typing import (
     CustomPart,
@@ -29,7 +30,6 @@ from genkit.core.typing import (
     ToolRequestPart,
     ToolResponsePart,
 )
-from genkit.veneer.registry import GenkitRegistry
 
 LOG = logging.getLogger(__name__)
 

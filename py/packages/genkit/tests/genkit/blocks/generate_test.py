@@ -11,8 +11,9 @@ import pytest
 import yaml
 from pydantic import TypeAdapter
 
-from genkit.ai.generate import generate_action
-from genkit.ai.model import text_from_content, text_from_message
+from genkit.ai import Genkit
+from genkit.blocks.generate import generate_action
+from genkit.blocks.model import text_from_content, text_from_message
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -30,7 +31,6 @@ from genkit.testing import (
     define_echo_model,
     define_programmable_model,
 )
-from genkit.veneer.veneer import Genkit
 
 
 @pytest.fixture

@@ -8,7 +8,8 @@ import json
 
 from pydantic import BaseModel, Field
 
-from genkit.ai.generate import generate_action
+from genkit.ai import Genkit
+from genkit.blocks.generate import generate_action
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -24,7 +25,6 @@ from genkit.plugins.vertex_ai import (
     VertexAI,
     vertexai_name,
 )
-from genkit.veneer.veneer import Genkit
 
 ai = Genkit(
     plugins=[VertexAI()],

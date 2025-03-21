@@ -37,7 +37,7 @@ from genkit.core.typing import (
 # a GenerateResponse
 type ModelFn = Callable[[GenerateRequest], GenerateResponse]
 
-# These types are duplicated in genkit.ai.formats.types due to circular deps
+# These types are duplicated in genkit.blocks.formats.types due to circular deps
 type MessageParser[T] = Callable[[MessageWrapper], T]
 type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
 
