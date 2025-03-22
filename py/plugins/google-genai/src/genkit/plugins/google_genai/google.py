@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
@@ -51,7 +53,7 @@ class GoogleGenai(Plugin):
         project: str | None = None,
         location: str | None = None,
         debug_config: DebugConfig | None = None,
-        http_options: Union[HttpOptions, HttpOptionsDict] | None = None,
+        http_options: HttpOptions | HttpOptionsDict | None = None,
     ):
         api_key = api_key if api_key else os.getenv('GEMINI_API_KEY')
         if not vertexai and not api_key:
