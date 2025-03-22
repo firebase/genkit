@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { GenkitErrorData } from '../types/error';
+import { GenkitError } from '../types/error';
 
 export type Runtime = 'nodejs' | 'go' | undefined;
 
 export class GenkitToolsError extends Error {
-  public data?: GenkitErrorData;
+  public data?: GenkitError;
 
   constructor(msg: string, options?: ErrorOptions) {
     super(msg, options);
