@@ -6,6 +6,23 @@
 This module provides a reflection API server for inspection and interaction
 during development. It exposes endpoints for health checks, action discovery,
 and action execution.
+
+## Caveats
+
+The reflection API server predates the flows server implementation and differs
+in the protocol it uses to interface with the Dev UI. The streaming protocol
+uses unadorned JSON per streamed chunk. This may change in the future to use
+Server-Sent Events (SSE).
+
+## Key endpoints
+
+    | Method | Path                | Handler               |
+    |--------|---------------------|-----------------------|
+    | GET    | /api/__health       | Health check          |
+    | GET    | /api/actions        | List actions          |
+    | POST   | /api/__quitquitquit | Trigger shutdown      |
+    | POST   | /api/notify         | Handle notification   |
+    | POST   | /api/runAction      | Run action (streaming)|
 """
 
 from __future__ import annotations
@@ -30,10 +47,10 @@ from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
 from genkit.core.registry import Registry
+from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.requests import (
     is_streaming_requested,
 )
-from genkit.web.servers.signals import terminate_all_servers
 from genkit.web.typing import (
     Application,
     LifespanHandler,
@@ -216,14 +233,22 @@ def create_reflection_asgi_app(
 ) -> Application:
     """Create and return a ASGI application for the Genkit reflection API.
 
+    Caveats:
+
+        The reflection API server predates the flows server implementation and
+        differs in the protocol it uses to interface with the Dev UI. The
+        streaming protocol uses unadorned JSON per streamed chunk. This may
+        change in the future to use Server-Sent Events (SSE).
+
     Key endpoints:
 
-        | Method | Path           | Handler               |
-        |--------|----------------|-----------------------|
-        | GET    | /api/__health  | Health check          |
-        | GET    | /api/actions   | List actions          |
-        | POST   | /api/runAction | Run action (streaming)|
-        | POST   | /api/notify    | Handle notification   |
+        | Method | Path                | Handler               |
+        |--------|---------------------|-----------------------|
+        | GET    | /api/__health       | Health check          |
+        | GET    | /api/actions        | List actions          |
+        | POST   | /api/__quitquitquit | Trigger shutdown      |
+        | POST   | /api/notify         | Handle notification   |
+        | POST   | /api/runAction      | Run action (streaming)|
 
     Args:
         registry: The registry to use for the reflection server.
@@ -239,7 +264,7 @@ def create_reflection_asgi_app(
         An ASGI application configured with the given registry.
     """
 
-    async def health_check(request: Request) -> JSONResponse:
+    async def handle_health_check(request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
@@ -263,7 +288,7 @@ def create_reflection_asgi_app(
         terminate_all_servers()
         return JSONResponse(content={'status': 'OK'})
 
-    async def list_actions(request: Request) -> JSONResponse:
+    async def handle_list_actions(request: Request) -> JSONResponse:
         """Handle the request for listing available actions.
 
         Args:
@@ -293,7 +318,7 @@ def create_reflection_asgi_app(
             headers={'x-genkit-version': version},
         )
 
-    async def run_action(
+    async def handle_run_action(
         request: Request,
     ) -> JSONResponse | StreamingResponse:
         """Handle the runAction endpoint for executing registered actions.
@@ -345,7 +370,7 @@ def create_reflection_asgi_app(
             events.
         """
 
-        async def sse_generator() -> AsyncGenerator[str, None]:
+        async def stream_generator() -> AsyncGenerator[str, None]:
             """Server-Sent Events Generator for streaming JSON chunks.
 
             Since we generate a stream of event objects, and the headers will
@@ -379,8 +404,14 @@ def create_reflection_asgi_app(
                 yield f'{json.dumps(error_response)}\n'
 
         return StreamingResponse(
-            sse_generator(),
-            media_type='text/event-stream',
+            stream_generator(),
+            # TODO: Should this be set to event-stream in the future?
+            # media_type='text/event-stream',
+            #
+            # Apparently, the Genkit dev server uses
+            # an older protocol that uses JSON chunks rather
+            # than event streams.
+            media_type='application/json',
             headers={'x-genkit-version': version},
         )
 
@@ -424,11 +455,11 @@ def create_reflection_asgi_app(
 
     return Starlette(
         routes=[
-            Route('/api/__health', health_check, methods=['GET']),
+            Route('/api/__health', handle_health_check, methods=['GET']),
             Route('/api/__quitquitquit', terminate, methods=['POST']),
-            Route('/api/actions', list_actions, methods=['GET']),
+            Route('/api/actions', handle_list_actions, methods=['GET']),
             Route('/api/notify', handle_notify, methods=['POST']),
-            Route('/api/runAction', run_action, methods=['POST']),
+            Route('/api/runAction', handle_run_action, methods=['POST']),
         ],
         middleware=[
             Middleware(

@@ -172,8 +172,14 @@ class Registry:
         kind, name = parse_action_key(key)
         return self.lookup_action(kind, name)
 
-    def list_serializable_actions(self) -> dict[str, Action] | None:
+    def list_serializable_actions(
+        self, allowed_kinds: set[ActionKind] | None = None
+    ) -> dict[str, Action] | None:
         """Enlist all the actions into a dictionary.
+
+        Args:
+            allowed_kinds: The types of actions to list. If None, all actions
+            are listed.
 
         Returns:
             A dictionary of serializable Actions.
@@ -181,6 +187,8 @@ class Registry:
         with self._lock:
             actions = {}
             for kind in self._entries:
+                if allowed_kinds is not None and kind not in allowed_kinds:
+                    continue
                 for name in self._entries[kind]:
                     action = self.lookup_action(kind, name)
                     if action is not None:
