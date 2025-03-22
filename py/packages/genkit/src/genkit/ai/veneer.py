@@ -102,7 +102,6 @@ from genkit.blocks.model import (
 from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.environment import is_dev_environment
-from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     DocumentData,
@@ -111,6 +110,7 @@ from genkit.core.typing import (
     Part,
     ToolChoice,
 )
+from genkit.web.server import make_reflection_server
 
 DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
     scheme='http', host='127.0.0.1', port=3100

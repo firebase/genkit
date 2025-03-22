@@ -13,9 +13,9 @@ different ports that need to share resources and coordinate shutdown.
 import asyncio
 import structlog
 import signal
-from genkit.web.servers import ServersManager
-from genkit.web.servers import Server, ServerConfig
-from genkit.web.servers import ASGIServerAdapter, ServerType
+from genkit.web.manager import ServersManager
+from genkit.web.manager import Server, ServerConfig
+from genkit.web.manager import ASGIServerAdapter, ServerType
 
 logger = structlog.get_logger(__name__)
 
@@ -75,7 +75,7 @@ from .signals import SignalHandler
 logger = structlog.get_logger(__name__)
 
 
-class ServersManager:
+class ServerManager:
     """Manages multiple ASGI servers on a single event loop.
 
     The ServersManager provides a unified interface for starting, managing,
@@ -417,7 +417,7 @@ class ServersManager:
 
     # TODO: I'm not sure the async context manager is useful, but it's here for
     # now.
-    async def __aenter__(self) -> ServersManager:
+    async def __aenter__(self) -> ServerManager:
         """Enter the async context, starting all servers.
 
         Returns:
