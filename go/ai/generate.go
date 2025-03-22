@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -78,7 +91,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
 			Label:    name,
-			Supports: &ModelInfoSupports{},
+			Supports: &ModelSupports{},
 			Versions: []string{},
 		}
 	}
@@ -180,9 +193,9 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *OutputConfig
+	var output *ModelOutputConfig
 	if opts.Output != nil {
-		output = &OutputConfig{
+		output = &ModelOutputConfig{
 			Format: opts.Output.Format,
 			Schema: opts.Output.JsonSchema,
 		}
@@ -512,7 +525,7 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *OutputConfig) (*Message, error) {
+func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")

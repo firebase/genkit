@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -41,7 +54,7 @@ async def test_generate_text_response(mocker, version):
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.generate_content.return_value = resp
 
-    gemini = GeminiModel(version, googleai_client_mock)
+    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
     response = await gemini.generate(request, ctx)
@@ -51,7 +64,7 @@ async def test_generate_text_response(mocker, version):
             model=version,
             contents=[
                 genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role='user'
+                    parts=[genai.types.Part(text=request_text)], role=Role.USER
                 )
             ],
             config=None,
@@ -90,7 +103,7 @@ async def test_generate_stream_text_response(mocker, version):
         resp
     ]
     on_chunk_mock = mocker.MagicMock()
-    gemini = GeminiModel(version, googleai_client_mock)
+    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
     response = await gemini.generate(request, ctx)
@@ -100,7 +113,7 @@ async def test_generate_stream_text_response(mocker, version):
             model=version,
             contents=[
                 genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role='user'
+                    parts=[genai.types.Part(text=request_text)], role=Role.USER
                 )
             ],
             config=None,
