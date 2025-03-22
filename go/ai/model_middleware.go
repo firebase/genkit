@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // AugmentWithContextOptions represents options for augmenting a request with context.
@@ -19,7 +20,7 @@ type AugmentWithContextOptions struct {
 }
 
 // ContextPreface is the default preface for context augmentation.
-const ContextPreface = "\n\nUse the following information to complete your task:\n\n"
+const contextPreface = "\n\nUse the following information to complete your task:\n\n"
 
 // Provide a simulated system prompt for models that don't support it natively.
 func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddleware {
@@ -166,20 +167,20 @@ func contextItemTemplate(d Document, index int, options *AugmentWithContextOptio
 }
 
 // augmentWithContext augments a request with context documents.
-func augmentWithContext(info *ModelInfo, options *AugmentWithContextOptions) ModelMiddleware {
+func augmentWithContext(info *ModelInfo, opts *AugmentWithContextOptions) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			// Short-circuiting middleware if context is supported in model.
 			if info.Supports.Context {
 				return next(ctx, input, cb)
 			}
-			preface := ContextPreface
-			if options != nil && options.Preface != nil {
-				preface = *options.Preface
+			preface := contextPreface
+			if opts != nil && opts.Preface != nil {
+				preface = *opts.Preface
 			}
 			itemTemplate := contextItemTemplate
-			if options != nil && options.ItemTemplate != nil {
-				itemTemplate = options.ItemTemplate
+			if opts != nil && opts.ItemTemplate != nil {
+				itemTemplate = opts.ItemTemplate
 			}
 			// if there is no context in the request, no-op
 			if len(input.Docs) == 0 {
@@ -207,7 +208,7 @@ func augmentWithContext(info *ModelInfo, options *AugmentWithContextOptions) Mod
 
 			out := preface
 			for i, doc := range input.Docs {
-				out += itemTemplate(*doc, i, options)
+				out += itemTemplate(*doc, i, opts)
 			}
 			out += "\n"
 
@@ -239,11 +240,11 @@ func lastUserMessage(messages []*Message) *Message {
 
 // concatText returns the concatenated text parts of the document content.
 func (d *Document) concatText() string {
-	var text string
+	var builder strings.Builder
 	for _, part := range d.Content {
 		if part.IsText() {
-			text += part.Text
+			builder.WriteString(part.Text)
 		}
 	}
-	return text
+	return builder.String()
 }

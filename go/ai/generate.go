@@ -102,8 +102,8 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	// Create the middleware list
 	middlewares := []ModelMiddleware{
 		simulateSystemPrompt(info, nil),
-		validateSupport(name, info),
 		augmentWithContext(info, nil),
+		validateSupport(name, info),
 	}
 
 	fn = core.ChainMiddleware(middlewares...)(fn)

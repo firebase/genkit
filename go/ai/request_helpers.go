@@ -14,6 +14,12 @@ func NewModelRequest(config any, messages ...*Message) *ModelRequest {
 	}
 }
 
+// NewUserMessageWithMetadata creates a new Message with role "user" with provided metadata and  parts.
+// Use NewUserTextMessage if you have a text-only message.
+func NewUserMessageWithMetadata(metadata map[string]any, parts ...*Part) *Message {
+	return NewMessage(RoleUser, metadata, parts...)
+}
+
 // NewUserMessage creates a new Message with role "user" and provided parts.
 // Use NewUserTextMessage if you have a text-only message.
 func NewUserMessage(parts ...*Part) *Message {
