@@ -112,7 +112,14 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		metadata["label"] = info.Label
 	}
 
-	fn = core.ChainMiddleware(simulateSystemPrompt(info, nil), validateSupport(name, info))(fn)
+	// Create the middleware list
+	middlewares := []ModelMiddleware{
+		simulateSystemPrompt(info, nil),
+		augmentWithContext(info, nil),
+		validateSupport(name, info),
+	}
+
+	fn = core.ChainMiddleware(middlewares...)(fn)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
