@@ -61,7 +61,11 @@ func WithDefaultModel(model string) genkitOption {
 	}
 }
 
-// WithPromptDir sets the directory where dotprompts are stored. Defaults to "prompts" at project root.
+// WithPromptDir sets the directory where dotprompts are stored.
+// Defaults to "prompts" at project root. prompts will be automatically
+// loaded from this directory on Genkit initialization. Invalid prompt
+// files will log errors whereas valid prompt files that result in
+// invalid prompt definitions will result in errors.
 func WithPromptDir(dir string) genkitOption {
 	return func(params *GenkitParams) error {
 		if params.PromptDir != "" {
@@ -96,6 +100,8 @@ func Init(ctx context.Context, opts ...genkitOption) (*Genkit, error) {
 			return nil, err
 		}
 	}
+
+	ai.LoadPromptFolder(r, params.PromptDir, "")
 
 	if registry.CurrentEnvironment() == registry.EnvironmentDev {
 		errCh := make(chan error, 1)
