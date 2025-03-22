@@ -31,6 +31,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
@@ -70,6 +71,21 @@ func main() {
 		log.Fatal("embedder is not defined")
 	}
 	if err := localvec.Init(); err != nil {
+		log.Fatal(err)
+	}
+	metrics := []evaluators.MetricConfig{
+		{
+			MetricType: evaluators.EvaluatorTypeDeepEqual,
+		},
+		{
+			MetricType: evaluators.EvaluatorTypeRegex,
+		},
+		{
+			MetricType: evaluators.EvaluatorTypeJsonata,
+		},
+	}
+	evalConfig := evaluators.Config{Metrics: metrics}
+	if err := evaluators.Init(ctx, g, &evalConfig); err != nil {
 		log.Fatal(err)
 	}
 	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
