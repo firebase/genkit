@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from enum import StrEnum
+
 DEFAULT_OLLAMA_SERVER_URL = 'http://127.0.0.1:11434'
 
 from enum import StrEnum
