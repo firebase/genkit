@@ -1,9 +1,6 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2025 Google LLC
-# SPDX-License-Identifier: Apache-2.0
-
 """Test Gemini models."""
 
 import pytest

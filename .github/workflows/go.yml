@@ -19,15 +19,18 @@ on: pull_request
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.22.x', '1.23.x', '1.24.x']
     steps:
       - name: Checkout Repo
         uses: actions/checkout@main
-      
+
       - name: Set up Node
         uses: actions/setup-node@main
         with:
           node-version: '18'
-          
+
       - name: Enable corepack
         run: corepack enable
 
@@ -35,17 +38,17 @@ jobs:
         run: |
           pnpm install
           cd genkit-tools && pnpm install
-          
+
       - name: Generate JSON Schema from Zod
         run: npm --prefix genkit-tools run export:schemas
-          
+
       - name: Set up Go
         uses: actions/setup-go@main
         with:
-          go-version: '1.22.x'
-          
+          go-version: ${{ matrix.go-version }}
+
       - name: Check if generated code is up to date
         run: bash .github/workflows/scripts/check-generated-go.sh
-      
+
       - name: Run tests
         run: go test -C go -v ./...
