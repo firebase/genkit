@@ -42,8 +42,10 @@ import pytest  # type: ignore
 import pytest_asyncio  # type: ignore
 from httpx import ASGITransport, AsyncClient  # type: ignore
 
+from genkit.core.endpoints.reflection import (
+    create_reflection_asgi_app,  # type: ignore
+)
 from genkit.core.registry import Registry  # type: ignore
-from genkit.web.server import create_reflection_asgi_app  # type: ignore
 
 
 @pytest.fixture
@@ -160,7 +162,7 @@ async def test_run_action_with_context(asgi_client, mock_registry):
 
 
 @pytest.mark.asyncio
-@patch('genkit.web.server.reflection.is_streaming_requested')
+@patch('genkit.core.endpoints.reflection.is_streaming_requested')
 async def test_run_action_streaming(
     mock_is_streaming, asgi_client, mock_registry
 ):
