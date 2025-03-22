@@ -29,6 +29,7 @@ from litestar.plugins.structlog import StructlogPlugin
 from starlette.applications import Starlette
 
 from aioia.servers.middleware import LitestarLoggingMiddleware
+from genkit.core.endpoints.reflection import create_reflection_asgi_app
 from genkit.core.environment import is_dev_environment
 from genkit.core.registry import Registry
 from genkit.web.manager import (
@@ -42,7 +43,6 @@ from genkit.web.manager import (
     run_loop,
 )
 from genkit.web.manager.signals import terminate_all_servers
-from genkit.web.server import create_reflection_asgi_app
 from genkit.web.typing import Application
 
 logger = structlog.get_logger(__name__)
