@@ -23,7 +23,7 @@ fi
 # in the corresponding check_license script.
 $HOME/go/bin/addlicense \
   -c "Google LLC" \
-  -s=only \
+  -s \
   -l apache \
   -ignore '**/.dist/**/*' \
   -ignore '**/.eggs/**/*' \

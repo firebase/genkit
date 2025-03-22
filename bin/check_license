@@ -26,7 +26,7 @@ export PATH=$(go env GOPATH):$PATH
 $HOME/go/bin/addlicense \
   -check \
   -c "Google LLC" \
-  -s=only \
+  -s \
   -l apache \
   -ignore '**/.dist/**/*' \
   -ignore '**/.eggs/**/*' \
