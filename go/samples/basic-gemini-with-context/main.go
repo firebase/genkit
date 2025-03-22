@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -61,7 +60,6 @@ func main() {
 			return "", err
 		}
 
-		respJ, _ := json.MarshalIndent(resp, "", "")
 		text := resp.Text()
 		return text, nil
 	})
