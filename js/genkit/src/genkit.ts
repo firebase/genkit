@@ -790,6 +790,10 @@ export class Genkit implements HasRegistry {
         'defaultModel',
         this.options.model
       );
+      defineModel(this.registry, {
+        name: 'defaultModel',
+        from: [this.options.model],
+      });
     }
     if (this.options.promptDir !== null) {
       loadPromptFolder(

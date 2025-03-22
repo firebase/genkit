@@ -19,6 +19,7 @@ import {
   defineAction,
   GenkitError,
   getStreamingCallback,
+  runWithStreamingCallback,
   SimpleMiddleware,
   StreamingCallback,
   z,
@@ -391,6 +392,8 @@ export type DefineModelOptions<
   label?: string;
   /** Middleware to be used with this model. */
   use?: ModelMiddleware[];
+  /** Defines a new model, by wrapping one or more underlying models. **/
+  from?: ModelArgument<any> | ModelArgument<any>[];
 };
 
 /**
@@ -401,7 +404,7 @@ export function defineModel<
 >(
   registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
-  runner: (
+  runner?: (
     request: GenerateRequest<CustomOptionsSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>
@@ -412,7 +415,7 @@ export function defineModel<
     validateSupport(options),
   ];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
-  const constratedSimulator = simulateConstrainedGeneration();
+  const constrainedSimulator = simulateConstrainedGeneration();
   middleware.push((req, next) => {
     if (
       !options?.supports?.constrained ||
@@ -420,10 +423,48 @@ export function defineModel<
       (options?.supports?.constrained === 'no-tools' &&
         (req.tools?.length ?? 0) > 0)
     ) {
-      return constratedSimulator(req, next);
+      return constrainedSimulator(req, next);
     }
     return next(req);
   });
+  if (!runner) {
+    if (
+      options.from === undefined ||
+      (Array.isArray(options.from) && options.from.length < 1)
+    ) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message:
+          'Must supply a `runner` function, or model(s) to wrap via `options.from`',
+      });
+    }
+    if (Array.isArray(options.from) && options.from.length > 1) {
+      console.warn(
+        'Multiple models not yet supported for `options.from`, first value will be used.'
+      );
+    }
+    runner = async (request, callback) => {
+      const fromModels = Array.isArray(options.from)
+        ? options.from
+        : [options.from];
+
+      const modelPromises =
+        fromModels.map((modelArg) =>
+          resolveModel(registry, modelArg).then((m) => m.modelAction)
+        ) || [];
+      if (modelPromises.length !== 1) {
+        const model = await modelPromises[0];
+        return runWithStreamingCallback(registry, callback, () =>
+          model(request, { context: { onChunk: callback } })
+        );
+      } else {
+        throw new GenkitError({
+          status: 'INVALID_ARGUMENT',
+          message: 'Unable to resolve model.',
+        });
+      }
+    };
+  }
   const act = defineAction(
     registry,
     {
@@ -447,7 +488,7 @@ export function defineModel<
     (input) => {
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback(registry)).then((response) => {
+      return runner!(input, getStreamingCallback(registry)).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,
