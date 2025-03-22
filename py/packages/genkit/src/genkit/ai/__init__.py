@@ -22,9 +22,36 @@ communication protocols.
 """
 
 from genkit.ai.plugin import Plugin
-from genkit.ai.veneer import Genkit
+from genkit.ai.veneer import Genkit, GenkitRegistry
+from genkit.blocks.document import Document
+from genkit.core.action import ActionRunContext
+from genkit.core.typing import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    Media,
+    MediaPart,
+    Message,
+    RetrieverRequest,
+    RetrieverResponse,
+    Role,
+    TextPart,
+)
 
 __all__ = [
-    'Genkit',
-    'Plugin',
+    Genkit.__name__,
+    GenkitRegistry.__name__,
+    Plugin.__name__,
+    Document.__name__,
+    ActionRunContext.__name__,
+    GenerateRequest.__name__,
+    GenerateResponse.__name__,
+    GenerateResponseChunk.__name__,
+    Media.__name__,
+    MediaPart.__name__,
+    Message.__name__,
+    RetrieverRequest.__name__,
+    RetrieverResponse.__name__,
+    Role.__name__,
+    TextPart.__name__,
 ]

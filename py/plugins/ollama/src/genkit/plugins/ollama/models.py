@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
+from typing import Literal
+
 from pydantic import BaseModel, Field, HttpUrl
 
 import ollama as ollama_api

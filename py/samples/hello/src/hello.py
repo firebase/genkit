@@ -16,20 +16,17 @@
 
 """A hello world sample that just calls some flows."""
 
-import asyncio
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.blocks.document import Document
-from genkit.blocks.generate import generate_action
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
-    GenerateActionOptions,
+from genkit.ai import (
+    ActionRunContext,
+    Document,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    Genkit,
     Media,
     MediaPart,
     Message,
@@ -62,27 +59,6 @@ class MyInput(BaseModel):
 
     a: int = Field(description='a field')
     b: int = Field(description='b field')
-
-
-def hi_fn(hi_input) -> GenerateRequest:
-    """Generate a request to greet a user.
-
-    Args:
-        hi_input: Input data containing user information.
-
-    Returns:
-        A GenerateRequest object with the greeting message.
-    """
-    return GenerateRequest(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    TextPart(text=f'Say hi to {hi_input}'),
-                ],
-            ),
-        ],
-    )
 
 
 @ai.flow()
@@ -123,31 +99,6 @@ async def embed_docs(docs: list[str]):
     )
 
 
-@ai.flow()
-async def simple_generate_action_flow(name: str) -> Any:
-    """Generate a greeting for the given name.
-
-    Args:
-        name: The name of the person to greet.
-
-    Returns:
-        The generated greeting response.
-    """
-    response = await generate_action(
-        ai.registry,
-        GenerateActionOptions(
-            model='vertexai/gemini-1.5-flash',
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[TextPart(text=f'Say hi to {name}')],
-                ),
-            ],
-        ),
-    )
-    return response.text()
-
-
 class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
@@ -167,18 +118,15 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
     Returns:
         The generated greeting response.
     """
-    response = await generate_action(
-        ai.registry,
-        GenerateActionOptions(
-            model='vertexai/gemini-1.5-flash',
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[TextPart(text=f'what is a gablorken of {value}')],
-                ),
-            ],
-            tools=['gablorkenTool'],
-        ),
+    response = await ai.generate(
+        model='vertexai/gemini-1.5-flash',
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=f'what is a gablorken of {value}')],
+            ),
+        ],
+        tools=['gablorkenTool'],
     )
     return response.text
 

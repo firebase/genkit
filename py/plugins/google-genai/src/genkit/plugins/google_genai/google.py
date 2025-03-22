@@ -14,6 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+from typing import Union
+
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig

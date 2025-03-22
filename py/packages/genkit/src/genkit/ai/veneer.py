@@ -138,8 +138,6 @@ class Genkit(GenkitRegistry):
     The methods exposed by the
     [GenkitRegistry][genkit.ai.registry.GenkitRegistry] class are also part
     of the API.
-
-
     """
 
     def __init__(
