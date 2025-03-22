@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Registry for managing Genkit resources and actions.
@@ -172,8 +185,14 @@ class Registry:
         kind, name = parse_action_key(key)
         return self.lookup_action(kind, name)
 
-    def list_serializable_actions(self) -> dict[str, Action] | None:
+    def list_serializable_actions(
+        self, allowed_kinds: set[ActionKind] | None = None
+    ) -> dict[str, Action] | None:
         """Enlist all the actions into a dictionary.
+
+        Args:
+            allowed_kinds: The types of actions to list. If None, all actions
+            are listed.
 
         Returns:
             A dictionary of serializable Actions.
@@ -181,6 +200,8 @@ class Registry:
         with self._lock:
             actions = {}
             for kind in self._entries:
+                if allowed_kinds is not None and kind not in allowed_kinds:
+                    continue
                 for name in self._entries[kind]:
                     action = self.lookup_action(kind, name)
                     if action is not None:

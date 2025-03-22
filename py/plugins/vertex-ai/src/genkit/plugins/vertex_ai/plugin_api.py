@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Google Cloud Vertex AI Plugin for Genkit."""
@@ -8,12 +21,12 @@ import os
 
 import vertexai
 
+from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.vertex_ai import constants as const
 from genkit.plugins.vertex_ai.embedding import Embedder, EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
 from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 
 LOG = logging.getLogger(__name__)
 

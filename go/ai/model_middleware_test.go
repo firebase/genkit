@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -19,7 +32,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "valid request with no special features",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					Media:      false,
 					Tools:      false,
 					Multiturn:  false,
@@ -37,7 +50,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "media not supported but requested",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					Media: false,
 				},
 			},
@@ -51,7 +64,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "tools not supported but requested",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					Tools: false,
 				},
 			},
@@ -68,7 +81,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "multiturn not supported but requested",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					Multiturn: false,
 				},
 			},
@@ -83,7 +96,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "tool choice not supported but requested",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					ToolChoice: false,
 				},
 			},
@@ -95,7 +108,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "system role not supported but requested",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					SystemRole: false,
 				},
 			},
@@ -109,7 +122,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "all features supported and used",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					Media:      true,
 					Tools:      true,
 					Multiturn:  true,
@@ -146,7 +159,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "mixed content types in message",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
+				Supports: &ModelSupports{
 					Media: false,
 				},
 			},
@@ -163,7 +176,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "supported version",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{},
+				Supports: &ModelSupports{},
 				Versions: []string{"v1", "v2"},
 			},
 			input: &ModelRequest{
@@ -177,7 +190,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "unsupported version",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{},
+				Supports: &ModelSupports{},
 				Versions: []string{"v1", "v2"},
 			},
 			input: &ModelRequest{
@@ -191,7 +204,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "non-string version",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{},
+				Supports: &ModelSupports{},
 				Versions: []string{"v1", "v2"},
 			},
 			input: &ModelRequest{
@@ -205,7 +218,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "struct with supported version",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{},
+				Supports: &ModelSupports{},
 				Versions: []string{"v1", "v2"},
 			},
 			input: &ModelRequest{
@@ -219,7 +232,7 @@ func TestValidateSupport(t *testing.T) {
 		{
 			name: "struct with unsupported version",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{},
+				Supports: &ModelSupports{},
 				Versions: []string{"v1", "v2"},
 			},
 			input: &ModelRequest{
@@ -262,7 +275,7 @@ func TestSimulateSystemPrompt(t *testing.T) {
 	}{
 		{
 			name: "system role not supported, system message present",
-			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: false}},
+			info: &ModelInfo{Supports: &ModelSupports{SystemRole: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					{Role: "system", Content: []*Part{NewTextPart("Be helpful.")}},
@@ -280,7 +293,7 @@ func TestSimulateSystemPrompt(t *testing.T) {
 		},
 		{
 			name: "system role supported, no system message",
-			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: true}},
+			info: &ModelInfo{Supports: &ModelSupports{SystemRole: true}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					{Role: "user", Content: []*Part{NewTextPart("Hello.")}},
@@ -295,7 +308,7 @@ func TestSimulateSystemPrompt(t *testing.T) {
 		},
 		{
 			name: "system role supported, with system message",
-			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: true}},
+			info: &ModelInfo{Supports: &ModelSupports{SystemRole: true}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					{Role: "system", Content: []*Part{NewTextPart("Be helpful.")}},
@@ -312,7 +325,7 @@ func TestSimulateSystemPrompt(t *testing.T) {
 		},
 		{
 			name: "custom preface and acknowledgement",
-			info: &ModelInfo{Supports: &ModelInfoSupports{SystemRole: false}},
+			info: &ModelInfo{Supports: &ModelSupports{SystemRole: false}},
 			options: map[string]string{
 				"preface":         "CUSTOM PREFACE:\n",
 				"acknowledgement": "OKAY!",

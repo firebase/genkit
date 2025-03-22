@@ -3,8 +3,9 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Testing utils/helpers for genkit.ai."""
+"""Testing utils/helpers for genkit.blocks."""
 
+from genkit.ai import Genkit
 from genkit.codec import dump_json
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -15,7 +16,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-from genkit.veneer.veneer import Genkit
 
 
 class ProgrammableModel:
