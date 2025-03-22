@@ -371,34 +371,34 @@ func TestAugmentWithContext(t *testing.T) {
 		wantMetadata map[string]any
 	}{
 		{
-			name: "Model supports context, should bypass middleware",
+			name: "model supports context, should bypass middleware",
 			info: &ModelInfo{Supports: &ModelInfoSupports{Context: true}},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
 				},
 			},
 		},
 		{
-			name: "No docs, should bypass middleware",
+			name: "no docs, should bypass middleware",
 			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
 				},
 			},
 		},
@@ -407,60 +407,59 @@ func TestAugmentWithContext(t *testing.T) {
 			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					NewSystemTextMessage("You are a narrator."),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					NewSystemTextMessage("You are a narrator."),
 				},
 			},
 		},
 		{
-			name: "Context already present , should bypass middleware",
+			name: "context already present , should bypass middleware",
 			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
-					{Role: "user", Content: []*Part{NewTextPart("This is the context")}, Metadata: map[string]any{"purpose": "context"}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+					NewUserMessageWithMetadata(map[string]any{"purpose": "context"}, NewTextPart("This is the context")),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
-					{Role: "user", Content: []*Part{NewTextPart("This is the context")}, Metadata: map[string]any{"purpose": "context"}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+					NewUserMessageWithMetadata(map[string]any{"purpose": "context"}, NewTextPart("This is the context")),
 				},
 			},
 		},
 		{
-			name: "Context not present multiple docs present , should get augment",
+			name: "context not present multiple docs present , should get augment",
 			info: &ModelInfo{Supports: &ModelInfoSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("My kid is 4 years old.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("My kid is 4 years old."),
+					NewUserTextMessage("Poem on star."),
 				},
 				Docs: []*Document{
-					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
-					{Content: []*Part{NewTextPart("this is test doc 2")}, Metadata: map[string]any{"purpose": "context", "ref": "doc2"}},
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+					DocumentFromText("this is test doc 2", map[string]any{"purpose": "context", "ref": "doc2"}),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("My kid is 4 years old.")}},
-					{Role: "user", Content: []*Part{
-						NewTextPart("Poem on star."),
-						{Text: "\n\nUse the following information to complete your task:\n\n- [doc1]: this is test doc 1\n- [doc2]: this is test doc 2\n\n",
-							Metadata: map[string]any{"purpose": "context"}}},
-					},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("My kid is 4 years old."),
+					NewUserMessage(NewTextPart("Poem on star."),
+						&Part{Text: "\n\nUse the following information " +
+							"to complete your task:\n\n- [doc1]: this is test doc 1\n- [doc2]: this is test doc 2\n\n",
+							Metadata: map[string]any{"purpose": "context"}}),
 				},
 				Docs: []*Document{
-					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
-					{Content: []*Part{NewTextPart("this is test doc 2")}, Metadata: map[string]any{"purpose": "context", "ref": "doc2"}},
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+					DocumentFromText("this is test doc 2", map[string]any{"purpose": "context", "ref": "doc2"}),
 				},
 			},
 		},
@@ -475,24 +474,24 @@ func TestAugmentWithContext(t *testing.T) {
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
 				},
 				Docs: []*Document{
-					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserMessage(
 						NewTextPart("Poem on star."),
-						{Text: "\n\nCustom Preface : Use the following information to complete your task:\n\n- [doc1]: this is test doc 1\n\n",
-							Metadata: map[string]any{"purpose": "context"}}},
-					},
+						&Part{Text: "\n\nCustom Preface : Use the following information " +
+							"to complete your task:\n\n- [doc1]: this is test doc 1\n\n",
+							Metadata: map[string]any{"purpose": "context"}}),
 				},
 				Docs: []*Document{
-					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
 				},
 			},
 		},
@@ -507,16 +506,16 @@ func TestAugmentWithContext(t *testing.T) {
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
-					{Role: "user", Content: []*Part{NewTextPart("Poem on star.")}},
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
 				},
 				Docs: []*Document{
-					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
 				},
 			},
 			expected: &ModelRequest{
 				Messages: []*Message{
-					{Role: "system", Content: []*Part{NewTextPart("You are a narrator.")}},
+					NewSystemTextMessage("You are a narrator."),
 					{Role: "user", Content: []*Part{
 						NewTextPart("Poem on star."),
 						{Text: "\n\nUse the following information to complete your task:\n\n- The new context is doc3\n",
@@ -524,7 +523,7 @@ func TestAugmentWithContext(t *testing.T) {
 					},
 				},
 				Docs: []*Document{
-					{Content: []*Part{NewTextPart("this is test doc 1")}, Metadata: map[string]any{"purpose": "context", "ref": "doc1"}},
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
 				},
 			},
 		},
