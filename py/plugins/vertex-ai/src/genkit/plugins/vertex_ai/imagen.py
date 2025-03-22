@@ -14,6 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
+from enum import StrEnum
+from typing import Any, Literal
+
 from pydantic import BaseModel
 from vertexai.preview.vision_models import ImageGenerationModel
 
