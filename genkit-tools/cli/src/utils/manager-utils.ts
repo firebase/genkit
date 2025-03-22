@@ -36,9 +36,11 @@ export async function resolveTelemetryServer(): Promise<string> {
   if (!telemetryServerUrl) {
     const telemetryPort = await getPort({ port: makeRange(4033, 4999) });
     telemetryServerUrl = `http://localhost:${telemetryPort}`;
-    startTelemetryServer({
+    await startTelemetryServer({
       port: telemetryPort,
-      traceStore: new LocalFileTraceStore(),
+      traceStore: new LocalFileTraceStore({
+        useIndex: process.env['GENKIT_USE_TRACE_STORE_INDEX'] === 'true',
+      }),
     });
   }
   return telemetryServerUrl;
