@@ -18,6 +18,8 @@ from enum import StrEnum
 
 DEFAULT_OLLAMA_SERVER_URL = 'http://127.0.0.1:11434'
 
+from enum import StrEnum
+
 
 class OllamaAPITypes(StrEnum):
     CHAT = 'chat'
