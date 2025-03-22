@@ -12,7 +12,7 @@ from ._adapters import (
 from ._base_server import AbstractBaseServer
 from ._info import get_health_info, get_server_info
 from ._loop import run_loop
-from ._managers import ServersManager
+from ._manager import ServerManager
 from ._server import Server, ServerConfig, ServerLifecycle
 
 __all__ = [
@@ -23,7 +23,7 @@ __all__ = [
     'ServerConfig',
     'ServerLifecycle',
     'ServerType',
-    'ServersManager',
+    'ServerManager',
     'UvicornAdapter',
     'get_health_info',
     'get_server_info',

@@ -17,19 +17,19 @@ from starlette.applications import Starlette
 
 from aioia.servers.middleware import LitestarLoggingMiddleware
 from genkit.core.environment import is_dev_environment
-from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
-from genkit.web.servers import (
+from genkit.web.manager import (
     AbstractBaseServer,
     Server,
     ServerConfig,
-    ServersManager,
+    ServerManager,
     UvicornAdapter,
     get_health_info,
     get_server_info,
     run_loop,
 )
-from genkit.web.servers.signals import terminate_all_servers
+from genkit.web.manager.signals import terminate_all_servers
+from genkit.web.server import create_reflection_asgi_app
 from genkit.web.typing import Application
 
 logger = structlog.get_logger(__name__)
@@ -173,7 +173,7 @@ class ReflectionServerStarletteLifecycle(AbstractBaseServer):
 
 
 async def add_server_after(
-    mgr: ServersManager, server: Server, delay: float
+    mgr: ServerManager, server: Server, delay: float
 ) -> None:
     """Add a server to the servers manager after a delay.
 
@@ -204,7 +204,7 @@ async def main() -> None:
         ),
     ]
 
-    mgr = ServersManager()
+    mgr = ServerManager()
     if is_dev_environment():
         reflection_server = Server(
             config=ServerConfig(
