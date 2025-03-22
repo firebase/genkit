@@ -153,7 +153,7 @@ func validateVersion(model string, versions []string, config any) error {
 	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
 }
 
-func downloadRequestMedia(options *struct {
+func DownloadRequestMedia(options *struct {
 	MaxBytes int
 	Filter   func(part *Part) bool
 }) ModelMiddleware {

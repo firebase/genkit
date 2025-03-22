@@ -379,14 +379,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 			name: "successful download",
 			input: &ModelRequest{
 				Messages: []*Message{
-					{
-						Content: []*Part{
-							{
-								ContentType: "image/png",
-								Text:        "http://127.0.0.1:60289",
-							},
-						},
-					},
+					NewUserMessage(NewMediaPart("image/png", "http://127.0.0.1:60289")),
 				},
 			},
 			setupServer: func() *httptest.Server {
@@ -400,14 +393,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 			},
 			expectedResult: &ModelRequest{
 				Messages: []*Message{
-					{
-						Content: []*Part{
-							{
-								ContentType: "image/png",
-								Text:        "data:image/png;base64,dGVzdCBpbWFnZSBkYXRh",
-							},
-						},
-					},
+					NewUserMessage(NewMediaPart("image/png", "data:image/png;base64,dGVzdCBpbWFnZSBkYXRh")),
 				},
 			},
 		},
@@ -415,26 +401,12 @@ func TestDownloadRequestMedia(t *testing.T) {
 			name: "base64 media not to download",
 			input: &ModelRequest{
 				Messages: []*Message{
-					{
-						Content: []*Part{
-							{
-								ContentType: "image/png",
-								Text:        "data:image/png;base64,dGVzdCBpbWFnZSBkYXRh",
-							},
-						},
-					},
+					NewUserMessage(NewMediaPart("image/png", "data:image/png;base64,dGVzdCBpbWFnZSBkYXRh")),
 				},
 			},
 			expectedResult: &ModelRequest{
 				Messages: []*Message{
-					{
-						Content: []*Part{
-							{
-								ContentType: "image/png",
-								Text:        "data:image/png;base64,dGVzdCBpbWFnZSBkYXRh",
-							},
-						},
-					},
+					NewUserMessage(NewMediaPart("image/png", "data:image/png;base64,dGVzdCBpbWFnZSBkYXRh")),
 				},
 			},
 		},
@@ -545,7 +517,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 			next := func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{}, nil
 			}
-			middleware := downloadRequestMedia(tc.options)
+			middleware := DownloadRequestMedia(tc.options)
 			_, err := middleware(next)(context.Background(), tc.input, nil)
 
 			if err != nil {
