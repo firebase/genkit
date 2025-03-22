@@ -383,7 +383,7 @@ def create_reflection_asgi_app(
             events.
         """
 
-        async def stream_generator() -> AsyncGenerator[str, None]:
+        async def json_chunks_stream_generator() -> AsyncGenerator[str, None]:
             """Server-Sent Events Generator for streaming JSON chunks.
 
             Since we generate a stream of event objects, and the headers will
@@ -417,7 +417,7 @@ def create_reflection_asgi_app(
                 yield f'{json.dumps(error_response)}\n'
 
         return StreamingResponse(
-            stream_generator(),
+            json_chunks_stream_generator(),
             # TODO: Should this be set to event-stream in the future?
             # media_type='text/event-stream',
             #
