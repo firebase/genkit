@@ -18,4 +18,4 @@
 
 from .channel import Channel
 
-__all__ = ['Channel']
+__all__ = [Channel.__name__]

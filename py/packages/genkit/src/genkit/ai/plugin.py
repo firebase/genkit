@@ -45,6 +45,8 @@ class Plugin(abc.ABC):
         """
         return self.name
 
+    # TODO: https://github.com/firebase/genkit/issues/2438
+    # @abc.abstractmethod
     def resolve_action(
         self, ai: GenkitRegistry, kind: ActionKind, name: str
     ) -> None:
@@ -60,11 +62,12 @@ class Plugin(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
     def initialize(self, ai: GenkitRegistry) -> None:
         """Initialize the plugin with the given registry.
 
         Args:
-            registry: Registry to register plugin functionality.
+            ai: Registry to register plugin functionality.
 
         Returns:
             None, initialization is done by side-effect on the registry.
