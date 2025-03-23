@@ -29,16 +29,16 @@ from ._manager import ServerManager
 from ._server import Server, ServerConfig, ServerLifecycle
 
 __all__ = [
-    'ASGIServerAdapter',
-    'AbstractBaseServer',
-    'GranianAdapter',
-    'Server',
-    'ServerConfig',
-    'ServerLifecycle',
-    'ServerType',
-    'ServerManager',
-    'UvicornAdapter',
-    'get_health_info',
-    'get_server_info',
-    'run_loop',
+    ASGIServerAdapter.__name__,
+    AbstractBaseServer.__name__,
+    get_health_info.__name__,
+    get_server_info.__name__,
+    GranianAdapter.__name__,
+    run_loop.__name__,
+    Server.__name__,
+    ServerConfig.__name__,
+    ServerLifecycle.__name__,
+    ServerManager.__name__,
+    ServerType.__name__,
+    UvicornAdapter.__name__,
 ]

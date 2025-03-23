@@ -30,9 +30,9 @@ built_in_formats = [JsonFormat()]
 
 
 __all__ = [
-    'package_name',
-    Formatter.__name__,
     FormatDef.__name__,
+    Formatter.__name__,
     FormatterConfig.__name__,
     JsonFormat.__name__,
+    package_name.__name__,
 ]

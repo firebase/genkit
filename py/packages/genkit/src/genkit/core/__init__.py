@@ -37,4 +37,4 @@ def package_name() -> str:
     return 'genkit.core'
 
 
-__all__ = ['package_name']
+__all__ = [package_name.__name__]
