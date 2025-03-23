@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -91,8 +92,11 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, er
 		panic("openai.Init not called")
 	}
 
-	if _, ok := supportedModels[name]; !ok {
-		return nil, fmt.Errorf("unsupported model: %s", name)
+	// Strip provider prefix if present to check against supportedModels
+	modelName := strings.TrimPrefix(name, provider+"/")
+
+	if _, ok := supportedModels[modelName]; !ok {
+		return nil, fmt.Errorf("unsupported model: %s", modelName)
 	}
 
 	return genkit.DefineModel(g, provider, name, &info, func(
@@ -100,7 +104,35 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, er
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		generator := NewModelGenerator(state.client, name).WithMessages(input.Messages).WithConfig(input.Config)
-		return generator.Generate(ctx, cb)
+		generator := NewModelGenerator(state.client, modelName)
+
+		// Configure the generator with input
+		if input.Messages != nil {
+			generator.WithMessages(input.Messages)
+		}
+		if input.Config != nil {
+			generator.WithConfig(input.Config)
+		}
+
+		// Generate response
+		resp, err := generator.Generate(ctx, cb)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ensure response has required fields
+		if resp == nil {
+			resp = &ai.ModelResponse{}
+		}
+		if resp.Message == nil {
+			resp.Message = &ai.Message{
+				Role: ai.RoleModel,
+			}
+		}
+		if resp.Usage == nil {
+			resp.Usage = &ai.GenerationUsage{}
+		}
+
+		return resp, nil
 	}), nil
 }

@@ -90,6 +90,14 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 		Content: make([]*ai.Part, 0),
 	}
 
+	// Initialize request and usage
+	fullResponse.Request = &ai.ModelRequest{}
+	fullResponse.Usage = &ai.GenerationUsage{
+		InputTokens:  0,
+		OutputTokens: 0,
+		TotalTokens:  0,
+	}
+
 	for stream.Next() {
 		chunk := stream.Current()
 		if len(chunk.Choices) > 0 {
@@ -103,6 +111,11 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 			}
 
 			fullResponse.Message.Content = append(fullResponse.Message.Content, modelChunk.Content...)
+
+			// Update Usage
+			fullResponse.Usage.InputTokens += int(chunk.Usage.PromptTokens)
+			fullResponse.Usage.OutputTokens += int(chunk.Usage.CompletionTokens)
+			fullResponse.Usage.TotalTokens += int(chunk.Usage.TotalTokens)
 		}
 	}
 
@@ -128,5 +141,11 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 			},
 		},
 		FinishReason: ai.FinishReason("stop"),
+		Request:      &ai.ModelRequest{},
+		Usage: &ai.GenerationUsage{
+			InputTokens:  int(completion.Usage.PromptTokens),
+			OutputTokens: int(completion.Usage.CompletionTokens),
+			TotalTokens:  int(completion.Usage.TotalTokens),
+		},
 	}, nil
 }
