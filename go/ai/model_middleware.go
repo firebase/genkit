@@ -27,6 +27,11 @@ import (
 	"strings"
 )
 
+type DownloadRequestMediaOptions struct {
+	MaxBytes int64
+	Filter   func(part *Part) bool
+}
+
 // Provide a simulated system prompt for models that don't support it natively.
 func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
@@ -153,10 +158,7 @@ func validateVersion(model string, versions []string, config any) error {
 	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
 }
 
-func DownloadRequestMedia(options *struct {
-	MaxBytes int
-	Filter   func(part *Part) bool
-}) ModelMiddleware {
+func DownloadRequestMedia(options *DownloadRequestMediaOptions) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			client := &http.Client{}

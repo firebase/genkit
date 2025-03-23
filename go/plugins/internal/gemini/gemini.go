@@ -21,7 +21,10 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"github.com/firebase/genkit/go/core"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -84,13 +87,32 @@ func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, provider, name, meta, func(
+
+	fn := func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		return Generate(ctx, client, name, input, cb)
-	})
+	}
+	// the gemini api doesn't support downloading media from http(s)
+	if info.Supports.Media {
+		fn = core.ChainMiddleware(ai.DownloadRequestMedia(&ai.DownloadRequestMediaOptions{
+			MaxBytes: 1024 * 1024 * 20,
+			Filter: func(part *ai.Part) bool {
+				u, err := url.Parse(part.Text)
+				if err != nil {
+					return true
+				}
+				// Gemini can handle these URLs
+				return !slices.Contains(
+					[]string{"www.youtube.com", "youtube.com", "youtu.be"},
+					u.Hostname(),
+				)
+			},
+		}))(fn)
+	}
+	return genkit.DefineModel(g, provider, name, meta, fn)
 }
 
 // DefineEmbedder defines embeddings for the provided contents and embedder

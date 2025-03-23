@@ -366,12 +366,9 @@ func TestSimulateSystemPrompt(t *testing.T) {
 
 func TestDownloadRequestMedia(t *testing.T) {
 	testCases := []struct {
-		name    string
-		input   *ModelRequest
-		options *struct {
-			MaxBytes int
-			Filter   func(part *Part) bool
-		}
+		name           string
+		input          *ModelRequest
+		options        *DownloadRequestMediaOptions
 		setupServer    func() *httptest.Server
 		expectedResult *ModelRequest
 	}{
@@ -424,12 +421,9 @@ func TestDownloadRequestMedia(t *testing.T) {
 					},
 				},
 			},
-			options: &struct {
-				MaxBytes int
-				Filter   func(part *Part) bool
-			}{
+			options: &DownloadRequestMediaOptions{
 				Filter: func(part *Part) bool {
-					return false
+					return true
 				},
 			},
 			setupServer: func() *httptest.Server {
@@ -468,12 +462,9 @@ func TestDownloadRequestMedia(t *testing.T) {
 					},
 				},
 			},
-			options: &struct {
-				MaxBytes int
-				Filter   func(part *Part) bool
-			}{
+			options: &DownloadRequestMediaOptions{
 				Filter: func(part *Part) bool {
-					return true
+					return false
 				},
 			},
 			expectedResult: &ModelRequest{
