@@ -16,7 +16,14 @@
 
 """Asynchronous implementation of the Genkit API."""
 
-from ._genkit import GenkitAsync
-from .channel import Channel
+import asyncio
+from typing import Any
 
-__all__ = [Channel.__name__, GenkitAsync.__name__]
+
+class GenkitAsync:
+    """Asynchronous implementation of the Genkit API."""
+
+    async def generate(self, prompt: str) -> Any:
+        """Generates text based on the given prompt (async version)."""
+        await asyncio.sleep(0.1)
+        return {'text': f'Async response to: {prompt}'}

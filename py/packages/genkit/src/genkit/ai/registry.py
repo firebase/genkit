@@ -136,7 +136,7 @@ class GenkitRegistry:
 
         Args:
             description: Description for the tool to be passed to the model.
-            name: Optional name for the flow. If not provided, uses the function
+            name: Optional name for the tool. If not provided, uses the function
                 name.
 
         Returns:

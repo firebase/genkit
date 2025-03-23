@@ -12,6 +12,7 @@ members = [
     "basic-gemini",
     "coffee-shop",
     "context-caching",
+    "experimental",
     "flow-sample1",
     "genkit",
     "genkit-chroma-plugin",
@@ -699,6 +700,33 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/91/50/a9d80c47ff289c611ff12e63f7c5d13942c65d68125160cefd768c73e6e4/executing-2.2.0.tar.gz", hash = "sha256:5d108c028108fe2551d1a7b2e8b713341e2cb4fc0aa7dcf966fa4327a5226755", size = 978693 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/8f/c4d9bafc34ad7ad5d8dc16dd1347ee0e507a52c3adb6bfa8887e1c6a26ba/executing-2.2.0-py2.py3-none-any.whl", hash = "sha256:11387150cad388d62750327a53d3339fad4888b39a6fe233c3afbb54ecffd3aa", size = 26702 },
+]
+
+[[package]]
+name = "experimental"
+version = "0.1.0"
+source = { editable = "samples/experimental" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -1668,6 +1696,7 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/30/59/e080d8eb641f2ceea89677ab0c56d7a2a0858a0c4bb95813bad712b8d3e3/js2py_wheel-0.74.tar.gz", hash = "sha256:8670d73abf22b211173cfe70cf92f94aa36be61f43d44c65131f1d20bb26be04", size = 567467 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/58/9485878e03c64247fa37da9380acc6019be7f63059052d1f19b3699a5a6e/Js2Py_wheel-0.74-py3-none-any.whl", hash = "sha256:c5b4af26ce0a16c26190031ddafb495a998b35c46bf5959c7feb72f581d23ca7", size = 608306 },
+    { url = "https://files.pythonhosted.org/packages/02/92/682f716a7a7d9d505a985dbd7237a6a39dda913f13f2ebc8c8bd3ccd1c74/js2py_wheel-0.74-py3-none-any.whl", hash = "sha256:3cdc2f4d6ab5be2f2b14d7991680cb9c4392fcfc47cac2b146d71468f7a3acfb", size = 609202 },
 ]
 
 [[package]]

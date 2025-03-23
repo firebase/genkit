@@ -14,9 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Asynchronous implementation of the Genkit API."""
+"""Synchronous implementation of the Genkit API."""
 
-from ._genkit import GenkitAsync
-from .channel import Channel
+from genkit.sync._genkit import GenkitSync
 
-__all__ = [Channel.__name__, GenkitAsync.__name__]
+__all__ = [GenkitSync.__name__]

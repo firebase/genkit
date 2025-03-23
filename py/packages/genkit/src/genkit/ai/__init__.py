@@ -21,6 +21,7 @@ including server configuration, runtime management, and client-server
 communication protocols.
 """
 
+from genkit.ai._genkit import GenkitExperimental
 from genkit.ai.plugin import Plugin
 from genkit.ai.veneer import Genkit, GenkitRegistry
 from genkit.blocks.document import Document
@@ -44,6 +45,9 @@ __all__ = [
     GenerateRequest.__name__,
     GenerateResponse.__name__,
     GenerateResponseChunk.__name__,
+    Genkit.__name__,
+    GenkitExperimental.__name__,
+    GenkitRegistry.__name__,
     Genkit.__name__,
     GenkitRegistry.__name__,
     Media.__name__,
