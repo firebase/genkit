@@ -99,7 +99,7 @@ type testAllCoffeeFlowsOutput struct {
 func main() {
 	ctx := context.Background()
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googlegenai/gemini-2.0-flash"),
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
 	if err != nil {

@@ -36,7 +36,7 @@ type duneQuestionInput struct {
 func main() {
 	ctx := context.Background()
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googlegenai/gemini-1.5-flash"),
+		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
 	if err != nil {

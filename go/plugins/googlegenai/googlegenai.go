@@ -6,6 +6,7 @@ package googlegenai
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -24,7 +25,7 @@ const (
 
 // GoogleAI is a Genkit plugin for interacting with the Google AI service.
 type GoogleAI struct {
-	APIKey string // API key to access the service. If empty, the values of the environment variables GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY will be consulted, in that order.
+	APIKey string // API key to access the service. If empty, the values of the environment variables GEMINI_API_KEY or GOOGLE_API_KEY will be consulted, in that order.
 
 	gclient *genai.Client // Client for the Google AI service.
 	mu      sync.Mutex    // Mutex to control access.
@@ -33,7 +34,7 @@ type GoogleAI struct {
 
 // VertexAI is a Genkit plugin for interacting with the Google Vertex AI service.
 type VertexAI struct {
-	ProjectID string // Google Cloud project to use for Vertex AI. If empty, the values of the environment variables GCLOUD_PROJECT and GOOGLE_CLOUD_PROJECT will be consulted, in that order.
+	ProjectID string // Google Cloud project to use for Vertex AI. If empty, the value of the environment variable GOOGLE_CLOUD_PROJECT will be consulted.
 	Location  string // Location of the Vertex AI service. If empty, GOOGLE_CLOUD_LOCATION and GOOGLE_CLOUD_REGION environment variables will be consulted, in that order.
 
 	gclient *genai.Client // Client for the Vertex AI service.
@@ -69,8 +70,20 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		}
 	}()
 
+	apiKey := ga.APIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("GEMINI_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("GOOGLE_API_KEY")
+		}
+		if apiKey == "" {
+			return fmt.Errorf("Google AI requires setting GEMINI_API_KEY or GOOGLE_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+		}
+	}
+
 	gc := genai.ClientConfig{
 		Backend: genai.BackendGeminiAPI,
+		APIKey:  apiKey,
 		HTTPOptions: genai.HTTPOptions{
 			Headers: gemini.GenkitClientHeader,
 		},
@@ -120,6 +133,8 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		}
 	}()
 
+	// Project and Region values gets validated by genai SDK upon client
+	// creation
 	gc := genai.ClientConfig{
 		Backend:  genai.BackendVertexAI,
 		Project:  v.ProjectID,
