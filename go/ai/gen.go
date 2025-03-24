@@ -92,6 +92,14 @@ type EvalRequest struct {
 
 type EvalResponse []any
 
+type EvalStatusEnum string
+
+const (
+	EvalStatusEnumUNKNOWN EvalStatusEnum = "UNKNOWN"
+	EvalStatusEnumPASS    EvalStatusEnum = "PASS"
+	EvalStatusEnumFAIL    EvalStatusEnum = "FAIL"
+)
+
 type FinishReason string
 
 const (

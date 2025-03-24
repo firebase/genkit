@@ -105,6 +105,14 @@ class EvalRequest(BaseModel):
     options: Any | None = None
 
 
+class EvalStatusEnum(StrEnum):
+    """Enumeration of evalstatusenum values."""
+
+    UNKNOWN = 'UNKNOWN'
+    PASS_ = 'PASS'
+    FAIL = 'FAIL'
+
+
 class Details(BaseModel):
     """Model for details data."""
 
@@ -120,6 +128,7 @@ class Score(BaseModel):
         None, description='Optional ID to differentiate different scores'
     )
     score: float | str | bool | None = None
+    status: EvalStatusEnum | None = None
     error: str | None = None
     details: Details | None = None
 
