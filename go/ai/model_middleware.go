@@ -18,24 +18,33 @@ package ai
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
 )
 
-// AugmentWithContextOptions represents options for augmenting a request with context.
+// AugmentWithContextOptions configures how a request is augmented with context.
 type AugmentWithContextOptions struct {
 	Preface      *string                                                                // Preceding text to place before the rendered context documents.
 	ItemTemplate func(d Document, index int, options *AugmentWithContextOptions) string // A function to render a document into a text part to be included in the message.
-	CitationKey  *string                                                                //The metadata key to use for citation reference. Pass `null` to provide no citations.
+	CitationKey  *string                                                                // Metadata key to use for citation reference. Pass `nil` to provide no citations.
 }
 
-// ContextPreface is the default preface for context augmentation.
+// contextPreface is the default preface for context augmentation.
 const contextPreface = "\n\nUse the following information to complete your task:\n\n"
 
-// Provide a simulated system prompt for models that don't support it natively.
+// DownloadMediaOptions configures how media is downloaded in the [DownloadRequestMedia] middleware.
+type DownloadMediaOptions struct {
+	MaxBytes int64                 // Maximum number of bytes to download.
+	Filter   func(part *Part) bool // Filter to apply to parts that are media URLs.
+}
+
+// simulateSystemPrompt provides a simulated system prompt for models that don't support it natively.
 func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
@@ -75,7 +84,7 @@ func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddl
 	}
 }
 
-// validateSupport creates middleware that validates whether a model supports the requested features.
+// validateSupport validates whether a model supports the features used in the model request.
 func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
@@ -260,4 +269,52 @@ func (d *Document) concatText() string {
 		}
 	}
 	return builder.String()
+}
+
+// DownloadRequestMedia downloads media from a URL and replaces the media part with a base64 encoded string.
+func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
+	return func(next ModelFunc) ModelFunc {
+		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			client := &http.Client{}
+			for _, message := range input.Messages {
+				for j, part := range message.Content {
+					if !part.IsMedia() || !strings.HasPrefix(part.Text, "http") || (options != nil && options.Filter != nil && !options.Filter(part)) {
+						continue
+					}
+
+					mediaUrl := part.Text
+
+					resp, err := client.Get(mediaUrl)
+					if err != nil {
+						return nil, fmt.Errorf("HTTP error downloading media %q: %w", mediaUrl, err)
+					}
+					defer resp.Body.Close()
+
+					if resp.StatusCode != http.StatusOK {
+						body, _ := io.ReadAll(resp.Body)
+						return nil, fmt.Errorf("HTTP error downloading media %q: %s", mediaUrl, string(body))
+					}
+
+					contentType := part.ContentType
+					if contentType == "" {
+						contentType = resp.Header.Get("Content-Type")
+					}
+
+					var data []byte
+					if options != nil && options.MaxBytes > 0 {
+						limitedReader := io.LimitReader(resp.Body, int64(options.MaxBytes))
+						data, err = io.ReadAll(limitedReader)
+					} else {
+						data, err = io.ReadAll(resp.Body)
+					}
+					if err != nil {
+						return nil, fmt.Errorf("error reading media %q: %v", mediaUrl, err)
+					}
+
+					message.Content[j] = NewMediaPart(contentType, fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)))
+				}
+			}
+			return next(ctx, input, cb)
+		}
+	}
 }
