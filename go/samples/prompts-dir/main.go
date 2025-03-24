@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 
 	// Import Genkit and the Google AI plugin
@@ -33,27 +32,26 @@ func main() {
 	}
 
 	// Define a simple flow that prompts an LLM to generate menu suggestions.
-	genkit.DefineFlow(g, "menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
-		// The Google AI API provides access to several generative models. Here,
-		// we specify gemini-1.5-flash.
-		m := googleai.Model(g, "gemini-1.5-flash")
+	genkit.DefineFlow(g, "menuSuggestionFlow", func(ctx context.Context, input any) (string, error) {
+
+		// Look up the prompt by name
+		prompt := genkit.LookupPrompt(g, "local", "example")
+		if prompt == nil {
+			return "", errors.New("menuSuggestionFlow: failed to find prompt")
+		}
+
+		modelName := ai.LookupPromptModel(prompt)
+
+		m := googleai.Model(g, modelName)
 		if m == nil {
 			return "", errors.New("menuSuggestionFlow: failed to find model")
 		}
 
-		// Construct a request and send it to the model API (Google AI).
-		resp, err := genkit.Generate(ctx, g,
-			ai.WithModel(m),
-			ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
-			ai.WithPromptText(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)))
+		// Execute the prompt with the provided input
+		resp, err := prompt.Execute(ctx, ai.WithInput(input), ai.WithModel(m))
 		if err != nil {
 			return "", err
 		}
-
-		// Handle the response from the model API. In this sample, we just
-		// convert it to a string. but more complicated flows might coerce the
-		// response into structured output or chain the response into another
-		// LLM call.
 		text := resp.Text()
 		return text, nil
 	})

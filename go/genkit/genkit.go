@@ -345,3 +345,8 @@ func modelRefParts(model string) ([]string, error) {
 	}
 	return parts, nil
 }
+
+// LoadPrompt loads all the prompts from the given path
+func LoadPrompt(g *Genkit, path, filename, prefix, namespace string) (*ai.Prompt, error) {
+	return ai.LoadPrompt(g.reg, path, filename, prefix, namespace)
+}

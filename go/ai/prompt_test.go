@@ -833,7 +833,7 @@ Hello, {{name}}!
 	}
 
 	// Call loadPrompt
-	loadPrompt(reg, tempDir, "example.prompt", "", "test-namespace")
+	LoadPrompt(reg, tempDir, "example.prompt", "", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, provider, "test-namespace/example")
@@ -866,7 +866,7 @@ func TestLoadPrompt_FileNotFound(t *testing.T) {
 	}
 
 	// Call loadPrompt with a non-existent file
-	loadPrompt(reg, "./nonexistent", "missing.prompt", "", "test-namespace")
+	LoadPrompt(reg, "./nonexistent", "missing.prompt", "", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "test-namespace", "missing")
@@ -894,7 +894,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	}
 
 	// Call loadPrompt
-	loadPrompt(reg, tempDir, "invalid.prompt", "", "test-namespace")
+	LoadPrompt(reg, tempDir, "invalid.prompt", "", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "test-namespace", "invalid")
@@ -928,7 +928,7 @@ Hello, {{name}}!
 	}
 
 	// Call loadPrompt
-	loadPrompt(reg, tempDir, "example.variant.prompt", "", "test-namespace")
+	LoadPrompt(reg, tempDir, "example.variant.prompt", "", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, provider, "test-namespace/example.variant")
