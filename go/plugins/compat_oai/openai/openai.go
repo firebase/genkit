@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 
@@ -153,10 +152,6 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, er
 func DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
 	if !state.initted {
 		panic("openai.Init not called")
-	}
-
-	if !slices.Contains(knownEmbedders, name) {
-		return nil, fmt.Errorf("unsupported embedder: %s", name)
 	}
 
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
