@@ -26,12 +26,19 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+const provider = "googlecloud"
+
 // GoogleCloud is a Genkit plugin for writing logs to Google Cloud.
 type GoogleCloud struct {
 	ProjectID      string        // ID of the Google Cloud project to use. Required.
 	ForceExport    bool          // Export to Google Cloud even in the dev environment.
 	MetricInterval time.Duration // Interval for exporting metric data. The default is 60 seconds.
 	LogLevel       slog.Leveler  // Minimum level at which logs will be written. Defaults to [slog.LevelInfo].
+}
+
+// Name returns the name of the plugin.
+func (gc *GoogleCloud) Name() string {
+	return provider
 }
 
 // Init initializes all telemetry in this package.

@@ -24,6 +24,8 @@ import (
 
 // Plugin is a common interface for plugins.
 type Plugin interface {
+	// Name returns the name of the plugin.
+	Name() string
 	// Init initializes the plugin.
 	Init(ctx context.Context, g *Genkit) error
 }
@@ -284,6 +286,12 @@ func DefineEmbedder(g *Genkit, provider, name string, embed func(context.Context
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 	return ai.LookupEmbedder(g.reg, provider, name)
+}
+
+// LookupPlugin looks up a plugin registered on initialization.
+// It returns nil if the plugin was not registered.
+func LookupPlugin(g *Genkit, name string) any {
+	return g.reg.LookupPlugin(name)
 }
 
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.

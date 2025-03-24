@@ -39,7 +39,9 @@ var (
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googleai.GoogleAI{APIKey: *apiKey}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,9 +58,6 @@ func run(g *genkit.Genkit) error {
 		return errors.New("need -apikey")
 	}
 	ctx := context.Background()
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey}); err != nil {
-		return err
-	}
 	const embedderName = "embedding-001"
 	embedder := googleai.Embedder(g, embedderName)
 	if embedder == nil {

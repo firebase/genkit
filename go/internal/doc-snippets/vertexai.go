@@ -19,20 +19,20 @@ func vertexaiEx(ctx context.Context) error {
 	}
 
 	// [START init]
-	if err := vertexai.Init(ctx, g, nil); err != nil {
+	if err := (&vertexai.VertexAI{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourProjectID := ""
 	// [START initproj]
-	if err := vertexai.Init(ctx, g, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
+	if err := (&vertexai.VertexAI{ProjectID: yourProjectID}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initproj]
 
 	// [START initloc]
-	if err := vertexai.Init(ctx, g, &vertexai.Config{Location: "asia-south1"}); err != nil {
+	if err := (&vertexai.VertexAI{Location: "asia-south1"}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initloc]

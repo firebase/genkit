@@ -34,16 +34,10 @@ var (
 	}
 )
 
-var state struct {
-	serverAddress string
-	initted       bool
-	mu            sync.Mutex
-}
-
-func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.initted {
 		panic("ollama.Init not called")
 	}
 	var mi ai.ModelInfo
@@ -65,7 +59,7 @@ func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai
 		Supports: mi.Supports,
 		Versions: []string{},
 	}
-	gen := &generator{model: model, serverAddress: state.serverAddress}
+	gen := &generator{model: model, serverAddress: o.ServerAddress}
 	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)
 }
 
@@ -141,26 +135,27 @@ type ollamaModelResponse struct {
 	Response  string `json:"response"`
 }
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// Server Address of oLLama.
-	ServerAddress string
+// Ollama provides configuration options for the Init function.
+type Ollama struct {
+	ServerAddress string // Server address of oLLama.
+
+	mu      sync.Mutex // Mutex to control access.
+	initted bool       // Whether the plugin has been initialized.
 }
 
 // Init initializes the plugin.
 // Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
 // After downloading a model, call [DefineModel] to use it.
-func Init(ctx context.Context, cfg *Config) (err error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
+func (o *Ollama) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.initted {
 		panic("ollama.Init already called")
 	}
-	if cfg == nil || cfg.ServerAddress == "" {
+	if o == nil || o.ServerAddress == "" {
 		return errors.New("ollama: need ServerAddress")
 	}
-	state.serverAddress = cfg.ServerAddress
-	state.initted = true
+	o.initted = true
 	return nil
 }
 

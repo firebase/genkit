@@ -18,16 +18,12 @@ func gcpEx(ctx context.Context) error {
 		log.Fatal(err)
 	}
 	// [START init]
-	if err := googlecloud.Init(
-		ctx,
-		g,
-		googlecloud.Config{ProjectID: "your-google-cloud-project"},
-	); err != nil {
+	if err := (&googlecloud.GoogleCloud{ProjectID: "your-google-cloud-project"}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
-	_ = googlecloud.Config{
+	_ = googlecloud.GoogleCloud{
 		ProjectID:      "your-google-cloud-project",
 		ForceExport:    true,
 		MetricInterval: 45e9,

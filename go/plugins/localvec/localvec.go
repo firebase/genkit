@@ -50,7 +50,7 @@ func DefineIndexerAndRetriever(g *genkit.Genkit, name string, cfg Config) (ai.In
 
 // IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
 func IsDefinedIndexer(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedIndexer(g, provider, name)
+	return genkit.LookupIndexer(g, provider, name) != nil
 }
 
 // Indexer returns the registered indexer with the given name.
@@ -60,7 +60,7 @@ func Indexer(g *genkit.Genkit, name string) ai.Indexer {
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
 func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedRetriever(g, provider, name)
+	return genkit.LookupRetriever(g, provider, name) != nil
 }
 
 // Retriever returns the retriever with the given name.

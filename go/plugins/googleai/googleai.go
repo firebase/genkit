@@ -95,6 +95,11 @@ type GoogleAI struct {
 	initted bool          // Whether the plugin has been initialized.
 }
 
+// Name returns the name of the plugin.
+func (ga *GoogleAI) Name() string {
+	return provider
+}
+
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders

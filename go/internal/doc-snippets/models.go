@@ -33,7 +33,7 @@ func m1() error {
 	// Default to the value of GCLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
 	// To specify these values directly, pass a vertexai.Config value to Init.
-	if err := vertexai.Init(ctx, g, nil); err != nil {
+	if err := (&vertexai.VertexAI{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]

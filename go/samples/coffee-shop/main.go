@@ -85,13 +85,12 @@ type testAllCoffeeFlowsOutput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithDefaultModel("googleai/gemini-2.0-flash"))
+	g, err := genkit.Init(ctx,
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googleai.GoogleAI{}),
+	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
-	}
-
-	if err := googleai.Init(context.Background(), g, nil); err != nil {
-		log.Fatal(err)
 	}
 
 	m := googleai.Model(g, "gemini-2.0-flash")

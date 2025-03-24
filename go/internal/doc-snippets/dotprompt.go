@@ -29,7 +29,7 @@ func dot01() error {
 	ctx = context.Background()
 
 	// Default to the project in GCLOUD_PROJECT and the location "us-central1".
-	vertexai.Init(ctx, g, nil)
+	(&vertexai.VertexAI{}).Init(ctx, g)
 
 	// The .prompt file specifies vertexai/gemini-2.0-flash, which is
 	// automatically defined by Init(). However, if it specified a model that
@@ -85,7 +85,7 @@ func dot02() {
 
 	// [START dot02]
 	// Make sure you set up the model you're using.
-	vertexai.DefineModel(g, "gemini-2.0-flash", nil)
+	vertexai.Model(g, "gemini-2.0-flash")
 
 	response, err := prompt.Execute(
 		context.Background(),
