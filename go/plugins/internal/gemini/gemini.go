@@ -21,11 +21,12 @@ package gemini
 import (
 	"context"
 	"fmt"
-	"github.com/firebase/genkit/go/core"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/firebase/genkit/go/core"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -97,8 +98,8 @@ func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 	}
 	// the gemini api doesn't support downloading media from http(s)
 	if info.Supports.Media {
-		fn = core.ChainMiddleware(ai.DownloadRequestMedia(&ai.DownloadRequestMediaOptions{
-			MaxBytes: 1024 * 1024 * 20,
+		fn = core.ChainMiddleware(ai.DownloadRequestMedia(&ai.DownloadMediaOptions{
+			MaxBytes: 1024 * 1024 * 20, // 20MB
 			Filter: func(part *ai.Part) bool {
 				u, err := url.Parse(part.Text)
 				if err != nil {

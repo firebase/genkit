@@ -27,12 +27,13 @@ import (
 	"strings"
 )
 
-type DownloadRequestMediaOptions struct {
-	MaxBytes int64
-	Filter   func(part *Part) bool
+// DownloadMediaOptions configures how media is downloaded in the [DownloadRequestMedia] middleware.
+type DownloadMediaOptions struct {
+	MaxBytes int64                 // Maximum number of bytes to download.
+	Filter   func(part *Part) bool // Filter to apply to parts that are media URLs.
 }
 
-// Provide a simulated system prompt for models that don't support it natively.
+// simulateSystemPrompt provides a simulated system prompt for models that don't support it natively.
 func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
@@ -72,7 +73,7 @@ func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddl
 	}
 }
 
-// validateSupport creates middleware that validates whether a model supports the requested features.
+// validateSupport validates whether a model supports the features used in the model request.
 func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
@@ -158,7 +159,8 @@ func validateVersion(model string, versions []string, config any) error {
 	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
 }
 
-func DownloadRequestMedia(options *DownloadRequestMediaOptions) ModelMiddleware {
+// DownloadRequestMedia downloads media from a URL and replaces the media part with a base64 encoded string.
+func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			client := &http.Client{}
@@ -172,13 +174,13 @@ func DownloadRequestMedia(options *DownloadRequestMediaOptions) ModelMiddleware 
 
 					resp, err := client.Get(mediaUrl)
 					if err != nil {
-						return nil, fmt.Errorf("HTTP error downloading media '%s': %v", mediaUrl, err)
+						return nil, fmt.Errorf("HTTP error downloading media %q: %v", mediaUrl, err)
 					}
 					defer resp.Body.Close()
 
 					if resp.StatusCode != http.StatusOK {
 						body, _ := io.ReadAll(resp.Body)
-						return nil, fmt.Errorf("HTTP error downloading media '%s': %s", mediaUrl, string(body))
+						return nil, fmt.Errorf("HTTP error downloading media %q: %s", mediaUrl, string(body))
 					}
 
 					contentType := part.ContentType
@@ -194,13 +196,10 @@ func DownloadRequestMedia(options *DownloadRequestMediaOptions) ModelMiddleware 
 						data, err = io.ReadAll(resp.Body)
 					}
 					if err != nil {
-						return nil, fmt.Errorf("error reading media '%s': %v", mediaUrl, err)
+						return nil, fmt.Errorf("error reading media %q: %v", mediaUrl, err)
 					}
 
-					message.Content[j] = &Part{
-						ContentType: contentType,
-						Text:        fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)),
-					}
+					message.Content[j] = NewMediaPart(contentType, fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)))
 				}
 			}
 			return next(ctx, input, cb)

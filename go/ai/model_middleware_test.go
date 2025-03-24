@@ -368,7 +368,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 	testCases := []struct {
 		name           string
 		input          *ModelRequest
-		options        *DownloadRequestMediaOptions
+		options        *DownloadMediaOptions
 		setupServer    func() *httptest.Server
 		expectedResult *ModelRequest
 	}{
@@ -421,7 +421,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 					},
 				},
 			},
-			options: &DownloadRequestMediaOptions{
+			options: &DownloadMediaOptions{
 				Filter: func(part *Part) bool {
 					return true
 				},
@@ -462,7 +462,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 					},
 				},
 			},
-			options: &DownloadRequestMediaOptions{
+			options: &DownloadMediaOptions{
 				Filter: func(part *Part) bool {
 					return false
 				},
