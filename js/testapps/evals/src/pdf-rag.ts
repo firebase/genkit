@@ -92,6 +92,22 @@ export const simpleStructured = ai.defineFlow(
   }
 );
 
+// Define a simple flow
+export const simpleEcho = ai.defineFlow(
+  {
+    name: 'simpleEcho',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (i) => {
+    const llmResponse = await ai.generate({
+      model: gemini15Flash,
+      prompt: i,
+    });
+    return llmResponse.text;
+  }
+);
+
 const chunkingConfig = {
   minLength: 1000, // number of minimum characters into chunk
   maxLength: 2000, // number of maximum characters into chunk

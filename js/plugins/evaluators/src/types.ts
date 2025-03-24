@@ -34,7 +34,7 @@ export enum GenkitMetric {
 
 export interface BaseGenkitMetricConfig {
   type: GenkitMetric;
-  statusOverrideFn?: (score: Score) => EvalStatusEnum;
+  statusOverrideFn?: (args: { score: Score }) => EvalStatusEnum;
 }
 
 export interface FaithfulnessGenkitMetricConfig<

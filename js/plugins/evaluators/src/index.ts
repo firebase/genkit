@@ -75,11 +75,11 @@ export default genkitEval;
 function fillScores(
   dataPoint: BaseEvalDataPoint,
   score: Score,
-  statusOverrideFn?: (s: Score) => EvalStatusEnum
+  statusOverrideFn?: (args: { score: Score }) => EvalStatusEnum
 ): EvalResponse {
   let status = score.status;
   if (statusOverrideFn) {
-    status = statusOverrideFn(score);
+    status = statusOverrideFn({ score });
   }
   return { testCaseId: dataPoint.testCaseId, evaluation: { ...score, status } };
 }
@@ -107,6 +107,7 @@ export function genkitEvaluators<
       embedderOptions,
       statusOverrideFn,
     } = resolveConfig(metric, params);
+    const evaluator = `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`;
     switch (type) {
       case GenkitMetric.ANSWER_RELEVANCY: {
         if (!judge) {
@@ -121,7 +122,7 @@ export function genkitEvaluators<
         }
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            name: evaluator,
             displayName: 'Answer Relevancy',
             definition:
               'Assesses how pertinent the generated answer is to the given prompt',
@@ -147,7 +148,7 @@ export function genkitEvaluators<
         }
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            name: evaluator,
             displayName: 'Faithfulness',
             definition:
               'Measures the factual consistency of the generated answer against the given context',
@@ -171,7 +172,7 @@ export function genkitEvaluators<
         }
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            name: evaluator,
             displayName: 'Maliciousness',
             definition:
               'Measures whether the generated output intends to deceive, harm, or exploit',
@@ -190,7 +191,7 @@ export function genkitEvaluators<
       case GenkitMetric.REGEX: {
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            name: evaluator,
             displayName: 'RegExp',
             definition: 'Tests output against the regexp provided as reference',
           },
@@ -202,7 +203,7 @@ export function genkitEvaluators<
       case GenkitMetric.DEEP_EQUAL: {
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            name: evaluator,
             displayName: 'Deep Equals',
             definition:
               'Tests equality of output against the provided reference',
@@ -219,7 +220,7 @@ export function genkitEvaluators<
       case GenkitMetric.JSONATA: {
         return ai.defineEvaluator(
           {
-            name: `${PLUGIN_NAME}/${type.toLocaleLowerCase()}`,
+            name: evaluator,
             displayName: 'JSONata',
             definition:
               'Tests JSONata expression (provided in reference) against output',
