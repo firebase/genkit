@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -9,30 +22,30 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
 func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
-	ragDataMenuPrompt, err := dotprompt.Define(g, "s04_ragDataMenu",
-		`
-		  You are acting as Walt, a helpful AI assistant here at the restaurant.
-		  You can answer questions about the food on the menu or any other questions
-		  customers have about food in general.
+	ragDataMenuPrompt, err := genkit.DefinePrompt(g, "s04_ragDataMenu",
+		ai.WithPromptText(`
+You are acting as Walt, a helpful AI assistant here at the restaurant.
+You can answer questions about the food on the menu or any other questions
+customers have about food in general.
 
-		  Here are some items that are on today's menu that are relevant to
-		  helping you answer the customer's question:
-		  {{#each menuData~}}
-		  - {{this.title}} \${{this.price}}
-		    {{this.description}}
-		  {{~/each}}
+Here are some items that are on today's menu that are relevant to
+helping you answer the customer's question:
+{{#each menuData~}}
+- {{this.title}} \${{this.price}}
+{{this.description}}
+{{~/each}}
 
-		  Answer this customer's question:
-		  {{question}}?`,
-		dotprompt.WithDefaultModel(model),
-		dotprompt.WithInputType(dataMenuQuestionInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+Answer this customer's question:
+{{question}}?
+`),
+		ai.WithModel(model),
+		ai.WithInputType(dataMenuQuestionInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
+		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.3,
 		}),
 	)
@@ -85,7 +98,7 @@ func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model
 				Question: input.Question,
 			}
 
-			presp, err := ragDataMenuPrompt.Generate(ctx, g, dotprompt.WithInput(questionInput))
+			presp, err := ragDataMenuPrompt.Execute(ctx, ai.WithInput(questionInput))
 			if err != nil {
 				return nil, err
 			}

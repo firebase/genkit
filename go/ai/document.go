@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -8,6 +21,14 @@ import (
 	"fmt"
 
 	"gopkg.in/yaml.v3"
+)
+
+type OutputFormat string
+
+const (
+	OutputFormatText  OutputFormat = "text"
+	OutputFormatJSON  OutputFormat = "json"
+	OutputFormatMedia OutputFormat = "media"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -113,7 +134,7 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 		return json.Marshal(v)
 	case PartMedia:
 		v := mediaPart{
-			Media: &mediaPartMedia{
+			Media: &Media{
 				ContentType: p.ContentType,
 				Url:         p.Text,
 			},
@@ -144,12 +165,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 }
 
 type partSchema struct {
-	Text         string          `json:"text,omitempty" yaml:"text,omitempty"`
-	Media        *mediaPartMedia `json:"media,omitempty" yaml:"media,omitempty"`
-	Data         string          `json:"data,omitempty" yaml:"data,omitempty"`
-	ToolRequest  *ToolRequest    `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
-	ToolResponse *ToolResponse   `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
-	Metadata     map[string]any  `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Text         string         `json:"text,omitempty" yaml:"text,omitempty"`
+	Media        *Media         `json:"media,omitempty" yaml:"media,omitempty"`
+	Data         string         `json:"data,omitempty" yaml:"data,omitempty"`
+	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
+	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 // unmarshalPartFromSchema updates Part p based on the schema s.

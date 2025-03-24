@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // This program can be manually tested like so:
@@ -30,7 +43,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/server"
 )
@@ -96,10 +108,11 @@ func main() {
 	}
 
 	m := googleai.Model(g, "gemini-2.0-flash")
-	simpleGreetingPrompt, err := dotprompt.Define(g, "simpleGreeting2", simpleGreetingPromptTemplate,
-		dotprompt.WithDefaultModel(m),
-		dotprompt.WithInputType(simpleGreetingInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
+	simpleGreetingPrompt, err := genkit.DefinePrompt(g, "simpleGreeting2",
+		ai.WithPromptText(simpleGreetingPromptTemplate),
+		ai.WithModel(m),
+		ai.WithInputType(simpleGreetingInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -112,10 +125,9 @@ func main() {
 				return cb(ctx, c.Text())
 			}
 		}
-		resp, err := simpleGreetingPrompt.Generate(ctx,
-			g,
-			dotprompt.WithInput(input),
-			dotprompt.WithStreaming(callback),
+		resp, err := simpleGreetingPrompt.Execute(ctx,
+			ai.WithInput(input),
+			ai.WithStreaming(callback),
 		)
 		if err != nil {
 			return "", err
@@ -123,27 +135,31 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	greetingWithHistoryPrompt, err := dotprompt.Define(g, "greetingWithHistory", greetingWithHistoryPromptTemplate,
-		dotprompt.WithDefaultModel(m),
-		dotprompt.WithInputType(customerTimeAndHistoryInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
+	greetingWithHistoryPrompt, err := genkit.DefinePrompt(g, "greetingWithHistory",
+		ai.WithPromptText(greetingWithHistoryPromptTemplate),
+		ai.WithModel(m),
+		ai.WithInputType(customerTimeAndHistoryInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	greetingWithHistoryFlow := genkit.DefineFlow(g, "greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
-		resp, err := greetingWithHistoryPrompt.Generate(ctx, g, dotprompt.WithInput(input))
+		resp, err := greetingWithHistoryPrompt.Execute(ctx,
+			ai.WithInput(input),
+		)
 		if err != nil {
 			return "", err
 		}
 		return resp.Text(), nil
 	})
 
-	simpleStructuredGreetingPrompt, err := dotprompt.Define(g, "simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
-		dotprompt.WithDefaultModel(m),
-		dotprompt.WithInputType(simpleGreetingInput{}),
-		dotprompt.WithOutputType(simpleGreetingOutput{}),
+	simpleStructuredGreetingPrompt, err := genkit.DefinePrompt(g, "simpleStructuredGreeting",
+		ai.WithPromptText(simpleStructuredGreetingPromptTemplate),
+		ai.WithModel(m),
+		ai.WithInputType(simpleGreetingInput{}),
+		ai.WithOutputType(simpleGreetingOutput{}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -156,9 +172,9 @@ func main() {
 				return cb(ctx, c.Text())
 			}
 		}
-		resp, err := simpleStructuredGreetingPrompt.Generate(ctx, g,
-			dotprompt.WithInput(input),
-			dotprompt.WithStreaming(callback),
+		resp, err := simpleStructuredGreetingPrompt.Execute(ctx,
+			ai.WithInput(input),
+			ai.WithStreaming(callback),
 		)
 		if err != nil {
 			return "", err

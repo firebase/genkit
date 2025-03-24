@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -10,24 +23,23 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
 type imageURLInput struct {
 	ImageURL string `json:"imageUrl"`
 }
 
-func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
-	readMenuPrompt, err := dotprompt.Define(g, "s05_readMenu",
-		`
-		  Extract _all_ of the text, in order,
-		  from the following image of a restaurant menu.
+func setup05(g *genkit.Genkit, model ai.Model) error {
+	text := `Extract _all_ of the text, in order, from the following image of a restaurant menu.
 
-		  {{media url=imageUrl}}`,
-		dotprompt.WithDefaultModel(genVision),
-		dotprompt.WithInputType(imageURLInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+{{media url=imageUrl}}`
+	readMenuPrompt, err := genkit.DefinePrompt(
+		g, "s05_readMenu",
+		ai.WithPromptText(text),
+		ai.WithModel(model),
+		ai.WithInputType(imageURLInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
+		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.1,
 		}),
 	)
@@ -35,22 +47,23 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 		return err
 	}
 
-	textMenuPrompt, err := dotprompt.Define(g, "s05_textMenu",
-		`
-		  You are acting as Walt, a helpful AI assistant here at the restaurant.
-		  You can answer questions about the food on the menu or any other questions
-		  customers have about food in general.
+	textMenuPrompt, err := genkit.DefinePrompt(
+		g, "s05_textMenu",
+		ai.WithPromptText(`
+You are acting as Walt, a helpful AI assistant here at the restaurant.
+You can answer questions about the food on the menu or any other questions
+customers have about food in general.
 
-		  Here is the text of today's menu to help you answer the customer's question:
-		  {{menuText}}
+Here is the text of today's menu to help you answer the customer's question:
+{{menuText}}
 
-		  Answer this customer's question:
-		  {{question}}?
-		`,
-		dotprompt.WithDefaultModel(gen),
-		dotprompt.WithInputType(textMenuQuestionInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+Answer this customer's question:
+{{question}}?
+`),
+		ai.WithModel(model),
+		ai.WithInputType(textMenuQuestionInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
+		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.3,
 		}),
 	)
@@ -72,8 +85,8 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 			base64.StdEncoding.Encode(data, image)
 			imageDataURL := "data:image/jpeg;base64," + string(data)
 
-			presp, err := readMenuPrompt.Generate(ctx, g,
-				dotprompt.WithInput(&imageURLInput{
+			presp, err := readMenuPrompt.Execute(ctx,
+				ai.WithInput(&imageURLInput{
 					ImageURL: imageDataURL,
 				}))
 			if err != nil {
@@ -89,7 +102,7 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 	// Just returns the LLM's text response to the question.
 	textMenuQuestionFlow := genkit.DefineFlow(g, "s05_textMenuQuestion",
 		func(ctx context.Context, input *textMenuQuestionInput) (*answerOutput, error) {
-			presp, err := textMenuPrompt.Generate(ctx, g, dotprompt.WithInput(input))
+			presp, err := textMenuPrompt.Execute(ctx, ai.WithInput(input))
 			if err != nil {
 				return nil, err
 			}
@@ -101,7 +114,6 @@ func setup05(g *genkit.Genkit, gen, genVision ai.Model) error {
 	)
 
 	// Define a third composite flow that chains the first two flows.
-
 	genkit.DefineFlow(g, "s05_visionMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			menuText, err := readMenuFlow.Run(ctx, struct{}{})

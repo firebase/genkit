@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -25,7 +38,7 @@ type (
 		// Name returns the registry name of the model.
 		Name() string
 		// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
-		Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamCallback) (*ModelResponse, error)
+		Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
 	}
 
 	// ToolConfig handles configuration around tool calls during generation.
@@ -56,94 +69,52 @@ type (
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
 	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, nil,
-		func(ctx context.Context, req *GenerateActionOptions, cb ModelStreamCallback) (output *ModelResponse, err error) {
+		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
-				"input", fmt.Sprintf("%#v", req))
+				"input", fmt.Sprintf("%#v", actionOpts))
 			defer func() {
 				logger.FromContext(ctx).Debug("GenerateAction",
-					"output", fmt.Sprintf("%#v", output),
+					"output", fmt.Sprintf("%#v", resp),
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, req,
-				func(ctx context.Context, input *GenerateActionOptions) (*ModelResponse, error) {
-					model := LookupModel(r, "", req.Model)
-					if model == nil {
-						return nil, fmt.Errorf("model %q not found", req.Model)
-					}
-
-					toolDefs := make([]*ToolDefinition, len(req.Tools))
-					for i, toolName := range req.Tools {
-						toolDefs[i] = LookupTool(r, toolName).Definition()
-					}
-
-					modelReq := &ModelRequest{
-						Messages:   req.Messages,
-						Config:     req.Config,
-						Tools:      toolDefs,
-						ToolChoice: req.ToolChoice,
-					}
-
-					if req.Output != nil {
-						modelReq.Output = &ModelRequestOutput{
-							Format: req.Output.Format,
-							Schema: req.Output.JsonSchema,
-						}
-					}
-
-					if modelReq.Output != nil &&
-						modelReq.Output.Schema != nil &&
-						modelReq.Output.Format == "" {
-						modelReq.Output.Format = OutputFormatJSON
-					}
-
-					maxTurns := 5
-					if req.MaxTurns > 0 {
-						maxTurns = req.MaxTurns
-					}
-
-					toolCfg := &ToolConfig{
-						MaxTurns:           maxTurns,
-						ReturnToolRequests: req.ReturnToolRequests,
-					}
-
-					return model.Generate(ctx, r, modelReq, nil, toolCfg, cb)
+			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
+				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
+					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 				})
 		}))
 }
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(
-	r *registry.Registry,
-	provider, name string,
-	info *ModelInfo,
-	generate ModelFunc,
-) Model {
-	metadataMap := map[string]any{}
+func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, fn ModelFunc) Model {
 	if info == nil {
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
 			Label:    name,
-			Supports: &ModelInfoSupports{},
+			Supports: &ModelSupports{},
 			Versions: []string{},
 		}
 	}
+
+	metadata := map[string]any{
+		"model": map[string]any{
+			"supports": map[string]bool{
+				"media":      info.Supports.Media,
+				"multiturn":  info.Supports.Multiturn,
+				"systemRole": info.Supports.SystemRole,
+				"tools":      info.Supports.Tools,
+				"toolChoice": info.Supports.ToolChoice,
+			},
+			"versions": info.Versions,
+		},
+	}
 	if info.Label != "" {
-		metadataMap["label"] = info.Label
+		metadata["label"] = info.Label
 	}
-	supports := map[string]bool{
-		"media":      info.Supports.Media,
-		"multiturn":  info.Supports.Multiturn,
-		"systemRole": info.Supports.SystemRole,
-		"tools":      info.Supports.Tools,
-		"toolChoice": info.Supports.ToolChoice,
-	}
-	metadataMap["supports"] = supports
-	metadataMap["versions"] = info.Versions
 
-	generate = core.ChainMiddleware(ValidateSupport(name, info))(generate)
+	fn = core.ChainMiddleware(simulateSystemPrompt(info, nil), validateSupport(name, info))(fn)
 
-	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, map[string]any{"model": metadataMap}, generate))
+	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
 
 // IsDefinedModel reports whether a model is defined.
@@ -165,314 +136,100 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 // It returns an error if the model was not defined.
 func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if modelName == "" {
-		return nil, errors.New("generate.LookupModelByName: model not specified")
+		return nil, errors.New("ai.LookupModelByName: model not specified")
 	}
 
-	parts := strings.Split(modelName, "/")
-	if len(parts) != 2 {
-		return nil, errors.New("generate.LookupModelByName: prompt model not in provider/name format")
+	provider, name, found := strings.Cut(modelName, "/")
+	if !found {
+		name = provider
+		provider = ""
 	}
 
-	model := LookupModel(r, parts[0], parts[1])
+	model := LookupModel(r, provider, name)
 	if model == nil {
-		return nil, fmt.Errorf("generate.LookupModelByName: no model named %q for provider %q", parts[1], parts[0])
+		if provider == "" {
+			return nil, fmt.Errorf("ai.LookupModelByName: no model named %q", name)
+		}
+		return nil, fmt.Errorf("ai.LookupModelByName: no model named %q for provider %q", name, provider)
 	}
 
 	return model, nil
 }
 
-// generateParams represents various params of the Generate call.
-type generateParams struct {
-	Request            *ModelRequest
-	Model              Model
-	Stream             ModelStreamCallback
-	History            []*Message
-	SystemPrompt       *Message
-	MaxTurns           int
-	ReturnToolRequests bool
-	Middleware         []ModelMiddleware
-}
-
-// GenerateOption configures params of the Generate call.
-type GenerateOption func(req *generateParams) error
-
-// WithModel sets the model to use for the generate request.
-func WithModel(m Model) GenerateOption {
-	return func(req *generateParams) error {
-		req.Model = m
-		return nil
-	}
-}
-
-// WithTextPrompt adds a simple text user prompt to ModelRequest.
-func WithTextPrompt(prompt string) GenerateOption {
-	return func(req *generateParams) error {
-		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
-		return nil
-	}
-}
-
-// WithSystemPrompt adds a simple text system prompt as the first message in ModelRequest.
-// System prompt will always be put first in the list of messages.
-func WithSystemPrompt(prompt string) GenerateOption {
-	return func(req *generateParams) error {
-		if req.SystemPrompt != nil {
-			return errors.New("generate.WithSystemPrompt: cannot set system prompt more than once")
-		}
-		req.SystemPrompt = NewSystemTextMessage(prompt)
-		return nil
-	}
-}
-
-// WithMessages adds provided messages to ModelRequest.
-func WithMessages(messages ...*Message) GenerateOption {
-	return func(req *generateParams) error {
-		req.Request.Messages = append(req.Request.Messages, messages...)
-		return nil
-	}
-}
-
-// WithHistory adds provided history messages to the beginning of
-// ModelRequest.Messages.  History messages will always be put first in the list
-// of messages, with the exception of system prompt which will always be first.
-// [WithMessages] and [WithTextPrompt] will insert messages after system prompt
-// and history.
-func WithHistory(history ...*Message) GenerateOption {
-	return func(req *generateParams) error {
-		if req.History != nil {
-			return errors.New("generate.WithHistory: cannot set history more than once")
-		}
-		req.History = history
-		return nil
-	}
-}
-
-// WithConfig adds provided config to ModelRequest.
-func WithConfig(config any) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Request.Config != nil {
-			return errors.New("generate.WithConfig: cannot set config more than once")
-		}
-		req.Request.Config = config
-		return nil
-	}
-}
-
-// WithContext adds provided documents to ModelRequest.
-func WithContext(docs ...*Document) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Request.Context != nil {
-			return errors.New("generate.WithContext: cannot set context more than once")
-		}
-		req.Request.Context = docs
-		return nil
-	}
-}
-
-// WithTools adds provided tools to ModelRequest.
-func WithTools(tools ...Tool) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Request.Tools != nil {
-			return errors.New("generate.WithTools: cannot set tools more than once")
-		}
-		var toolDefs []*ToolDefinition
-		for _, t := range tools {
-			toolDefs = append(toolDefs, t.Definition())
-		}
-		req.Request.Tools = toolDefs
-		return nil
-	}
-}
-
-// WithOutputSchema adds provided output schema to ModelRequest.
-func WithOutputSchema(schema any) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Request.Output != nil && req.Request.Output.Schema != nil {
-			return errors.New("generate.WithOutputSchema: cannot set output schema more than once")
-		}
-		if req.Request.Output == nil {
-			req.Request.Output = &ModelRequestOutput{}
-			req.Request.Output.Format = OutputFormatJSON
-		}
-		req.Request.Output.Schema = base.SchemaAsMap(base.InferJSONSchemaNonReferencing(schema))
-		return nil
-	}
-}
-
-// WithOutputFormat adds provided output format to ModelRequest.
-func WithOutputFormat(format OutputFormat) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Request.Output == nil {
-			req.Request.Output = &ModelRequestOutput{}
-		}
-		req.Request.Output.Format = format
-		return nil
-	}
-}
-
-// WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ModelStreamCallback) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Stream != nil {
-			return errors.New("generate.WithStreaming: cannot set streaming callback more than once")
-		}
-		req.Stream = cb
-		return nil
-	}
-}
-
-// WithMaxTurns sets the maximum number of tool call iterations for the generate request.
-func WithMaxTurns(maxTurns int) GenerateOption {
-	return func(req *generateParams) error {
-		if maxTurns <= 0 {
-			return fmt.Errorf("maxTurns must be greater than 0, got %d", maxTurns)
-		}
-		if req.MaxTurns != 0 {
-			return errors.New("generate.WithMaxTurns: cannot set MaxTurns more than once")
-		}
-		req.MaxTurns = maxTurns
-		return nil
-	}
-}
-
-// WithReturnToolRequests configures whether to return tool requests instead of making the tool calls and continuing the generation.
-func WithReturnToolRequests(returnToolRequests bool) GenerateOption {
-	return func(req *generateParams) error {
-		if req.ReturnToolRequests {
-			return errors.New("generate.WithReturnToolRequests: cannot set ReturnToolRequests more than once")
-		}
-		req.ReturnToolRequests = returnToolRequests
-		return nil
-	}
-}
-
-// WithToolChoice configures whether tool calls are required, disabled, or optional for the generate request.
-func WithToolChoice(toolChoice ToolChoice) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Request.ToolChoice != "" {
-			return errors.New("generate.WithToolChoice: cannot set ToolChoice more than once")
-		}
-		req.Request.ToolChoice = toolChoice
-		return nil
-	}
-}
-
-// WithMiddleware adds middleware to the generate request.
-func WithMiddleware(middleware ...ModelMiddleware) GenerateOption {
-	return func(req *generateParams) error {
-		if req.Middleware != nil {
-			return errors.New("generate.WithMiddleware: cannot set Middleware more than once")
-		}
-		req.Middleware = middleware
-		return nil
-	}
-}
-
-// Generate run generate request for this model. Returns ModelResponse struct.
-func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
-	req := &generateParams{
-		Request: &ModelRequest{},
+// GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
+func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
+	if opts.Model == "" {
+		return nil, errors.New("ai.GenerateWithRequest: model is required")
 	}
 
-	for _, with := range opts {
-		err := with(req)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if req.Model == nil {
-		return nil, errors.New("model is required")
-	}
-
-	if req.History != nil {
-		prev := req.Request.Messages
-		req.Request.Messages = req.History
-		req.Request.Messages = append(req.Request.Messages, prev...)
-	}
-	if req.SystemPrompt != nil {
-		prev := req.Request.Messages
-		req.Request.Messages = []*Message{req.SystemPrompt}
-		req.Request.Messages = append(req.Request.Messages, prev...)
-	}
-	if req.MaxTurns == 0 {
-		req.MaxTurns = 1
-	}
-
-	toolCfg := &ToolConfig{
-		MaxTurns:           req.MaxTurns,
-		ReturnToolRequests: req.ReturnToolRequests,
-	}
-
-	return req.Model.Generate(ctx, r, req.Request, req.Middleware, toolCfg, req.Stream)
-}
-
-// GenerateText run generate request for this model. Returns generated text only.
-func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (string, error) {
-	res, err := Generate(ctx, r, opts...)
-	if err != nil {
-		return "", err
-	}
-
-	return res.Text(), nil
-}
-
-// Generate run generate request for this model. Returns ModelResponse struct.
-// TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...GenerateOption) (*ModelResponse, error) {
-	opts = append(opts, WithOutputSchema(value))
-	resp, err := Generate(ctx, r, opts...)
+	model, err := LookupModelByName(r, opts.Model)
 	if err != nil {
 		return nil, err
 	}
-	err = resp.UnmarshalOutput(value)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
 
-// Generate applies the [Action] to provided request, handling tool requests and handles streaming.
-func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, mw []ModelMiddleware, toolCfg *ToolConfig, cb ModelStreamCallback) (*ModelResponse, error) {
-	if m == nil {
-		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
+	toolDefMap := make(map[string]*ToolDefinition)
+	for _, t := range opts.Tools {
+		if _, ok := toolDefMap[t]; ok {
+			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
+		}
+
+		tool := LookupTool(r, t)
+		if tool == nil {
+			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
+		}
+
+		toolDefMap[t] = tool.Definition()
+	}
+	toolDefs := make([]*ToolDefinition, 0, len(toolDefMap))
+	for _, t := range toolDefMap {
+		toolDefs = append(toolDefs, t)
 	}
 
-	if toolCfg == nil {
-		toolCfg = &ToolConfig{
-			MaxTurns:           1,
-			ReturnToolRequests: false,
+	maxTurns := opts.MaxTurns
+	if maxTurns < 0 {
+		return nil, fmt.Errorf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns)
+	}
+	if maxTurns == 0 {
+		maxTurns = 5 // Default max turns.
+	}
+
+	var output *ModelOutputConfig
+	if opts.Output != nil {
+		output = &ModelOutputConfig{
+			Format: opts.Output.Format,
+			Schema: opts.Output.JsonSchema,
+		}
+		if output.Schema != nil && output.Format == "" {
+			output.Format = string(OutputFormatJSON)
 		}
 	}
 
-	if req.Tools != nil {
-		toolNames := make(map[string]bool)
-		for _, tool := range req.Tools {
-			if toolNames[tool.Name] {
-				return nil, fmt.Errorf("duplicate tool name found: %q", tool.Name)
-			}
-			toolNames[tool.Name] = true
-		}
+	req := &ModelRequest{
+		Messages:   opts.Messages,
+		Config:     opts.Config,
+		Docs:       opts.Docs,
+		ToolChoice: opts.ToolChoice,
+		Tools:      toolDefs,
+		Output:     output,
 	}
 
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
 
-	handler := core.ChainMiddleware(mw...)((*ModelAction)(m).Run)
+	fn := core.ChainMiddleware(mw...)(model.Generate)
 
 	currentTurn := 0
 	for {
-		resp, err := handler(ctx, req, cb)
+		resp, err := fn(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}
 
-		msg, err := validResponse(ctx, resp)
+		resp.Message, err = validResponse(ctx, resp)
 		if err != nil {
 			return nil, err
 		}
-		resp.Message = msg
 
 		toolCount := 0
 		for _, part := range resp.Message.Content {
@@ -480,12 +237,12 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 				toolCount++
 			}
 		}
-		if toolCount == 0 || toolCfg.ReturnToolRequests {
+		if toolCount == 0 || opts.ReturnToolRequests {
 			return resp, nil
 		}
 
-		if currentTurn+1 > toolCfg.MaxTurns {
-			return nil, fmt.Errorf("exceeded maximum tool call iterations (%d)", toolCfg.MaxTurns)
+		if currentTurn+1 > maxTurns {
+			return nil, fmt.Errorf("exceeded maximum tool call iterations (%d)", maxTurns)
 		}
 
 		newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
@@ -507,7 +264,109 @@ func (m *modelActionDef) Generate(ctx context.Context, r *registry.Registry, req
 	}
 }
 
-func (i *modelActionDef) Name() string { return (*ModelAction)(i).Name() }
+// Generate generates a model response based on the provided options.
+func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
+	genOpts := &generateOptions{}
+	for _, opt := range opts {
+		err := opt.applyGenerate(genOpts)
+		if err != nil {
+			return nil, fmt.Errorf("ai.Generate: error applying options: %w", err)
+		}
+	}
+
+	modelName := genOpts.ModelName
+	if modelName == "" && genOpts.Model != nil {
+		modelName = genOpts.Model.Name()
+	}
+
+	tools := make([]string, len(genOpts.Tools))
+	for i, tool := range genOpts.Tools {
+		tools[i] = tool.Name()
+	}
+
+	messages := []*Message{}
+	if genOpts.SystemFn != nil {
+		system, err := genOpts.SystemFn(ctx, genOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, NewSystemTextMessage(system))
+	}
+	if genOpts.MessagesFn != nil {
+		msgs, err := genOpts.MessagesFn(ctx, genOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, msgs...)
+	}
+	if genOpts.PromptFn != nil {
+		prompt, err := genOpts.PromptFn(ctx, genOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, NewUserTextMessage(prompt))
+	}
+
+	actionOpts := &GenerateActionOptions{
+		Model:              modelName,
+		Messages:           messages,
+		Tools:              tools,
+		MaxTurns:           genOpts.MaxTurns,
+		Config:             genOpts.Config,
+		ToolChoice:         genOpts.ToolChoice,
+		Docs:               genOpts.Documents,
+		ReturnToolRequests: genOpts.ReturnToolRequests,
+		Output: &GenerateActionOutputConfig{
+			JsonSchema: genOpts.OutputSchema,
+			Format:     string(genOpts.OutputFormat),
+		},
+	}
+
+	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+}
+
+// GenerateText run generate request for this model. Returns generated text only.
+func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (string, error) {
+	res, err := Generate(ctx, r, opts...)
+	if err != nil {
+		return "", err
+	}
+
+	return res.Text(), nil
+}
+
+// Generate run generate request for this model. Returns ModelResponse struct.
+// TODO: Stream GenerateData with partial JSON
+func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...GenerateOption) (*ModelResponse, error) {
+	opts = append(opts, WithOutputType(value))
+
+	resp, err := Generate(ctx, r, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	err = resp.UnmarshalOutput(value)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// Name returns the name of the model.
+func (m *modelActionDef) Name() string { return (*ModelAction)(m).Name() }
+
+// Generate applies the [Action] to provided request.
+func (m *modelActionDef) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+	if m == nil {
+		return nil, errors.New("Model.Generate: generate called on a nil model; check that all models are defined")
+	}
+
+	return (*ModelAction)(m).Run(ctx, req, cb)
+}
 
 // cloneMessage creates a deep copy of the provided Message.
 func cloneMessage(m *Message) *Message {
@@ -640,7 +499,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
+	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
 		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
@@ -666,8 +525,8 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
-	if output != nil && output.Format == OutputFormatJSON {
+func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
+	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}

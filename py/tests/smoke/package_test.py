@@ -1,11 +1,25 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Smoke tests for package structure."""
 
 # TODO: Replace this with proper imports once we have a proper implementation.
 from dotpromptz import package_name as dotpromptz_package_name
-from genkit.ai import package_name as ai_package_name
+
+from genkit.blocks import package_name as ai_package_name
 from genkit.core import package_name as core_package_name
 from genkit.plugins.chroma import package_name as chroma_package_name
 from genkit.plugins.firebase import package_name as firebase_package_name

@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package googleai_test
@@ -11,6 +24,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -22,7 +36,10 @@ import (
 )
 
 // The tests here only work with an API key set to a valid value.
-var apiKey = flag.String("key", "", "Gemini API key")
+var (
+	apiKey = flag.String("key", "", "Gemini API key")
+	cache  = flag.String("cache", "", "Local file to cache (large text document)")
+)
 
 var header = flag.Bool("header", false, "run test for x-goog-client-api header")
 
@@ -79,7 +96,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithTextPrompt("Which country was Napoleon the emperor of? Name the country, nothing else"))
+		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of? Name the country, nothing else"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +116,7 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("Write one paragraph about the North Pole."),
+			ai.WithPromptText("Write one paragraph about the North Pole."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				out += c.Content[0].Text
@@ -129,7 +146,7 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -143,7 +160,7 @@ func TestLive(t *testing.T) {
 	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithToolChoice(ai.ToolChoiceNone))
 		if err != nil {
@@ -154,6 +171,160 @@ func TestLive(t *testing.T) {
 		const doNotWant = "11.31"
 		if strings.Contains(out, doNotWant) {
 			t.Errorf("got %q, expecting it NOT to contain %q", out, doNotWant)
+		}
+	})
+	t.Run("cache", func(t *testing.T) {
+		if *cache == "" {
+			t.Skip("no cache contents provided, use -cache flag")
+		}
+
+		textContent, err := os.ReadFile(*cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
+			),
+			ai.WithPromptText("write a summary of the content"),
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// inspect metadata just to make sure the cache was created
+		m := resp.Message.Metadata
+		cacheName := ""
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				cacheName = n
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}),
+			ai.WithMessages(resp.History()...),
+			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := resp.Text()
+		if !strings.Contains(text, "Ahoy") {
+			t.Fatalf("expecting a response as a pirate but got %v", text)
+		}
+
+		// cache metadata should have not changed...
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				if cacheName != n {
+					t.Fatalf("cache name mismatch, want: %s, got: %s", cacheName, n)
+				}
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+	})
+}
+
+func TestCacheHelper(t *testing.T) {
+	t.Run("cache metadata", func(t *testing.T) {
+		req := ai.ModelRequest{
+			Messages: []*ai.Message{
+				ai.NewUserMessage(
+					ai.NewTextPart(("this is just a test")),
+				),
+				ai.NewModelMessage(
+					ai.NewTextPart("oh really? is it?")).WithCacheTTL(100),
+			},
+		}
+
+		for _, m := range req.Messages {
+			if m.Role == ai.RoleModel {
+				metadata := m.Metadata
+				if len(metadata) == 0 {
+					t.Fatal("expected metadata with contents, got empty")
+				}
+				cache, ok := metadata["cache"].(map[string]any)
+				if !ok {
+					t.Fatalf("cache should be a map, got: %T", cache)
+				}
+				if cache["ttlSeconds"] != 100 {
+					t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+				}
+			}
+		}
+	})
+	t.Run("cache metadata overwrite", func(t *testing.T) {
+		m := ai.NewModelMessage(ai.NewTextPart("foo bar")).WithCacheTTL(100)
+		metadata := m.Metadata
+		if len(metadata) == 0 {
+			t.Fatal("expected metadata with contents, got empty")
+		}
+		cache, ok := metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		if cache["ttlSeconds"] != 100 {
+			t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+		}
+
+		m.Metadata["foo"] = "bar"
+		m.WithCacheTTL(50)
+
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		if cache["ttlSeconds"] != 50 {
+			t.Fatalf("expecting ttlSeconds to be 50s, got: %d", cache["ttlSeconds"])
+		}
+		_, ok = metadata["foo"]
+		if !ok {
+			t.Fatal("metadata contents were altered, expecting foo key")
+		}
+		bar, ok := metadata["foo"].(string)
+		if !ok {
+			t.Fatalf(`metadata["foo"] contents got altered, expecting string, got: %T`, bar)
+		}
+		if bar != "bar" {
+			t.Fatalf("expecting to be bar but got: %q", bar)
+		}
+
+		m.WithCacheName("dummy-name")
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatalf("cache should be a map, got: %T", cache)
+		}
+		ttl, ok := cache["ttlSeconds"].(int)
+		if ok {
+			t.Fatalf("cache should have been overwriten, expecting cache name, not ttl: %d", ttl)
+		}
+		name, ok := cache["name"].(string)
+		if !ok {
+			t.Fatalf("cache should have been overwriten, expecting cache name, got: %v", name)
+		}
+		if name != "dummy-name" {
+			t.Fatalf("cache name mismatch, want dummy-name, got: %s", name)
 		}
 	})
 }
@@ -177,7 +348,7 @@ func TestHeader(t *testing.T) {
 	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x"}); err != nil {
 		t.Fatal(err)
 	}
-	_, _ = genkit.Generate(ctx, g, ai.WithTextPrompt("hi"))
+	_, _ = genkit.Generate(ctx, g, ai.WithPromptText("hi"))
 	got := header.Get("x-goog-api-client")
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {

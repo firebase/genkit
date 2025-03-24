@@ -6,6 +6,8 @@
 """Tests for the action module."""
 
 import pytest
+
+from genkit.codec import dump_json
 from genkit.core.action import (
     Action,
     ActionKind,
@@ -14,7 +16,7 @@ from genkit.core.action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-from genkit.core.codec import dump_json
+from genkit.core.error import GenkitError
 
 
 def test_action_enum_behaves_like_str() -> None:
@@ -38,7 +40,7 @@ def test_action_enum_behaves_like_str() -> None:
 
 
 def test_parse_action_key_valid() -> None:
-    """Test valid inputs."""
+    """Parse action key valid."""
     test_cases = [
         ('/prompt/my-prompt', (ActionKind.PROMPT, 'my-prompt')),
         ('/model/gpt-4', (ActionKind.MODEL, 'gpt-4')),
@@ -57,7 +59,7 @@ def test_parse_action_key_valid() -> None:
 
 
 def test_parse_action_key_invalid_format() -> None:
-    """Test invalid formats."""
+    """Parse action key invalid format."""
     invalid_keys = [
         'invalid_key',  # Missing separator
         '/missing-kind',  # Missing kind
@@ -72,7 +74,7 @@ def test_parse_action_key_invalid_format() -> None:
 
 
 def test_create_action_key() -> None:
-    """Test that create_action_key returns the correct action key."""
+    """Create action key."""
     assert create_action_key(ActionKind.CUSTOM, 'foo') == '/custom/foo'
     assert create_action_key(ActionKind.MODEL, 'foo') == '/model/foo'
     assert create_action_key(ActionKind.PROMPT, 'foo') == '/prompt/foo'
@@ -83,77 +85,76 @@ def test_create_action_key() -> None:
 
 @pytest.mark.asyncio
 async def test_define_sync_action() -> None:
-    """Test that a sync action can be defined and run."""
+    """Define and run a sync action."""
 
-    def syncFoo():
+    def sync_foo():
         """A sync action that returns 'syncFoo'."""
         return 'syncFoo'
 
-    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await syncFooAction.arun()).response == 'syncFoo'
-    assert syncFoo() == 'syncFoo'
+    assert (await action.arun()).response == 'syncFoo'
+    assert sync_foo() == 'syncFoo'
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip('bug, action ignores args without type annotation')
 async def test_define_sync_action_with_input_without_type_annotation() -> None:
-    """Test that a sync action can be defined and run with an input without a type annotation."""
+    """Define and run a sync action with input without type annotation."""
 
-    def syncFoo(input):
+    def sync_foo(input):
         """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
-    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await syncFooAction.arun('foo')).response == 'syncFoo foo'
-    assert syncFoo('foo') == 'syncFoo foo'
+    assert (await action.arun('foo')).response == 'syncFoo foo'
+    assert sync_foo('foo') == 'syncFoo foo'
 
 
 @pytest.mark.asyncio
 async def test_define_sync_action_with_input() -> None:
-    """Test that a sync action can be defined and run with an input."""
+    """Define and run a sync action with input."""
 
-    def syncFoo(input: str):
+    def sync_foo(input: str):
         """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
-    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await syncFooAction.arun('foo')).response == 'syncFoo foo'
-    assert syncFoo('foo') == 'syncFoo foo'
+    assert (await action.arun('foo')).response == 'syncFoo foo'
+    assert sync_foo('foo') == 'syncFoo foo'
 
 
 @pytest.mark.asyncio
 async def test_define_sync_action_with_input_and_context() -> None:
-    """Test that a sync action can be defined and run with an input and context."""
+    """Define and run a sync action with input and context."""
 
-    def syncFoo(input: str, ctx: ActionRunContext):
+    def sync_foo(input: str, ctx: ActionRunContext):
         """A sync action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
-    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
     assert (
-        await syncFooAction.arun('foo', context={'foo': 'bar'})
+        await action.arun('foo', context={'foo': 'bar'})
     ).response == 'syncFoo foo bar'
     assert (
-        syncFoo('foo', ActionRunContext(context={'foo': 'bar'}))
+        sync_foo('foo', ActionRunContext(context={'foo': 'bar'}))
         == 'syncFoo foo bar'
     )
 
 
 @pytest.mark.asyncio
 async def test_define_sync_streaming_action() -> None:
-    """Test that a sync action can be defined and run with streaming output."""
+    """Define and run a sync streaming action."""
 
-    def syncFoo(input: str, ctx: ActionRunContext):
+    def sync_foo(input: str, ctx: ActionRunContext):
         """A sync action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
         return 3
 
-    syncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=syncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
     chunks = []
 
@@ -161,72 +162,90 @@ async def test_define_sync_streaming_action() -> None:
         chunks.append(c)
 
     assert (
-        await syncFooAction.arun(
-            'foo', context={'foo': 'bar'}, on_chunk=on_chunk
-        )
+        await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)
     ).response == 3
+    assert chunks == ['1', '2']
+
+
+@pytest.mark.asyncio
+async def test_define_streaming_action_and_stream_it() -> None:
+    """Define and stream a streaming action."""
+
+    def sync_foo(input: str, ctx: ActionRunContext):
+        """A sync action that returns 'syncFoo' with streaming output."""
+        ctx.send_chunk('1')
+        ctx.send_chunk('2')
+        return 3
+
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
+
+    chunks = []
+
+    stream, response = action.stream('foo', context={'foo': 'bar'})
+    async for chunk in stream:
+        chunks.append(chunk)
+
+    assert (await response) == 3
     assert chunks == ['1', '2']
 
 
 @pytest.mark.asyncio
 async def test_define_async_action() -> None:
-    """Test that an async action can be defined and run."""
+    """Define and run an async action."""
 
-    async def asyncFoo():
+    async def async_foo():
         """An async action that returns 'asyncFoo'."""
         return 'asyncFoo'
 
-    asyncFooAction = Action(
-        name='asyncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo
-    )
+    action = Action(name='asyncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    assert (await asyncFooAction.arun()).response == 'asyncFoo'
-    assert (await asyncFoo()) == 'asyncFoo'
+    assert (await action.arun()).response == 'asyncFoo'
+    assert (await async_foo()) == 'asyncFoo'
 
 
 @pytest.mark.asyncio
 async def test_define_async_action_with_input() -> None:
-    """Test that an async action can be defined and run with an input."""
+    """Define and run an async action with input."""
 
-    async def asyncFoo(input: str):
+    async def async_foo(input: str):
         """An async action that returns 'asyncFoo' with an input."""
-        return f'syncFoo {input}'
+        return f'asyncFoo {input}'
 
-    asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
+    action = Action(name='asyncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    assert (await asyncFooAction.arun('foo')).response == 'syncFoo foo'
-    assert (await asyncFoo('foo')) == 'syncFoo foo'
+    assert (await action.arun('foo')).response == 'asyncFoo foo'
+    assert (await async_foo('foo')) == 'asyncFoo foo'
 
 
 @pytest.mark.asyncio
 async def test_define_async_action_with_input_and_context() -> None:
-    """Test that an async action can be defined and run with an input and context."""
+    """Define and run async action with input and context."""
 
-    async def asyncFoo(input: str, ctx: ActionRunContext):
+    async def async_foo(input: str, ctx: ActionRunContext):
         """An async action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
-    asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
     assert (
-        await asyncFooAction.arun('foo', context={'foo': 'bar'})
+        await action.arun('foo', context={'foo': 'bar'})
     ).response == 'syncFoo foo bar'
     assert (
-        await asyncFoo('foo', ActionRunContext(context={'foo': 'bar'}))
+        await async_foo('foo', ActionRunContext(context={'foo': 'bar'}))
     ) == 'syncFoo foo bar'
 
 
 @pytest.mark.asyncio
 async def test_define_async_streaming_action() -> None:
-    """Test that an async action can be defined and run with streaming output."""
+    """Define and run an async streaming action."""
 
-    async def asyncFoo(input: str, ctx: ActionRunContext):
+    async def async_foo(input: str, ctx: ActionRunContext):
         """An async action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
         return 3
 
-    asyncFooAction = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=asyncFoo)
+    action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
     chunks = []
 
@@ -234,40 +253,77 @@ async def test_define_async_streaming_action() -> None:
         chunks.append(c)
 
     assert (
-        await asyncFooAction.arun(
-            'foo', context={'foo': 'bar'}, on_chunk=on_chunk
-        )
+        await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)
     ).response == 3
     assert chunks == ['1', '2']
 
 
 def test_parse_plugin_name_from_action_name():
-    assert parse_plugin_name_from_action_name('foo') == None
+    """Parse plugin name from the action name."""
+    assert parse_plugin_name_from_action_name('foo') is None
     assert parse_plugin_name_from_action_name('foo/bar') == 'foo'
     assert parse_plugin_name_from_action_name('foo/bar/baz') == 'foo'
 
 
 @pytest.mark.asyncio
 async def test_propagates_context_via_contextvar() -> None:
-    """Test that context is properly propagated via contextvar."""
+    """Context is properly propagated via contextvar."""
 
     async def foo(_: str | None, ctx: ActionRunContext):
         return dump_json(ctx.context)
 
-    fooAction = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+    foo_action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
 
     async def bar():
-        return (await fooAction.arun()).response
+        return (await foo_action.arun()).response
 
-    barAction = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
+    bar_action = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
 
     async def baz():
-        return (await barAction.arun()).response
+        return (await bar_action.arun()).response
 
-    bazAction = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
+    baz_action = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
 
-    first = bazAction.arun(context={'foo': 'bar'})
-    second = bazAction.arun(context={'bar': 'baz'})
+    first = baz_action.arun(context={'foo': 'bar'})
+    second = baz_action.arun(context={'bar': 'baz'})
 
     assert (await second).response == '{"bar": "baz"}'
     assert (await first).response == '{"foo": "bar"}'
+
+
+@pytest.mark.asyncio
+async def test_sync_action_raises_errors() -> None:
+    """Sync action raises error with necessary metadata."""
+
+    def sync_foo(_: str | None, ctx: ActionRunContext):
+        raise Exception('oops')
+
+    action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=sync_foo)
+
+    with pytest.raises(
+        GenkitError, match=r'.*Error while running action fooAction.*'
+    ) as e:
+        await action.arun()
+
+    assert 'stack' in e.value.details
+    assert 'trace_id' in e.value.details
+    assert str(e.value.cause) == 'oops'
+
+
+@pytest.mark.asyncio
+async def test_async_action_raises_errors() -> None:
+    """Async action raises error with necessary metadata."""
+
+    async def async_foo(_: str | None, ctx: ActionRunContext):
+        raise Exception('oops')
+
+    action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=async_foo)
+
+    with pytest.raises(
+        GenkitError, match=r'.*Error while running action fooAction.*'
+    ) as e:
+        await action.arun()
+
+    assert 'stack' in e.value.details
+    assert 'trace_id' in e.value.details
+    assert str(e.value.cause) == 'oops'

@@ -1,22 +1,44 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Base error classes and utilities for Genkit."""
 
+import traceback
 from typing import Any
 
-from genkit.core.registry import Registry
-from genkit.core.status_types import StatusName, http_status_code
-from pydantic import BaseModel
-from typing_extensions import TypeVar
+from pydantic import BaseModel, ConfigDict, Field
+
+from genkit.core.status_types import StatusCodes, StatusName, http_status_code
+
+
+class HttpErrorDetailsWireFormat(BaseModel):
+    """Wire format for HTTP error details."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+
+    stack: str | None = None
+    trace_id: str | None = Field(None, alias='traceId')
 
 
 class HttpErrorWireFormat(BaseModel):
     """Wire format for HTTP errors."""
 
-    details: Any = None
+    details: HttpErrorDetailsWireFormat | None = None
     message: str
-    status: StatusName
+    code: int = StatusCodes.INTERNAL.value
 
     model_config = {
         'frozen': True,
@@ -32,9 +54,11 @@ class GenkitError(Exception):
     def __init__(
         self,
         *,
-        status: StatusName,
         message: str,
-        detail: Any = None,
+        status: StatusName | None = None,
+        cause: Exception | None = None,
+        details: Any = None,
+        trace_id: str | None = None,
         source: str | None = None,
     ) -> None:
         """Initialize a GenkitError.
@@ -48,10 +72,27 @@ class GenkitError(Exception):
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{status}: {message}')
         self.original_message = message
-        self.code = http_status_code(status)
+
         self.status = status
-        self.detail = detail
+        if not self.status and isinstance(cause, GenkitError):
+            self.status = cause.status
+
+        if not self.status:
+            self.status = 'INTERNAL'
+
+        self.http_code = http_status_code(self.status)
+
+        if not details:
+            details = {}
+        if 'stack' not in details:
+            details['stack'] = get_error_stack(cause if cause else self)
+        if 'trace_id' not in details and trace_id:
+            details['trace_id'] = trace_id
+
+        self.details = details
         self.source = source
+        self.trace_id = trace_id
+        self.cause = cause
 
     def to_serializable(self) -> HttpErrorWireFormat:
         """Returns a JSON-serializable representation of this object.
@@ -59,12 +100,12 @@ class GenkitError(Exception):
         Returns:
             An HttpErrorWireFormat model instance.
         """
-        # This error type is used by 3P authors with the field "detail",
+        # This error type is used by 3P authors with the field "details",
         # but the actual Callable protocol value is "details"
         return HttpErrorWireFormat(
-            details=self.detail,
-            status=self.status,
-            message=self.original_message,
+            details=self.details,
+            code=StatusCodes[self.status].value,
+            message=repr(self.cause) if self.cause else self.original_message,
         )
 
 
@@ -105,7 +146,7 @@ class UserFacingError(GenkitError):
             message: The error message.
             details: Optional details to include.
         """
-        super().__init__(status=status, message=message, detail=details)
+        super().__init__(status=status, message=message, details=details)
 
 
 def get_http_status(error: Any) -> int:
@@ -118,7 +159,7 @@ def get_http_status(error: Any) -> int:
         The HTTP status code (500 for non-Genkit errors).
     """
     if isinstance(error, GenkitError):
-        return error.code
+        return error.http_code
     return 500
 
 
@@ -134,9 +175,9 @@ def get_callable_json(error: Any) -> HttpErrorWireFormat:
     if isinstance(error, GenkitError):
         return error.to_serializable()
     return HttpErrorWireFormat(
-        message='Internal Error',
-        status='INTERNAL',
-        details=str(error),
+        message=str(error),
+        code=StatusCodes.INTERNAL.value,
+        details={'stack': get_error_stack(error)},
     )
 
 
@@ -164,26 +205,5 @@ def get_error_stack(error: Exception) -> str | None:
         The stack trace string if available.
     """
     if isinstance(error, Exception):
-        return str(error)
+        return ''.join(traceback.format_tb(error.__traceback__))
     return None
-
-
-T = TypeVar('T')
-
-
-def assert_unstable(
-    registry: Registry, level: str = 'beta', message: str | None = None
-) -> None:
-    """Assert that a feature is allowed at the current stability level.
-
-    Args:
-        registry: The registry instance to check stability against.
-        level: The maximum stability channel allowed.
-        message: Optional message describing which feature is not allowed.
-
-    Raises:
-        UnstableApiError: If the feature is not allowed at the current stability
-        level.
-    """
-    if level == 'beta' and registry.api_stability == 'stable':
-        raise UnstableApiError(level, message)

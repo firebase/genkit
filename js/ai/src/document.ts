@@ -73,6 +73,7 @@ export const ToolRequestSchema = z.object({
   /** The input parameters for the tool, usually a JSON object. */
   input: z.unknown().optional(),
 });
+export type ToolRequest = z.infer<typeof ToolRequestSchema>;
 
 /**
  * Zod schema of a tool request part.
@@ -98,6 +99,7 @@ export const ToolResponseSchema = z.object({
   /** The output data returned from the tool, usually a JSON object. */
   output: z.unknown().optional(),
 });
+export type ToolResponse = z.infer<typeof ToolResponseSchema>;
 
 /**
  * Zod schema of a tool response part.

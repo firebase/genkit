@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package snippets
@@ -12,7 +25,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
@@ -23,7 +35,7 @@ func dot01() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	prompt, err := dotprompt.Open(g, "greeting")
+	prompt := genkit.LookupPrompt(g, "", "greeting")
 	// [END dot01_1]
 
 	// [START dot01_2]
@@ -48,9 +60,9 @@ func dot01() error {
 		Style    string `json:"style"`
 		Name     string `json:"name"`
 	}
-	response, err := prompt.Generate(
-		ctx, g,
-		dotprompt.WithInput(GreetingPromptInput{
+	response, err := prompt.Execute(
+		ctx,
+		ai.WithInput(GreetingPromptInput{
 			Location: "the beach",
 			Style:    "a fancy pirate",
 			Name:     "Ed",
@@ -65,13 +77,8 @@ func dot01() error {
 	// [END dot01_2]
 
 	// [START dot01_3]
-	renderedPrompt, err := prompt.RenderText(map[string]any{
-		"location": "a restaurant",
-		"style":    "a pirate",
-	})
 	// [END dot01_3]
 
-	_ = renderedPrompt
 	return nil
 }
 
@@ -82,7 +89,7 @@ func dot02() {
 		log.Fatal(err)
 	}
 
-	prompt, _ := dotprompt.Open(g, "greeting")
+	prompt := genkit.LookupPrompt(g, "", "greeting")
 	type GreetingPromptInput struct {
 		Location string `json:"location"`
 		Style    string `json:"style"`
@@ -93,16 +100,15 @@ func dot02() {
 	// Make sure you set up the model you're using.
 	vertexai.DefineModel(g, "gemini-2.0-flash", nil)
 
-	response, err := prompt.Generate(
+	response, err := prompt.Execute(
 		context.Background(),
-		g,
-		dotprompt.WithInput(GreetingPromptInput{
+		ai.WithInput(GreetingPromptInput{
 			Location: "the beach",
 			Style:    "a fancy pirate",
 			Name:     "Ed",
 		}),
-		dotprompt.WithModelName("vertexai/gemini-2.0-flash"),
-		dotprompt.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 1.0,
 		}),
 		nil,
@@ -120,7 +126,7 @@ func dot03() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	describeImagePrompt, err := dotprompt.Open(g, "describe_image")
+	describeImagePrompt := genkit.LookupPrompt(g, "", "describe_image")
 	if err != nil {
 		return err
 	}
@@ -135,9 +141,9 @@ func dot03() error {
 	type DescribeImagePromptInput struct {
 		PhotoUrl string `json:"photo_url"`
 	}
-	response, err := describeImagePrompt.Generate(
-		context.Background(), g,
-		dotprompt.WithInput(DescribeImagePromptInput{
+	response, err := describeImagePrompt.Execute(
+		context.Background(),
+		ai.WithInput(DescribeImagePromptInput{
 			PhotoUrl: dataURI,
 		}),
 		nil,
@@ -156,7 +162,7 @@ func dot04() {
 	}
 
 	// [START dot04]
-	describeImagePrompt, err := dotprompt.OpenVariant(g, "describe_image", "geminipro")
+	describeImagePrompt := genkit.LookupPrompt(g, "", "describe_image")
 	// [END dot04]
 	_ = err
 	_ = describeImagePrompt
@@ -169,20 +175,9 @@ func dot05() {
 		log.Fatal(err)
 	}
 
-	isBetaTester := func(user string) bool {
-		return true
-	}
-	user := "ken"
-
 	// [START dot05]
-	var myPrompt *dotprompt.Prompt
-	if isBetaTester(user) {
-		myPrompt, err = dotprompt.OpenVariant(g, "describe_image", "geminipro")
-	} else {
-		myPrompt, err = dotprompt.Open(g, "describe_image")
-	}
 	// [END dot05]
 
 	_ = err
-	_ = myPrompt
+	_ = g
 }

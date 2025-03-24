@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -9,7 +22,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
 type chatSessionInput struct {
@@ -45,25 +57,24 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 }
 
 func setup03(g *genkit.Genkit, m ai.Model) error {
-	chatPreamblePrompt, err := dotprompt.Define(g, "s03_chatPreamble",
-		`
-		  {{ role "user" }}
-		  Hi. What's on the menu today?
-
-		  {{ role "model" }}
-		  I am Walt, a helpful AI assistant here at the restaurant.
-		  I can answer questions about the food on the menu or any other questions
-		  you have about food in general. I probably can't help you with anything else.
-		  Here is today's menu:
-		  {{#each menuData~}}
-		  - {{this.title}} \${{this.price}}
-		    {{this.description}}
-		  {{~/each}}
-		  Do you have any questions about the menu?`,
-		dotprompt.WithDefaultModel(m),
-		dotprompt.WithInputType(dataMenuQuestionInput{}),
-		dotprompt.WithOutputFormat(ai.OutputFormatText),
-		dotprompt.WithDefaultConfig(&ai.GenerationCommonConfig{
+	chatPreamblePrompt, err := genkit.DefinePrompt(g, "s03_chatPreamble",
+		ai.WithMessages(
+			ai.NewUserTextMessage("Hi. What's on the menu today?"),
+			ai.NewModelTextMessage(`
+I am Walt, a helpful AI assistant here at the restaurant.
+I can answer questions about the food on the menu or any other questions
+you have about food in general. I probably can't help you with anything else.
+Here is today's menu:
+{{#each menuData~}}
+- {{this.title}} \${{this.price}}
+{{this.description}}
+{{~/each}}
+Do you have any questions about the menu?`),
+		),
+		ai.WithModel(m),
+		ai.WithInputType(dataMenuQuestionInput{}),
+		ai.WithOutputFormat(ai.OutputFormatText),
+		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 0.3,
 		}),
 	)
@@ -76,7 +87,7 @@ func setup03(g *genkit.Genkit, m ai.Model) error {
 		return err
 	}
 
-	preamble, err := chatPreamblePrompt.RenderMessages(map[string]any{
+	preamble, err := chatPreamblePrompt.Render(context.Background(), map[string]any{
 		"menuData": menuData,
 		"question": "",
 	})
@@ -85,7 +96,7 @@ func setup03(g *genkit.Genkit, m ai.Model) error {
 	}
 
 	storedHistory := &chatHistoryStore{
-		preamble: chatHistory(preamble),
+		preamble: chatHistory(preamble.Messages),
 		sessions: make(map[string]chatHistory),
 	}
 
