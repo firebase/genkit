@@ -74,18 +74,18 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	clientCfg := &ClientConfig{
+	w := &Weaviate{
 		Addr:   *testAddr,
 		Scheme: *testScheme,
 		APIKey: *testAPIKey,
 	}
-	client, err := Init(ctx, clientCfg)
-	if err != nil {
+
+	if err := w.Init(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 
 	// Delete our test class so that earlier runs don't mess us up.
-	if err := client.Schema().ClassDeleter().WithClassName(*testClass).Do(ctx); err != nil {
+	if err := w.client.Schema().ClassDeleter().WithClassName(*testClass).Do(ctx); err != nil {
 		t.Fatal(err)
 	}
 

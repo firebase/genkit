@@ -22,6 +22,7 @@ package googleai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -37,12 +38,6 @@ const (
 	provider    = "googleai"
 	labelPrefix = "Google AI"
 )
-
-var state struct {
-	gclient *genai.Client
-	mu      sync.Mutex
-	initted bool
-}
 
 var (
 	supportedModels = map[string]ai.ModelInfo{
@@ -104,25 +99,33 @@ var (
 	}
 )
 
-// Config is the configuration for the plugin.
-type Config struct {
-	// The API key to access the service.
-	// If empty, the values of the environment variables GOOGLE_GENAI_API_KEY
-	// and GOOGLE_API_KEY will be consulted, in that order.
-	APIKey string
+// VertexAI is a Genkit plugin for interacting with the Google Vertex AI service.
+type GoogleAI struct {
+	APIKey string // API key to access the service. If empty, the values of the environment variables GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY will be consulted, in that order.
+
+	gclient *genai.Client // Client for the Google AI service.
+	mu      sync.Mutex    // Mutex to control access.
+	initted bool          // Whether the plugin has been initialized.
+}
+
+// Name returns the name of the plugin.
+func (ga *GoogleAI) Name() string {
+	return provider
 }
 
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
-	if cfg == nil {
-		cfg = &Config{}
+func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	if ga == nil {
+		ga = &GoogleAI{}
 	}
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
-		panic("googleai.Init already called")
+
+	ga.mu.Lock()
+	defer ga.mu.Unlock()
+
+	if ga.initted {
+		return errors.New("plugin already initialized")
 	}
 	defer func() {
 		if err != nil {
@@ -130,7 +133,7 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		}
 	}()
 
-	apiKey := cfg.APIKey
+	apiKey := ga.APIKey
 	if apiKey == "" {
 		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
 		if apiKey == "" {
@@ -152,14 +155,17 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 		return err
 	}
 
-	state.gclient = client
-	state.initted = true
+	ga.gclient = client
+	ga.initted = true
+
 	for model, details := range supportedModels {
-		gemini.DefineModel(g, state.gclient, model, details)
+		gemini.DefineModel(g, ga.gclient, model, details)
 	}
+
 	for _, e := range knownEmbedders {
-		gemini.DefineEmbedder(g, state.gclient, e)
+		gemini.DefineEmbedder(g, ga.gclient, e)
 	}
+
 	return nil
 }
 
@@ -167,10 +173,10 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (ga *GoogleAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
+	ga.mu.Lock()
+	defer ga.mu.Unlock()
+	if !ga.initted {
 		panic(provider + ".Init not called")
 	}
 	var mi ai.ModelInfo
@@ -184,7 +190,7 @@ func DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, e
 		// TODO: unknown models could also specify versions?
 		mi = *info
 	}
-	return gemini.DefineModel(g, state.gclient, name, mi), nil
+	return gemini.DefineModel(g, ga.gclient, name, mi), nil
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -193,18 +199,18 @@ func IsDefinedModel(g *genkit.Genkit, name string) bool {
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	ga.mu.Lock()
+	defer ga.mu.Unlock()
+	if !ga.initted {
 		panic(provider + ".Init not called")
 	}
-	return gemini.DefineEmbedder(g, state.gclient, name)
+	return gemini.DefineEmbedder(g, ga.gclient, name)
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedEmbedder(g, provider, name)
+	return genkit.LookupEmbedder(g, provider, name) != nil
 }
 
 // Model returns the [ai.Model] with the given name.

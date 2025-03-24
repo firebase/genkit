@@ -41,7 +41,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = vertexai.Init(ctx, g, &vertexai.Config{})
+	err = (&vertexai.VertexAI{}).Init(ctx, g)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	err = vertexai.Init(ctx, g, &vertexai.Config{})
+	err = (&vertexai.VertexAI{}).Init(ctx, g)
 	if err != nil {
 		log.Fatal(err)
 	}

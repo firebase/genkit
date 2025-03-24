@@ -28,12 +28,8 @@ import (
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&vertexai.VertexAI{}))
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := vertexai.Init(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 

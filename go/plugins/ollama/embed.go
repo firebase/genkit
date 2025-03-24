@@ -33,9 +33,9 @@ type EmbedOptions struct {
 }
 
 type ollamaEmbedRequest struct {
-	Model   string                 `json:"model"`
-	Input   interface{}            `json:"input"` // todo: using interface{} to handle both string and []string, figure out better solution
-	Options map[string]interface{} `json:"options,omitempty"`
+	Model   string         `json:"model"`
+	Input   any            `json:"input"` // todo: using any to handle both string and []string, figure out better solution
+	Options map[string]any `json:"options,omitempty"`
 }
 
 type ollamaEmbedResponse struct {
@@ -128,10 +128,10 @@ func concatenateText(doc *ai.Document) string {
 }
 
 // DefineEmbedder defines an embedder with a given server address.
-func DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Embedder {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Embedder {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.initted {
 		panic("ollama.Init not called")
 	}
 	return genkit.DefineEmbedder(g, provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
@@ -147,8 +147,7 @@ func DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Emb
 
 // IsDefinedEmbedder reports whether the embedder with the given server address is defined by this plugin.
 func IsDefinedEmbedder(g *genkit.Genkit, serverAddress string) bool {
-	isDefined := genkit.IsDefinedEmbedder(g, provider, serverAddress)
-	return isDefined
+	return genkit.LookupEmbedder(g, provider, serverAddress) != nil
 }
 
 // Embedder returns the [ai.Embedder] with the given server address.
