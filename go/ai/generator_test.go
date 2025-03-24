@@ -264,6 +264,10 @@ func TestGenerate(t *testing.T) {
 							ContentType: "plain/text",
 							Text:        "ignored (conformance message)",
 						},
+						{Text: "\n\nUse the following information " +
+							"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
+							Metadata: map[string]any{"purpose": "context"},
+						},
 					},
 				},
 			},
