@@ -286,7 +286,7 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 
 					resp, err := client.Get(mediaUrl)
 					if err != nil {
-						return nil, fmt.Errorf("HTTP error downloading media %q: %v", mediaUrl, err)
+						return nil, fmt.Errorf("HTTP error downloading media %q: %w", mediaUrl, err)
 					}
 					defer resp.Body.Close()
 
