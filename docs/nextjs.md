@@ -79,7 +79,7 @@ export const menuSuggestionFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (restaurantTheme) => {
-    const { text } = await ai.generate('Invent a menu item for a ${restaurantTheme} themed restaurant.');
+    const { text } = await ai.generate(`Invent a menu item for a ${restaurantTheme} themed restaurant.`);
     return text;
   }
 );
