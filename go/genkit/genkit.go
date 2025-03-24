@@ -305,6 +305,7 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 // It returns nil if the plugin was not registered.
 func LookupPlugin(g *Genkit, name string) any {
 	return g.reg.LookupPlugin(name)
+}
 
 // DefineEvaluator registers the given evaluator function as an action, and
 // returns a [Evaluator] that runs it. This method process the input dataset
