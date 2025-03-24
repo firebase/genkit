@@ -30,7 +30,7 @@ func main() {
 
 	// Initialize Genkit with the Google AI plugin. When you pass nil for the
 	// Config parameter, the Google AI plugin will get the API key from the
-	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
+	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
