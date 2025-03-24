@@ -360,3 +360,185 @@ func TestSimulateSystemPrompt(t *testing.T) {
 		})
 	}
 }
+
+func TestAugmentWithContext(t *testing.T) {
+	testCases := []struct {
+		name         string
+		info         *ModelInfo
+		options      *AugmentWithContextOptions
+		input        *ModelRequest
+		expected     *ModelRequest
+		wantMetadata map[string]any
+	}{
+		{
+			name: "model supports context, should bypass middleware",
+			info: &ModelInfo{Supports: &ModelSupports{Context: true}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+				},
+			},
+		},
+		{
+			name: "no docs, should bypass middleware",
+			info: &ModelInfo{Supports: &ModelSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+				},
+			},
+		},
+		{
+			name: "no user messages, should bypass middleware",
+			info: &ModelInfo{Supports: &ModelSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+				},
+			},
+		},
+		{
+			name: "context already present , should bypass middleware",
+			info: &ModelInfo{Supports: &ModelSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+					NewUserMessageWithMetadata(map[string]any{"purpose": "context"}, NewTextPart("This is the context")),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+					NewUserMessageWithMetadata(map[string]any{"purpose": "context"}, NewTextPart("This is the context")),
+				},
+			},
+		},
+		{
+			name: "context not present multiple docs present , should get augment",
+			info: &ModelInfo{Supports: &ModelSupports{Context: false}},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("My kid is 4 years old."),
+					NewUserTextMessage("Poem on star."),
+				},
+				Docs: []*Document{
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+					DocumentFromText("this is test doc 2", map[string]any{"purpose": "context", "ref": "doc2"}),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("My kid is 4 years old."),
+					NewUserMessage(NewTextPart("Poem on star."),
+						&Part{Text: "\n\nUse the following information " +
+							"to complete your task:\n\n- [doc1]: this is test doc 1\n- [doc2]: this is test doc 2\n\n",
+							Metadata: map[string]any{"purpose": "context"}}),
+				},
+				Docs: []*Document{
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+					DocumentFromText("this is test doc 2", map[string]any{"purpose": "context", "ref": "doc2"}),
+				},
+			},
+		},
+		{
+			name: "custom preface for middleware",
+			info: &ModelInfo{Supports: &ModelSupports{Context: false}},
+			options: &AugmentWithContextOptions{
+				Preface: func() *string {
+					s := "\n\nCustom Preface : Use the following information to complete your task:\n\n"
+					return &s
+				}(),
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+				},
+				Docs: []*Document{
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserMessage(
+						NewTextPart("Poem on star."),
+						&Part{Text: "\n\nCustom Preface : Use the following information " +
+							"to complete your task:\n\n- [doc1]: this is test doc 1\n\n",
+							Metadata: map[string]any{"purpose": "context"}}),
+				},
+				Docs: []*Document{
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+				},
+			},
+		},
+		{
+			name: "custom item template for middleware",
+			info: &ModelInfo{Supports: &ModelSupports{Context: false}},
+			options: &AugmentWithContextOptions{
+				ItemTemplate: func(d Document, index int, options *AugmentWithContextOptions) string {
+					out := "- The new context is doc3"
+					return out
+				},
+			},
+			input: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					NewUserTextMessage("Poem on star."),
+				},
+				Docs: []*Document{
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+				},
+			},
+			expected: &ModelRequest{
+				Messages: []*Message{
+					NewSystemTextMessage("You are a narrator."),
+					{Role: "user", Content: []*Part{
+						NewTextPart("Poem on star."),
+						{Text: "\n\nUse the following information to complete your task:\n\n- The new context is doc3\n",
+							Metadata: map[string]any{"purpose": "context"}}},
+					},
+				},
+				Docs: []*Document{
+					DocumentFromText("this is test doc 1", map[string]any{"purpose": "context", "ref": "doc1"}),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			next := func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+				if !reflect.DeepEqual(input, tc.expected) {
+					t.Errorf("Input messages were not modified as expected. got: %+v, want: %+v", input, tc.expected)
+				}
+				return &ModelResponse{}, nil
+			}
+			middleware := augmentWithContext(tc.info, tc.options)
+			_, _ = middleware(next)(context.Background(), tc.input, nil)
+		})
+	}
+}
