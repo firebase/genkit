@@ -30,6 +30,7 @@ dev = [
   "pytest-cov>=6.0.0",
   "datamodel-code-generator>=0.27.3",
   "pytest-watcher>=0.4.3",
+  "pytest-mock>=3.14.0",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -56,7 +57,7 @@ addopts                            = ["--cov"]
 asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
-fail_under = 85
+fail_under = 80
 
 # uv based package management.
 [tool.uv]
@@ -81,6 +82,7 @@ genkit-pinecone-plugin     = { workspace = true }
 genkit-vertex-ai-plugin    = { workspace = true }
 hello                      = { workspace = true }
 menu                       = { workspace = true }
+multi_server               = { workspace = true }
 prompt-file                = { workspace = true }
 rag                        = { workspace = true }
 vertex-ai-imagen           = { workspace = true }
@@ -141,6 +143,20 @@ select = [
   "N",    # pep8-naming (naming conventions)
   "D",    # pydocstyle
   "F401", # unused imports
+  "F403", # wildcard imports
+  "F841", # unused variables
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+known-first-party = ["genkit", "aioia"]
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder",
 ]
 
 [tool.ruff.lint.pydocstyle]

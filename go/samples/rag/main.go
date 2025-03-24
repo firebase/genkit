@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // This program can be manually tested like so:
@@ -25,6 +38,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -78,12 +92,58 @@ func main() {
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
 		ai.WithModelName("googleai/gemini-2.0-flash"),
+		ai.WithPromptText(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Dummy evaluator for testing
+	evalOptions := ai.EvaluatorOptions{
+		DisplayName: "Simple Evaluator",
+		Definition:  "Just says true or false randomly",
+		IsBilled:    false,
+	}
+	genkit.DefineEvaluator(g, "custom", "simpleEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+		m := make(map[string]any)
+		m["reasoning"] = "No good reason"
+		score := ai.Score{
+			Id:      "testScore",
+			Score:   1,
+			Status:  ai.ScoreStatusPass.String(),
+			Details: m,
+		}
+		callbackResponse := ai.EvaluatorCallbackResponse{
+			TestCaseId: req.Input.TestCaseId,
+			Evaluation: []ai.Score{score},
+		}
+		return &callbackResponse, nil
+	})
+
+	genkit.DefineBatchEvaluator(g, "custom", "simpleBatchEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
+		var evalResponses []ai.EvaluationResult
+		dataset := *req.Dataset
+		for i := 0; i < len(dataset); i++ {
+			input := dataset[i]
+
+			m := make(map[string]any)
+			m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+			score := ai.Score{
+				Id:      "testScore",
+				Score:   true,
+				Status:  ai.ScoreStatusPass.String(),
+				Details: m,
+			}
+			callbackResponse := ai.EvaluationResult{
+				TestCaseId: input.TestCaseId,
+				Evaluation: []ai.Score{score},
+			}
+			evalResponses = append(evalResponses, callbackResponse)
+		}
+		return &evalResponses, nil
+	})
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)

@@ -14,25 +14,33 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
+import { Genkit, ToolRequest, ToolRequestPart, ToolResponse } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   GenerateRequest,
   GenerateResponseData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MessageData,
+  ToolDefinition,
+  getBasicUsageStats,
 } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { defineOllamaEmbedder } from './embeddings.js';
 import {
   ApiType,
+  Message,
   ModelDefinition,
+  OllamaTool,
+  OllamaToolCall,
   RequestHeaders,
   type OllamaPluginParams,
 } from './types.js';
 
 export { type OllamaPluginParams };
+
+const ANY_JSON_SCHEMA: Record<string, any> = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+};
 
 export function ollama(params: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin('ollama', async (ai: Genkit) => {
@@ -65,6 +73,7 @@ function ollamaModel(
       supports: {
         multiturn: !model.type || model.type === 'chat',
         systemRole: true,
+        tools: model.supports?.tools,
       },
     },
     async (input, streamingCallback) => {
@@ -181,14 +190,23 @@ function parseMessage(response: any, type: ApiType): MessageData {
     throw new Error(response.error);
   }
   if (type === 'chat') {
-    return {
-      role: toGenkitRole(response.message.role),
-      content: [
-        {
-          text: response.message.content,
-        },
-      ],
-    };
+    // Tool calling is available only on the 'chat' API, not on 'generate'
+    // https://github.com/ollama/ollama/blob/main/docs/api.md#chat-request-with-tools
+    if (response.message.tool_calls && response.message.tool_calls.length > 0) {
+      return {
+        role: toGenkitRole(response.message.role),
+        content: toGenkitToolRequest(response.message.tool_calls),
+      };
+    } else {
+      return {
+        role: toGenkitRole(response.message.role),
+        content: [
+          {
+            text: response.message.content,
+          },
+        ],
+      };
+    }
   } else {
     return {
       role: 'model',
@@ -212,12 +230,16 @@ function toOllamaRequest(
     model: name,
     options,
     stream,
+    tools: input.tools?.filter(isValidOllamaTool).map(toOllamaTool),
   };
   if (type === 'chat') {
     const messages: Message[] = [];
     input.messages.forEach((m) => {
       let messageText = '';
+      const role = toOllamaRole(m.role);
       const images: string[] = [];
+      const toolRequests: ToolRequest[] = [];
+      const toolResponses: ToolResponse[] = [];
       m.content.forEach((c) => {
         if (c.text) {
           messageText += c.text;
@@ -225,11 +247,27 @@ function toOllamaRequest(
         if (c.media) {
           images.push(c.media.url);
         }
+        if (c.toolRequest) {
+          toolRequests.push(c.toolRequest);
+        }
+        if (c.toolResponse) {
+          toolResponses.push(c.toolResponse);
+        }
+      });
+      // Add tool responses, if any.
+      toolResponses.forEach((t) => {
+        messages.push({
+          role,
+          content:
+            typeof t.output === 'string' ? t.output : JSON.stringify(t.output),
+        });
       });
       messages.push({
-        role: toOllamaRole(m.role),
-        content: messageText,
+        role: role,
+        content: toolRequests.length > 0 ? '' : messageText,
         images: images.length > 0 ? images : undefined,
+        tool_calls:
+          toolRequests.length > 0 ? toOllamaToolCall(toolRequests) : undefined,
       });
     });
     request.messages = messages;
@@ -252,6 +290,38 @@ function toGenkitRole(role) {
     return 'model';
   }
   return role; // everything else seems to match
+}
+
+function toOllamaTool(tool: ToolDefinition): OllamaTool {
+  return {
+    type: 'function',
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema ?? ANY_JSON_SCHEMA,
+    },
+  };
+}
+
+function toOllamaToolCall(toolRequests: ToolRequest[]): OllamaToolCall[] {
+  return toolRequests.map((t) => ({
+    function: {
+      name: t.name,
+      // This should be safe since we already filtered tools that don't accept
+      // objects
+      arguments: t.input as Record<string, any>,
+    },
+  }));
+}
+
+function toGenkitToolRequest(tool_calls: OllamaToolCall[]): ToolRequestPart[] {
+  return tool_calls.map((t) => ({
+    toolRequest: {
+      name: t.function.name,
+      ref: t.function.index ? t.function.index.toString() : undefined,
+      input: t.function.arguments,
+    },
+  }));
 }
 
 function readChunks(reader) {
@@ -280,8 +350,11 @@ function getSystemMessage(input: GenerateRequest): string {
     .join();
 }
 
-interface Message {
-  role: string;
-  content: string;
-  images?: string[];
+function isValidOllamaTool(tool: ToolDefinition): boolean {
+  if (tool.inputSchema?.type !== 'object') {
+    throw new Error(
+      `Unsupported tool: '${tool.name}'. Ollama only supports tools with object inputs`
+    );
+  }
+  return true;
 }

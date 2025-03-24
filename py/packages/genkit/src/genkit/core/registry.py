@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Registry for managing Genkit resources and actions.
@@ -14,6 +27,7 @@ Example:
     >>> action = registry.lookup_action('<action kind>', 'my_action')
 """
 
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -53,6 +67,8 @@ class Registry:
     plugins, and schemas. It provides methods for registering new resources and
     looking them up at runtime.
 
+    This class is thread-safe and can be safely shared between multiple threads.
+
     Attributes:
         entries: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
@@ -65,6 +81,7 @@ class Registry:
         self._action_resolvers: dict[str, ActionResolver] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
+        self._lock = threading.RLock()
 
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
@@ -81,9 +98,10 @@ class Registry:
         Raises:
             ValueError: If a resolver is already registered for the plugin.
         """
-        if plugin_name in self._action_resolvers:
-            raise ValueError(f'Plugin {plugin_name} already registered')
-        self._action_resolvers[plugin_name] = resolver
+        with self._lock:
+            if plugin_name in self._action_resolvers:
+                raise ValueError(f'Plugin {plugin_name} already registered')
+            self._action_resolvers[plugin_name] = resolver
 
     def register_action(
         self,
@@ -118,9 +136,10 @@ class Registry:
             metadata=metadata,
             span_metadata=span_metadata,
         )
-        if kind not in self._entries:
-            self._entries[kind] = {}
-        self._entries[kind][name] = action
+        with self._lock:
+            if kind not in self._entries:
+                self._entries[kind] = {}
+            self._entries[kind][name] = action
         return action
 
     def lookup_action(self, kind: ActionKind, name: str) -> Action | None:
@@ -133,17 +152,19 @@ class Registry:
         Returns:
             The Action instance if found, None otherwise.
         """
-        # If the entry does not exist, we fist try to call the action resolver
-        # for the plugin to give it a chance to dynamically add the action.
-        if kind not in self._entries or name not in self._entries[kind]:
-            plugin_name = parse_plugin_name_from_action_name(name)
-            if plugin_name and plugin_name in self._action_resolvers:
-                self._action_resolvers[plugin_name](kind, name)
+        with self._lock:
+            # If the entry does not exist, we fist try to call the action
+            # resolver for the plugin to give it a chance to dynamically add the
+            # action.
+            if kind not in self._entries or name not in self._entries[kind]:
+                plugin_name = parse_plugin_name_from_action_name(name)
+                if plugin_name and plugin_name in self._action_resolvers:
+                    self._action_resolvers[plugin_name](kind, name)
 
-        if kind in self._entries and name in self._entries[kind]:
-            return self._entries[kind][name]
+            if kind in self._entries and name in self._entries[kind]:
+                return self._entries[kind][name]
 
-        return None
+            return None
 
     def lookup_action_by_key(self, key: str) -> Action | None:
         """Look up an action using its combined key string.
@@ -164,27 +185,36 @@ class Registry:
         kind, name = parse_action_key(key)
         return self.lookup_action(kind, name)
 
-    def list_serializable_actions(self) -> dict[str, Action] | None:
+    def list_serializable_actions(
+        self, allowed_kinds: set[ActionKind] | None = None
+    ) -> dict[str, Action] | None:
         """Enlist all the actions into a dictionary.
+
+        Args:
+            allowed_kinds: The types of actions to list. If None, all actions
+            are listed.
 
         Returns:
             A dictionary of serializable Actions.
         """
-        actions = {}
-        for kind in self._entries:
-            for name in self._entries[kind]:
-                action = self.lookup_action(kind, name)
-                if action is not None:
-                    key = create_action_key(kind, name)
-                    # TODO: Serialize the Action instance
-                    actions[key] = {
-                        'key': key,
-                        'name': action.name,
-                        'inputSchema': action.input_schema,
-                        'outputSchema': action.output_schema,
-                        'metadata': action.metadata,
-                    }
-        return actions
+        with self._lock:
+            actions = {}
+            for kind in self._entries:
+                if allowed_kinds is not None and kind not in allowed_kinds:
+                    continue
+                for name in self._entries[kind]:
+                    action = self.lookup_action(kind, name)
+                    if action is not None:
+                        key = create_action_key(kind, name)
+                        # TODO: Serialize the Action instance
+                        actions[key] = {
+                            'key': key,
+                            'name': action.name,
+                            'inputSchema': action.input_schema,
+                            'outputSchema': action.output_schema,
+                            'metadata': action.metadata,
+                        }
+            return actions
 
     def register_value(self, kind: str, name: str, value: Any):
         """Registers a value with a given kind and name.
@@ -203,16 +233,17 @@ class Registry:
             ValueError: If a value with the given kind and name is already
             registered.
         """
-        if kind not in self._value_by_kind_and_name:
-            self._value_by_kind_and_name[kind] = {}
+        with self._lock:
+            if kind not in self._value_by_kind_and_name:
+                self._value_by_kind_and_name[kind] = {}
 
-        if name in self._value_by_kind_and_name[kind]:
-            raise ValueError(
-                f'value for kind "{kind}" '
-                f'and name "{name}" is already registered'
-            )
+            if name in self._value_by_kind_and_name[kind]:
+                raise ValueError(
+                    f'value for kind "{kind}" '
+                    f'and name "{name}" is already registered'
+                )
 
-        self._value_by_kind_and_name[kind][name] = value
+            self._value_by_kind_and_name[kind][name] = value
 
     def lookup_value(self, kind: str, name: str) -> Any | None:
         """Looks up value that us previously registered by `register_value`.
@@ -224,4 +255,5 @@ class Registry:
         Returns:
             The value or None if not found.
         """
-        return self._value_by_kind_and_name.get(kind, {}).get(name)
+        with self._lock:
+            return self._value_by_kind_and_name.get(kind, {}).get(name)

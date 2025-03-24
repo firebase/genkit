@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -27,7 +40,7 @@ var (
 	modelName = "echo"
 	metadata  = ModelInfo{
 		Label: modelName,
-		Supports: &ModelInfoSupports{
+		Supports: &ModelSupports{
 			Multiturn:  true,
 			Tools:      true,
 			SystemRole: true,
@@ -75,8 +88,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart("Hello, World!"),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatText,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatText),
 		}
 		_, err := validMessage(message, outputSchema)
 		if err != nil {
@@ -99,8 +112,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(json)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type":     "object",
 				"required": []string{"name", "age", "address"},
@@ -136,8 +149,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": "30"}`)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -156,16 +169,16 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30`)), // Missing trailing }.
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
@@ -173,8 +186,8 @@ func TestValidMessage(t *testing.T) {
 
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
@@ -186,8 +199,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "height": 190}`)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -207,8 +220,8 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30}`)),
 			},
 		}
-		outputSchema := &ModelRequestOutput{
-			Format: OutputFormatJSON,
+		outputSchema := &ModelOutputConfig{
+			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "invalid",
 			},
@@ -254,10 +267,10 @@ func TestGenerate(t *testing.T) {
 					},
 				},
 			},
-			Config:  &GenerationCommonConfig{Temperature: 1},
-			Context: []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
-			Output: &ModelRequestOutput{
-				Format: OutputFormatJSON,
+			Config: &GenerationCommonConfig{Temperature: 1},
+			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
+			Output: &ModelOutputConfig{
+				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -341,7 +354,7 @@ func TestGenerate(t *testing.T) {
 		)
 
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -400,7 +413,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
 		roundCount := 0
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -465,7 +478,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
 		roundCount := 0
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -533,7 +546,7 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("exceeds maximum turns", func(t *testing.T) {
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},

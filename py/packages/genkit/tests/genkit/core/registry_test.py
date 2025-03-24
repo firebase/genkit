@@ -10,11 +10,12 @@ functionality, ensuring proper registration and management of Genkit resources.
 """
 
 import pytest
+
+from genkit.ai import Genkit
+from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionKind, ActionMetadataKey
 from genkit.core.registry import ActionKind, Registry
-from genkit.veneer import Genkit
-from genkit.veneer.plugin import Plugin
-from genkit.veneer.registry import GenkitRegistry
 
 
 def test_register_action_with_name_and_kind() -> None:

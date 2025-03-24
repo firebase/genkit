@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // Package genkit provides Genkit functionality for application developers.
@@ -271,7 +284,7 @@ func DefineRetriever(g *Genkit, provider, name string, ret func(context.Context,
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the model was not defined.
+// It returns nil if the retriever was not defined.
 func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
@@ -292,6 +305,39 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 // It returns nil if the plugin was not registered.
 func LookupPlugin(g *Genkit, name string) any {
 	return g.reg.LookupPlugin(name)
+
+// DefineEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method process the input dataset
+// one-by-one.
+func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) (ai.Evaluator, error) {
+	evaluator, err := ai.DefineEvaluator(g.reg, provider, name, options, eval)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator, nil
+}
+
+// DefineBatchEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method provide the full
+// [EvaluatorRequest] to the callback function, giving more flexibilty to the
+// user for processing the data, such as batching or parallelization.
+func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) (ai.Evaluator, error) {
+	evaluator, err := ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
+	if err != nil {
+		return nil, err
+	}
+	return evaluator, nil
+}
+
+// IsDefinedEvaluator reports whether a [Evaluator] is defined.
+func IsDefinedEvaluator(g *Genkit, provider, name string) bool {
+	return ai.IsDefinedEvaluator(g.reg, provider, name)
+}
+
+// LookupEvaluator looks up a [Evaluator] registered by [DefineEvaluator].
+// It returns nil if the evaluator was not defined.
+func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
+	return ai.LookupEvaluator(g.reg, provider, name)
 }
 
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.

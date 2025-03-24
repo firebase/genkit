@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package vertexai_test
@@ -133,6 +146,73 @@ func TestLive(t *testing.T) {
 			if normSquared < 0.9 || normSquared > 1.1 {
 				t.Errorf("embedding vector not unit length: %f", normSquared)
 			}
+		}
+	})
+}
+
+func TestCacheHelper(t *testing.T) {
+	t.Run("cache metadata", func(t *testing.T) {
+		req := ai.ModelRequest{
+			Messages: []*ai.Message{
+				ai.NewUserMessage(
+					ai.NewTextPart(("this is just a test")),
+				),
+				ai.NewModelMessage(
+					ai.NewTextPart("oh really? is it?")).WithCacheTTL(100),
+			},
+		}
+
+		for _, m := range req.Messages {
+			if m.Role == ai.RoleModel {
+				metadata := m.Metadata
+				if len(metadata) == 0 {
+					t.Fatal("expected metadata with contents, got empty")
+				}
+				cache, ok := metadata["cache"].(map[string]any)
+				if !ok {
+					t.Fatal("cache should be a map")
+				}
+				if cache["ttlSeconds"] != 100 {
+					t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+				}
+			}
+		}
+	})
+	t.Run("cache metadata overwrite", func(t *testing.T) {
+		m := ai.NewModelMessage(ai.NewTextPart("foo bar")).WithCacheTTL(100)
+		metadata := m.Metadata
+		if len(metadata) == 0 {
+			t.Fatal("expected metadata with contents, got empty")
+		}
+		cache, ok := metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatal("cache should be a map")
+		}
+		if cache["ttlSeconds"] != 100 {
+			t.Fatalf("expecting ttlSeconds to be 100s, got: %q", cache["ttlSeconds"])
+		}
+
+		m.Metadata["foo"] = "bar"
+		m.WithCacheTTL(50)
+
+		metadata = m.Metadata
+		cache, ok = metadata["cache"].(map[string]any)
+		if !ok {
+			t.Fatal("cache should be a map")
+		}
+		if cache["ttlSeconds"] != 50 {
+			t.Fatalf("expecting ttlSeconds to be 50s, got: %d", cache["ttlSeconds"])
+		}
+		_, ok = metadata["foo"]
+		if !ok {
+			t.Fatal("metadata contents were altered, expecting foo key")
+		}
+		bar, ok := metadata["foo"].(string)
+		if !ok {
+			t.Fatalf(`metadata["foo"] contents got altered, expecting string, got: %T`, bar)
+		}
+		if bar != "bar" {
+			t.Fatalf("expecting to be bar but got: %q", bar)
 		}
 	})
 }

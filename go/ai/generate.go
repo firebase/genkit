@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -78,7 +91,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
 			Label:    name,
-			Supports: &ModelInfoSupports{},
+			Supports: &ModelSupports{},
 			Versions: []string{},
 		}
 	}
@@ -99,7 +112,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		metadata["label"] = info.Label
 	}
 
-	fn = core.ChainMiddleware(ValidateSupport(name, info))(fn)
+	fn = core.ChainMiddleware(simulateSystemPrompt(info, nil), validateSupport(name, info))(fn)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
@@ -180,21 +193,21 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *ModelRequestOutput
+	var output *ModelOutputConfig
 	if opts.Output != nil {
-		output = &ModelRequestOutput{
+		output = &ModelOutputConfig{
 			Format: opts.Output.Format,
 			Schema: opts.Output.JsonSchema,
 		}
 		if output.Schema != nil && output.Format == "" {
-			output.Format = OutputFormatJSON
+			output.Format = string(OutputFormatJSON)
 		}
 	}
 
 	req := &ModelRequest{
 		Messages:   opts.Messages,
 		Config:     opts.Config,
-		Context:    opts.Docs,
+		Docs:       opts.Docs,
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
 		Output:     output,
@@ -268,7 +281,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 	tools := make([]string, len(genOpts.Tools))
 	for i, tool := range genOpts.Tools {
-		tools[i] = tool.Definition().Name
+		tools[i] = tool.Name()
 	}
 
 	messages := []*Message{}
@@ -306,10 +319,9 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
-		// TODO: Rename this to nicer names during type generation.
-		Output: &GenerateActionOptionsOutput{
+		Output: &GenerateActionOutputConfig{
 			JsonSchema: genOpts.OutputSchema,
-			Format:     genOpts.OutputFormat,
+			Format:     string(genOpts.OutputFormat),
 		},
 	}
 
@@ -487,7 +499,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
+	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
 		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
@@ -513,8 +525,8 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
-func validMessage(m *Message, output *ModelRequestOutput) (*Message, error) {
-	if output != nil && output.Format == OutputFormatJSON {
+func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
+	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}

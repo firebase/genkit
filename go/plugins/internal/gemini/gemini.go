@@ -1,4 +1,17 @@
 // Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // Package gemini contains code that is common to both the googleai and vertexai plugins.
@@ -25,7 +38,7 @@ const (
 
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
-	BasicText = ai.ModelInfoSupports{
+	BasicText = ai.ModelSupports{
 		Multiturn:  true,
 		Tools:      true,
 		ToolChoice: true,
@@ -34,7 +47,7 @@ var (
 	}
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
-	Multimodal = ai.ModelInfoSupports{
+	Multimodal = ai.ModelSupports{
 		Multiturn:  true,
 		Tools:      true,
 		ToolChoice: true,
@@ -134,7 +147,20 @@ func Generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	gc, err := convertRequest(client, model, input)
+	// since context caching is only available for specific model versions, we
+	// must make sure the configuration has the right version
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
+		if c != nil {
+			model = c.Version
+		}
+	}
+
+	cache, err := handleCache(ctx, client, input, model)
+	if err != nil {
+		return nil, err
+	}
+
+	gc, err := convertRequest(client, model, input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +188,9 @@ func Generate(
 		}
 		r := translateResponse(resp)
 		r.Request = input
+		if cache != nil {
+			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+		}
 		return r, nil
 	}
 
@@ -209,12 +238,16 @@ func Generate(
 		r = &ai.ModelResponse{}
 	}
 	r.Request = input
+	if cache != nil {
+		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+	}
+
 	return r, nil
 }
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
+func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = genai.Ptr[int32](1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
@@ -246,7 +279,6 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) 
 		}
 	}
 
-	// configure system instruction
 	if len(systemParts) > 0 {
 		gc.SystemInstruction = &genai.Content{
 			Parts: systemParts,
@@ -254,18 +286,18 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest) 
 		}
 	}
 
-	// configure tools
 	tools, err := convertTools(input.Tools)
 	if err != nil {
 		return nil, err
 	}
 	gc.Tools = tools
 
-	// configure tool choice
 	choice := convertToolChoice(input.ToolChoice, input.Tools)
 	gc.ToolConfig = choice
 
-	// TODO: configure cache
+	if cache != nil {
+		gc.CachedContent = cache.Name
+	}
 
 	return &gc, nil
 }

@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -10,13 +23,53 @@ import (
 	"slices"
 )
 
-// ValidateSupport creates middleware that validates whether a model supports the requested features.
-func ValidateSupport(model string, info *ModelInfo) ModelMiddleware {
+// Provide a simulated system prompt for models that don't support it natively.
+func simulateSystemPrompt(info *ModelInfo, options map[string]string) ModelMiddleware {
+	return func(next ModelFunc) ModelFunc {
+		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			// Short-circuiting middleware if system role is supported in model.
+			if info.Supports.SystemRole {
+				return next(ctx, input, cb)
+			}
+			preface := "SYSTEM INSTRUCTIONS:\n"
+			acknowledgement := "Understood."
+
+			if options != nil {
+				if p, ok := options["preface"]; ok {
+					preface = p
+				}
+				if a, ok := options["acknowledgement"]; ok {
+					acknowledgement = a
+				}
+			}
+			modifiedMessages := make([]*Message, len(input.Messages))
+			copy(modifiedMessages, input.Messages)
+			for i, message := range input.Messages {
+				if message.Role == "system" {
+					systemPrompt := message.Content
+					userMessage := &Message{
+						Role:    "user",
+						Content: append([]*Part{NewTextPart(preface)}, systemPrompt...),
+					}
+					modelMessage := NewModelTextMessage(acknowledgement)
+
+					modifiedMessages = append(modifiedMessages[:i], append([]*Message{userMessage, modelMessage}, modifiedMessages[i+1:]...)...)
+					break
+				}
+			}
+			input.Messages = modifiedMessages
+			return next(ctx, input, cb)
+		}
+	}
+}
+
+// validateSupport creates middleware that validates whether a model supports the requested features.
+func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, input *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
 				info = &ModelInfo{
-					Supports: &ModelInfoSupports{},
+					Supports: &ModelSupports{},
 					Versions: []string{},
 				}
 			}
