@@ -38,6 +38,12 @@ var (
 			Supports: &Multimodal,
 		},
 	}
+
+	knownEmbedders = []string{
+		openaiGo.EmbeddingModelTextEmbedding3Small,
+		openaiGo.EmbeddingModelTextEmbedding3Large,
+		openaiGo.EmbeddingModelTextEmbeddingAda002,
+	}
 )
 
 // State management
@@ -81,6 +87,11 @@ func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) error {
 	// define default models
 	for model, info := range supportedModels {
 		DefineModel(g, model, info)
+	}
+
+	// define default embedders
+	for _, embedder := range knownEmbedders {
+		DefineEmbedder(g, embedder)
 	}
 
 	return nil
@@ -135,4 +146,52 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, er
 
 		return resp, nil
 	}), nil
+}
+
+// DefineEmbedder defines an embedder with a given name.
+func DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
+	if !state.initted {
+		panic("openai.Init not called")
+	}
+
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		var data openaiGo.EmbeddingNewParamsInputArrayOfStrings
+		for _, doc := range input.Documents {
+			for _, p := range doc.Content {
+				data = append(data, p.Text)
+			}
+		}
+
+		params := openaiGo.EmbeddingNewParams{
+			Input:          openaiGo.F[openaiGo.EmbeddingNewParamsInputUnion](data),
+			Model:          openaiGo.F(name),
+			EncodingFormat: openaiGo.F(openaiGo.EmbeddingNewParamsEncodingFormatFloat),
+		}
+
+		embeddingResp, err := state.client.Embeddings.New(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+
+		resp := &ai.EmbedResponse{}
+		for _, emb := range embeddingResp.Data {
+			embedding := make([]float32, len(emb.Embedding))
+			for i, val := range emb.Embedding {
+				embedding[i] = float32(val)
+			}
+			resp.Embeddings = append(resp.Embeddings, &ai.DocumentEmbedding{Embedding: embedding})
+		}
+		return resp, nil
+	}), nil
+}
+
+// IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
+func IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
+	return genkit.IsDefinedEmbedder(g, provider, name)
+}
+
+// Embedder returns the [ai.Embedder] with the given name.
+// It returns nil if the embedder was not defined.
+func Embedder(g *genkit.Genkit, name string) ai.Embedder {
+	return genkit.LookupEmbedder(g, provider, name)
 }
