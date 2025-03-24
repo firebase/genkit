@@ -1,9 +1,9 @@
 # Genkit Monitoring: Troubleshooting {: #troubleshooting }
 
 The following sections detail solutions to common issues that developers run
-into when using Firebase Genkit Monitoring.
+into when using Genkit Monitoring.
 
-## I can't see traces or metrics in Firebase Genkit Monitoring {: #missing-metrics }
+## I can't see traces or metrics in Genkit Monitoring {: #missing-metrics }
 
 1. Ensure that the following APIs are enabled for your underlying Google Cloud
    project:

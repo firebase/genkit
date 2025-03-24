@@ -6,7 +6,7 @@ necessary to ensure that the model is only accessing data it should, tool calls
 are properly scoped to the user invoking the LLM, and the flow is being invoked
 only by verified client applications.
 
-Firebase Genkit provides mechanisms for managing authorization policies and
+Genkit provides mechanisms for managing authorization policies and
 contexts. Flows running on Firebase can use an auth policy callback (or helper).
 Alternatively, Firebase also provides auth context into the flow where it can
 do its own checks. For non-Functions flows, auth can be managed and set

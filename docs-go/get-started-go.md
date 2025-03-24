@@ -1,6 +1,6 @@
 # Get started with Genkit using Go (alpha)
 
-The Firebase Genkit libraries for Go are now available for preview! Because the
+The Genkit libraries for Go are now available for preview! Because the
 Go libraries are currently in Alpha, you might see API and functional changes as
 development progresses. We recommend using it only for prototyping and
 exploration.

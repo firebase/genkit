@@ -1,6 +1,6 @@
 # Retrieval-augmented generation (RAG)
 
-Firebase Genkit provides abstractions that help you build retrieval-augmented generation
+Genkit provides abstractions that help you build retrieval-augmented generation
 (RAG) flows, as well as plugins that provide integrations with related tools.
 
 ## What is RAG?

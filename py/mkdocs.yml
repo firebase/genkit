@@ -1,7 +1,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-site_name: Firebase Genkit
+site_name: Genkit
 repo_url: https://github.com/firebase/genkit
 docs_dir: engdoc
 theme:

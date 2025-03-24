@@ -1,6 +1,6 @@
 # Overview
 
-The Firebase Genkit Python AI SDK exposes components as remotely callable
+The Genkit Python AI SDK exposes components as remotely callable
 functions called **actions** or **flows** via a reflection API using the
 Asynchronous Server Gateway Interface
 ([ASGI](https://asgi.readthedocs.io/en/latest/specs/main.html)) over HTTP.

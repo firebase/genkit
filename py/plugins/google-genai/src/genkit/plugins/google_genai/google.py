@@ -41,7 +41,7 @@ def google_genai_name(name: str) -> str:
 
 
 class GoogleGenai(Plugin):
-    """Google Ai plugin for Firebase Genkit"""
+    """Google Ai plugin for Genkit"""
 
     name = PLUGIN_NAME
 
