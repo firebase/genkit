@@ -59,13 +59,11 @@ type textMenuQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&vertexai.VertexAI{Location: os.Getenv("GCLOUD_LOCATION")}),
+	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
-	}
-	err = vertexai.Init(ctx, g, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	model := vertexai.Model(g, "gemini-2.0-flash")

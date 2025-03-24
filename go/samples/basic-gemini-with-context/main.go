@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -37,20 +36,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := googleai.Model(g, "gemini-2.0-flash")
-		if m == nil {
-			return "", errors.New("jokesFlow: failed to find model")
-		}
-
+	// Define a simple flow that generates jokes about a given topic with a context of bananas
+	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModel(m),
+			ai.WithModelName("googleai/gemini-2.0-flash"),
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
 				Version:     "gemini-2.0-flash-001",
 			}),
-			ai.WithPromptText(fmt.Sprintf(`Tell silly short jokes about %s`, input)))
+			ai.WithPromptText(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
+			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
 		if err != nil {
 			return "", err
 		}

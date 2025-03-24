@@ -33,16 +33,15 @@ func ollamaEx(ctx context.Context) error {
 
 	// [START init]
 	// Init with Ollama's default local address.
-	if err := ollama.Init(ctx, &ollama.Config{
-		ServerAddress: "http://127.0.0.1:11434",
-	}); err != nil {
+	o := &ollama.Ollama{ServerAddress: "http://127.0.0.1:11434"}
+	if err := o.Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	// [START definemodel]
 	name := "gemma2"
-	model := ollama.DefineModel(
+	model := o.DefineModel(
 		g,
 		ollama.ModelDefinition{
 			Name: name,

@@ -32,14 +32,14 @@ func googleaiEx(ctx context.Context) error {
 	}
 
 	// [START init]
-	if err := googleai.Init(ctx, g, nil); err != nil {
+	if err := (&googleai.GoogleAI{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourKey := ""
 	// [START initkey]
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: yourKey}); err != nil {
+	if err := (&googleai.GoogleAI{APIKey: yourKey}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initkey]

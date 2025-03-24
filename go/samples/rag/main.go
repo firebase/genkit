@@ -69,29 +69,29 @@ type simpleQaPromptInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googleai.GoogleAI{}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = googleai.Init(context.Background(), g, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	model := googleai.Model(g, "gemini-2.0-flash")
+
 	embedder := googleai.Embedder(g, "embedding-001")
 	if embedder == nil {
 		log.Fatal("embedder is not defined")
 	}
+
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
+
 	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
-		ai.WithModel(model),
+		ai.WithModelName("googleai/gemini-2.0-flash"),
 		ai.WithPromptText(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),

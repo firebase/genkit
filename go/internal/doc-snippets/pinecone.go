@@ -33,14 +33,14 @@ func pineconeEx(ctx context.Context) error {
 	}
 
 	// [START init]
-	if err := pinecone.Init(ctx, ""); err != nil {
+	if err := (&pinecone.Pinecone{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	var pineconeAPIKey string
 	// [START initkey]
-	if err := pinecone.Init(ctx, pineconeAPIKey); err != nil {
+	if err := (&pinecone.Pinecone{APIKey: pineconeAPIKey}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initkey]

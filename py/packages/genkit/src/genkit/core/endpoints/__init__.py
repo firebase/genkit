@@ -19,6 +19,6 @@
 from .reflection import create_reflection_asgi_app, make_reflection_server
 
 __all__ = [
-    'create_reflection_asgi_app',
-    'make_reflection_server',
+    create_reflection_asgi_app.__name__,
+    make_reflection_server.__name__,
 ]

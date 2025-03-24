@@ -80,7 +80,7 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	if err := Init(ctx, *testAPIKey); err != nil {
+	if err := (&Pinecone{APIKey: *testAPIKey}).Init(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	cfg := Config{
