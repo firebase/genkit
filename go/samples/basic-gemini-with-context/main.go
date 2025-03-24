@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -28,28 +27,19 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Initialize the Google AI plugin. When you pass nil for the
+	// Initialize Genkit with the Google AI plugin. When you pass nil for the
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
 	// practice.
-	if err := googleai.Init(ctx, g, nil); err != nil {
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googleai.GoogleAI{}))
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic with a context of bananas
 	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
-		m := googleai.Model(g, "gemini-2.0-flash")
-		if m == nil {
-			return "", errors.New("jokesFlow: failed to find model")
-		}
-
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModel(m),
+			ai.WithModelName("googleai/gemini-2.0-flash"),
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
 				Version:     "gemini-2.0-flash-001",
