@@ -125,6 +125,15 @@ var (
 func listModels(provider string) (map[string]ai.ModelInfo, error) {
 	names := []string{}
 
+	switch provider {
+	case googleAIProvider:
+		names = googleAIModels
+	case vertexAIProvider:
+		names = vertexAIModels
+	default:
+		return nil, fmt.Errorf("unknown provider detected %s", provider)
+	}
+
 	models := make(map[string]ai.ModelInfo, 0)
 	for _, n := range names {
 		m, ok := supportedGeminiModels[n]

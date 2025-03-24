@@ -1,17 +1,4 @@
 // Copyright 2025 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
 // SPDX-License-Identifier: Apache-2.0
 
 package googlegenai_test
@@ -20,12 +7,13 @@ import (
 	"context"
 	"flag"
 	"math"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 // The tests here only work with a project set to a valid value.
@@ -45,11 +33,11 @@ func TestVertexAILive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = (&vertexai.VertexAI{ProjectID: *projectID, Location: *location}).Init(ctx, g)
+	err = (&googlegenai.VertexAI{ProjectID: *projectID, Location: *location}).Init(ctx, g)
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := vertexai.Embedder(g, "textembedding-gecko@003")
+	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -146,6 +134,70 @@ func TestVertexAILive(t *testing.T) {
 			if normSquared < 0.9 || normSquared > 1.1 {
 				t.Errorf("embedding vector not unit length: %f", normSquared)
 			}
+		}
+	})
+	t.Run("cache", func(t *testing.T) {
+		if *cache == "" {
+			t.Skip("no cache contents provided, use -cache flag")
+		}
+		textContent, err := os.ReadFile(*cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
+			),
+			ai.WithPromptText("write a summary of the content"),
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// inspect metadata just to make sure the cache was created
+		m := resp.Message.Metadata
+		cacheName := ""
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				cacheName = n
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
+		}
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Version: "gemini-1.5-flash-001",
+			}),
+			ai.WithMessages(resp.History()...),
+			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := resp.Text()
+		if !strings.Contains(text, "Ahoy") {
+			t.Fatalf("expecting a response as a pirate but got %v", text)
+		}
+		// cache metadata should have not changed...
+		if cache, ok := m["cache"].(map[string]any); ok {
+			if n, ok := cache["name"].(string); ok {
+				if n == "" {
+					t.Fatal("expecting a cache name, but got nothing")
+				}
+				if cacheName != n {
+					t.Fatalf("cache name mismatch, want: %s, got: %s", cacheName, n)
+				}
+			} else {
+				t.Fatalf("cache name should be a string but got %T", n)
+			}
+		} else {
+			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
 }

@@ -62,11 +62,11 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	ga.mu.Lock()
 	defer ga.mu.Unlock()
 	if ga.initted {
-		panic("googlegenai.InitGoogleAI already called")
+		panic(fmt.Sprintf("%s.Init already called", googleAIProvider))
 	}
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("googlegenai.InitGoogleAI: %w", err)
+			err = fmt.Errorf("%s.Init: %w", vertexAIProvider, err)
 		}
 	}()
 
@@ -125,11 +125,11 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.initted {
-		panic("googlegenai.InitVertexAI already called")
+		panic(fmt.Sprintf("%s.Init already called", vertexAIProvider))
 	}
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("googlegenai.InitVertexAI: %w", err)
+			err = fmt.Errorf("%s.Init: %w", vertexAIProvider, err)
 		}
 	}()
 

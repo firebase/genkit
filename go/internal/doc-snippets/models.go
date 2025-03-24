@@ -27,7 +27,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
-	"github.com/firebase/genkit/go/plugins/vertexai"
 	// [END import]
 )
 
@@ -74,7 +73,7 @@ func opts() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
 	// [START options]
 	response, err := genkit.Generate(ctx, g,
