@@ -1,0 +1,268 @@
+// Copyright 2025 Google LLC
+// SPDX-License-Identifier: Apache-2.0
+
+package googlegenai
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/internal/gemini"
+	"google.golang.org/genai"
+)
+
+const (
+	googleAIProvider = "googleai"
+	vertexAIProvider = "vertexai"
+
+	googleAILabelPrefix = "Google AI"
+	vertexAILabelPrefix = "Vertex AI"
+)
+
+// GoogleAI is a Genkit plugin for interacting with the Google AI service.
+type GoogleAI struct {
+	APIKey string // API key to access the service. If empty, the values of the environment variables GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY will be consulted, in that order.
+
+	gclient *genai.Client // Client for the Google AI service.
+	mu      sync.Mutex    // Mutex to control access.
+	initted bool          // Whether the plugin has been initialized.
+}
+
+// VertexAI is a Genkit plugin for interacting with the Google Vertex AI service.
+type VertexAI struct {
+	ProjectID string // Google Cloud project to use for Vertex AI. If empty, the values of the environment variables GCLOUD_PROJECT and GOOGLE_CLOUD_PROJECT will be consulted, in that order.
+	Location  string // Location of the Vertex AI service. If empty, GOOGLE_CLOUD_LOCATION and GOOGLE_CLOUD_REGION environment variables will be consulted, in that order.
+
+	gclient *genai.Client // Client for the Vertex AI service.
+	mu      sync.Mutex    // Mutex to control access.
+	initted bool          // Whether the plugin has been initialized.
+}
+
+// Name returns the name of the plugin.
+func (ga *GoogleAI) Name() string {
+	return googleAIProvider
+}
+
+// Name returns the name of the plugin.
+func (v *VertexAI) Name() string {
+	return vertexAIProvider
+}
+
+// Init initializes the Google AI plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
+func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	if ga == nil {
+		ga = &GoogleAI{}
+	}
+	ga.mu.Lock()
+	defer ga.mu.Unlock()
+	if ga.initted {
+		panic("googlegenai.InitGoogleAI already called")
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("googlegenai.InitGoogleAI: %w", err)
+		}
+	}()
+
+	gc := genai.ClientConfig{
+		Backend: genai.BackendGeminiAPI,
+		HTTPOptions: genai.HTTPOptions{
+			Headers: gemini.GenkitClientHeader,
+		},
+	}
+
+	client, err := genai.NewClient(ctx, &gc)
+	if err != nil {
+		return err
+	}
+	ga.gclient = client
+	ga.initted = true
+
+	models, err := listModels(googleAIProvider)
+	if err != nil {
+		return err
+	}
+	for n, mi := range models {
+		gemini.DefineModel(g, ga.gclient, n, mi)
+	}
+
+	embedders, err := listEmbedders(gc.Backend)
+	if err != nil {
+		return err
+	}
+	for _, e := range embedders {
+		gemini.DefineEmbedder(g, ga.gclient, e)
+	}
+
+	return nil
+}
+
+// Init initializes the VertexAI plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
+func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	if v == nil {
+		v = &VertexAI{}
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.initted {
+		panic("googlegenai.InitVertexAI already called")
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("googlegenai.InitVertexAI: %w", err)
+		}
+	}()
+
+	gc := genai.ClientConfig{
+		Backend:  genai.BackendVertexAI,
+		Project:  v.ProjectID,
+		Location: v.Location,
+		HTTPOptions: genai.HTTPOptions{
+			Headers: gemini.GenkitClientHeader,
+		},
+	}
+
+	client, err := genai.NewClient(ctx, &gc)
+	if err != nil {
+		return err
+	}
+	v.gclient = client
+	v.initted = true
+
+	models, err := listModels(vertexAIProvider)
+	if err != nil {
+		return err
+	}
+	for n, mi := range models {
+		gemini.DefineModel(g, v.gclient, n, mi)
+	}
+
+	embedders, err := listEmbedders(gc.Backend)
+	if err != nil {
+		return err
+	}
+	for _, e := range embedders {
+		gemini.DefineEmbedder(g, v.gclient, e)
+	}
+
+	return nil
+}
+
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsDefinedModel] to determine if a model is already defined.
+// After [Init] is called, only the known models are defined.
+func (ga *GoogleAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
+	ga.mu.Lock()
+	defer ga.mu.Unlock()
+	if !ga.initted {
+		panic(googleAIProvider + ".Init not called")
+	}
+	models, err := listModels(googleAIProvider)
+	if err != nil {
+		return nil, err
+	}
+
+	var mi ai.ModelInfo
+	if info == nil {
+		var ok bool
+		mi, ok = models[name]
+		if !ok {
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", googleAIProvider, name)
+		}
+	} else {
+		mi = *info
+	}
+
+	return gemini.DefineModel(g, ga.gclient, name, mi), nil
+}
+
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsDefinedModel] to determine if a model is already defined.
+// After [Init] is called, only the known models are defined.
+func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if !v.initted {
+		panic(vertexAIProvider + ".Init not called")
+	}
+	models, err := listModels(vertexAIProvider)
+	if err != nil {
+		return nil, err
+	}
+
+	var mi ai.ModelInfo
+	if info == nil {
+		var ok bool
+		mi, ok = models[name]
+		if !ok {
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", vertexAIProvider, name)
+		}
+	} else {
+		mi = *info
+	}
+
+	return gemini.DefineModel(g, v.gclient, name, mi), nil
+}
+
+// DefineEmbedder defines an embedder with a given name.
+func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	ga.mu.Lock()
+	defer ga.mu.Unlock()
+	if !ga.initted {
+		panic(googleAIProvider + ".Init not called")
+	}
+	return gemini.DefineEmbedder(g, ga.gclient, name)
+}
+
+// DefineEmbedder defines an embedder with a given name.
+func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if !v.initted {
+		panic(vertexAIProvider + ".Init not called")
+	}
+	return gemini.DefineEmbedder(g, v.gclient, name)
+}
+
+// IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
+func (ga *GoogleAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
+	return genkit.LookupEmbedder(g, googleAIProvider, name) != nil
+}
+
+// IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
+func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
+	return genkit.LookupEmbedder(g, vertexAIProvider, name) != nil
+}
+
+// GoogleAIModel returns the [ai.Model] with the given name.
+// It returns nil if the model was not defined.
+func GoogleAIModel(g *genkit.Genkit, name string) ai.Model {
+	return genkit.LookupModel(g, googleAIProvider, name)
+}
+
+// VertexAIModel returns the [ai.Model] with the given name.
+// It returns nil if the model was not defined.
+func VertexAIModel(g *genkit.Genkit, name string) ai.Model {
+	return genkit.LookupModel(g, vertexAIProvider, name)
+}
+
+// GoogleAIEmbedder returns the [ai.Embedder] with the given name.
+// It returns nil if the embedder was not defined.
+func GoogleAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	return genkit.LookupEmbedder(g, googleAIProvider, name)
+}
+
+// VertexAIEmbedder returns the [ai.Embedder] with the given name.
+// It returns nil if the embedder was not defined.
+func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
+	return genkit.LookupEmbedder(g, vertexAIProvider, name)
+}

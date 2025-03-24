@@ -26,14 +26,17 @@ import (
 	// [START import]
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 	// [END import]
 )
 
 // Globals for simplification only.
 // Bad style: don't do this.
-var ctx = context.Background()
-var gemini15pro ai.Model
+var (
+	ctx         = context.Background()
+	gemini15pro ai.Model
+)
 
 func m1() error {
 	ctx := context.Background()
@@ -46,13 +49,13 @@ func m1() error {
 	// Default to the value of GCLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
 	// To specify these values directly, pass a vertexai.Config value to Init.
-	if err := (&vertexai.VertexAI{}).Init(ctx, g); err != nil {
+	if err := (&googlegenai.VertexAI{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	// [START model]
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START call]

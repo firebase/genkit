@@ -22,7 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func vertexaiEx(ctx context.Context) error {
@@ -32,26 +32,26 @@ func vertexaiEx(ctx context.Context) error {
 	}
 
 	// [START init]
-	if err := (&vertexai.VertexAI{}).Init(ctx, g); err != nil {
+	if err := (&googlegenai.VertexAI{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	yourProjectID := ""
 	// [START initproj]
-	if err := (&vertexai.VertexAI{ProjectID: yourProjectID}).Init(ctx, g); err != nil {
+	if err := (&googlegenai.VertexAI{ProjectID: yourProjectID}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initproj]
 
 	// [START initloc]
-	if err := (&vertexai.VertexAI{Location: "asia-south1"}).Init(ctx, g); err != nil {
+	if err := (&googlegenai.VertexAI{Location: "asia-south1"}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initloc]
 
 	// [START model]
-	langModel := vertexai.Model(g, "gemini-1.5-flash")
+	langModel := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
@@ -68,7 +68,7 @@ func vertexaiEx(ctx context.Context) error {
 	var userInput string
 
 	// [START embedder]
-	embeddingModel := vertexai.Embedder(g, "text-embedding-004")
+	embeddingModel := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
 	// [END embedder]
 
 	// [START embed]

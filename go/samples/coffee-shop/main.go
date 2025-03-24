@@ -43,7 +43,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
 )
 
@@ -99,14 +99,14 @@ type testAllCoffeeFlowsOutput struct {
 func main() {
 	ctx := context.Background()
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
-		genkit.WithPlugins(&googleai.GoogleAI{}),
+		genkit.WithDefaultModel("googlegenai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
 
-	m := googleai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash")
 	simpleGreetingPrompt, err := genkit.DefinePrompt(g, "simpleGreeting2",
 		ai.WithPromptText(simpleGreetingPromptTemplate),
 		ai.WithModel(m),
