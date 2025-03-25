@@ -194,7 +194,7 @@ export function genkitEvaluators<
         return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
-            displayName: 'Deep Equals',
+            displayName: 'Deep Equal',
             definition:
               'Tests equality of output against the provided reference',
           },

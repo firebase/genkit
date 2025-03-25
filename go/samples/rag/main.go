@@ -44,6 +44,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
@@ -69,8 +70,19 @@ type simpleQaPromptInput struct {
 
 func main() {
 	ctx := context.Background()
+	metrics := []evaluators.MetricConfig{
+		{
+			MetricType: evaluators.EvaluatorDeepEqual,
+		},
+		{
+			MetricType: evaluators.EvaluatorRegex,
+		},
+		{
+			MetricType: evaluators.EvaluatorJsonata,
+		},
+	}
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -84,7 +96,6 @@ func main() {
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-
 	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
