@@ -136,7 +136,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		}
 	}
 
-	ai.LoadPromptFolder(r, params.PromptDir, "")
+	ai.LoadPromptFolder(r, gOpts.PromptDir, "")
 
 	if registry.CurrentEnvironment() == registry.EnvironmentDev {
 		errCh := make(chan error, 1)
