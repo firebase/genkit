@@ -44,7 +44,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/evaluators"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
@@ -69,19 +70,29 @@ type simpleQaPromptInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	metrics := []evaluators.MetricConfig{
+		{
+			MetricType: evaluators.EvaluatorDeepEqual,
+		},
+		{
+			MetricType: evaluators.EvaluatorRegex,
+		},
+		{
+			MetricType: evaluators.EvaluatorJsonata,
+		},
+	}
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = googleai.Init(context.Background(), g, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	model := googleai.Model(g, "gemini-2.0-flash")
-	embedder := googleai.Embedder(g, "embedding-001")
+
+	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
 	if embedder == nil {
 		log.Fatal("embedder is not defined")
 	}
+
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
@@ -91,7 +102,7 @@ func main() {
 	}
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
-		ai.WithModel(model),
+		ai.WithModelName("googlegenai/gemini-2.0-flash"),
 		ai.WithPromptText(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),

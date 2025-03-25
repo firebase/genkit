@@ -43,8 +43,9 @@ func Clean(id string) string {
 
 // HTTPError is an error that includes an HTTP status code.
 type HTTPError struct {
-	Code int
-	Err  error
+	Code    int
+	Err     error
+	TraceID string
 }
 
 func (e *HTTPError) Error() string {

@@ -22,8 +22,8 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
 // menuItem is the data model for an item on the menu.
@@ -59,17 +59,15 @@ type textMenuQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.VertexAI{Location: os.Getenv("GCLOUD_LOCATION")}),
+	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
-	err = vertexai.Init(ctx, g, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	model := vertexai.Model(g, "gemini-2.0-flash")
-	embedder := vertexai.Embedder(g, "text-embedding-004")
+	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
+	embedder := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
 
 	if err := setup01(g, model); err != nil {
 		log.Fatal(err)

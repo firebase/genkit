@@ -26,6 +26,7 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/google/dotprompt/go/dotprompt"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -33,10 +34,12 @@ import (
 // This file implements registries of actions and other values.
 
 type Registry struct {
-	tstate  *tracing.State
-	mu      sync.Mutex
-	frozen  bool // when true, no more additions
-	actions map[string]action.Action
+	tstate    *tracing.State
+	mu        sync.Mutex
+	frozen    bool // when true, no more additions
+	actions   map[string]action.Action
+	Dotprompt *dotprompt.Dotprompt
+	plugins   map[string]any
 }
 
 func New() (*Registry, error) {
@@ -47,10 +50,27 @@ func New() (*Registry, error) {
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
 		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
 	}
+	r.Dotprompt = dotprompt.NewDotprompt(nil)
 	return r, nil
 }
 
 func (r *Registry) TracingState() *tracing.State { return r.tstate }
+
+// RegisterPlugin records the plugin in the registry.
+// It panics if a plugin with the same name is already registered.
+func (r *Registry) RegisterPlugin(name string, p any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.frozen {
+		panic(fmt.Sprintf("attempt to register plugin %s in a frozen registry. Register before calling genkit.Init", name))
+	}
+	if _, ok := r.plugins[name]; ok {
+		panic(fmt.Sprintf("plugin %q is already registered", name))
+	}
+	r.plugins[name] = p
+	slog.Debug("RegisterPlugin",
+		"name", name)
+}
 
 // RegisterAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
@@ -75,6 +95,13 @@ func (r *Registry) Freeze() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.frozen = true
+}
+
+// LookupPlugin returns the plugin for the given name, or nil if there is none.
+func (r *Registry) LookupPlugin(name string) any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.plugins[name]
 }
 
 // LookupAction returns the action for the given key, or nil if there is none.

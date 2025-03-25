@@ -19,7 +19,7 @@
 //go:generate npm --prefix ../../genkit-tools run export:schemas
 
 // Run the Go code generator on the file just created.
-//go:generate go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json core
+//go:generate go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json ai
 
 // Package core implements Genkit actions and other essential machinery.
 // This package is primarily intended for Genkit internals and for plugins.

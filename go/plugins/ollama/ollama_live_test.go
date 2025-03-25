@@ -47,16 +47,15 @@ func TestLive(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress}
+
 	// Initialize the Ollama plugin
-	err = ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
-		ServerAddress: *serverAddress,
-	})
-	if err != nil {
+	if err = o.Init(ctx, g); err != nil {
 		t.Fatalf("failed to initialize Ollama plugin: %s", err)
 	}
 
 	// Define the model
-	ollamaPlugin.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
 
 	// Use the Ollama model
 	m := ollamaPlugin.Model(g, *modelName)

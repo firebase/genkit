@@ -23,7 +23,16 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
-from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
+from genkit.plugins.google_genai.models.embedder import (
+    Embedder,
+    GeminiEmbeddingModels,
+    VertexEmbeddingModels,
+)
+from genkit.plugins.google_genai.models.gemini import (
+    GeminiApiOnlyVersion,
+    GeminiModel,
+    GeminiVersion,
+)
 
 PLUGIN_NAME = 'google_genai'
 
@@ -61,7 +70,8 @@ class GoogleGenai(Plugin):
                 'Gemini api key should be passed in plugin params '
                 'or as a GEMINI_API_KEY environment variable'
             )
-        pass
+        self._vertexai = vertexai
+
         self._client = genai.client.Client(
             vertexai=vertexai,
             api_key=api_key if not vertexai else None,
@@ -81,11 +91,25 @@ class GoogleGenai(Plugin):
         Returns:
             None
         """
+        supported_gemini_models = list(GeminiVersion)
+        if not self._client.vertexai:
+            supported_gemini_models.extend(list(GeminiApiOnlyVersion))
 
-        for version in GeminiVersion:
+        for version in supported_gemini_models:
             gemini_model = GeminiModel(version, self._client, ai)
             ai.define_model(
                 name=google_genai_name(version),
                 fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
+            )
+
+        embeding_models = (
+            VertexEmbeddingModels
+            if self._client.vertexai
+            else GeminiEmbeddingModels
+        )
+        for version in embeding_models:
+            embedder = Embedder(version=version, client=self._client)
+            ai.define_embedder(
+                name=google_genai_name(version), fn=embedder.generate
             )

@@ -24,7 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 // duneQuestionInput is a question about Dune.
@@ -35,15 +35,11 @@ type duneQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
+	g, err := genkit.Init(ctx,
+		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+	)
 	if err != nil {
-		log.Fatal(err)
-	}
-	// Initialize the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google AI plugin will get the API key from the
-	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
-	// practice.
-	if err := googleai.Init(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 

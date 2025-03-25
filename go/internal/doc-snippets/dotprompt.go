@@ -25,7 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func dot01() error {
@@ -42,13 +42,13 @@ func dot01() error {
 	ctx = context.Background()
 
 	// Default to the project in GCLOUD_PROJECT and the location "us-central1".
-	vertexai.Init(ctx, g, nil)
+	(&googlegenai.VertexAI{}).Init(ctx, g)
 
 	// The .prompt file specifies vertexai/gemini-2.0-flash, which is
 	// automatically defined by Init(). However, if it specified a model that
 	// isn't automatically loaded (such as a specific version), you would need
 	// to define it here:
-	// vertexai.DefineModel("gemini-2.0-flash", &ai.ModelCapabilities{
+	// googlegenai.DefineModel("gemini-2.0-flash", &ai.ModelCapabilities{
 	// 	Multiturn:  true,
 	// 	Tools:      true,
 	// 	SystemRole: true,
@@ -98,7 +98,7 @@ func dot02() {
 
 	// [START dot02]
 	// Make sure you set up the model you're using.
-	vertexai.DefineModel(g, "gemini-2.0-flash", nil)
+	googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	response, err := prompt.Execute(
 		context.Background(),
@@ -107,7 +107,7 @@ func dot02() {
 			Style:    "a fancy pirate",
 			Name:     "Ed",
 		}),
-		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithModelName("googlegenai/gemini-2.0-flash"),
 		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature: 1.0,
 		}),

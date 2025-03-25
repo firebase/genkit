@@ -14,18 +14,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import base64
+
 import pytest
 from google import genai
 
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import (
     GenerateRequest,
     GenerateResponse,
+    MediaPart,
     Message,
     Role,
     TextPart,
 )
-from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
+from genkit.core.action import ActionRunContext
+from genkit.plugins.google_genai.models.gemini import (
+    GeminiApiOnlyVersion,
+    GeminiModel,
+    GeminiVersion,
+)
 
 
 @pytest.mark.asyncio
@@ -121,3 +128,68 @@ async def test_generate_stream_text_response(mocker, version):
     ])
     assert isinstance(response, GenerateResponse)
     assert response.message.content[0].root.text == ''
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('version', [x for x in GeminiApiOnlyVersion])
+async def test_generate_media_response(mocker, version):
+    request_text = 'response question'
+    response_byte_string = b'\x89PNG\r\n\x1a\n'
+    response_mimetype = 'image/png'
+    modalities = ['Text', 'Image']
+
+    request = GenerateRequest(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    TextPart(text=request_text),
+                ],
+            ),
+        ],
+        config={'response_modalities': modalities},
+    )
+
+    candidate = genai.types.Candidate(
+        content=genai.types.Content(
+            parts=[
+                genai.types.Part(
+                    inline_data=genai.types.Blob(
+                        data=response_byte_string, mime_type=response_mimetype
+                    )
+                )
+            ]
+        )
+    )
+    resp = genai.types.GenerateContentResponse(candidates=[candidate])
+
+    googleai_client_mock = mocker.AsyncMock()
+    googleai_client_mock.aio.models.generate_content.return_value = resp
+
+    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
+
+    ctx = ActionRunContext()
+    response = await gemini.generate(request, ctx)
+
+    googleai_client_mock.assert_has_calls([
+        mocker.call.aio.models.generate_content(
+            model=version,
+            contents=[
+                genai.types.Content(
+                    parts=[genai.types.Part(text=request_text)], role=Role.USER
+                )
+            ],
+            config=genai.types.GenerateContentConfig(
+                response_modalities=modalities
+            ),
+        )
+    ])
+    assert isinstance(response, GenerateResponse)
+
+    content = response.message.content[0]
+    assert isinstance(content.root, MediaPart)
+
+    assert content.root.media.content_type == response_mimetype
+
+    decoded_url = base64.b64decode(content.root.media.url)
+    assert decoded_url == response_byte_string

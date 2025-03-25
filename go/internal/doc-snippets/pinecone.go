@@ -22,7 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/pinecone"
 )
 
@@ -33,22 +33,22 @@ func pineconeEx(ctx context.Context) error {
 	}
 
 	// [START init]
-	if err := pinecone.Init(ctx, ""); err != nil {
+	if err := (&pinecone.Pinecone{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	var pineconeAPIKey string
 	// [START initkey]
-	if err := pinecone.Init(ctx, pineconeAPIKey); err != nil {
+	if err := (&pinecone.Pinecone{APIKey: pineconeAPIKey}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END initkey]
 
 	// [START defineindex]
 	menuIndexer, err := pinecone.DefineIndexer(ctx, g, pinecone.Config{
-		IndexID:  "menu_data",                                // Your Pinecone index
-		Embedder: googleai.Embedder(g, "text-embedding-004"), // Embedding model of your choice
+		IndexID:  "menu_data",                                           // Your Pinecone index
+		Embedder: googlegenai.GoogleAIEmbedder(g, "text-embedding-004"), // Embedding model of your choice
 	})
 	if err != nil {
 		return err
@@ -68,8 +68,8 @@ func pineconeEx(ctx context.Context) error {
 
 	// [START defineretriever]
 	menuRetriever, err := pinecone.DefineRetriever(ctx, g, pinecone.Config{
-		IndexID:  "menu_data",                                // Your Pinecone index
-		Embedder: googleai.Embedder(g, "text-embedding-004"), // Embedding model of your choice
+		IndexID:  "menu_data",                                           // Your Pinecone index
+		Embedder: googlegenai.GoogleAIEmbedder(g, "text-embedding-004"), // Embedding model of your choice
 	})
 	if err != nil {
 		return err

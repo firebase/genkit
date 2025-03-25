@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -13,7 +12,7 @@ members = [
     "coffee-shop",
     "context-caching",
     "flow-sample1",
-    "genkit",
+    "genkit-ai",
     "genkit-chroma-plugin",
     "genkit-compat-oai-plugin",
     "genkit-firebase-plugin",
@@ -27,6 +26,7 @@ members = [
     "hello",
     "hello-genai",
     "hello-google-genai",
+    "image-google-genai",
     "imagen",
     "menu",
     "multi-server",
@@ -213,7 +213,7 @@ name = "basic-gemini"
 version = "0.1.0"
 source = { editable = "samples/basic-gemini" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -225,7 +225,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -423,7 +423,7 @@ name = "coffee-shop"
 version = "0.1.0"
 source = { editable = "samples/coffee-shop" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -435,7 +435,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -471,7 +471,7 @@ name = "context-caching"
 version = "0.1.0"
 source = { editable = "samples/context-caching" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -483,7 +483,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -727,7 +727,7 @@ name = "flow-sample1"
 version = "0.1.0"
 source = { editable = "samples/flow-sample1" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -739,7 +739,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -759,9 +759,9 @@ wheels = [
 ]
 
 [[package]]
-name = "genkit"
+name = "genkit-ai"
 version = "0.1.0"
-source = { editable = "packages/genkit" }
+source = { editable = "packages/genkit-ai" }
 dependencies = [
     { name = "asgiref" },
     { name = "dotprompt" },
@@ -770,9 +770,11 @@ dependencies = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "partial-json-parser" },
+    { name = "pillow" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "requests" },
+    { name = "sse-starlette" },
     { name = "starlette" },
     { name = "structlog" },
 ]
@@ -786,9 +788,11 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
+    { name = "pillow" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "requests", specifier = ">=2.32.3" },
+    { name = "sse-starlette", specifier = ">=2.2.1" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "structlog", specifier = ">=25.2.0" },
 ]
@@ -798,24 +802,24 @@ name = "genkit-chroma-plugin"
 version = "0.1.0"
 source = { editable = "plugins/chroma" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
+requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-compat-oai-plugin"
 version = "0.1.0"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "openai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "openai" },
 ]
 
@@ -824,24 +828,24 @@ name = "genkit-firebase-plugin"
 version = "0.1.0"
 source = { editable = "plugins/firebase" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
+requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-google-ai-plugin"
 version = "0.1.0"
 source = { editable = "plugins/google-ai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "google-genai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "google-genai", specifier = "==1.0.0" },
 ]
 
@@ -850,27 +854,27 @@ name = "genkit-google-cloud-plugin"
 version = "0.1.0"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
+requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-google-genai-plugin"
 version = "0.1.0"
 source = { editable = "plugins/google-genai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "google-cloud-aiplatform" },
     { name = "google-genai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
-    { name = "google-genai", specifier = "==1.0.0" },
+    { name = "google-genai", specifier = ">=1.0.0" },
 ]
 
 [[package]]
@@ -878,13 +882,13 @@ name = "genkit-ollama-plugin"
 version = "0.1.0"
 source = { editable = "plugins/ollama" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "ollama" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "ollama", specifier = "~=0.4" },
 ]
 
@@ -893,25 +897,25 @@ name = "genkit-pinecone-plugin"
 version = "0.1.0"
 source = { editable = "plugins/pinecone" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
+requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-vertex-ai-plugin"
 version = "0.1.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "google-cloud-aiplatform" },
     { name = "pytest-mock" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
     { name = "pytest-mock" },
 ]
@@ -923,7 +927,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "aioia" },
     { name = "dotpromptz" },
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-chroma-plugin" },
     { name = "genkit-compat-oai-plugin" },
     { name = "genkit-firebase-plugin" },
@@ -956,7 +960,7 @@ lint = [
 requires-dist = [
     { name = "aioia", editable = "packages/aioia" },
     { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-chroma-plugin", editable = "plugins/chroma" },
     { name = "genkit-compat-oai-plugin", editable = "plugins/compat-oai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
@@ -1321,7 +1325,7 @@ name = "hello"
 version = "0.1.0"
 source = { editable = "samples/hello" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -1333,7 +1337,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -1348,7 +1352,7 @@ name = "hello-genai"
 version = "0.1.0"
 source = { editable = "samples/google-ai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -1360,7 +1364,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -1375,7 +1379,7 @@ name = "hello-google-genai"
 version = "0.1.0"
 source = { editable = "samples/google_genai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -1387,7 +1391,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -1435,11 +1439,40 @@ wheels = [
 ]
 
 [[package]]
+name = "image-google-genai"
+version = "0.1.0"
+source = { editable = "samples/google_genai_image" }
+dependencies = [
+    { name = "genkit-ai" },
+    { name = "genkit-firebase-plugin" },
+    { name = "genkit-google-ai-plugin" },
+    { name = "genkit-google-cloud-plugin" },
+    { name = "genkit-ollama-plugin" },
+    { name = "genkit-pinecone-plugin" },
+    { name = "genkit-vertex-ai-plugin" },
+    { name = "pillow" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
+    { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
+    { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
+    { name = "genkit-ollama-plugin", editable = "plugins/ollama" },
+    { name = "genkit-pinecone-plugin", editable = "plugins/pinecone" },
+    { name = "genkit-vertex-ai-plugin", editable = "plugins/vertex-ai" },
+    { name = "pillow" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
 name = "imagen"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-imagen" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -1451,7 +1484,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -1668,6 +1701,7 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/30/59/e080d8eb641f2ceea89677ab0c56d7a2a0858a0c4bb95813bad712b8d3e3/js2py_wheel-0.74.tar.gz", hash = "sha256:8670d73abf22b211173cfe70cf92f94aa36be61f43d44c65131f1d20bb26be04", size = 567467 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/58/9485878e03c64247fa37da9380acc6019be7f63059052d1f19b3699a5a6e/Js2Py_wheel-0.74-py3-none-any.whl", hash = "sha256:c5b4af26ce0a16c26190031ddafb495a998b35c46bf5959c7feb72f581d23ca7", size = 608306 },
+    { url = "https://files.pythonhosted.org/packages/02/92/682f716a7a7d9d505a985dbd7237a6a39dda913f13f2ebc8c8bd3ccd1c74/js2py_wheel-0.74-py3-none-any.whl", hash = "sha256:3cdc2f4d6ab5be2f2b14d7991680cb9c4392fcfc47cac2b146d71468f7a3acfb", size = 609202 },
 ]
 
 [[package]]
@@ -2035,7 +2069,7 @@ name = "menu"
 version = "0.1.0"
 source = { editable = "samples/menu" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -2047,7 +2081,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -2095,7 +2129,7 @@ source = { virtual = "samples/multi_server" }
 dependencies = [
     { name = "aioia" },
     { name = "asgiref" },
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "litestar" },
     { name = "starlette" },
     { name = "structlog" },
@@ -2106,7 +2140,7 @@ dependencies = [
 requires-dist = [
     { name = "aioia", editable = "packages/aioia" },
     { name = "asgiref", specifier = ">=3.8.1" },
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "litestar", specifier = ">=2.15.1" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "structlog", specifier = ">=25.2.0" },
@@ -2343,7 +2377,7 @@ name = "ollama-example"
 version = "0.1.0"
 source = { virtual = "samples/ollama-hello" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -2353,7 +2387,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -2366,7 +2400,7 @@ name = "ollama-simple-embed"
 version = "0.1.0"
 source = { virtual = "samples/ollama-simple-embed" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -2376,7 +2410,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -2408,7 +2442,7 @@ name = "openai-sample"
 version = "0.1.0"
 source = { editable = "samples/openai" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-compat-oai-plugin" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
@@ -2421,7 +2455,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-compat-oai-plugin", editable = "plugins/compat-oai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
@@ -2539,6 +2573,44 @@ wheels = [
 ]
 
 [[package]]
+name = "pillow"
+version = "11.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/af/c097e544e7bd278333db77933e535098c259609c4eb3b85381109602fb5b/pillow-11.1.0.tar.gz", hash = "sha256:368da70808b36d73b4b390a8ffac11069f8a5c85f29eff1f1b01bcf3ef5b2a20", size = 46742715 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/20/9ce6ed62c91c073fcaa23d216e68289e19d95fb8188b9fb7a63d36771db8/pillow-11.1.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:2062ffb1d36544d42fcaa277b069c88b01bb7298f4efa06731a7fd6cc290b81a", size = 3226818 },
+    { url = "https://files.pythonhosted.org/packages/b9/d8/f6004d98579a2596c098d1e30d10b248798cceff82d2b77aa914875bfea1/pillow-11.1.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:a85b653980faad27e88b141348707ceeef8a1186f75ecc600c395dcac19f385b", size = 3101662 },
+    { url = "https://files.pythonhosted.org/packages/08/d9/892e705f90051c7a2574d9f24579c9e100c828700d78a63239676f960b74/pillow-11.1.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9409c080586d1f683df3f184f20e36fb647f2e0bc3988094d4fd8c9f4eb1b3b3", size = 4329317 },
+    { url = "https://files.pythonhosted.org/packages/8c/aa/7f29711f26680eab0bcd3ecdd6d23ed6bce180d82e3f6380fb7ae35fcf3b/pillow-11.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fdadc077553621911f27ce206ffcbec7d3f8d7b50e0da39f10997e8e2bb7f6a", size = 4412999 },
+    { url = "https://files.pythonhosted.org/packages/c8/c4/8f0fe3b9e0f7196f6d0bbb151f9fba323d72a41da068610c4c960b16632a/pillow-11.1.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:93a18841d09bcdd774dcdc308e4537e1f867b3dec059c131fde0327899734aa1", size = 4368819 },
+    { url = "https://files.pythonhosted.org/packages/38/0d/84200ed6a871ce386ddc82904bfadc0c6b28b0c0ec78176871a4679e40b3/pillow-11.1.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:9aa9aeddeed452b2f616ff5507459e7bab436916ccb10961c4a382cd3e03f47f", size = 4496081 },
+    { url = "https://files.pythonhosted.org/packages/84/9c/9bcd66f714d7e25b64118e3952d52841a4babc6d97b6d28e2261c52045d4/pillow-11.1.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:3cdcdb0b896e981678eee140d882b70092dac83ac1cdf6b3a60e2216a73f2b91", size = 4296513 },
+    { url = "https://files.pythonhosted.org/packages/db/61/ada2a226e22da011b45f7104c95ebda1b63dcbb0c378ad0f7c2a710f8fd2/pillow-11.1.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:36ba10b9cb413e7c7dfa3e189aba252deee0602c86c309799da5a74009ac7a1c", size = 4431298 },
+    { url = "https://files.pythonhosted.org/packages/e7/c4/fc6e86750523f367923522014b821c11ebc5ad402e659d8c9d09b3c9d70c/pillow-11.1.0-cp312-cp312-win32.whl", hash = "sha256:cfd5cd998c2e36a862d0e27b2df63237e67273f2fc78f47445b14e73a810e7e6", size = 2291630 },
+    { url = "https://files.pythonhosted.org/packages/08/5c/2104299949b9d504baf3f4d35f73dbd14ef31bbd1ddc2c1b66a5b7dfda44/pillow-11.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:a697cd8ba0383bba3d2d3ada02b34ed268cb548b369943cd349007730c92bddf", size = 2626369 },
+    { url = "https://files.pythonhosted.org/packages/37/f3/9b18362206b244167c958984b57c7f70a0289bfb59a530dd8af5f699b910/pillow-11.1.0-cp312-cp312-win_arm64.whl", hash = "sha256:4dd43a78897793f60766563969442020e90eb7847463eca901e41ba186a7d4a5", size = 2375240 },
+    { url = "https://files.pythonhosted.org/packages/b3/31/9ca79cafdce364fd5c980cd3416c20ce1bebd235b470d262f9d24d810184/pillow-11.1.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:ae98e14432d458fc3de11a77ccb3ae65ddce70f730e7c76140653048c71bfcbc", size = 3226640 },
+    { url = "https://files.pythonhosted.org/packages/ac/0f/ff07ad45a1f172a497aa393b13a9d81a32e1477ef0e869d030e3c1532521/pillow-11.1.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:cc1331b6d5a6e144aeb5e626f4375f5b7ae9934ba620c0ac6b3e43d5e683a0f0", size = 3101437 },
+    { url = "https://files.pythonhosted.org/packages/08/2f/9906fca87a68d29ec4530be1f893149e0cb64a86d1f9f70a7cfcdfe8ae44/pillow-11.1.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:758e9d4ef15d3560214cddbc97b8ef3ef86ce04d62ddac17ad39ba87e89bd3b1", size = 4326605 },
+    { url = "https://files.pythonhosted.org/packages/b0/0f/f3547ee15b145bc5c8b336401b2d4c9d9da67da9dcb572d7c0d4103d2c69/pillow-11.1.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b523466b1a31d0dcef7c5be1f20b942919b62fd6e9a9be199d035509cbefc0ec", size = 4411173 },
+    { url = "https://files.pythonhosted.org/packages/b1/df/bf8176aa5db515c5de584c5e00df9bab0713548fd780c82a86cba2c2fedb/pillow-11.1.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:9044b5e4f7083f209c4e35aa5dd54b1dd5b112b108648f5c902ad586d4f945c5", size = 4369145 },
+    { url = "https://files.pythonhosted.org/packages/de/7c/7433122d1cfadc740f577cb55526fdc39129a648ac65ce64db2eb7209277/pillow-11.1.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:3764d53e09cdedd91bee65c2527815d315c6b90d7b8b79759cc48d7bf5d4f114", size = 4496340 },
+    { url = "https://files.pythonhosted.org/packages/25/46/dd94b93ca6bd555588835f2504bd90c00d5438fe131cf01cfa0c5131a19d/pillow-11.1.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:31eba6bbdd27dde97b0174ddf0297d7a9c3a507a8a1480e1e60ef914fe23d352", size = 4296906 },
+    { url = "https://files.pythonhosted.org/packages/a8/28/2f9d32014dfc7753e586db9add35b8a41b7a3b46540e965cb6d6bc607bd2/pillow-11.1.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:b5d658fbd9f0d6eea113aea286b21d3cd4d3fd978157cbf2447a6035916506d3", size = 4431759 },
+    { url = "https://files.pythonhosted.org/packages/33/48/19c2cbe7403870fbe8b7737d19eb013f46299cdfe4501573367f6396c775/pillow-11.1.0-cp313-cp313-win32.whl", hash = "sha256:f86d3a7a9af5d826744fabf4afd15b9dfef44fe69a98541f666f66fbb8d3fef9", size = 2291657 },
+    { url = "https://files.pythonhosted.org/packages/3b/ad/285c556747d34c399f332ba7c1a595ba245796ef3e22eae190f5364bb62b/pillow-11.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:593c5fd6be85da83656b93ffcccc2312d2d149d251e98588b14fbc288fd8909c", size = 2626304 },
+    { url = "https://files.pythonhosted.org/packages/e5/7b/ef35a71163bf36db06e9c8729608f78dedf032fc8313d19bd4be5c2588f3/pillow-11.1.0-cp313-cp313-win_arm64.whl", hash = "sha256:11633d58b6ee5733bde153a8dafd25e505ea3d32e261accd388827ee987baf65", size = 2375117 },
+    { url = "https://files.pythonhosted.org/packages/79/30/77f54228401e84d6791354888549b45824ab0ffde659bafa67956303a09f/pillow-11.1.0-cp313-cp313t-macosx_10_13_x86_64.whl", hash = "sha256:70ca5ef3b3b1c4a0812b5c63c57c23b63e53bc38e758b37a951e5bc466449861", size = 3230060 },
+    { url = "https://files.pythonhosted.org/packages/ce/b1/56723b74b07dd64c1010fee011951ea9c35a43d8020acd03111f14298225/pillow-11.1.0-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:8000376f139d4d38d6851eb149b321a52bb8893a88dae8ee7d95840431977081", size = 3106192 },
+    { url = "https://files.pythonhosted.org/packages/e1/cd/7bf7180e08f80a4dcc6b4c3a0aa9e0b0ae57168562726a05dc8aa8fa66b0/pillow-11.1.0-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9ee85f0696a17dd28fbcfceb59f9510aa71934b483d1f5601d1030c3c8304f3c", size = 4446805 },
+    { url = "https://files.pythonhosted.org/packages/97/42/87c856ea30c8ed97e8efbe672b58c8304dee0573f8c7cab62ae9e31db6ae/pillow-11.1.0-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:dd0e081319328928531df7a0e63621caf67652c8464303fd102141b785ef9547", size = 4530623 },
+    { url = "https://files.pythonhosted.org/packages/ff/41/026879e90c84a88e33fb00cc6bd915ac2743c67e87a18f80270dfe3c2041/pillow-11.1.0-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:e63e4e5081de46517099dc30abe418122f54531a6ae2ebc8680bcd7096860eab", size = 4465191 },
+    { url = "https://files.pythonhosted.org/packages/e5/fb/a7960e838bc5df57a2ce23183bfd2290d97c33028b96bde332a9057834d3/pillow-11.1.0-cp313-cp313t-win32.whl", hash = "sha256:dda60aa465b861324e65a78c9f5cf0f4bc713e4309f83bc387be158b077963d9", size = 2295494 },
+    { url = "https://files.pythonhosted.org/packages/d7/6c/6ec83ee2f6f0fda8d4cf89045c6be4b0373ebfc363ba8538f8c999f63fcd/pillow-11.1.0-cp313-cp313t-win_amd64.whl", hash = "sha256:ad5db5781c774ab9a9b2c4302bbf0c1014960a0a7be63278d13ae6fdf88126fe", size = 2631595 },
+    { url = "https://files.pythonhosted.org/packages/cf/6c/41c21c6c8af92b9fea313aa47c75de49e2f9a467964ee33eb0135d47eb64/pillow-11.1.0-cp313-cp313t-win_arm64.whl", hash = "sha256:67cd427c68926108778a9005f2a04adbd5e67c442ed21d95389fe1d595458756", size = 2377651 },
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.3.6"
 source = { registry = "https://pypi.org/simple" }
@@ -2583,7 +2655,7 @@ name = "prompt-file"
 version = "0.1.0"
 source = { editable = "samples/prompt-file" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -2595,7 +2667,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -2972,7 +3044,7 @@ name = "rag"
 version = "0.1.0"
 source = { editable = "samples/rag" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -2984,7 +3056,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -3224,6 +3296,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sse-starlette"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/71/a4/80d2a11af59fe75b48230846989e93979c892d3a20016b42bb44edb9e398/sse_starlette-2.2.1.tar.gz", hash = "sha256:54470d5f19274aeed6b2d473430b08b4b379ea851d953b11d7f1c4a2c118b419", size = 17376 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/e0/5b8bd393f27f4a62461c5cf2479c75a2cc2ffa330976f9f00f5f6e4f50eb/sse_starlette-2.2.1-py3-none-any.whl", hash = "sha256:6410a3d3ba0c89e7675d4c273a301d64649c03a5ef1ca101f10b47f895fd0e99", size = 10120 },
+]
+
+[[package]]
 name = "stack-data"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3427,7 +3512,7 @@ name = "vertex-ai-model-garden"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-vector-search" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -3439,7 +3524,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -3454,7 +3539,7 @@ name = "vertex-ai-reranker"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-reranker" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -3466,7 +3551,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },
@@ -3481,7 +3566,7 @@ name = "vertex-ai-vector-search"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-model-garden" }
 dependencies = [
-    { name = "genkit" },
+    { name = "genkit-ai" },
     { name = "genkit-firebase-plugin" },
     { name = "genkit-google-ai-plugin" },
     { name = "genkit-google-cloud-plugin" },
@@ -3493,7 +3578,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-firebase-plugin", editable = "plugins/firebase" },
     { name = "genkit-google-ai-plugin", editable = "plugins/google-ai" },
     { name = "genkit-google-cloud-plugin", editable = "plugins/google-cloud" },

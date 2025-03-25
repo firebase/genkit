@@ -38,7 +38,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	_ "github.com/lib/pq"
 	pgv "github.com/pgvector/pgvector-go"
 )
@@ -52,7 +52,9 @@ var (
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,13 +71,10 @@ func run(g *genkit.Genkit) error {
 		return errors.New("need -apikey")
 	}
 	ctx := context.Background()
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey}); err != nil {
-		return err
-	}
 	const embedderName = "embedding-001"
-	embedder := googleai.Embedder(g, embedderName)
+	embedder := googlegenai.GoogleAIEmbedder(g, embedderName)
 	if embedder == nil {
-		return fmt.Errorf("embedder %s is not known to the googleai plugin", embedderName)
+		return fmt.Errorf("embedder %s is not known to the googlegenai plugin", embedderName)
 	}
 
 	db, err := sql.Open("postgres", *connString)

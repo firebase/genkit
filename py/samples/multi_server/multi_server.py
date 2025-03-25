@@ -29,8 +29,8 @@ from litestar.plugins.structlog import StructlogPlugin
 from starlette.applications import Starlette
 
 from aioia.servers.middleware import LitestarLoggingMiddleware
-from genkit.core.endpoints.reflection import create_reflection_asgi_app
 from genkit.core.environment import is_dev_environment
+from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
 from genkit.web.manager import (
     AbstractBaseServer,
