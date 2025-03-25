@@ -1,12 +1,12 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-name: Python Checks
+name: Eng Documentation Checks
 
 on: pull_request
 
 jobs:
-  python-checks:
+  engdoc-checks:
     runs-on: ubuntu-latest
     env:
       PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/share/pnpm:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
@@ -30,21 +30,6 @@ jobs:
         with:
           go-version: stable
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 10.2.0
-
       - name: Install uv and setup Python version
         uses: astral-sh/setup-uv@v5
         with:
@@ -56,28 +41,21 @@ jobs:
           cd py
           uv pip install -e .[dev,test,docs]
 
-      - name: Install NPM packages
+      - name: Install D2 diagramming tool
         run: |
-          npm install -g license-checker
+          go install oss.terrastruct.com/d2@latest
 
-      - name: Install Go tools
+      - name: Install mkdocs
         run: |
-          go install github.com/google/go-licenses@latest
+          uv tool install \
+          mkdocs \
+          --with mkdocs-autorefs \
+          --with mkdocs-d2-plugin \
+          --with mkdocs-literate-nav \
+          --with mkdocs-material \
+          --with mkdocs-mermaid2-plugin \
+          --with mkdocs-minify-plugin \
+          --with mkdocstrings[python]
 
-      - name: Generate schema typing
-        run: ./py/bin/generate_schema_typing --ci
-
-      - name: Format check
-        run: uv run --directory py ruff format --check .
-
-      - name: Lint with ruff
-        run: uv run --directory py ruff check --select I .
-
-      - name: Check licenses
-        run: ./bin/check_license
-
-      - name: Run Python tests
-        run: uv run --directory py pytest -xvs --log-level=DEBUG .
-
-      - name: Build distributions
-        run: ./py/bin/build_dists
+      - name: Build documentation
+        run: uv run --directory py mkdocs build
