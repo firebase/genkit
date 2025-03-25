@@ -288,7 +288,7 @@ def create_reflection_asgi_app(
         """
         return JSONResponse(content={'status': 'OK'})
 
-    async def terminate(request: Request) -> JSONResponse:
+    async def handle_terminate(request: Request) -> JSONResponse:
         """Handle the quit endpoint.
 
         Args:
@@ -469,7 +469,7 @@ def create_reflection_asgi_app(
     return Starlette(
         routes=[
             Route('/api/__health', handle_health_check, methods=['GET']),
-            Route('/api/__quitquitquit', terminate, methods=['POST']),
+            Route('/api/__quitquitquit', handle_terminate, methods=['POST']),
             Route('/api/actions', handle_list_actions, methods=['GET']),
             Route('/api/notify', handle_notify, methods=['POST']),
             Route('/api/runAction', handle_run_action, methods=['POST']),
