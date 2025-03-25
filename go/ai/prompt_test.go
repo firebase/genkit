@@ -833,7 +833,7 @@ Hello, {{name}}!
 	}
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.prompt", "", "test-namespace")
+	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, provider, "test-namespace/example")
@@ -866,7 +866,7 @@ func TestLoadPrompt_FileNotFound(t *testing.T) {
 	}
 
 	// Call loadPrompt with a non-existent file
-	LoadPrompt(reg, "./nonexistent", "missing.prompt", "", "test-namespace")
+	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "test-namespace", "missing")
@@ -894,7 +894,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	}
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "invalid.prompt", "", "test-namespace")
+	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
 	prompt := LookupPrompt(reg, "test-namespace", "invalid")
@@ -928,7 +928,7 @@ Hello, {{name}}!
 	}
 
 	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.variant.prompt", "", "test-namespace")
+	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, provider, "test-namespace/example.variant")
@@ -986,7 +986,7 @@ Hello, {{name}}!
 	}
 
 	// Call LoadPromptFolder
-	LoadPromptFolder(reg, tempDir, "test-namespace")
+	LoadPromptDir(reg, tempDir, "test-namespace")
 
 	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, provider, "test-namespace/example")
@@ -1006,7 +1006,7 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	reg := &registry.Registry{}
 
 	// Call LoadPromptFolder with a non-existent directory
-	err := LoadPromptFolder(reg, "./nonexistent", "test-namespace")
+	err := LoadPromptDir(reg, "./nonexistent", "test-namespace")
 	if err == nil {
 		t.Fatalf("Error should returned")
 	}

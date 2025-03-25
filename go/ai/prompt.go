@@ -433,14 +433,15 @@ func renderDotprompt(templateText string, variables map[string]any, defaultInput
 	return str, nil
 }
 
-// LoadPromptFolder loads prompts and partials from the input directory for the given namespace
-func LoadPromptFolder(r *registry.Registry, dir string, namespace string) error {
+// LoadPromptDir loads prompts and partials from the input directory for the given namespace.
+func LoadPromptDir(r *registry.Registry, dir string, namespace string) error {
 	useDefaultDir := false
 	if dir == "" {
 		dir = "./prompts"
 		useDefaultDir = true
 	}
-	promptsPath, err := filepath.Abs(dir)
+
+	path, err := filepath.Abs(dir)
 	if err != nil {
 		if !useDefaultDir {
 			return fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err)
@@ -448,43 +449,44 @@ func LoadPromptFolder(r *registry.Registry, dir string, namespace string) error 
 		slog.Debug("default prompt directory not found, skipping loading .prompt files", "dir", dir)
 		return nil
 	}
-	if _, err := os.Stat(promptsPath); os.IsNotExist(err) {
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if !useDefaultDir {
 			return fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err)
 		}
 		slog.Debug("Default prompt directory not found, skipping loading .prompt files", "dir", dir)
 		return nil
 	}
-	return LoadPromptFolderRecursively(r, promptsPath, namespace, "")
+
+	return loadPromptDir(r, path, namespace)
 }
 
-// LoadPromptFolderRecursively recursively loads prompts and partials from the directory.
-func LoadPromptFolderRecursively(r *registry.Registry, dir string, namespace string, subDir string) error {
-	parentPath := filepath.Join(dir, subDir)
-	entries, err := os.ReadDir(parentPath)
+// loadPromptDir recursively loads prompts and partials from the directory.
+func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("failed to read prompt directory structure: %w", err)
 	}
 
 	for _, entry := range entries {
-		fileName := entry.Name()
+		filename := entry.Name()
+		path := filepath.Join(dir, filename)
 		if entry.IsDir() {
-			if err := LoadPromptFolderRecursively(r, dir, namespace, filepath.Join(subDir, fileName)); err != nil {
+			if err := loadPromptDir(r, path, namespace); err != nil {
 				return err
 			}
-		} else if strings.HasSuffix(fileName, ".prompt") {
-			if strings.HasPrefix(fileName, "_") {
-				partialName := strings.TrimSuffix(fileName[1:], ".prompt")
-				source, err := os.ReadFile(filepath.Join(parentPath, fileName))
+		} else if strings.HasSuffix(filename, ".prompt") {
+			if strings.HasPrefix(filename, "_") {
+				partialName := strings.TrimSuffix(filename[1:], ".prompt")
+				source, err := os.ReadFile(path)
 				if err != nil {
-					slog.Error("Failed to read partial file", "error", err.Error())
+					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
 				definePartial(r, partialName, string(source))
-				slog.Debug("Registered Dotprompt partial %q from %q", partialName, filepath.Join(parentPath, fileName))
+				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
-				_, err := LoadPrompt(r, dir, fileName, subDir, namespace)
-				if err != nil {
+				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
 					return err
 				}
 			}
@@ -498,88 +500,97 @@ func definePartial(r *registry.Registry, name string, source string) {
 	// TODO: Add this functionality
 }
 
-// loadPrompt loads a single prompt into the registry.
-func LoadPrompt(r *registry.Registry, path, filename, prefix, namespace string) (*Prompt, error) {
+// LoadPrompt loads a single prompt into the registry.
+func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt, error) {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
-	sourceFile := filepath.Join(path, prefix, filename)
+
+	sourceFile := filepath.Join(dir, filename)
 	source, err := os.ReadFile(sourceFile)
+
 	if err != nil {
-		slog.Error("Failed to read prompt file : "+sourceFile, "error", err.Error())
+		slog.Error("Failed to read prompt file", "file", sourceFile, "error", err)
 		return nil, nil
 	}
+
 	parsedPrompt, err := r.Dotprompt.Parse(string(source))
 	if err != nil {
-		slog.Error("Failed to parse prompt for: "+sourceFile, "error", err.Error())
+		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
 		return nil, nil
 	}
+
 	metadata, err := r.Dotprompt.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
-		slog.Error("Failed to render metadata for: "+sourceFile, "error", err.Error())
+		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
 		return nil, nil
 	}
 
 	toolRefs := make([]ToolRef, len(metadata.Tools))
 	for i, tool := range metadata.Tools {
-		toolRefs[i] = ToolName(tool) // Assuming ToolRef has a Name field
+		toolRefs[i] = ToolName(tool)
 	}
 
-	commonOpts := commonOptions{
-		ModelName: metadata.Model,
-		Config:    metadata.Config,
-		Tools:     toolRefs,
-	}
-	if toolChoice, ok := metadata.Raw["toolChoice"].(ToolChoice); ok {
-		commonOpts.ToolChoice = toolChoice
-	}
-
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); !ok {
-		commonOpts.MaxTurns = maxTurns
-	}
-
-	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); !ok {
-		commonOpts.ReturnToolRequests = returnToolRequests
-		commonOpts.IsReturnToolRequestsSet = true
-	}
-
-	// Add the variant to the metadata if it exists
-	if variant != "" {
-		metadata.Variant = variant
-	}
-
-	promptOpt := promptOptions{
+	opts := &promptOptions{
+		commonOptions: commonOptions{
+			ModelName: metadata.Model,
+			Config:    metadata.Config,
+			Tools:     toolRefs,
+		},
 		DefaultInput: metadata.Input.Default,
 		Metadata:     metadata.Metadata,
 		Description:  metadata.Description,
 	}
 
+	if toolChoice, ok := metadata.Raw["toolChoice"].(ToolChoice); ok {
+		opts.ToolChoice = toolChoice
+	}
+
+	if maxTurns, ok := metadata.Raw["maxTurns"].(int); !ok {
+		opts.MaxTurns = maxTurns
+	}
+
+	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); !ok {
+		opts.ReturnToolRequests = returnToolRequests
+		opts.IsReturnToolRequestsSet = true
+	}
+
 	if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {
-		promptOpt.InputSchema = inputSchema
+		opts.InputSchema = inputSchema
 	}
 
-	outputOpts := outputOptions{
-		OutputFormat: OutputFormat(metadata.Output.Format),
+	if metadata.Output.Format != "" {
+		opts.OutputFormat = OutputFormat(metadata.Output.Format)
 	}
-	outputSchemaMap := map[string]any{}
+
 	if metadata.Output.Schema != nil {
-		outputSchemaBytes, err := json.Marshal(metadata.Output.Schema)
+		outputSchema := map[string]any{}
+		schemaBytes, err := json.Marshal(metadata.Output.Schema)
 		if err != nil {
-			slog.Error("Error while marshaling output schema for: "+sourceFile, "error", err.Error())
+			slog.Error("Failed to marshal output schema", "file", sourceFile, "error", err)
 			return nil, nil
 		}
-		err = json.Unmarshal(outputSchemaBytes, &outputSchemaMap)
-		if err != nil {
-			slog.Error("Error while unmarshaling output schema for: "+sourceFile, "error", err.Error())
+
+		if err = json.Unmarshal(schemaBytes, &outputSchema); err != nil {
+			slog.Error("Failed to unmarshal output schema", "file", sourceFile, "error", err)
 			return nil, nil
 		}
-		outputOpts.OutputSchema = outputSchemaMap
+		opts.OutputSchema = outputSchema
 	}
 
-	return DefinePrompt(r, registryDefinitionKey(name, variant, namespace), &promptOpt, &commonOpts, &outputOpts, WithPromptText(parsedPrompt.Template))
+	key := promptKey(name, variant, namespace)
+	prompt, err := DefinePrompt(r, key, opts, WithPromptText(parsedPrompt.Template))
+	if err != nil {
+		slog.Error("Failed to register dotprompt", "file", sourceFile, "error", err)
+		return nil, err
+	}
+
+	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
+
+	return prompt, nil
 }
 
-// registryDefinitionKey generates a unique key for the prompt in the registry.
-func registryDefinitionKey(name string, variant string, namespace string) string {
+// promptKey generates a unique key for the prompt in the registry.
+func promptKey(name string, variant string, namespace string) string {
 	if namespace != "" {
 		return fmt.Sprintf("%s/%s%s", namespace, name, variantKey(variant))
 	}

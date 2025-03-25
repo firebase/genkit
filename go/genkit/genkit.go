@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -136,7 +137,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		}
 	}
 
-	ai.LoadPromptFolder(r, gOpts.PromptDir, "")
+	ai.LoadPromptDir(r, gOpts.PromptDir, "")
 
 	if registry.CurrentEnvironment() == registry.EnvironmentDev {
 		errCh := make(chan error, 1)
@@ -347,6 +348,21 @@ func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
 	return ai.LookupEvaluator(g.reg, provider, name)
 }
 
+// LoadPromptDir loads all prompts and partials from a given directory with the specified namespace.
+func LoadPromptDir(g *Genkit, dir string, namespace string) error {
+	return ai.LoadPromptDir(g.reg, dir, namespace)
+}
+
+// LoadPrompt loads a prompt from a given filepath with the specified namespace.
+func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
+	dir, filename := filepath.Split(path)
+	if dir != "" {
+		dir = filepath.Clean(dir)
+	}
+
+	return ai.LoadPrompt(g.reg, dir, filename, namespace)
+}
+
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
 func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 	g.reg.RegisterSpanProcessor(sp)
@@ -358,18 +374,4 @@ func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) []ai.GenerateOption {
 		opts = append([]ai.GenerateOption{ai.WithModelName(g.DefaultModel)}, opts...)
 	}
 	return opts
-}
-
-// modelRefParts parses a model string into a provider and name.
-func modelRefParts(model string) ([]string, error) {
-	parts := strings.Split(model, "/")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid model format %q, expected provider/name", model)
-	}
-	return parts, nil
-}
-
-// LoadPrompt loads all the prompts from the given path
-func LoadPrompt(g *Genkit, path, filename, prefix, namespace string) (*ai.Prompt, error) {
-	return ai.LoadPrompt(g.reg, path, filename, prefix, namespace)
 }
