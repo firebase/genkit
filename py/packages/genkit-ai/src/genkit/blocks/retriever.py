@@ -22,9 +22,9 @@ query. These documents can then be used to provide additional context to models
 to accomplish a task.
 """
 
-from typing import Any, Callable
-from xml.dom.minidom import Document
+from collections.abc import Callable
 
+from genkit.blocks.document import Document
 from genkit.core.typing import RetrieverResponse
 
 # User-provided retriever function that queries the datastore
