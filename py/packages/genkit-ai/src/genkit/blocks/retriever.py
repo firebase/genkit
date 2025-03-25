@@ -22,8 +22,8 @@ query. These documents can then be used to provide additional context to models
 to accomplish a task.
 """
 
-from typing import Any, Callable
-from xml.dom.minidom import Document
+from typing import Callable
+from document import Document
 
 from genkit.core.typing import RetrieverResponse
 
