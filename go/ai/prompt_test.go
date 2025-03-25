@@ -17,6 +17,8 @@ package ai
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -788,5 +790,230 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 	got := resp.Message.Content[0].Text
 	if got != want {
 		t.Errorf("fake model replied with %q, want %q", got, want)
+	}
+}
+
+func TestLoadPrompt(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Create a mock .prompt file
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test-model
+description: A test prompt
+toolChoice: required
+maxTurns: 5
+returnToolRequests: true
+input:
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+  default:
+    name: world
+output:
+  format: text
+  schema:
+    type: string
+---
+
+Hello, {{name}}!
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+
+	// Call loadPrompt
+	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
+
+	// Verify that the prompt was registered correctly
+	prompt := LookupPrompt(reg, provider, "test-namespace/example")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+
+	if prompt.action.Desc().InputSchema == nil {
+		t.Fatal("Input schema is nil")
+	}
+
+	if prompt.action.Desc().InputSchema.Type != "object" {
+		t.Errorf("Expected input schema type 'object', got '%s'", prompt.action.Desc().InputSchema.Type)
+	}
+
+	promptMetadata, ok := prompt.action.Desc().Metadata["prompt"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.action.Desc().Metadata["prompt"])
+	}
+	if promptMetadata["model"] != "test-model" {
+		t.Errorf("Expected model name 'test-model', got '%s'", prompt.action.Desc().Metadata["model"])
+	}
+}
+
+func TestLoadPrompt_FileNotFound(t *testing.T) {
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+
+	// Call loadPrompt with a non-existent file
+	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
+
+	// Verify that the prompt was not registered
+	prompt := LookupPrompt(reg, "test-namespace", "missing")
+	if prompt != nil {
+		t.Fatalf("Prompt should not have been registered for a missing file")
+	}
+}
+
+func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Create an invalid .prompt file
+	invalidPromptFile := filepath.Join(tempDir, "invalid.prompt")
+	invalidPromptContent := `invalid json content`
+	err := os.WriteFile(invalidPromptFile, []byte(invalidPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create invalid prompt file: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+
+	// Call loadPrompt
+	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
+
+	// Verify that the prompt was not registered
+	prompt := LookupPrompt(reg, "test-namespace", "invalid")
+	if prompt != nil {
+		t.Fatalf("Prompt should not have been registered for an invalid file")
+	}
+}
+
+func TestLoadPrompt_WithVariant(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Create a mock .prompt file with a variant
+	mockPromptFile := filepath.Join(tempDir, "example.variant.prompt")
+	mockPromptContent := `---
+model: test-model
+description: A test prompt
+---
+
+Hello, {{name}}!
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+
+	// Call loadPrompt
+	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
+
+	// Verify that the prompt was registered correctly
+	prompt := LookupPrompt(reg, provider, "test-namespace/example.variant")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+}
+
+func TestLoadPromptFolder(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Create mock prompt and partial files
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockSubDir := filepath.Join(tempDir, "subdir")
+	err := os.Mkdir(mockSubDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create subdirectory: %v", err)
+	}
+
+	mockPromptContent := `---
+model: test-model
+description: A test prompt
+input:
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+output:
+  format: text
+  schema:
+    type: string
+---
+
+Hello, {{name}}!
+`
+
+	err = os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	// Create a mock prompt file in the subdirectory
+	mockSubPromptFile := filepath.Join(mockSubDir, "sub_example.prompt")
+	err = os.WriteFile(mockSubPromptFile, []byte(mockPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file in subdirectory: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+
+	// Call LoadPromptFolder
+	LoadPromptDir(reg, tempDir, "test-namespace")
+
+	// Verify that the prompt was registered correctly
+	prompt := LookupPrompt(reg, provider, "test-namespace/example")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
+	}
+
+	// Verify the prompt in the subdirectory was registered correctly
+	subPrompt := LookupPrompt(reg, provider, "test-namespace/sub_example")
+	if subPrompt == nil {
+		t.Fatalf("Prompt in subdirectory was not registered")
+	}
+}
+
+func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
+	// Initialize a mock registry
+	reg := &registry.Registry{}
+
+	// Call LoadPromptFolder with a non-existent directory
+	err := LoadPromptDir(reg, "./nonexistent", "test-namespace")
+	if err == nil {
+		t.Fatalf("Error should returned")
+	}
+
+	// Verify that no prompts were registered
+	prompt := LookupPrompt(reg, "test-namespace", "example")
+	if prompt != nil {
+		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}
 }
