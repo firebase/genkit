@@ -21,6 +21,8 @@ const (
 	gemini20FlashLitePrev        = "gemini-2.0-flash-lite-preview"
 	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
 	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
+
+	gemini25ProExp0305 = "gemini-2.5-pro-exp-03-25"
 )
 
 var (
@@ -44,6 +46,7 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini25ProExp0305,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelInfo{
@@ -99,6 +102,11 @@ var (
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
+			Versions: []string{},
+			Supports: &gemini.Multimodal,
+		},
+		gemini25ProExp0305: {
+			Label:    "Gemini 2.5 Pro Exp 03-25",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
 		},
