@@ -23,12 +23,12 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&vertexai.VertexAI{}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,13 +45,14 @@ func main() {
 }
 
 func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	// Define prompt with default model and system text.
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "SimplePrompt",
 		ai.WithModel(m),
 		ai.WithSystemText("You are a helpful AI assistant named Walt. Greet the user."),
+		ai.WithPromptText("Hello, who are you?"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -66,7 +67,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	type HelloPromptInput struct {
 		UserName string
@@ -79,6 +80,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 		ai.WithModel(m),
 		ai.WithInputType(HelloPromptInput{UserName: "Alex", Theme: "beach vacation"}),
 		ai.WithSystemText("You are a helpful AI assistant named Walt. Today's theme is {{Theme}}, respond in this style. Say hello to {{UserName}}."),
+		ai.WithPromptText("Hello, who are you?"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -94,7 +96,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	type CountryList struct {
 		Countries []string
@@ -109,7 +111,6 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 		ai.WithSystemText("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
 		ai.WithPromptText("Give me the 10 biggest countries in the world by habitants."),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -132,13 +133,14 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			return math.Pow(input.Value, input.Over), nil
 		},
 	)
@@ -152,7 +154,6 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		ai.WithTools(gablorkenTool),
 		ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 	)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -167,7 +168,7 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	// Define prompt with default messages prepended.
 	helloPrompt, err := genkit.DefinePrompt(
@@ -193,7 +194,7 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	// Define prompt with default settings.
 	helloPrompt, err := genkit.DefinePrompt(
@@ -208,7 +209,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 
 	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		ai.WithModel(vertexai.Model(g, "gemini-2.0-pro")),
+		ai.WithModel(googlegenai.VertexAIModel(g, "gemini-2.0-pro")),
 		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
@@ -219,7 +220,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
-	m := vertexai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	type HelloPromptInput struct {
 		UserName string

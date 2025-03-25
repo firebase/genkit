@@ -14,25 +14,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package googleai_test
+package googlegenai_test
 
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 // The tests here only work with an API key set to a valid value.
@@ -41,13 +36,11 @@ var (
 	cache  = flag.String("cache", "", "Local file to cache (large text document)")
 )
 
-var header = flag.Bool("header", false, "run test for x-goog-client-api header")
-
 // We can't test the DefineAll functions along with the other tests because
 // we get duplicate definitions of models.
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
-func TestLive(t *testing.T) {
+func TestGoogleAILive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
@@ -60,13 +53,13 @@ func TestLive(t *testing.T) {
 
 	g, err := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
-		genkit.WithPlugins(&googleai.GoogleAI{APIKey: *apiKey}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	embedder := googleai.Embedder(g, "embedding-001")
+	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,31 +333,4 @@ func TestCacheHelper(t *testing.T) {
 			t.Fatalf("cache name mismatch, want dummy-name, got: %s", name)
 		}
 	})
-}
-
-func TestHeader(t *testing.T) {
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !*header {
-		t.Skip("skipped; to run, pass -header and don't run the live test")
-	}
-	ctx := context.Background()
-	var header http.Header
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		header = r.Header
-		http.Error(w, "test", http.StatusServiceUnavailable)
-	}))
-	defer server.Close()
-
-	if err := (&googleai.GoogleAI{APIKey: "x"}).Init(ctx, g); err != nil {
-		t.Fatal(err)
-	}
-	_, _ = genkit.Generate(ctx, g, ai.WithPromptText("hi"))
-	got := header.Get("x-goog-api-client")
-	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
-	if !want.MatchString(got) {
-		t.Errorf("got x-goog-api-client header value\n%s\nwanted it to match regexp %s", got, want)
-	}
 }
