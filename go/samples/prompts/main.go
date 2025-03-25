@@ -20,10 +20,12 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"github.com/firebase/genkit/go/plugins/server"
 )
 
 func main() {
@@ -41,7 +43,11 @@ func main() {
 	PromptWithExecuteOverrides(ctx, g)
 	PromptWithFunctions(ctx, g)
 
-	<-ctx.Done()
+	mux := http.NewServeMux()
+	for _, a := range genkit.ListFlows(g) {
+		mux.HandleFunc("POST /"+a.Name(), genkit.Handler(a))
+	}
+	log.Fatal(server.Start(ctx, "127.0.0.1:8080", mux))
 }
 
 func SimplePrompt(ctx context.Context, g *genkit.Genkit) {

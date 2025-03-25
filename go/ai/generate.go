@@ -124,11 +124,6 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
 
-// IsDefinedModel reports whether a model is defined.
-func IsDefinedModel(r *registry.Registry, provider, name string) bool {
-	return core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name) != nil
-}
-
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(r *registry.Registry, provider, name string) Model {
