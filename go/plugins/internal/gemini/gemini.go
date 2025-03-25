@@ -20,10 +20,12 @@ package gemini
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -52,11 +54,12 @@ var (
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
 	Multimodal = ai.ModelSupports{
-		Multiturn:  true,
-		Tools:      true,
-		ToolChoice: true,
-		SystemRole: true,
-		Media:      true,
+		Multiturn:   true,
+		Tools:       true,
+		ToolChoice:  true,
+		SystemRole:  true,
+		Media:       true,
+		Constrained: ai.ConstrainedSupportNoTools,
 	}
 
 	// Attribution header
@@ -322,6 +325,30 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 		gc.CachedContent = cache.Name
 	}
 
+	// constrained generation should be avoided if Tools are defined
+	if input.Output.Constrained && len(gc.Tools) == 0 {
+		// TODO: should we support text/x.enum?
+		if input.Output.ContentType != "application/json" {
+			return nil, errors.New("application/json is the only supported output format")
+		}
+		// edge case when no schema is provided but response format should be
+		// JSON
+		if input.Output.Format == string(ai.OutputFormatJSON) && len(input.Output.Schema) == 0 {
+			gc.ResponseMIMEType = "application/json"
+			return &gc, nil
+		}
+		// TODO: what should be the conditions to insert Instructions?
+		// in JS there are few conditions such as:
+		// "metadata.purpose == 'output'"
+		// "metadata.pending == true"
+		// in the request messages contents
+		schema, err := convertSchema(input.Output.Schema, input.Output.Schema)
+		if err != nil {
+			return nil, err
+		}
+		gc.ResponseSchema = schema
+	}
+
 	return &gc, nil
 }
 
@@ -376,11 +403,45 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 	if v, ok := genkitSchema["required"]; ok {
 		schema.Required = castToStringArray(v.([]any))
 	}
+	if v, ok := genkitSchema["propertyOrdering"]; ok {
+		schema.PropertyOrdering = castToStringArray(v.([]any))
+	}
 	if v, ok := genkitSchema["description"]; ok {
 		schema.Description = v.(string)
 	}
 	if v, ok := genkitSchema["format"]; ok {
 		schema.Format = v.(string)
+	}
+	if v, ok := genkitSchema["title"]; ok {
+		schema.Title = v.(string)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		i, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.MinItems = genai.Ptr[int64](i)
+	}
+	if v, ok := genkitSchema["maxItems"]; ok {
+		i, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.MaxItems = genai.Ptr[int64](i)
+	}
+	if v, ok := genkitSchema["maximum"]; ok {
+		i, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Maximum = genai.Ptr[float64](i)
+	}
+	if v, ok := genkitSchema["minimum"]; ok {
+		i, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Minimum = genai.Ptr[float64](i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
 		schema.Enum = castToStringArray(v.([]any))
