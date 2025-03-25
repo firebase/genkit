@@ -19,7 +19,7 @@
 # TODO: Replace this with proper imports once we have a proper implementation.
 from dotpromptz import package_name as dotpromptz_package_name
 
-from genkit.blocks import package_name as ai_package_name
+from genkit.blocks import package_name as blocks_package_name
 from genkit.core import package_name as core_package_name
 from genkit.plugins.chroma import package_name as chroma_package_name
 from genkit.plugins.firebase import package_name as firebase_package_name
@@ -56,7 +56,7 @@ def test_package_names() -> None:
     This test verifies that the package imports work correctly from the
     end-user perspective.
     """
-    assert ai_package_name() == 'genkit.ai'
+    assert blocks_package_name() == 'genkit.blocks'
     assert chroma_package_name() == 'genkit.plugins.chroma'
     assert core_package_name() == 'genkit.core'
     assert firebase_package_name() == 'genkit.plugins.firebase'

@@ -34,16 +34,16 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
-	ModelName               string                  // Name of the model to use.
-	Model                   Model                   // Model to use.
-	MessagesFn              messagesFn              // Messages function. If this is set, Messages should be an empty.
-	Config                  *GenerationCommonConfig // Model configuration. If nil will be taken from the prompt config.
-	Tools                   []ToolRef               // References to tools to use.
-	ToolChoice              ToolChoice              // Whether tool calls are required, disabled, or optional.
-	MaxTurns                int                     // Maximum number of tool call iterations.
-	ReturnToolRequests      bool                    // Whether to return tool requests instead of making the tool calls and continuing the generation.
-	IsReturnToolRequestsSet bool                    // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
-	Middleware              []ModelMiddleware       // Middleware to apply to the model request.
+	ModelName               string            // Name of the model to use.
+	Model                   Model             // Model to use.
+	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
+	Config                  any               // Model configuration. If nil will be taken from the prompt config.
+	Tools                   []ToolRef         // References to tools to use.
+	ToolChoice              ToolChoice        // Whether tool calls are required, disabled, or optional.
+	MaxTurns                int               // Maximum number of tool call iterations.
+	ReturnToolRequests      bool              // Whether to return tool requests instead of making the tool calls and continuing the generation.
+	IsReturnToolRequestsSet bool              // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
+	Middleware              []ModelMiddleware // Middleware to apply to the model request.
 }
 
 type CommonOption interface {
@@ -160,7 +160,7 @@ func WithTools(tools ...ToolRef) CommonOption {
 }
 
 // WithConfig sets the model configuration.
-func WithConfig(config *GenerationCommonConfig) CommonOption {
+func WithConfig(config any) CommonOption {
 	return &commonOptions{Config: config}
 }
 

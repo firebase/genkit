@@ -27,10 +27,11 @@ dependencies = [
   "httpx>=0.28.1",
   "psutil>=7.0.0",
   "starlette>=0.46.1",
+  "sse-starlette>=2.2.1",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }
-name = "genkit"
+name = "genkit-ai"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
@@ -43,5 +44,5 @@ requires      = ["hatchling"]
 packages = ["src/genkit"]
 
 [tool.pytest.ini_options]
-pythonpath = [".", "src", "tests", "packages/genkit/src"]
+pythonpath = [".", "src", "tests", "packages/genkit-ai/src"]
 testpaths  = ["tests"]

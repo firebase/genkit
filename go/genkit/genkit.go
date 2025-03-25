@@ -24,6 +24,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -97,7 +98,11 @@ func WithDefaultModel(model string) GenkitOption {
 	return &genkitOptions{DefaultModel: model}
 }
 
-// WithPromptDir sets the directory where dotprompts are stored. Defaults to "prompts" at project root.
+// WithPromptDir sets the directory where dotprompts are stored.
+// Defaults to "prompts" at project root. prompts will be automatically
+// loaded from this directory on Genkit initialization. Invalid prompt
+// files will log errors whereas valid prompt files that result in
+// invalid prompt definitions will result in errors.
 func WithPromptDir(dir string) GenkitOption {
 	return &genkitOptions{PromptDir: dir}
 }
@@ -131,6 +136,8 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
 		}
 	}
+
+	ai.LoadPromptDir(r, gOpts.PromptDir, "")
 
 	if registry.CurrentEnvironment() == registry.EnvironmentDev {
 		errCh := make(chan error, 1)
@@ -339,6 +346,21 @@ func IsDefinedEvaluator(g *Genkit, provider, name string) bool {
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
 	return ai.LookupEvaluator(g.reg, provider, name)
+}
+
+// LoadPromptDir loads all prompts and partials from a given directory with the specified namespace.
+func LoadPromptDir(g *Genkit, dir string, namespace string) error {
+	return ai.LoadPromptDir(g.reg, dir, namespace)
+}
+
+// LoadPrompt loads a prompt from a given filepath with the specified namespace.
+func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
+	dir, filename := filepath.Split(path)
+	if dir != "" {
+		dir = filepath.Clean(dir)
+	}
+
+	return ai.LoadPrompt(g.reg, dir, filename, namespace)
 }
 
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.

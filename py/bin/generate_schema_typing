@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 TOP_DIR=$(git rev-parse --show-toplevel)
-TYPING_FILE="${TOP_DIR}/py/packages/genkit/src/genkit/core/typing.py"
+TYPING_FILE="${TOP_DIR}/py/packages/genkit-ai/src/genkit/core/typing.py"
 
 # If in CI mode and the file exists, make a backup copy to compare later.
 if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$TYPING_FILE" ]]; then
