@@ -25,15 +25,15 @@ const provider = "genkitEval"
 type EvaluatorType int
 
 const (
-	EvaluatorTypeDeepEqual EvaluatorType = iota
-	EvaluatorTypeRegex
-	EvaluatorTypeJsonata
+	EvaluatorDeepEqual EvaluatorType = iota
+	EvaluatorRegex
+	EvaluatorJsonata
 )
 
 var evaluatorTypeName = map[EvaluatorType]string{
-	EvaluatorTypeDeepEqual: "DEEP_EQUAL",
-	EvaluatorTypeRegex:     "REGEX",
-	EvaluatorTypeJsonata:   "JSONATA",
+	EvaluatorDeepEqual: "DEEP_EQUAL",
+	EvaluatorRegex:     "REGEX",
+	EvaluatorJsonata:   "JSONATA",
 }
 
 func (ss EvaluatorType) String() string {
@@ -80,11 +80,11 @@ func (ge *GenkitEval) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 
 func ConfigureMetric(g *genkit.Genkit, metric MetricConfig) (ai.Evaluator, error) {
 	switch metric.MetricType {
-	case EvaluatorTypeDeepEqual:
+	case EvaluatorDeepEqual:
 		return configureDeepEqualEvaluator(g)
-	case EvaluatorTypeJsonata:
+	case EvaluatorJsonata:
 		return configureJsonataEvaluator(g)
-	case EvaluatorTypeRegex:
+	case EvaluatorRegex:
 		return configureRegexEvaluator(g)
 	default:
 		panic(fmt.Sprintf("Unsupported genkitEval metric type: %s", metric.MetricType.String()))

@@ -72,13 +72,13 @@ func main() {
 	ctx := context.Background()
 	metrics := []evaluators.MetricConfig{
 		{
-			MetricType: evaluators.EvaluatorTypeDeepEqual,
+			MetricType: evaluators.EvaluatorDeepEqual,
 		},
 		{
-			MetricType: evaluators.EvaluatorTypeRegex,
+			MetricType: evaluators.EvaluatorRegex,
 		},
 		{
-			MetricType: evaluators.EvaluatorTypeJsonata,
+			MetricType: evaluators.EvaluatorJsonata,
 		},
 	}
 	g, err := genkit.Init(ctx,
