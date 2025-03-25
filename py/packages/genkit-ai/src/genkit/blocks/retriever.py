@@ -23,6 +23,7 @@ to accomplish a task.
 """
 
 from typing import Callable
+
 from document import Document
 
 from genkit.core.typing import RetrieverResponse
