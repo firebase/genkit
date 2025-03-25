@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Testing sample for aioia."""
@@ -19,17 +32,17 @@ from aioia.servers.middleware import LitestarLoggingMiddleware
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
-from genkit.web.servers import (
+from genkit.web.manager import (
     AbstractBaseServer,
     Server,
     ServerConfig,
-    ServersManager,
+    ServerManager,
     UvicornAdapter,
     get_health_info,
     get_server_info,
     run_loop,
 )
-from genkit.web.servers.signals import terminate_all_servers
+from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.typing import Application
 
 logger = structlog.get_logger(__name__)
@@ -173,7 +186,7 @@ class ReflectionServerStarletteLifecycle(AbstractBaseServer):
 
 
 async def add_server_after(
-    mgr: ServersManager, server: Server, delay: float
+    mgr: ServerManager, server: Server, delay: float
 ) -> None:
     """Add a server to the servers manager after a delay.
 
@@ -204,7 +217,7 @@ async def main() -> None:
         ),
     ]
 
-    mgr = ServersManager()
+    mgr = ServerManager()
     if is_dev_environment():
         reflection_server = Server(
             config=ServerConfig(

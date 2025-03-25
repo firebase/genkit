@@ -1,4 +1,17 @@
 // Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // Package gemini contains code that is common to both the googleai and vertexai plugins.
@@ -9,7 +22,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
+
+	"github.com/firebase/genkit/go/core"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -25,7 +42,7 @@ const (
 
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
-	BasicText = ai.ModelInfoSupports{
+	BasicText = ai.ModelSupports{
 		Multiturn:  true,
 		Tools:      true,
 		ToolChoice: true,
@@ -34,7 +51,7 @@ var (
 	}
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
-	Multimodal = ai.ModelInfoSupports{
+	Multimodal = ai.ModelSupports{
 		Multiturn:  true,
 		Tools:      true,
 		ToolChoice: true,
@@ -71,13 +88,32 @@ func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, provider, name, meta, func(
+
+	fn := func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		return Generate(ctx, client, name, input, cb)
-	})
+	}
+	// the gemini api doesn't support downloading media from http(s)
+	if info.Supports.Media {
+		fn = core.ChainMiddleware(ai.DownloadRequestMedia(&ai.DownloadMediaOptions{
+			MaxBytes: 1024 * 1024 * 20, // 20MB
+			Filter: func(part *ai.Part) bool {
+				u, err := url.Parse(part.Text)
+				if err != nil {
+					return true
+				}
+				// Gemini can handle these URLs
+				return !slices.Contains(
+					[]string{"www.youtube.com", "youtube.com", "youtu.be"},
+					u.Hostname(),
+				)
+			},
+		}))(fn)
+	}
+	return genkit.DefineModel(g, provider, name, meta, fn)
 }
 
 // DefineEmbedder defines embeddings for the provided contents and embedder

@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package googleai_test
@@ -38,22 +51,26 @@ func TestLive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
+
 	if *testAll {
 		t.Skip("-all provided")
 	}
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
+
+	ctx := context.Background()
+
+	g, err := genkit.Init(ctx,
+		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
+		genkit.WithPlugins(&googleai.GoogleAI{APIKey: *apiKey}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx := context.Background()
-	err = googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey})
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	embedder := googleai.Embedder(g, "embedding-001")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
@@ -63,6 +80,7 @@ func TestLive(t *testing.T) {
 			return math.Pow(float64(input.Value), input.Over), nil
 		},
 	)
+
 	t.Run("embedder", func(t *testing.T) {
 		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
 		if err != nil {
@@ -82,11 +100,15 @@ func TestLive(t *testing.T) {
 			t.Errorf("embedding vector not unit length: %f", normSquared)
 		}
 	})
+
 	t.Run("generate", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of? Name the country, nothing else"))
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Which country was Napoleon the emperor of? Name the country, nothing else"),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		out := strings.ReplaceAll(resp.Message.Content[0].Text, "\n", "")
 		const want = "France"
 		if out != want {
@@ -99,6 +121,7 @@ func TestLive(t *testing.T) {
 			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
+
 	t.Run("streaming", func(t *testing.T) {
 		out := ""
 		parts := 0
@@ -131,6 +154,7 @@ func TestLive(t *testing.T) {
 			t.Errorf("Empty usage stats %#v", *final.Usage)
 		}
 	})
+
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
@@ -145,11 +169,13 @@ func TestLive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
-			ai.WithToolChoice(ai.ToolChoiceNone))
+			ai.WithToolChoice(ai.ToolChoiceNone),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -332,7 +358,7 @@ func TestHeader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: "x"}); err != nil {
+	if err := (&googleai.GoogleAI{APIKey: "x"}).Init(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = genkit.Generate(ctx, g, ai.WithPromptText("hi"))
