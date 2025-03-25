@@ -2,7 +2,7 @@
 dependencies = [
   "dotpromptz",
   "aioia",
-  "genkit",
+  "genkit-ai",
   "genkit-chroma-plugin",
   "genkit-compat-oai-plugin",
   "genkit-firebase-plugin",
@@ -70,7 +70,7 @@ coffee-shop                = { workspace = true }
 context-caching            = { workspace = true }
 dotpromptz                 = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 flow-sample1               = { workspace = true }
-genkit                     = { workspace = true }
+genkit-ai                  = { workspace = true }
 genkit-chroma-plugin       = { workspace = true }
 genkit-compat-oai-plugin   = { workspace = true }
 genkit-firebase-plugin     = { workspace = true }
@@ -176,7 +176,7 @@ disallow_incomplete_defs = true
 disallow_untyped_defs = true
 explicit_package_bases = true
 mypy_path = [
-  "packages/genkit/src",
+  "packages/genkit-ai/src",
   "plugins/chroma/src",
   "plugins/firebase/src",
   "plugins/google-ai/src",
@@ -211,7 +211,7 @@ enable-version-header    = true
 field-constraints        = true
 input                    = "../genkit-tools/genkit-schema.json"
 input-file-type          = "jsonschema"
-output                   = "packages/genkit/src/genkit/core/typing.py"
+output                   = "packages/genkit-ai/src/genkit/core/typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true

@@ -14,7 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
 """AI foundations for the Genkit framework.
 
 This package provides the artificial intelligence and machine learning
@@ -33,9 +32,9 @@ def package_name() -> str:
     """Get the fully qualified package name.
 
     Returns:
-        The string 'genkit.ai', which is the fully qualified package name.
+        The string 'genkit.blocks', which is the fully qualified package name.
     """
-    return 'genkit.ai'
+    return 'genkit.blocks'
 
 
 __all__ = [package_name.__name__]

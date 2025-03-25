@@ -481,8 +481,8 @@ func TestDownloadRequestMedia(t *testing.T) {
 			},
 		},
 	}
-  
-  for _, tc := range testCases {
+
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var ts *httptest.Server
 			if tc.setupServer != nil {
@@ -519,7 +519,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 		})
 	}
 }
-  
+
 func TestAugmentWithContext(t *testing.T) {
 	testCases := []struct {
 		name         string
