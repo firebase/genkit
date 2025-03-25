@@ -514,7 +514,8 @@ def record_input_metadata(span, kind, name, span_metadata, input):
         span_metadata: The span metadata to record.
         input: The input to the action.
     """
-    span.set_attribute('genkit:type', kind)
+    span.set_attribute('genkit:type', 'action')
+    span.set_attribute('genkit:metadata:subtype', kind)
     span.set_attribute('genkit:name', name)
     if input is not None:
         span.set_attribute('genkit:input', dump_json(input))
