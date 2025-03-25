@@ -22,9 +22,8 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 # We're concerned about only the release versions of Go, not "tip", but it has
 # been included as an example in case it is needed in the future.
 GO_VERSIONS=(
-  "1.22.12"
-  "1.23.6"
-  "1.24.0"
+  "1.23.7"
+  "1.24.1"
   #"tip" # Fetches and builds the latest version of go from source and is slow.
 )
 
