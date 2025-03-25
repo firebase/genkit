@@ -124,6 +124,34 @@ class Score(BaseModel):
     details: Details | None = None
 
 
+class GenkitErrorDetails(BaseModel):
+    """Model for genkiterrordetails data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    stack: str | None = None
+    trace_id: str = Field(..., alias='traceId')
+
+
+class Data1(BaseModel):
+    """Model for data1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    genkit_error_message: str | None = Field(None, alias='genkitErrorMessage')
+    genkit_error_details: GenkitErrorDetails | None = Field(
+        None, alias='genkitErrorDetails'
+    )
+
+
+class GenkitError(BaseModel):
+    """Model for genkiterror data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    message: str
+    stack: str | None = None
+    details: Any | None = None
+    data: Data1 | None = None
+
+
 class Code(StrEnum):
     """Enumeration of code values."""
 
