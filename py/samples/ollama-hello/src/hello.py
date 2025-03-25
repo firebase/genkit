@@ -1,10 +1,22 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
-import asyncio
-import json
 
 from pydantic import BaseModel
 
+from genkit.ai import Genkit
 from genkit.core.typing import Message, Role, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
@@ -12,7 +24,6 @@ from genkit.plugins.ollama.models import (
     OllamaAPITypes,
     OllamaPluginParams,
 )
-from genkit.veneer import Genkit
 
 # model can be pulled with `ollama pull *LLM_VERSION*`
 GEMMA_MODEL = 'gemma2:latest'

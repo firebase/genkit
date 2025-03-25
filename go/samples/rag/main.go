@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // This program can be manually tested like so:
@@ -32,7 +45,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/evaluators"
-	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
@@ -57,19 +69,18 @@ type simpleQaPromptInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = googleai.Init(context.Background(), g, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	model := googleai.Model(g, "gemini-2.0-flash")
-	embedder := googleai.Embedder(g, "embedding-001")
+
+	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
 	if embedder == nil {
 		log.Fatal("embedder is not defined")
 	}
+
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
@@ -94,7 +105,7 @@ func main() {
 	}
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
-		ai.WithModel(model),
+		ai.WithModelName("googlegenai/gemini-2.0-flash"),
 		ai.WithPromptText(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),

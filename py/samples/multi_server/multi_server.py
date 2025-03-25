@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Testing sample for aioia."""
@@ -6,7 +19,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Any
 
 import structlog
@@ -15,25 +27,23 @@ from litestar.datastructures import State
 from litestar.logging.config import LoggingConfig
 from litestar.plugins.structlog import StructlogPlugin
 from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from starlette.routing import Route
 
 from aioia.servers.middleware import LitestarLoggingMiddleware
+from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
-from genkit.web.servers import (
+from genkit.web.manager import (
     AbstractBaseServer,
     Server,
     ServerConfig,
-    ServersManager,
+    ServerManager,
     UvicornAdapter,
     get_health_info,
     get_server_info,
     run_loop,
 )
-from genkit.web.servers.signals import terminate_all_servers
-from genkit.web.typing import Application, Receive, Scope, Send
+from genkit.web.manager.signals import terminate_all_servers
+from genkit.web.typing import Application
 
 logger = structlog.get_logger(__name__)
 
@@ -56,15 +66,6 @@ logging_config = LoggingConfig(
 )
 
 
-def is_dev_environment() -> bool:
-    """Return whether we're in a development environment.
-
-    Returns:
-        True if we're in a development environment, False otherwise.
-    """
-    return os.environ.get('APP_ENV') == 'dev'
-
-
 class BaseControllerMixin:
     """Base controller mixin for all litestar controllers."""
 
@@ -73,7 +74,7 @@ class BaseControllerMixin:
         """Handle the quit endpoint."""
         await logger.ainfo('Shutting down all servers...')
         terminate_all_servers()
-        return {'status': 'ok'}
+        return {'status': 'OK'}
 
     @get('/__healthz')
     async def health(self, state: State) -> dict[str, Any]:
@@ -88,43 +89,6 @@ class BaseControllerMixin:
         config = state.config
         info = get_server_info(config)
         return info if isinstance(info, dict) else {'info': info}
-
-
-class HelloASGIApp:
-    """A simple custom ASGI app."""
-
-    async def __call__(
-        self, scope: Scope, receive: Receive, send: Send
-    ) -> None:
-        """A simple custom ASGI app.
-
-        Args:
-            scope: ASGI scope
-            receive: ASGI receive callback
-            send: ASGI send callback
-        """
-        if scope['type'] != 'http':
-            return
-
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [
-                [b'content-type', b'application/json'],
-            ],
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': b'{"message": "Pure ASGI application!"}',
-        })
-
-
-class HelloASGIServerLifecycle(AbstractBaseServer):
-    """Hello ASGI server implementing the ServerLifecycleProtocol."""
-
-    def create(self, config: ServerConfig) -> Application:
-        """Create a Litestar application instance."""
-        return HelloASGIApp()
 
 
 class FlowsEndpoints(Controller, BaseControllerMixin):
@@ -152,18 +116,6 @@ class GreetingEndpoints(Controller, BaseControllerMixin):
     async def root(self) -> dict[str, str]:
         """Handle the root endpoint."""
         msg = 'Hello from greeting endpoints app!'
-        return {'greeting': msg}
-
-
-class ReflectionApp(Controller, BaseControllerMixin):
-    """Controller for the Reflection API endpoints."""
-
-    path = '/'
-
-    @get('/')
-    async def root(self) -> dict[str, str]:
-        """Handle the root endpoint."""
-        msg = 'Hello from Reflection API Server!'
         return {'greeting': msg}
 
 
@@ -204,144 +156,8 @@ class FlowsServerLifecycle(AbstractBaseServer):
         )
 
 
-class ReflectionServerLifecycle(AbstractBaseServer):
-    """Reflection server implementing the ServerLifecycleProtocol."""
-
-    def __init__(self, route_handlers: list[type[Controller]]) -> None:
-        """Initialize the reflection server.
-
-        Args:
-            route_handlers: The handlers to use for routes.
-        """
-        self.route_handlers = route_handlers
-
-    def create(self, config: ServerConfig) -> Application:
-        """Create a Litestar application instance."""
-
-        async def on_app_startup() -> None:
-            """Handle application startup."""
-            await logger.ainfo('[LIFESPAN] Starting Reflection API server...')
-            # Any initialization could go here
-
-        async def on_app_shutdown() -> None:
-            """Handle application shutdown."""
-            await logger.ainfo(
-                '[LIFESPAN] Shutting down Reflection API server...'
-            )
-
-        # Create and return the Litestar application
-        return Litestar(
-            route_handlers=self.route_handlers,
-            on_startup=[on_app_startup],
-            on_shutdown=[on_app_shutdown],
-            logging_config=logging_config,
-            middleware=[LitestarLoggingMiddleware],
-            plugins=[StructlogPlugin()],
-            state=State({
-                'config': config
-            }),  # Set the config in the application state
-        )
-
-
-async def starlette_reflection_root(request: Request) -> JSONResponse:
-    """Handle the root endpoint for Starlette Reflection API."""
-    return JSONResponse({
-        'greeting': 'Hello from Starlette Reflection API Server!'
-    })
-
-
-async def starlette_server_info(request: Request) -> JSONResponse:
-    """Handle the server info endpoint for Starlette Reflection API."""
-    config = request.app.state.config
-    info = get_server_info(config)
-    return JSONResponse(info if isinstance(info, dict) else {'info': info})
-
-
-async def starlette_health(request: Request) -> JSONResponse:
-    """Handle the health check endpoint for Starlette Reflection API."""
-    config = request.app.state.config
-    return JSONResponse(get_health_info(config))
-
-
-async def starlette_quit(request: Request) -> JSONResponse:
-    """Handle the quit endpoint for Starlette Reflection API."""
-    await logger.ainfo('Triggering shutdown')
-    terminate_all_servers()
-    return JSONResponse({'message': 'Shutting down...'})
-
-
-class StarletteReflectionServerLifecycle(AbstractBaseServer):
+class ReflectionServerStarletteLifecycle(AbstractBaseServer):
     """Reflection server implemented using Starlette."""
-
-    def __init__(self) -> None:
-        """Initialize the Starlette reflection server."""
-        pass
-
-    def create(self, config: ServerConfig) -> Starlette:
-        """Create a Starlette application instance."""
-
-        async def on_app_startup() -> None:
-            """Handle application startup."""
-            await logger.ainfo(
-                '[LIFESPAN] Starting Starlette Reflection API server...'
-            )
-
-        async def on_app_shutdown() -> None:
-            """Handle application shutdown."""
-            await logger.ainfo(
-                '[LIFESPAN] Shutting down Starlette Reflection API server...'
-            )
-
-        # Create routes
-        routes = [
-            Route('/', starlette_reflection_root),
-            Route('/__serverz', starlette_server_info),
-            Route('/__healthz', starlette_health),
-            Route('/__quit', starlette_quit),
-        ]
-
-        # Create and return the Starlette application
-        app = Starlette(
-            routes=routes,
-            on_startup=[on_app_startup],
-            on_shutdown=[on_app_shutdown],
-        )
-
-        # Store the config in app state
-        app.state.config = config
-
-        return app
-
-
-async def append_starlette_reflection_server(
-    mgr: ServersManager, delay: float
-) -> None:
-    """Append a Starlette reflection server to the servers manager.
-
-    Args:
-        mgr: The servers manager.
-        delay: The delay in seconds before adding the server.
-
-    Returns:
-        None
-    """
-    await asyncio.sleep(delay)
-    await mgr.queue_server(
-        Server(
-            config=ServerConfig(
-                name='reflection-starlette',
-                host='localhost',
-                port=3200,
-                ports=[3200],
-            ),
-            lifecycle=StarletteReflectionServerLifecycle(),
-            adapter=UvicornAdapter(),
-        )
-    )
-
-
-class NativeReflectionServerLifecycle(AbstractBaseServer):
-    """Reflection server implemented using plain native ASGI."""
 
     def __init__(self) -> None:
         """Initialize the Starlette reflection server."""
@@ -364,36 +180,26 @@ class NativeReflectionServerLifecycle(AbstractBaseServer):
 
         return create_reflection_asgi_app(
             registry=Registry(),
-            on_app_startup=lambda c, r, s: on_app_startup(),
-            on_app_shutdown=lambda c, r, s: on_app_shutdown(),
+            on_app_startup=on_app_startup,
+            on_app_shutdown=on_app_shutdown,
         )
 
 
-async def append_native_reflection_server(
-    mgr: ServersManager, delay: float
+async def add_server_after(
+    mgr: ServerManager, server: Server, delay: float
 ) -> None:
-    """Append a Starlette reflection server to the servers manager.
+    """Add a server to the servers manager after a delay.
 
     Args:
         mgr: The servers manager.
+        server: The server to add.
         delay: The delay in seconds before adding the server.
 
     Returns:
         None
     """
     await asyncio.sleep(delay)
-    await mgr.queue_server(
-        Server(
-            config=ServerConfig(
-                name='reflection-asgi',
-                host='localhost',
-                port=3800,
-                ports=[3800],
-            ),
-            lifecycle=NativeReflectionServerLifecycle(),
-            adapter=UvicornAdapter(),
-        )
-    )
+    await mgr.queue_server(server)
 
 
 async def main() -> None:
@@ -409,35 +215,23 @@ async def main() -> None:
             lifecycle=FlowsServerLifecycle([FlowsEndpoints, GreetingEndpoints]),
             adapter=UvicornAdapter(),
         ),
-        Server(
-            config=ServerConfig(
-                name='hello',
-                host='localhost',
-                port=3300,
-                ports=[3300],
-            ),
-            lifecycle=HelloASGIServerLifecycle(),
-            adapter=UvicornAdapter(),
-        ),
     ]
+
+    mgr = ServerManager()
     if is_dev_environment():
-        servers.append(
-            Server(
-                config=ServerConfig(
-                    name='reflection',
-                    host='localhost',
-                    port=3100,
-                    ports=[3100],
-                ),
-                lifecycle=ReflectionServerLifecycle([ReflectionApp]),
-                adapter=UvicornAdapter(),
-            )
+        reflection_server = Server(
+            config=ServerConfig(
+                name='reflection-starlette',
+                host='localhost',
+                port=3100,
+                ports=range(3100, 3110),
+            ),
+            lifecycle=ReflectionServerStarletteLifecycle(),
+            adapter=UvicornAdapter(),
         )
+        asyncio.create_task(add_server_after(mgr, reflection_server, 2.0))
 
     await logger.ainfo('Starting servers...')
-    mgr = ServersManager()
-    asyncio.create_task(append_starlette_reflection_server(mgr, 5))
-    asyncio.create_task(append_native_reflection_server(mgr, 2))
     await mgr.run_all(servers)
 
 
