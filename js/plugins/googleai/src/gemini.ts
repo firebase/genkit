@@ -250,6 +250,23 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25ProExp0325 = modelRef({
+  name: 'googleai/gemini-2.5-pro-exp-03-25',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro Exp 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
@@ -262,6 +279,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
   'gemini-2.0-flash-exp': gemini20FlashExp,
+  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
