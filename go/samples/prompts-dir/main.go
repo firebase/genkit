@@ -40,15 +40,8 @@ func main() {
 			return "", errors.New("menuSuggestionFlow: failed to find prompt")
 		}
 
-		modelName := ai.LookupPromptModel(prompt)
-
-		m := googleai.Model(g, modelName)
-		if m == nil {
-			return "", errors.New("menuSuggestionFlow: failed to find model")
-		}
-
 		// Execute the prompt with the provided input
-		resp, err := prompt.Execute(ctx, ai.WithInput(input), ai.WithModel(m))
+		resp, err := prompt.Execute(ctx, ai.WithInput(input))
 		if err != nil {
 			return "", err
 		}

@@ -142,7 +142,9 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 	if modelName == "" && p.Model != nil {
 		modelName = p.Model.Name()
 	}
-	actionOpts.Model = modelName
+	if modelName != "" {
+		actionOpts.Model = modelName
+	}
 
 	if genOpts.MaxTurns != 0 {
 		actionOpts.MaxTurns = genOpts.MaxTurns
@@ -573,7 +575,7 @@ func LoadPrompt(r *registry.Registry, path, filename, prefix, namespace string) 
 		outputOpts.OutputSchema = outputSchemaMap
 	}
 
-	return DefinePrompt(r, registryDefinitionKey(name, variant, namespace), &promptOpt, &commonOpts, &outputOpts)
+	return DefinePrompt(r, registryDefinitionKey(name, variant, namespace), &promptOpt, &commonOpts, &outputOpts, WithPromptText(parsedPrompt.Template))
 }
 
 // registryDefinitionKey generates a unique key for the prompt in the registry.
@@ -590,15 +592,4 @@ func variantKey(variant string) string {
 		return fmt.Sprintf(".%s", variant)
 	}
 	return ""
-}
-
-func LookupPromptModel(prompt *Prompt) string {
-	promptMetadata, ok := prompt.action.Desc().Metadata["prompt"].(map[string]any)
-	if !ok {
-		return ""
-	}
-	if promptMetadata["model"] == nil {
-		return ""
-	}
-	return promptMetadata["model"].(string)
 }

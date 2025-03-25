@@ -1,5 +1,5 @@
 ---
-model: gemini-1.5-flash
+model: googleai/gemini-1.5-flash
 config:
   temperature: 0.9
 input:
@@ -7,6 +7,8 @@ input:
     location: string
     style?: string
     name?: string
+  default:
+    name: Rutuja
 ---
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.
