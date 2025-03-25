@@ -23,6 +23,11 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
+from genkit.plugins.google_genai.models.embedder import (
+    Embedder,
+    GeminiEmbeddingModels,
+    VertexEmbeddingModels,
+)
 from genkit.plugins.google_genai.models.gemini import GeminiModel, GeminiVersion
 
 PLUGIN_NAME = 'google_genai'
@@ -88,4 +93,15 @@ class GoogleGenai(Plugin):
                 name=google_genai_name(version),
                 fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
+            )
+
+        embeding_models = (
+            VertexEmbeddingModels
+            if self._client.vertexai
+            else GeminiEmbeddingModels
+        )
+        for version in embeding_models:
+            embedder = Embedder(version=version, client=self._client)
+            ai.define_embedder(
+                name=google_genai_name(version), fn=embedder.generate
             )

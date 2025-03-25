@@ -26,6 +26,9 @@ from genkit.ai.veneer import Genkit, GenkitRegistry
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
+    Embedding,
+    EmbedRequest,
+    EmbedResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -41,6 +44,9 @@ from genkit.core.typing import (
 __all__ = [
     ActionRunContext.__name__,
     Document.__name__,
+    Embedding.__name__,
+    EmbedRequest.__name__,
+    EmbedResponse.__name__,
     GenerateRequest.__name__,
     GenerateResponse.__name__,
     GenerateResponseChunk.__name__,

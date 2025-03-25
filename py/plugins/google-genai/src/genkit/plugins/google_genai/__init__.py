@@ -15,6 +15,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from genkit.plugins.google_genai.google import GoogleGenai, google_genai_name
+from genkit.plugins.google_genai.models.embedder import (
+    EmbeddingTaskType,
+    GeminiEmbeddingModels,
+    VertexEmbeddingModels,
+)
 from genkit.plugins.google_genai.models.gemini import GeminiVersion
 
 
@@ -24,12 +29,15 @@ def package_name() -> str:
     Returns:
         The fully qualified package name as a string.
     """
-    return 'genkit.plugins.vertex_ai'
+    return 'genkit.plugins.google_genai'
 
 
 __all__ = [
     package_name.__name__,
     GoogleGenai.__name__,
     google_genai_name.__name__,
+    GeminiEmbeddingModels.__name__,
+    VertexEmbeddingModels.__name__,
     GeminiVersion.__name__,
+    EmbeddingTaskType.__name__,
 ]
