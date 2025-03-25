@@ -34,10 +34,6 @@ from genkit.core.typing import (
     Supports,
     TextPart,
     ToolDefinition,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponse,
-    ToolResponsePart,
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
 
@@ -130,6 +126,18 @@ gemini20ProExp0205 = ModelInfo(
     ),
 )
 
+gemini20FlashExpImaGen = ModelInfo(
+    label='Google AI - Gemini 2.0 Flash Experimental',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
 
 class GeminiVersion(StrEnum):
     GEMINI_1_0_PRO = 'gemini-1.0-pro'
@@ -140,6 +148,10 @@ class GeminiVersion(StrEnum):
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
 
 
+class GeminiApiOnlyVersion(StrEnum):
+    GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
+
+
 SUPPORTED_MODELS = {
     GeminiVersion.GEMINI_1_0_PRO: gemini10Pro,
     GeminiVersion.GEMINI_1_5_PRO: gemini15Pro,
@@ -147,13 +159,14 @@ SUPPORTED_MODELS = {
     GeminiVersion.GEMINI_1_5_FLASH_8B: gemini15Flash8b,
     GeminiVersion.GEMINI_2_0_FLASH: gemini20Flash,
     GeminiVersion.GEMINI_2_0_PRO_EXP_02_05: gemini20ProExp0205,
+    GeminiApiOnlyVersion.GEMINI_2_0_FLASH_EXP: gemini20FlashExpImaGen,
 }
 
 
 class GeminiModel:
     def __init__(
         self,
-        version: str | GeminiVersion,
+        version: str | GeminiVersion | GeminiApiOnlyVersion,
         client: genai.Client,
         registry: GenkitRegistry,
     ):
@@ -290,6 +303,7 @@ class GeminiModel:
         request_contents = self._build_messages(request)
 
         request_cfg = self._genkit_to_googleai_cfg(request)
+
         if request.tools:
             tools = self._get_tools(request)
             request_cfg = {} if not request_cfg else request_cfg
@@ -448,7 +462,7 @@ class GeminiModel:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
 
         Args:
-            types: Genkit request
+            request: Genkit request
 
         Returns:
             Google Ai request config or None
@@ -457,18 +471,17 @@ class GeminiModel:
         cfg = None
 
         if request.config:
-            request_config = (
-                request.config
-                if isinstance(request.config, GenerationCommonConfig)
-                else GenerationCommonConfig(**request.config)
-            )
-            cfg = genai.types.GenerateContentConfig(
-                max_output_tokens=request_config.max_output_tokens,
-                top_k=request_config.top_k,
-                top_p=request_config.top_p,
-                temperature=request_config.temperature,
-                stop_sequences=request_config.stop_sequences,
-            )
+            request_config = request.config
+            if isinstance(request_config, GenerationCommonConfig):
+                cfg = genai.types.GenerateContentConfig(
+                    max_output_tokens=request_config.max_output_tokens,
+                    top_k=request_config.top_k,
+                    top_p=request_config.top_p,
+                    temperature=request_config.temperature,
+                    stop_sequences=request_config.stop_sequences,
+                )
+            elif isinstance(request_config, dict):
+                cfg = genai.types.GenerateContentConfig(**request_config)
         if request.output:
             response_mime_type = (
                 'application/json'
