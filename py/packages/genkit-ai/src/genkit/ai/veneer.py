@@ -114,8 +114,8 @@ from genkit.blocks.model import (
 )
 from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.endpoints.reflection import make_reflection_server
 from genkit.core.environment import is_dev_environment
+from genkit.core.reflection import make_reflection_server
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     DocumentData,
