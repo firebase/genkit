@@ -19,13 +19,13 @@ various elements of generative AI. It has SDKs for JavaScript, Go, and Python.
 
 ```d2
 genkit: {
-  veneer: Veneer API
-  ai: AI Components {
+  ai: Veneer API
+  blocks: AI Components {
     prompt: Prompt
-    flow: Flow
     model: Model
   }
   core: Core Foundations {
+    flow: Flow
     actions: Actions
     registry: Registry
     reflection_server: Reflection Server
@@ -65,9 +65,9 @@ genkit.plugins.google_cloud -> genkit.veneer
 genkit.plugins.ollama -> genkit.veneer
 genkit.plugins.pinecone -> genkit.veneer
 genkit.plugins.vertex_ai -> genkit.veneer
-genkit.veneer -> genkit.ai
-genkit.veneer -> genkit.core
-genkit.veneer -> lib.uvicorn
+genkit.ai -> genkit.blocks
+genkit.ai -> genkit.core
+genkit.ai -> lib.uvicorn
 lib.dotprompt -> lib.handlebars
 ```
 
