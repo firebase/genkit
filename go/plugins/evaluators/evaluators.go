@@ -46,35 +46,35 @@ type MetricConfig struct {
 	MetricType EvaluatorType
 }
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	Metrics []MetricConfig
+// GenkitEval is a Genkit plugin that provides evaluators
+type GenkitEval struct {
+	Metrics []MetricConfig // Configs for individual metrics
+	initted bool           // Whether the plugin has been initialized
+	mu      sync.Mutex     // Mutex to manage locks
 }
 
-var state struct {
-	config  *Config
-	initted bool
-	mu      sync.Mutex
+func (ge *GenkitEval) Name() string {
+	return provider
 }
 
 // Init initializes the plugin.
-func Init(ctx context.Context, g *genkit.Genkit, cfg *Config) (err error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
+func (ge *GenkitEval) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	if ge == nil {
+		ge = &GenkitEval{}
+	}
+	ge.mu.Lock()
+	defer ge.mu.Unlock()
+	if ge.initted {
 		panic("genkitEval.Init already called")
 	}
-	if cfg == nil || len(cfg.Metrics) == 0 {
+	if ge == nil || len(ge.Metrics) == 0 {
 		return errors.New("genkitEval: need to configure at least one metric")
 	}
-	state.config = cfg
-	state.initted = true
+	ge.initted = true
 
-	for _, metric := range state.config.Metrics {
+	for _, metric := range ge.Metrics {
 		ConfigureMetric(g, metric)
 	}
-	return nil
-
 	return nil
 }
 
@@ -207,10 +207,10 @@ func configureJsonataEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
 			return nil, err
 		}
 		status := ai.ScoreStatusUnknown
-		if res != nil || res != "" {
-			status = ai.ScoreStatusPass
-		} else {
+		if res == false || res == "" || res == nil {
 			status = ai.ScoreStatusFail
+		} else {
+			status = ai.ScoreStatusPass
 		}
 		score = ai.Score{
 			Score:  res,

@@ -45,6 +45,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/evaluators"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
@@ -69,21 +70,6 @@ type simpleQaPromptInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
-	if embedder == nil {
-		log.Fatal("embedder is not defined")
-	}
-
-	if err := localvec.Init(); err != nil {
-		log.Fatal(err)
-	}
 	metrics := []evaluators.MetricConfig{
 		{
 			MetricType: evaluators.EvaluatorTypeDeepEqual,
@@ -95,8 +81,19 @@ func main() {
 			MetricType: evaluators.EvaluatorTypeJsonata,
 		},
 	}
-	evalConfig := evaluators.Config{Metrics: metrics}
-	if err := evaluators.Init(ctx, g, &evalConfig); err != nil {
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
+	if embedder == nil {
+		log.Fatal("embedder is not defined")
+	}
+
+	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
 	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})

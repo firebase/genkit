@@ -25,10 +25,6 @@ import (
 
 func TestEvaluators(t *testing.T) {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
 	metrics := []evaluators.MetricConfig{
 		{
 			MetricType: evaluators.EvaluatorTypeDeepEqual,
@@ -40,8 +36,9 @@ func TestEvaluators(t *testing.T) {
 			MetricType: evaluators.EvaluatorTypeJsonata,
 		},
 	}
-	evalConfig := evaluators.Config{Metrics: metrics}
-	if err := evaluators.Init(ctx, g, &evalConfig); err != nil {
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&evaluators.GenkitEval{Metrics: metrics}))
+	if err != nil {
 		t.Fatal(err)
 	}
 
