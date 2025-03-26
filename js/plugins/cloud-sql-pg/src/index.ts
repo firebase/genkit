@@ -1,0 +1,101 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  CommonRetrieverOptionsSchema,
+  retrieverRef,
+} from 'genkit/retriever';
+
+import { Genkit, z } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { EmbedderArgument } from 'genkit/embedder';
+
+
+const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
+  k: z.number().max(1000),
+  namespace: z.string().optional(),
+  filter: z.record(z.string(), z.any()).optional(),
+});
+
+/**
+ * postgresRetrieverRef function creates a retriever for Postgres.
+ * @param params The params for the new Postgres retriever
+ * @param params.tableName The table name for the postgres retriever
+If not specified, the default label will be `Postgres - <tableName>`
+ * @returns A reference to a Postgres retriever.
+ */
+export const postgresRetrieverRef = (params: {
+  tableName: string;
+}) => {
+  return retrieverRef({
+    name: `postgres/${params.tableName}`,
+    info: {
+      label: params.tableName ?? `Postgres - ${params.tableName}`,
+    },
+    configSchema: PostgresRetrieverOptionsSchema,
+  });
+};
+
+/**
+ * Postgres plugin that provides a Postgres retriever and indexer
+ * @param params An array of params to set up Postgres retrievers and indexers
+ * @param params.tableName The name of the table
+ * @param params.embedder The embedder to use for the indexer and retriever
+ * @param params.embedderOptions  Options to customize the embedder
+ * @returns The Pinecone Genkit plugin
+ */
+export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
+  params: {
+    tableName: string,
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }[]
+): GenkitPlugin {
+  return genkitPlugin('postgres', async (ai: Genkit) => {
+    params.map((i) => configurePostgresRetriever(ai, i));
+  });
+}
+
+export default postgres;
+
+/**
+ * Configures a postgres retriever.
+ * @param ai A Genkit instance
+ * @param params The params for the retriever
+ * @param params.tableName The name of the table
+ * @param params.embedder The embedder to use for the retriever
+ * @param params.embedderOptions  Options to customize the embedder
+ * @returns A Postgres retriever
+ */
+export function configurePostgresRetriever<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+>(
+  ai: Genkit,
+  params: {
+    tableName: string;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }
+) {
+
+  return ai.defineRetriever(
+    {
+      name: `pinecone/${params.tableName}`,
+      configSchema: PostgresRetrieverOptionsSchema,
+    }
+  );
+}
+
