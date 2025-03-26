@@ -16,7 +16,17 @@
 
 name: Python Checks
 
-on: pull_request
+on:
+  push:
+    paths:
+      - "py/**"
+      - "genkit-tools/**"
+      - ".github/workflows/python.yml"
+  pull_request:
+    paths:
+      - "py/**"
+      - "genkit-tools/**"
+      - ".github/workflows/python.yml"
 
 jobs:
   python-checks:
