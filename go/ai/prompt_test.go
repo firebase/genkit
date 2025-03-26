@@ -36,14 +36,15 @@ func testTool(reg *registry.Registry, name string) *ToolDef[struct{ Test string 
 	return DefineTool(reg, name, "use when need to execute a test",
 		func(ctx *ToolContext, input struct {
 			Test string
-		}) (string, error) {
+		},
+		) (string, error) {
 			return input.Test, nil
 		},
 	)
 }
 
 func TestOutputFormat(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name   string
 		output any
 		format OutputFormat
@@ -106,7 +107,7 @@ func TestInputFormat(t *testing.T) {
 		Name string `json:"name"`
 	}
 
-	var tests = []struct {
+	tests := []struct {
 		name         string
 		templateText string
 		inputType    any
@@ -239,7 +240,7 @@ func TestValidPrompt(t *testing.T) {
 
 	model := definePromptModel(reg)
 
-	var tests = []struct {
+	tests := []struct {
 		name           string
 		model          Model
 		systemText     string
@@ -274,7 +275,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					Constrained: true,
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -308,7 +311,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					Constrained: true,
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -333,7 +338,8 @@ func TestValidPrompt(t *testing.T) {
 				{
 					Role:    RoleUser,
 					Content: []*Part{NewTextPart("you're history")},
-				}},
+				},
+			},
 			input: HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
@@ -343,7 +349,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					Constrained: true,
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -373,7 +381,8 @@ func TestValidPrompt(t *testing.T) {
 					{
 						Role:    RoleModel,
 						Content: []*Part{NewTextPart("your name is {{Name}}")},
-					}}, nil
+					},
+				}, nil
 			},
 			input: HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
@@ -384,7 +393,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					Constrained: true,
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -419,7 +430,8 @@ func TestValidPrompt(t *testing.T) {
 					{
 						Role:    RoleModel,
 						Content: []*Part{NewTextPart(fmt.Sprintf("your name is %s", p.Name))},
-					}}, nil
+					},
+				}, nil
 			},
 			input: HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
@@ -430,7 +442,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					Constrained: true,
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -465,7 +479,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					Constrained: true,
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -657,7 +673,7 @@ func TestDefaultsOverride(t *testing.T) {
 	testModel := DefineModel(reg, "defineoptions", "test", nil, testGenerate)
 	model := definePromptModel(reg)
 
-	var tests = []struct {
+	tests := []struct {
 		name           string
 		define         []PromptOption
 		execute        []PromptGenerateOption
