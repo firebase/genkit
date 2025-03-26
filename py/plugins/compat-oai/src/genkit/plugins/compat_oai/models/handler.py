@@ -24,6 +24,7 @@ from typing import Any
 
 from openai import OpenAI
 
+from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerateRequest,
@@ -51,7 +52,7 @@ class OpenAIModelHandler:
 
     @classmethod
     def get_model_handler(
-        cls, model: str, client: OpenAI
+        cls, model: str, client: OpenAI, registry: GenkitRegistry
     ) -> Callable[[GenerateRequest, ActionRunContext], GenerateResponse]:
         """
         Factory method to initialize the model handler for the specified OpenAI model.
@@ -70,7 +71,7 @@ class OpenAIModelHandler:
         if model not in SUPPORTED_OPENAI_MODELS:
             raise ValueError(f"Model '{model}' is not supported.")
 
-        openai_model = OpenAIModel(model, client)
+        openai_model = OpenAIModel(model, client, registry)
         return cls(openai_model).generate
 
     def validate_version(self, version: str):
