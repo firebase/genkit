@@ -1,0 +1,38 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
+import firebase_admin
+from firebase_admin import credentials
+
+"""A stub for the sample to come."""
+
+
+def main() -> None:
+    """Main entry point for the flow sample.
+
+    This function demonstrates how to create and use AI flows in the
+    Genkit framework.
+    """
+    cred_file = '/home/nnepal/Downloads/service-account.json'
+    cred = credentials.Certificate(cred_file)
+    firebase_admin.initialize_app(cred)
+    print("Firebase Admin SDK initialized successfully!")
+    print('Hey')
+
+
+if __name__ == '__main__':
+    main()
