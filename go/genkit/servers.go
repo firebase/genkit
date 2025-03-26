@@ -63,7 +63,7 @@ func WithContextProviders(ctxProviders ...core.ContextProvider) HandlerOption {
 // Example:
 //
 //	genkit.Handler(g, genkit.WithContextProviders(func(ctx context.Context, req core.RequestData) (core.ActionContext, error) {
-//		return core.ActionContext{}, nil
+//		return core.ActionContext{"myKey": "myValue"}, nil
 //	}))
 func Handler(a core.Action, opts ...HandlerOption) http.HandlerFunc {
 	params := &handlerParams{}

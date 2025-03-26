@@ -379,7 +379,6 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //	}
 //
 //	myPrompt := genkit.DefinePrompt(g, "geographyAssistant",
-//		ai.WithModelName("googleai/gemini-2.0-flash"),
 //		ai.WithSystemText("You are a helpful assistant teaching a geography lesson."),
 //		ai.WithPromptText("What is the capital of {{country}}? If it's not a valid country, answer 'Invalid country'."),
 //		ai.WithInputType(Input{Country: "France"}), // Defaults to France if not provided.
@@ -432,7 +431,25 @@ func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
 	return ai.LookupPrompt(g.reg, provider, name)
 }
 
-// GenerateWithRequest generates a model response using the given options, middleware, and streaming callback. This is to be used in conjunction with DefinePrompt and Prompt.Render().
+// GenerateWithRequest generates a model response using the given options, middleware, and streaming callback.
+// This is to be used in conjunction with [DefinePrompt] and [Prompt.Render].
+//
+// Example:
+//
+//	myPrompt, err := genkit.DefinePrompt(g, "myPrompt", ai.WithPromptText("Tell me a joke!"))
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	actionOpts, err := myPrompt.Render(ctx)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	resp, err := genkit.GenerateWithRequest(ctx, g, actionOpts, nil, nil)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
 func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.GenerateActionOptions, mw []ai.ModelMiddleware, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 	return ai.GenerateWithRequest(ctx, g.reg, actionOpts, mw, cb)
 }
@@ -555,6 +572,22 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) error {
 }
 
 // LoadPrompt loads a prompt from a given filepath with the specified namespace.
+//
+// Example:
+//
+// This sample assumes you have a prompt file at the path "./prompts/myPrompt.prompt".
+//
+//	myPrompt, err := genkit.LoadPrompt(g, "./prompts/myPrompt.prompt", "local")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	resp, err := myPrompt.Execute(ctx)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	fmt.Println(resp.Text())
 func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
 	dir, filename := filepath.Split(path)
 	if dir != "" {
