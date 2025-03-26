@@ -89,7 +89,7 @@ func (o *genkitOptions) apply(gOpts *genkitOptions) error {
 	return nil
 }
 
-// WithPlugins sets the plugins to use.
+// WithPlugins sets the plugins to use. These will be automatically initialized.
 func WithPlugins(plugins ...Plugin) GenkitOption {
 	return &genkitOptions{Plugins: plugins}
 }
@@ -99,11 +99,12 @@ func WithDefaultModel(model string) GenkitOption {
 	return &genkitOptions{DefaultModel: model}
 }
 
-// WithPromptDir sets the directory where dotprompts are stored.
-// Defaults to "prompts" at project root. prompts will be automatically
-// loaded from this directory on Genkit initialization. Invalid prompt
-// files will log errors whereas valid prompt files that result in
-// invalid prompt definitions will result in errors.
+// WithPromptDir sets the directory where dotprompts are stored. The default directory
+// is "prompts" at the project root.
+//
+// Prompts are automatically loaded from this directory during Genkit initialization.
+// Invalid prompt files will result in logged errors, while valid prompt files that
+// produce invalid prompt definitions will result in returned errors.
 func WithPromptDir(dir string) GenkitOption {
 	return &genkitOptions{PromptDir: dir}
 }
@@ -300,8 +301,8 @@ func ListFlows(g *Genkit) []core.Action {
 	return flows
 }
 
-// DefineModel registers the given generate function as an action, and
-// returns a [ai.Model] that runs it.
+// DefineModel defines and registers a [ai.Model] that runs the given generate
+// function [ai.ModelFunc].
 //
 // Example:
 //
@@ -345,11 +346,8 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *a
 	return ai.DefineTool(g.reg, name, description, fn)
 }
 
-// LookupTool looks up the tool in the registry by provided name and returns it.
-//
-// Example:
-//
-//	genkit.Generate(ctx, g, ai.WithTools(genkit.LookupTool(g, "jokeTopic")))
+// LookupTool looks up a [ai.Tool] registered by [DefineTool].
+// It returns nil if the tool was not defined.
 func LookupTool(g *Genkit, name string) ai.Tool {
 	return ai.LookupTool(g.reg, name)
 }
@@ -425,7 +423,7 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, 
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
+// LookupPrompt looks up a [ai.Prompt] registered by [DefinePrompt] or loaded from a file.
 // It returns nil if the prompt was not defined.
 func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
 	return ai.LookupPrompt(g.reg, provider, name)
@@ -503,37 +501,34 @@ func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.Generate
 	return ai.GenerateData(ctx, g.reg, value, opts...)
 }
 
-// DefineIndexer registers the given index function as an action, and returns an
-// [Indexer] that runs it.
+// DefineIndexer defines and registers an [ai.Indexer] that runs the given function.
 func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
 	return ai.DefineIndexer(g.reg, provider, name, index)
 }
 
-// LookupIndexer looks up an [Indexer] registered by [DefineIndexer].
-// It returns nil if the model was not defined.
+// LookupIndexer looks up an [ai.Indexer] registered by [DefineIndexer].
+// It returns nil if the indexer was not defined.
 func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
 	return ai.LookupIndexer(g.reg, provider, name)
 }
 
-// DefineRetriever registers the given retrieve function as an action, and returns a
-// [Retriever] that runs it.
+// DefineRetriever defines and registers a [ai.Retriever] that runs the given function.
 func DefineRetriever(g *Genkit, provider, name string, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
 	return ai.DefineRetriever(g.reg, provider, name, ret)
 }
 
-// LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
+// LookupRetriever looks up a [ai.Retriever] registered by [DefineRetriever].
 // It returns nil if the retriever was not defined.
 func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
 
-// DefineEmbedder registers the given embed function as an action, and returns an
-// [Embedder] that runs it.
+// DefineEmbedder defines and registers an [ai.Embedder] that runs the given function.
 func DefineEmbedder(g *Genkit, provider, name string, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
 	return ai.DefineEmbedder(g.reg, provider, name, embed)
 }
 
-// LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
+// LookupEmbedder looks up an [ai.Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 	return ai.LookupEmbedder(g.reg, provider, name)
@@ -546,21 +541,21 @@ func LookupPlugin(g *Genkit, name string) any {
 }
 
 // DefineEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it. This method process the input dataset
+// returns a [ai.Evaluator] that runs it. This method process the input dataset
 // one-by-one.
 func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) (ai.Evaluator, error) {
 	return ai.DefineEvaluator(g.reg, provider, name, options, eval)
 }
 
 // DefineBatchEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it. This method provide the full
-// [EvaluatorRequest] to the callback function, giving more flexibilty to the
+// returns a [ai.Evaluator] that runs it. This method provide the full
+// [ai.EvaluatorRequest] to the callback function, giving more flexibilty to the
 // user for processing the data, such as batching or parallelization.
 func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) (ai.Evaluator, error) {
 	return ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
 }
 
-// LookupEvaluator looks up a [Evaluator] registered by [DefineEvaluator].
+// LookupEvaluator looks up a [ai.Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
 	return ai.LookupEvaluator(g.reg, provider, name)
@@ -575,7 +570,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) error {
 //
 // Example:
 //
-// This sample assumes you have a prompt file at the path "./prompts/myPrompt.prompt".
+// This sample assumes you have a prompt file located at "./prompts/myPrompt.prompt".
 //
 //	myPrompt, err := genkit.LoadPrompt(g, "./prompts/myPrompt.prompt", "local")
 //	if err != nil {
