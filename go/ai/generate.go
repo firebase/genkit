@@ -203,8 +203,9 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	var output *ModelOutputConfig
 	if opts.Output != nil {
 		output = &ModelOutputConfig{
-			Format: opts.Output.Format,
-			Schema: opts.Output.JsonSchema,
+			Format:      opts.Output.Format,
+			Schema:      opts.Output.JsonSchema,
+			Constrained: true,
 		}
 		if output.Schema != nil && output.Format == "" {
 			output.Format = string(OutputFormatJSON)
@@ -317,6 +318,16 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewUserTextMessage(prompt))
 	}
 
+	constrained := false
+	if genOpts.OutputSchema != nil {
+		constrained = true
+	}
+	outputCfg := &GenerateActionOutputConfig{
+		JsonSchema:  genOpts.OutputSchema,
+		Format:      string(genOpts.OutputFormat),
+		Constrained: constrained,
+	}
+
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -326,10 +337,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
-		Output: &GenerateActionOutputConfig{
-			JsonSchema: genOpts.OutputSchema,
-			Format:     string(genOpts.OutputFormat),
-		},
+		Output:             outputCfg,
 	}
 
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)

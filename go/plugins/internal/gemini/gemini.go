@@ -20,7 +20,6 @@ package gemini
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -177,7 +176,9 @@ func Generate(
 	// must make sure the configuration has the right version
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
 		if c != nil {
-			model = c.Version
+			if c.Version != "" {
+				model = c.Version
+			}
 		}
 	}
 
@@ -327,21 +328,10 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 
 	// constrained generation should be avoided if Tools are defined
 	if input.Output.Constrained && len(gc.Tools) == 0 {
-		// TODO: should we support text/x.enum?
-		if input.Output.ContentType != "application/json" {
-			return nil, errors.New("application/json is the only supported output format")
-		}
-		// edge case when no schema is provided but response format should be
-		// JSON
+		gc.ResponseMIMEType = "application/json"
 		if input.Output.Format == string(ai.OutputFormatJSON) && len(input.Output.Schema) == 0 {
-			gc.ResponseMIMEType = "application/json"
 			return &gc, nil
 		}
-		// TODO: what should be the conditions to insert Instructions?
-		// in JS there are few conditions such as:
-		// "metadata.purpose == 'output'"
-		// "metadata.pending == true"
-		// in the request messages contents
 		schema, err := convertSchema(input.Output.Schema, input.Output.Schema)
 		if err != nil {
 			return nil, err

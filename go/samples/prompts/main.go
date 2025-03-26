@@ -63,7 +63,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
@@ -92,7 +92,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
@@ -164,7 +164,7 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
@@ -190,7 +190,7 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
@@ -216,7 +216,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
@@ -248,5 +248,5 @@ func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
