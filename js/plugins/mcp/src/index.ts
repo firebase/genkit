@@ -34,6 +34,8 @@ export interface McpClientOptions {
   serverProcess?: StdioServerParameters;
   /** Connect to a remote server process using the SSE MCP transport. */
   serverUrl?: string;
+  /** Connect to a remote server process using the WebSocket MCP transport. */
+  serverWebsocketUrl?: string | URL;
   /** Return tool responses in raw MCP form instead of processing them for Genkit compatibility. */
   rawToolResponses?: boolean;
 }
@@ -52,6 +54,15 @@ async function transportFrom(params: McpClientOptions): Promise<Transport> {
     );
     return new StdioClientTransport(params.serverProcess);
   }
+  if (params.serverWebsocketUrl) {
+    const { WebSocketClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/websocket.js'
+    );
+    let url = params.serverWebsocketUrl;
+    if (typeof url === 'string') url = new URL(url);
+    return new WebSocketClientTransport(url);
+  }
+
   throw new GenkitError({
     status: 'INVALID_ARGUMENT',
     message:

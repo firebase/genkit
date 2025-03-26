@@ -14,8 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package gemini contains code that is common to both the googleai and vertexai plugins.
-// Most most cannot be shared in this way because the import paths are different.
+// Package gemini contains code that is common to both the Google AI and Vertex AI plugins.
 package gemini
 
 import (
@@ -175,10 +174,8 @@ func Generate(
 	// since context caching is only available for specific model versions, we
 	// must make sure the configuration has the right version
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
-		if c != nil {
-			if c.Version != "" {
-				model = c.Version
-			}
+		if c != nil && c.Version != "" {
+			model = c.Version
 		}
 	}
 
@@ -589,13 +586,13 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
+		return genai.NewPartFromURI(p.Text, p.ContentType), nil
+	case p.IsData():
 		contentType, data, err := uri.Data(p)
 		if err != nil {
 			return nil, err
 		}
 		return genai.NewPartFromBytes(data, contentType), nil
-	case p.IsData():
-		panic("data parts not supported")
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		var output map[string]any

@@ -17,13 +17,6 @@
 from pydantic import BaseModel, ConfigDict
 
 
-class ChatMessage(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-
-    role: str
-    content: str
-
-
 class OpenAIConfig(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 

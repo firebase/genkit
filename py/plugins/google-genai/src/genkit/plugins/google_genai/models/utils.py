@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+import base64
 
 from google import genai
 
@@ -37,7 +38,6 @@ class PartConverter:
     LANGUAGE = 'language'
     CODE = 'code'
     DATA = 'data:'
-    BASE64 = ':base64,'
 
     @classmethod
     def to_gemini(cls, part: Part) -> genai.types.Part:
@@ -58,14 +58,9 @@ class PartConverter:
                 )
             )
         if isinstance(part.root, MediaPart):
-            url = part.root.media.url
             return genai.types.Part(
                 inline_data=genai.types.Blob(
-                    data=url[
-                        url.find(cls.DATA) + len(cls.DATA) : url.find(
-                            cls.BASE64
-                        )
-                    ],
+                    data=part.root.media.url,
                     mime_type=part.root.media.content_type,
                 )
             )
@@ -115,7 +110,7 @@ class PartConverter:
         if part.inline_data:
             return MediaPart(
                 media=Media(
-                    url=f'{cls.DATA}{part.inline_data.mime_type}{cls.BASE64}{part.inline_data.data}',
+                    url=base64.b64encode(part.inline_data.data),
                     contentType=part.inline_data.mime_type,
                 )
             )

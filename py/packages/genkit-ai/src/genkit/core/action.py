@@ -300,7 +300,9 @@ class Action:
                             raise ValueError('action fn must have 0-2 args...')
                 except Exception as e:
                     raise GenkitError(
-                        cause=e,
+                        cause=e.cause
+                        if isinstance(e, GenkitError) and e.cause
+                        else e,
                         message=f'Error while running action {self.name}',
                         trace_id=trace_id,
                     )
@@ -402,7 +404,9 @@ class Action:
 
         return self.__fn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get()),
+            ActionRunContext(
+                on_chunk=on_chunk, context=_action_context.get(None)
+            ),
         )
 
     async def arun(

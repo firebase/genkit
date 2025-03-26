@@ -33,7 +33,7 @@ def test_get_model_handler():
     """Test get_model_handler method returns a callable."""
     model_name = GPT_4
     handler = OpenAIModelHandler.get_model_handler(
-        model=model_name, client=MagicMock()
+        model=model_name, client=MagicMock(), registry=MagicMock()
     )
     assert callable(handler)
 
@@ -44,7 +44,7 @@ def test_get_model_handler_invalid():
         ValueError, match="Model 'unsupported-model' is not supported."
     ):
         OpenAIModelHandler.get_model_handler(
-            model='unsupported-model', client=MagicMock()
+            model='unsupported-model', client=MagicMock(), registry=MagicMock()
         )
 
 
