@@ -134,6 +134,25 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		}
 	}()
 
+	projectID := v.ProjectID
+	if projectID == "" {
+		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		if projectID == "" {
+			return fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard?project=%s", projectID)
+		}
+	}
+
+	location := v.Location
+	if location == "" {
+		location = os.Getenv("GOOGLE_CLOUD_LOCATION")
+		if location == "" {
+			location = os.Getenv("GOOGLE_CLOUD_REGION")
+		}
+		if location == "" {
+			return fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
+		}
+	}
+
 	// Project and Region values gets validated by genai SDK upon client
 	// creation
 	gc := genai.ClientConfig{

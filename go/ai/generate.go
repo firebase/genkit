@@ -161,7 +161,10 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
 func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
-		return nil, errors.New("ai.GenerateWithRequest: model is required")
+		opts.Model = r.LookupValue(registry.DefaultModelKey).(string)
+		if opts.Model == "" {
+			return nil, errors.New("ai.GenerateWithRequest: model is required")
+		}
 	}
 
 	model, err := LookupModelByName(r, opts.Model)

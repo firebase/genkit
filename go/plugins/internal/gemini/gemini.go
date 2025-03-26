@@ -173,7 +173,7 @@ func Generate(
 	// since context caching is only available for specific model versions, we
 	// must make sure the configuration has the right version
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
-		if c != nil {
+		if c != nil && c.Version != "" {
 			model = c.Version
 		}
 	}

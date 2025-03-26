@@ -33,18 +33,26 @@ import (
 
 // This file implements registries of actions and other values.
 
+const (
+	DefaultModelKey = "genkit/defaultModel"
+	PromptDirKey    = "genkit/promptDir"
+)
+
 type Registry struct {
 	tstate    *tracing.State
 	mu        sync.Mutex
 	frozen    bool // when true, no more additions
 	actions   map[string]action.Action
+	plugins   map[string]any // Values are of type genkit.Plugin but we can't reference it here.
+	values    map[string]any // Values can truly be anything.
 	Dotprompt *dotprompt.Dotprompt
-	plugins   map[string]any
 }
 
 func New() (*Registry, error) {
 	r := &Registry{
 		actions: map[string]action.Action{},
+		plugins: map[string]any{},
+		values:  map[string]any{},
 	}
 	r.tstate = tracing.NewState()
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
@@ -102,6 +110,29 @@ func (r *Registry) LookupPlugin(name string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.plugins[name]
+}
+
+// RegisterValue records an arbitrary value in the registry.
+// It panics if a value with the same name is already registered.
+func (r *Registry) RegisterValue(name string, v any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.frozen {
+		panic(fmt.Sprintf("attempt to register value %s in a frozen registry. Register before calling genkit.Init", name))
+	}
+	if _, ok := r.values[name]; ok {
+		panic(fmt.Sprintf("value %q is already registered", name))
+	}
+	r.values[name] = v
+	slog.Debug("RegisterValue",
+		"name", name)
+}
+
+// LookupValue returns the value for the given name, or nil if there is none.
+func (r *Registry) LookupValue(name string) any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.values[name]
 }
 
 // LookupAction returns the action for the given key, or nil if there is none.

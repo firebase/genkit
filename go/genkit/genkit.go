@@ -49,9 +49,7 @@ type Plugin interface {
 //
 // To create a Genkit instance, use [Init].
 type Genkit struct {
-	reg          *registry.Registry // Registry for actions, values, and other resources.
-	DefaultModel string             // Default model to use if no other model is specified.
-	PromptDir    string             // Directory where dotprompts are stored. Will be loaded automatically on initialization.
+	reg *registry.Registry // Registry for actions, values, and other resources.
 }
 
 // genkitOptions are options for configuring the Genkit instance.
@@ -163,11 +161,10 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		}
 	}
 
-	g := &Genkit{
-		reg:          r,
-		DefaultModel: gOpts.DefaultModel,
-		PromptDir:    gOpts.PromptDir,
-	}
+	r.RegisterValue("genkit/defaultModel", gOpts.DefaultModel)
+	r.RegisterValue("genkit/promptDir", gOpts.PromptDir)
+
+	g := &Genkit{reg: r}
 
 	for _, plugin := range gOpts.Plugins {
 		if err := plugin.Init(ctx, g); err != nil {
@@ -236,11 +233,11 @@ func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *cor
 //		return fmt.Sprintf("Counted to %d", count), nil
 //	})
 //
-//	// Returns:
-//	// Stream value: 0
-//	// Stream value: 1
-//	// Stream value: 2
-//	// Final output: Counted to 3
+//	// Prints:
+//	// "Stream value: 0"
+//	// "Stream value: 1"
+//	// "Stream value: 2"
+//	// "Final output: Counted to 3"
 //	for result, err := range myFlow.Stream(ctx, 3) {
 //		if err != nil {
 //			log.Printf("Error in stream: %v", err)
@@ -446,12 +443,12 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //
 //	resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Tell me a joke!"))
 //	if err != nil {
-//		log.Fatalf("Failed to generate: %v", err)
+//		log.Fatal(err)
 //	}
 //
 //	fmt.Println(resp.Text()) // Might print "Why did the chicken cross the road? To get to the other side!"
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
-	return ai.Generate(ctx, g.reg, optsWithDefaults(g, opts)...)
+	return ai.Generate(ctx, g.reg, opts...)
 }
 
 // GenerateText generates a model response as text using the given options.
@@ -465,7 +462,7 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 //
 //	fmt.Println(text) // Might print "Why did the chicken cross the road? To get to the other side!"
 func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (string, error) {
-	return ai.GenerateText(ctx, g.reg, optsWithDefaults(g, opts)...)
+	return ai.GenerateText(ctx, g.reg, opts...)
 }
 
 // GenerateData generates a model response using the given options and fills the value with the structured output.
@@ -486,7 +483,7 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //	fmt.Println(joke.Topic) // Prints "chickens"
 //	fmt.Println(joke.Text) // Might print "Why did the chicken cross the road? To get to the other side!"
 func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
-	return ai.GenerateData(ctx, g.reg, value, optsWithDefaults(g, opts)...)
+	return ai.GenerateData(ctx, g.reg, value, opts...)
 }
 
 // DefineIndexer registers the given index function as an action, and returns an
@@ -535,11 +532,7 @@ func LookupPlugin(g *Genkit, name string) any {
 // returns a [Evaluator] that runs it. This method process the input dataset
 // one-by-one.
 func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) (ai.Evaluator, error) {
-	evaluator, err := ai.DefineEvaluator(g.reg, provider, name, options, eval)
-	if err != nil {
-		return nil, err
-	}
-	return evaluator, nil
+	return ai.DefineEvaluator(g.reg, provider, name, options, eval)
 }
 
 // DefineBatchEvaluator registers the given evaluator function as an action, and
@@ -547,11 +540,7 @@ func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOpti
 // [EvaluatorRequest] to the callback function, giving more flexibilty to the
 // user for processing the data, such as batching or parallelization.
 func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) (ai.Evaluator, error) {
-	evaluator, err := ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
-	if err != nil {
-		return nil, err
-	}
-	return evaluator, nil
+	return ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
 }
 
 // LookupEvaluator looks up a [Evaluator] registered by [DefineEvaluator].
@@ -578,12 +567,4 @@ func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
 func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 	g.reg.RegisterSpanProcessor(sp)
-}
-
-// optsWithDefaults prepends defaults to the options so that they can be overridden by the caller.
-func optsWithDefaults(g *Genkit, opts []ai.GenerateOption) []ai.GenerateOption {
-	if g.DefaultModel != "" {
-		opts = append([]ai.GenerateOption{ai.WithModelName(g.DefaultModel)}, opts...)
-	}
-	return opts
 }
