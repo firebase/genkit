@@ -34,7 +34,7 @@ export interface McpClientOptions {
   serverProcess?: StdioServerParameters;
   /** Connect to a remote server process using the SSE MCP transport. */
   serverUrl?: string;
-  /** Connext to a remote server process using the WebSocket MCP transport. */
+  /** Connect to a remote server process using the WebSocket MCP transport. */
   serverWebsocketUrl?: string | URL;
   /** Return tool responses in raw MCP form instead of processing them for Genkit compatibility. */
   rawToolResponses?: boolean;
