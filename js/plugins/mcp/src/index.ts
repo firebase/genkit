@@ -55,7 +55,9 @@ async function transportFrom(params: McpClientOptions): Promise<Transport> {
     return new StdioClientTransport(params.serverProcess);
   }
   if (params.serverWebsocketUrl) {
-    const {WebSocketClientTransport} = await import('@modelcontextprotocol/sdk/client/websocket.js');
+    const { WebSocketClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/websocket.js'
+    );
     let url = params.serverWebsocketUrl;
     if (typeof url === 'string') url = new URL(url);
     return new WebSocketClientTransport(url);
