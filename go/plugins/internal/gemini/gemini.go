@@ -537,11 +537,7 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
-		contentType, data, err := uri.Data(p)
-		if err != nil {
-			return nil, err
-		}
-		return genai.NewPartFromURI(string(data), contentType), nil
+		return genai.NewPartFromURI(p.Text, p.ContentType), nil
 	case p.IsData():
 		contentType, data, err := uri.Data(p)
 		if err != nil {

@@ -273,21 +273,19 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
-		// TODO: revisit go-genai support for these kind of parts
-		t.Skip("not supported")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", `https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png`),
+					ai.NewTextPart("do you know what's the video about?"),
+					ai.NewMediaPart("video/mp4", `https://www.youtube.com/watch?v=_6FYhqGgel8`),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "Mario Kart") {
+			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
 		}
 	})
 }
