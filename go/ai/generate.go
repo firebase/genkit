@@ -201,14 +201,19 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	}
 
 	var output *ModelOutputConfig
+	constrained := false
 	if opts.Output != nil {
+		if opts.Output.JsonSchema != nil {
+			constrained = true
+		}
 		output = &ModelOutputConfig{
 			Format:      opts.Output.Format,
 			Schema:      opts.Output.JsonSchema,
-			Constrained: true,
+			Constrained: constrained,
 		}
 		if output.Schema != nil && output.Format == "" {
 			output.Format = string(OutputFormatJSON)
+			output.Constrained = constrained
 		}
 	}
 

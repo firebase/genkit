@@ -275,9 +275,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output: &ModelOutputConfig{
-					Constrained: true,
-				},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -311,9 +309,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output: &ModelOutputConfig{
-					Constrained: true,
-				},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -349,9 +345,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output: &ModelOutputConfig{
-					Constrained: true,
-				},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -393,9 +387,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output: &ModelOutputConfig{
-					Constrained: true,
-				},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -442,9 +434,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output: &ModelOutputConfig{
-					Constrained: true,
-				},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -479,9 +469,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output: &ModelOutputConfig{
-					Constrained: true,
-				},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
