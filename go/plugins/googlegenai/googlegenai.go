@@ -63,7 +63,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	ga.mu.Lock()
 	defer ga.mu.Unlock()
 	if ga.initted {
-		return errors.New("GoogleAI already initialized")
+		return errors.New("plugin already initialized")
 	}
 	defer func() {
 		if err != nil {
@@ -126,7 +126,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.initted {
-		return errors.New("VertexAI already initialized")
+		return errors.New("plugin already initialized")
 	}
 	defer func() {
 		if err != nil {
