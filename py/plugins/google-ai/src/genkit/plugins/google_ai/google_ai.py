@@ -39,7 +39,7 @@ def googleai_name(name: str) -> str:
 
 
 class GoogleAi(Plugin):
-    """Google Ai plugin for Firebase Genkit"""
+    """Google Ai plugin for Genkit"""
 
     def __init__(self, plugin_params: GoogleAiPluginOptions | None = None):
         self.name = PLUGIN_NAME

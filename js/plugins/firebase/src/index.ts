@@ -31,7 +31,7 @@ export interface FirebaseTelemetryOptions extends GcpTelemetryConfigOptions {
 }
 
 /**
- * Enables telemetry export to Firebase Genkit Monitoring, backed by the
+ * Enables telemetry export to Genkit Monitoring, backed by the
  * Google Cloud Observability suite.
  *
  * @param options configuration options
