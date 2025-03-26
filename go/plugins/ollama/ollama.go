@@ -78,7 +78,7 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.M
 
 // IsDefinedModel reports whether a model is defined.
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedModel(g, provider, name)
+	return genkit.LookupModel(g, provider, name) != nil
 }
 
 // Model returns the [ai.Model] with the given name.

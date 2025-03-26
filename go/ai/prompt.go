@@ -79,11 +79,6 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	return p, nil
 }
 
-// IsDefinedPrompt reports whether a [Prompt] is defined.
-func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
-	return LookupPrompt(r, provider, name) != nil
-}
-
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {

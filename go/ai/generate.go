@@ -124,11 +124,6 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
 
-// IsDefinedModel reports whether a model is defined.
-func IsDefinedModel(r *registry.Registry, provider, name string) bool {
-	return core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name) != nil
-}
-
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(r *registry.Registry, provider, name string) Model {
@@ -166,7 +161,10 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
 func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
-		return nil, errors.New("ai.GenerateWithRequest: model is required")
+		opts.Model = r.LookupValue(registry.DefaultModelKey).(string)
+		if opts.Model == "" {
+			return nil, errors.New("ai.GenerateWithRequest: model is required")
+		}
 	}
 
 	model, err := LookupModelByName(r, opts.Model)

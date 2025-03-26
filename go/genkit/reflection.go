@@ -259,11 +259,12 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 
 			genkitErr := &ai.GenkitError{
 				Message: err.Error(),
-				Data: &ai.GenkitErrorData{
-					GenkitErrorMessage: err.Error(),
-					GenkitErrorDetails: &ai.GenkitErrorDetails{
-						TraceID: traceID,
-					},
+				Details: struct {
+					TraceID string `json:"traceId"`
+					Stack   string `json:"stack"`
+				}{
+					TraceID: traceID,
+					Stack:   "", // TODO: Propagate stack trace from local error.
 				},
 			}
 
