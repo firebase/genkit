@@ -15,13 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+import os
 
+import anyio
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit
-from genkit.blocks.generate import generate_action
 from genkit.core.typing import (
-    GenerateActionOptions,
     GenerationCommonConfig,
     Message,
     Role,
@@ -63,30 +63,25 @@ async def simple_generate_action_with_tools_flow(value: int) -> str:
     Returns:
         The generated response with a function.
     """
-    response = await generate_action(
-        ai.registry,
-        GenerateActionOptions(
-            model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[TextPart(text=f'what is a gablorken of {value}')],
-                ),
-            ],
-            tools=['gablorkenTool'],
-        ),
+    response = await ai.generate(
+        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=f'what is a gablorken of {value}')],
+            ),
+        ],
+        tools=['gablorkenTool'],
     )
     return response.text
 
 
 @ai.flow()
 async def say_hi(data: str):
-    return await ai.generate(
-        messages=[
-            Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
-        ],
-        output_format='json',
+    resp = await ai.generate(
+        prompt=f'hi {data}',
     )
+    return resp.text
 
 
 @ai.flow()
@@ -118,12 +113,13 @@ async def say_hi_with_configured_temperature(data: str):
 
 
 @ai.flow()
-async def say_hi_stream(name: str):
+async def say_hi_stream(name: str, ctx):
     stream, _ = ai.generate_stream(
         prompt=f'hi {name}',
     )
     result = ''
     async for data in stream:
+        ctx.send_chunk(data.text)
         for part in data.content:
             result += part.root.text
 
@@ -131,15 +127,12 @@ async def say_hi_stream(name: str):
 
 
 async def main() -> None:
-    print((await say_hi(', tell me a joke')).message.content)
-    # print(await say_hi_stream(', tell me a joke'))
-    #
-    # print(
-    #     await embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
-    # )
+    print(await say_hi(', tell me a joke'))
 
 
-#
-#
 if __name__ == '__main__':
     asyncio.run(main())
+
+
+# prevent app from exiting when genkit is running in dev mode
+ai.join()

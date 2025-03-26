@@ -55,6 +55,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
+from genkit.aio.loop import run_async
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
@@ -72,7 +73,9 @@ from genkit.web.typing import (
 logger = structlog.get_logger(__name__)
 
 
-def make_reflection_server(registry: Registry, encoding='utf-8'):
+def make_reflection_server(
+    registry: Registry, loop: asyncio.AbstractEventLoop, encoding='utf-8'
+):
     """Create and return a ReflectionServer class with the given registry.
 
     Args:
@@ -159,13 +162,16 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                     self.end_headers()
 
                     try:
-                        output = asyncio.run(
-                            action.arun_raw(
+
+                        async def run_fn():
+                            return await action.arun_raw(
                                 raw_input=payload['input'],
                                 on_chunk=send_chunk,
                                 context=context,
                             )
-                        )
+
+                        output = run_async(loop, run_fn)
+
                         self.wfile.write(
                             bytes(
                                 json.dumps({
@@ -185,6 +191,11 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                         logger.error(
                             'Error streaming action', error=error_response
                         )
+                        if (
+                            'detail' in error_response
+                            and 'stack' in error_response['details']
+                        ):
+                            logger.error(error_response['details']['stack'])
                         self.wfile.write(
                             bytes(
                                 json.dumps({'error': error_response}), encoding
@@ -192,11 +203,13 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                         )
                 else:
                     try:
-                        output = asyncio.run(
-                            action.arun_raw(
+
+                        async def run_fn():
+                            return await action.arun_raw(
                                 raw_input=payload['input'], context=context
                             )
-                        )
+
+                        output = run_async(loop, run_fn)
 
                         self.send_response(200)
                         self.send_header(
@@ -223,6 +236,11 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                         logger.error(
                             'Error running action', error=error_response
                         )
+                        if (
+                            'detail' in error_response
+                            and 'stack' in error_response['details']
+                        ):
+                            logger.error(error_response['details']['stack'])
 
                         self.send_response(500)
                         self.send_header(

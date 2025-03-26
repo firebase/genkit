@@ -278,3 +278,7 @@ async def async_streamy_throwy(inp: str, ctx: ActionRunContext):
     ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
     raise Exception('oops')
+
+
+# prevent app from exiting when genkit is running in dev mode
+ai.join()
