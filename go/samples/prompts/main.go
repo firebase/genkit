@@ -33,6 +33,7 @@ func main() {
 	g, err := genkit.Init(ctx,
 		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.VertexAI{}),
+		genkit.WithPromptDir("prompts"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -41,6 +42,7 @@ func main() {
 	SimplePrompt(ctx, g)
 	PromptWithInput(ctx, g)
 	PromptWithOutputType(ctx, g)
+	PromptWithOutputTypeDotprompt(ctx, g)
 	PromptWithTool(ctx, g)
 	PromptWithMessageHistory(ctx, g)
 	PromptWithExecuteOverrides(ctx, g)
@@ -131,6 +133,37 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	for _, country := range countryList.Countries {
 		fmt.Println(country)
 	}
+}
+
+func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
+	type countryData struct {
+		Name      string `json:"name"`
+		Language  string `json:"language"`
+		Habitants int    `json:"habitants"`
+	}
+
+	type countries struct {
+		Countries []countryData `json:"countries"`
+	}
+	prompt := genkit.LookupPrompt(g, "local", "countries")
+	if prompt == nil {
+		fmt.Printf("empty prompt")
+		return
+	}
+
+	// Call the model.
+	resp, err := prompt.Execute(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var c countries
+	err = json.Unmarshal([]byte(resp.Text()), &c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(c)
 }
 
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {

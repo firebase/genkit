@@ -326,14 +326,16 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 	// constrained generation should be avoided if Tools are defined
 	if input.Output.Constrained && len(gc.Tools) == 0 {
 		gc.ResponseMIMEType = "application/json"
-		if input.Output.Format == string(ai.OutputFormatJSON) && len(input.Output.Schema) == 0 {
-			return &gc, nil
-		}
 		schema, err := convertSchema(input.Output.Schema, input.Output.Schema)
 		if err != nil {
 			return nil, err
 		}
 		gc.ResponseSchema = schema
+	}
+
+	if input.Output.Format == string(ai.OutputFormatJSON) && len(input.Output.Schema) == 0 {
+		gc.ResponseMIMEType = "application/json"
+		return &gc, nil
 	}
 
 	return &gc, nil
