@@ -147,8 +147,7 @@ func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
 	}
 	prompt := genkit.LookupPrompt(g, "local", "countries")
 	if prompt == nil {
-		fmt.Printf("empty prompt")
-		return
+		log.Fatal("empty prompt")
 	}
 
 	// Call the model.
@@ -163,7 +162,12 @@ func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Println(c)
+	pretty, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(pretty))
 }
 
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
