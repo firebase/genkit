@@ -213,4 +213,41 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
+	t.Run("media content (unstructured data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystemText("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewDataPart("data:image/png;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		}
+	})
+	t.Run("media content", func(t *testing.T) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know what's the video about?"),
+					ai.NewMediaPart("video/mp4", `https://www.youtube.com/watch?v=_6FYhqGgel8`),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Mario Kart") {
+			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
 }
