@@ -1,5 +1,5 @@
 {
-  "name": "genkit-cloud-sql-pg",
+  "name": "genkitx-cloud-sql-pg",
   "description": "Genkit AI framework plugin for Cloud SQL for PostgreSQL.",
   "keywords": [
     "genkit",
