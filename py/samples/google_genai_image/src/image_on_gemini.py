@@ -16,6 +16,7 @@
 
 import asyncio
 import base64
+import os
 from io import BytesIO
 
 from PIL import Image
@@ -50,11 +51,11 @@ async def describe_image_with_gemini(data: str):
                 role=Role.USER,
                 content=[
                     TextPart(text='What is shown in this image?'),
-                    MediaPart(media=Media(contentType='image/jpg', url=data)),
+                    MediaPart(media=Media(contentType='image/jpeg', url=data)),
                 ],
             ),
         ],
-        model=google_genai_name('gemini-2.0-pro'),
+        model=google_genai_name('gemini-2.0-pro-exp-02-05'),
     )
     return result.text
 
@@ -62,7 +63,11 @@ async def describe_image_with_gemini(data: str):
 if __name__ == '__main__':
     # Gemini describes an image
     # Works both on Gemini API and VertexAI API
-    with open('image.jpg', 'rb') as image_file:
+    # Make sure that there is image.jpg on root directory of current sample
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    image_path = os.path.join(current_dir, '..', 'image.jpg')
+
+    with open(image_path, 'rb') as image_file:
         buffer = image_file.read()
         img_base64 = base64.b64encode(buffer).decode('utf-8')
         print(asyncio.run(describe_image_with_gemini(img_base64)))
