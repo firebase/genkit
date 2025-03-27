@@ -193,7 +193,6 @@ class Genkit(GenkitRegistry):
 
     def join(self):
         if self.thread and self.loop:
-            self.loop.run_forever()
             self.thread.join()
 
     def start_server(

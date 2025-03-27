@@ -74,7 +74,10 @@ logger = structlog.get_logger(__name__)
 
 
 def make_reflection_server(
-    registry: Registry, loop: asyncio.AbstractEventLoop, encoding='utf-8'
+    registry: Registry,
+    loop: asyncio.AbstractEventLoop,
+    encoding='utf-8',
+    quiet=True,
 ):
     """Create and return a ReflectionServer class with the given registry.
 
@@ -92,6 +95,18 @@ def make_reflection_server(
         This handler provides endpoints for inspecting and interacting with
         registered Genkit actions during development.
         """
+
+        def log_message(self, format, *args):
+            if not quiet:
+                message = format % args
+                logger.debug(
+                    '%s - - [%s] %s'
+                    % (
+                        self.address_string(),
+                        self.log_date_time_string(),
+                        message.translate(self._control_char_table),
+                    )
+                )
 
         def do_GET(self) -> None:  # noqa: N802
             """Handle GET requests to the reflection API.
