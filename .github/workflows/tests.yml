@@ -16,23 +16,7 @@
 
 name: Run Tests
 
-on:
-  push:
-    paths:
-      - "**/package.json"
-      - "js/**"
-      - "genkit-tools/**"
-      - "tests/**"
-      - "samples/**"
-      - ".github/workflows/tests.yml"
-  pull_request:
-    paths:
-      - "**/package.json"
-      - "js/**"
-      - "tests/**"
-      - "samples/**"
-      - "genkit-tools/**"
-      - ".github/workflows/tests.yml"
+on: pull_request
 
 env:
   GITHUB_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
