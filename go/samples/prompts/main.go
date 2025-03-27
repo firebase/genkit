@@ -86,6 +86,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 		g, "PromptWithInput",
 		ai.WithInputType(HelloPromptInput{UserName: "Alex", Theme: "beach vacation"}),
 		ai.WithSystemText("You are a helpful AI assistant named Walt. Today's theme is {{Theme}}, respond in this style. Say hello to {{UserName}}."),
+		ai.WithOutputFormat(ai.OutputFormatJSON),
 		ai.WithPromptText("Hello, who are you?"),
 	)
 	if err != nil {

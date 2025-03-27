@@ -582,7 +582,7 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
 func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
-	if output != nil && output.Format == string(OutputFormatJSON) {
+	if output != nil && output.Format == string(OutputFormatJSON) && output.Constrained {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
