@@ -39,6 +39,20 @@ type (
 		Name() string
 		// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
 		Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
+		// Resolve returns this model, implementing ModelArg.
+		Resolve(context.Context, *registry.Registry) (Model, error)
+	}
+
+	// ModelArg is the interface for model arguments.
+	ModelArg interface {
+		Name() string
+		Resolve(context.Context, *registry.Registry) (Model, error)
+	}
+
+	// ModelRef is a struct to hold model name and configuration.
+	ModelRef struct {
+		name   string
+		config any
 	}
 
 	// ToolConfig handles configuration around tool calls during generation.
@@ -208,7 +222,6 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			output.Format = string(OutputFormatJSON)
 		}
 	}
-
 	req := &ModelRequest{
 		Messages:   opts.Messages,
 		Config:     opts.Config,
@@ -279,9 +292,13 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	modelName := genOpts.ModelName
-	if modelName == "" && genOpts.Model != nil {
+	var modelName string
+	if genOpts.ModelArg != nil {
+		modelName = genOpts.ModelArg.Name()
+	} else if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
+	} else {
+		modelName = genOpts.ModelName
 	}
 
 	tools := make([]string, len(genOpts.Tools))
@@ -625,4 +642,33 @@ func (m *Message) Text() string {
 		sb.WriteString(p.Text)
 	}
 	return sb.String()
+}
+
+func (m *modelActionDef) Resolve(ctx context.Context, r *registry.Registry) (Model, error) {
+	return m, nil
+}
+
+// ModelConfig returns the configuration of a ModelRef.
+func ModelConfig(m *ModelRef) any {
+	return m.config
+}
+
+// NewModelRef creates a new ModelRef with the given name and configuration.
+func NewModelRef(name string, config any) *ModelRef {
+	return &ModelRef{name: name, config: config}
+}
+
+// Name returns the name of the ModelRef.
+func (m *ModelRef) Name() string {
+	return m.name
+}
+
+// Resolve returns a Model based on the ModelRef's name and configuration.
+func (m *ModelRef) Resolve(ctx context.Context, r *registry.Registry) (Model, error) {
+	model, err := LookupModelByName(r, m.name)
+	if err != nil {
+		return nil, err
+	}
+	// You might need additional logic here to apply the configuration
+	return model, nil
 }

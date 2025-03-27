@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -402,7 +403,7 @@ func TestGenerateOptionsComplete(t *testing.T) {
 
 	expected := &generateOptions{
 		commonOptions: commonOptions{
-			Model:                   model,
+			ModelArg:                model,
 			Config:                  &GenerationCommonConfig{Temperature: 0.7},
 			Tools:                   []ToolRef{tool},
 			ToolChoice:              ToolChoiceAuto,
@@ -488,7 +489,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 
 	expected := &promptOptions{
 		commonOptions: commonOptions{
-			Model:                   model,
+			ModelArg:                model,
 			Config:                  &GenerationCommonConfig{Temperature: 0.7},
 			Tools:                   []ToolRef{tool},
 			ToolChoice:              ToolChoiceAuto,
@@ -574,7 +575,7 @@ func TestPromptGenerateOptionsComplete(t *testing.T) {
 
 	expected := &promptGenerateOptions{
 		commonOptions: commonOptions{
-			Model:                   model,
+			ModelArg:                model,
 			Config:                  &GenerationCommonConfig{Temperature: 0.7},
 			Tools:                   []ToolRef{tool},
 			ToolChoice:              ToolChoiceAuto,
@@ -620,6 +621,11 @@ func (m *mockModel) Name() string {
 
 func (m *mockModel) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	return nil, nil
+}
+
+// Add Resolve method to implement ModelArg interface
+func (m *mockModel) Resolve(ctx context.Context, reg *registry.Registry) (Model, error) {
+	return m, nil
 }
 
 type mockTool struct {
