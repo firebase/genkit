@@ -24,6 +24,7 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
+// Default formats get automatically registered on registry init
 var DEFAULT_FORMATS = []Formatter{
 	JSONFormatter{FormatName: "json"},
 	TextFormatter{FormatName: "text"},
@@ -50,6 +51,7 @@ func DefineFormatter(
 	r.RegisterValue("format", name, formatter)
 }
 
+// ConfigureFormats registers default formats in the registry
 func ConfigureFormats(reg *registry.Registry) {
 	for _, format := range DEFAULT_FORMATS {
 		DefineFormatter(reg,
@@ -59,17 +61,21 @@ func ConfigureFormats(reg *registry.Registry) {
 	}
 }
 
+// ResolveFormat returns a Formatter, either a default one or one from the registry
 func ResolveFormat(reg *registry.Registry, schema map[string]any, format string) (Formatter, error) {
 	var formatter any
 
+	// If schema is set but no explicit format is set we default to json.
 	if schema != nil && format == "" {
 		formatter = reg.LookupValue("/format/json")
 	}
 
+	// If format is not set we default to text
 	if format == "" {
 		formatter = reg.LookupValue("/format/text")
 	}
 
+	// Lookup format in registry
 	if format != "" {
 		formatter = reg.LookupValue(fmt.Sprintf("/format/%s", format))
 	}
@@ -92,6 +98,7 @@ func ResolveInstructions(format Formatter, schema map[string]any, instructions s
 	return result.Instructions()
 }
 
+// ShouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.
 func ShouldInjectFormatInstructions(formatConfig *GenerateActionOutputConfig, rawRequestInstructions *bool) bool {
 	return formatConfig.Instructions != "" || (rawRequestInstructions != nil && *rawRequestInstructions)
 }
@@ -122,6 +129,7 @@ func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddlewar
 	}
 }
 
+// Default constrained generation instructions.
 func defaultConstrainedGenerationInstructions(schema map[string]any) string {
 	jsonBytes, err := json.Marshal(schema)
 	if err != nil {
@@ -133,6 +141,7 @@ func defaultConstrainedGenerationInstructions(schema map[string]any) string {
 	return instructions
 }
 
+// injectInstructions looks through the messages and injects formatting directives
 func injectInstructions(messages []*Message, instructions string) []*Message {
 	if instructions == "" {
 		return messages

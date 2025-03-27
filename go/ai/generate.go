@@ -306,7 +306,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
-	// TODO: user defined custom parser / instructions
+	// @TODO: user defined custom parser / instructions
 	instructions := ResolveInstructions(resolvedFormat, genOpts.OutputSchema, "")
 	config := resolvedFormat.Handler(genOpts.OutputSchema).Config()
 
