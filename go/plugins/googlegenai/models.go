@@ -99,25 +99,25 @@ var (
 			Label:    "Gemini 2.0 Flash Lite Preview 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
-			Stage:    ai.ModelStageStable,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20ProExp0205: {
 			Label:    "Gemini 2.0 Pro Exp 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
-			Stage:    ai.ModelStageStable,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
-			Stage:    ai.ModelStageStable,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini25ProExp0305: {
 			Label:    "Gemini 2.5 Pro Exp 03-25",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
-			Stage:    ai.ModelStageStable,
+			Stage:    ai.ModelStageUnstable,
 		},
 	}
 
