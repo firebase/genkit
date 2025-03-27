@@ -35,7 +35,6 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
 	ModelArg                ModelArg          // New preferred field
-	Model                   Model             // Model to use
 	ModelName               string            // Name of model to use
 	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
 	Config                  any               // Model configuration. If nil will be taken from the prompt config.
@@ -64,19 +63,15 @@ func (o *commonOptions) applyCommon(opts *commonOptions) error {
 	}
 
 	if o.ModelArg != nil {
+		if opts.ModelArg != nil || opts.ModelName != "" {
+			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
+		}
 		opts.ModelArg = o.ModelArg
 		return nil
-	} else {
-		if o.Model != nil {
-			if opts.Model != nil || opts.ModelName != "" {
-				return errors.New("cannot set model more than once (either WithModel or WithModelName)")
-			}
-			opts.Model = o.Model
-		}
 	}
 
 	if o.ModelName != "" {
-		if opts.Model != nil || opts.ModelName != "" {
+		if opts.ModelArg != nil || opts.ModelName != "" {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
 		opts.ModelName = o.ModelName
