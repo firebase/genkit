@@ -32,7 +32,6 @@ var DEFAULT_FORMATS = []Formatter{
 // Formatter represents the Formatter interface.
 type Formatter interface {
 	Name() string
-	Config() OutputConfig
 	Handler(schema map[string]any) FormatterHandler
 }
 
@@ -40,6 +39,7 @@ type Formatter interface {
 type FormatterHandler interface {
 	ParseMessage(message *Message) (*Message, error)
 	Instructions() string
+	Config() *GenerateActionOutputConfig
 }
 
 // DefineFormatter creates a new Formatter and registers it.
@@ -59,19 +59,19 @@ func ConfigureFormats(reg *registry.Registry) {
 	}
 }
 
-func ResolveFormat(reg *registry.Registry, config *OutputConfig) (Formatter, error) {
+func ResolveFormat(reg *registry.Registry, schema map[string]any, format string) (Formatter, error) {
 	var formatter any
 
-	if config.Format == "" {
-		formatter = reg.LookupValue("/format/text")
-	}
-
-	if config.Schema != nil && config.Format == "" {
+	if schema != nil && format == "" {
 		formatter = reg.LookupValue("/format/json")
 	}
 
-	if config.Format != "" {
-		formatter = reg.LookupValue(fmt.Sprintf("/format/%s", config.Format))
+	if format == "" {
+		formatter = reg.LookupValue("/format/text")
+	}
+
+	if format != "" {
+		formatter = reg.LookupValue(fmt.Sprintf("/format/%s", format))
 	}
 
 	f, ok := formatter.(Formatter)
@@ -80,6 +80,20 @@ func ResolveFormat(reg *registry.Registry, config *OutputConfig) (Formatter, err
 	} else {
 		return nil, errors.New("invalid output format")
 	}
+}
+
+// Resolve instructions based on format.
+func ResolveInstructions(format Formatter, schema map[string]any, instructions string) string {
+	if instructions != "" {
+		return instructions // User provided instructions
+	}
+
+	result := format.Handler(schema)
+	return result.Instructions()
+}
+
+func ShouldInjectFormatInstructions(formatConfig *GenerateActionOutputConfig, rawRequestInstructions *bool) bool {
+	return formatConfig.Instructions != "" || (rawRequestInstructions != nil && *rawRequestInstructions)
 }
 
 // SimulateConstrainedGeneration simulates constrained generation by injecting generation instructions into the user message.
@@ -95,7 +109,7 @@ func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddlewar
 
 			if info.Supports.Constrained == ModelInfoSupportsConstrainedNone || (info.Supports.Constrained == ModelInfoSupportsConstrainedNoTools && len(req.Tools) > 0) {
 				// If constrained in model request is set to true and schema is set
-				if req.Output.Format == string(OutputFormatJSON) && req.Output.Schema != nil && len(req.Messages) > 0 {
+				if req.Output.Constrained && req.Output.Schema != nil && len(req.Messages) > 0 {
 					instructions := defaultConstrainedGenerationInstructions(req.Output.Schema)
 					req.Messages = injectInstructions(req.Messages, instructions)
 					// we're simulating it, so to the underlying model it's unconstrained.
@@ -124,7 +138,21 @@ func injectInstructions(messages []*Message, instructions string) []*Message {
 		return messages
 	}
 
-	newPart := NewTextPart(instructions)
+	// bail out if an output part is already present
+	for _, m := range messages {
+		for _, p := range m.Content {
+			if p.Metadata != nil && p.Metadata["purpose"] == "output" {
+				return messages
+			}
+		}
+	}
+
+	newPart := &Part{
+		Kind:        PartText,
+		ContentType: "plain/text",
+		Text:        instructions,
+		Metadata:    map[string]any{"purpose": "output"},
+	}
 
 	// find the system message or the last user message
 	targetIndex := -1

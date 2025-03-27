@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
@@ -29,28 +30,38 @@ type JSONFormatter struct {
 
 type jsonHandler struct {
 	instructions string
-	output       *OutputConfig
+	output       *GenerateActionOutputConfig
 }
 
 func (j JSONFormatter) Name() string {
 	return j.FormatName
 }
 
-func (j JSONFormatter) Config() OutputConfig {
+func (j jsonHandler) Instructions() string {
+	return j.instructions
+}
+
+func (j jsonHandler) Config() *GenerateActionOutputConfig {
 	return j.output
 }
 
 func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
 	var instructions string
 	if schema != nil {
-
-		instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", "escapedJSON")
+		jsonBytes, err := json.Marshal(schema)
+		if err != nil {
+			instructions = fmt.Sprintf("Error marshalling schema to JSON: %v", err)
+		} else {
+			escapedJSON := strconv.Quote(string(jsonBytes))
+			instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON)
+		}
 	}
+
 	handler := &jsonHandler{
 		instructions: instructions,
-		output: &OutputConfig{
+		output: &GenerateActionOutputConfig{
 			Format:      string(OutputFormatJSON),
-			Schema:      schema,
+			JsonSchema:  schema,
 			Constrained: true,
 			ContentType: "application/json",
 		},
@@ -76,7 +87,7 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 			text := base.ExtractJSONFromMarkdown(part.Text)
 
 			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(j.output.Schema)
+			schemaBytes, err := json.Marshal(j.output.JsonSchema)
 			if err != nil {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}
@@ -88,8 +99,4 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 		}
 	}
 	return m, nil
-}
-
-func (j jsonHandler) Instructions() string {
-	return j.instructions
 }

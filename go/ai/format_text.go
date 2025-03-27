@@ -16,30 +16,28 @@ package ai
 
 type TextFormatter struct {
 	FormatName string
-	output     OutputConfig
 }
 
 type textHandler struct {
 	instructions string
-	output       *OutputConfig
+	output       *GenerateActionOutputConfig
 }
 
 func (j TextFormatter) Name() string {
 	return j.FormatName
 }
 
-func (j TextFormatter) Config() OutputConfig {
+func (j textHandler) Config() *GenerateActionOutputConfig {
 	return j.output
 }
 
+func (j textHandler) Instructions() string {
+	return j.instructions
+}
+
 func (j TextFormatter) Handler(schema map[string]any) FormatterHandler {
-	var instructions string
-	if schema != nil {
-		instructions = "Output should be in JSON format and conform to the following schema"
-	}
 	handler := &textHandler{
-		instructions: instructions,
-		output: &OutputConfig{
+		output: &GenerateActionOutputConfig{
 			ContentType: "text/plain",
 		},
 	}
@@ -49,8 +47,4 @@ func (j TextFormatter) Handler(schema map[string]any) FormatterHandler {
 
 func (j textHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
-}
-
-func (j textHandler) Instructions() string {
-	return j.instructions
 }

@@ -363,8 +363,10 @@ func WithPromptFn(fn promptFn) PromptingOption {
 
 // outputOptions are options for the output of a prompt or generate request.
 type outputOptions struct {
-	OutputSchema map[string]any // JSON schema of the output.
-	OutputFormat OutputFormat   // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
+	OutputSchema       map[string]any // JSON schema of the output.
+	OutputFormat       OutputFormat   // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
+	OutputInstructions *bool          // Whether format instructions should be automatically added.
+	OutputConstrained  *bool          // Whether output should be constrained.
 }
 
 // OutputOption is an option for the output of a prompt or generate request.
@@ -391,6 +393,20 @@ func (o *outputOptions) applyOutput(opts *outputOptions) error {
 		opts.OutputFormat = o.OutputFormat
 	}
 
+	if o.OutputInstructions != nil {
+		if opts.OutputInstructions != nil {
+			return errors.New("cannot set output instructions more than once (WithOutputFormat)")
+		}
+		opts.OutputInstructions = o.OutputInstructions
+	}
+
+	if o.OutputConstrained != nil {
+		if opts.OutputConstrained != nil {
+			return errors.New("cannot set output constraint more than once (WithOutputFormat)")
+		}
+		opts.OutputConstrained = o.OutputConstrained
+	}
+
 	return nil
 }
 
@@ -415,6 +431,16 @@ func WithOutputType(output any) OutputOption {
 // WithOutputFormat sets the format of the output.
 func WithOutputFormat(format OutputFormat) OutputOption {
 	return &outputOptions{OutputFormat: format}
+}
+
+// WithOutputInstructions sets weither output instructions should be added.
+func WithOutputInstructions(instructions bool) OutputOption {
+	return &outputOptions{OutputInstructions: &instructions}
+}
+
+// WithOutputInstructions sets weither output should be constrained.
+func WithOutputConstraint(constrained bool) OutputOption {
+	return &outputOptions{OutputConstrained: &constrained}
 }
 
 // executionOptions are options for the execution of a prompt or generate request.

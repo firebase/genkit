@@ -183,11 +183,10 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	var output *OutputConfig
 	if opts.Output != nil {
 		output = &OutputConfig{
-			Format: opts.Output.Format,
-			Schema: opts.Output.JsonSchema,
-		}
-		if output.Schema != nil && output.Format == "" {
-			output.Format = string(OutputFormatJSON)
+			Constrained: opts.Output.Constrained,
+			ContentType: opts.Output.ContentType,
+			Format:      opts.Output.Format,
+			Schema:      opts.Output.JsonSchema,
 		}
 	}
 
@@ -209,16 +208,16 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			return nil, err
 		}
 
-		// Parse message with the correct formatter
-		resolvedFormat, err := ResolveFormat(r, req.Output)
-		if err != nil {
-			return nil, err
-		}
-
-		resp.Message, err = resolvedFormat.Handler(req.Output.Schema).ParseMessage(resp.Message)
-		if err != nil {
-			logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
-			return nil, errors.New("generation did not result in a message matching expected schema")
+		if req.Output != nil {
+			resolvedFormat, err := ResolveFormat(r, req.Output.Schema, req.Output.Format)
+			if err != nil {
+				return nil, err
+			}
+			resp.Message, err = resolvedFormat.Handler(req.Output.Schema).ParseMessage(resp.Message)
+			if err != nil {
+				logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
+				return nil, errors.New("generation did not result in a message matching expected schema")
+			}
 		}
 
 		toolCount := 0
@@ -300,6 +299,27 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewUserTextMessage(prompt))
 	}
 
+	// Find the correct formatter
+	resolvedFormat, err := ResolveFormat(r, genOpts.OutputSchema, string(genOpts.OutputFormat))
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
+	// TODO: user defined custom parser / instructions
+	instructions := ResolveInstructions(resolvedFormat, genOpts.OutputSchema, "")
+	config := resolvedFormat.Handler(genOpts.OutputSchema).Config()
+
+	// Override request
+	if ShouldInjectFormatInstructions(config, genOpts.outputOptions.OutputInstructions) {
+		messages = injectInstructions(messages, instructions)
+	}
+
+	// Allow override constraint
+	if genOpts.outputOptions.OutputConstrained != nil {
+		config.Constrained = *genOpts.outputOptions.OutputConstrained
+	}
+
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -309,10 +329,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
-		Output: &GenerateActionOutputConfig{
-			JsonSchema: genOpts.OutputSchema,
-			Format:     string(genOpts.OutputFormat),
-		},
+		Output:             config,
 	}
 
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)

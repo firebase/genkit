@@ -212,10 +212,18 @@ func TestOutputOptions(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid - output instruction",
+			opts: []OutputOption{
+				WithOutputInstructions(false),
+			},
+			wantErr: false,
+		},
+		{
 			name: "duplicate options",
 			opts: []OutputOption{
 				WithOutputType(map[string]string{"key": "value"}),
 				WithOutputFormat(OutputFormatText),
+				WithOutputInstructions(false),
 			},
 			wantErr: true,
 		},
@@ -378,6 +386,7 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		WithPromptText("user prompt"),
 		WithDocs(DocumentFromText("doc", nil)),
 		WithOutputType(map[string]string{"key": "value"}),
+		WithOutputInstructions(true),
 		WithStreaming(streamFunc),
 	}
 
@@ -403,8 +412,9 @@ func TestGenerateOptionsComplete(t *testing.T) {
 			PromptFn: opts.PromptFn,
 		},
 		outputOptions: outputOptions{
-			OutputFormat: OutputFormatJSON,
-			OutputSchema: opts.OutputSchema,
+			OutputFormat:       OutputFormatJSON,
+			OutputSchema:       opts.OutputSchema,
+			OutputInstructions: &[]bool{true}[0],
 		},
 		executionOptions: executionOptions{
 			Documents: []*Document{DocumentFromText("doc", nil)},
@@ -464,6 +474,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 		WithDescription("test description"),
 		WithMetadata(map[string]any{"key": "value"}),
 		WithOutputType(map[string]string{"key": "value"}),
+		WithOutputInstructions(true),
 		WithInputType(input),
 	}
 
@@ -489,8 +500,9 @@ func TestPromptOptionsComplete(t *testing.T) {
 			PromptFn: opts.PromptFn,
 		},
 		outputOptions: outputOptions{
-			OutputFormat: OutputFormatJSON,
-			OutputSchema: opts.OutputSchema,
+			OutputFormat:       OutputFormatJSON,
+			OutputSchema:       opts.OutputSchema,
+			OutputInstructions: &[]bool{true}[0],
 		},
 		Description:  "test description",
 		Metadata:     map[string]any{"key": "value"},
