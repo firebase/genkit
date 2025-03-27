@@ -304,26 +304,6 @@ class GeminiModel:
 
         request_cfg = self._genkit_to_googleai_cfg(request)
 
-        if request.tools:
-            tools = self._get_tools(request)
-            request_cfg = {} if not request_cfg else request_cfg
-            request_cfg['tools'] = tools
-
-            nn_tool_choice = await self._client.aio.models.generate_content(
-                model=self._version,
-                contents=request_contents,
-                config=request_cfg,
-            )
-
-            if nn_tool_choice.function_calls:
-                for i in range(len(nn_tool_choice.function_calls)):
-                    request_contents.append(
-                        nn_tool_choice.candidates[i].content
-                    )
-                    request_contents.append(
-                        self._call_tool(nn_tool_choice.function_calls[i])
-                    )
-
         if ctx.is_streaming:
             return await self._streaming_generate(
                 request_contents, request_cfg, ctx
@@ -458,7 +438,7 @@ class GeminiModel:
 
     def _genkit_to_googleai_cfg(
         self, request: GenerateRequest
-    ) -> genai.types.GenerateContentConfig | None:
+    ) -> genai.types.GenerateContentConfig:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
 
         Args:
@@ -467,8 +447,6 @@ class GeminiModel:
         Returns:
             Google Ai request config or None
         """
-
-        cfg = None
 
         if request.config:
             request_config = request.config
@@ -482,16 +460,20 @@ class GeminiModel:
                 )
             elif isinstance(request_config, dict):
                 cfg = genai.types.GenerateContentConfig(**request_config)
+        else:
+            cfg = genai.types.GenerateContentConfig()
+            
+          
         if request.output:
             response_mime_type = (
                 'application/json'
                 if request.output.format == 'json' and not request.tools
                 else None
             )
-            if not cfg:
-                cfg = genai.types.GenerateContentConfig(
-                    response_mime_type=response_mime_type
-                )
-            else:
-                cfg.response_mime_type = response_mime_type
+            cfg.response_mime_type = response_mime_type
+
+        if request.tools:
+            tools = self._get_tools(request)
+            cfg.tools = tools
+
         return cfg

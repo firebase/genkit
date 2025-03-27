@@ -207,7 +207,7 @@ def make_reflection_server(
                             'Error streaming action', error=error_response
                         )
                         if (
-                            'detail' in error_response
+                            'details' in error_response
                             and 'stack' in error_response['details']
                         ):
                             logger.error(error_response['details']['stack'])
@@ -248,11 +248,9 @@ def make_reflection_server(
                         error_response = get_callable_json(e).model_dump(
                             by_alias=True
                         )
-                        logger.error(
-                            'Error running action', error=error_response
-                        )
+                        logger.error(f'Error running action {action.name}')
                         if (
-                            'detail' in error_response
+                            'details' in error_response
                             and 'stack' in error_response['details']
                         ):
                             logger.error(error_response['details']['stack'])
