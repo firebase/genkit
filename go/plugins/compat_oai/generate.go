@@ -75,7 +75,7 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		field := cfgVal.Field(i)
 
 		// Handle different field types appropriately
-		if field.Kind() == reflect.Ptr {
+		if field.Kind() == reflect.Pointer {
 			if !field.IsNil() {
 				reqVal.Field(i).Set(field)
 			}
