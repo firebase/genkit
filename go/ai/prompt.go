@@ -67,10 +67,11 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
-			"name":   name,
-			"model":  modelName,
-			"config": p.Config,
-			"input":  map[string]any{"schema": p.InputSchema},
+			"name":         name,
+			"model":        modelName,
+			"config":       p.Config,
+			"input":        map[string]any{"schema": p.InputSchema},
+			"defaultInput": p.DefaultInput,
 		},
 	}
 	maps.Copy(meta, promptMeta)
@@ -160,6 +161,11 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	if len(p.Middleware) > 0 {
 		logger.FromContext(ctx).Warn(fmt.Sprintf("middleware set on prompt %q will be ignored during Prompt.Render", p.Name()))
+	}
+
+	// TODO: This is hacky; we should have a helper that fetches the metadata.
+	if input == nil {
+		input = p.action.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
 
 	return p.action.Run(ctx, input, nil)
