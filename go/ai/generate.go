@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -98,7 +99,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 
 	metadata := map[string]any{
 		"model": map[string]any{
-			"supports": map[string]bool{
+			"supports": map[string]any{
 				"media":      info.Supports.Media,
 				"multiturn":  info.Supports.Multiturn,
 				"systemRole": info.Supports.SystemRole,
@@ -106,6 +107,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"toolChoice": info.Supports.ToolChoice,
 			},
 			"versions": info.Versions,
+			"stage":    info.Stage,
 		},
 	}
 	if info.Label != "" {
@@ -170,6 +172,18 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	model, err := LookupModelByName(r, opts.Model)
 	if err != nil {
 		return nil, err
+	}
+
+	metadata, err := modelMetadata(r, opts.Model)
+	if err != nil {
+		return nil, err
+	}
+
+	switch metadata.Stage {
+	case ModelStageDeprecated:
+		slog.Warn(fmt.Sprintf("model: %s is deprecated and may be removed in a future release", opts.Model))
+	case ModelStageUnstable:
+		slog.Warn(fmt.Sprintf("model: %s is unstable and functionality might be compromised", opts.Model))
 	}
 
 	toolDefMap := make(map[string]*ToolDefinition)
@@ -371,6 +385,58 @@ func (m *modelActionDef) Generate(ctx context.Context, req *ModelRequest, cb Mod
 	}
 
 	return (*ModelAction)(m).Run(ctx, req, cb)
+}
+
+// modelMetadata retrieves the model's metadata
+func modelMetadata(r *registry.Registry, name string) (*ModelInfo, error) {
+	if name == "" {
+		return nil, errors.New("ai.modelMetadata: model name is empty")
+	}
+
+	provider, name, found := strings.Cut(name, "/")
+	if !found {
+		name = provider
+		provider = ""
+	}
+
+	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name)
+	if action == nil {
+		if provider == "" {
+			return nil, fmt.Errorf("ai.modelMetadata: no model named %q", name)
+		}
+		return nil, fmt.Errorf("ai.modelMetadata: no model named %q for provider %q", name, provider)
+	}
+
+	metadata := action.Desc().Metadata
+
+	m, ok := metadata["model"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("ai.modelMetadata: model metadata not definedd")
+	}
+	s, ok := m["supports"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("ai.modelMetadata: model features not specified")
+	}
+	sJson, err := json.Marshal(s)
+	if err != nil {
+		return nil, fmt.Errorf("ai.modelMetadata: unable to marshal model features, err: %v", err)
+	}
+
+	info := &ModelInfo{}
+	supports := &ModelSupports{}
+	err = json.Unmarshal(sJson, supports)
+	if err != nil {
+		return nil, fmt.Errorf("ai.modelMetadata: unable to unmarshal model features, err: %v", err)
+	}
+
+	info.Supports = supports
+	if l, ok := metadata["label"].(string); ok {
+		info.Label = l
+	}
+	if ms, ok := m["stage"].(ModelStage); ok {
+		info.Stage = ms
+	}
+	return info, nil
 }
 
 // cloneMessage creates a deep copy of the provided Message.

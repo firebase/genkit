@@ -47,6 +47,7 @@ var (
 			Media:      false,
 		},
 		Versions: []string{"echo-001", "echo-002"},
+		Stage:    ModelStageDeprecated,
 	}
 
 	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
@@ -264,8 +265,9 @@ func TestGenerate(t *testing.T) {
 							ContentType: "plain/text",
 							Text:        "ignored (conformance message)",
 						},
-						{Text: "\n\nUse the following information " +
-							"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
+						{
+							Text: "\n\nUse the following information " +
+								"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
 							Metadata: map[string]any{"purpose": "context"},
 						},
 					},
@@ -332,6 +334,13 @@ func TestGenerate(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		metadata, err := modelMetadata(r, bananaModel.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if metadata.Stage != ModelStageDeprecated {
+			t.Errorf("expecting model stage: deprecated, got: %q", metadata.Stage)
+		}
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
