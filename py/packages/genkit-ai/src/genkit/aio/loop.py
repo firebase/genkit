@@ -29,33 +29,37 @@ def create_loop():
 
 def run_async(loop: asyncio.AbstractEventLoop, fn: Callable):
     """Schedules the callable on the even loop and blocks until it completes."""
-    output = None
-    error = None
-    lock = threading.Lock()
-    lock.acquire()
-
-    async def run_fn():
-        nonlocal lock
-        nonlocal output
-        nonlocal error
-        try:
-            output = await fn()
-        except Exception as e:
-            error = e
-        finally:
-            lock.release()
-
-    asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
-
-    def wait_for_done():
-        nonlocal lock
+    if loop.is_running():
+        output = None
+        error = None
+        lock = threading.Lock()
         lock.acquire()
 
-    thread = threading.Thread(target=wait_for_done)
-    thread.start()
-    thread.join()
+        async def run_fn():
+            nonlocal lock
+            nonlocal output
+            nonlocal error
+            try:
+                output = await fn()
+                return output
+            except Exception as e:
+                error = e
+            finally:
+                lock.release()
 
-    if error:
-        raise error
+        asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
 
-    return output
+        def wait_for_done():
+            nonlocal lock
+            lock.acquire()
+
+        thread = threading.Thread(target=wait_for_done)
+        thread.start()
+        thread.join()
+
+        if error:
+            raise error
+
+        return output
+    else:
+        return loop.run_until_complete(fn())

@@ -163,6 +163,7 @@ class Genkit(GenkitRegistry):
             self.thread = threading.Thread(
                 target=self.start_server,
                 args=[reflection_server_spec, self.loop],
+                daemon=True,
             )
             self.thread.start()
         else:
@@ -193,7 +194,6 @@ class Genkit(GenkitRegistry):
 
     def join(self):
         if self.thread and self.loop:
-            self.loop.run_forever()
             self.thread.join()
 
     def start_server(
