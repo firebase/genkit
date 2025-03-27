@@ -35,6 +35,7 @@ from genkit.core.typing import (
     Media,
     MediaPart,
     Message,
+    Part,
     RetrieverRequest,
     RetrieverResponse,
     Role,
@@ -60,4 +61,5 @@ __all__ = [
     RetrieverResponse.__name__,
     Role.__name__,
     TextPart.__name__,
+    Part.__name__,
 ]

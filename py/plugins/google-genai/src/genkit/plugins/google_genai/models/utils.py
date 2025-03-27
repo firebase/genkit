@@ -46,15 +46,17 @@ class PartConverter:
         if isinstance(part.root, ToolRequestPart):
             return genai.types.Part(
                 function_call=genai.types.FunctionCall(
+                    id=part.root.tool_request.ref,
                     name=part.root.tool_request.name,
-                    args=part.root.tool_request.args,
+                    args=part.root.tool_request.input,
                 )
             )
         if isinstance(part.root, ToolResponsePart):
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
-                    name=part.root.tool_request.name,
-                    response=part.root.tool_request.output,
+                    id=part.root.tool_response.ref,
+                    name=part.root.tool_response.name,
+                    response={'output': part.root.tool_response.output},
                 )
             )
         if isinstance(part.root, MediaPart):
@@ -93,22 +95,25 @@ class PartConverter:
     @classmethod
     def from_gemini(cls, part: genai.types.Part) -> Part:
         if part.text:
-            return TextPart(text=part.text)
+            return Part(text=part.text)
         if part.function_call:
-            return ToolRequestPart(
+            return Part(
                 toolRequest=ToolRequest(
-                    name=part.function_call.name, args=part.function_call.args
+                    ref=part.function_call.id,
+                    name=part.function_call.name,
+                    input=part.function_call.args,
                 )
             )
         if part.function_response:
-            return ToolResponsePart(
+            return Part(
                 toolResponse=ToolResponse(
+                    ref=part.function_call.id,
                     name=part.function_response.name,
                     output=part.function_response.response,
                 )
             )
         if part.inline_data:
-            return MediaPart(
+            return Part(
                 media=Media(
                     url=base64.b64encode(part.inline_data.data),
                     contentType=part.inline_data.mime_type,
