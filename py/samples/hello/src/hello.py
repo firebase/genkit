@@ -22,7 +22,10 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import (
     ActionRunContext,
+    BaseEvalDataPoint,
+    Details,
     Document,
+    EvalFnResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -33,6 +36,7 @@ from genkit.ai import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
     TextPart,
 )
 from genkit.plugins.vertex_ai import (
@@ -205,6 +209,31 @@ def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
 
 
 ai.define_retriever(name='my_retriever', fn=my_retriever)
+
+
+def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+    return EvalFnResponse(
+        test_case_id=datapoint.test_case_id,
+        evaluation=Score(
+            score=True, details=Details(reasoning='I think it is true')
+        ),
+    )
+
+
+ai.define_evaluator(
+    name='my_eval',
+    display_name='gablorrk',
+    definition='gutenburg',
+    fn=my_eval_fn,
+)
+
+a = EvalFnResponse(
+    test_case_id='fakefake',
+    evaluation=Score(
+        score=True, details=Details(reasoning='I think it is true')
+    ),
+)
+print(a.model_dump_json(by_alias=True, exclude_none=True, indent=4))
 
 
 @ai.flow()

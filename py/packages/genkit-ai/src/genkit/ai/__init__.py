@@ -26,9 +26,14 @@ from genkit.ai.veneer import Genkit, GenkitRegistry
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
+    BaseEvalDataPoint,
+    Details,
     Embedding,
     EmbedRequest,
     EmbedResponse,
+    EvalFnResponse,
+    EvalRequest,
+    EvalResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -38,11 +43,14 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
     TextPart,
 )
 
 __all__ = [
     ActionRunContext.__name__,
+    Details.__name__,
+    Score.__name__,
     Document.__name__,
     Embedding.__name__,
     EmbedRequest.__name__,
@@ -58,6 +66,10 @@ __all__ = [
     Plugin.__name__,
     RetrieverRequest.__name__,
     RetrieverResponse.__name__,
+    BaseEvalDataPoint.__name__,
+    EvalFnResponse.__name__,
+    EvalRequest.__name__,
+    EvalResponse.__name__,
     Role.__name__,
     TextPart.__name__,
 ]
