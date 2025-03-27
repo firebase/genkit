@@ -342,7 +342,7 @@ class GeminiModel:
     async def _streaming_generate(
         self,
         request_contents: list[genai.types.Content],
-        request_cfg: genai.types.GenerateContentConfig,
+        request_cfg: genai.types.GenerateContentConfig | None,
         ctx: ActionRunContext,
     ) -> GenerateResponse:
         """Call google-genai generate for streaming
@@ -438,7 +438,7 @@ class GeminiModel:
 
     def _genkit_to_googleai_cfg(
         self, request: GenerateRequest
-    ) -> genai.types.GenerateContentConfig:
+    ) -> genai.types.GenerateContentConfig | None:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
 
         Args:
@@ -447,6 +447,7 @@ class GeminiModel:
         Returns:
             Google Ai request config or None
         """
+        cfg = None
 
         if request.config:
             request_config = request.config
@@ -460,10 +461,11 @@ class GeminiModel:
                 )
             elif isinstance(request_config, dict):
                 cfg = genai.types.GenerateContentConfig(**request_config)
-        else:
-            cfg = genai.types.GenerateContentConfig()
 
         if request.output:
+            if not cfg:
+                cfg = genai.types.GenerateContentConfig()
+
             response_mime_type = (
                 'application/json'
                 if request.output.format == 'json' and not request.tools
@@ -472,6 +474,9 @@ class GeminiModel:
             cfg.response_mime_type = response_mime_type
 
         if request.tools:
+            if not cfg:
+                cfg = genai.types.GenerateContentConfig()
+
             tools = self._get_tools(request)
             cfg.tools = tools
 
