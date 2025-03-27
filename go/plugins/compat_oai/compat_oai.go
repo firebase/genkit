@@ -13,49 +13,61 @@ import (
 
 var (
 	// BasicText describes model capabilities for text-only GPT models.
-	BasicText = ai.ModelInfoSupports{
-		Multiturn:  true,
-		Tools:      true,
-		SystemRole: true,
-		Media:      false,
+	BasicText = ai.ModelInfo{
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      true,
+			SystemRole: true,
+			Media:      false,
+		},
 	}
 
 	// Multimodal describes model capabilities for multimodal GPT models.
-	Multimodal = ai.ModelInfoSupports{
-		Multiturn:  true,
-		Tools:      true,
-		SystemRole: true,
-		Media:      true,
+	Multimodal = ai.ModelInfo{
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      true,
+			SystemRole: true,
+			Media:      true,
+		},
 	}
 )
 
-// State management
-var state struct {
-	mu      sync.Mutex
-	initted bool
-	client  *openaiGo.Client
+type OpenAICompatible struct {
+	mu       sync.Mutex
+	initted  bool
+	client   *openaiGo.Client
+	Opts     []option.RequestOption
+	Provider string
 }
 
-func OpenAICompatible(ctx context.Context, g *genkit.Genkit, provider string, opts ...option.RequestOption) error {
-
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
+// Init implements genkit.Plugin.
+func (o *OpenAICompatible) Init(ctx context.Context, g *genkit.Genkit) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.initted {
 		panic("compat_oai.Init already called")
 	}
 
 	// create client
-	client := openaiGo.NewClient(opts...)
-	state.client = client
-	state.initted = true
+	client := openaiGo.NewClient(o.Opts...)
+	o.client = client
+	o.initted = true
 
 	return nil
 }
 
+// Name implements genkit.Plugin.
+func (o *OpenAICompatible) Name() string {
+	return o.Provider
+}
+
 // DefineModel defines a model in the registry
-func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo, provider string) (ai.Model, error) {
-	if !state.initted {
-		panic("compat_oai.Init not called")
+func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo, provider string) (ai.Model, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.initted {
+		panic("OpenAICompatible.Init not called")
 	}
 
 	// Strip provider prefix if present to check against supportedModels
@@ -66,7 +78,7 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo, provider stri
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		generator := NewModelGenerator(state.client, modelName)
+		generator := NewModelGenerator(o.client, modelName)
 
 		// Configure the generator with input
 		if input.Messages != nil {
@@ -100,9 +112,11 @@ func DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo, provider stri
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(g *genkit.Genkit, name string, provider string) (ai.Embedder, error) {
-	if !state.initted {
-		panic("compat_oai.Init not called")
+func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, name string, provider string) (ai.Embedder, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.initted {
+		panic("OpenAICompatible.Init not called")
 	}
 
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
@@ -119,7 +133,7 @@ func DefineEmbedder(g *genkit.Genkit, name string, provider string) (ai.Embedder
 			EncodingFormat: openaiGo.F(openaiGo.EmbeddingNewParamsEncodingFormatFloat),
 		}
 
-		embeddingResp, err := state.client.Embeddings.New(ctx, params)
+		embeddingResp, err := o.client.Embeddings.New(ctx, params)
 		if err != nil {
 			return nil, err
 		}
@@ -137,18 +151,23 @@ func DefineEmbedder(g *genkit.Genkit, name string, provider string) (ai.Embedder
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
-func IsDefinedEmbedder(g *genkit.Genkit, name string, provider string) bool {
-	return genkit.IsDefinedEmbedder(g, provider, name)
+func (o *OpenAICompatible) IsDefinedEmbedder(g *genkit.Genkit, name string, provider string) bool {
+	return genkit.LookupEmbedder(g, provider, name) != nil
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(g *genkit.Genkit, name string, provider string) ai.Embedder {
+func (o *OpenAICompatible) Embedder(g *genkit.Genkit, name string, provider string) ai.Embedder {
 	return genkit.LookupEmbedder(g, provider, name)
 }
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
-func Model(g *genkit.Genkit, name string, provider string) ai.Model {
+func (o *OpenAICompatible) Model(g *genkit.Genkit, name string, provider string) ai.Model {
 	return genkit.LookupModel(g, provider, name)
+}
+
+// IsDefinedModel reports whether the named [Model] is defined by this plugin.
+func (o *OpenAICompatible) IsDefinedModel(g *genkit.Genkit, name string, provider string) bool {
+	return genkit.LookupModel(g, provider, name) != nil
 }

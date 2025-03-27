@@ -33,16 +33,25 @@ func main() {
 	apiKeyOption := option.WithAPIKey(apiKey)
 	baseURLOption := option.WithBaseURL("https://api.anthropic.com/v1/")
 
-	compat_oai.OpenAICompatible(ctx, g, "anthropic", apiKeyOption, baseURLOption)
+	oai := compat_oai.OpenAICompatible{
+		Opts:     []option.RequestOption{apiKeyOption, baseURLOption},
+		Provider: "anthropic",
+	}
+	err = oai.Init(ctx, g)
+	if err != nil {
+		log.Fatalf("failed to initialize OpenAICompatible: %v", err)
+	}
+
+	genkit.WithPlugins(&oai)
 
 	genkit.DefineFlow(g, "anthropic", func(ctx context.Context, subject string) (string, error) {
 
-		sonnet37, err := compat_oai.DefineModel(g, "claude-3-7-sonnet-20250219", ai.ModelInfo{Label: "Claude Sonnet", Supports: &compat_oai.Multimodal}, "anthropic")
+		sonnet37, err := oai.DefineModel(g, "claude-3-7-sonnet-20250219", ai.ModelInfo{Label: "Claude Sonnet", Supports: compat_oai.Multimodal.Supports}, "anthropic")
 		if err != nil {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(sonnet37), ai.WithTextPrompt(prompt))
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(sonnet37), ai.WithPromptText(prompt))
 		if err != nil {
 			return "", err
 		}
