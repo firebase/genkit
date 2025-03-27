@@ -68,6 +68,7 @@ var (
 				"gemini-1.5-pro-002",
 			},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini15Flash8b: {
 			Label: "Gemini 1.5 Flash 8B",
