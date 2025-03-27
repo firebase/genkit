@@ -163,7 +163,7 @@ type HelloPromptInput struct {
 
 func definePromptModel(reg *registry.Registry) Model {
 	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelInfoSupports{
+		&ModelInfo{Supports: &ModelSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -273,7 +273,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -307,7 +307,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -342,7 +342,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -383,7 +383,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -429,7 +429,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -464,7 +464,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -521,7 +521,11 @@ func TestValidPrompt(t *testing.T) {
 			opts = append(opts, WithModel(test.model))
 			opts = append(opts, WithConfig(test.config))
 			opts = append(opts, WithToolChoice(ToolChoiceRequired))
-			opts = append(opts, WithTools(test.tools...))
+			toolRefs := make([]ToolRef, len(test.tools))
+			for i, tool := range test.tools {
+				toolRefs[i] = tool
+			}
+			opts = append(opts, WithTools(toolRefs...))
 			opts = append(opts, WithMaxTurns(1))
 
 			if test.systemText != "" {
@@ -678,7 +682,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -702,7 +706,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -726,7 +730,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -794,11 +798,18 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 
 func TestDefinePartialAndHelperJourney(t *testing.T) {
 	// Initialize a registry
-	r := registry.New()
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Register default template helpers (json, role, media)
+	tpl, err := raymond.Parse("")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for name, helper := range templateHelpers {
-		r.Dotprompt.RegisterHelper(name, helper)
+		r.Dotprompt.DefineHelper(name, helper, tpl)
 	}
 
 	// Step 1: Define custom partials for reuse across multiple prompts
@@ -847,7 +858,7 @@ Date: {{date}}`
 {{> footer}}`
 
 	// Step 4: Parse and execute the template
-	tpl, err := raymond.Parse(mainTemplate)
+	tpl, err = raymond.Parse(mainTemplate)
 	if err != nil {
 		t.Fatalf("Failed to parse template: %v", err)
 	}
