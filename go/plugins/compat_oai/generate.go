@@ -17,6 +17,7 @@ package compat_oai
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
@@ -62,10 +63,32 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 
 // WithConfig adds configuration parameters from the model request
 func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
-	if config != nil {
-		// TODO: Implement configuration from model request
-		// modelRequest.Config is any type
+	if config == nil {
+		return g
 	}
+
+	// Copy all fields from openaiConfig to g.request
+	cfgVal := reflect.ValueOf(config).Elem()
+	reqVal := reflect.ValueOf(g.request).Elem()
+
+	for i := 0; i < cfgVal.NumField(); i++ {
+		field := cfgVal.Field(i)
+
+		// Handle both pointer and non-pointer fields
+		if field.Kind() == reflect.Ptr {
+			if !field.IsNil() {
+				reqVal.Field(i).Set(field)
+			}
+		} else {
+			// For non-pointer types, we check if it's a zero value
+			// Some types like bool can be legitimately set to false
+			// so we might need special handling for those
+			if !field.IsZero() {
+				reqVal.Field(i).Set(field)
+			}
+		}
+	}
+
 	return g
 }
 
