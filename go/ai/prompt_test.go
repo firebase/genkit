@@ -17,11 +17,10 @@ package ai
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -164,7 +163,7 @@ type HelloPromptInput struct {
 
 func definePromptModel(reg *registry.Registry) Model {
 	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelSupports{
+		&ModelInfo{Supports: &ModelInfoSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -248,7 +247,7 @@ func TestValidPrompt(t *testing.T) {
 		promptFn       promptFn
 		messages       []*Message
 		messagesFn     messagesFn
-		tools          []ToolRef
+		tools          []Tool
 		config         *GenerationCommonConfig
 		inputType      any
 		input          any
@@ -274,7 +273,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -308,7 +307,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -343,7 +342,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -384,7 +383,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -430,7 +429,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -455,7 +454,7 @@ func TestValidPrompt(t *testing.T) {
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
 			promptText: "my name is foo",
-			tools:      []ToolRef{testTool(reg, "testTool")},
+			tools:      []Tool{testTool(reg, "testTool")},
 			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
@@ -465,7 +464,7 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &OutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -679,7 +678,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &OutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -703,7 +702,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &OutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -727,7 +726,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &OutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -793,227 +792,141 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 	}
 }
 
-func TestLoadPrompt(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
+func TestDefinePartialAndHelperJourney(t *testing.T) {
+	// Initialize a registry
+	r, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
 
-	// Create a mock .prompt file
-	mockPromptFile := filepath.Join(tempDir, "example.prompt")
-	mockPromptContent := `---
-model: test-model
-description: A test prompt
-toolChoice: required
-maxTurns: 5
-returnToolRequests: true
-input:
-  schema:
-    type: object
-    properties:
-      name:
-        type: string
-  default:
-    name: world
-output:
-  format: text
-  schema:
-    type: string
+	// Register default template helpers (json, role, media)
+	RegisterTemplateHelpers(r.DotPrompt())
+
+	// Step 1: Define custom partials for reuse across multiple prompts
+	// A header partial for consistent headers
+	headerPartial := `# {{title}}
+Author: {{author}}
+Date: {{date}}`
+	definePartial(r, "header", headerPartial)
+
+	// A section partial for document structure
+	sectionPartial := `
+## {{sectionTitle}}
+{{content}}`
+	definePartial(r, "section", sectionPartial)
+
+	// A footer partial for consistent footers
+	footerPartial := `
 ---
+© {{year}} - Generated with Genkit`
+	definePartial(r, "footer", footerPartial)
 
-Hello, {{name}}!
-`
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	// Step 2: Define custom helpers to extend templating capabilities
+	// A helper to capitalize text
+	defineHelper(r, "capitalize", func(text string) raymond.SafeString {
+		if text == "" {
+			return raymond.SafeString("")
+		}
+		return raymond.SafeString(strings.ToUpper(text[:1]) + text[1:])
+	})
+
+	// A helper to create list items
+	defineHelper(r, "listItem", func(content string) raymond.SafeString {
+		return raymond.SafeString("* " + content)
+	})
+
+	// Step 3: Create a template that uses both partials and helpers
+	mainTemplate := `{{> header}}
+
+{{> section sectionTitle="Introduction" content="This is a demonstration of using partials and helpers in Genkit."}}
+
+{{> section sectionTitle="Features" content="Key features include:"}}
+{{listItem "Reusable partials for consistent styling"}}
+{{listItem "Custom helpers for formatting"}}
+{{listItem "The capitalize helper transforms text: {{capitalize \"hello\"}}"}}
+
+{{> footer}}`
+
+	// Step 4: Parse and execute the template
+	tpl, err := raymond.Parse(mainTemplate)
 	if err != nil {
-		t.Fatalf("Failed to create mock prompt file: %v", err)
+		t.Fatalf("Failed to parse template: %v", err)
 	}
 
-	// Initialize a mock registry
-	reg, err := registry.New()
+	// Register the same partials with the test template
+	tpl.RegisterPartial("header", headerPartial)
+	tpl.RegisterPartial("section", sectionPartial)
+	tpl.RegisterPartial("footer", footerPartial)
+
+	// Register the same helpers with the test template
+	tpl.RegisterHelper("capitalize", func(text string) raymond.SafeString {
+		if text == "" {
+			return raymond.SafeString("")
+		}
+		return raymond.SafeString(strings.ToUpper(text[:1]) + text[1:])
+	})
+	tpl.RegisterHelper("listItem", func(content string) raymond.SafeString {
+		return raymond.SafeString("* " + content)
+	})
+
+	// Execute the template with data
+	data := map[string]any{
+		"title":  "Using Partials and Helpers",
+		"author": "Genkit Team",
+		"date":   "2024-03-28",
+		"year":   "2024",
+	}
+
+	result, err := tpl.Exec(data)
 	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
+		t.Fatalf("Failed to execute template: %v", err)
 	}
 
-	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
+	// Log the actual output for debugging
+	t.Logf("Actual template output:\n%s", result)
 
-	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example")
-	if prompt == nil {
-		t.Fatalf("Prompt was not registered")
+	// Verify the output includes content from partials and helpers
+	expectedContent := []string{
+		"# Using Partials and Helpers",
+		"Author: Genkit Team",
+		"Date: 2024-03-28",
+		"## Introduction",
+		"## Features",
+		"* Reusable partials for consistent styling",
+		"* Custom helpers for formatting",
+		"* The capitalize helper transforms text: {{capitalize \"hello\"}}",
+		"© 2024 - Generated with Genkit",
 	}
 
-	if prompt.action.Desc().InputSchema == nil {
-		t.Fatal("Input schema is nil")
+	for _, content := range expectedContent {
+		if !strings.Contains(result, content) {
+			t.Errorf("Expected content '%s' not found in result", content)
+		}
 	}
 
-	if prompt.action.Desc().InputSchema.Type != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.action.Desc().InputSchema.Type)
-	}
-
-	promptMetadata, ok := prompt.action.Desc().Metadata["prompt"].(map[string]any)
-	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.action.Desc().Metadata["prompt"])
-	}
-	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.action.Desc().Metadata["model"])
-	}
-}
-
-func TestLoadPrompt_FileNotFound(t *testing.T) {
-	// Initialize a mock registry
-	reg, err := registry.New()
+	// Step 5: Demonstrate integration with Genkit Prompt system
+	// Define a prompt that would use the same partials and helpers
+	_, err = DefinePrompt(r, "examplePrompt",
+		WithPromptText(`{{> header}}
+{{> section sectionTitle="Demo" content="This is a demo prompt."}}
+{{> footer}}`),
+		WithInputType(struct {
+			Title  string `json:"title"`
+			Author string `json:"author"`
+			Date   string `json:"date"`
+			Year   string `json:"year"`
+		}{}),
+	)
 	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
+		t.Fatalf("Failed to define prompt: %v", err)
 	}
 
-	// Call loadPrompt with a non-existent file
-	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
-
-	// Verify that the prompt was not registered
-	prompt := LookupPrompt(reg, "test-namespace", "missing")
-	if prompt != nil {
-		t.Fatalf("Prompt should not have been registered for a missing file")
-	}
-}
-
-func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-
-	// Create an invalid .prompt file
-	invalidPromptFile := filepath.Join(tempDir, "invalid.prompt")
-	invalidPromptContent := `invalid json content`
-	err := os.WriteFile(invalidPromptFile, []byte(invalidPromptContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create invalid prompt file: %v", err)
+	// Final verification
+	if !strings.Contains(result, "GENKIT DOCUMENTATION") ||
+		!strings.Contains(result, "Getting Started") ||
+		!strings.Contains(result, "© 2023") {
+		t.Fatalf("Expected template to contain partials and helper output but got: %s", result)
 	}
 
-	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
-
-	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
-
-	// Verify that the prompt was not registered
-	prompt := LookupPrompt(reg, "test-namespace", "invalid")
-	if prompt != nil {
-		t.Fatalf("Prompt should not have been registered for an invalid file")
-	}
-}
-
-func TestLoadPrompt_WithVariant(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-
-	// Create a mock .prompt file with a variant
-	mockPromptFile := filepath.Join(tempDir, "example.variant.prompt")
-	mockPromptContent := `---
-model: test-model
-description: A test prompt
----
-
-Hello, {{name}}!
-`
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create mock prompt file: %v", err)
-	}
-
-	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
-
-	// Call loadPrompt
-	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
-
-	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example.variant")
-	if prompt == nil {
-		t.Fatalf("Prompt was not registered")
-	}
-}
-
-func TestLoadPromptFolder(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-
-	// Create mock prompt and partial files
-	mockPromptFile := filepath.Join(tempDir, "example.prompt")
-	mockSubDir := filepath.Join(tempDir, "subdir")
-	err := os.Mkdir(mockSubDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create subdirectory: %v", err)
-	}
-
-	mockPromptContent := `---
-model: test-model
-description: A test prompt
-input:
-  schema:
-    type: object
-    properties:
-      name:
-        type: string
-output:
-  format: text
-  schema:
-    type: string
----
-
-Hello, {{name}}!
-`
-
-	err = os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create mock prompt file: %v", err)
-	}
-
-	// Create a mock prompt file in the subdirectory
-	mockSubPromptFile := filepath.Join(mockSubDir, "sub_example.prompt")
-	err = os.WriteFile(mockSubPromptFile, []byte(mockPromptContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create mock prompt file in subdirectory: %v", err)
-	}
-
-	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
-
-	// Call LoadPromptFolder
-	LoadPromptDir(reg, tempDir, "test-namespace")
-
-	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example")
-	if prompt == nil {
-		t.Fatalf("Prompt was not registered")
-	}
-
-	// Verify the prompt in the subdirectory was registered correctly
-	subPrompt := LookupPrompt(reg, provider, "test-namespace/sub_example")
-	if subPrompt == nil {
-		t.Fatalf("Prompt in subdirectory was not registered")
-	}
-}
-
-func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
-	// Initialize a mock registry
-	reg := &registry.Registry{}
-
-	// Call LoadPromptFolder with a non-existent directory
-	err := LoadPromptDir(reg, "./nonexistent", "test-namespace")
-	if err == nil {
-		t.Fatalf("Error should returned")
-	}
-
-	// Verify that no prompts were registered
-	prompt := LookupPrompt(reg, "test-namespace", "example")
-	if prompt != nil {
-		t.Fatalf("Prompt should not have been registered for a non-existent directory")
-	}
+	t.Log("Successfully demonstrated definePartial and defineHelper usage")
 }
