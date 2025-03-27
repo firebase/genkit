@@ -132,6 +132,7 @@ func TestValidMessage(t *testing.T) {
 					"phone": map[string]any{"type": "string"},
 				},
 			},
+			Constrained: true,
 		}
 		message, err := validMessage(message, outputSchema)
 		if err != nil {
@@ -158,6 +159,7 @@ func TestValidMessage(t *testing.T) {
 					"age":  map[string]any{"type": "integer"},
 				},
 			},
+			Constrained: true,
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
@@ -172,6 +174,8 @@ func TestValidMessage(t *testing.T) {
 		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
+		// FIX: validMessage compares response against a given schema, but
+		// schema is not provided, thus no error should be expected
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
 	})
@@ -180,6 +184,8 @@ func TestValidMessage(t *testing.T) {
 		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
+		// FIX: validMessage compares response against a given schema, but
+		// schema is not provided, thus no error should be expected
 		_, err := validMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
 	})
@@ -189,6 +195,8 @@ func TestValidMessage(t *testing.T) {
 		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
+		// FIX: validMessage compares response against a given schema, but
+		// schema is not provided, thus no error should be expected
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
 	})
@@ -209,6 +217,7 @@ func TestValidMessage(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
+			Constrained: true,
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
@@ -225,6 +234,7 @@ func TestValidMessage(t *testing.T) {
 			Schema: map[string]any{
 				"type": "invalid",
 			},
+			Constrained: true,
 		}
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "failed to validate data against expected schema")
