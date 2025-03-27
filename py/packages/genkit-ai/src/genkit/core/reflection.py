@@ -206,6 +206,8 @@ def make_reflection_server(
                         logger.error(
                             'Error streaming action', error=error_response
                         )
+                        if 'message' in error_response:
+                            logger.error(error_response['message'])
                         if (
                             'details' in error_response
                             and 'stack' in error_response['details']
@@ -249,6 +251,8 @@ def make_reflection_server(
                             by_alias=True
                         )
                         logger.error(f'Error running action {action.name}')
+                        if 'message' in error_response:
+                            logger.error(error_response['message'])
                         if (
                             'details' in error_response
                             and 'stack' in error_response['details']

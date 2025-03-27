@@ -56,7 +56,7 @@ class PartConverter:
                 function_response=genai.types.FunctionResponse(
                     id=part.root.tool_response.ref,
                     name=part.root.tool_response.name,
-                    response={"output": part.root.tool_response.output},
+                    response={'output': part.root.tool_response.output},
                 )
             )
         if isinstance(part.root, MediaPart):
@@ -99,15 +99,15 @@ class PartConverter:
         if part.function_call:
             return Part(
                 toolRequest=ToolRequest(
-                    ref=part.function_call.id, 
-                    name=part.function_call.name, 
-                    input=part.function_call.args
+                    ref=part.function_call.id,
+                    name=part.function_call.name,
+                    input=part.function_call.args,
                 )
             )
         if part.function_response:
             return Part(
                 toolResponse=ToolResponse(
-                    ref=part.function_call.id, 
+                    ref=part.function_call.id,
                     name=part.function_response.name,
                     output=part.function_response.response,
                 )

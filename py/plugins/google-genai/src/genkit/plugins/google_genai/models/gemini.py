@@ -462,8 +462,7 @@ class GeminiModel:
                 cfg = genai.types.GenerateContentConfig(**request_config)
         else:
             cfg = genai.types.GenerateContentConfig()
-            
-          
+
         if request.output:
             response_mime_type = (
                 'application/json'
