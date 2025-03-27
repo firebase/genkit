@@ -202,7 +202,7 @@ func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, batchEval)), nil
+	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
 }
 
 // IsDefinedEvaluator reports whether an [Evaluator] is defined.

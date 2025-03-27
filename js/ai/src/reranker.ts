@@ -16,6 +16,7 @@
 
 import { Action, defineAction, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { Part, PartSchema } from './document.js';
 import { Document, DocumentData, DocumentDataSchema } from './retriever.js';
 
@@ -124,6 +125,11 @@ export function defineReranker<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
       metadata: {
         type: 'reranker',
         info: options.info,
+        reranker: {
+          customOptions: options.configSchema
+            ? toJsonSchema({ schema: options.configSchema })
+            : undefined,
+        },
       },
     },
     (i) =>
