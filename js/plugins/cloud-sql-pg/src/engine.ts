@@ -173,8 +173,8 @@ export class PostgresEngine {
    * @param contentColumn Name of the column to store document content. Default: "content".
    * @param embeddingColumn Name of the column to store vector embeddings. Default: "embedding".
    * @param metadataColumns Optional - A list of Columns to create for custom metadata. Default: [].
-   * @param metadataJsonColumn Optional - The column to store extra metadata in JSON format. Default: "langchain_metadata".
-   * @param idColumn Optional - Column to store ids. Default: "langchain_id" column name with data type UUID.
+   * @param metadataJsonColumn Optional - The column to store extra metadata in JSON format. Default: "json_metadata".
+   * @param idColumn Optional - Column to store ids. Default: "id" column name with data type UUID.
    * @param overwriteExisting Whether to drop existing table. Default: False.
    * @param storeMetadata Whether to store metadata in the table. Default: True.
    */
@@ -186,8 +186,8 @@ export class PostgresEngine {
     contentColumn  = "content",
     embeddingColumn = "embedding",
     metadataColumns = [],
-    metadataJsonColumn = "langchain_metadata",
-    idColumn = "langchain_id",
+    metadataJsonColumn = "json_metadata",
+    idColumn = "id",
     overwriteExisting = false,
     storeMetadata = true
   }: VectorStoreTableArgs = {}): Promise<void> {

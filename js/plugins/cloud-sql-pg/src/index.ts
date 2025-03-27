@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import { EmbedderArgument } from 'genkit/embedder';
 
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000),
-  namespace: z.string().optional(),
   filter: z.record(z.string(), z.any()).optional(),
 });
 
@@ -55,7 +54,7 @@ export const postgresRetrieverRef = (params: {
  * @param params.tableName The name of the table
  * @param params.embedder The embedder to use for the indexer and retriever
  * @param params.embedderOptions  Options to customize the embedder
- * @returns The Pinecone Genkit plugin
+ * @returns The Postgres Genkit plugin
  */
 export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
@@ -72,7 +71,7 @@ export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
 export default postgres;
 
 /**
- * Configures a postgres retriever.
+ * Configures a Postgres retriever.
  * @param ai A Genkit instance
  * @param params The params for the retriever
  * @param params.tableName The name of the table
@@ -93,7 +92,7 @@ export function configurePostgresRetriever<
 
   return ai.defineRetriever(
     {
-      name: `pinecone/${params.tableName}`,
+      name: `postgres/${params.tableName}`,
       configSchema: PostgresRetrieverOptionsSchema,
     }
   );
