@@ -1,4 +1,4 @@
-package openai_test
+package compat_oai_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
+	"github.com/firebase/genkit/go/plugins/compat_oai"
 	openaiClient "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/stretchr/testify/assert"
@@ -15,14 +15,14 @@ import (
 
 const defaultModel = "gpt-4o-mini"
 
-func setupTestClient(t *testing.T) *openai.ModelGenerator {
+func setupTestClient(t *testing.T) *compat_oai.ModelGenerator {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
 	}
 
 	client := openaiClient.NewClient(option.WithAPIKey(apiKey))
-	return openai.NewModelGenerator(client, defaultModel)
+	return compat_oai.NewModelGenerator(client, defaultModel)
 }
 
 func TestGenerator_Complete(t *testing.T) {

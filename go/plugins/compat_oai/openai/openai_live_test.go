@@ -9,6 +9,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
+	"github.com/openai/openai-go/option"
 )
 
 func TestPlugin(t *testing.T) {
@@ -27,7 +28,8 @@ func TestPlugin(t *testing.T) {
 	t.Log("genkit initialized")
 
 	// Initialize the OpenAI plugin
-	err = openai.Init(ctx, g, &openai.Config{APIKey: apiKey})
+	apiKeyOption := option.WithAPIKey(apiKey)
+	err = openai.OpenAI(ctx, g, apiKeyOption)
 	if err != nil {
 		t.Fatal(err)
 	}
