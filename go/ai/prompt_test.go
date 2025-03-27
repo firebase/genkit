@@ -794,13 +794,12 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 
 func TestDefinePartialAndHelperJourney(t *testing.T) {
 	// Initialize a registry
-	r, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	r := registry.New()
 
 	// Register default template helpers (json, role, media)
-	RegisterTemplateHelpers(r.DotPrompt())
+	for name, helper := range templateHelpers {
+		r.Dotprompt.RegisterHelper(name, helper)
+	}
 
 	// Step 1: Define custom partials for reuse across multiple prompts
 	// A header partial for consistent headers
