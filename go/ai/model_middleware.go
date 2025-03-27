@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
@@ -122,6 +123,15 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 					if msg.Role == RoleSystem {
 						return nil, fmt.Errorf("model %q does not support system role, but system role was provided. Request: %+v", model, input)
 					}
+				}
+			}
+
+			if len(info.Stage) > 0 {
+				switch info.Stage {
+				case ModelStageDeprecated:
+					slog.Warn(fmt.Sprintf("model: %s is deprecated and may be removed in a future release", model))
+				case ModelStageUnstable:
+					slog.Warn(fmt.Sprintf("model: %s is unstable and functionality might be compromised", model))
 				}
 			}
 

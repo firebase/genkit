@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 
@@ -172,18 +171,6 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	model, err := LookupModelByName(r, opts.Model)
 	if err != nil {
 		return nil, err
-	}
-
-	metadata, err := modelMetadata(r, opts.Model)
-	if err != nil {
-		return nil, err
-	}
-
-	switch metadata.Stage {
-	case ModelStageDeprecated:
-		slog.Warn(fmt.Sprintf("model: %s is deprecated and may be removed in a future release", opts.Model))
-	case ModelStageUnstable:
-		slog.Warn(fmt.Sprintf("model: %s is unstable and functionality might be compromised", opts.Model))
 	}
 
 	toolDefMap := make(map[string]*ToolDefinition)
@@ -392,7 +379,6 @@ func modelMetadata(r *registry.Registry, name string) (*ModelInfo, error) {
 	if name == "" {
 		return nil, errors.New("ai.modelMetadata: model name is empty")
 	}
-
 	provider, name, found := strings.Cut(name, "/")
 	if !found {
 		name = provider
@@ -408,7 +394,6 @@ func modelMetadata(r *registry.Registry, name string) (*ModelInfo, error) {
 	}
 
 	metadata := action.Desc().Metadata
-
 	m, ok := metadata["model"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("ai.modelMetadata: model metadata not definedd")
@@ -436,6 +421,7 @@ func modelMetadata(r *registry.Registry, name string) (*ModelInfo, error) {
 	if ms, ok := m["stage"].(ModelStage); ok {
 		info.Stage = ms
 	}
+
 	return info, nil
 }
 
