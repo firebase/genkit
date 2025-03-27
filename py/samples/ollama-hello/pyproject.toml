@@ -16,10 +16,10 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
-  "genkit-firebase-plugin",
-  "genkit-google-ai-plugin",
-  "genkit-google-cloud-plugin",
-  "genkit-ollama-plugin",
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-ai",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-ollama",
   "pydantic>=2.10.5",
 ]
 description = "Ollama sample"

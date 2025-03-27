@@ -2,15 +2,15 @@
 dependencies = [
   "dotpromptz",
   "genkit-ai",
-  "genkit-chroma-plugin",
-  "genkit-compat-oai-plugin",
-  "genkit-firebase-plugin",
-  "genkit-google-genai-plugin",
-  "genkit-google-ai-plugin",
-  "genkit-google-cloud-plugin",
-  "genkit-ollama-plugin",
-  "genkit-pinecone-plugin",
-  "genkit-vertex-ai-plugin",
+  "genkit-plugin-chroma",
+  "genkit-plugin-compat-oai",
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-google-ai",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-ollama",
+  "genkit-plugin-pinecone",
+  "genkit-plugin-vertex-ai",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -69,15 +69,15 @@ context-caching            = { workspace = true }
 dotpromptz                 = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 flow-sample1               = { workspace = true }
 genkit-ai                  = { workspace = true }
-genkit-chroma-plugin       = { workspace = true }
-genkit-compat-oai-plugin   = { workspace = true }
-genkit-firebase-plugin     = { workspace = true }
-genkit-google-ai-plugin    = { workspace = true }
-genkit-google-cloud-plugin = { workspace = true }
-genkit-google-genai-plugin = { workspace = true }
-genkit-ollama-plugin       = { workspace = true }
-genkit-pinecone-plugin     = { workspace = true }
-genkit-vertex-ai-plugin    = { workspace = true }
+genkit-plugin-chroma       = { workspace = true }
+genkit-plugin-compat-oai   = { workspace = true }
+genkit-plugin-firebase     = { workspace = true }
+genkit-plugin-google-ai    = { workspace = true }
+genkit-plugin-google-cloud = { workspace = true }
+genkit-plugin-google-genai = { workspace = true }
+genkit-plugin-ollama       = { workspace = true }
+genkit-plugin-pinecone     = { workspace = true }
+genkit-plugin-vertex-ai    = { workspace = true }
 hello                      = { workspace = true }
 menu                       = { workspace = true }
 multi_server               = { workspace = true }
