@@ -22,11 +22,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/firebase/genkit/go/core/logger"
 )
 
 // AugmentWithContextOptions configures how a request is augmented with context.
@@ -129,9 +130,9 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 			if len(info.Stage) > 0 {
 				switch info.Stage {
 				case ModelStageDeprecated:
-					slog.Warn(fmt.Sprintf("model: %s is deprecated and may be removed in a future release", model))
+					logger.FromContext(ctx).Warn(fmt.Sprintf("model: %q is deprecated and may be removed in a future release", model))
 				case ModelStageUnstable:
-					slog.Warn(fmt.Sprintf("model: %s is unstable and functionality might be compromised", model))
+					logger.FromContext(ctx).Warn(fmt.Sprintf("model: %q is unstable and functionality might be compromised", model))
 				}
 			}
 
