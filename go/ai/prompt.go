@@ -128,7 +128,6 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 	}
 
 	modelName := genOpts.ModelName
-	// todo: which takes priority? genOpts or p?
 	if modelName == "" && genOpts.ModelArg != nil {
 		modelName = genOpts.ModelArg.Name()
 	}
