@@ -283,13 +283,18 @@ type GoogleAIModelConfig struct {
 	// Add configuration options as needed
 }
 
+// VertexAIModelConfig holds configuration options for Google AI models.
+type VertexAIModelConfig struct {
+	// Add configuration options as needed
+}
+
 // GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
-func GoogleAIModelRef(name string, config any) *ai.ModelRef {
+func GoogleAIModelRef(name string, config GoogleAIModelConfig) *ai.ModelRef {
 	return ai.NewModelRef(googleAIProvider+"/"+name, config)
 }
 
 // VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given name and configuration.
-func VertexAIModelRef(name string, config any) *ai.ModelRef {
+func VertexAIModelRef(name string, config VertexAIModelConfig) *ai.ModelRef {
 	return ai.NewModelRef(vertexAIProvider+"/"+name, config)
 }
 
