@@ -1,7 +1,6 @@
 [project]
 dependencies = [
   "dotpromptz",
-  "aioia",
   "genkit-ai",
   "genkit-chroma-plugin",
   "genkit-compat-oai-plugin",
@@ -64,7 +63,6 @@ fail_under = 80
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
-aioia                      = { workspace = true }
 basic-gemini               = { workspace = true }
 coffee-shop                = { workspace = true }
 context-caching            = { workspace = true }
@@ -150,7 +148,7 @@ select = [
 [tool.ruff.lint.isort]
 combine-as-imports = true
 force-single-line = false
-known-first-party = ["genkit", "aioia"]
+known-first-party = ["genkit"]
 section-order = [
   "future",
   "standard-library",
