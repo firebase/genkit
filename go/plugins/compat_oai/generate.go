@@ -67,23 +67,26 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	// Copy all fields from openaiConfig to g.request
+	// Copy all fields from config to g.request
 	cfgVal := reflect.ValueOf(config).Elem()
 	reqVal := reflect.ValueOf(g.request).Elem()
 
 	for i := 0; i < cfgVal.NumField(); i++ {
 		field := cfgVal.Field(i)
 
-		// Handle both pointer and non-pointer fields
+		// Handle different field types appropriately
 		if field.Kind() == reflect.Ptr {
 			if !field.IsNil() {
 				reqVal.Field(i).Set(field)
 			}
 		} else {
-			// For non-pointer types, we check if it's a zero value
-			// Some types like bool can be legitimately set to false
-			// so we might need special handling for those
-			if !field.IsZero() {
+			// Special handling for non-pointer types
+
+			// For booleans, we always copy the value whether true or false
+			if field.Kind() == reflect.Bool {
+				reqVal.Field(i).Set(field)
+			} else if !field.IsZero() {
+				// For other non-pointer types, only copy non-zero values
 				reqVal.Field(i).Set(field)
 			}
 		}
