@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit
