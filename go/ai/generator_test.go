@@ -334,13 +334,6 @@ func TestGenerate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		metadata, err := modelMetadata(r, bananaModel.Name())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if metadata.Stage != ModelStageDeprecated {
-			t.Errorf("expecting model stage: deprecated, got: %q", metadata.Stage)
-		}
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)

@@ -374,57 +374,6 @@ func (m *modelActionDef) Generate(ctx context.Context, req *ModelRequest, cb Mod
 	return (*ModelAction)(m).Run(ctx, req, cb)
 }
 
-// modelMetadata retrieves the model's metadata
-func modelMetadata(r *registry.Registry, name string) (*ModelInfo, error) {
-	if name == "" {
-		return nil, errors.New("ai.modelMetadata: model name is empty")
-	}
-	provider, name, found := strings.Cut(name, "/")
-	if !found {
-		name = provider
-		provider = ""
-	}
-
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name)
-	if action == nil {
-		if provider == "" {
-			return nil, fmt.Errorf("ai.modelMetadata: no model named %q", name)
-		}
-		return nil, fmt.Errorf("ai.modelMetadata: no model named %q for provider %q", name, provider)
-	}
-
-	metadata := action.Desc().Metadata
-	m, ok := metadata["model"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("ai.modelMetadata: model metadata not definedd")
-	}
-	s, ok := m["supports"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("ai.modelMetadata: model features not specified")
-	}
-	sJson, err := json.Marshal(s)
-	if err != nil {
-		return nil, fmt.Errorf("ai.modelMetadata: unable to marshal model features, err: %v", err)
-	}
-
-	info := &ModelInfo{}
-	supports := &ModelSupports{}
-	err = json.Unmarshal(sJson, supports)
-	if err != nil {
-		return nil, fmt.Errorf("ai.modelMetadata: unable to unmarshal model features, err: %v", err)
-	}
-
-	info.Supports = supports
-	if l, ok := metadata["label"].(string); ok {
-		info.Label = l
-	}
-	if ms, ok := m["stage"].(ModelStage); ok {
-		info.Stage = ms
-	}
-
-	return info, nil
-}
-
 // cloneMessage creates a deep copy of the provided Message.
 func cloneMessage(m *Message) *Message {
 	if m == nil {
