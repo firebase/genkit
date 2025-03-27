@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package snippets
@@ -10,7 +23,6 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/prompt"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -26,7 +38,7 @@ func pr01() {
 	// [START pr01]
 	genkit.Generate(context.Background(), g,
 		ai.WithModel(model),
-		ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
+		ai.WithPromptText("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 
@@ -73,10 +85,10 @@ func pr03() error {
 	}
 	helloPrompt, err := genkit.DefinePrompt(
 		g,
-		"prompts",
 		"helloPrompt",
-		prompt.WithInputType(HelloPromptInput{}),
-		prompt.WithSystemFn(func(ctx context.Context, input any) (string, error) {
+		ai.WithModel(model),
+		ai.WithInputType(HelloPromptInput{}),
+		ai.WithSystemFn(func(ctx context.Context, input any) (string, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
 				return "", errors.New("input doesn't satisfy schema")
@@ -94,7 +106,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := genkit.GenerateWithRequest(context.Background(), g, model, request, nil, nil, nil)
+	response, err := genkit.GenerateWithRequest(context.Background(), g, request, nil, nil)
 	// [END pr03_2]
 
 	_ = response

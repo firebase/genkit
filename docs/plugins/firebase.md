@@ -10,7 +10,7 @@ build intelligent and scalable AI applications. Key features include:
 with vector embeddings.
 - **Telemetry**: Export telemetry to
 [Google's Cloud operations suite](https://cloud.google.com/products/operations)
-that powers the Firebase Genkit Monitoring console.
+that powers the Genkit Monitoring console.
 
 ## Installation
 
@@ -86,7 +86,7 @@ Application Default Credentials. To specify your credentials:
 ### Telemetry
 
 The Firebase plugin provides a telemetry implementation for sending metrics,
-traces, and logs to Firebase Genkit Monitoring.
+traces, and logs to Genkit Monitoring.
 
 To get started, visit the [Getting started guide](../observability/getting-started.md)
 for installation and configuration instructions.

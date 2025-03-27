@@ -56,7 +56,7 @@ func (pm *programmableModel) Generate(ctx context.Context, r *registry.Registry,
 
 func defineProgrammableModel(r *registry.Registry) *programmableModel {
 	pm := &programmableModel{r: r}
-	supports := &ModelInfoSupports{
+	supports := &ModelSupports{
 		Tools:     true,
 		Multiturn: true,
 	}
@@ -106,7 +106,7 @@ func TestGenerateAction(t *testing.T) {
 					resp := tc.ModelResponses[reqCounter]
 					resp.Request = req
 					resp.Custom = map[string]any{}
-					resp.Request.Output = &ModelRequestOutput{}
+					resp.Request.Output = &ModelOutputConfig{}
 					resp.Usage = &GenerationUsage{}
 					reqCounter++
 					return resp, nil

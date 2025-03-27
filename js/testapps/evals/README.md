@@ -50,4 +50,4 @@ Please see the `src/eval-in-code.ts` file for an example on running evaluations 
 
 ## Reference
 
-For more details on using Genkit evaluations, please refer to the official [Firebase Genkit documentation](https://firebase.google.com/docs/genkit/evaluation).
+For more details on using Genkit evaluations, please refer to the official [Genkit documentation](https://firebase.google.com/docs/genkit/evaluation).

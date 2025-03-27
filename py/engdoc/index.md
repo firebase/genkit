@@ -2,12 +2,12 @@
 
 !!! note
 
-    If you're a user of Firebase Genkit and landed here,
+    If you're a user of Genkit and landed here,
     this is engineering documentation that someone contributing
     to Genkit would use, not necessarily only use it.
 
     For more information about how to get started with using
-    Firebase Genkit, please see: [User Guide](.)
+    Genkit, please see: [User Guide](.)
 
 ## What is Genkit?
 
@@ -83,7 +83,7 @@ capabilities in code:
     import asyncio
     import structlog
 
-    from genkit.veneer import genkit
+    from genkit.ai import genkit
     from genkit.plugins.google_ai import googleAI
     from genkit.plugins.google_ai.models import gemini15Flash
 
@@ -153,7 +153,7 @@ capabilities in code:
     import logging
     import structlog
 
-    from genkit.veneer import genkit
+    from genkit.ai import genkit
     from genkit.plugins.google_ai import googleAI
     from genkit.plugins.google_ai.models import gemini15Flash
 
@@ -230,7 +230,7 @@ capabilities in code:
     import logging
     import structlog
 
-    from genkit.veneer import genkit
+    from genkit.ai import genkit
     from genkit.plugins.google_ai import googleAI
     from genkit.plugins.google_ai.models import gemini15Flash
     from pydantic import BaseModel, Field
@@ -324,7 +324,7 @@ capabilities in code:
     import logging
     import structlog
 
-    from genkit.veneer import genkit
+    from genkit.ai import genkit
     from genkit.plugins.google_ai import googleAI
     from genkit.plugins.google_ai.models import gemini15Flash
     from pydantic import BaseModel, Field
@@ -445,7 +445,7 @@ capabilities in code:
     import logging
     import structlog
 
-    from genkit.veneer import genkit
+    from genkit.ai import genkit
     from genkit.plugins.google_ai import googleAI
     from genkit.plugins.google_ai.models import gemini15Flash, textEmbedding004
     from genkit.plugins.dev_local_vectorstore import devLocalVectorstore, devLocalRetrieverRef

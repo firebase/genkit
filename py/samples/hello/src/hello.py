@@ -1,19 +1,32 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """A hello world sample that just calls some flows."""
 
-import asyncio
 from typing import Any
 
-from genkit.ai.document import Document
-from genkit.ai.generate import generate_action
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
-    GenerateActionOptions,
+from pydantic import BaseModel, Field
+
+from genkit.ai import (
+    ActionRunContext,
+    Document,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    Genkit,
     Media,
     MediaPart,
     Message,
@@ -29,8 +42,6 @@ from genkit.plugins.vertex_ai import (
     VertexAI,
     vertexai_name,
 )
-from genkit.veneer.veneer import Genkit
-from pydantic import BaseModel, Field
 
 ai = Genkit(
     plugins=[VertexAI()],
@@ -48,27 +59,6 @@ class MyInput(BaseModel):
 
     a: int = Field(description='a field')
     b: int = Field(description='b field')
-
-
-def hi_fn(hi_input) -> GenerateRequest:
-    """Generate a request to greet a user.
-
-    Args:
-        hi_input: Input data containing user information.
-
-    Returns:
-        A GenerateRequest object with the greeting message.
-    """
-    return GenerateRequest(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    TextPart(text=f'Say hi to {hi_input}'),
-                ],
-            ),
-        ],
-    )
 
 
 @ai.flow()
@@ -109,31 +99,6 @@ async def embed_docs(docs: list[str]):
     )
 
 
-@ai.flow()
-async def simple_generate_action_flow(name: str) -> Any:
-    """Generate a greeting for the given name.
-
-    Args:
-        name: The name of the person to greet.
-
-    Returns:
-        The generated greeting response.
-    """
-    response = await generate_action(
-        ai.registry,
-        GenerateActionOptions(
-            model='vertexai/gemini-1.5-flash',
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[TextPart(text=f'Say hi to {name}')],
-                ),
-            ],
-        ),
-    )
-    return response.text()
-
-
 class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
@@ -153,20 +118,17 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
     Returns:
         The generated greeting response.
     """
-    response = await generate_action(
-        ai.registry,
-        GenerateActionOptions(
-            model='vertexai/gemini-1.5-flash',
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[TextPart(text=f'what is a gablorken of {value}')],
-                ),
-            ],
-            tools=['gablorkenTool'],
-        ),
+    response = await ai.generate(
+        model='vertexai/gemini-1.5-flash',
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=f'what is a gablorken of {value}')],
+            ),
+        ],
+        tools=['gablorkenTool'],
     )
-    return response.text()
+    return response.text
 
 
 @ai.flow()
@@ -292,5 +254,31 @@ async def stream_a_prompt(_: str, ctx: ActionRunContext):
     return (await res).text
 
 
-if __name__ == '__main__':
-    asyncio.run(main())
+@ai.flow()
+def throwy(_: str):
+    raise Exception('oops')
+
+
+@ai.flow()
+async def async_throwy(_: str):
+    raise Exception('oops')
+
+
+@ai.flow()
+def streamy_throwy(inp: str, ctx: ActionRunContext):
+    ctx.send_chunk(1)
+    ctx.send_chunk({'chunk': 'blah'})
+    ctx.send_chunk(3)
+    raise Exception('oops')
+
+
+@ai.flow()
+async def async_streamy_throwy(inp: str, ctx: ActionRunContext):
+    ctx.send_chunk(1)
+    ctx.send_chunk({'chunk': 'blah'})
+    ctx.send_chunk(3)
+    raise Exception('oops')
+
+
+# prevent app from exiting when genkit is running in dev mode
+ai.join()

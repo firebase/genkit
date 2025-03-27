@@ -74,7 +74,7 @@ export async function findProjectRoot(): Promise<string> {
     }
     currentDir = path.dirname(currentDir);
   }
-  throw new Error('Could not find project root');
+  return process.cwd();
 }
 
 /**

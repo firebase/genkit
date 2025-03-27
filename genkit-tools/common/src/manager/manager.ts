@@ -25,7 +25,7 @@ import {
   RunActionResponseSchema,
 } from '../types/action';
 import * as apis from '../types/apis';
-import { GenkitErrorData } from '../types/error';
+import { GenkitError } from '../types/error';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
@@ -493,7 +493,7 @@ export class RuntimeManager {
         newError.message = (error.response?.data as any).message;
       }
       // we got a non-200 response; copy the payload and rethrow
-      newError.data = error.response.data as GenkitErrorData;
+      newError.data = error.response.data as GenkitError;
       throw newError;
     }
 

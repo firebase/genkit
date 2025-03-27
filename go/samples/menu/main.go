@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -9,9 +22,8 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/vertexai"
-	"github.com/invopop/jsonschema"
 )
 
 // menuItem is the data model for an item on the menu.
@@ -26,9 +38,6 @@ type menuQuestionInput struct {
 	Question string `json:"question"`
 }
 
-// menuQuestionInputSchema is the JSON schema for a menuQuestionInput.
-var menuQuestionInputSchema = jsonschema.Reflect(menuQuestionInput{})
-
 // answerOutput is an answer to a question.
 type answerOutput struct {
 	Answer string `json:"answer"`
@@ -41,9 +50,6 @@ type dataMenuQuestionInput struct {
 	Question string      `json:"question"`
 }
 
-// dataMenuQuestionInputSchema is the JSON schema for a dataMenuQuestionInput.
-var dataMenuQuestionInputSchema = jsonschema.Reflect(dataMenuQuestionInput{})
-
 // textMenuQuestionInput is for a question about the menu,
 // where the menu is provided as unstructured text.
 type textMenuQuestionInput struct {
@@ -51,29 +57,24 @@ type textMenuQuestionInput struct {
 	Question string `json:"question"`
 }
 
-// textMenuQuestionInputSchema is the JSON schema for a textMenuQuestionInput.
-var textMenuQuestionInputSchema = jsonschema.Reflect(textMenuQuestionInput{})
-
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.VertexAI{Location: os.Getenv("GCLOUD_LOCATION")}),
+	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
-	err = vertexai.Init(ctx, g, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
-	if err != nil {
-		log.Fatal(err)
-	}
-	model := vertexai.Model(g, "gemini-2.0-flash-001")
-	visionModel := vertexai.Model(g, "gemini-2.0-flash-001")
-	embedder := vertexai.Embedder(g, "text-embedding-004")
+
+	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
+	embedder := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
+
 	if err := setup01(g, model); err != nil {
 		log.Fatal(err)
 	}
 	if err := setup02(g, model); err != nil {
 		log.Fatal(err)
 	}
-
 	if err := setup03(g, model); err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +93,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := setup05(g, model, visionModel); err != nil {
+	if err := setup05(g, model); err != nil {
 		log.Fatal(err)
 	}
 
