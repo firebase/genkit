@@ -10,7 +10,7 @@ import (
 	"github.com/openai/openai-go/option"
 )
 
-var provider = "openai"
+const provider = "openai"
 
 var (
 	supportedModels = map[string]ai.ModelInfo{
