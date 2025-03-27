@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package openai_test
 
 import (
@@ -29,14 +43,15 @@ func TestPlugin(t *testing.T) {
 
 	// Initialize the OpenAI plugin
 	apiKeyOption := option.WithAPIKey(apiKey)
-	err = openai.OpenAI(ctx, g, apiKeyOption)
-	if err != nil {
-		t.Fatal(err)
+	oai := openai.OpenAI{
+		Opts: []option.RequestOption{apiKeyOption},
 	}
+	oai.Init(ctx, g)
+
 	t.Log("openai plugin initialized")
 
 	t.Run("embedder", func(t *testing.T) {
-		embedder := openai.Embedder(g, "text-embedding-3-small")
+		embedder := oai.Embedder(g, "text-embedding-3-small")
 		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
@@ -59,7 +74,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("basic completion", func(t *testing.T) {
 		t.Log("generating basic completion response")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("What is the capital of France?"),
+			ai.WithPromptText("What is the capital of France?"),
 		)
 		if err != nil {
 			t.Fatal("error generating basic completion response: ", err)
@@ -82,7 +97,7 @@ func TestPlugin(t *testing.T) {
 		chunks := 0
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("Write a short paragraph about artificial intelligence."),
+			ai.WithPromptText("Write a short paragraph about artificial intelligence."),
 			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 				chunks++
 				for _, content := range chunk.Content {
@@ -119,8 +134,8 @@ func TestPlugin(t *testing.T) {
 
 	t.Run("system message", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithTextPrompt("What are you?"),
-			ai.WithSystemPrompt("You are a helpful math tutor who loves numbers."),
+			ai.WithPromptText("What are you?"),
+			ai.WithSystemText("You are a helpful math tutor who loves numbers."),
 		)
 		if err != nil {
 			t.Fatal(err)

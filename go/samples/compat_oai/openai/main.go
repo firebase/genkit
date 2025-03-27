@@ -32,16 +32,20 @@ func main() {
 
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	apiKeyOption := option.WithAPIKey(apiKey)
+	oai := openai.OpenAI{
+		Opts: []option.RequestOption{apiKeyOption},
+	}
 
-	openai.OpenAI(ctx, g, apiKeyOption)
+	oai.Init(ctx, g)
+	genkit.WithPlugins(&oai)
 
 	genkit.DefineFlow(g, "basic", func(ctx context.Context, subject string) (string, error) {
-		gpt4o, err := openai.DefineModel(g, "gpt-4o", ai.ModelInfo{Label: "GPT-4o", Supports: &compat_oai.Multimodal})
+		gpt4o, err := oai.DefineModel(g, "gpt-4o", ai.ModelInfo{Label: "GPT-4o", Supports: compat_oai.Multimodal.Supports})
 		if err != nil {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithTextPrompt(prompt))
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPromptText(prompt))
 		if err != nil {
 			return "", err
 		}
@@ -49,12 +53,12 @@ func main() {
 	})
 
 	genkit.DefineFlow(g, "defined-model", func(ctx context.Context, subject string) (string, error) {
-		gpt4oMini := openai.Model(g, "gpt-4o-mini")
+		gpt4oMini := oai.Model(g, "gpt-4o-mini")
 		if err != nil {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithTextPrompt(prompt))
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPromptText(prompt))
 		if err != nil {
 			return "", err
 		}
