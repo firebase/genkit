@@ -58,6 +58,7 @@ var (
 				"gemini-1.5-flash-002",
 			},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini15Pro: {
 			Label: "Gemini 1.5 Pro",
@@ -67,6 +68,7 @@ var (
 				"gemini-1.5-pro-002",
 			},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini15Flash8b: {
 			Label: "Gemini 1.5 Flash 8B",
@@ -75,6 +77,7 @@ var (
 				"gemini-1.5-flash-8b-001",
 			},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini20Flash: {
 			Label: "Gemini 2.0 Flash",
@@ -82,6 +85,7 @@ var (
 				"gemini-2.0-flash-001",
 			},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini20FlashLite: {
 			Label: "Gemini 2.0 Flash Lite",
@@ -89,26 +93,31 @@ var (
 				"gemini-2.0-flash-lite-001",
 			},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini20FlashLitePrev: {
 			Label:    "Gemini 2.0 Flash Lite Preview 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20ProExp0205: {
 			Label:    "Gemini 2.0 Pro Exp 02-05",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini25ProExp0305: {
 			Label:    "Gemini 2.5 Pro Exp 03-25",
 			Versions: []string{},
 			Supports: &gemini.Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 	}
 
@@ -132,12 +141,15 @@ var (
 // based on the detected backend
 func listModels(provider string) (map[string]ai.ModelInfo, error) {
 	names := []string{}
+	var prefix string
 
 	switch provider {
 	case googleAIProvider:
 		names = googleAIModels
+		prefix = googleAILabelPrefix
 	case vertexAIProvider:
 		names = vertexAIModels
+		prefix = vertexAILabelPrefix
 	default:
 		return nil, fmt.Errorf("unknown provider detected %s", provider)
 	}
@@ -149,7 +161,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
 		models[n] = ai.ModelInfo{
-			Label:    provider + " - " + m.Label,
+			Label:    prefix + " - " + m.Label,
 			Versions: m.Versions,
 			Supports: m.Supports,
 		}
