@@ -96,7 +96,9 @@ class MessageWrapper(Message):
         Returns:
             list[ToolRequestPart]: list of tool requests present in this response.
         """
-        return [p for p in self.content if isinstance(p.root, ToolRequestPart)]
+        return [
+            p.root for p in self.content if isinstance(p.root, ToolRequestPart)
+        ]
 
 
 class GenerateResponseWrapper(GenerateResponse):

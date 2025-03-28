@@ -87,6 +87,7 @@ menu                                = { workspace = true }
 multi-server                        = { workspace = true }
 prompt-file                         = { workspace = true }
 rag                                 = { workspace = true }
+tool-interrupts                     = { workspace = true }
 vertex-ai-imagen                    = { workspace = true }
 vertex-ai-model-garden              = { workspace = true }
 vertex-ai-reranker                  = { workspace = true }
