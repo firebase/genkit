@@ -117,6 +117,7 @@ The following models are supported for API only:
 | `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | Supported  |
 """
 
+import copy
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
@@ -129,6 +130,7 @@ from genkit.ai import (
     ActionRunContext,
     GenkitRegistry,
 )
+from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
 from genkit.core.tracing import tracer
 from genkit.lang.deprecations import (
@@ -142,6 +144,7 @@ from genkit.types import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
+    GenerationUsage,
     Message,
     ModelInfo,
     Role,
@@ -493,14 +496,17 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
+        request_cfg = self._genkit_to_googleai_cfg(request)
         request_contents = self._build_messages(request)
 
-        request_cfg = self._genkit_to_googleai_cfg(request)
-
         if ctx.is_streaming:
-            return await self._streaming_generate(request_contents, request_cfg, ctx)
+            response = await self._streaming_generate(request_contents, request_cfg, ctx)
         else:
-            return await self._generate(request_contents, request_cfg)
+            response = await self._generate(request_contents, request_cfg)
+
+        response.usage = self._create_usage_stats(request=request, response=response)
+
+        return response
 
     async def _generate(
         self,
@@ -577,6 +583,7 @@ class GeminiModel:
                     role=Role.MODEL,
                 )
             )
+
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
@@ -685,4 +692,35 @@ class GeminiModel:
             tools = self._get_tools(request)
             cfg.tools = tools
 
+        system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))
+        if system_messages:
+            system_parts = []
+            if not cfg:
+                cfg = genai.types.GenerateContentConfig()
+
+            for msg in system_messages:
+                for p in msg.content:
+                    system_parts.append(PartConverter.to_gemini(p))
+                request.messages.remove(msg)
+            cfg.system_instruction = genai.types.Content(parts=system_parts)
+
         return cfg
+
+    def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
+        """Create usage statistics
+
+        Args:
+            request: Genkit request
+            response: Genkit response
+
+        Returns:
+            usage statistics
+        """
+
+        usage = get_basic_usage_stats(input_=request.messages, response=response.message)
+        if response.usage:
+            usage.input_tokens = response.usage.input_tokens
+            usage.output_tokens = response.usage.output_tokens
+            usage.total_tokens = response.usage.total_tokens
+
+        return usage

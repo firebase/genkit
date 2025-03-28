@@ -251,3 +251,50 @@ def test_convert_schema_property(mocker):
         },
         required=['foo'],
     )
+
+
+@pytest.mark.asyncio
+async def test_generate_with_system_instructions(mocker):
+    response_text = 'request answer'
+    request_text = 'response question'
+    system_instruction = 'system instruciton text'
+    version = GeminiVersion.GEMINI_2_0_FLASH
+
+    request = GenerateRequest(
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    TextPart(text=request_text),
+                ],
+            ),
+            Message(
+                role=Role.SYSTEM,
+                content=[
+                    TextPart(text=system_instruction),
+                ],
+            ),
+        ]
+    )
+    candidate = genai.types.Candidate(content=genai.types.Content(parts=[genai.types.Part(text=response_text)]))
+    resp = genai.types.GenerateContentResponse(candidates=[candidate])
+
+    expected_system_instruction = genai.types.Content(parts=[genai.types.Part(text=system_instruction)])
+
+    googleai_client_mock = mocker.AsyncMock()
+    googleai_client_mock.aio.models.generate_content.return_value = resp
+
+    gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
+    ctx = ActionRunContext()
+
+    response = await gemini.generate(request, ctx)
+
+    googleai_client_mock.assert_has_calls([
+        mocker.call.aio.models.generate_content(
+            model=version,
+            contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
+            config=genai.types.GenerateContentConfig(system_instruction=expected_system_instruction),
+        )
+    ])
+    assert isinstance(response, GenerateResponse)
+    assert response.message.content[0].root.text == response_text
