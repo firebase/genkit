@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -163,7 +162,7 @@ type HelloPromptInput struct {
 
 func definePromptModel(reg *registry.Registry) Model {
 	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelSupports{
+		&ModelInfo{Supports: &ModelInfoSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -221,7 +220,7 @@ func definePromptModel(reg *registry.Registry) Model {
 
 			textResponse += strings.Join(contentTexts, "; ")
 			textResponse += "; config: " + base.PrettyJSONString(gr.Config)
-			textResponse += "; context: " + base.PrettyJSONString(gr.Docs)
+			textResponse += "; context: " + base.PrettyJSONString(gr.Context)
 
 			return &ModelResponse{
 				Request: gr,
@@ -237,21 +236,216 @@ func TestValidPrompt(t *testing.T) {
 	}
 
 	model := definePromptModel(reg)
-	tool := testTool(reg, "testTool")
 
 	var tests = []struct {
 		name           string
 		model          Model
+		systemText     string
+		systemFn       promptFn
+		promptText     string
+		promptFn       promptFn
+		messages       []*Message
+		messagesFn     messagesFn
+		tools          []Tool
 		config         *GenerationCommonConfig
 		inputType      any
-		systemText     string
-		promptText     string
-		tools          []ToolRef
 		input          any
 		executeOptions []PromptGenerateOption
+		wantTextOutput string
 		wantGenerated  *ModelRequest
-		wantErr        bool
+		state          any
+		only           bool
 	}{
+		{
+			name:       "user and system prompt, basic",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptGenerateOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+			},
+			wantTextOutput: "Echo: system: say hello; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output:     &ModelRequestOutput{},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
+		{
+			name:      "user and system prompt, functions",
+			model:     model,
+			config:    &GenerationCommonConfig{Temperature: 11},
+			inputType: HelloPromptInput{},
+			systemFn: func(ctx context.Context, input any) (string, error) {
+				return "say hello to {{Name}}", nil
+			},
+			promptFn: func(ctx context.Context, input any) (string, error) {
+				return "my name is {{Name}}", nil
+			},
+			input: HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptGenerateOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+			},
+			wantTextOutput: "Echo: system: say hello to foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output:     &ModelRequestOutput{},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello to foo")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
+		{
+			name:       "messages prompt, basic",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			messages: []*Message{
+				{
+					Role:    RoleUser,
+					Content: []*Part{NewTextPart("you're history")},
+				}},
+			input: HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptGenerateOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+			},
+			wantTextOutput: "Echo: system: say hello; you're history; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output:     &ModelRequestOutput{},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("you're history")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
+		{
+			name:       "messages prompt, function",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			messagesFn: func(ctx context.Context, input any) ([]*Message, error) {
+				return []*Message{
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart("your name is {{Name}}")},
+					}}, nil
+			},
+			input: HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptGenerateOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+			},
+			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output:     &ModelRequestOutput{},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart("your name is foo")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
+		{
+			name:       "messages prompt, input struct",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			messagesFn: func(ctx context.Context, input any) ([]*Message, error) {
+				var p HelloPromptInput
+				switch param := input.(type) {
+				case HelloPromptInput:
+					p = param
+				}
+				return []*Message{
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart(fmt.Sprintf("your name is %s", p.Name))},
+					}}, nil
+			},
+			input: HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptGenerateOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+			},
+			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output:     &ModelRequestOutput{},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart("your name is foo")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
 		{
 			name:       "prompt with tools",
 			model:      model,
@@ -259,17 +453,17 @@ func TestValidPrompt(t *testing.T) {
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
 			promptText: "my name is foo",
-			tools:      []ToolRef{ToolName(tool.Name())},
+			tools:      []Tool{testTool(reg, "testTool")},
 			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
-				WithToolChoice(ToolChoiceRequired),
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
+			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}; context: null",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output:     &ModelRequestOutput{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -289,9 +483,34 @@ func TestValidPrompt(t *testing.T) {
 						Content: []*Part{NewToolResponsePart(&ToolResponse{Output: "Bar"})},
 					},
 				},
-				Tools: []*ToolDefinition{tool.Definition()},
+				Tools: []*ToolDefinition{
+					{
+						Name:        "testTool",
+						Description: "use when need to execute a test",
+						InputSchema: map[string]any{
+							"additionalProperties": bool(false),
+							"properties":           map[string]any{"Test": map[string]any{"type": string("string")}},
+							"required":             []any{string("Test")},
+							"type":                 string("object"),
+						},
+						OutputSchema: map[string]any{"type": string("string")},
+					},
+				},
 			},
 		},
+	}
+
+	cmpPart := func(a, b *Part) bool {
+		if a.IsText() != b.IsText() {
+			return false
+		}
+		if a.Text != b.Text {
+			return false
+		}
+		if a.ContentType != b.ContentType {
+			return false
+		}
+		return true
 	}
 
 	for _, test := range tests {
@@ -302,34 +521,43 @@ func TestValidPrompt(t *testing.T) {
 			opts = append(opts, WithConfig(test.config))
 			opts = append(opts, WithToolChoice(ToolChoiceRequired))
 			opts = append(opts, WithTools(test.tools...))
-			opts = append(opts, WithSystemText(test.systemText))
-			opts = append(opts, WithPromptText(test.promptText))
+			opts = append(opts, WithMaxTurns(1))
+
+			if test.systemText != "" {
+				opts = append(opts, WithSystemText(test.systemText))
+			}
+			if test.systemFn != nil {
+				opts = append(opts, WithSystemFn(test.systemFn))
+			}
+			if test.messages != nil {
+				opts = append(opts, WithMessages(test.messages...))
+			}
+			if test.messagesFn != nil {
+				opts = append(opts, WithMessagesFn(test.messagesFn))
+			}
+			if test.promptText != "" {
+				opts = append(opts, WithPromptText(test.promptText))
+			}
+			if test.promptFn != nil {
+				opts = append(opts, WithPromptFn(test.promptFn))
+			}
 
 			p, err := DefinePrompt(reg, test.name, opts...)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			generated, err := p.Execute(context.Background(), test.executeOptions...)
-			if (err != nil) != test.wantErr {
-				t.Fatalf("Generate() error = %v, wantErr %v", err, test.wantErr)
+			output, err := p.Execute(context.Background(), test.executeOptions...)
+			if err != nil {
+				t.Fatal(err)
 			}
 
-			cmpPart := func(a, b *Part) bool {
-				if a.IsText() != b.IsText() {
-					return false
-				}
-				if a.Text != b.Text {
-					return false
-				}
-				if a.ContentType != b.ContentType {
-					return false
-				}
-				return true
+			if output.Text() != test.wantTextOutput {
+				t.Errorf("got %q want %q", output.Text(), test.wantTextOutput)
 			}
 
-			if diff := cmp.Diff(test.wantGenerated, generated.Request, cmp.Comparer(cmpPart), cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("Generate() mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(test.wantGenerated, output.Request, cmp.Comparer(cmpPart), cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}
@@ -449,7 +677,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &ModelRequestOutput{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -473,7 +701,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &ModelRequestOutput{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -497,7 +725,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &ModelRequestOutput{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -561,129 +789,4 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 	if got != want {
 		t.Errorf("fake model replied with %q, want %q", got, want)
 	}
-}
-
-func TestDefinePartialAndHelperJourney(t *testing.T) {
-	// Initialize a registry
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Register default template helpers (json, role, media)
-	tpl, err := raymond.Parse("")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Register the template helpers one by one
-	for name, helper := range templateHelpers {
-		r.Dotprompt.DefineHelper(name, helper, tpl)
-	}
-
-	// Step 1: Define custom partials for reuse across multiple prompts
-	// A header partial for consistent headers
-	headerPartial := `# {{title}}
-Author: {{author}}
-Date: {{date}}`
-	definePartial(r, "header", headerPartial)
-
-	// A section partial for document structure
-	sectionPartial := `
-## {{sectionTitle}}
-{{content}}`
-	definePartial(r, "section", sectionPartial)
-
-	// A footer partial for consistent footers
-	footerPartial := `
----
-© {{year}} - Generated with Genkit`
-	definePartial(r, "footer", footerPartial)
-
-	// Step 2: Define custom helpers to extend templating capabilities
-	// A helper to capitalize text
-	tpl.RegisterHelper("capitalize", func(text string) raymond.SafeString {
-		if text == "" {
-			return raymond.SafeString("")
-		}
-		return raymond.SafeString(strings.ToUpper(text[:1]) + text[1:])
-	})
-
-	// A helper to create list items
-	tpl.RegisterHelper("listItem", func(content string) raymond.SafeString {
-		return raymond.SafeString("* " + content)
-	})
-
-	// Step 3: Create a template that uses both partials and helpers
-	mainTemplate := `{{> header}}
-
-{{> section sectionTitle="Introduction" content="This is a demonstration of using partials and helpers in Genkit."}}
-
-{{> section sectionTitle="Features" content="Key features include:"}}
-{{listItem "Reusable partials for consistent styling"}}
-{{listItem "Custom helpers for formatting"}}
-{{listItem "The capitalize helper transforms text: Hello"}}
-
-{{> footer}}`
-
-	// Step 4: Parse and execute the template
-	tpl, err = raymond.Parse(mainTemplate)
-	if err != nil {
-		t.Fatalf("Failed to parse template: %v", err)
-	}
-
-	// Register the same partials with the test template
-	tpl.RegisterPartial("header", headerPartial)
-	tpl.RegisterPartial("section", sectionPartial)
-	tpl.RegisterPartial("footer", footerPartial)
-
-	// Register the same helpers with the test template
-	tpl.RegisterHelper("capitalize", func(text string) raymond.SafeString {
-		if text == "" {
-			return raymond.SafeString("")
-		}
-		return raymond.SafeString(strings.ToUpper(text[:1]) + text[1:])
-	})
-	tpl.RegisterHelper("listItem", func(content string) raymond.SafeString {
-		return raymond.SafeString("* " + content)
-	})
-
-	// Execute the template with data
-	data := map[string]any{
-		"title":  "Using Partials and Helpers",
-		"author": "Genkit Team",
-		"date":   "2024-03-28",
-		"year":   "2024",
-	}
-
-	result, err := tpl.Exec(data)
-	if err != nil {
-		t.Fatalf("Failed to execute template: %v", err)
-	}
-
-	// Log the actual output for debugging
-	t.Logf("Actual template output:\n%s", result)
-
-	// Verify the output includes content from partials and helpers
-	expectedContent := []string{
-		"# Using Partials and Helpers",
-		"Author: Genkit Team",
-		"Date: 2024-03-28",
-		"## Introduction",
-		"This is a demonstration of using partials and helpers in Genkit.",
-		"## Features",
-		"Key features include:",
-		"* Reusable partials for consistent styling",
-		"* Custom helpers for formatting",
-		"* The capitalize helper transforms text: Hello",
-		"© 2024 - Generated with Genkit",
-	}
-
-	for _, content := range expectedContent {
-		if !strings.Contains(result, content) {
-			t.Errorf("Expected content '%s' not found in result", content)
-		}
-	}
-
-	t.Log("Successfully demonstrated definePartial and defineHelper usage")
 }
