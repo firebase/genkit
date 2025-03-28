@@ -30,8 +30,10 @@ from genkit.blocks.model import (
     MessageWrapper,
     ModelMiddleware,
 )
+from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
+from genkit.core.error import GenkitError, StatusName
 from genkit.core.registry import Action, ActionKind, Registry
 from genkit.core.typing import (
     GenerateActionOptions,
@@ -39,9 +41,13 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Message,
+    Metadata,
     OutputConfig,
+    Part,
     Role,
     ToolDefinition,
+    ToolRequest,
+    ToolRequestPart,
     ToolResponse,
     ToolResponsePart,
 )
@@ -79,10 +85,26 @@ async def generate_action(
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
+    print(f' - - - raw_request {raw_request}')
 
     assert_valid_tool_names(tools)
 
-    # TODO: interrupts
+    (
+        revised_request,
+        interrupted_response,
+        resumed_tool_message,
+    ) = await _resolve_resume_options(registry, raw_request)
+
+    # NOTE: in the future we should make it possible to interrupt a restart, but
+    # at the moment it's too complicated because it's not clear how to return a
+    # response that amends history but doesn't generate a new message, so we throw
+    if interrupted_response:
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message='One or more tools triggered an interrupt during a restarted execution.',
+            details={'message': interrupted_response.message},
+        )
+    raw_request = revised_request
 
     request = await action_to_generate_request(raw_request, tools, model)
 
@@ -127,7 +149,7 @@ async def generate_action(
             chunk_parser=chunk_parser if formatter else None,
         )
 
-    def wrap_chunks(chunk):
+    def wrap_chunks(role: Role = Role.MODEL):
         """Wrap and process a model response chunk.
 
         This function prepares model response chunks for the stream callback.
@@ -138,7 +160,11 @@ async def generate_action(
         Returns:
             The result of passing the processed chunk to the callback.
         """
-        return on_chunk(make_chunk(Role.MODEL, chunk))
+
+        def wrapper(chunk):
+            on_chunk(make_chunk(role, chunk))
+
+        return wrapper
 
     if not middleware:
         middleware = []
@@ -187,11 +213,15 @@ async def generate_action(
 
         return await current_middleware(req, ctx, next_fn)
 
+    # if resolving the 'resume' option above generated a tool message, stream it.
+    if resumed_tool_message and on_chunk:
+        wrap_chunks('tool')(resumed_tool_message)
+
     model_response = await dispatch(
         0,
         request,
         ActionRunContext(
-            on_chunk=wrap_chunks if on_chunk else None,
+            on_chunk=wrap_chunks() if on_chunk else None,
             context=context,
         ),
     )
@@ -253,7 +283,7 @@ async def generate_action(
         interrupted_resp.finish_message = (
             'One or more tool calls resulted in interrupts.'
         )
-        interrupted_resp.message = revised_model_msg
+        interrupted_resp.message = MessageWrapper(revised_model_msg)
         return interrupted_resp
 
     # If the loop will continue, stream out the tool response message...
@@ -504,32 +534,98 @@ async def resolve_tool_requests(
         A tuple containing the revised model message, the tool message, and the
         transfer preamble.
     """
-    # TODO: interrupts
     # TODO: prompt transfer
-    tool_requests = [
-        x.root.tool_request for x in message.content if x.root.tool_request
-    ]
     tool_dict: dict[str, Action] = {}
     for tool_name in request.tools:
         tool_dict[tool_name] = resolve_tool(registry, tool_name)
 
+    revised_model_message = message._original_message.model_copy(deep=True)
+
+    has_interrupts = False
     response_parts: list[ToolResponsePart] = []
-    for tool_request in tool_requests:
+    i = 0
+    for tool_request_part in message.content:
+        is_tool_request = isinstance(tool_request_part, Part) and isinstance(
+            tool_request_part.root, ToolRequestPart
+        )
+
+        if not is_tool_request:
+            i += 1
+            continue
+
+        tool_request = tool_request_part.root.tool_request
+
         if tool_request.name not in tool_dict:
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
-        tool_response = (await tool.arun_raw(tool_request.input)).response
-        response_parts.append(
-            ToolResponsePart(
-                toolResponse=ToolResponse(
-                    name=tool_request.name,
-                    ref=tool_request.ref,
-                    output=dump_dict(tool_response),
-                )
-            )
+        tool_response_part, interrupt_part = await _resolve_tool_request(
+            tool, tool_request_part.root
         )
 
+        if tool_response_part:
+            revised_model_message.content[i] = _to_pending_response(
+                tool_request_part.root, tool_response_part.root
+            )
+            response_parts.append(tool_response_part)
+
+        if interrupt_part:
+            has_interrupts = True
+            revised_model_message.content[i] = interrupt_part
+
+        i += 1
+
+    if has_interrupts:
+        return (revised_model_message, None, None)
+
     return (None, Message(role=Role.TOOL, content=response_parts), None)
+
+
+def _to_pending_response(
+    request: ToolRequestPart, response: ToolResponsePart
+) -> ToolRequestPart:
+    metadata = request.metadata.root if request.metadata else {}
+    metadata['pendingOutput'] = response.tool_response.output
+    return Part(tool_request=request.tool_request, metadata=metadata)
+
+
+async def _resolve_tool_request(
+    tool: Action, tool_request_part: ToolRequestPart
+) -> tuple[Part, Part]:
+    try:
+        tool_response = (
+            await tool.arun_raw(tool_request_part.tool_request.input)
+        ).response
+        return (
+            Part(
+                tool_response=ToolResponse(
+                    name=tool_request_part.tool_request.name,
+                    ref=tool_request_part.tool_request.ref,
+                    output=dump_dict(tool_response),
+                )
+            ),
+            None,
+        )
+    except GenkitError as e:
+        if e.cause and isinstance(e.cause, ToolInterruptError):
+            interrupt_error = e.cause
+            return (
+                None,
+                Part(
+                    tool_request=tool_request_part.tool_request,
+                    metadata={
+                        **(
+                            tool_request_part.metadata
+                            if tool_request_part.metadata
+                            else {}
+                        ),
+                        'interrupt': interrupt_error.metadata
+                        if interrupt_error.metadata
+                        else True,
+                    },
+                ),
+            )
+
+        raise e
 
 
 def resolve_tool(registry: Registry, tool_name: str):
@@ -546,6 +642,137 @@ def resolve_tool(registry: Registry, tool_name: str):
         ValueError: If the tool could not be resolved.
     """
     return registry.lookup_action(kind=ActionKind.TOOL, name=tool_name)
+
+
+async def _resolve_resume_options(
+    registry: Registry, raw_request: GenerateActionOptions
+) -> tuple[GenerateActionOptions, GenerateResponse, Message]:
+    if not raw_request.resume:
+        return (raw_request, None, None)
+
+    messages = raw_request.messages
+    last_message = messages[-1]
+    tool_requests = [p for p in last_message.content if p.root.tool_request]
+    if (
+        not last_message
+        or last_message.role != Role.MODEL
+        or len(tool_requests) == 0
+    ):
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message="Cannot 'resume' generation unless the previous message is a model message with at least one tool request.",
+        )
+
+    i = 0
+    tool_responses = []
+    for part in last_message.content:
+        if not isinstance(part.root, ToolRequestPart):
+            i += 1
+            continue
+
+        resumed_request, resumed_response = _resolve_resumed_tool_request(
+            raw_request, part
+        )
+        tool_responses.append(resumed_response)
+        last_message.content[i] = resumed_request
+        i += 1
+
+    if len(tool_responses) != len(tool_requests):
+        raise GenkitError(
+            status='FAILED_PRECONDITION',
+            message=f'Ecxpected {len(tool_requests)} responses, but resolved to {len(tool_responses)}',
+        )
+
+    tool_message = Message(
+        role=Role.TOOL,
+        content=tool_responses,
+        metadata={
+            'resumed': raw_request.resume.metadata
+            if raw_request.resume.metadata
+            else True
+        },
+    )
+
+    revised_request = raw_request.model_copy(deep=True)
+    revised_request.resume = None
+    revised_request.messages.append(tool_message)
+
+    return (revised_request, None, tool_message)
+
+
+def _resolve_resumed_tool_request(
+    raw_request: GenerateActionOptions, tool_request_part: Part
+) -> tuple[Part, Part]:
+    if (
+        tool_request_part.root.metadata
+        and 'pendingOutput' in tool_request_part.root.metadata.root
+    ):
+        metadata = tool_request_part.root.metadata.root.copy()
+        pending_output = metadata['pendingOutput']
+        del metadata['pendingOutput']
+        metadata['source'] = 'pending'
+        return (
+            tool_request_part,
+            Part(
+                tool_response=ToolResponse(
+                    name=tool_request_part.root.tool_request.name,
+                    ref=tool_request_part.root.tool_request.ref,
+                    output=dump_dict(pending_output),
+                ),
+                metadata=Metadata(root=metadata),
+            ),
+        )
+
+    # if there's a corresponding reply, append it to toolResponses
+    provided_response = _find_corresponding_tool_response(
+        raw_request.resume.respond
+        if raw_request.resume and raw_request.resume.respond
+        else [],
+        tool_request_part.root,
+    )
+    if provided_response:
+        # remove the 'interrupt' but leave a 'resolvedInterrupt'
+        metadata = (
+            tool_request_part.root.metadata.root
+            if tool_request_part.root.metadata
+            else {}
+        )
+        interrupt = metadata.get('interrupt')
+        if interrupt:
+            del metadata['interrupt']
+        return (
+            Part(
+                tool_request=ToolRequest(
+                    name=tool_request_part.root.tool_request.name,
+                    ref=tool_request_part.root.tool_request.ref,
+                    input=tool_request_part.root.tool_request.input,
+                ),
+                metadata=Metadata(
+                    root={**metadata, 'resolvedInterrupt': interrupt}
+                ),
+            ),
+            provided_response,
+        )
+
+    raise GenkitError(
+        status='INVALID_ARGUMENT',
+        message=f"Unresolved tool request '{tool_request_part.root.tool_request.name}' "
+        + "was not handled by the 'resume' argument. You must supply replies or "
+        + 'restarts for all interrupted tool requests.',
+    )
+
+
+def _find_corresponding_tool_response(
+    responses: list[ToolResponsePart], request: ToolRequestPart
+) -> Part | None:
+    """Finds and returns a response corresponding to the request."""
+    for p in responses:
+        if (
+            p.tool_response.name == request.tool_request.name
+            and p.tool_response.ref == request.tool_request.ref
+        ):
+            return p
+    return None
 
 
 # TODO: extend GenkitError

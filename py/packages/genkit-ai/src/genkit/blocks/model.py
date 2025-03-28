@@ -38,12 +38,14 @@ from genkit.core.action import ActionRunContext
 from genkit.core.extract import extract_json
 from genkit.core.typing import (
     Candidate,
+    DocumentPart,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
     Message,
     Part,
+    ToolRequestPart,
 )
 
 # Type alias for a function that takes a GenerateRequest and returns
@@ -76,6 +78,7 @@ class MessageWrapper(Message):
             content=message.content,
             metadata=message.metadata,
         )
+        self._original_message = message
 
     @cached_property
     def text(self) -> str:
@@ -85,6 +88,15 @@ class MessageWrapper(Message):
             str: The combined text content from the current chunk.
         """
         return text_from_message(self)
+
+    @cached_property
+    def tool_requests(self) -> list[ToolRequestPart]:
+        """Returns all tool request parts of the response as a list.
+
+        Returns:
+            list[ToolRequestPart]: list of tool requests present in this response.
+        """
+        return [p for p in self.content if isinstance(p.root, ToolRequestPart)]
 
 
 class GenerateResponseWrapper(GenerateResponse):
@@ -106,7 +118,9 @@ class GenerateResponseWrapper(GenerateResponse):
             request: The GenerateRequest object associated with the response.
         """
         super().__init__(
-            message=MessageWrapper(response.message),
+            message=MessageWrapper(response.message)
+            if not isinstance(response.message, MessageWrapper)
+            else response.message,
             finish_reason=response.finish_reason,
             finish_message=response.finish_message,
             latency_ms=response.latency_ms,
@@ -156,6 +170,27 @@ class GenerateResponseWrapper(GenerateResponse):
         if self.message_parser:
             return self.message_parser(self.message)
         return extract_json(self.text)
+
+    @cached_property
+    def messages(self) -> list[Message]:
+        """Returns all messages of the response, including request messages as a list.
+
+        Returns:
+            list[Message]: list of messages.
+        """
+        return [
+            *(self.request.messages if self.request else []),
+            self.message._original_message,
+        ]
+
+    @cached_property
+    def tool_requests(self) -> list[ToolRequestPart]:
+        """Returns all tool request parts of the response as a list.
+
+        Returns:
+            list[ToolRequestPart]: list of tool requests present in this response.
+        """
+        return self.message.tool_requests
 
 
 class GenerateResponseChunkWrapper(GenerateResponseChunk):
@@ -235,7 +270,11 @@ def text_from_message(msg: Message) -> str:
 def text_from_content(content: list[Part]) -> str:
     """Extracts text from message content (parts)."""
     return ''.join(
-        p.root.text if p.root.text is not None else '' for p in content
+        p.root.text
+        if (isinstance(p, Part) or isinstance(p, DocumentPart))
+        and p.root.text is not None
+        else ''
+        for p in content
     )
 
 
