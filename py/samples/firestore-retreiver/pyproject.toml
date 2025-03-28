@@ -16,11 +16,12 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
+  "firebase-admin",
   "pydantic>=2.10.5",
 ]
-description = "basic-gemini Genkit sample"
+description = "firestore-retreiver Genkit sample"
 license = { text = "Apache-2.0" }
-name = "basic-gemini"
+name = "firestore-retreiver"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
@@ -30,4 +31,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/basic-gemini"]
+packages = ["src/firestore-retreiver"]
