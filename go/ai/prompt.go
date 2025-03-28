@@ -293,6 +293,95 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 	}, nil
 }
 
+// renderSystemPrompt renders a system prompt message.
+func renderSystemPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
+	if opts.SystemFn == nil {
+		return messages, nil
+	}
+
+	templateText, err := opts.SystemFn(ctx, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(parts) != 0 {
+		messages = append(messages, NewSystemMessage(parts...))
+	}
+
+	return messages, nil
+}
+
+// renderUserPrompt renders a user prompt message.
+func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
+	if opts.PromptFn == nil {
+		return messages, nil
+	}
+
+	templateText, err := opts.PromptFn(ctx, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(parts) != 0 {
+		messages = append(messages, NewUserMessage(parts...))
+	}
+
+	return messages, nil
+}
+
+// renderMessages renders a slice of messages.
+func renderMessages(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
+	if opts.MessagesFn == nil {
+		return messages, nil
+	}
+
+	msgs, err := opts.MessagesFn(ctx, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range msgs {
+		for _, part := range msg.Content {
+			if part.IsText() {
+				parts, err := renderPrompt(ctx, opts, part.Text, input, dp)
+				if err != nil {
+					return nil, err
+				}
+				var rendered string
+				if len(parts) != 0 {
+					rendered = parts[0].Text
+				}
+				msg.Content[0].Text = rendered
+			}
+		}
+	}
+
+	return append(messages, msgs...), nil
+}
+
+func renderPrompt(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Part, error) {
+	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
+	if err != nil {
+		return []*Part{}, err
+	}
+
+	return renderDotpromptToParts(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
+		Input: dotprompt.PromptMetadataInput{
+			Default: opts.DefaultInput,
+		},
+	})
+}
+
 func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Part, error) {
 	// Prepare the context for rendering
 	context := map[string]any{}
@@ -340,109 +429,6 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 		}
 	}
 	return result, nil
-}
-
-// renderSystemPrompt renders a system prompt message.
-func renderSystemPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
-	if opts.SystemFn == nil {
-		return messages, nil
-	}
-
-	templateText, err := opts.SystemFn(ctx, raw)
-	if err != nil {
-		return nil, err
-	}
-
-	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
-	if err != nil {
-		return []*Message{}, err
-	}
-
-	parts, err := renderDotpromptToParts(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
-		Input: dotprompt.PromptMetadataInput{
-			Default: opts.DefaultInput,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(parts) != 0 {
-		messages = append(messages, NewSystemMessage(parts...))
-	}
-
-	return messages, nil
-}
-
-// renderUserPrompt renders a user prompt message.
-func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
-	if opts.PromptFn == nil {
-		return messages, nil
-	}
-
-	templateText, err := opts.PromptFn(ctx, raw)
-	if err != nil {
-		return nil, err
-	}
-
-	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
-	if err != nil {
-		return []*Message{}, err
-	}
-
-	parts, err := renderDotpromptToParts(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
-		Input: dotprompt.PromptMetadataInput{
-			Default: opts.DefaultInput,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(parts) != 0 {
-		messages = append(messages, NewUserMessage(parts...))
-	}
-
-	return messages, nil
-}
-
-// renderMessages renders a slice of messages.
-func renderMessages(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
-	if opts.MessagesFn == nil {
-		return messages, nil
-	}
-
-	msgs, err := opts.MessagesFn(ctx, raw)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, msg := range msgs {
-		for _, part := range msg.Content {
-			if part.IsText() {
-				renderedFunc, err := dp.Compile(part.Text, &dotprompt.PromptMetadata{})
-				if err != nil {
-					return nil, err
-				}
-
-				parts, err := renderDotpromptToParts(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
-					Input: dotprompt.PromptMetadataInput{
-						Default: opts.DefaultInput,
-					},
-				})
-				if err != nil {
-					return nil, err
-				}
-				var rendered string
-				if len(parts) != 0 {
-					rendered = parts[0].Text
-				}
-				msg.Content[0].Text = rendered
-			}
-		}
-	}
-
-	return append(messages, msgs...), nil
 }
 
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
