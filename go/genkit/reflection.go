@@ -444,7 +444,7 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 		return err
 	}
 	_, err = w.Write(data)
-	if err := json.NewEncoder(w).Encode(value); err != nil {
+	if err != nil {
 		logger.FromContext(ctx).Error("writing output", "err", err)
 	}
 	if f, ok := w.(http.Flusher); ok {
