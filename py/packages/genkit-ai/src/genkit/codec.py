@@ -19,7 +19,6 @@
 import json
 from typing import Any
 
-import structlog
 from pydantic import BaseModel
 
 
@@ -44,9 +43,6 @@ def dump_dict(obj: Any):
         return obj
 
 
-logger = structlog.getLogger(__name__)
-
-
 def dump_json(obj: Any, indent=None) -> str:
     """Dumps an object to a JSON string.
 
@@ -61,7 +57,6 @@ def dump_json(obj: Any, indent=None) -> str:
     Returns:
         A JSON string.
     """
-    logger.debug(f'{str(obj)}')
     if isinstance(obj, BaseModel):
         return obj.model_dump_json(
             by_alias=True, exclude_none=True, indent=indent

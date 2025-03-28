@@ -32,7 +32,7 @@ import sys
 import traceback
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
-from typing import Any, TypeVar
+from typing import Any
 
 import requests  # type: ignore[import-untyped]
 import structlog
@@ -177,11 +177,9 @@ if is_dev_environment():
 else:
     tracer = trace_api.get_tracer('genkit-tracer', 'v1')
 
-T = TypeVar('T')
-
 
 @contextmanager
-def run_in_new_span[T](
+def run_in_new_span(
     metadata: SpanMetadata,
     labels: dict[str, str] | None = None,
     links: list[trace_api.Link] | None = None,
@@ -231,10 +229,6 @@ class GenkitSpan:
     def __getattr__(self, name):
         """Passthrough for all OpenTelemetry Span attributes."""
         return getattr(self._span, name)
-
-    def get_otel_span(self):
-        """Return underlying OpenTelemetry span."""
-        return self._span
 
     def set_genkit_attribute(self, key: str, value: types.AttributeValue):
         """Set Genkit specific attribute, with the `genkit` prefix."""
