@@ -14,6 +14,109 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Gemini models for use with Genkit.
+
+# Naming convention
+Gemini models follow the following naming conventions:
+
+                             +------- Tier/Variant (e.g., pro, flash)
+                             |      +---------- Modifier (Optional, e.g., exp)
+                             |      |         +--- Date/Snapshot ID (Optional)
+                             v      v         v
+        gemini - <VER> - <TIER> [-MOD] [-DATE]
+          ^        ^           ^
+          |        |           |
+(Family)--+        |           +-- Size Specifier (Optional, e.g., -8b,
+          |        |               often follows TIER like 'flash')
+          |        |
+          +--------+---------- Version (Major generation, e.g., 1.0, 1.5, 2.0)
+
+
+## Examples
+
+gemini - 1.5 - flash - 8b
+  ^      ^      ^      ^
+  |      |      |      +-- Size Specifier
+  |      |      +--------- Tier/Variant
+  |      +----------------- Version
+  +------------------------ Family
+
+gemini - 2.0 - pro - exp - 02-05
+  ^      ^      ^     ^      ^
+  |      |      |     |      +-- Date/Snapshot ID
+  |      |      |     +--------- Modifier
+  |      |      +---------------- Tier/Variant
+  |      +------------------------ Version
+  +------------------------------- Family
+
+## Terminology
+
+Family (`gemini`)
+: The base name identifying the overarching group or brand of related AI models
+  developed by Google (e.g., Gemini).
+
+Version Number (e.g., `1.0`, `1.5`, `2.0`, `2.5`)
+: Indicates the major generation or release cycle of the model within the
+  family. Higher numbers typically denote newer iterations, often incorporating
+  significant improvements, architectural changes, or new capabilities compared
+  to previous versions.
+
+Tier / Variant (e.g., `pro`, `flash`)
+: Distinguishes models within the same generation based on specific
+  characteristics like performance profile, size, speed, efficiency, or intended
+  primary use case.
+
+  * **`pro`**: Generally indicates a high-capability, powerful, and versatile
+    model within its generation, suitable for a wide range of complex tasks.
+
+  * **`flash`**: Often signifies a model optimized for speed, latency, and
+    cost-efficiency, potentially offering a different balance of performance
+    characteristics compared to the `pro` variant.
+
+Size Specifier (e.g., `8b`)
+: An optional component, frequently appended to a Tier/Variant (like `flash`),
+  providing more specific detail about the model's scale. This often relates to
+  the approximate number of parameters (e.g., `8b` likely suggests 8 billion
+  parameters), influencing its performance and resource requirements.
+
+Modifier (e.g., `exp`)
+: An optional flag indicating the model's release status, stability, or intended
+  audience.
+
+  * **`exp`**: Stands for "Experimental". Models marked with `exp` are typically
+    previews or early releases. They are subject to change, updates, or removal
+    without the standard notice periods applied to stable models, and they lack
+    long-term stability guarantees, making them generally unsuitable for
+    production systems requiring stability.
+
+Date / Snapshot ID (e.g., `02-05`, `03-25`)
+: An optional identifier, commonly seen with experimental (`exp`) models. It
+  likely represents a specific build date (often in MM-DD format) or a unique
+  snapshot identifier, helping to distinguish between different iterations or
+  releases within the experimental track.
+
+# Model support
+
+The following models are currently supported:
+
+| Model                       | Description               | Deprecated    |
+|-----------------------------|---------------------------|---------------|
+| `gemini-1.0-pro`            | Gemini 1.0 Pro            | July 12, 2024 |
+| `gemini-1.5-pro`            | Gemini 1.5 Pro            | No            |
+| `gemini-1.5-flash`          | Gemini 1.5 Flash          | No            |
+| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | No            |
+| `gemini-2.0-flash`          | Gemini 2.0 Flash          | No            |
+| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | No            |
+| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | No            |
+| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | No            |
+
+The following models are supported for API only:
+
+| Model                  | Description                   | Deprecated   |
+|------------------------|-------------------------------|--------------|
+| `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | No           |
+"""
+
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
@@ -37,7 +140,7 @@ from genkit.core.typing import (
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
 
-gemini10Pro = ModelInfo(
+GEMINI_10_PRO = ModelInfo(
     label='Google AI - Gemini Pro',
     versions=['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
     supports=Supports(
@@ -51,7 +154,7 @@ gemini10Pro = ModelInfo(
 )
 
 
-gemini15Pro = ModelInfo(
+GEMINI_15_PRO = ModelInfo(
     label='Google AI - Gemini 1.5 Pro',
     versions=[
         'gemini-1.5-pro-latest',
@@ -69,7 +172,7 @@ gemini15Pro = ModelInfo(
 )
 
 
-gemini15Flash = ModelInfo(
+GEMINI_15_FLASH = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     versions=[
         'gemini-1.5-flash-latest',
@@ -87,7 +190,7 @@ gemini15Flash = ModelInfo(
 )
 
 
-gemini15Flash8b = ModelInfo(
+GEMINI_15_FLASH_8B = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     versions=['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
     supports=Supports(
@@ -101,7 +204,7 @@ gemini15Flash8b = ModelInfo(
 )
 
 
-gemini20Flash = ModelInfo(
+GEMINI_20_FLASH = ModelInfo(
     label='Google AI - Gemini 2.0 Flash',
     supports=Supports(
         multiturn=True,
@@ -114,7 +217,20 @@ gemini20Flash = ModelInfo(
 )
 
 
-gemini20ProExp0205 = ModelInfo(
+GEMINI_20_FLASH_LITE = ModelInfo(
+    label='Google AI - Gemini 2.0 Flash Lite',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
+
+GEMINI_20_PRO_EXP_0205 = ModelInfo(
     label='Google AI - Gemini 2.0 Pro Exp 02-05',
     supports=Supports(
         multiturn=True,
@@ -126,8 +242,20 @@ gemini20ProExp0205 = ModelInfo(
     ),
 )
 
-gemini20FlashExpImaGen = ModelInfo(
+GEMINI_20_FLASH_EXP_IMAGEN = ModelInfo(
     label='Google AI - Gemini 2.0 Flash Experimental',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
+GEMINI_25_PRO_EXP_0325 = ModelInfo(
+    label='Google AI - Gemini 2.5 Pro Exp 03-25',
     supports=Supports(
         multiturn=True,
         media=True,
@@ -140,36 +268,53 @@ gemini20FlashExpImaGen = ModelInfo(
 
 
 class GeminiVersion(StrEnum):
+    """Gemini models."""
+
     GEMINI_1_0_PRO = 'gemini-1.0-pro'
     GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
     GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
+    GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
+    GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
 
 
 class GeminiApiOnlyVersion(StrEnum):
+    """Gemini API only models."""
+
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
 
 
 SUPPORTED_MODELS = {
-    GeminiVersion.GEMINI_1_0_PRO: gemini10Pro,
-    GeminiVersion.GEMINI_1_5_PRO: gemini15Pro,
-    GeminiVersion.GEMINI_1_5_FLASH: gemini15Flash,
-    GeminiVersion.GEMINI_1_5_FLASH_8B: gemini15Flash8b,
-    GeminiVersion.GEMINI_2_0_FLASH: gemini20Flash,
-    GeminiVersion.GEMINI_2_0_PRO_EXP_02_05: gemini20ProExp0205,
-    GeminiApiOnlyVersion.GEMINI_2_0_FLASH_EXP: gemini20FlashExpImaGen,
+    GeminiVersion.GEMINI_1_0_PRO: GEMINI_10_PRO,
+    GeminiVersion.GEMINI_1_5_PRO: GEMINI_15_PRO,
+    GeminiVersion.GEMINI_1_5_FLASH: GEMINI_15_FLASH,
+    GeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_15_FLASH_8B,
+    GeminiVersion.GEMINI_2_0_FLASH: GEMINI_20_FLASH,
+    GeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_20_FLASH_LITE,
+    GeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_20_PRO_EXP_0205,
+    GeminiApiOnlyVersion.GEMINI_2_0_FLASH_EXP: GEMINI_20_FLASH_EXP_IMAGEN,
+    GeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_25_PRO_EXP_0325,
 }
 
 
 class GeminiModel:
+    """Gemini model."""
+
     def __init__(
         self,
         version: str | GeminiVersion | GeminiApiOnlyVersion,
         client: genai.Client,
         registry: GenkitRegistry,
     ):
+        """Initialize Gemini model.
+
+        Args:
+            version: Gemini version
+            client: Google AI client
+            registry: Genkit registry
+        """
         self._version = version
         self._client = client
         self._registry = registry
@@ -299,7 +444,6 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-
         request_contents = self._build_messages(request)
 
         request_cfg = self._genkit_to_googleai_cfg(request)
@@ -316,16 +460,15 @@ class GeminiModel:
         request_contents: list[genai.types.Content],
         request_cfg: genai.types.GenerateContentConfig,
     ) -> GenerateResponse:
-        """Call google-genai generate
+        """Call google-genai generate.
 
         Args:
             request_contents: request contents
             request_cfg: request configuration
 
         Returns:
-            genai response
+            genai response.
         """
-
         response = await self._client.aio.models.generate_content(
             model=self._version, contents=request_contents, config=request_cfg
         )
@@ -345,7 +488,7 @@ class GeminiModel:
         request_cfg: genai.types.GenerateContentConfig | None,
         ctx: ActionRunContext,
     ) -> GenerateResponse:
-        """Call google-genai generate for streaming
+        """Call google-genai generate for streaming.
 
         Args:
             request_contents: request contents
@@ -355,12 +498,10 @@ class GeminiModel:
         Returns:
             empty genai response
         """
-
-        async for (
-            response_chunk
-        ) in await self._client.aio.models.generate_content_stream(
+        generator = self._client.aio.models.generate_content_stream(
             model=self._version, contents=request_contents, config=request_cfg
-        ):
+        )
+        async for response_chunk in await generator:
             content = self._contents_from_response(response_chunk)
 
             ctx.send_chunk(
@@ -378,10 +519,10 @@ class GeminiModel:
 
     @cached_property
     def metadata(self) -> dict:
-        """Get model metadata
+        """Get model metadata.
 
         Returns:
-            model metadata
+            model metadata.
         """
         supports = SUPPORTED_MODELS[self._version].supports.model_dump()
         return {
@@ -391,18 +532,23 @@ class GeminiModel:
         }
 
     def is_multimode(self):
+        """Check if the model supports media.
+
+        Returns:
+            True if the model supports media, False otherwise.
+        """
         return SUPPORTED_MODELS[self._version].supports.media
 
     def _build_messages(
         self, request: GenerateRequest
     ) -> list[genai.types.Content]:
-        """Build google-genai request contents from Genkit request
+        """Build google-genai request contents from Genkit request.
 
         Args:
-            request: Genkit request
+            request: Genkit request.
 
         Returns:
-            list of google-genai contents
+            list of google-genai contents.
         """
         request_contents: list[genai.types.Content] = []
 
@@ -419,15 +565,14 @@ class GeminiModel:
     def _contents_from_response(
         self, response: genai.types.GenerateContentResponse
     ) -> list:
-        """Retrieve contents from google-genai response
+        """Retrieve contents from google-genai response.
 
         Args:
-            response: google-genai response
+            response: google-genai response.
 
         Returns:
-            list of generated contents
+            list of generated contents.
         """
-
         content = []
         if response.candidates:
             for candidate in response.candidates:
@@ -439,13 +584,13 @@ class GeminiModel:
     def _genkit_to_googleai_cfg(
         self, request: GenerateRequest
     ) -> genai.types.GenerateContentConfig | None:
-        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
+        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
 
         Args:
-            request: Genkit request
+            request: Genkit request.
 
         Returns:
-            Google Ai request config or None
+            Google Ai request config or None.
         """
         cfg = None
 
