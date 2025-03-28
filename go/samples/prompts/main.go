@@ -33,6 +33,7 @@ func main() {
 	g, err := genkit.Init(ctx,
 		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.VertexAI{}),
+		genkit.WithPromptDir("prompts"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -41,6 +42,7 @@ func main() {
 	SimplePrompt(ctx, g)
 	PromptWithInput(ctx, g)
 	PromptWithOutputType(ctx, g)
+	PromptWithOutputTypeDotprompt(ctx, g)
 	PromptWithTool(ctx, g)
 	PromptWithMessageHistory(ctx, g)
 	PromptWithExecuteOverrides(ctx, g)
@@ -70,7 +72,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
@@ -84,6 +86,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 		g, "PromptWithInput",
 		ai.WithInputType(HelloPromptInput{UserName: "Alex", Theme: "beach vacation"}),
 		ai.WithSystemText("You are a helpful AI assistant named Walt. Today's theme is {{Theme}}, respond in this style. Say hello to {{UserName}}."),
+		ai.WithOutputFormat(ai.OutputFormatJSON),
 		ai.WithPromptText("Hello, who are you?"),
 	)
 	if err != nil {
@@ -96,7 +99,7 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
@@ -133,6 +136,41 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	}
 }
 
+func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
+	type countryData struct {
+		Name      string `json:"name"`
+		Language  string `json:"language"`
+		Habitants int    `json:"habitants"`
+	}
+
+	type countries struct {
+		Countries []countryData `json:"countries"`
+	}
+	prompt := genkit.LookupPrompt(g, "local", "countries")
+	if prompt == nil {
+		log.Fatal("empty prompt")
+	}
+
+	// Call the model.
+	resp, err := prompt.Execute(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var c countries
+	err = json.Unmarshal([]byte(resp.Text()), &c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pretty, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(pretty))
+}
+
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -162,7 +200,7 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
@@ -185,7 +223,7 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
@@ -208,7 +246,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
 
 func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
@@ -237,5 +275,5 @@ func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	fmt.Print(resp.Text())
+	fmt.Println(resp.Text())
 }
