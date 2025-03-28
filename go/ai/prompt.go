@@ -148,6 +148,13 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 		actionOpts.ReturnToolRequests = genOpts.ReturnToolRequests
 	}
 
+	actionOpts.Output = &GenerateActionOutputConfig{
+		JsonSchema:   p.OutputSchema,
+		Format:       string(p.OutputFormat),
+		Instructions: p.OutputInstructions,
+		Constrained:  p.OutputConstrained,
+	}
+
 	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
 }
 
@@ -271,27 +278,6 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		tools = append(tools, t.Definition().Name)
 	}
 
-	// Find the correct formatter
-	resolvedFormat, err := ResolveFormat(p.registry, p.OutputSchema, string(p.OutputFormat))
-	if err != nil {
-		return nil, err
-	}
-
-	// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
-	// @TODO: user defined custom parser / instructions
-	instructions := ResolveInstructions(resolvedFormat, p.OutputSchema, "")
-	config := resolvedFormat.Handler(p.OutputSchema).Config()
-
-	// Allow override constraint
-	if p.outputOptions.OutputConstrained != nil {
-		config.Constrained = *p.outputOptions.OutputConstrained
-	}
-
-	// Override request
-	if ShouldInjectFormatInstructions(config, p.outputOptions.OutputInstructions) {
-		messages = injectInstructions(messages, instructions)
-	}
-
 	return &GenerateActionOptions{
 		Config:             p.Config,
 		ToolChoice:         p.ToolChoice,
@@ -300,7 +286,10 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		ReturnToolRequests: p.ReturnToolRequests,
 		Messages:           messages,
 		Tools:              tools,
-		Output:             config,
+		Output: &GenerateActionOutputConfig{
+			Format:     string(p.OutputFormat),
+			JsonSchema: p.OutputSchema,
+		},
 	}, nil
 }
 

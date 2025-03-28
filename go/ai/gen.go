@@ -118,10 +118,10 @@ const (
 )
 
 type GenerateActionOutputConfig struct {
-	Constrained  bool           `json:"constrained,omitempty"`
+	Constrained  *bool          `json:"constrained,omitempty"`
 	ContentType  string         `json:"contentType,omitempty"`
 	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
+	Instructions *string        `json:"instructions,omitempty"`
 	JsonSchema   map[string]any `json:"jsonSchema,omitempty"`
 }
 

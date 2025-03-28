@@ -365,7 +365,7 @@ func WithPromptFn(fn promptFn) PromptingOption {
 type outputOptions struct {
 	OutputSchema       map[string]any // JSON schema of the output.
 	OutputFormat       OutputFormat   // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
-	OutputInstructions *bool          // Whether format instructions should be automatically added.
+	OutputInstructions *string        // Whether format instructions should be automatically added.
 	OutputConstrained  *bool          // Whether output should be constrained.
 }
 
@@ -434,7 +434,11 @@ func WithOutputFormat(format OutputFormat) OutputOption {
 }
 
 // WithOutputInstructions sets whether output instructions should be added.
-func WithOutputInstructions(instructions bool) OutputOption {
+func WithOutputInstructions(addInstructions bool) OutputOption {
+	var instructions string
+	if addInstructions {
+		instructions = ""
+	}
 	return &outputOptions{OutputInstructions: &instructions}
 }
 

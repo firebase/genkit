@@ -180,13 +180,32 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var output *OutputConfig
+	var config *OutputConfig
 	if opts.Output != nil {
-		output = &OutputConfig{
-			Constrained: opts.Output.Constrained,
-			ContentType: opts.Output.ContentType,
-			Format:      opts.Output.Format,
-			Schema:      opts.Output.JsonSchema,
+		// Find the correct formatter
+		resolvedFormat, err := ResolveFormat(r, opts.Output.JsonSchema, string(opts.Output.Format))
+		if err != nil {
+			return nil, err
+		}
+
+		// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
+		// @TODO: user defined custom parser / instructions
+		iInstructions := ResolveInstructions(resolvedFormat, opts.Output.JsonSchema, "")
+		config = resolvedFormat.Handler(opts.Output.JsonSchema).Config()
+
+		// Allow override constraint
+		if opts.Output.Constrained != nil {
+			config.Constrained = *opts.Output.Constrained
+		}
+
+		// Allow override instructions
+		if opts.Output.Instructions != nil {
+			config.Instructions = *opts.Output.Instructions
+		}
+
+		// Override request
+		if ShouldInjectFormatInstructions(config, opts.Output.Instructions) {
+			opts.Messages = injectInstructions(opts.Messages, iInstructions)
 		}
 	}
 
@@ -196,7 +215,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Docs:       opts.Docs,
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
-		Output:     output,
+		Output:     config,
 	}
 
 	fn := core.ChainMiddleware(mw...)(model.Generate)
@@ -299,27 +318,6 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewUserTextMessage(prompt))
 	}
 
-	// Find the correct formatter
-	resolvedFormat, err := ResolveFormat(r, genOpts.OutputSchema, string(genOpts.OutputFormat))
-	if err != nil {
-		return nil, err
-	}
-
-	// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
-	// @TODO: user defined custom parser / instructions
-	instructions := ResolveInstructions(resolvedFormat, genOpts.OutputSchema, "")
-	config := resolvedFormat.Handler(genOpts.OutputSchema).Config()
-
-	// Allow override constraint
-	if genOpts.outputOptions.OutputConstrained != nil {
-		config.Constrained = *genOpts.outputOptions.OutputConstrained
-	}
-
-	// Override request
-	if ShouldInjectFormatInstructions(config, genOpts.outputOptions.OutputInstructions) {
-		messages = injectInstructions(messages, instructions)
-	}
-
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -329,7 +327,12 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
 		ReturnToolRequests: genOpts.ReturnToolRequests,
-		Output:             config,
+		Output: &GenerateActionOutputConfig{
+			JsonSchema:   genOpts.OutputSchema,
+			Format:       string(genOpts.OutputFormat),
+			Instructions: genOpts.OutputInstructions,
+			Constrained:  genOpts.OutputConstrained,
+		},
 	}
 
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)

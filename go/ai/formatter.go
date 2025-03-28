@@ -40,7 +40,7 @@ type Formatter interface {
 type FormatterHandler interface {
 	ParseMessage(message *Message) (*Message, error)
 	Instructions() string
-	Config() *GenerateActionOutputConfig
+	Config() *OutputConfig
 }
 
 // DefineFormatter creates a new Formatter and registers it.
@@ -99,8 +99,8 @@ func ResolveInstructions(format Formatter, schema map[string]any, instructions s
 }
 
 // ShouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.
-func ShouldInjectFormatInstructions(formatConfig *GenerateActionOutputConfig, rawRequestInstructions *bool) bool {
-	return formatConfig.Instructions != "" || !formatConfig.Constrained || (rawRequestInstructions != nil && *rawRequestInstructions)
+func ShouldInjectFormatInstructions(formatConfig *OutputConfig, rawRequestInstructions *string) bool {
+	return rawRequestInstructions != nil || !formatConfig.Constrained
 }
 
 // SimulateConstrainedGeneration simulates constrained generation by injecting generation instructions into the user message.

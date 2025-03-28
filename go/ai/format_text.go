@@ -20,14 +20,14 @@ type TextFormatter struct {
 
 type textHandler struct {
 	instructions string
-	output       *GenerateActionOutputConfig
+	output       *OutputConfig
 }
 
 func (j TextFormatter) Name() string {
 	return j.FormatName
 }
 
-func (j textHandler) Config() *GenerateActionOutputConfig {
+func (j textHandler) Config() *OutputConfig {
 	return j.output
 }
 
@@ -37,7 +37,7 @@ func (j textHandler) Instructions() string {
 
 func (j TextFormatter) Handler(schema map[string]any) FormatterHandler {
 	handler := &textHandler{
-		output: &GenerateActionOutputConfig{
+		output: &OutputConfig{
 			ContentType: "text/plain",
 		},
 	}

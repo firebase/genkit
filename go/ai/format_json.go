@@ -30,7 +30,7 @@ type JSONFormatter struct {
 
 type jsonHandler struct {
 	instructions string
-	output       *GenerateActionOutputConfig
+	output       *OutputConfig
 }
 
 func (j JSONFormatter) Name() string {
@@ -41,7 +41,7 @@ func (j jsonHandler) Instructions() string {
 	return j.instructions
 }
 
-func (j jsonHandler) Config() *GenerateActionOutputConfig {
+func (j jsonHandler) Config() *OutputConfig {
 	return j.output
 }
 
@@ -56,13 +56,13 @@ func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
 			instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON)
 		}
 	}
-
+	constrained := true
 	handler := &jsonHandler{
 		instructions: instructions,
-		output: &GenerateActionOutputConfig{
+		output: &OutputConfig{
 			Format:      string(OutputFormatJSON),
-			JsonSchema:  schema,
-			Constrained: true,
+			Schema:      schema,
+			Constrained: constrained,
 			ContentType: "application/json",
 		},
 	}
@@ -87,7 +87,7 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 			text := base.ExtractJSONFromMarkdown(part.Text)
 
 			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(j.output.JsonSchema)
+			schemaBytes, err := json.Marshal(j.output.Schema)
 			if err != nil {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}

@@ -412,9 +412,12 @@ func TestGenerateOptionsComplete(t *testing.T) {
 			PromptFn: opts.PromptFn,
 		},
 		outputOptions: outputOptions{
-			OutputFormat:       OutputFormatJSON,
-			OutputSchema:       opts.OutputSchema,
-			OutputInstructions: &[]bool{true}[0],
+			OutputFormat: OutputFormatJSON,
+			OutputSchema: opts.OutputSchema,
+			OutputInstructions: func() *string {
+				s := ""
+				return &s
+			}(),
 		},
 		executionOptions: executionOptions{
 			Documents: []*Document{DocumentFromText("doc", nil)},
@@ -500,9 +503,12 @@ func TestPromptOptionsComplete(t *testing.T) {
 			PromptFn: opts.PromptFn,
 		},
 		outputOptions: outputOptions{
-			OutputFormat:       OutputFormatJSON,
-			OutputSchema:       opts.OutputSchema,
-			OutputInstructions: &[]bool{true}[0],
+			OutputFormat: OutputFormatJSON,
+			OutputSchema: opts.OutputSchema,
+			OutputInstructions: func() *string {
+				s := ""
+				return &s
+			}(),
 		},
 		Description:  "test description",
 		Metadata:     map[string]any{"key": "value"},

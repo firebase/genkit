@@ -274,7 +274,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -308,7 +310,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -343,7 +347,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -384,7 +390,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -430,7 +438,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -465,7 +475,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -683,7 +695,9 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -707,7 +721,9 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -731,7 +747,9 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &OutputConfig{},
+				Output: &OutputConfig{
+					ContentType: "text/plain",
+				},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
