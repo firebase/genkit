@@ -76,14 +76,17 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
+	// Legacy prompt type; Go never supported it but it does show up in Dev UI for now.
+	core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+
 	return p, nil
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.Prompt, provider, name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.ExecutablePrompt, provider, name)
 	if action == nil {
 		return nil
 	}
