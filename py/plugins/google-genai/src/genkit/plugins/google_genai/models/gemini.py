@@ -101,10 +101,10 @@ The following models are currently supported:
 
 | Model                       | Description               | Deprecated    |
 |-----------------------------|---------------------------|---------------|
-| `gemini-1.0-pro`            | Gemini 1.0 Pro            | July 12, 2024 |
-| `gemini-1.5-pro`            | Gemini 1.5 Pro            | No            |
-| `gemini-1.5-flash`          | Gemini 1.5 Flash          | No            |
-| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | No            |
+| `gemini-1.0-pro`            | Gemini 1.0 Pro            | Yes           |
+| `gemini-1.5-pro`            | Gemini 1.5 Pro            | Yes           |
+| `gemini-1.5-flash`          | Gemini 1.5 Flash          | Yes           |
+| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Yes           |
 | `gemini-2.0-flash`          | Gemini 2.0 Flash          | No            |
 | `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | No            |
 | `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | No            |
@@ -121,7 +121,6 @@ from enum import StrEnum
 from functools import cached_property
 from typing import Any
 
-import google.genai.types as genai_types
 from google import genai
 
 from genkit.ai.registry import GenkitRegistry
@@ -140,7 +139,7 @@ from genkit.core.typing import (
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
 
-GEMINI_10_PRO = ModelInfo(
+GEMINI_1_0_PRO = ModelInfo(
     label='Google AI - Gemini Pro',
     versions=['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
     supports=Supports(
@@ -154,7 +153,7 @@ GEMINI_10_PRO = ModelInfo(
 )
 
 
-GEMINI_15_PRO = ModelInfo(
+GEMINI_1_5_PRO = ModelInfo(
     label='Google AI - Gemini 1.5 Pro',
     versions=[
         'gemini-1.5-pro-latest',
@@ -172,7 +171,7 @@ GEMINI_15_PRO = ModelInfo(
 )
 
 
-GEMINI_15_FLASH = ModelInfo(
+GEMINI_1_5_FLASH = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     versions=[
         'gemini-1.5-flash-latest',
@@ -190,7 +189,7 @@ GEMINI_15_FLASH = ModelInfo(
 )
 
 
-GEMINI_15_FLASH_8B = ModelInfo(
+GEMINI_1_5_FLASH_8B = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     versions=['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
     supports=Supports(
@@ -204,7 +203,7 @@ GEMINI_15_FLASH_8B = ModelInfo(
 )
 
 
-GEMINI_20_FLASH = ModelInfo(
+GEMINI_2_0_FLASH = ModelInfo(
     label='Google AI - Gemini 2.0 Flash',
     supports=Supports(
         multiturn=True,
@@ -217,7 +216,7 @@ GEMINI_20_FLASH = ModelInfo(
 )
 
 
-GEMINI_20_FLASH_LITE = ModelInfo(
+GEMINI_2_0_FLASH_LITE = ModelInfo(
     label='Google AI - Gemini 2.0 Flash Lite',
     supports=Supports(
         multiturn=True,
@@ -230,7 +229,7 @@ GEMINI_20_FLASH_LITE = ModelInfo(
 )
 
 
-GEMINI_20_PRO_EXP_0205 = ModelInfo(
+GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
     label='Google AI - Gemini 2.0 Pro Exp 02-05',
     supports=Supports(
         multiturn=True,
@@ -242,7 +241,7 @@ GEMINI_20_PRO_EXP_0205 = ModelInfo(
     ),
 )
 
-GEMINI_20_FLASH_EXP_IMAGEN = ModelInfo(
+GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
     label='Google AI - Gemini 2.0 Flash Experimental',
     supports=Supports(
         multiturn=True,
@@ -254,7 +253,7 @@ GEMINI_20_FLASH_EXP_IMAGEN = ModelInfo(
     ),
 )
 
-GEMINI_25_PRO_EXP_0325 = ModelInfo(
+GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
     label='Google AI - Gemini 2.5 Pro Exp 03-25',
     supports=Supports(
         multiturn=True,
@@ -287,15 +286,15 @@ class GeminiApiOnlyVersion(StrEnum):
 
 
 SUPPORTED_MODELS = {
-    GeminiVersion.GEMINI_1_0_PRO: GEMINI_10_PRO,
-    GeminiVersion.GEMINI_1_5_PRO: GEMINI_15_PRO,
-    GeminiVersion.GEMINI_1_5_FLASH: GEMINI_15_FLASH,
-    GeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_15_FLASH_8B,
-    GeminiVersion.GEMINI_2_0_FLASH: GEMINI_20_FLASH,
-    GeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_20_FLASH_LITE,
-    GeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_20_PRO_EXP_0205,
-    GeminiApiOnlyVersion.GEMINI_2_0_FLASH_EXP: GEMINI_20_FLASH_EXP_IMAGEN,
-    GeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_25_PRO_EXP_0325,
+    GeminiVersion.GEMINI_1_0_PRO: GEMINI_1_0_PRO,
+    GeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
+    GeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
+    GeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
+    GeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
+    GeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
+    GeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
+    GeminiApiOnlyVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
+    GeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
 }
 
 
@@ -323,7 +322,7 @@ class GeminiModel:
         """Create a tool that is compatible with VertexAI API.
 
         Args:
-            - tool: Genkit Tool Definition
+            tool: Genkit Tool Definition
 
         Returns:
             Genai tool compatible with VertexAI API.
@@ -340,7 +339,7 @@ class GeminiModel:
         """Create a tool that is compatible with Gemini API.
 
         Args:
-            - tool: Genkit Tool Definition
+            tool: Genkit Tool Definition
 
         Returns:
             Genai tool compatible with Gemini API.
@@ -357,7 +356,7 @@ class GeminiModel:
         Args:
             request: The generation request.
 
-         Returns:
+        Returns:
              list of Gemini tools
         """
         tools = []
@@ -493,7 +492,7 @@ class GeminiModel:
         Args:
             request_contents: request contents
             request_cfg: request configuration
-            ctx:
+            ctx: action context
 
         Returns:
             empty genai response
