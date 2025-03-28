@@ -73,7 +73,6 @@ jobs:
         run: |
           cd py
           uv pip install -e .[dev,test,docs]
-          uv pip install --group dev
 
       - name: Install NPM packages
         run: |

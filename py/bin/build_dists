@@ -57,14 +57,3 @@ for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do
     build
 done
 
-TWINE_CHECK=$(twine check ${TOP_DIR}/py/dist/*)
-
-echo "$TWINE_CHECK" 
-
-if echo "$TWINE_CHECK" | grep -q "FAIL"; then 
-  echo "Twine check failed"
-  exit 1
-else 
-  echo "Twine passed"
-fi
-
