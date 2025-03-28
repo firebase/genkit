@@ -682,15 +682,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dotprompt"
-version = "0.1.10"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/60/72/c37abd54a6df1b0a2b99eae7bd703e78b1e6c431df3f009ef7f4b81b7399/dotprompt-0.1.10.tar.gz", hash = "sha256:8b1875cc8411a5b204667f6d930f169914abba64c6ed210eac73f5f066754fd7", size = 42048 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/da/41f67d1a05762eedadcdd4f5be92f30ac1f0ca21dda60aa7dba7b642eabb/dotprompt-0.1.10-py3-none-any.whl", hash = "sha256:5a2d10fed9bba237971d6b68f04040a018be23e3e56eb32fab165509d3443c01", size = 29211 },
-]
-
-[[package]]
 name = "dotpromptz"
 version = "0.1.0"
 source = { git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main#ac92fbf3af7ac3207102c94c20d294d8c54b9dd4" }
@@ -787,7 +778,6 @@ version = "0.1.0"
 source = { editable = "packages/genkit-ai" }
 dependencies = [
     { name = "asgiref" },
-    { name = "dotprompt" },
     { name = "httpx" },
     { name = "json5" },
     { name = "opentelemetry-api" },
@@ -805,7 +795,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "asgiref", specifier = ">=3.8.1" },
-    { name = "dotprompt" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "json5", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
