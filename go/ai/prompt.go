@@ -86,7 +86,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.Prompt, provider, name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.ExecutablePrompt, provider, name)
 	if action == nil {
 		return nil
 	}
