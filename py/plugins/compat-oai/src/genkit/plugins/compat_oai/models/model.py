@@ -46,6 +46,8 @@ class OpenAIModel:
     Handles OpenAI API interactions for the Genkit plugin.
     """
 
+    _role_map = {Role.SYSTEM: 'developer', Role.MODEL: 'assistant'}
+
     def __init__(self, model: str, client: OpenAI, registry: GenkitRegistry):
         """
         Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
@@ -74,7 +76,7 @@ class OpenAIModel:
             raise ValueError('No messages provided in the request.')
         return [
             {
-                'role': m.role.value,
+                'role': self._role_map.get(m.role, m.role.value),
                 'content': ''.join(
                     filter(None, (part.root.text for part in m.content))
                 ),
@@ -140,7 +142,7 @@ class OpenAIModel:
         :return: A dictionary formatted as a response message from a tool.
         """
         return {
-            'role': Role.TOOL.value,
+            'role': self._role_map.get(Role.TOOL, Role.TOOL.value),
             'tool_call_id': tool_call.id,
             'content': self._evaluate_tool(
                 tool_call.function.name, tool_call.function.arguments
@@ -157,7 +159,7 @@ class OpenAIModel:
         :return: A dictionary representing the tool calls formatted for OpenAI.
         """
         return {
-            'role': 'assistant',
+            'role': self._role_map.get(Role.MODEL, 'assistant'),
             'tool_calls': [
                 {
                     'id': tool_call.id,

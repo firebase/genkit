@@ -35,9 +35,12 @@ def test_get_messages(sample_request):
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
     messages = model._get_messages(sample_request.messages)
 
-    assert len(messages) == 1
-    assert messages[0]['role'] == Role.USER
-    assert messages[0]['content'] == 'Hello, world!'
+    assert len(messages) == 2
+    assert messages[0]['role'] == 'developer'
+    assert messages[0]['content'] == 'You are an assistant'
+
+    assert messages[1]['role'] == Role.USER
+    assert messages[1]['content'] == 'Hello, world!'
 
 
 def test_get_messages_empty():

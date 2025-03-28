@@ -58,14 +58,11 @@ for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do
     build
 done
 
-TWINE_CHECK=$(twine check ${TOP_DIR}/py/dist/*)
-
+TWINE_CHECK=$(uv run --directory ${TOP_DIR}/py twine check ${TOP_DIR}/py/dist/*)
 echo "$TWINE_CHECK"
-
 if echo "$TWINE_CHECK" | grep -q "FAIL"; then
-  echo "Twine check failed"
+  echo "Twine check failed."
   exit 1
 else
-  echo "Twine passed"
+  echo "Twine check passed."
 fi
-
