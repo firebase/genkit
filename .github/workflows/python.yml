@@ -17,11 +17,6 @@
 name: Python Checks
 
 on:
-  push:
-    paths:
-      - "py/**"
-      - "genkit-tools/**"
-      - ".github/workflows/python.yml"
   pull_request:
     paths:
       - "py/**"

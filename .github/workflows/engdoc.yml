@@ -17,10 +17,6 @@
 name: Eng Documentation Checks
 
 on:
-  push:
-    paths:
-      - "py/docs/**"
-      - ".github/workflows/engdoc.yml"
   pull_request:
     paths:
       - "py/docs/**"
