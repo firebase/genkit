@@ -67,21 +67,17 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
-			"name":   name,
-			"model":  modelName,
-			"config": p.Config,
-			"input":  map[string]any{"schema": p.InputSchema},
+			"name":         name,
+			"model":        modelName,
+			"config":       p.Config,
+			"input":        map[string]any{"schema": p.InputSchema},
+			"defaultInput": p.DefaultInput,
 		},
 	}
 	maps.Copy(meta, promptMeta)
 
 	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
 	return p, nil
-}
-
-// IsDefinedPrompt reports whether a [Prompt] is defined.
-func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
-	return LookupPrompt(r, provider, name) != nil
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
@@ -165,6 +161,11 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	if len(p.Middleware) > 0 {
 		logger.FromContext(ctx).Warn(fmt.Sprintf("middleware set on prompt %q will be ignored during Prompt.Render", p.Name()))
+	}
+
+	// TODO: This is hacky; we should have a helper that fetches the metadata.
+	if input == nil {
+		input = p.action.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
 
 	return p.action.Run(ctx, input, nil)

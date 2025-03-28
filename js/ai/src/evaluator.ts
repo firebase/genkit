@@ -17,6 +17,7 @@
 import { Action, defineAction, z } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { randomUUID } from 'crypto';
 
@@ -155,11 +156,16 @@ export function defineEvaluator<
   },
   runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
 ) {
-  const metadata = {};
-  metadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
+  const evalMetadata = {};
+  evalMetadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
     options.isBilled == undefined ? true : options.isBilled;
-  metadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
-  metadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
+  evalMetadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
+  evalMetadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
+  if (options.configSchema) {
+    evalMetadata['customOptions'] = toJsonSchema({
+      schema: options.configSchema,
+    });
+  }
   const evaluator = defineAction(
     registry,
     {
@@ -173,7 +179,10 @@ export function defineEvaluator<
         evalRunId: z.string(),
       }),
       outputSchema: EvalResponsesSchema,
-      metadata: metadata,
+      metadata: {
+        type: 'evaluator',
+        evaluator: evalMetadata,
+      },
     },
     async (i) => {
       let evalResponses: EvalResponses = [];

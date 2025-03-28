@@ -16,7 +16,13 @@
 
 name: Go tests and checks
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - "go/**"
+      - "genkit-tools/**"
+      - ".github/workflows/go.yml"
+
 
 jobs:
   tests:

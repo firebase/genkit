@@ -643,19 +643,6 @@ func TestModelVersion(t *testing.T) {
 	})
 }
 
-func TestIsDefinedModel(t *testing.T) {
-	t.Run("should return true", func(t *testing.T) {
-		if IsDefinedModel(r, "test", modelName) != true {
-			t.Errorf("IsDefinedModel did not return true")
-		}
-	})
-	t.Run("should return false", func(t *testing.T) {
-		if IsDefinedModel(r, "foo", "bar") != false {
-			t.Errorf("IsDefinedModel did not return false")
-		}
-	})
-}
-
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
 		if LookupModel(r, "test", modelName) == nil {

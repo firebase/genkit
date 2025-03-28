@@ -16,17 +16,13 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
-  "genkit-firebase-plugin",
-  "genkit-google-ai-plugin",
-  "genkit-google-cloud-plugin",
-  "genkit-ollama-plugin",
-  "genkit-pinecone-plugin",
-  "genkit-vertex-ai-plugin",
+  "genkit-plugin-google-ai",
+  "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
 ]
 description = "Hello world sample"
 license = { text = "Apache-2.0" }
-name = "hello_google_genai"
+name = "hello-google-genai"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"

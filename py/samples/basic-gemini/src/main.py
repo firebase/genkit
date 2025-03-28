@@ -19,6 +19,7 @@
 import asyncio
 import json
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
@@ -39,9 +40,11 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 
+logger = structlog.get_logger(__name__)
+
 ai = Genkit(
     plugins=[VertexAI()],
-    model=vertexai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
 )
 
 
@@ -50,14 +53,14 @@ async def generate_joke(subject: str) -> str:
     """Generate a silly short joke about the provided subjet.
 
     Args:
-        subject(str): A string representing the topic about which the joke will be generated.
+        subject(str): The topic about which the joke will be generated.
 
     Returns:
-        str: A string containing the generated joke.
+        str: The generated joke.
     """
     return await ai.generate(
         config=GenerationCommonConfig(
-            temperature=0.1, version='gemini-1.5-flash-002'
+            temperature=0.1, version='gemini-2.0-flash-001'
         ),
         messages=[
             Message(
@@ -71,18 +74,20 @@ async def generate_joke(subject: str) -> str:
 
 
 class ConversionInput(BaseModel):
+    """Input for currency conversion."""
+
     amount: float = Field(description='The currency amount to convert')
 
 
 @ai.tool('Converts currency with latest exchange rate')
 def convert_currency(input: ConversionInput) -> float:
-    """Tool to convert the currency with latest exchange rate
+    """Tool to convert the currency with latest exchange rate.
 
     Args:
-        input(ConversionInput): GetWeatherInput object containing amount
+        input: GetWeatherInput object containing amount.
 
     Returns:
-        float: Converted amount
+        float: Converted amount.
     """
     # Replace this with an actual API call to currency converter
     return input.amount * 0.9
@@ -101,7 +106,7 @@ async def convert_with_tools(amount: float) -> str:
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
-            model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
+            model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
             messages=[
                 Message(
                     role=Role.USER,
@@ -128,23 +133,24 @@ async def draw_image(description: str):
 
 
 class Recipe(BaseModel):
+    """Recipe."""
+
     recipe_name: str
     ingredients: list[str]
 
 
 @ai.flow()
 async def generate_structured_content(food: str):
-    """Generate a structured list of recipes and their ingredients for a food type.
+    """Generate a list of recipes and their ingredients for a food type.
 
     Args:
-        food(str): Type of food for which recipes will be generated.
+        food: Type of food for which recipes will be generated.
 
     Returns:
         List of recipes that follows schema config.
     """
-
     response = await ai.generate(
-        model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
+        model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -156,8 +162,15 @@ async def generate_structured_content(food: str):
         output_schema=Recipe,
         output_instructions=True,
     )
-    cleaned_data = response.text.strip('```json\n').strip('```')
+    cleaned_data = undecorate(response.text, '```json\n', '```')
     return Recipe.model_validate(json.loads(cleaned_data)[0])
+
+
+def undecorate(text: str, left: str, right: str) -> str:
+    """Unwrap text between left and right markers."""
+    if text.startswith(left) and text.endswith(right):
+        return text[len(left) : -len(right)]
+    return text
 
 
 @ai.flow()
@@ -172,11 +185,11 @@ async def generate_long_joke(subject: str) -> str:
     """
     ctx = ActionRunContext()
     stream, res = ai.generate_stream(
-        model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
+        model=vertexai_name(GeminiVersion.GEMINI_2_5_PRO_EXP_03_25),
         prompt=f'Tell a long and detailed joke about {subject}.',
     )
     async for chunk in stream:
-        print(chunk.text)
+        await logger.ainfo(chunk.text)
         ctx.send_chunk(
             GenerateResponseChunk(
                 role=Role.MODEL,
@@ -189,13 +202,13 @@ async def generate_long_joke(subject: str) -> str:
 async def main() -> None:
     """Main entry point for the basic Gemini sample.
 
-    This function demonstrates basic usage of the Gemini model in the
-    Genkit framework.
+    This function demonstrates basic usage of the Gemini model in the Genkit
+    framework.
     """
-    print(await generate_joke('banana'))
-    print(await convert_with_tools(100.0))
+    await logger.ainfo(await generate_joke('banana'))
+    await logger.ainfo(await convert_with_tools(100.0))
     await draw_image('A panda playing soccer')
-    print(await generate_structured_content('cookie'))
+    await logger.ainfo(await generate_structured_content('cookie'))
     await generate_long_joke('banana')
 
 

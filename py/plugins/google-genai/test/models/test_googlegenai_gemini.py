@@ -20,14 +20,15 @@ import pytest
 from google import genai
 
 from genkit.ai import (
+    ActionRunContext,
     GenerateRequest,
     GenerateResponse,
     MediaPart,
     Message,
+    Part,
     Role,
     TextPart,
 )
-from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai.models.gemini import (
     GeminiApiOnlyVersion,
     GeminiModel,
@@ -92,7 +93,7 @@ async def test_generate_stream_text_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=request_text),
+                    Part(text=request_text),
                 ],
             ),
         ]

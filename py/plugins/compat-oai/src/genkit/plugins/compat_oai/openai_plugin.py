@@ -58,7 +58,7 @@ class OpenAI(Plugin):
         """
         for model_name, model_info in SUPPORTED_OPENAI_MODELS.items():
             handler = OpenAIModelHandler.get_model_handler(
-                model=model_name, client=self._openai_client
+                model=model_name, client=self._openai_client, registry=ai
             )
 
             ai.define_model(

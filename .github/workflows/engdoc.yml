@@ -16,7 +16,12 @@
 
 name: Eng Documentation Checks
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - "py/docs/**"
+      - ".github/workflows/engdoc.yml"
+
 
 jobs:
   engdoc-checks:
@@ -27,7 +32,6 @@ jobs:
       matrix:
         python-version:
           - "3.12"
-          - "3.13"
       fail-fast: false
 
     steps:

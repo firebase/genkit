@@ -3,7 +3,7 @@
 Evaluation is a form of testing that helps you validate your LLM's responses and
 ensure they meet your quality bar.
 
-Firebase Genkit supports third-party evaluation tools through plugins, paired
+Genkit supports third-party evaluation tools through plugins, paired
 with powerful observability features that provide insight into the runtime state
 of your LLM-powered applications. Genkit tooling helps you automatically extract
 data including inputs, outputs, and information from intermediate steps to

@@ -16,6 +16,7 @@
 
 import { Action, GenkitError, defineAction, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 import { EmbedderInfo } from './embedder.js';
 
@@ -144,6 +145,11 @@ export function defineRetriever<
       metadata: {
         type: 'retriever',
         info: options.info,
+        retriever: {
+          customOptions: options.configSchema
+            ? toJsonSchema({ schema: options.configSchema })
+            : undefined,
+        },
       },
     },
     (i) => runner(new Document(i.query), i.options)
@@ -184,6 +190,11 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
       metadata: {
         type: 'indexer',
         embedderInfo: options.embedderInfo,
+        indexer: {
+          customOptions: options.configSchema
+            ? toJsonSchema({ schema: options.configSchema })
+            : undefined,
+        },
       },
     },
     (i) =>

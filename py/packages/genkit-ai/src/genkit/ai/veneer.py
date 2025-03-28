@@ -88,6 +88,7 @@ content, define flows, define formats, etc.
 
 """
 
+import asyncio
 import logging
 import os
 import threading
@@ -100,6 +101,7 @@ from genkit.ai import server
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.aio import Channel
+from genkit.aio.loop import create_loop
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.blocks.formats import built_in_formats
@@ -116,7 +118,6 @@ from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
-from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     DocumentData,
     GenerationCommonConfig,
@@ -158,11 +159,16 @@ class Genkit(GenkitRegistry):
         self.registry.default_model = model
 
         if is_dev_environment():
+            self.loop = create_loop()
             self.thread = threading.Thread(
                 target=self.start_server,
-                args=[reflection_server_spec],
+                args=[reflection_server_spec, self.loop],
+                daemon=True,
             )
             self.thread.start()
+        else:
+            self.thread = None
+            self.loop = None
 
         for format in built_in_formats:
             self.define_format(format)
@@ -186,7 +192,13 @@ class Genkit(GenkitRegistry):
                         f'must be of type `genkit.ai.plugin.Plugin`'
                     )
 
-    def start_server(self, spec: server.ServerSpec) -> None:
+    def join(self):
+        if self.thread and self.loop:
+            self.thread.join()
+
+    def start_server(
+        self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop
+    ) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
@@ -194,7 +206,7 @@ class Genkit(GenkitRegistry):
         """
         httpd = HTTPServer(
             (spec.host, spec.port),
-            make_reflection_server(registry=self.registry),
+            make_reflection_server(registry=self.registry, loop=loop),
         )
         # We need to write the runtime file closest to the point of starting up
         # the server to avoid race conditions with the manager's runtime

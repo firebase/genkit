@@ -15,7 +15,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
+from decimal import Decimal
 
+import requests
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
@@ -28,6 +30,11 @@ ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4'))
 class MyInput(BaseModel):
     a: int = Field(description='a field')
     b: int = Field(description='b field')
+
+
+class WeatherRequest(BaseModel):
+    latitude: Decimal
+    longitude: Decimal
 
 
 @ai.flow()
@@ -59,10 +66,53 @@ async def say_hi_stream(name: str):
     return result
 
 
+@ai.tool('Get current temperature for provided coordinates in celsius')
+def get_weather_tool(coordinates: WeatherRequest) -> str:
+    url = (
+        f'https://api.open-meteo.com/v1/forecast?'
+        f'latitude={coordinates.latitude}&longitude={coordinates.longitude}'
+        f'&current=temperature_2m'
+    )
+    response = requests.get(url=url)
+    data = response.json()
+    return data['current']['temperature_2m']
+
+
+@ai.flow()
+async def get_weather_flow(location: str):
+    response = await ai.generate(
+        model=openai_model('gpt-4'),
+        system='You are an assistant that provides current weather information.',
+        config={'model': 'gpt-4-0613', 'temperature': 1},
+        prompt=f"What's the weather like in {location} today?",
+        tools=['get_weather_tool'],
+    )
+    return response.message.content[0].root.text
+
+
+@ai.flow()
+async def get_weather_flow_stream(location: str):
+    stream, _ = ai.generate_stream(
+        model=openai_model('gpt-4'),
+        config={'model': 'gpt-4-0613', 'temperature': 1},
+        prompt=f"What's the weather like in {location} today?",
+        tools=['get_weather_tool'],
+    )
+    result = ''
+    async for data in stream:
+        for part in data.content:
+            result += part.root.text
+    return result
+
+
 async def main() -> None:
-    print(await say_hi_stream('John Doe'))
-    print(await say_hi('John Doe'))
     print(sum_two_numbers2(MyInput(a=1, b=3)))
+
+    print(await say_hi('John Doe'))
+    print(await say_hi_stream('John Doe'))
+
+    print(await get_weather_flow('London and Paris'))
+    print(await get_weather_flow_stream('London and Paris'))
 
 
 if __name__ == '__main__':

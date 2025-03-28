@@ -17,7 +17,7 @@ classifiers = [
 dependencies = ["genkit-ai"]
 description = "Genkit Firebase Plugin"
 license = { text = "Apache-2.0" }
-name = "genkit-firebase-plugin"
+name = "genkit-plugin-firebase"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"

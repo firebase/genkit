@@ -41,6 +41,7 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 TYPING_FILE="${TOP_DIR}/py/packages/genkit-ai/src/genkit/core/typing.py"
 
 # If in CI mode and the file exists, make a backup copy to compare later.
+BACKUP_FILE=""
 if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$TYPING_FILE" ]]; then
   BACKUP_FILE="${TYPING_FILE}.backup"
   cp "$TYPING_FILE" "$BACKUP_FILE"
@@ -70,4 +71,8 @@ if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$BACKUP_FILE" ]]; then
     exit 1
   fi
 fi
-rm "$BACKUP_FILE"
+
+# Remove the backup file if it exists.
+if [[ -f "$BACKUP_FILE" ]]; then
+  rm "$BACKUP_FILE"
+fi
