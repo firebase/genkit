@@ -353,7 +353,7 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 		return nil, err
 	}
 
-	err = resp.UnmarshalOutput(value)
+	err = resp.Output(value)
 	if err != nil {
 		return nil, err
 	}
@@ -580,15 +580,14 @@ func (gr *ModelResponse) History() []*Message {
 	return append(gr.Request.Messages, gr.Message)
 }
 
-// UnmarshalOutput unmarshals structured JSON output into the provided
+// Output unmarshals structured JSON output into the provided
 // struct pointer.
-func (gr *ModelResponse) UnmarshalOutput(v any) error {
+func (gr *ModelResponse) Output(v any) error {
 	j := base.ExtractJSONFromMarkdown(gr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
-	json.Unmarshal([]byte(j), v)
-	return nil
+	return json.Unmarshal([]byte(j), v)
 }
 
 // Text returns the text content of the [ModelResponseChunk]
