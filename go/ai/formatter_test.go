@@ -465,4 +465,67 @@ func TestConstrainedGenerate(t *testing.T) {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}
 	})
+
+	t.Run("works with prompts", func(t *testing.T) {
+		wantText := JSON
+		wantRequest := &ModelRequest{
+			Messages: []*Message{
+				{
+					Role: RoleUser,
+					Content: []*Part{
+						NewTextPart("generate json"),
+						{
+							Kind:        PartText,
+							ContentType: "plain/text",
+							Text:        "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"foo\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"foo\\\"],\\\"type\\\":\\\"object\\\"}\"```",
+							Metadata:    map[string]any{"purpose": "output"},
+						},
+					},
+				},
+			},
+			Output: &OutputConfig{
+				Format: string(OutputFormatJSON),
+				Schema: map[string]any{
+					"additionalProperties": bool(false),
+					"properties": map[string]any{
+						"foo": map[string]any{"type": string("string")},
+					},
+					"required": []any{string("foo")},
+					"type":     string("object"),
+				},
+				Constrained: true,
+				ContentType: "application/json",
+			},
+			Config: &GenerationCommonConfig{Temperature: 1},
+			Tools:  []*ToolDefinition{},
+		}
+
+		p, err := DefinePrompt(r, "formatPrompt",
+			WithPromptText("generate json"),
+			WithModel(formatModel),
+			WithOutputType(struct {
+				Foo string `json:"foo"`
+			}{}),
+			WithOutputInstructions(true),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := p.Execute(
+			context.Background(),
+			WithConfig(&GenerationCommonConfig{Temperature: 1}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gotText := res.Text()
+		if diff := cmp.Diff(gotText, wantText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(res.Request, wantRequest); diff != "" {
+			t.Errorf("Request diff (+got -want):\n%s", diff)
+		}
+	})
 }
