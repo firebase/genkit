@@ -76,7 +76,10 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
+	// Legacy prompt type; Go never supported it but it does show up in Dev UI for now.
+	core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+
 	return p, nil
 }
 
