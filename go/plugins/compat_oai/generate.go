@@ -30,6 +30,10 @@ type ModelGenerator struct {
 	request   *openai.ChatCompletionNewParams
 }
 
+func (g *ModelGenerator) GetRequestConfig() any {
+	return g.request
+}
+
 // NewModelGenerator creates a new ModelGenerator instance
 func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator {
 	return &ModelGenerator{

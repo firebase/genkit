@@ -22,6 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
+	"github.com/openai/openai-go"
 	openaiClient "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/stretchr/testify/assert"
@@ -110,4 +111,62 @@ func TestGenerator_Stream(t *testing.T) {
 
 	t.Log("\n=== Full Streaming Response ===")
 	t.Log(strings.Join(chunks, ""))
+}
+
+func TestWithConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   any
+		validate func(*testing.T, *openai.ChatCompletionNewParams)
+	}{
+		{
+			name:   "nil config",
+			config: nil,
+			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+				// Temperature and MaxTokens should be nil and not present
+				assert.False(t, cfg.Temperature.Present)
+				assert.False(t, cfg.MaxTokens.Present)
+			},
+		},
+		{
+			name: "explicitly set to nil",
+			config: &openai.ChatCompletionNewParams{
+				Temperature: openai.Null[float64](),
+				MaxTokens:   openai.Null[int64](),
+			},
+			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+				// Temperature and MaxTokens should be nil and not present
+				assert.Equal(t, openai.Null[float64](), cfg.Temperature)
+				assert.Equal(t, openai.Null[int64](), cfg.MaxTokens)
+			},
+		},
+		{
+			name: "float and int fields",
+			config: &openai.ChatCompletionNewParams{
+				Temperature: openai.Float(0.5),
+				MaxTokens:   openai.Int(100),
+			},
+			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+				// Temperature and MaxTokens should be 0.5 and 100 respectively
+				assert.Equal(t, openai.Float(0.5), cfg.Temperature)
+				assert.Equal(t, openai.Int(100), cfg.MaxTokens)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &openai.Client{}
+			generator := compat_oai.NewModelGenerator(client, "test-model")
+
+			// Apply the config
+			generator.WithConfig(tt.config)
+
+			// Get request configuration to validate
+			request := generator.GetRequestConfig()
+
+			// Validate the result
+			tt.validate(t, request.(*openai.ChatCompletionNewParams))
+		})
+	}
 }
