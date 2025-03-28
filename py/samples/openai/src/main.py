@@ -82,6 +82,7 @@ def get_weather_tool(coordinates: WeatherRequest) -> str:
 async def get_weather_flow(location: str):
     response = await ai.generate(
         model=openai_model('gpt-4'),
+        system='You are an assistant that provides current weather information.',
         config={'model': 'gpt-4-0613', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool'],
