@@ -15,6 +15,7 @@ members = [
     "genkit-ai",
     "genkit-plugin-chroma",
     "genkit-plugin-compat-oai",
+    "genkit-plugin-dev-local-vectorstore",
     "genkit-plugin-firebase",
     "genkit-plugin-google-ai",
     "genkit-plugin-google-cloud",
@@ -847,6 +848,23 @@ requires-dist = [
 ]
 
 [[package]]
+name = "genkit-plugin-dev-local-vectorstore"
+version = "0.1.0"
+source = { editable = "plugins/dev-local-vector-store" }
+dependencies = [
+    { name = "genkit-ai" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
+]
+
+[[package]]
 name = "genkit-plugin-firebase"
 version = "0.1.0"
 source = { editable = "plugins/firebase" }
@@ -952,6 +970,7 @@ dependencies = [
     { name = "genkit-ai" },
     { name = "genkit-plugin-chroma" },
     { name = "genkit-plugin-compat-oai" },
+    { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -985,6 +1004,7 @@ requires-dist = [
     { name = "genkit-ai", editable = "packages/genkit-ai" },
     { name = "genkit-plugin-chroma", editable = "plugins/chroma" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
+    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },

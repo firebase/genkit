@@ -3,6 +3,7 @@ dependencies = [
   "dotpromptz",
   "genkit-ai",
   "genkit-plugin-chroma",
+  "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
   "genkit-plugin-firebase",
   "genkit-plugin-google-genai",
@@ -64,31 +65,32 @@ fail_under = 80
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
-basic-gemini               = { workspace = true }
-coffee-shop                = { workspace = true }
-context-caching            = { workspace = true }
-dotpromptz                 = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
-flow-sample1               = { workspace = true }
-genkit-ai                  = { workspace = true }
-genkit-plugin-chroma       = { workspace = true }
-genkit-plugin-compat-oai   = { workspace = true }
-genkit-plugin-firebase     = { workspace = true }
-genkit-plugin-google-ai    = { workspace = true }
-genkit-plugin-google-cloud = { workspace = true }
-genkit-plugin-google-genai = { workspace = true }
-genkit-plugin-ollama       = { workspace = true }
-genkit-plugin-pinecone     = { workspace = true }
-genkit-plugin-vertex-ai    = { workspace = true }
-hello                      = { workspace = true }
-hello-google-genai         = { workspace = true }
-menu                       = { workspace = true }
-multi-server               = { workspace = true }
-prompt-file                = { workspace = true }
-rag                        = { workspace = true }
-vertex-ai-imagen           = { workspace = true }
-vertex-ai-model-garden     = { workspace = true }
-vertex-ai-reranker         = { workspace = true }
-vertex-ai-vector-search    = { workspace = true }
+basic-gemini                        = { workspace = true }
+coffee-shop                         = { workspace = true }
+context-caching                     = { workspace = true }
+dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
+flow-sample1                        = { workspace = true }
+genkit-ai                           = { workspace = true }
+genkit-plugin-chroma                = { workspace = true }
+genkit-plugin-compat-oai            = { workspace = true }
+genkit-plugin-dev-local-vectorstore = { workspace = true }
+genkit-plugin-firebase              = { workspace = true }
+genkit-plugin-google-ai             = { workspace = true }
+genkit-plugin-google-cloud          = { workspace = true }
+genkit-plugin-google-genai          = { workspace = true }
+genkit-plugin-ollama                = { workspace = true }
+genkit-plugin-pinecone              = { workspace = true }
+genkit-plugin-vertex-ai             = { workspace = true }
+hello                               = { workspace = true }
+hello-google-genai                  = { workspace = true }
+menu                                = { workspace = true }
+multi-server                        = { workspace = true }
+prompt-file                         = { workspace = true }
+rag                                 = { workspace = true }
+vertex-ai-imagen                    = { workspace = true }
+vertex-ai-model-garden              = { workspace = true }
+vertex-ai-reranker                  = { workspace = true }
+vertex-ai-vector-search             = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
@@ -179,6 +181,7 @@ mypy_path = [
   "packages/genkit-ai/src",
   "plugins/chroma/src",
   "plugins/compat-oai/src",
+  "plugins/dev-local-vector-store/src",
   "plugins/firebase/src",
   "plugins/google-ai/src",
   "plugins/google-ai/src",

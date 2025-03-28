@@ -45,6 +45,7 @@ from pydantic import BaseModel
 
 from genkit.blocks.embedding import EmbedderFn
 from genkit.blocks.formats.types import FormatDef
+from genkit.blocks.indexer import IndexerFn
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
 from genkit.blocks.retriever import RetrieverFn
@@ -222,6 +223,27 @@ class GenkitRegistry:
             kind=ActionKind.RETRIEVER,
             fn=fn,
             metadata=retriever_meta,
+        )
+
+    def define_indexer(
+        self,
+        name: str,
+        fn: IndexerFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Callable[[Callable], Callable]:
+        metadata = metadata or {}
+        metadata.setdefault('indexer', {})
+        metadata['indexer'].setdefault('label', name)
+
+        if config_schema:
+            metadata['indexer']['customOptions'] = to_json_schema(config_schema)
+
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.INDEXER,
+            fn=fn,
+            metadata=metadata,
         )
 
     def define_model(

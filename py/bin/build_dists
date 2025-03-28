@@ -29,6 +29,7 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 PROJECT_DIRS=(
   "packages/genkit-ai"
   "plugins/chroma"
+  "plugins/dev-local-vector-store"
   "plugins/firebase"
   "plugins/google-ai"
   "plugins/google-cloud"
@@ -59,12 +60,12 @@ done
 
 TWINE_CHECK=$(twine check ${TOP_DIR}/py/dist/*)
 
-echo "$TWINE_CHECK" 
+echo "$TWINE_CHECK"
 
-if echo "$TWINE_CHECK" | grep -q "FAIL"; then 
+if echo "$TWINE_CHECK" | grep -q "FAIL"; then
   echo "Twine check failed"
   exit 1
-else 
+else
   echo "Twine passed"
 fi
 
