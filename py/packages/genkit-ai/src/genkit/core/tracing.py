@@ -29,9 +29,10 @@ The module includes:
 
 import json
 import sys
-from collections.abc import Callable, Sequence
+import traceback
+from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
-from typing import Any, Mapping, TypeVar
+from typing import Any, TypeVar
 
 import requests  # type: ignore[import-untyped]
 import structlog
@@ -49,6 +50,7 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.typing import SpanMetadata
 
 ATTR_PREFIX = 'genkit'
+logger = structlog.getLogger(__name__)
 
 
 class TelemetryServerSpanExporter(SpanExporter):
@@ -177,8 +179,6 @@ else:
 
 T = TypeVar('T')
 
-logger = structlog.getLogger(__name__)
-
 
 @contextmanager
 def run_in_new_span[T](
@@ -186,64 +186,85 @@ def run_in_new_span[T](
     labels: dict[str, str] | None = None,
     links: list[trace_api.Link] | None = None,
 ):
-    with tracer.start_as_current_span(name=metadata.name, links=links) as span:
-        logger.debug('original trace context')
-        parent = span.parent
-        is_root = False
-        if parent is None:
-            is_root = True
-            metadata.path = metadata.path + f'/{metadata.name}'
-        if labels is not None:
-            span.set_attributes(labels)
+    """Starts a new span context under the current trace.
+
+    This method provides a contexmanager for working with Genkit spans. The
+    context object is a `GenkitSpan`, which is a light wrapper on OpenTelemetry
+    span object, with handling for genkit attributes.
+    """
+    with tracer.start_as_current_span(
+        name=metadata.name, links=links
+    ) as ot_span:
         try:
-            # output = fn(metadata, span, is_root)
-            yield (metadata, span, is_root)
-            metadata.state = 'success'
+            span = GenkitSpan(ot_span, labels)
+            yield span
+            span.set_genkit_attribute('status', 'success')
         except Exception as e:
-            logger.debug(f'original trace context error {e}')
-            metadata.state = 'error'
+            logger.debug(f'Error in run_in_new_span: {str(e)}')
+            logger.debug(traceback.format_exc())
+            span.set_genkit_attribute('status', 'error')
             span.set_status(
-                status_code=trace_api.StatusCode.ERROR, description=str(e)
+                status=trace_api.StatusCode.ERROR, description=str(e)
             )
-            if isinstance(e, RuntimeError):
-                span.record_exception(e)
+            span.record_exception(e)
             raise e
-        # finally:
-        # span.set_attributes(metadata_to_attributes(metadata))
 
 
-class GenkitSpan(trace_api.Span):
-    """Span wrapper for Genkit."""
+class GenkitSpan:
+    """Light wrapper for Span, specific to Genkit."""
+
+    is_root: bool
+    _span: trace_api.Span
+
+    def __init__(
+        self, span: trace_api.Span, labels: dict[str, str] | None = None
+    ):
+        """Create GenkitSpan."""
+        self._span = span
+        parent = span.parent
+        self.is_root = False
+        if parent is None:
+            self.is_root = True
+        if labels is not None:
+            self.set_attributes(labels)
+
+    def __getattr__(self, name):
+        """Passthrough for all OpenTelemetry Span attributes."""
+        return getattr(self._span, name)
+
+    def get_otel_span(self):
+        """Return underlying OpenTelemetry span."""
+        return self._span
 
     def set_genkit_attribute(self, key: str, value: types.AttributeValue):
-        """Foo bar."""
+        """Set Genkit specific attribute, with the `genkit` prefix."""
         if key == 'metadata' and isinstance(value, dict) and value:
             for meta_key, meta_value in value.items():
-                self.set_attribute(
+                self._span.set_attribute(
                     f'{ATTR_PREFIX}:metadata:{meta_key}', str(meta_value)
                 )
         elif isinstance(value, dict):
-            self.set_attribute(f'{ATTR_PREFIX}:{key}', json.dumps(value))
+            self._span.set_attribute(f'{ATTR_PREFIX}:{key}', json.dumps(value))
         else:
-            self.set_attribute(f'{ATTR_PREFIX}:{key}', str(value))
+            self._span.set_attribute(f'{ATTR_PREFIX}:{key}', str(value))
 
     def set_genkit_attributes(
         self, attributes: Mapping[str, types.AttributeValue]
     ):
-        """Foo baz."""
+        """Set Genkit specific attributes, with the `genkit` prefix."""
         for key, value in attributes.items():
             self.set_genkit_attribute(key, value)
 
     def span_id(self):
-        """String span_id."""
-        return str(self.get_span_context().span_id)
+        """Returns the span_id."""
+        return str(self._span.get_span_context().span_id)
 
     def trace_id(self):
-        """String trace_id."""
-        return str(self.get_span_context().trace_id)
+        """Returns the trace_id."""
+        return str(self._span.get_span_context().trace_id)
 
     def set_input(self, input: Any):
-        """Set input."""
+        """Set Genkit Span input, visible in the trace viewer."""
         value = None
         if isinstance(input, BaseModel):
             value = input.model_dump_json(by_alias=True, exclude_none=True)
@@ -252,7 +273,7 @@ class GenkitSpan(trace_api.Span):
         self.set_genkit_attribute('input', value)
 
     def set_output(self, output: Any):
-        """Set output."""
+        """Set Genkit Span output, visible in the trace viewer."""
         value = None
         if isinstance(output, BaseModel):
             value = output.model_dump_json(by_alias=True, exclude_none=True)

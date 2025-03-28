@@ -16,6 +16,7 @@
 
 """A hello world sample that just calls some flows."""
 
+import random
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -26,6 +27,8 @@ from genkit.ai import (
     Details,
     Document,
     EvalFnResponse,
+    EvalRequest,
+    EvalResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -212,10 +215,13 @@ ai.define_retriever(name='my_retriever', fn=my_retriever)
 
 
 def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+    score = random.random()
+    if score < 0.5:
+        raise Exception('testing failures')
     return EvalFnResponse(
         test_case_id=datapoint.test_case_id,
         evaluation=Score(
-            score=True, details=Details(reasoning='I think it is true')
+            score=score, details=Details(reasoning='I think it is true')
         ),
     )
 
@@ -226,14 +232,6 @@ ai.define_evaluator(
     definition='gutenburg',
     fn=my_eval_fn,
 )
-
-a = EvalFnResponse(
-    test_case_id='fakefake',
-    evaluation=Score(
-        score=True, details=Details(reasoning='I think it is true')
-    ),
-)
-print(a.model_dump_json(by_alias=True, exclude_none=True, indent=4))
 
 
 @ai.flow()

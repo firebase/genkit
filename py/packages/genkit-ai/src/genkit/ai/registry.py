@@ -48,7 +48,7 @@ import structlog
 from pydantic import BaseModel
 
 from genkit.blocks.embedding import EmbedderFn
-from genkit.blocks.evaluator import EvaluatorFn
+from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
@@ -253,6 +253,9 @@ class GenkitRegistry:
     ) -> Callable[[Callable], Callable]:
         """Define a evaluator action.
 
+        This action runs the callback function on the every sample of
+        the input dataset.
+
         Args:
             name: Name of the evaluator.
             fn: Function implementing the evaluator behavior.
@@ -285,13 +288,10 @@ class GenkitRegistry:
                 config_schema
             )
 
-        logger.debug('starting eval')
-
         def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
             eval_responses: list[EvalFnResponse] = []
             for index in range(len(req.dataset)):
                 datapoint = req.dataset[index]
-                logger.debug(f'point, {datapoint}')
                 if datapoint.test_case_id is None:
                     datapoint.test_case_id = uuid.uuid4()
                 span_metadata = SpanMetadata(
@@ -299,46 +299,33 @@ class GenkitRegistry:
                     metadata={'evaluator:evalRunId': req.eval_run_id},
                 )
                 try:
-                    logger.debug('new span here')
                     with run_in_new_span(
                         span_metadata, labels={'genkit:type': 'evaluator'}
                     ) as span:
-                        logger.debug('started new span')
-                        span_id = str(span.get_span_context().span_id)
-                        trace_id = str(span.get_span_context().trace_id)
+                        span_id = span.span_id()
+                        trace_id = span.trace_id()
                         try:
-                            span.set_attributes({
-                                'genkit:input': json.dumps({
-                                    'input': datapoint.input,
-                                    'output': datapoint.output,
-                                    'context': datapoint.context,
-                                })
-                            })
+                            span.set_input(datapoint)
                             test_case_output = fn(datapoint, req.options)
                             test_case_output.span_id = span_id
                             test_case_output.trace_id = trace_id
-                            logger.debug(f'setting out {test_case_output}')
-                            span.set_attributes({
-                                'genkit:output': test_case_output.model_dump_json(
-                                    by_alias=True, exclude_none=True, indent=4
-                                )
-                            })
+                            span.set_output(test_case_output)
                             eval_responses.append(test_case_output)
                         except Exception as e:
-                            logger.debug(f'runner error {str(e)}')
+                            logger.debug(f'eval_stepper_fn error: {str(e)}')
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
                                 error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}'
                             )
                             eval_responses.append(
                                 EvalFnResponse(
-                                    span_id,
-                                    trace_id,
+                                    span_id=span_id,
+                                    trace_id=trace_id,
                                     test_case_id=datapoint.test_case_id,
                                     evaluation=evaluation,
                                 )
                             )
-                            # Raise to mark as failed
+                            # Raise to mark span as failed
                             raise e
                 except Exception:
                     # Continue to process other points
@@ -349,6 +336,58 @@ class GenkitRegistry:
             name=name,
             kind=ActionKind.EVALUATOR,
             fn=eval_stepper_fn,
+            metadata=evaluator_meta,
+        )
+
+    def define_batch_evaluator(
+        self,
+        name: str,
+        display_name: str,
+        definition: str,
+        fn: BatchEvaluatorFn,
+        is_billed: bool = False,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define a batch evaluator action.
+
+        This action runs the callback function on the entire dataset.
+
+        Args:
+            name: Name of the evaluator.
+            fn: Function implementing the evaluator behavior.
+            display_name: User-visible display name
+            definition: User-visible evaluator definition
+            is_billed: Whether the evaluator performs any billed actions
+                        (paid  APIs, LLMs etc.)
+            config_schema: Optional schema for evaluator configuration.
+            metadata: Optional metadata for the evaluator.
+        """
+        evaluator_meta = metadata if metadata else {}
+        if 'evaluator' not in evaluator_meta:
+            evaluator_meta['evaluator'] = {}
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = (
+            definition
+        )
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = (
+            display_name
+        )
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = (
+            is_billed
+        )
+        if (
+            'label' not in evaluator_meta['evaluator']
+            or not evaluator_meta['evaluator']['label']
+        ):
+            evaluator_meta['evaluator']['label'] = name
+        if config_schema:
+            evaluator_meta['evaluator']['customOptions'] = to_json_schema(
+                config_schema
+            )
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.EVALUATOR,
+            fn=fn,
             metadata=evaluator_meta,
         )
 
