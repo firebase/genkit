@@ -310,14 +310,14 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	instructions := ResolveInstructions(resolvedFormat, genOpts.OutputSchema, "")
 	config := resolvedFormat.Handler(genOpts.OutputSchema).Config()
 
-	// Override request
-	if ShouldInjectFormatInstructions(config, genOpts.outputOptions.OutputInstructions) {
-		messages = injectInstructions(messages, instructions)
-	}
-
 	// Allow override constraint
 	if genOpts.outputOptions.OutputConstrained != nil {
 		config.Constrained = *genOpts.outputOptions.OutputConstrained
+	}
+
+	// Override request
+	if ShouldInjectFormatInstructions(config, genOpts.outputOptions.OutputInstructions) {
+		messages = injectInstructions(messages, instructions)
 	}
 
 	actionOpts := &GenerateActionOptions{

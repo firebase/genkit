@@ -100,7 +100,7 @@ func ResolveInstructions(format Formatter, schema map[string]any, instructions s
 
 // ShouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.
 func ShouldInjectFormatInstructions(formatConfig *GenerateActionOutputConfig, rawRequestInstructions *bool) bool {
-	return formatConfig.Instructions != "" || (rawRequestInstructions != nil && *rawRequestInstructions)
+	return formatConfig.Instructions != "" || !formatConfig.Constrained || (rawRequestInstructions != nil && *rawRequestInstructions)
 }
 
 // SimulateConstrainedGeneration simulates constrained generation by injecting generation instructions into the user message.

@@ -272,6 +272,66 @@ func TestConstrainedGenerate(t *testing.T) {
 		}, nil
 	})
 
+	t.Run("doesn't inject instructions when model supports native contrained generation", func(t *testing.T) {
+		wantText := JSON
+		wantStreamText := "stream!"
+		wantRequest := &ModelRequest{
+			Messages: []*Message{
+				{
+					Role: RoleUser,
+					Content: []*Part{
+						NewTextPart("generate json"),
+					},
+				},
+			},
+			Output: &OutputConfig{
+				Format: string(OutputFormatJSON),
+				Schema: map[string]any{
+					"additionalProperties": bool(false),
+					"properties": map[string]any{
+						"foo": map[string]any{"type": string("string")},
+					},
+					"required": []any{string("foo")},
+					"type":     string("object"),
+				},
+				Constrained: true,
+				ContentType: "application/json",
+			},
+			Config: &GenerationCommonConfig{Temperature: 1},
+			Tools:  []*ToolDefinition{},
+		}
+
+		streamText := ""
+		res, err := Generate(context.Background(), r,
+			WithModel(formatModel),
+			WithPromptText("generate json"),
+			WithConfig(&GenerationCommonConfig{
+				Temperature: 1,
+			}),
+			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
+				streamText += grc.Text()
+				return nil
+			}),
+			WithOutputType(struct {
+				Foo string `json:"foo"`
+			}{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gotText := res.Text()
+		if diff := cmp.Diff(gotText, wantText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(res.Request, wantRequest); diff != "" {
+			t.Errorf("Request diff (+got -want):\n%s", diff)
+		}
+	})
+
 	t.Run("uses format instructions when instructions is explicitly set to true", func(t *testing.T) {
 		wantText := JSON
 		wantStreamText := "stream!"
@@ -339,7 +399,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		}
 	})
 
-	t.Run("uses no constraint when explicitly told not to", func(t *testing.T) {
+	t.Run("uses simulated constrained generation when explicitly told to do so", func(t *testing.T) {
 		wantText := JSON
 		wantStreamText := "stream!"
 		wantRequest := &ModelRequest{
@@ -348,6 +408,12 @@ func TestConstrainedGenerate(t *testing.T) {
 					Role: RoleUser,
 					Content: []*Part{
 						NewTextPart("generate json"),
+						{
+							Kind:        PartText,
+							ContentType: "plain/text",
+							Text:        "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"foo\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"foo\\\"],\\\"type\\\":\\\"object\\\"}\"```",
+							Metadata:    map[string]any{"purpose": "output"},
+						},
 					},
 				},
 			},
@@ -382,7 +448,7 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithOutputConstraint(false),
+			WithOutputNativeConstrained(false),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -399,5 +465,4 @@ func TestConstrainedGenerate(t *testing.T) {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}
 	})
-
 }

@@ -433,13 +433,13 @@ func WithOutputFormat(format OutputFormat) OutputOption {
 	return &outputOptions{OutputFormat: format}
 }
 
-// WithOutputInstructions sets weither output instructions should be added.
+// WithOutputInstructions sets whether output instructions should be added.
 func WithOutputInstructions(instructions bool) OutputOption {
 	return &outputOptions{OutputInstructions: &instructions}
 }
 
-// WithOutputInstructions sets weither output should be constrained.
-func WithOutputConstraint(constrained bool) OutputOption {
+// WithOutputNativeConstrained sets whether to use model native constrained output generation. Defaults to true.
+func WithOutputNativeConstrained(constrained bool) OutputOption {
 	return &outputOptions{OutputConstrained: &constrained}
 }
 
