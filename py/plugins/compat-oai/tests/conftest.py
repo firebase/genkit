@@ -31,7 +31,11 @@ def sample_request():
     """Fixture to create a sample GenerateRequest object."""
     return GenerateRequest(
         messages=[
-            Message(role=Role.USER, content=[TextPart(text='Hello, world!')])
+            Message(
+                role=Role.SYSTEM,
+                content=[TextPart(text='You are an assistant')],
+            ),
+            Message(role=Role.USER, content=[TextPart(text='Hello, world!')]),
         ],
         config=OpenAIConfig(
             model=GPT_4,
