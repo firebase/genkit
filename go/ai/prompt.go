@@ -31,7 +31,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
 
@@ -139,7 +138,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 		modelName = p.Model.Name()
 	}
 	if modelName != "" {
-		actionOpts.Model = modelName
+	actionOpts.Model = modelName
 	}
 
 	if genOpts.MaxTurns != 0 {
@@ -640,15 +639,4 @@ func defineHelper(r *registry.Registry, name string, fn any) {
 
 	// Use the template from the dotprompt struct itself
 	r.Dotprompt.DefineHelper(name, fn, r.Dotprompt.Template)
-}
-
-// RegisterTemplateHelpers registers all the default template helpers with the given Dotprompt instance
-func RegisterTemplateHelpers(dp *dotprompt.Dotprompt) {
-	if dp == nil || dp.Template == nil {
-		return
-	}
-
-	for name, helper := range templateHelpers {
-		dp.DefineHelper(name, helper, dp.Template)
-	}
 }
