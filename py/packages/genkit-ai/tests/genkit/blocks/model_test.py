@@ -22,10 +22,8 @@ from genkit.core.typing import (
     GenerateResponseChunk,
     GenerationUsage,
     Media,
-    MediaPart,
     Message,
     Part,
-    TextPart,
 )
 
 
@@ -33,7 +31,7 @@ def test_message_wrapper_text() -> None:
     wrapper = MessageWrapper(
         Message(
             role='model',
-            content=[TextPart(text='hello'), TextPart(text=' world')],
+            content=[Part(text='hello'), Part(text=' world')],
         ),
     )
 
@@ -45,7 +43,7 @@ def test_response_wrapper_text() -> None:
         response=GenerateResponse(
             message=Message(
                 role='model',
-                content=[TextPart(text='hello'), TextPart(text=' world')],
+                content=[Part(text='hello'), Part(text=' world')],
             )
         ),
         request=GenerateRequest(
@@ -61,7 +59,7 @@ def test_response_wrapper_output() -> None:
         response=GenerateResponse(
             message=Message(
                 role='model',
-                content=[TextPart(text='{"foo":'), TextPart(text='"bar')],
+                content=[Part(text='{"foo":'), Part(text='"bar')],
             )
         ),
         request=GenerateRequest(
@@ -72,12 +70,50 @@ def test_response_wrapper_output() -> None:
     assert wrapper.output == {'foo': 'bar'}
 
 
+def test_response_wrapper_messages() -> None:
+    wrapper = GenerateResponseWrapper(
+        response=GenerateResponse(
+            message=Message(
+                role='model',
+                content=[Part(text='baz')],
+            )
+        ),
+        request=GenerateRequest(
+            messages=[
+                Message(
+                    role='user',
+                    content=[Part(text='foo')],
+                ),
+                Message(
+                    role='tool',
+                    content=[Part(text='bar')],
+                ),
+            ],
+        ),
+    )
+
+    assert wrapper.messages == [
+        Message(
+            role='user',
+            content=[Part(text='foo')],
+        ),
+        Message(
+            role='tool',
+            content=[Part(text='bar')],
+        ),
+        Message(
+            role='model',
+            content=[Part(text='baz')],
+        ),
+    ]
+
+
 def test_response_wrapper_output_uses_parser() -> None:
     wrapper = GenerateResponseWrapper(
         response=GenerateResponse(
             message=Message(
                 role='model',
-                content=[TextPart(text='{"foo":'), TextPart(text='"bar')],
+                content=[Part(text='{"foo":'), Part(text='"bar')],
             )
         ),
         request=GenerateRequest(
@@ -92,7 +128,7 @@ def test_response_wrapper_output_uses_parser() -> None:
 def test_chunk_wrapper_text() -> None:
     wrapper = GenerateResponseChunkWrapper(
         chunk=GenerateResponseChunk(
-            content=[TextPart(text='hello'), TextPart(text=' world')]
+            content=[Part(text='hello'), Part(text=' world')]
         ),
         index=0,
         previous_chunks=[],
@@ -103,13 +139,11 @@ def test_chunk_wrapper_text() -> None:
 
 def test_chunk_wrapper_accumulated_text() -> None:
     wrapper = GenerateResponseChunkWrapper(
-        GenerateResponseChunk(content=[TextPart(text=' PS: aliens')]),
+        GenerateResponseChunk(content=[Part(text=' PS: aliens')]),
         index=0,
         previous_chunks=[
-            GenerateResponseChunk(
-                content=[TextPart(text='hello'), TextPart(text=' ')]
-            ),
-            GenerateResponseChunk(content=[TextPart(text='world!')]),
+            GenerateResponseChunk(content=[Part(text='hello'), Part(text=' ')]),
+            GenerateResponseChunk(content=[Part(text='world!')]),
         ],
     )
 
@@ -118,13 +152,13 @@ def test_chunk_wrapper_accumulated_text() -> None:
 
 def test_chunk_wrapper_output() -> None:
     wrapper = GenerateResponseChunkWrapper(
-        GenerateResponseChunk(content=[TextPart(text=', "baz":[1,2,')]),
+        GenerateResponseChunk(content=[Part(text=', "baz":[1,2,')]),
         index=0,
         previous_chunks=[
             GenerateResponseChunk(
-                content=[TextPart(text='{"foo":'), TextPart(text='"ba')]
+                content=[Part(text='{"foo":'), Part(text='"ba')]
             ),
-            GenerateResponseChunk(content=[TextPart(text='r"')]),
+            GenerateResponseChunk(content=[Part(text='r"')]),
         ],
     )
 
@@ -133,13 +167,13 @@ def test_chunk_wrapper_output() -> None:
 
 def test_chunk_wrapper_output_uses_parser() -> None:
     wrapper = GenerateResponseChunkWrapper(
-        GenerateResponseChunk(content=[TextPart(text=', "baz":[1,2,')]),
+        GenerateResponseChunk(content=[Part(text=', "baz":[1,2,')]),
         index=0,
         previous_chunks=[
             GenerateResponseChunk(
-                content=[TextPart(text='{"foo":'), TextPart(text='"ba')]
+                content=[Part(text='{"foo":'), Part(text='"ba')]
             ),
-            GenerateResponseChunk(content=[TextPart(text='r"')]),
+            GenerateResponseChunk(content=[Part(text='r"')]),
         ],
         chunk_parser=lambda x: 'banana',
     )
@@ -153,13 +187,13 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         [[], PartCounts()],
         [
             [
-                Part(root=MediaPart(media=Media(content_type='image', url=''))),
-                Part(root=MediaPart(media=Media(url='data:image'))),
-                Part(root=MediaPart(media=Media(content_type='audio', url=''))),
-                Part(root=MediaPart(media=Media(url='data:audio'))),
-                Part(root=MediaPart(media=Media(content_type='video', url=''))),
-                Part(root=MediaPart(media=Media(url='data:video'))),
-                Part(root=TextPart(text='test')),
+                Part(media=Media(content_type='image', url='')),
+                Part(media=Media(url='data:image')),
+                Part(media=Media(content_type='audio', url='')),
+                Part(media=Media(url='data:audio')),
+                Part(media=Media(content_type='video', url='')),
+                Part(media=Media(url='data:video')),
+                Part(text='test'),
             ],
             PartCounts(
                 characters=len('test'),
@@ -196,56 +230,32 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 Message(
                     role='user',
                     content=[
-                        Part(root=TextPart(text='1')),
-                        Part(root=TextPart(text='2')),
+                        Part(text='1'),
+                        Part(text='2'),
                     ],
                 ),
                 Message(
                     role='user',
                     content=[
-                        Part(
-                            root=MediaPart(
-                                media=Media(content_type='image', url='')
-                            )
-                        ),
-                        Part(root=MediaPart(media=Media(url='data:image'))),
-                        Part(
-                            root=MediaPart(
-                                media=Media(content_type='audio', url='')
-                            )
-                        ),
-                        Part(root=MediaPart(media=Media(url='data:audio'))),
-                        Part(
-                            root=MediaPart(
-                                media=Media(content_type='video', url='')
-                            )
-                        ),
-                        Part(root=MediaPart(media=Media(url='data:video'))),
+                        Part(media=Media(content_type='image', url='')),
+                        Part(media=Media(url='data:image')),
+                        Part(media=Media(content_type='audio', url='')),
+                        Part(media=Media(url='data:audio')),
+                        Part(media=Media(content_type='video', url='')),
+                        Part(media=Media(url='data:video')),
                     ],
                 ),
             ],
             Message(
                 role='user',
                 content=[
-                    Part(root=TextPart(text='3')),
-                    Part(
-                        root=MediaPart(
-                            media=Media(content_type='image', url='')
-                        )
-                    ),
-                    Part(root=MediaPart(media=Media(url='data:image'))),
-                    Part(
-                        root=MediaPart(
-                            media=Media(content_type='audio', url='')
-                        )
-                    ),
-                    Part(root=MediaPart(media=Media(url='data:audio'))),
-                    Part(
-                        root=MediaPart(
-                            media=Media(content_type='video', url='')
-                        )
-                    ),
-                    Part(root=MediaPart(media=Media(url='data:video'))),
+                    Part(text='3'),
+                    Part(media=Media(content_type='image', url='')),
+                    Part(media=Media(url='data:image')),
+                    Part(media=Media(content_type='audio', url='')),
+                    Part(media=Media(url='data:audio')),
+                    Part(media=Media(content_type='video', url='')),
+                    Part(media=Media(url='data:video')),
                 ],
             ),
             GenerationUsage(
@@ -264,8 +274,8 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                 Message(
                     role='user',
                     content=[
-                        Part(root=TextPart(text='1')),
-                        Part(root=TextPart(text='2')),
+                        Part(text='1'),
+                        Part(text='2'),
                     ],
                 ),
             ],
@@ -276,7 +286,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=TextPart(text='3')),
+                            Part(text='3'),
                         ],
                     ),
                 ),
@@ -286,11 +296,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(
-                                root=MediaPart(
-                                    media=Media(content_type='image', url='')
-                                )
-                            ),
+                            Part(media=Media(content_type='image', url='')),
                         ],
                     ),
                 ),
@@ -300,7 +306,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=MediaPart(media=Media(url='data:image'))),
+                            Part(media=Media(url='data:image')),
                         ],
                     ),
                 ),
@@ -310,11 +316,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(
-                                root=MediaPart(
-                                    media=Media(content_type='audio', url='')
-                                )
-                            ),
+                            Part(media=Media(content_type='audio', url='')),
                         ],
                     ),
                 ),
@@ -324,7 +326,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=MediaPart(media=Media(url='data:audio'))),
+                            Part(media=Media(url='data:audio')),
                         ],
                     ),
                 ),
@@ -334,11 +336,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(
-                                root=MediaPart(
-                                    media=Media(content_type='video', url='')
-                                )
-                            ),
+                            Part(media=Media(content_type='video', url='')),
                         ],
                     ),
                 ),
@@ -348,7 +346,7 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
                     message=Message(
                         role='user',
                         content=[
-                            Part(root=MediaPart(media=Media(url='data:video'))),
+                            Part(media=Media(url='data:video')),
                         ],
                     ),
                 ),

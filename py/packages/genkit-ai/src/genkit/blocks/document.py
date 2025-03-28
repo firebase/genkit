@@ -66,7 +66,7 @@ class Document(DocumentData):
         text: str, metadata: dict[str, Any] | None = None
     ) -> Document:
         """Construct a Document from a single text part."""
-        return Document(content=[TextPart(text=text)], metadata=metadata)
+        return Document(content=[DocumentPart(text=text)], metadata=metadata)
 
     @staticmethod
     def from_media(
@@ -77,7 +77,7 @@ class Document(DocumentData):
         """Construct a Document from a single media part."""
         return Document(
             content=[
-                MediaPart(media=Media(url=url, content_type=content_type))
+                DocumentPart(media=Media(url=url, content_type=content_type))
             ],
             metadata=metadata,
         )

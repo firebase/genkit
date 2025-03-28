@@ -228,6 +228,7 @@ class Genkit(GenkitRegistry):
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice = None,
+        tool_responses: list[Part] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         max_turns: int | None = None,
         on_chunk: ModelStreamingCallback | None = None,
@@ -239,8 +240,6 @@ class Genkit(GenkitRegistry):
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-        # TODO:
-        #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
 
@@ -266,6 +265,11 @@ class Genkit(GenkitRegistry):
                 tool requests instead of executing them directly.
             tool_choice: Optional. A `ToolChoice` object specifying how the
                 model should choose which tool to use.
+            tool_responses: Optional. tool_responses should contain a list of
+                tool response parts corresponding to interrupt tool request
+                parts from the most recent model message. Each entry must have
+                a matching `name` and `ref` (if supplied) for its tool request
+                counterpart.
             config: Optional. A `GenerationCommonConfig` object or a dictionary
                 containing configuration parameters for the generation process.
                 This allows fine-tuning the model's behavior.
@@ -312,6 +316,7 @@ class Genkit(GenkitRegistry):
                 tools=tools,
                 return_tool_requests=return_tool_requests,
                 tool_choice=tool_choice,
+                tool_responses=tool_responses,
                 config=config,
                 max_turns=max_turns,
                 output_format=output_format,

@@ -18,7 +18,7 @@ import asyncio
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Document, Genkit
+from genkit.ai import Document, Genkit, ToolRunContext, tool_response
 from genkit.core.typing import (
     GenerationCommonConfig,
     Message,
@@ -52,7 +52,7 @@ def gablorkenTool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def simple_generate_action_with_tools_flow(value: int) -> str:
+async def simple_generate_with_tools_flow(value: int) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -72,6 +72,37 @@ async def simple_generate_action_with_tools_flow(value: int) -> str:
         tools=['gablorkenTool'],
     )
     return response.text
+
+
+@ai.tool('calculates a gablorken')
+def gablorkenTool2(input_: GablorkenInput, ctx: ToolRunContext):
+    ctx.interrupt()
+
+
+@ai.flow()
+async def simple_generate_with_interrupts(value: int) -> str:
+    response1 = await ai.generate(
+        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[TextPart(text=f'what is a gablorken of {value}')],
+            ),
+        ],
+        tools=['gablorkenTool2'],
+    )
+    print(f'len(response.tool_requests)={len(response1.tool_requests)}')
+    if len(response1.tool_requests) == 0:
+        return response1.text
+
+    tr = tool_response(response1.tool_requests[0], 178)
+    response = await ai.generate(
+        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        messages=response1.messages,
+        tool_responses=[tr],
+        tools=['gablorkenTool'],
+    )
+    return response
 
 
 @ai.flow()

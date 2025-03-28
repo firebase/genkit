@@ -108,6 +108,7 @@ class Registry:
         kind: ActionKind,
         name: str,
         fn: Callable,
+        metadata_fn: Callable | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         span_metadata: dict[str, str] | None = None,
@@ -121,6 +122,7 @@ class Registry:
             kind: The type of action being registered (e.g., TOOL, MODEL).
             name: A unique name for the action within its kind.
             fn: The function to be called when the action is executed.
+            metadata_fn: The function to be used to infer metadata (e.g. schemas).
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
@@ -132,6 +134,7 @@ class Registry:
             kind=kind,
             name=name,
             fn=fn,
+            metadata_fn=metadata_fn,
             description=description,
             metadata=metadata,
             span_metadata=span_metadata,

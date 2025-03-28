@@ -24,22 +24,33 @@ communication protocols.
 from genkit.ai.plugin import Plugin
 from genkit.ai.veneer import Genkit, GenkitRegistry
 from genkit.blocks.document import Document
-from genkit.core.action import ActionRunContext
+from genkit.blocks.tools import ToolRunContext, tool_response
+from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.typing import (
+    CustomPart,
+    DataPart,
     Embedding,
     EmbedRequest,
     EmbedResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    GenerationCommonConfig,
+    GenerationUsage,
     Media,
     MediaPart,
     Message,
+    ModelInfo,
     Part,
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Supports,
     TextPart,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
 )
 
 __all__ = [
@@ -54,12 +65,25 @@ __all__ = [
     Genkit.__name__,
     GenkitRegistry.__name__,
     Media.__name__,
-    MediaPart.__name__,
     Message.__name__,
     Plugin.__name__,
     RetrieverRequest.__name__,
     RetrieverResponse.__name__,
     Role.__name__,
-    TextPart.__name__,
+    ToolRunContext.__name__,
+    ToolResponse.__name__,
+    ToolRequest.__name__,
     Part.__name__,
+    ModelInfo.__name__,
+    Supports.__name__,
+    ActionKind.__name__,
+    TextPart.__name__,
+    MediaPart.__name__,
+    DataPart.__name__,
+    CustomPart.__name__,
+    ToolRequestPart.__name__,
+    ToolResponsePart.__name__,
+    GenerationCommonConfig.__name__,
+    GenerationUsage.__name__,
+    tool_response.__name__,
 ]

@@ -37,6 +37,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 """
 
 import asyncio
+import inspect
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
 from typing import Any
@@ -48,6 +49,7 @@ from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
 from genkit.blocks.retriever import RetrieverFn
+from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry
@@ -153,11 +155,26 @@ class GenkitRegistry:
                 The wrapped function that executes the tool.
             """
             tool_name = name if name is not None else func.__name__
+
+            input_spec = inspect.getfullargspec(func)
+
+            def tool_fn_wrapper(*args):
+                match len(input_spec.args):
+                    case 0:
+                        return func()
+                    case 1:
+                        return func(args[0])
+                    case 2:
+                        return func(args[0], ToolRunContext(args[1]))
+                    case _:
+                        raise ValueError('tool must have 0-2 args...')
+
             action = self.registry.register_action(
                 name=tool_name,
                 kind=ActionKind.TOOL,
                 description=description,
-                fn=func,
+                fn=tool_fn_wrapper,
+                metadata_fn=func,
             )
 
             @wraps(func)

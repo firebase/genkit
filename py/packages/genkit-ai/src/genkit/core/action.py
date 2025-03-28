@@ -225,6 +225,7 @@ class Action:
         kind: ActionKind,
         name: str,
         fn: Callable[..., Any],
+        metadata_fn: Callable[..., Any] | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         span_metadata: dict[str, Any] | None = None,
@@ -235,6 +236,7 @@ class Action:
             kind: The kind of action (e.g., TOOL, MODEL, etc.).
             name: Unique name identifier for this action.
             fn: The function to call when the action is executed.
+            metadata_fn: The function to be used to infer metadata (e.g. schemas).
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
@@ -242,7 +244,7 @@ class Action:
         self.kind = kind
         self.name = name
 
-        input_spec = inspect.getfullargspec(fn)
+        input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         arg_types = []
 
         action_args = input_spec.args.copy()
@@ -522,6 +524,7 @@ def record_input_metadata(span, kind, name, span_metadata, input):
     span.set_attribute('genkit:metadata:subtype', kind)
     span.set_attribute('genkit:name', name)
     if input is not None:
+        print(f' - -  -- - - input={input}')
         span.set_attribute('genkit:input', dump_json(input))
 
     if span_metadata is not None:

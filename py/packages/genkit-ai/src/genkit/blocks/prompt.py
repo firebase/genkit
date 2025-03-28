@@ -46,8 +46,8 @@ from genkit.core.typing import (
     GenerationCommonConfig,
     Message,
     Part,
+    Resume,
     Role,
-    TextPart,
     ToolChoice,
 )
 
@@ -302,6 +302,7 @@ def to_generate_action_options(
     tools: list[str] | None = None,
     return_tool_requests: bool | None = None,
     tool_choice: ToolChoice = None,
+    tool_responses: list[Part] | None = None,
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     max_turns: int | None = None,
     output_format: str | None = None,
@@ -310,8 +311,6 @@ def to_generate_action_options(
     output_schema: type | dict[str, Any] | None = None,
     output_constrained: bool | None = None,
     docs: list[DocumentData] | None = None,
-    # TODO:
-    #  resume: ResumeOptions
 ) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
 
@@ -324,6 +323,7 @@ def to_generate_action_options(
         tools: A list of tool names to use with the prompt.
         return_tool_requests: Whether to return tool requests.
         tool_choice: The tool choice strategy.
+        tool_responses: tool response parts corresponding to interrupts.
         config: The generation configuration.
         max_turns: The maximum number of turns in a conversation.
         output_format: The output format.
@@ -370,6 +370,10 @@ def to_generate_action_options(
     if output_constrained is not None:
         output.constrained = output_constrained
 
+    resume = None
+    if tool_responses:
+        resume = Resume(respond=[r.root for r in tool_responses])
+
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,
@@ -380,6 +384,7 @@ def to_generate_action_options(
         output=output,
         max_turns=max_turns,
         docs=docs,
+        resume=resume,
     )
 
 
@@ -400,7 +405,7 @@ def _normalize_prompt_arg(
     if not prompt:
         return None
     if isinstance(prompt, str):
-        return [TextPart(text=prompt)]
+        return [Part(text=prompt)]
     elif hasattr(prompt, '__len__'):
         return prompt
     else:
