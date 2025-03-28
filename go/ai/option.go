@@ -34,8 +34,8 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
-	ModelName               string            // Name of the model to use.
-	Model                   Model             // Model to use.
+	ModelArg                ModelArg          // New preferred field
+	ModelName               string            // Name of model to use
 	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
 	Config                  any               // Model configuration. If nil will be taken from the prompt config.
 	Tools                   []ToolRef         // References to tools to use.
@@ -62,15 +62,16 @@ func (o *commonOptions) applyCommon(opts *commonOptions) error {
 		opts.MessagesFn = o.MessagesFn
 	}
 
-	if o.Model != nil {
-		if opts.Model != nil || opts.ModelName != "" {
+	if o.ModelArg != nil {
+		if opts.ModelArg != nil || opts.ModelName != "" {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
-		opts.Model = o.Model
+		opts.ModelArg = o.ModelArg
+		return nil
 	}
 
 	if o.ModelName != "" {
-		if opts.Model != nil || opts.ModelName != "" {
+		if opts.ModelArg != nil || opts.ModelName != "" {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
 		opts.ModelName = o.ModelName
@@ -165,8 +166,8 @@ func WithConfig(config any) CommonOption {
 }
 
 // WithModel sets the model to call for generation.
-func WithModel(model Model) CommonOption {
-	return &commonOptions{Model: model}
+func WithModel(model ModelArg) CommonOption {
+	return &commonOptions{ModelArg: model}
 }
 
 // WithModelName sets the model name to call for generation.
