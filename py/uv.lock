@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -36,6 +35,7 @@ members = [
     "openai-sample",
     "prompt-file",
     "rag",
+    "tool-interrupt",
     "vertex-ai-model-garden",
     "vertex-ai-reranker",
     "vertex-ai-vector-search",
@@ -3546,6 +3546,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7a/fd/7a5ee21fd08ff70d3d33a5781c255cbe779659bd03278feb98b19ee550f4/tinycss2-1.4.0.tar.gz", hash = "sha256:10c0972f6fc0fbee87c3edb76549357415e94548c1ae10ebccdea16fb404a9b7", size = 87085 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/34/ebdc18bae6aa14fbee1a08b63c015c72b64868ff7dae68808ab500c492e2/tinycss2-1.4.0-py3-none-any.whl", hash = "sha256:3a49cf47b7675da0b15d0c6e1df8df4ebd96e9394bb905a5775adb0d884c5289", size = 26610 },
+]
+
+[[package]]
+name = "tool-interrupt"
+version = "0.1.0"
+source = { editable = "samples/tool-interrupts" }
+dependencies = [
+    { name = "genkit-ai" },
+    { name = "genkit-plugin-google-ai" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]

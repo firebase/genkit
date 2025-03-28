@@ -17,7 +17,7 @@
 from typing import Any
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import Part, ToolResponse, ToolResponsePart
+from genkit.core.typing import Part, ToolRequestPart, ToolResponse
 
 
 class ToolRunContext(ActionRunContext):
@@ -46,16 +46,21 @@ class ToolInterruptError(Exception):
 
 
 def tool_response(
-    interrupt: Part,
+    interrupt: Part | ToolRequestPart,
     responseData: Any | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Part:
     """Constructs a tool response for an interrupted request."""
     # TODO: validate against tool schema
+    tool_request = (
+        interrupt.root.tool_request
+        if isinstance(interrupt, Part)
+        else interrupt.tool_request
+    )
     return Part(
         tool_response=ToolResponse(
-            name=interrupt.root.tool_request.name,
-            ref=interrupt.root.tool_request.ref,
+            name=tool_request.name,
+            ref=tool_request.ref,
             output=responseData,
         ),
         metadata={

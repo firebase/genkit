@@ -538,13 +538,13 @@ async def test_generate_with_interrupt_respond(
                 ref='123', name='test_interrupt', input={'value': 5}
             ),
             metadata={'interrupt': {'banana': 'yes please'}},
-        ),
+        ).root,
         Part(
             tool_request=ToolRequest(
                 ref='234', name='test_tool', input={'value': 5}
             ),
             metadata={'pendingOutput': 12},
-        ),
+        ).root,
     ]
 
     assert interrupted_response.messages == [
