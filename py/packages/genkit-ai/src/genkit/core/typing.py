@@ -32,7 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class Model(RootModel[Any]):
-    """Model data type class."""
+    """Root model for model."""
 
     root: Any
 
@@ -424,133 +424,133 @@ class TraceMetadata(BaseModel):
 
 
 class Context(RootModel[list]):
-    """Context data type class."""
+    """Root model for context."""
 
     root: list
 
 
 class Input(RootModel[Any]):
-    """Input data type class."""
+    """Root model for input."""
 
     root: Any
 
 
 class Output(RootModel[Any]):
-    """Output data type class."""
+    """Root model for output."""
 
     root: Any
 
 
 class Reference(RootModel[Any]):
-    """Reference data type class."""
+    """Root model for reference."""
 
     root: Any
 
 
 class TraceIds(RootModel[list[str]]):
-    """TraceIds data type class."""
+    """Root model for traceids."""
 
     root: list[str]
 
 
 class Data(RootModel[Any]):
-    """Data data type class."""
+    """Root model for data."""
 
     root: Any
 
 
 class MediaModel(RootModel[Any]):
-    """MediaModel data type class."""
+    """Root model for mediamodel."""
 
     root: Any
 
 
 class Metadata(RootModel[dict[str, Any] | None]):
-    """Metadata data type class."""
+    """Root model for metadata."""
 
     root: dict[str, Any] | None = None
 
 
 class Text(RootModel[Any]):
-    """Text data type class."""
+    """Root model for text."""
 
     root: Any
 
 
 class ToolRequestModel(RootModel[Any]):
-    """ToolRequestModel data type class."""
+    """Root model for toolrequestmodel."""
 
     root: Any
 
 
 class ToolResponseModel(RootModel[Any]):
-    """ToolResponseModel data type class."""
+    """Root model for toolresponsemodel."""
 
     root: Any
 
 
 class Custom(RootModel[dict[str, Any] | None]):
-    """Custom data type class."""
+    """Root model for custom."""
 
     root: dict[str, Any] | None = None
 
 
 class Config(RootModel[Any]):
-    """Config data type class."""
+    """Root model for config."""
 
     root: Any
 
 
 class OutputModel(RootModel[OutputConfig]):
-    """OutputModel data type class."""
+    """Root model for outputmodel."""
 
     root: OutputConfig
 
 
 class Tools(RootModel[list[ToolDefinition]]):
-    """Tools data type class."""
+    """Root model for tools."""
 
     root: list[ToolDefinition]
 
 
 class CustomModel(RootModel[Any]):
-    """CustomModel data type class."""
+    """Root model for custommodel."""
 
     root: Any
 
 
 class FinishMessage(RootModel[str]):
-    """FinishMessage data type class."""
+    """Root model for finishmessage."""
 
     root: str
 
 
 class LatencyMs(RootModel[float]):
-    """LatencyMs data type class."""
+    """Root model for latencyms."""
 
     root: float
 
 
 class Raw(RootModel[Any]):
-    """Raw data type class."""
+    """Root model for raw."""
 
     root: Any
 
 
 class Usage(RootModel[GenerationUsage]):
-    """Usage data type class."""
+    """Root model for usage."""
 
     root: GenerationUsage
 
 
 class Aggregated(RootModel[bool]):
-    """Aggregated data type class."""
+    """Root model for aggregated."""
 
     root: bool
 
 
 class Index(RootModel[float]):
-    """Index data type class."""
+    """Root model for index."""
 
     root: float
 
@@ -651,7 +651,7 @@ class EvalFnResponse(BaseModel):
 
 
 class EvalResponse(RootModel[list[EvalFnResponse]]):
-    """EvalResponse data type class."""
+    """Root model for evalresponse."""
 
     root: list[EvalFnResponse]
 
@@ -675,7 +675,7 @@ class Part(
         | CustomPart
     ]
 ):
-    """Part data type class."""
+    """Root model for part."""
 
     root: (
         TextPart
@@ -749,13 +749,13 @@ class TraceData(BaseModel):
 
 
 class Content(RootModel[list[Part]]):
-    """Content data type class."""
+    """Root model for content."""
 
     root: list[Part]
 
 
 class DocumentPart(RootModel[TextPart | MediaPart]):
-    """DocumentPart data type class."""
+    """Root model for documentpart."""
 
     root: TextPart | MediaPart
 
@@ -807,7 +807,7 @@ class RerankerResponse(BaseModel):
 
 
 class Messages(RootModel[list[Message]]):
-    """Messages data type class."""
+    """Root model for messages."""
 
     root: list[Message]
 
@@ -909,13 +909,13 @@ class RetrieverResponse(BaseModel):
 
 
 class Docs(RootModel[list[DocumentData]]):
-    """Docs data type class."""
+    """Root model for docs."""
 
     root: list[DocumentData]
 
 
 class Request(RootModel[GenerateRequest]):
-    """Request data type class."""
+    """Root model for request."""
 
     root: GenerateRequest
 
