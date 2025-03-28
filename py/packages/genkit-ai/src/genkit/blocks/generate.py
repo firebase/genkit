@@ -85,7 +85,6 @@ async def generate_action(
     model, tools, format_def = resolve_parameters(registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
-    print(f' - - - raw_request {raw_request}')
 
     assert_valid_tool_names(tools)
 

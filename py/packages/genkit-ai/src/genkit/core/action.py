@@ -524,7 +524,6 @@ def record_input_metadata(span, kind, name, span_metadata, input):
     span.set_attribute('genkit:metadata:subtype', kind)
     span.set_attribute('genkit:name', name)
     if input is not None:
-        print(f' - -  -- - - input={input}')
         span.set_attribute('genkit:input', dump_json(input))
 
     if span_metadata is not None:
