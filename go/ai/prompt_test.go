@@ -263,6 +263,7 @@ func TestValidPrompt(t *testing.T) {
 			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
 				WithToolChoice(ToolChoiceRequired),
+				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
@@ -278,6 +279,14 @@ func TestValidPrompt(t *testing.T) {
 					{
 						Role:    RoleUser,
 						Content: []*Part{NewTextPart("my name is foo")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewToolRequestPart(&ToolRequest{Name: "testTool", Input: map[string]any{"Test": "Bar"}})},
+					},
+					{
+						Role:    RoleTool,
+						Content: []*Part{NewToolResponsePart(&ToolResponse{Output: "Bar"})},
 					},
 				},
 				Tools: []*ToolDefinition{tool.Definition()},
@@ -306,7 +315,20 @@ func TestValidPrompt(t *testing.T) {
 				t.Fatalf("Generate() error = %v, wantErr %v", err, test.wantErr)
 			}
 
-			if diff := cmp.Diff(test.wantGenerated, generated.Request, cmpopts.IgnoreUnexported(ModelRequest{})); diff != "" {
+			cmpPart := func(a, b *Part) bool {
+				if a.IsText() != b.IsText() {
+					return false
+				}
+				if a.Text != b.Text {
+					return false
+				}
+				if a.ContentType != b.ContentType {
+					return false
+				}
+				return true
+			}
+
+			if diff := cmp.Diff(test.wantGenerated, generated.Request, cmp.Comparer(cmpPart), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("Generate() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -553,7 +575,11 @@ func TestDefinePartialAndHelperJourney(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.Dotprompt.RegisterHelpers(nil, tpl)
+
+	// Register the template helpers one by one
+	for name, helper := range templateHelpers {
+		r.Dotprompt.DefineHelper(name, helper, tpl)
+	}
 
 	// Step 1: Define custom partials for reuse across multiple prompts
 	// A header partial for consistent headers
@@ -576,7 +602,7 @@ Date: {{date}}`
 
 	// Step 2: Define custom helpers to extend templating capabilities
 	// A helper to capitalize text
-	defineHelper(r, "capitalize", func(text string) raymond.SafeString {
+	tpl.RegisterHelper("capitalize", func(text string) raymond.SafeString {
 		if text == "" {
 			return raymond.SafeString("")
 		}
@@ -584,7 +610,7 @@ Date: {{date}}`
 	})
 
 	// A helper to create list items
-	defineHelper(r, "listItem", func(content string) raymond.SafeString {
+	tpl.RegisterHelper("listItem", func(content string) raymond.SafeString {
 		return raymond.SafeString("* " + content)
 	})
 

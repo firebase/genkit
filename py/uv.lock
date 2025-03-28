@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -12,6 +13,7 @@ members = [
     "coffee-shop",
     "context-caching",
     "flow-sample1",
+    "genkit",
     "genkit-ai",
     "genkit-chroma-plugin",
     "genkit-compat-oai-plugin",
@@ -757,6 +759,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/30/3e/a80a8c077fd798951
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/58/8acf1b3e91c58313ce5cb67df61001fc9dcd21be4fadb76c1a2d540e09ed/fqdn-1.5.1-py3-none-any.whl", hash = "sha256:3a179af3761e4df6eb2e026ff9e1a3033d3587bf980a0b1b2e1e5d08d7358014", size = 9121 },
 ]
+
+[[package]]
+name = "genkit"
+version = "0.1.0"
+source = { editable = "packages/genkit" }
 
 [[package]]
 name = "genkit-ai"
