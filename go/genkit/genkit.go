@@ -356,29 +356,6 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 // flows registered with the Genkit instance `g`.
 // This is useful for introspection or for dynamically exposing flow endpoints,
 // for example, in an HTTP server.
-//
-// Example (setting up HTTP handlers for all flows):
-//
-//	import (
-//		"net/http"
-//		"github.com/firebase/genkit/go/core/server" // Assuming a server helper package
-//	)
-//
-//	func setupServer(ctx context.Context, g *genkit.Genkit) *http.ServeMux {
-//		mux := http.NewServeMux()
-//		for _, flowAction := range genkit.ListFlows(g) {
-//			// Assuming server.Handler adapts a core.Action to an http.HandlerFunc
-//			handler := server.Handler(flowAction)
-//			pattern := "POST /" + flowAction.Name() // Simple routing by flow name
-//			mux.HandleFunc(pattern, handler)
-//			log.Printf("Registered handler for %s at %s", flowAction.Name(), pattern)
-//		}
-//		return mux
-//	}
-//
-//	// ... later ...
-//	// serverMux := setupServer(ctx, g)
-//	// log.Fatal(http.ListenAndServe(":8080", serverMux))
 func ListFlows(g *Genkit) []core.Action {
 	acts := g.reg.ListActions()
 	flows := []core.Action{}
@@ -531,7 +508,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify the model
 //		ai.WithSystemText("You are a helpful geography assistant."),
 //		ai.WithPromptText("What is the capital of {{country}}?"), // Handlebars template
-//		ai.WithInputType(GeoInput{Country: "USA"}),              // Define input schema and default
+//		ai.WithInputType(GeoInput{Country: "USA"}),               // Define input schema and default
 //		ai.WithOutputType(GeoOutput{}),                           // Define output schema (implies JSON format)
 //		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
 //	)
@@ -609,12 +586,6 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 // Generate performs a model generation request using a flexible set of options
 // provided via [ai.GenerateOption] arguments. It's a convenient way to make
 // generation calls without pre-defining a prompt object.
-//
-// Options can specify the model ([ai.WithModelName], [ai.WithModel]), prompt content
-// ([ai.WithPromptText], [ai.WithMessages]), tools ([ai.WithTools]), configuration
-// ([ai.WithConfig]), output format ([ai.WithOutputFormat], [ai.WithOutputType]),
-// context documents ([ai.WithDocs]), and streaming ([ai.WithStreaming]).
-// If no model is specified, the default model set via [WithDefaultModel] is used.
 //
 // Example:
 //
@@ -743,19 +714,6 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 // It returns the plugin instance as `any` if found, or `nil` otherwise.
 // The caller is responsible for type-asserting the returned value to the
 // specific plugin type.
-//
-// Example:
-//
-//	// Assuming googleai.Plugin was registered with name "googleai"
-//	pluginInstance := genkit.LookupPlugin(g, googleai.PluginName) // googleai.PluginName is typically "googleai"
-//	if pluginInstance != nil {
-//		googleAIPlugin, ok := pluginInstance.(*googleai.Plugin)
-//		if ok {
-//			// Use the specific plugin instance
-//			cfg := googleAIPlugin.Config()
-//			// ...
-//		}
-//	}
 func LookupPlugin(g *Genkit, name string) any {
 	return g.reg.LookupPlugin(name)
 }
@@ -831,7 +789,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) error {
 // Example:
 //
 //	// Load a specific prompt file with a namespace
-//	customPrompt, err := genkit.LoadPrompt(g, "./special_prompts/analyzer.prompt", "analysis")
+//	customPrompt, err := genkit.LoadPrompt(g, "./prompts/analyzer.prompt", "analysis")
 //	if err != nil {
 //		log.Fatalf("Failed to load custom prompt: %v", err)
 //	}
