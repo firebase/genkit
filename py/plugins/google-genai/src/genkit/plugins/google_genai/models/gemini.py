@@ -619,7 +619,7 @@ class GeminiModel:
             )
             cfg.response_mime_type = response_mime_type
 
-            if request.output.schema_:
+            if request.output.schema_ and request.output.constrained:
                 cfg.response_schema = self._convert_schema_property(request.output.schema_)
 
         if request.tools:

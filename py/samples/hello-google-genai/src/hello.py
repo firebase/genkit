@@ -177,7 +177,17 @@ async def generate_character(name: str, ctx):
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
-        return result.text
+        return result.output
+
+@ai.flow()
+async def generate_character_unconstrained(name: str, ctx):
+    result = await ai.generate(
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
+        output_constrained=False,
+        output_instructions=True,
+    )
+    return result.output
 
 async def main() -> None:
     print(await say_hi(', tell me a joke'))
