@@ -45,9 +45,8 @@ type Prompt struct {
 func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Prompt, error) {
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
-		err := opt.applyPrompt(pOpts)
-		if err != nil {
-			return nil, err
+		if err := opt.applyPrompt(pOpts); err != nil {
+			return nil, fmt.Errorf("ai.DefinePrompt: error applying options: %w", err)
 		}
 	}
 
@@ -108,9 +107,8 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 
 	genOpts := &promptGenerateOptions{}
 	for _, opt := range opts {
-		err := opt.applyPromptGenerate(genOpts)
-		if err != nil {
-			return nil, err
+		if err := opt.applyPromptGenerate(genOpts); err != nil {
+			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
 
@@ -149,8 +147,8 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 		actionOpts.MaxTurns = genOpts.MaxTurns
 	}
 
-	if genOpts.IsReturnToolRequestsSet {
-		actionOpts.ReturnToolRequests = genOpts.ReturnToolRequests
+	if genOpts.ReturnToolRequests != nil {
+		actionOpts.ReturnToolRequests = *genOpts.ReturnToolRequests
 	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
@@ -254,7 +252,7 @@ fieldLoop:
 	return m, nil
 }
 
-// buildRequest prepares an [GenerateActionOptions] based on the prompt,
+// buildRequest prepares a [GenerateActionOptions] based on the prompt,
 // using the input variables and other information in the [Prompt].
 func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	m, err := buildVariables(input)
@@ -286,7 +284,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		ToolChoice:         p.ToolChoice,
 		Model:              p.ModelName,
 		MaxTurns:           p.MaxTurns,
-		ReturnToolRequests: p.ReturnToolRequests,
+		ReturnToolRequests: *p.ReturnToolRequests,
 		Messages:           messages,
 		Tools:              tools,
 		Output: &GenerateActionOutputConfig{
@@ -535,9 +533,11 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	opts := &promptOptions{
-		commonOptions: commonOptions{
+		commonGenOptions: commonGenOptions{
+			configOptions: configOptions{
+				Config: metadata.Config,
+			},
 			ModelName: metadata.Model,
-			Config:    metadata.Config,
 			Tools:     toolRefs,
 		},
 		DefaultInput: metadata.Input.Default,
@@ -554,8 +554,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); !ok {
-		opts.ReturnToolRequests = returnToolRequests
-		opts.IsReturnToolRequestsSet = true
+		opts.ReturnToolRequests = &returnToolRequests
 	}
 
 	if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {

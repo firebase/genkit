@@ -27,12 +27,12 @@ import (
 func TestCommonOptions(t *testing.T) {
 	tests := []struct {
 		name    string
-		opts    []CommonOption
+		opts    []CommonGenOption
 		wantErr bool
 	}{
 		{
 			name: "valid options",
-			opts: []CommonOption{
+			opts: []CommonGenOption{
 				WithMessages(NewUserTextMessage("test")),
 				WithConfig(&GenerationCommonConfig{Temperature: 0.7}),
 				WithModel(&mockModel{name: "test/model"}),
@@ -46,7 +46,7 @@ func TestCommonOptions(t *testing.T) {
 		},
 		{
 			name: "mutually exclusive - messages",
-			opts: []CommonOption{
+			opts: []CommonGenOption{
 				WithMessages(NewUserTextMessage("test")),
 				WithMessagesFn(func(context.Context, any) ([]*Message, error) { return nil, nil }),
 			},
@@ -54,7 +54,7 @@ func TestCommonOptions(t *testing.T) {
 		},
 		{
 			name: "mutually exclusive - model",
-			opts: []CommonOption{
+			opts: []CommonGenOption{
 				WithModel(&mockModel{name: "test/model"}),
 				WithModelName("test/model"),
 			},
@@ -275,18 +275,9 @@ func TestExecutionOptions(t *testing.T) {
 		{
 			name: "valid options",
 			opts: []ExecutionOption{
-				WithDocs(&Document{Content: []*Part{NewTextPart("test doc")}}),
 				WithStreaming(func(context.Context, *ModelResponseChunk) error { return nil }),
 			},
 			wantErr: false,
-		},
-		{
-			name: "duplicate - docs",
-			opts: []ExecutionOption{
-				WithDocs(&Document{Content: []*Part{NewTextPart("doc1")}}),
-				WithDocs(&Document{Content: []*Part{NewTextPart("doc2")}}),
-			},
-			wantErr: true,
 		},
 		{
 			name: "duplicate - streaming",
@@ -400,16 +391,18 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		}
 	}
 
+	returnToolRequests := true
 	expected := &generateOptions{
-		commonOptions: commonOptions{
-			Model:                   model,
-			Config:                  &GenerationCommonConfig{Temperature: 0.7},
-			Tools:                   []ToolRef{tool},
-			ToolChoice:              ToolChoiceAuto,
-			MaxTurns:                3,
-			ReturnToolRequests:      true,
-			IsReturnToolRequestsSet: true,
-			Middleware:              []ModelMiddleware{mw},
+		commonGenOptions: commonGenOptions{
+			configOptions: configOptions{
+				Config: &GenerationCommonConfig{Temperature: 0.7},
+			},
+			Model:              model,
+			Tools:              []ToolRef{tool},
+			ToolChoice:         ToolChoiceAuto,
+			MaxTurns:           3,
+			ReturnToolRequests: &returnToolRequests,
+			Middleware:         []ModelMiddleware{mw},
 		},
 		promptingOptions: promptingOptions{
 			SystemFn: opts.SystemFn,
@@ -420,17 +413,16 @@ func TestGenerateOptionsComplete(t *testing.T) {
 			OutputSchema: opts.OutputSchema,
 		},
 		executionOptions: executionOptions{
-			Documents: []*Document{DocumentFromText("doc", nil)},
-			Stream:    streamFunc,
+			Stream: streamFunc,
 		},
 	}
 
 	if diff := cmp.Diff(expected, opts,
-		cmpopts.IgnoreFields(commonOptions{}, "MessagesFn", "Middleware"),
+		cmpopts.IgnoreFields(commonGenOptions{}, "MessagesFn", "Middleware"),
 		cmpopts.IgnoreFields(promptingOptions{}, "SystemFn", "PromptFn"),
 		cmpopts.IgnoreFields(executionOptions{}, "Stream"),
 		cmpopts.IgnoreUnexported(mockModel{}, mockTool{}),
-		cmp.AllowUnexported(generateOptions{}, commonOptions{}, promptingOptions{},
+		cmp.AllowUnexported(generateOptions{}, commonGenOptions{}, promptingOptions{},
 			outputOptions{}, executionOptions{})); diff != "" {
 		t.Errorf("Options not applied correctly, diff (-want +got):\n%s", diff)
 	}
@@ -486,16 +478,18 @@ func TestPromptOptionsComplete(t *testing.T) {
 		}
 	}
 
+	returnToolRequests := true
 	expected := &promptOptions{
-		commonOptions: commonOptions{
-			Model:                   model,
-			Config:                  &GenerationCommonConfig{Temperature: 0.7},
-			Tools:                   []ToolRef{tool},
-			ToolChoice:              ToolChoiceAuto,
-			MaxTurns:                3,
-			ReturnToolRequests:      true,
-			IsReturnToolRequestsSet: true,
-			Middleware:              []ModelMiddleware{mw},
+		commonGenOptions: commonGenOptions{
+			configOptions: configOptions{
+				Config: &GenerationCommonConfig{Temperature: 0.7},
+			},
+			Model:              model,
+			Tools:              []ToolRef{tool},
+			ToolChoice:         ToolChoiceAuto,
+			MaxTurns:           3,
+			ReturnToolRequests: &returnToolRequests,
+			Middleware:         []ModelMiddleware{mw},
 		},
 		promptingOptions: promptingOptions{
 			SystemFn: opts.SystemFn,
@@ -512,12 +506,12 @@ func TestPromptOptionsComplete(t *testing.T) {
 	}
 
 	if diff := cmp.Diff(expected, opts,
-		cmpopts.IgnoreFields(commonOptions{}, "MessagesFn", "Middleware"),
+		cmpopts.IgnoreFields(commonGenOptions{}, "MessagesFn", "Middleware"),
 		cmpopts.IgnoreFields(promptingOptions{}, "SystemFn", "PromptFn"),
 		cmpopts.IgnoreFields(outputOptions{}, "OutputSchema"),
 		cmpopts.IgnoreFields(promptOptions{}, "InputSchema"),
 		cmpopts.IgnoreUnexported(mockModel{}, mockTool{}),
-		cmp.AllowUnexported(promptOptions{}, commonOptions{}, promptingOptions{},
+		cmp.AllowUnexported(promptOptions{}, commonGenOptions{}, promptingOptions{},
 			outputOptions{})); diff != "" {
 		t.Errorf("Options not applied correctly, diff (-want +got):\n%s", diff)
 	}
@@ -572,29 +566,30 @@ func TestPromptGenerateOptionsComplete(t *testing.T) {
 		}
 	}
 
+	returnToolRequests := true
 	expected := &promptGenerateOptions{
-		commonOptions: commonOptions{
-			Model:                   model,
-			Config:                  &GenerationCommonConfig{Temperature: 0.7},
-			Tools:                   []ToolRef{tool},
-			ToolChoice:              ToolChoiceAuto,
-			MaxTurns:                3,
-			ReturnToolRequests:      true,
-			IsReturnToolRequestsSet: true,
-			Middleware:              []ModelMiddleware{mw},
+		commonGenOptions: commonGenOptions{
+			configOptions: configOptions{
+				Config: &GenerationCommonConfig{Temperature: 0.7},
+			},
+			Model:              model,
+			Tools:              []ToolRef{tool},
+			ToolChoice:         ToolChoiceAuto,
+			MaxTurns:           3,
+			ReturnToolRequests: &returnToolRequests,
+			Middleware:         []ModelMiddleware{mw},
 		},
 		executionOptions: executionOptions{
-			Documents: []*Document{doc},
-			Stream:    streamFunc,
+			Stream: streamFunc,
 		},
 		Input: input,
 	}
 
 	if diff := cmp.Diff(expected, opts,
-		cmpopts.IgnoreFields(commonOptions{}, "MessagesFn", "Middleware"),
+		cmpopts.IgnoreFields(commonGenOptions{}, "MessagesFn", "Middleware"),
 		cmpopts.IgnoreFields(executionOptions{}, "Stream"),
 		cmpopts.IgnoreUnexported(mockModel{}, mockTool{}),
-		cmp.AllowUnexported(promptGenerateOptions{}, commonOptions{},
+		cmp.AllowUnexported(promptGenerateOptions{}, commonGenOptions{},
 			executionOptions{})); diff != "" {
 		t.Errorf("Options not applied correctly, diff (-want +got):\n%s", diff)
 	}

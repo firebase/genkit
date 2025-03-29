@@ -273,8 +273,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
-		err := opt.applyGenerate(genOpts)
-		if err != nil {
+		if err := opt.applyGenerate(genOpts); err != nil {
 			return nil, fmt.Errorf("ai.Generate: error applying options: %w", err)
 		}
 	}
@@ -323,7 +322,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
-		ReturnToolRequests: genOpts.ReturnToolRequests,
+		ReturnToolRequests: *genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema: genOpts.OutputSchema,
 			Format:     string(genOpts.OutputFormat),

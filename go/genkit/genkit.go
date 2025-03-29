@@ -587,6 +587,24 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 // provided via [ai.GenerateOption] arguments. It's a convenient way to make
 // generation calls without pre-defining a prompt object.
 //
+// Available options include:
+//   - [ai.WithModel]: Sets the model to use for generation
+//   - [ai.WithModelName]: Sets the model name to use for generation
+//   - [ai.WithConfig]: Sets generation configuration parameters like temperature
+//   - [ai.WithPromptText]: Sets the prompt text for generation
+//   - [ai.WithSystemText]: Sets the system message text
+//   - [ai.WithMessages]: Sets the conversation messages
+//   - [ai.WithTools]: Sets the tools available to the model
+//   - [ai.WithToolChoice]: Controls whether to use a tool or not
+//   - [ai.WithMaxTurns]: Sets maximum number of tool call iterations
+//   - [ai.WithReturnToolRequests]: Controls whether to return tool requests
+//   - [ai.WithOutputType]: Sets the expected output schema
+//   - [ai.WithOutputFormat]: Sets the expected output format
+//   - [ai.WithMiddleware]: Sets middleware for request/response processing
+//   - [ai.WithStreaming]: Sets the streaming callback for generation
+//   - [ai.WithTextDocs]: Provides text documents as context
+//   - [ai.WithDocs]: Provides Document objects as context
+//
 // Example:
 //
 //	resp, err := genkit.Generate(ctx, g,
@@ -651,25 +669,6 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //	fmt.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
 func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.GenerateData(ctx, g.reg, value, opts...)
-}
-
-// DefineIndexer defines a custom indexer implementation, registers it as a
-// [core.Action] of type Indexer, and returns an [ai.Indexer].
-// Indexers are responsible for adding or updating documents in a data store,
-// often a vector database, typically involving embedding the document content.
-//
-// The `provider` and `name` form the unique identifier. The `index` function
-// contains the logic to process an [ai.IndexerRequest], which includes the
-// documents to be indexed.
-func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
-	return ai.DefineIndexer(g.reg, provider, name, index)
-}
-
-// LookupIndexer retrieves a registered [ai.Indexer] by its provider and name.
-// It returns the indexer instance if found, or `nil` if no indexer with the
-// given identifier is registered (e.g., via [DefineIndexer] or a plugin).
-func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
-	return ai.LookupIndexer(g.reg, provider, name)
 }
 
 // DefineRetriever defines a custom retriever implementation, registers it as a
