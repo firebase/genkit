@@ -45,6 +45,7 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Stage,
     Supports,
     TextPart,
     ToolDefinition,
@@ -88,4 +89,5 @@ __all__ = [
     GenerationUsage.__name__,
     ToolDefinition.__name__,
     tool_response.__name__,
+    Stage.__name__,
 ]
