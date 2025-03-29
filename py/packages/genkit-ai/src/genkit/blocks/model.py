@@ -57,9 +57,7 @@ type MessageParser[T] = Callable[[MessageWrapper], T]
 type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
 
 
-type ModelMiddlewareNext = Callable[
-    [GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]
-]
+type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
 type ModelMiddleware = Callable[
     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
@@ -96,9 +94,7 @@ class MessageWrapper(Message):
         Returns:
             list[ToolRequestPart]: list of tool requests present in this response.
         """
-        return [
-            p.root for p in self.content if isinstance(p.root, ToolRequestPart)
-        ]
+        return [p.root for p in self.content if isinstance(p.root, ToolRequestPart)]
 
 
 class GenerateResponseWrapper(GenerateResponse):
@@ -126,9 +122,7 @@ class GenerateResponseWrapper(GenerateResponse):
             finish_reason=response.finish_reason,
             finish_message=response.finish_message,
             latency_ms=response.latency_ms,
-            usage=response.usage
-            if response.usage is not None
-            else GenerationUsage(),
+            usage=response.usage if response.usage is not None else GenerationUsage(),
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
@@ -225,9 +219,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from the current chunk.
         """
-        return ''.join(
-            p.root.text if p.root.text is not None else '' for p in self.content
-        )
+        return ''.join(p.root.text if p.root.text is not None else '' for p in self.content)
 
     @cached_property
     def accumulated_text(self) -> str:
@@ -272,17 +264,12 @@ def text_from_message(msg: Message) -> str:
 def text_from_content(content: list[Part]) -> str:
     """Extracts text from message content (parts)."""
     return ''.join(
-        p.root.text
-        if (isinstance(p, Part) or isinstance(p, DocumentPart))
-        and p.root.text is not None
-        else ''
+        p.root.text if (isinstance(p, Part) or isinstance(p, DocumentPart)) and p.root.text is not None else ''
         for p in content
     )
 
 
-def get_basic_usage_stats(
-    input_: list[Message], response: Message | list[Candidate]
-) -> GenerationUsage:
+def get_basic_usage_stats(input_: list[Message], response: Message | list[Candidate]) -> GenerationUsage:
     request_parts = []
 
     for msg in input_:
@@ -321,15 +308,9 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
         if media:
             content_type = media.content_type or ''
             url = media.url or ''
-            is_image = content_type.startswith('image') or url.startswith(
-                'data:image'
-            )
-            is_video = content_type.startswith('video') or url.startswith(
-                'data:video'
-            )
-            is_audio = content_type.startswith('audio') or url.startswith(
-                'data:audio'
-            )
+            is_image = content_type.startswith('image') or url.startswith('data:image')
+            is_video = content_type.startswith('video') or url.startswith('data:video')
+            is_audio = content_type.startswith('audio') or url.startswith('data:audio')
 
             part_counts.images += 1 if is_image else 0
             part_counts.videos += 1 if is_video else 0

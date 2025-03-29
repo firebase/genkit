@@ -48,9 +48,7 @@ def test_evaluate_tool_executes_registered_action():
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=mock_registry)
 
     result = model._evaluate_tool('my_tool', '{"a": 1}')
-    mock_registry.registry.lookup_action.assert_called_once_with(
-        ActionKind.TOOL, 'my_tool'
-    )
+    mock_registry.registry.lookup_action.assert_called_once_with(ActionKind.TOOL, 'my_tool')
     mock_action.input_type.validate_python.assert_called_once_with({'a': 1})
     mock_action.run.assert_called_once_with({'a': 1})
     assert result == 'result'
@@ -72,11 +70,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request):
     ]
     # Second call is the model response
     second_response = MagicMock()
-    second_response.choices = [
-        MagicMock(
-            finish_reason='stop', message=MagicMock(content='final response')
-        )
-    ]
+    second_response.choices = [MagicMock(finish_reason='stop', message=MagicMock(content='final response'))]
 
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = [

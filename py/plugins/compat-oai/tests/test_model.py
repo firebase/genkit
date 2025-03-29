@@ -48,9 +48,7 @@ def test_get_messages_empty():
     Test _get_messages raises ValueError when no messages are provided.
     """
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
-    with pytest.raises(
-        ValueError, match='No messages provided in the request.'
-    ):
+    with pytest.raises(ValueError, match='No messages provided in the request.'):
         model._get_messages([])
 
 
@@ -107,9 +105,7 @@ def test_generate_stream(sample_request):
         def __next__(self):
             # Return an empty chunk to indicate end of stream
             if self._current == len(self._data):
-                chunk = MagicMock(
-                    choices=[MagicMock(index=0, delta=MagicMock(content=None))]
-                )
+                chunk = MagicMock(choices=[MagicMock(index=0, delta=MagicMock(content=None))])
 
             # Close stream and stop iteration
             elif self._current > len(self._data):

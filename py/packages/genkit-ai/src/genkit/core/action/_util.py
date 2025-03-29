@@ -76,18 +76,10 @@ def extract_action_args_and_types(
     # Special case when using a method as an action, we ignore first "self"
     # arg. (Note: The original condition `len(action_args) <= 3` is preserved
     # from the source snippet).
-    if (
-        len(action_args) > 0
-        and len(action_args) <= 3
-        and action_args[0] == 'self'
-    ):
+    if len(action_args) > 0 and len(action_args) <= 3 and action_args[0] == 'self':
         del action_args[0]
 
     for arg in action_args:
-        arg_types.append(
-            input_spec.annotations[arg]
-            if arg in input_spec.annotations
-            else Any
-        )
+        arg_types.append(input_spec.annotations[arg] if arg in input_spec.annotations else Any)
 
     return action_args, arg_types

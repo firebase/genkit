@@ -38,9 +38,7 @@ async def test_embedding(mocker, version):
     embedding_values = [0.0017063986, -0.044727605, 0.043327782, 0.00044852644]
 
     request = EmbedRequest(input=[Document.from_text(request_text)])
-    api_response = genai.types.EmbedContentResponse(
-        embeddings=[genai.types.ContentEmbedding(values=embedding_values)]
-    )
+    api_response = genai.types.EmbedContentResponse(embeddings=[genai.types.ContentEmbedding(values=embedding_values)])
     googleai_client_mock = mocker.AsyncMock()
     googleai_client_mock.aio.models.embed_content.return_value = api_response
 
@@ -51,11 +49,7 @@ async def test_embedding(mocker, version):
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.embed_content(
             model=version,
-            contents=[
-                genai.types.Content(
-                    parts=[genai.types.Part.from_text(text=request_text)]
-                )
-            ],
+            contents=[genai.types.Content(parts=[genai.types.Part.from_text(text=request_text)])],
             config=None,
         )
     ])

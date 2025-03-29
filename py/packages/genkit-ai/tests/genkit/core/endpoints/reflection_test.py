@@ -81,9 +81,7 @@ async def test_health_check(asgi_client):
 @pytest.mark.asyncio
 async def test_list_actions(asgi_client, mock_registry):
     """Test that the actions list endpoint returns registered actions."""
-    mock_registry.list_serializable_actions.return_value = {
-        'action1': {'name': 'Action 1'}
-    }
+    mock_registry.list_serializable_actions.return_value = {'action1': {'name': 'Action 1'}}
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
     assert response.json() == {'action1': {'name': 'Action 1'}}
@@ -119,18 +117,14 @@ async def test_run_action_standard(asgi_client, mock_registry):
 
     mock_registry.lookup_action_by_key.return_value = mock_action
 
-    response = await asgi_client.post(
-        '/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}}
-    )
+    response = await asgi_client.post('/api/runAction', json={'key': 'test_action', 'input': {'data': 'test'}})
 
     assert response.status_code == 200
     response_data = response.json()
     assert 'result' in response_data
     assert 'telemetry' in response_data
     assert response_data['telemetry']['traceId'] == 'test_trace_id'
-    mock_action.arun_raw.assert_called_once_with(
-        raw_input={'data': 'test'}, context={}
-    )
+    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={})
 
 
 @pytest.mark.asyncio
@@ -154,16 +148,12 @@ async def test_run_action_with_context(asgi_client, mock_registry):
     )
 
     assert response.status_code == 200
-    mock_action.arun_raw.assert_called_once_with(
-        raw_input={'data': 'test'}, context={'user': 'test_user'}
-    )
+    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={'user': 'test_user'})
 
 
 @pytest.mark.asyncio
 @patch('genkit.core.reflection.is_streaming_requested')
-async def test_run_action_streaming(
-    mock_is_streaming, asgi_client, mock_registry
-):
+async def test_run_action_streaming(mock_is_streaming, asgi_client, mock_registry):
     """Test that streaming actions work correctly."""
     mock_is_streaming.return_value = True
     mock_action = AsyncMock()

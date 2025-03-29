@@ -127,9 +127,7 @@ from genkit.typing import (
     ToolChoice,
 )
 
-DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
-    scheme='http', host='127.0.0.1', port=3100
-)
+DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(scheme='http', host='127.0.0.1', port=3100)
 
 logger = logging.getLogger(__name__)
 
@@ -184,22 +182,15 @@ class Genkit(GenkitRegistry):
                     def resolver(kind, name, plugin=plugin):
                         return plugin.resolve_action(self, kind, name)
 
-                    self.registry.register_action_resolver(
-                        plugin.plugin_name(), resolver
-                    )
+                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                 else:
-                    raise ValueError(
-                        f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.ai.plugin.Plugin`'
-                    )
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
 
     def join(self):
         if self.thread and self.loop:
             self.thread.join()
 
-    def start_server(
-        self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop
-    ) -> None:
+    def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
@@ -454,8 +445,4 @@ class Genkit(GenkitRegistry):
         """
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
 
-        return (
-            await embed_action.arun(
-                EmbedRequest(input=documents, options=options)
-            )
-        ).response
+        return (await embed_action.arun(EmbedRequest(input=documents, options=options))).response

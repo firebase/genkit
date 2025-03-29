@@ -135,13 +135,8 @@ async def test_define_sync_action_with_input_and_context() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (
-        await action.arun('foo', context={'foo': 'bar'})
-    ).response == 'syncFoo foo bar'
-    assert (
-        sync_foo('foo', ActionRunContext(context={'foo': 'bar'}))
-        == 'syncFoo foo bar'
-    )
+    assert (await action.arun('foo', context={'foo': 'bar'})).response == 'syncFoo foo bar'
+    assert sync_foo('foo', ActionRunContext(context={'foo': 'bar'})) == 'syncFoo foo bar'
 
 
 @pytest.mark.asyncio
@@ -161,9 +156,7 @@ async def test_define_sync_streaming_action() -> None:
     def on_chunk(c):
         chunks.append(c)
 
-    assert (
-        await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)
-    ).response == 3
+    assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
     assert chunks == ['1', '2']
 
 
@@ -227,12 +220,8 @@ async def test_define_async_action_with_input_and_context() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    assert (
-        await action.arun('foo', context={'foo': 'bar'})
-    ).response == 'syncFoo foo bar'
-    assert (
-        await async_foo('foo', ActionRunContext(context={'foo': 'bar'}))
-    ) == 'syncFoo foo bar'
+    assert (await action.arun('foo', context={'foo': 'bar'})).response == 'syncFoo foo bar'
+    assert (await async_foo('foo', ActionRunContext(context={'foo': 'bar'}))) == 'syncFoo foo bar'
 
 
 @pytest.mark.asyncio
@@ -252,9 +241,7 @@ async def test_define_async_streaming_action() -> None:
     def on_chunk(c):
         chunks.append(c)
 
-    assert (
-        await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)
-    ).response == 3
+    assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
     assert chunks == ['1', '2']
 
 
@@ -300,9 +287,7 @@ async def test_sync_action_raises_errors() -> None:
 
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    with pytest.raises(
-        GenkitError, match=r'.*Error while running action fooAction.*'
-    ) as e:
+    with pytest.raises(GenkitError, match=r'.*Error while running action fooAction.*') as e:
         await action.arun()
 
     assert 'stack' in e.value.details
@@ -319,9 +304,7 @@ async def test_async_action_raises_errors() -> None:
 
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    with pytest.raises(
-        GenkitError, match=r'.*Error while running action fooAction.*'
-    ) as e:
+    with pytest.raises(GenkitError, match=r'.*Error while running action fooAction.*') as e:
         await action.arun()
 
     assert 'stack' in e.value.details

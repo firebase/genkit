@@ -105,9 +105,7 @@ class TelemetryServerSpanExporter(SpanExporter):
     attributes, and other metadata about the operation.
     """
 
-    def __init__(
-        self, telemetry_server_url: str = 'http://localhost:4033/api/traces'
-    ):
+    def __init__(self, telemetry_server_url: str = 'http://localhost:4033/api/traces'):
         """Initialize the TelemetryServerSpanExporter.
 
         Args:

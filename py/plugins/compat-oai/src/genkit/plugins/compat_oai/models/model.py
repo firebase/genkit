@@ -73,9 +73,7 @@ class OpenAIModel:
         return [
             {
                 'role': self._role_map.get(m.role, m.role.value),
-                'content': ''.join(
-                    filter(None, (part.root.text for part in m.content))
-                ),
+                'content': ''.join(filter(None, (part.root.text for part in m.content))),
             }
             for m in messages
         ]
@@ -89,9 +87,7 @@ class OpenAIModel:
         """
         result = []
         for tool_definition in tools:
-            action = self._registry.registry.lookup_action(
-                ActionKind.TOOL, tool_definition.name
-            )
+            action = self._registry.registry.lookup_action(ActionKind.TOOL, tool_definition.name)
             function_call = pydantic_function_tool(
                 model=action.input_type._type,
                 name=tool_definition.name,
@@ -128,9 +124,7 @@ class OpenAIModel:
         # Execute the tool and return its result
         return str(action.run(arguments))
 
-    def _get_evaluated_tool_message_param(
-        self, tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall
-    ) -> dict:
+    def _get_evaluated_tool_message_param(self, tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall) -> dict:
         """
         Evaluates a tool call and formats its response in a structure compatible with OpenAI's API.
 
@@ -140,14 +134,10 @@ class OpenAIModel:
         return {
             'role': self._role_map.get(Role.TOOL, Role.TOOL.value),
             'tool_call_id': tool_call.id,
-            'content': self._evaluate_tool(
-                tool_call.function.name, tool_call.function.arguments
-            ),
+            'content': self._evaluate_tool(tool_call.function.name, tool_call.function.arguments),
         }
 
-    def _get_assistant_message_param(
-        self, tool_calls: list[ChoiceDeltaToolCall]
-    ) -> dict:
+    def _get_assistant_message_param(self, tool_calls: list[ChoiceDeltaToolCall]) -> dict:
         """
         Formats tool call data into assistant message structure compatible with OpenAI's API.
 
@@ -185,13 +175,9 @@ class OpenAIModel:
 
             # Evaluate tool calls and append their responses
             for tool_call in completion.message.tool_calls:
-                openai_config['messages'].append(
-                    self._get_evaluated_tool_message_param(tool_call)
-                )
+                openai_config['messages'].append(self._get_evaluated_tool_message_param(tool_call))
 
-            response = self._openai_client.chat.completions.create(
-                **openai_config
-            )
+            response = self._openai_client.chat.completions.create(**openai_config)
 
         return GenerateResponse(
             request=request,
@@ -201,9 +187,7 @@ class OpenAIModel:
             ),
         )
 
-    def generate_stream(
-        self, request: GenerateRequest, callback: Callable
-    ) -> GenerateResponse:
+    def generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
         """
         Generates a streaming response from the OpenAI client and processes it in chunks.
 
@@ -246,19 +230,13 @@ class OpenAIModel:
 
             # If tool calls were requested, process them and continue the conversation
             if tool_calls:
-                openai_config['messages'].append(
-                    self._get_assistant_message_param(tool_calls.values())
-                )
+                openai_config['messages'].append(self._get_assistant_message_param(tool_calls.values()))
 
                 for tool_call in tool_calls.values():
-                    openai_config['messages'].append(
-                        self._get_evaluated_tool_message_param(tool_call)
-                    )
+                    openai_config['messages'].append(self._get_evaluated_tool_message_param(tool_call))
 
                 # Re-initiate streaming after processing tool calls
-                stream = self._openai_client.chat.completions.create(
-                    **openai_config
-                )
+                stream = self._openai_client.chat.completions.create(**openai_config)
 
         # Return an empty response when streaming is complete
         return GenerateResponse(

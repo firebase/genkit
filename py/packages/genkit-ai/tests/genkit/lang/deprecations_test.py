@@ -27,24 +27,14 @@ from genkit.lang.deprecations import (
 )
 
 TEST_DEPRECATED_MODELS = {
-    'GEMINI_1_0_PRO': DeprecationInfo(
-        recommendation='GEMINI_2_0_PRO', status=DeprecationStatus.LEGACY
-    ),
-    'GEMINI_1_5_PRO': DeprecationInfo(
-        recommendation='GEMINI_2_0_PRO', status=DeprecationStatus.DEPRECATED
-    ),
-    'GEMINI_1_5_FLASH': DeprecationInfo(
-        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
-    ),
-    'GEMINI_1_5_FLASH_8B': DeprecationInfo(
-        recommendation=None, status=DeprecationStatus.DEPRECATED
-    ),
+    'GEMINI_1_0_PRO': DeprecationInfo(recommendation='GEMINI_2_0_PRO', status=DeprecationStatus.LEGACY),
+    'GEMINI_1_5_PRO': DeprecationInfo(recommendation='GEMINI_2_0_PRO', status=DeprecationStatus.DEPRECATED),
+    'GEMINI_1_5_FLASH': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
+    'GEMINI_1_5_FLASH_8B': DeprecationInfo(recommendation=None, status=DeprecationStatus.DEPRECATED),
 }
 
 
-class GeminiVersionTest(
-    StrEnum, metaclass=deprecated_enum_metafactory(TEST_DEPRECATED_MODELS)
-):
+class GeminiVersionTest(StrEnum, metaclass=deprecated_enum_metafactory(TEST_DEPRECATED_MODELS)):
     """Test Gemini models enum."""
 
     GEMINI_1_0_PRO = 'gemini-1.0-pro'
@@ -93,9 +83,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         expected_regex = r'GeminiVersionTest\.GEMINI_1_5_FLASH_8B is deprecated'
         warnings.simplefilter('always', DeprecationWarning)
         try:
-            with self.assertWarnsRegex(
-                DeprecationWarning, expected_regex
-            ) as cm:
+            with self.assertWarnsRegex(DeprecationWarning, expected_regex) as cm:
                 member = GeminiVersionTest.GEMINI_1_5_FLASH_8B
                 self.assertTrue(
                     hasattr(cm, 'warnings') and cm.warnings,

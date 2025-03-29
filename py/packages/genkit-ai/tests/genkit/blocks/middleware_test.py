@@ -40,9 +40,7 @@ async def run_augmenter(req: GenerateRequest):
 
     async def next(req, _):
         req_future.set_result(req)
-        return GenerateResponse(
-            message=Message(role=Role.USER, content=[TextPart(text='hi')])
-        )
+        return GenerateResponse(message=Message(role=Role.USER, content=[TextPart(text='hi')]))
 
     await augmenter(req, ActionRunContext(), next)
 
@@ -104,9 +102,7 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
 
 
 @pytest.mark.asyncio
-async def test_augment_with_context_should_not_modify_non_pending_part() -> (
-    None
-):
+async def test_augment_with_context_should_not_modify_non_pending_part() -> None:
     """Test simple prompt rendering."""
 
     req = GenerateRequest(

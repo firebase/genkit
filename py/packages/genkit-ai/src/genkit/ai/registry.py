@@ -132,9 +132,7 @@ class GenkitRegistry:
 
         return wrapper
 
-    def tool(
-        self, description: str, name: str | None = None
-    ) -> Callable[[Callable], Callable]:
+    def tool(self, description: str, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
 
         Args:
@@ -226,15 +224,10 @@ class GenkitRegistry:
         retriever_meta = metadata if metadata else {}
         if 'retriever' not in retriever_meta:
             retriever_meta['retriever'] = {}
-        if (
-            'label' not in retriever_meta['retriever']
-            or not retriever_meta['retriever']['label']
-        ):
+        if 'label' not in retriever_meta['retriever'] or not retriever_meta['retriever']['label']:
             retriever_meta['retriever']['label'] = name
         if config_schema:
-            retriever_meta['retriever']['customOptions'] = to_json_schema(
-                config_schema
-            )
+            retriever_meta['retriever']['customOptions'] = to_json_schema(config_schema)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.RETRIEVER,
@@ -264,10 +257,7 @@ class GenkitRegistry:
             model_meta['model'] = dump_dict(info)
         if 'model' not in model_meta:
             model_meta['model'] = {}
-        if (
-            'label' not in model_meta['model']
-            or not model_meta['model']['label']
-        ):
+        if 'label' not in model_meta['model'] or not model_meta['model']['label']:
             model_meta['model']['label'] = name
 
         if config_schema:
@@ -423,6 +413,4 @@ class FlowWrapper:
             - An AsyncIterator of the chunks from the action.
             - An asyncio.Future that resolves to the final result of the action.
         """
-        return self._action.stream(
-            input=input, context=context, telemetry_labels=telemetry_labels
-        )
+        return self._action.stream(input=input, context=context, telemetry_labels=telemetry_labels)

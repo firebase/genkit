@@ -25,9 +25,7 @@ from genkit.typing import (
 )
 
 
-def inject_instructions(
-    messages: list[Message], instructions: str
-) -> list[Message]:
+def inject_instructions(messages: list[Message], instructions: str) -> list[Message]:
     """
     Injects instructions into a list of messages.
 
@@ -48,19 +46,14 @@ def inject_instructions(
             part.root.metadata
             and 'purpose' in part.root.metadata.root
             and part.root.metadata.root['purpose'] == 'output'
-            and (
-                'pending' not in part.root.metadata.root
-                or not part.root.metadata.root['pending']
-            )
+            and ('pending' not in part.root.metadata.root or not part.root.metadata.root['pending'])
             for part in message.content
         )
         for message in messages
     ):
         return messages
 
-    new_part = Part(
-        TextPart(text=instructions, metadata=Metadata({'purpose': 'output'}))
-    )
+    new_part = Part(TextPart(text=instructions, metadata=Metadata({'purpose': 'output'})))
 
     # find first message with purpose=output
     target_index = next(
@@ -83,20 +76,12 @@ def inject_instructions(
     # find the system message or the last user message
     if target_index < 0:
         target_index = next(
-            (
-                i
-                for i, message in enumerate(messages)
-                if message.role == Role.SYSTEM
-            ),
+            (i for i, message in enumerate(messages) if message.role == Role.SYSTEM),
             -1,  # Default to -1 if not found
         )
     if target_index < 0:
         target_index = next(
-            (
-                i
-                for i, message in reversed(list(enumerate(messages)))
-                if message.role == 'user'
-            ),
+            (i for i, message in reversed(list(enumerate(messages))) if message.role == 'user'),
             -1,  # Default to -1 if not found
         )
     if target_index < 0:

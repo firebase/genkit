@@ -47,9 +47,7 @@ class Plugin(abc.ABC):
 
     # TODO: https://github.com/firebase/genkit/issues/2438
     # @abc.abstractmethod
-    def resolve_action(
-        self, ai: GenkitRegistry, kind: ActionKind, name: str
-    ) -> None:
+    def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str) -> None:
         """Resolves an action by adding it to the provided GenkitRegistry.
 
         Args:

@@ -37,25 +37,17 @@ class SignalHandlerTest(unittest.TestCase):
         # Add first handler
         self.signal_handler.add_handler(signal.SIGINT, callback1)
         self.assertIn(signal.SIGINT, self.signal_handler.signal_handlers)
-        self.assertIn(
-            callback1, self.signal_handler.signal_handlers[signal.SIGINT]
-        )
+        self.assertIn(callback1, self.signal_handler.signal_handlers[signal.SIGINT])
 
         # Add second handler for same signal
         self.signal_handler.add_handler(signal.SIGINT, callback2)
-        self.assertEqual(
-            len(self.signal_handler.signal_handlers[signal.SIGINT]), 2
-        )
-        self.assertIn(
-            callback2, self.signal_handler.signal_handlers[signal.SIGINT]
-        )
+        self.assertEqual(len(self.signal_handler.signal_handlers[signal.SIGINT]), 2)
+        self.assertIn(callback2, self.signal_handler.signal_handlers[signal.SIGINT])
 
         # Add handler for different signal
         self.signal_handler.add_handler(signal.SIGTERM, callback1)
         self.assertIn(signal.SIGTERM, self.signal_handler.signal_handlers)
-        self.assertIn(
-            callback1, self.signal_handler.signal_handlers[signal.SIGTERM]
-        )
+        self.assertIn(callback1, self.signal_handler.signal_handlers[signal.SIGTERM])
 
     def test_remove_handler(self) -> None:
         """Test removing signal handlers."""
@@ -68,12 +60,8 @@ class SignalHandlerTest(unittest.TestCase):
 
         # Remove one handler
         self.signal_handler.remove_handler(signal.SIGINT, callback1)
-        self.assertNotIn(
-            callback1, self.signal_handler.signal_handlers[signal.SIGINT]
-        )
-        self.assertIn(
-            callback2, self.signal_handler.signal_handlers[signal.SIGINT]
-        )
+        self.assertNotIn(callback1, self.signal_handler.signal_handlers[signal.SIGINT])
+        self.assertIn(callback2, self.signal_handler.signal_handlers[signal.SIGINT])
 
         # Remove non-existent handler (should not raise exception)
         self.signal_handler.remove_handler(signal.SIGTERM, callback1)
@@ -81,9 +69,7 @@ class SignalHandlerTest(unittest.TestCase):
         # Remove last handler
         self.signal_handler.remove_handler(signal.SIGINT, callback2)
         self.assertIn(signal.SIGINT, self.signal_handler.signal_handlers)
-        self.assertEqual(
-            len(self.signal_handler.signal_handlers[signal.SIGINT]), 0
-        )
+        self.assertEqual(len(self.signal_handler.signal_handlers[signal.SIGINT]), 0)
 
     def test_handle_signal(self) -> None:
         """Test that handle_signal sets shutdown_event and calls callbacks."""
@@ -157,9 +143,7 @@ class SignalHandlerTest(unittest.TestCase):
             self.assertGreaterEqual(mock_signal.call_count, 2)
 
             # Check that SIGINT and SIGTERM were registered
-            signals_registered = [
-                call_args[0][0] for call_args in mock_signal.call_args_list
-            ]
+            signals_registered = [call_args[0][0] for call_args in mock_signal.call_args_list]
             self.assertIn(signal.SIGINT, signals_registered)
             self.assertIn(signal.SIGTERM, signals_registered)
 

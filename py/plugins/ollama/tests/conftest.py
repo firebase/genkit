@@ -95,7 +95,5 @@ def mock_ollama_api_client():
 
 @pytest.fixture
 def mock_ollama_api_async_client():
-    with mock.patch.object(
-        ollama_api, 'AsyncClient'
-    ) as mock_ollama_async_client:
+    with mock.patch.object(ollama_api, 'AsyncClient') as mock_ollama_async_client:
         yield mock_ollama_async_client

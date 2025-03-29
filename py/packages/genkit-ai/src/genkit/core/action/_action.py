@@ -60,9 +60,7 @@ class ActionRunContext:
             on_chunk: The callback to invoke when a chunk is received.
             context: The context to pass to the action.
         """
-        self._on_chunk = (
-            on_chunk if on_chunk is not None else noop_streaming_callback
-        )
+        self._on_chunk = on_chunk if on_chunk is not None else noop_streaming_callback
         self.context = context if context is not None else {}
 
     @cached_property
@@ -134,9 +132,7 @@ class Action:
         afn = ensure_async(fn)
         self.is_async = asyncio.iscoroutinefunction(fn)
 
-        async def async_tracing_wrapper(
-            input: Any | None, ctx: ActionRunContext
-        ) -> ActionResponse:
+        async def async_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
             """Wrap the function in an async tracing wrapper.
 
             Args:
@@ -168,9 +164,7 @@ class Action:
                             raise ValueError('action fn must have 0-2 args...')
                 except Exception as e:
                     raise GenkitError(
-                        cause=e.cause
-                        if isinstance(e, GenkitError) and e.cause
-                        else e,
+                        cause=e.cause if isinstance(e, GenkitError) and e.cause else e,
                         message=f'Error while running action {self.name}',
                         trace_id=trace_id,
                     )
@@ -178,9 +172,7 @@ class Action:
                 record_output_metadata(span, output=output)
                 return ActionResponse(response=output, trace_id=trace_id)
 
-        def sync_tracing_wrapper(
-            input: Any | None, ctx: ActionRunContext
-        ) -> ActionResponse:
+        def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
             """Wrap the function in a sync tracing wrapper.
 
             Args:
@@ -238,9 +230,7 @@ class Action:
             self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
 
         if ActionMetadataKey.RETURN in input_spec.annotations:
-            type_adapter = TypeAdapter(
-                input_spec.annotations[ActionMetadataKey.RETURN]
-            )
+            type_adapter = TypeAdapter(input_spec.annotations[ActionMetadataKey.RETURN])
             self.output_schema = type_adapter.json_schema()
             self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
         else:
@@ -272,9 +262,7 @@ class Action:
 
         return self.__fn(
             input,
-            ActionRunContext(
-                on_chunk=on_chunk, context=_action_context.get(None)
-            ),
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
         )
 
     async def arun(
@@ -302,9 +290,7 @@ class Action:
 
         return await self.__afn(
             input,
-            ActionRunContext(
-                on_chunk=on_chunk, context=_action_context.get(None)
-            ),
+            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
         )
 
     async def arun_raw(
@@ -325,11 +311,7 @@ class Action:
         Returns:
             The action response.
         """
-        input_action = (
-            self.input_type.validate_python(raw_input)
-            if self.input_type is not None
-            else None
-        )
+        input_action = self.input_type.validate_python(raw_input) if self.input_type is not None else None
         return await self.arun(
             input=input_action,
             on_chunk=on_chunk,
@@ -369,8 +351,6 @@ class Action:
         stream.set_close_future(resp)
 
         result_future: asyncio.Future[ActionResponse] = asyncio.Future()
-        stream.closed.add_done_callback(
-            lambda _: result_future.set_result(stream.closed.result().response)
-        )
+        stream.closed.add_done_callback(lambda _: result_future.set_result(stream.closed.result().response))
 
         return (stream, result_future)

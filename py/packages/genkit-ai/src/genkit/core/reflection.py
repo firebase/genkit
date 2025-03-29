@@ -200,38 +200,23 @@ def make_reflection_server(
                         # Since we're streaming, the headers have already been
                         # sent as a 200 OK, but we must indicate an error
                         # regardless.
-                        error_response = get_callable_json(e).model_dump(
-                            by_alias=True
-                        )
-                        logger.error(
-                            'Error streaming action', error=error_response
-                        )
+                        error_response = get_callable_json(e).model_dump(by_alias=True)
+                        logger.error('Error streaming action', error=error_response)
                         if 'message' in error_response:
                             logger.error(error_response['message'])
-                        if (
-                            'details' in error_response
-                            and 'stack' in error_response['details']
-                        ):
+                        if 'details' in error_response and 'stack' in error_response['details']:
                             logger.error(error_response['details']['stack'])
-                        self.wfile.write(
-                            bytes(
-                                json.dumps({'error': error_response}), encoding
-                            )
-                        )
+                        self.wfile.write(bytes(json.dumps({'error': error_response}), encoding))
                 else:
                     try:
 
                         async def run_fn():
-                            return await action.arun_raw(
-                                raw_input=payload['input'], context=context
-                            )
+                            return await action.arun_raw(raw_input=payload['input'], context=context)
 
                         output = run_async(loop, run_fn)
 
                         self.send_response(200)
-                        self.send_header(
-                            'x-genkit-version', DEFAULT_GENKIT_VERSION
-                        )
+                        self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
                         self.send_header('content-type', 'application/json')
                         self.end_headers()
 
@@ -247,27 +232,18 @@ def make_reflection_server(
                     except Exception as e:
                         # We aren't streaming here so send a JSON-encoded 500
                         # internal server error response.
-                        error_response = get_callable_json(e).model_dump(
-                            by_alias=True
-                        )
+                        error_response = get_callable_json(e).model_dump(by_alias=True)
                         logger.error(f'Error running action {action.name}')
                         if 'message' in error_response:
                             logger.error(error_response['message'])
-                        if (
-                            'details' in error_response
-                            and 'stack' in error_response['details']
-                        ):
+                        if 'details' in error_response and 'stack' in error_response['details']:
                             logger.error(error_response['details']['stack'])
 
                         self.send_response(500)
-                        self.send_header(
-                            'x-genkit-version', DEFAULT_GENKIT_VERSION
-                        )
+                        self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
                         self.send_header('content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write(
-                            bytes(json.dumps(error_response), encoding)
-                        )
+                        self.wfile.write(bytes(json.dumps(error_response), encoding))
 
     return ReflectionServer
 
@@ -481,9 +457,7 @@ def create_reflection_asgi_app(
             A JSONResponse with the action result or error.
         """
         try:
-            output = await action.arun_raw(
-                raw_input=payload['input'], context=context
-            )
+            output = await action.arun_raw(raw_input=payload['input'], context=context)
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},

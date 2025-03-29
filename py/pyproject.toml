@@ -128,7 +128,7 @@ exclude = [
   "venv",
 ]
 indent-width = 4
-line-length = 80
+line-length = 120
 preview = true
 target-version = "py312"
 unsafe-fixes = true

@@ -34,10 +34,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     """
     tokens = key.split('/')
     if len(tokens) < 3 or not tokens[1] or not tokens[2]:
-        msg = (
-            f'Invalid action key format: `{key}`.'
-            'Expected format: `/<kind>/<name>`'
-        )
+        msg = f'Invalid action key format: `{key}`.Expected format: `/<kind>/<name>`'
         raise ValueError(msg)
 
     kind_str = tokens[1]

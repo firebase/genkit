@@ -35,9 +35,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         for doc_data in docs.root:
             tasks.append(
                 self.process_document(
-                    document=Document.from_document_data(
-                        document_data=doc_data
-                    ),
+                    document=Document.from_document_data(document_data=doc_data),
                     data=data,
                 )
             )
@@ -47,9 +45,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         with open(self.index_file_name, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
 
-    async def process_document(
-        self, document: Document, data: dict[str, DbValue]
-    ) -> None:
+    async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
         embeddings = await self.ai.embed(
             model=self.params.embedder,
             documents=[document],
@@ -66,9 +62,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         embedding: Embedding,
         doc: Document,
     ) -> None:
-        data_str = json.dumps(
-            self._serialize_data(data=data), ensure_ascii=False
-        )
+        data_str = json.dumps(self._serialize_data(data=data), ensure_ascii=False)
         _idx = md5(data_str.encode('utf-8')).hexdigest()
         if _idx not in data:
             data[_idx] = DbValue(

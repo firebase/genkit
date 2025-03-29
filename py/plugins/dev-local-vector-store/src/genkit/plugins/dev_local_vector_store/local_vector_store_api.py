@@ -35,9 +35,7 @@ class LocalVectorStoreAPI(ABC):
 
     @cached_property
     def index_file_name(self):
-        return self._LOCAL_FILESTORE_TEMPLATE.format(
-            index_name=self.params.index_name
-        )
+        return self._LOCAL_FILESTORE_TEMPLATE.format(index_name=self.params.index_name)
 
     def _load_filestore(self) -> dict[str, DbValue]:
         data = {}

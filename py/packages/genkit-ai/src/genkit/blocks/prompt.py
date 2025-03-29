@@ -341,15 +341,11 @@ def to_generate_action_options(
         raise Exception('No model configured.')
     resolved_msgs: list[Message] = []
     if system:
-        resolved_msgs.append(
-            Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
-        )
+        resolved_msgs.append(Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system)))
     if messages:
         resolved_msgs += messages
     if prompt:
-        resolved_msgs.append(
-            Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
-        )
+        resolved_msgs.append(Message(role=Role.USER, content=_normalize_prompt_arg(prompt)))
 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.

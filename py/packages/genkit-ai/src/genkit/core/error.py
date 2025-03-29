@@ -136,9 +136,7 @@ class UserFacingError(GenkitError):
     exceptions being leaked to attackers.
     """
 
-    def __init__(
-        self, status: StatusName, message: str, details: Any = None
-    ) -> None:
+    def __init__(self, status: StatusName, message: str, details: Any = None) -> None:
         """Initialize a UserFacingError.
 
         Args:

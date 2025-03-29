@@ -131,9 +131,7 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         except:
             # If parsing fails, throw an error
             if throw_on_bad_json:
-                raise ValueError(
-                    f'Invalid JSON extracted from model output: {text}'
-                )
+                raise ValueError(f'Invalid JSON extracted from model output: {text}')
             return None
 
     if throw_on_bad_json:

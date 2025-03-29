@@ -51,9 +51,7 @@ def test_genkit_error() -> None:
 
 def test_genkit_error_to_json() -> None:
     """Test that GenkitError can be serialized to JSON."""
-    error = GenkitError(
-        status='NOT_FOUND', message='Resource not found', details={'id': 123}
-    )
+    error = GenkitError(status='NOT_FOUND', message='Resource not found', details={'id': 123})
     serializable = error.to_serializable()
     assert isinstance(serializable, HttpErrorWireFormat)
     assert serializable.code == 5
@@ -69,10 +67,7 @@ def test_unstable_api_error() -> None:
     assert "This API requires 'alpha' stability level" in error.original_message
 
     error_no_message = UnstableApiError()
-    assert (
-        "This API requires 'beta' stability level"
-        in error_no_message.original_message
-    )
+    assert "This API requires 'beta' stability level" in error_no_message.original_message
 
 
 def test_user_facing_error() -> None:

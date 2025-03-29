@@ -14,7 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Google AI sample."""
+
 import asyncio
+
+import structlog
 
 from genkit.ai import Genkit
 from genkit.plugins.google_ai import (
@@ -25,6 +29,8 @@ from genkit.plugins.google_ai import (
 from genkit.plugins.google_ai.models import gemini
 from genkit.typing import GenerationCommonConfig, Message, Role, TextPart
 
+logger = structlog.get_logger(__name__)
+
 ai = Genkit(
     plugins=[GoogleAi(plugin_params=GoogleAiPluginOptions())],
     model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
@@ -33,30 +39,41 @@ ai = Genkit(
 
 @ai.flow()
 async def say_hi(data: str):
-    return await ai.generate(
-        messages=[
-            Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
-        ]
-    )
+    """Generate a greeting.
+
+    Args:
+        data: The data to generate a greeting for.
+
+    Returns:
+        The generated greeting.
+    """
+    return await ai.generate(messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])])
 
 
 async def say_hi_with_configured_temperature(data: str):
+    """Generate a greeting with a configured temperature.
+
+    Args:
+        data: The data to generate a greeting for.
+
+    Returns:
+        The generated greeting.
+    """
     return await ai.generate(
-        messages=[
-            Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
-        ],
+        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
 
-def main() -> None:
-    print(asyncio.run(say_hi(', tell me a joke')).message.content)
-    print(
-        asyncio.run(
-            say_hi_with_configured_temperature(', tell me a joke')
-        ).message.content
-    )
+async def main() -> None:
+    """Main entry point for the Google AI sample.
+
+    This function demonstrates how to use the Google AI plugin to generate text
+    using the Gemini 2.0 Flash model.
+    """
+    await logger.ainfo(await say_hi(', tell me a joke'))
+    await logger.ainfo(await say_hi_with_configured_temperature(', tell me a joke'))
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
