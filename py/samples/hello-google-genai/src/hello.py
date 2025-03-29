@@ -165,7 +165,7 @@ class RpgCharacter(BaseModel):
 async def generate_character(name: str, ctx):
     if ctx.is_streaming:
         stream, result = ai.generate_stream(
-            prompt=f'generate an RPC character named {name}',
+            prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
         async for data in stream:
@@ -174,7 +174,7 @@ async def generate_character(name: str, ctx):
         return (await result).output
     else:
         result = await ai.generate(
-            prompt=f'generate an RPC character named {name}',
+            prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
         return result.text
