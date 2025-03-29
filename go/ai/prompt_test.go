@@ -162,7 +162,7 @@ type HelloPromptInput struct {
 
 func definePromptModel(reg *registry.Registry) Model {
 	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelInfoSupports{
+		&ModelInfo{Supports: &ModelSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -220,7 +220,6 @@ func definePromptModel(reg *registry.Registry) Model {
 
 			textResponse += strings.Join(contentTexts, "; ")
 			textResponse += "; config: " + base.PrettyJSONString(gr.Config)
-			textResponse += "; context: " + base.PrettyJSONString(gr.Context)
 
 			return &ModelResponse{
 				Request: gr,
@@ -246,7 +245,7 @@ func TestValidPrompt(t *testing.T) {
 		promptFn       promptFn
 		messages       []*Message
 		messagesFn     messagesFn
-		tools          []Tool
+		tools          []ToolRef
 		config         *GenerationCommonConfig
 		inputType      any
 		input          any
@@ -267,12 +266,12 @@ func TestValidPrompt(t *testing.T) {
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
-			wantTextOutput: "Echo: system: say hello; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello; my name is foo; config: {\n  \"temperature\": 11\n}",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -301,12 +300,12 @@ func TestValidPrompt(t *testing.T) {
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
-			wantTextOutput: "Echo: system: say hello to foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello to foo; my name is foo; config: {\n  \"temperature\": 11\n}",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -336,12 +335,12 @@ func TestValidPrompt(t *testing.T) {
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
-			wantTextOutput: "Echo: system: say hello; you're history; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello; you're history; my name is foo; config: {\n  \"temperature\": 11\n}",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -377,12 +376,12 @@ func TestValidPrompt(t *testing.T) {
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
-			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -423,12 +422,12 @@ func TestValidPrompt(t *testing.T) {
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
-			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -453,17 +452,17 @@ func TestValidPrompt(t *testing.T) {
 			inputType:  HelloPromptInput{},
 			systemText: "say hello",
 			promptText: "my name is foo",
-			tools:      []Tool{testTool(reg, "testTool")},
+			tools:      []ToolRef{testTool(reg, "testTool")},
 			input:      HelloPromptInput{Name: "foo"},
 			executeOptions: []PromptGenerateOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
-			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelRequestOutput{},
+				Output:     &ModelOutputConfig{},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -494,6 +493,36 @@ func TestValidPrompt(t *testing.T) {
 							"type":                 string("object"),
 						},
 						OutputSchema: map[string]any{"type": string("string")},
+					},
+				},
+			},
+		},
+		{
+			name:       "render with input",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is {{Name}}",
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptGenerateOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+			},
+			wantTextOutput: "Echo: system: say hello; my name is foo; config: {\n  \"temperature\": 11\n}",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output:     &ModelOutputConfig{},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
 					},
 				},
 			},
@@ -677,7 +706,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelRequestOutput{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -701,7 +730,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelRequestOutput{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -725,7 +754,7 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelRequestOutput{},
+				Output: &ModelOutputConfig{},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,

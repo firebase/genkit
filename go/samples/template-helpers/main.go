@@ -16,82 +16,38 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"strings"
 
+	// Import Genkit and the Google AI plugin
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
-// Input type for our prompt
-type GreetingInput struct {
-	Name     string `json:"name"`
-	Location string `json:"location"`
-	Style    string `json:"style"`
-}
-
 func main() {
-	// Initialize registry
-	reg, err := registry.New()
+	ctx := context.Background()
+
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}), genkit.WithPromptDir("prompts"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Define a custom helper that converts text to uppercase
-	upperHelper := func(text string) string {
-		return strings.ToUpper(text)
+	// Look up the prompt by name
+	prompt := genkit.LookupPrompt(g, "local", "greeting")
+	if prompt == nil {
+		log.Fatal("failed to find prompt")
 	}
 
-	// Define a partial for the header
-	headerPartial := "# Welcome to {{location}}"
+	input := map[string]interface{}{
+		"name":     "World",
+		"location": "Firebase",
+	}
 
-	// Define a partial for the greeting
-	greetingPartial := "Hello {{#if name}}{{upper name}}{{else}}GUEST{{/if}}!"
-
-	// Define our prompt using genkit's DefinePrompt
-	prompt, err := ai.DefinePrompt(reg, "greeting",
-		// Use WithPromptText to specify the template
-		ai.WithPromptText(`
-{{> header}}
-
-{{> greeting}}
-
-{{#if style}}
-I'll be speaking in the style of {{style}} today.
-{{/if}}
-
-How may I assist you?
-`),
-		// Specify the input type
-		ai.WithInputType(GreetingInput{}),
-		// Register our custom helper and partials
-		ai.WithConfig(map[string]any{
-			"helpers": map[string]any{
-				"upper": upperHelper,
-			},
-			"partials": map[string]string{
-				"header":   headerPartial,
-				"greeting": greetingPartial,
-			},
-		}),
-	)
+	// Execute the prompt with the provided input
+	resp, err := prompt.Execute(ctx, ai.WithInput(input))
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Use the prompt with some input
-	input := GreetingInput{
-		Name:     "Alice",
-		Location: "Firebase Cafe",
-		Style:    "a friendly barista",
-	}
-
-	response, err := prompt.Execute(context.Background(), ai.WithInput(input))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Generated response:")
-	fmt.Println(response.Text())
+	text := resp.Text()
+	log.Printf("Response: %s", text)
 }

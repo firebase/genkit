@@ -112,13 +112,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 
 	p.MessagesFn = mergeMessagesFn(p.MessagesFn, genOpts.MessagesFn)
 
-	// Use the input from WithInput if provided, otherwise use the default input
-	input := genOpts.Input
-	if input == nil {
-		input = p.DefaultInput
-	}
-
-	actionOpts, err := p.Render(ctx, input)
+	actionOpts, err := p.Render(ctx, genOpts.Input)
 	if err != nil {
 		return nil, err
 	}
