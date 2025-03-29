@@ -27,7 +27,7 @@ dependencies = [
 ]
 description = "Vision API and Image Generation example"
 license = { text = "Apache-2.0" }
-name = "image_google_genai"
+name = "google-genai-image"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
