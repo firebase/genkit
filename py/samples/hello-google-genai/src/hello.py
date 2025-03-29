@@ -179,6 +179,7 @@ async def generate_character(name: str, ctx):
         )
         return result.output
 
+
 @ai.flow()
 async def generate_character_unconstrained(name: str, ctx):
     result = await ai.generate(
@@ -188,6 +189,7 @@ async def generate_character_unconstrained(name: str, ctx):
         output_instructions=True,
     )
     return result.output
+
 
 async def main() -> None:
     print(await say_hi(', tell me a joke'))
