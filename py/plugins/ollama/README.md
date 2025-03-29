@@ -32,7 +32,8 @@ Other installation options may be found [here](https://ollama.com/download)
 ```bash
 ollama serve
 ```
-Ollama is served at http://127.0.0.1:11434 by default
+
+Ollama is served at `http://127.0.0.1:11434` by default.
 
 ### Installing Required Model
 
