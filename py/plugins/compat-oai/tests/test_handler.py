@@ -18,7 +18,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.core.action import ActionRunContext
+from genkit.ai import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModelHandler
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (

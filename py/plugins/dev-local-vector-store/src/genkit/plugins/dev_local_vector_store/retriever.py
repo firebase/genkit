@@ -17,8 +17,7 @@
 
 from pydantic import BaseModel, Field
 
-from genkit.blocks.document import Document
-from genkit.core.action import ActionRunContext
+from genkit.ai import ActionRunContext, Document
 from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
     LocalVectorStoreAPI,
 )

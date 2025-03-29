@@ -25,16 +25,18 @@ import asyncio
 import inspect
 from collections.abc import AsyncIterator, Callable
 from contextvars import ContextVar
-from enum import StrEnum
 from functools import cached_property
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import TypeAdapter
 
-from genkit.aio import Channel
-from genkit.codec import dump_json
+from genkit.aio import Channel, ensure_async
 from genkit.core.error import GenkitError
 from genkit.core.tracing import tracer
+
+from ._tracing import record_input_metadata, record_output_metadata
+from ._util import extract_action_args_and_types, noop_streaming_callback
+from .types import ActionKind, ActionMetadataKey, ActionResponse
 
 # TODO: add typing, generics
 StreamingCallback = Callable[[Any], None]
@@ -42,125 +44,6 @@ StreamingCallback = Callable[[Any], None]
 
 _action_context: ContextVar[dict[str, Any] | None] = ContextVar('context')
 _action_context.set(None)
-
-
-class ActionKind(StrEnum):
-    """Enumerates all the types of action that can be registered.
-
-    This enum defines the various types of actions supported by the framework,
-    including chat models, embedders, evaluators, and other utility functions.
-    """
-
-    CUSTOM = 'custom'
-    EMBEDDER = 'embedder'
-    EVALUATOR = 'evaluator'
-    EXECUTABLE_PROMPT = 'executable-prompt'
-    FLOW = 'flow'
-    INDEXER = 'indexer'
-    MODEL = 'model'
-    PROMPT = 'prompt'
-    RERANKER = 'reranker'
-    RETRIEVER = 'retriever'
-    TOOL = 'tool'
-    UTIL = 'util'
-
-
-class ActionResponse(BaseModel):
-    """The response from an action.
-
-    Attributes:
-        response: The actual response data from the action execution.
-        trace_id: A unique identifier for tracing the action execution.
-    """
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-
-    response: Any
-    trace_id: str = Field(alias='traceId')
-
-
-class ActionMetadataKey(StrEnum):
-    """Enumerates all the keys of the action metadata.
-
-    Attributes:
-        INPUT_KEY: Key for the input schema metadata.
-        OUTPUT_KEY: Key for the output schema metadata.
-        RETURN: Key for the return type metadata.
-    """
-
-    INPUT_KEY = 'inputSchema'
-    OUTPUT_KEY = 'outputSchema'
-    RETURN = 'return'
-
-
-def parse_action_key(key: str) -> tuple[ActionKind, str]:
-    """Parse an action key into its kind and name components.
-
-    Args:
-        key: The action key to parse, in the format "/kind/name".
-
-    Returns:
-        A tuple containing the ActionKind and name.
-
-    Raises:
-        ValueError: If the key format is invalid or if the kind is not a valid
-            ActionKind.
-    """
-    tokens = key.split('/')
-    if len(tokens) < 3 or not tokens[1] or not tokens[2]:
-        msg = (
-            f'Invalid action key format: `{key}`.'
-            'Expected format: `/<kind>/<name>`'
-        )
-        raise ValueError(msg)
-
-    kind_str = tokens[1]
-    name = '/'.join(tokens[2:])
-    try:
-        kind = ActionKind(kind_str)
-    except ValueError as e:
-        msg = f'Invalid action kind: `{kind_str}`'
-        raise ValueError(msg) from e
-    return kind, name
-
-
-def parse_plugin_name_from_action_name(name: str) -> str | None:
-    """Parses the plugin name from an action name.
-
-    As per convention, the plugin name is optional. If present, it's the first
-    part of the action name, separated by a forward slash: `pluginname/*`.
-
-    Args:
-        name: The action name string.
-
-    Returns:
-        The plugin name, or None if no plugin name is found in the action name.
-    """
-    tokens = name.split('/')
-    if len(tokens) > 1:
-        return tokens[0]
-    return None
-
-
-def create_action_key(kind: ActionKind, name: str) -> str:
-    """Create an action key from its kind and name components.
-
-    Args:
-        kind: The kind of action.
-        name: The name of the action.
-
-    Returns:
-        The action key in the format `/<kind>/<name>`.
-    """
-    return f'/{kind}/{name}'
-
-
-def noop_streaming_callback(chunk: Any) -> None:
-    """A no-op streaming callback.
-
-    This callback does nothing and is used when no streaming is desired.
-    """
-    pass
 
 
 class ActionRunContext:
@@ -236,7 +119,8 @@ class Action:
             kind: The kind of action (e.g., TOOL, MODEL, etc.).
             name: Unique name identifier for this action.
             fn: The function to call when the action is executed.
-            metadata_fn: The function to be used to infer metadata (e.g. schemas).
+            metadata_fn: The function to be used to infer metadata (e.g.
+                schemas).
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
@@ -245,25 +129,7 @@ class Action:
         self.name = name
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
-        arg_types = []
-
-        action_args = input_spec.args.copy()
-
-        # Special case when using a method as an action, we ignore first "self"
-        # arg.
-        if (
-            len(action_args) > 0
-            and len(action_args) <= 3
-            and action_args[0] == 'self'
-        ):
-            del action_args[0]
-
-        for arg in action_args:
-            arg_types.append(
-                input_spec.annotations[arg]
-                if arg in input_spec.annotations
-                else Any
-            )
+        action_args, arg_types = extract_action_args_and_types(input_spec)
 
         afn = ensure_async(fn)
         self.is_async = asyncio.iscoroutinefunction(fn)
@@ -508,63 +374,3 @@ class Action:
         )
 
         return (stream, result_future)
-
-
-def record_input_metadata(span, kind, name, span_metadata, input):
-    """Record the input metadata for the action.
-
-    Args:
-        span: The span to record the metadata for.
-        kind: The kind of action.
-        name: The name of the action.
-        span_metadata: The span metadata to record.
-        input: The input to the action.
-    """
-    span.set_attribute('genkit:type', 'action')
-    span.set_attribute('genkit:metadata:subtype', kind)
-    span.set_attribute('genkit:name', name)
-    if input is not None:
-        span.set_attribute('genkit:input', dump_json(input))
-
-    if span_metadata is not None:
-        for meta_key in span_metadata:
-            span.set_attribute(meta_key, span_metadata[meta_key])
-
-
-def record_output_metadata(span, output) -> None:
-    """Record the output metadata for the action.
-
-    Args:
-        span: The span to record the metadata for.
-        output: The output to the action.
-    """
-    span.set_attribute('genkit:state', 'success')
-    span.set_attribute('genkit:output', dump_json(output))
-
-
-def ensure_async(fn: Callable) -> Callable:
-    """Ensure the function is async.
-
-    Args:
-        fn: The function to ensure is async.
-
-    Returns:
-        The async function.
-    """
-    is_async = asyncio.iscoroutinefunction(fn)
-    if is_async:
-        return fn
-
-    async def async_wrapper(*args, **kwargs):
-        """Wrap the function in an async function.
-
-        Args:
-            *args: The arguments to the function.
-            **kwargs: The keyword arguments to the function.
-
-        Returns:
-            The result of the function.
-        """
-        return fn(*args, **kwargs)
-
-    return async_wrapper

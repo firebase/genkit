@@ -25,7 +25,8 @@ from genkit.ai.plugin import Plugin
 from genkit.ai.veneer import Genkit, GenkitRegistry
 from genkit.blocks.document import Document
 from genkit.blocks.tools import ToolRunContext, tool_response
-from genkit.core.action import ActionKind, ActionRunContext
+from genkit.core.action import ActionRunContext
+from genkit.core.action.types import ActionKind
 
 __all__ = [
     ActionKind.__name__,

@@ -18,9 +18,7 @@
 
 import logging
 
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import Action
+from genkit.ai import Action, GenkitRegistry, Plugin
 from genkit.plugins.dev_local_vector_store.constant import Params
 from genkit.plugins.dev_local_vector_store.indexer import (
     DevLocalVectorStoreIndexer,

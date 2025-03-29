@@ -22,9 +22,8 @@ import json
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import ActionRunContext, Genkit
 from genkit.blocks.generate import generate_action
-from genkit.core.action import ActionRunContext
 from genkit.plugins.vertex_ai import (
     GeminiVersion,
     ImagenVersion,

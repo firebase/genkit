@@ -51,7 +51,8 @@ from genkit.blocks.prompt import define_prompt
 from genkit.blocks.retriever import RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
-from genkit.core.action import Action, ActionKind
+from genkit.core.action import Action
+from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.typing import (

@@ -20,8 +20,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, HttpUrl
 
 import ollama as ollama_api
+from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
-from genkit.core.action import ActionRunContext
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
