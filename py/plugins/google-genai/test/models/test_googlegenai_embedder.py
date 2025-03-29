@@ -14,19 +14,26 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Test the Google-Genai embedder model."""
+
 import pytest
 from google import genai
 
-from genkit.ai import Document, EmbedRequest, EmbedResponse
+from genkit.ai import Document
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
+)
+from genkit.typing import (
+    EmbedRequest,
+    EmbedResponse,
 )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in GeminiEmbeddingModels])
 async def test_embedding(mocker, version):
+    """Test the embedding method."""
     request_text = 'request text'
     embedding_values = [0.0017063986, -0.044727605, 0.043327782, 0.00044852644]
 

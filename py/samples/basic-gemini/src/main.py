@@ -25,19 +25,19 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit
 from genkit.blocks.generate import generate_action
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.plugins.vertex_ai import (
+    GeminiVersion,
+    ImagenVersion,
+    VertexAI,
+    vertexai_name,
+)
+from genkit.typing import (
     GenerateActionOptions,
     GenerateResponseChunk,
     GenerationCommonConfig,
     Message,
     Role,
     TextPart,
-)
-from genkit.plugins.vertex_ai import (
-    GeminiVersion,
-    ImagenVersion,
-    VertexAI,
-    vertexai_name,
 )
 
 logger = structlog.get_logger(__name__)

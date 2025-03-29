@@ -19,12 +19,6 @@ import asyncio
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
-from genkit.core.typing import (
-    GenerationCommonConfig,
-    Message,
-    Role,
-    TextPart,
-)
 from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
@@ -32,6 +26,12 @@ from genkit.plugins.google_genai import (
     GeminiEmbeddingModels,
     GoogleGenai,
     google_genai_name,
+)
+from genkit.typing import (
+    GenerationCommonConfig,
+    Message,
+    Role,
+    TextPart,
 )
 
 ai = Genkit(

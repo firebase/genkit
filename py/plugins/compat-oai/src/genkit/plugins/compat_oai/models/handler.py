@@ -26,15 +26,15 @@ from openai import OpenAI
 
 from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
-    GenerateRequest,
-    GenerateResponse,
-)
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_MODELS,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.typing import (
+    GenerateRequest,
+    GenerateResponse,
+)
 
 
 class OpenAIModelHandler:

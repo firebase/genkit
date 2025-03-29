@@ -29,7 +29,7 @@ import vertexai.generative_models as genai
 
 from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.typing import (
+from genkit.typing import (
     CustomPart,
     GenerateRequest,
     GenerateResponse,

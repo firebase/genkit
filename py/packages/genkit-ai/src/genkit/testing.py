@@ -8,7 +8,7 @@
 from genkit.ai import Genkit
 from genkit.codec import dump_json
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

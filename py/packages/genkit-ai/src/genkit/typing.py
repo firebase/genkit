@@ -568,7 +568,7 @@ class DataPart(BaseModel):
     """Model for datapart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
+    text: str | None = None
     media: MediaModel | None = None
     tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
     tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
@@ -581,7 +581,7 @@ class MediaPart(BaseModel):
     """Model for mediapart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
+    text: str | None = None
     media: Media
     tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
     tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
@@ -607,7 +607,7 @@ class ToolRequestPart(BaseModel):
     """Model for toolrequestpart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
+    text: str | None = None
     media: MediaModel | None = None
     tool_request: ToolRequest = Field(..., alias='toolRequest')
     tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
@@ -620,7 +620,7 @@ class ToolResponsePart(BaseModel):
     """Model for toolresponsepart data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    text: Text | None = None
+    text: str | None = None
     media: MediaModel | None = None
     tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
     tool_response: ToolResponse = Field(..., alias='toolResponse')

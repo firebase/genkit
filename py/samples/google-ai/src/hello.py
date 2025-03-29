@@ -17,13 +17,13 @@
 import asyncio
 
 from genkit.ai import Genkit
-from genkit.core.typing import GenerationCommonConfig, Message, Role, TextPart
 from genkit.plugins.google_ai import (
     GoogleAi,
     GoogleAiPluginOptions,
     googleai_name,
 )
 from genkit.plugins.google_ai.models import gemini
+from genkit.typing import GenerationCommonConfig, Message, Role, TextPart
 
 ai = Genkit(
     plugins=[GoogleAi(plugin_params=GoogleAiPluginOptions())],

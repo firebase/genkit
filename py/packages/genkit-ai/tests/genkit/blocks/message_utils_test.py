@@ -6,7 +6,7 @@
 """Tests for the message utils."""
 
 from genkit.blocks.messages import inject_instructions
-from genkit.core.typing import (
+from genkit.typing import (
     Message,
     Metadata,
     Part,

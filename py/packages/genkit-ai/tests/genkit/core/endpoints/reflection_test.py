@@ -42,9 +42,7 @@ import pytest  # type: ignore
 import pytest_asyncio  # type: ignore
 from httpx import ASGITransport, AsyncClient  # type: ignore
 
-from genkit.core.reflection import (
-    create_reflection_asgi_app,  # type: ignore
-)
+from genkit.core.reflection import create_reflection_asgi_app  # type: ignore
 from genkit.core.registry import Registry  # type: ignore
 
 

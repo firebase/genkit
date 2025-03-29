@@ -16,7 +16,7 @@
 
 """Utilities for working with messages."""
 
-from genkit.core.typing import (
+from genkit.typing import (
     Message,
     Metadata,
     Part,

@@ -21,7 +21,7 @@ import pytest
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionKind
-from genkit.core.typing import GenerateResponse, Message, Role, TextPart
+from genkit.typing import GenerateResponse, Message, Role, TextPart
 
 
 def test_adding_ollama_chat_model_to_genkit_veneer(

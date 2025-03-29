@@ -65,6 +65,13 @@ class GoogleGenai(Plugin):
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
     ):
+        """Initialize the GoogleGenai plugin.
+
+        Args:
+            vertexai: Whether to use Vertex AI.
+            api_key: The API key to use.
+            credentials: The credentials to use.
+        """
         api_key = api_key if api_key else os.getenv('GEMINI_API_KEY')
         if not vertexai and not api_key:
             raise ValueError(

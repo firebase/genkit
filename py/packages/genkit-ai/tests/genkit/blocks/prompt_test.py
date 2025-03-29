@@ -21,15 +21,15 @@ import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.core.typing import (
+from genkit.testing import (
+    define_echo_model,
+    define_programmable_model,
+)
+from genkit.typing import (
     Message,
     Role,
     TextPart,
     ToolChoice,
-)
-from genkit.testing import (
-    define_echo_model,
-    define_programmable_model,
 )
 
 

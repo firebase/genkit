@@ -25,7 +25,7 @@ to accomplish a task.
 from collections.abc import Callable
 
 from genkit.blocks.document import Document
-from genkit.core.typing import RetrieverResponse
+from genkit.typing import RetrieverResponse
 
 # User-provided retriever function that queries the datastore
 type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]

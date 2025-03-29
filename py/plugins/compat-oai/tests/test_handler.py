@@ -19,7 +19,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import GenerateResponse, Message, Role, TextPart
 from genkit.plugins.compat_oai.models import OpenAIModelHandler
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
@@ -27,6 +26,7 @@ from genkit.plugins.compat_oai.models.model_info import (
     GPT_4,
     SUPPORTED_OPENAI_MODELS,
 )
+from genkit.typing import GenerateResponse, Message, Role, TextPart
 
 
 def test_get_model_handler():

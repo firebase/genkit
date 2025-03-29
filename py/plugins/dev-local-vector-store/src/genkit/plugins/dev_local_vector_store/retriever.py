@@ -19,10 +19,10 @@ from pydantic import BaseModel, Field
 
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import Embedding, RetrieverRequest
 from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
     LocalVectorStoreAPI,
 )
+from genkit.typing import Embedding, RetrieverRequest
 
 
 class ScoredDocument(BaseModel):

@@ -30,7 +30,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
 
 from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionKind
-from genkit.core.typing import (
+from genkit.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

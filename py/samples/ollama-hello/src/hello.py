@@ -17,13 +17,13 @@
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.core.typing import Message, Role, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
     OllamaAPITypes,
     OllamaPluginParams,
 )
+from genkit.typing import Message, Role, TextPart
 
 # model can be pulled with `ollama pull *LLM_VERSION*`
 GEMMA_MODEL = 'gemma2:latest'

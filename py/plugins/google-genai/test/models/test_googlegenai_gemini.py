@@ -19,8 +19,13 @@ import base64
 import pytest
 from google import genai
 
-from genkit.ai import (
-    ActionRunContext,
+from genkit.ai import ActionRunContext
+from genkit.plugins.google_genai.models.gemini import (
+    GeminiApiOnlyVersion,
+    GeminiModel,
+    GeminiVersion,
+)
+from genkit.typing import (
     GenerateRequest,
     GenerateResponse,
     MediaPart,
@@ -29,16 +34,12 @@ from genkit.ai import (
     Role,
     TextPart,
 )
-from genkit.plugins.google_genai.models.gemini import (
-    GeminiApiOnlyVersion,
-    GeminiModel,
-    GeminiVersion,
-)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in GeminiVersion])
 async def test_generate_text_response(mocker, version):
+    """Test the generate method for text responses."""
     response_text = 'request answer'
     request_text = 'response question'
 
@@ -85,6 +86,7 @@ async def test_generate_text_response(mocker, version):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in GeminiVersion])
 async def test_generate_stream_text_response(mocker, version):
+    """Test the generate method for text responses."""
     response_text = 'request answer'
     request_text = 'response question'
 
@@ -134,6 +136,7 @@ async def test_generate_stream_text_response(mocker, version):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('version', [x for x in GeminiApiOnlyVersion])
 async def test_generate_media_response(mocker, version):
+    """Test generate method for media responses."""
     request_text = 'response question'
     response_byte_string = b'\x89PNG\r\n\x1a\n'
     response_mimetype = 'image/png'

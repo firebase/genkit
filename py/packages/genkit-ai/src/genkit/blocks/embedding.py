@@ -16,6 +16,6 @@
 
 from collections.abc import Callable
 
-from genkit.core.typing import EmbedRequest, EmbedResponse
+from genkit.typing import EmbedRequest, EmbedResponse
 
 type EmbedderFn = Callable[[EmbedRequest], EmbedResponse]

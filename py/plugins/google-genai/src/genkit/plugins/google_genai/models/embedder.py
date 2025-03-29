@@ -14,12 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Google-Genai embedder model."""
+
 import enum
 
 from google import genai
 
-from genkit.ai import Embedding, EmbedRequest, EmbedResponse
 from genkit.plugins.google_genai.models.utils import PartConverter
+from genkit.typing import Embedding, EmbedRequest, EmbedResponse
 
 
 class VertexEmbeddingModels(enum.StrEnum):

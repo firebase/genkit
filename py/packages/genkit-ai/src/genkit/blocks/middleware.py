@@ -26,7 +26,7 @@ from genkit.blocks.model import (
     text_from_content,
 )
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.typing import (
     DocumentData,
     GenerateRequest,
     GenerateResponse,
