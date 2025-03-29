@@ -119,6 +119,8 @@ export const ModelInfoSchema = z.object({
   versions: z.array(z.string()).optional(),
   /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
+  /** Model Specific configuration. */
+  customConfig: z.record(z.any()).optional(),
   /** Supported model capabilities. */
   supports: z
     .object({
