@@ -44,6 +44,58 @@ from opentelemetry.sdk.trace.export import (
 from genkit.core.environment import is_dev_environment
 
 
+def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
+    """Extract span data from a ReadableSpan object.
+
+    This function extracts the span data from a ReadableSpan object and returns
+    a dictionary containing the span data.
+    """
+    span_data = {'traceId': f'{span.context.trace_id}', 'spans': {}}
+    span_data['spans'][span.context.span_id] = {
+        'spanId': f'{span.context.span_id}',
+        'traceId': f'{span.context.trace_id}',
+        'startTime': span.start_time / 1000000,
+        'endTime': span.end_time / 1000000,
+        'attributes': convert_attributes(
+            attributes=span.attributes,  # type: ignore
+        ),
+        'displayName': span.name,
+        # "links": span.links,
+        'spanKind': trace_api.SpanKind(span.kind).name,
+        'parentSpanId': f'{span.parent.span_id}' if span.parent else None,
+        'status': (
+            {
+                'code': trace_api.StatusCode(span.status.status_code).value,
+                'description': span.status.description,
+            }
+            if span.status
+            else None
+        ),
+        'instrumentationLibrary': {
+            'name': 'genkit-tracer',
+            'version': 'v1',
+        },
+        # "timeEvents": {
+        #     timeEvent: span.events.map((e)=> ({
+        #         time: transformTime(e.time),
+        #         annotation: {
+        #             attributes: e.attributes ?? {},
+        #             description: e.name,
+        #         },
+        #     })),
+        # },
+    }
+    if not span_data['spans'][span.context.span_id]['parentSpanId']:  # type: ignore
+        del span_data['spans'][span.context.span_id]['parentSpanId']  # type: ignore
+
+    if not span.parent:
+        span_data['displayName'] = span.name
+        span_data['startTime'] = span.start_time
+        span_data['endTime'] = span.end_time
+
+    return span_data
+
+
 class TelemetryServerSpanExporter(SpanExporter):
     """SpanExporter implementation that exports spans to a telemetry server.
 
@@ -52,6 +104,16 @@ class TelemetryServerSpanExporter(SpanExporter):
     to a JSON format that includes trace ID, span ID, timing information,
     attributes, and other metadata about the operation.
     """
+
+    def __init__(
+        self, telemetry_server_url: str = 'http://localhost:4033/api/traces'
+    ):
+        """Initialize the TelemetryServerSpanExporter.
+
+        Args:
+            telemetry_server_url: The URL of the telemetry server.
+        """
+        self.telemetry_server_url = telemetry_server_url
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export the spans to the telemetry server.
@@ -67,58 +129,12 @@ class TelemetryServerSpanExporter(SpanExporter):
             SpanExportResult.SUCCESS if the export was successful.
         """
         for span in spans:
-            span_data = {'traceId': f'{span.context.trace_id}', 'spans': {}}
-            span_data['spans'][span.context.span_id] = {
-                'spanId': f'{span.context.span_id}',
-                'traceId': f'{span.context.trace_id}',
-                'startTime': span.start_time / 1000000,
-                'endTime': span.end_time / 1000000,
-                'attributes': convert_attributes(
-                    attributes=span.attributes,  # type: ignore
-                ),
-                'displayName': span.name,
-                # "links": span.links,
-                'spanKind': trace_api.SpanKind(span.kind).name,
-                'parentSpanId': f'{span.parent.span_id}'
-                if span.parent
-                else None,
-                'status': (
-                    {
-                        'code': trace_api.StatusCode(
-                            span.status.status_code
-                        ).value,
-                        'description': span.status.description,
-                    }
-                    if span.status
-                    else None
-                ),
-                'instrumentationLibrary': {
-                    'name': 'genkit-tracer',
-                    'version': 'v1',
-                },
-                # "timeEvents": {
-                #     timeEvent: span.events.map((e)=> ({
-                #         time: transformTime(e.time),
-                #         annotation: {
-                #             attributes: e.attributes ?? {},
-                #             description: e.name,
-                #         },
-                #     })),
-                # },
-            }
-            if not span_data['spans'][span.context.span_id]['parentSpanId']:  # type: ignore
-                del span_data['spans'][span.context.span_id]['parentSpanId']  # type: ignore
-
-            if not span.parent:
-                span_data['displayName'] = span.name
-                span_data['startTime'] = span.start_time
-                span_data['endTime'] = span.end_time
-
-            # TODO: telemetry server URL must be dynamic,
-            # whatever tools notification says
+            # TODO: telemetry server URL must be dynamic, whatever tools
+            # notification says.
+            # TODO: replace this with aiohttp client.
             requests.post(
-                'http://localhost:4033/api/traces',
-                data=json.dumps(span_data),
+                self.telemetry_server_url,
+                data=json.dumps(extract_span_data(span)),
                 headers={
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
@@ -160,7 +176,11 @@ def convert_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
 
 if is_dev_environment():
     provider = TracerProvider()
-    processor = SimpleSpanProcessor(TelemetryServerSpanExporter())
+    processor = SimpleSpanProcessor(
+        TelemetryServerSpanExporter(
+            telemetry_server_url='http://localhost:4033/api/traces',
+        )
+    )
     provider.add_span_processor(processor)
     # Sets the global default tracer provider
     trace_api.set_tracer_provider(provider)
