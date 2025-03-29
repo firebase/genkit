@@ -36,9 +36,7 @@ def test_generate(mocker, version):
     model_response_mock._mime_type = ''
     model_response_mock._as_base64_string.return_value = mocked_respond
     genai_model_mock.generate_images.return_value = [model_response_mock]
-    mocker.patch(
-        'genkit.plugins.vertex_ai.imagen.Imagen.model', genai_model_mock
-    )
+    mocker.patch('genkit.plugins.vertex_ai.imagen.Imagen.model', genai_model_mock)
 
     ctx = ActionRunContext()
     response = imagen.generate(request, ctx)

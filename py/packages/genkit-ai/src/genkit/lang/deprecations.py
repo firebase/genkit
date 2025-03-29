@@ -89,10 +89,7 @@ def deprecated_enum_metafactory(
                 ):
                     status_str = info.status.value
                     message = (
-                        (
-                            f'{cls.__name__}.{name} is {status_str}; '
-                            f'use {cls.__name__}.{info.recommendation} instead'
-                        )
+                        (f'{cls.__name__}.{name} is {status_str}; use {cls.__name__}.{info.recommendation} instead')
                         if info.recommendation is not None
                         else f'{cls.__name__}.{name} is {status_str}'
                     )

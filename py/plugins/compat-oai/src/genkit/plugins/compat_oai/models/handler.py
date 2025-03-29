@@ -84,9 +84,7 @@ class OpenAIModelHandler:
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
-    def generate(
-        self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse:
+    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """
         Processes the request using OpenAI's chat completion API.
 

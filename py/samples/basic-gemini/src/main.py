@@ -58,15 +58,11 @@ async def generate_joke(subject: str) -> str:
         str: The generated joke.
     """
     return await ai.generate(
-        config=GenerationCommonConfig(
-            temperature=0.1, version='gemini-2.0-flash-001'
-        ),
+        config=GenerationCommonConfig(temperature=0.1, version='gemini-2.0-flash-001'),
         messages=[
             Message(
                 role=Role.USER,
-                content=[
-                    TextPart(text=f'Tell silly short jokes about {subject}')
-                ],
+                content=[TextPart(text=f'Tell silly short jokes about {subject}')],
             ),
         ],
     )

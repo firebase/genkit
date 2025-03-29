@@ -197,9 +197,7 @@ def create_flows_asgi_app(
 
                 for provider in context_providers:
                     try:
-                        provider_ctx = await provider(
-                            request.app.state.context, request_data
-                        )
+                        provider_ctx = await provider(request.app.state.context, request_data)
                         ctx.update(provider_ctx)
                     except Exception as e:
                         await logger.aerror(
@@ -307,9 +305,7 @@ def create_flows_asgi_app(
             A JSONResponse with the flow result or error.
         """
         try:
-            output = await action.arun_raw(
-                raw_input=input_data, context=context
-            )
+            output = await action.arun_raw(raw_input=input_data, context=context)
 
             result = dump_dict(output.response)
             response = {'result': result}

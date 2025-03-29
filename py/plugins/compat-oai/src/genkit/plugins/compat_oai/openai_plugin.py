@@ -57,9 +57,7 @@ class OpenAI(Plugin):
         :param registry: The registry where OpenAI models will be registered.
         """
         for model_name, model_info in SUPPORTED_OPENAI_MODELS.items():
-            handler = OpenAIModelHandler.get_model_handler(
-                model=model_name, client=self._openai_client, registry=ai
-            )
+            handler = OpenAIModelHandler.get_model_handler(model=model_name, client=self._openai_client, registry=ai)
 
             ai.define_model(
                 name=f'openai/{model_name}',
@@ -68,9 +66,7 @@ class OpenAI(Plugin):
                 metadata={
                     'model': {
                         'label': model_info.label,
-                        'supports': {
-                            'multiturn': model_info.supports.multiturn
-                        },
+                        'supports': {'multiturn': model_info.supports.multiturn},
                     },
                 },
             )

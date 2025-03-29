@@ -95,9 +95,7 @@ def test_inject_instructions_purpose() -> None:
                 content=[
                     TextPart(
                         text='will be overridden',
-                        metadata=Metadata(
-                            root={'purpose': 'output', 'pending': True}
-                        ),
+                        metadata=Metadata(root={'purpose': 'output', 'pending': True}),
                     ),
                     TextPart(text='world'),
                 ],

@@ -45,9 +45,7 @@ def context_item_template(d: DocumentData, index: int) -> str:
     Uses 'ref', 'id', or index as citation, if no citationKey is available.
     """
     out = '- '
-    ref = (
-        d.metadata and (d.metadata.get('ref') or d.metadata.get('id'))
-    ) or index
+    ref = (d.metadata and (d.metadata.get('ref') or d.metadata.get('id'))) or index
     out += f'[{ref}]: '
     out += text_from_content(d.content) + '\n'
     return out
@@ -72,33 +70,22 @@ def augment_with_context() -> ModelMiddleware:
 
         context_part_index = -1
         for i, part in enumerate(user_message.content):
-            if (
-                part.root.metadata
-                and part.root.metadata.root.get('purpose') == 'context'
-            ):
+            if part.root.metadata and part.root.metadata.root.get('purpose') == 'context':
                 context_part_index = i
                 break
 
-        context_part = (
-            user_message.content[context_part_index]
-            if context_part_index >= 0
-            else None
-        )
+        context_part = user_message.content[context_part_index] if context_part_index >= 0 else None
 
         if context_part and not context_part.root.metadata.root.get('pending'):
             return await next_middleware(req, ctx)
 
         out = CONTEXT_PREFACE
         for i, doc_data in enumerate(req.docs):
-            doc = DocumentData(
-                content=doc_data.content, metadata=doc_data.metadata
-            )
+            doc = DocumentData(content=doc_data.content, metadata=doc_data.metadata)
             out += context_item_template(doc, i)
         out += '\n'
 
-        text_part = Part(
-            root=TextPart(text=out, metadata={'purpose': 'context'})
-        )
+        text_part = Part(root=TextPart(text=out, metadata={'purpose': 'context'}))
         if context_part_index >= 0:
             user_message.content[context_part_index] = text_part
         else:

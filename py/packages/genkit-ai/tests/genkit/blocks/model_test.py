@@ -127,9 +127,7 @@ def test_response_wrapper_output_uses_parser() -> None:
 
 def test_chunk_wrapper_text() -> None:
     wrapper = GenerateResponseChunkWrapper(
-        chunk=GenerateResponseChunk(
-            content=[Part(text='hello'), Part(text=' world')]
-        ),
+        chunk=GenerateResponseChunk(content=[Part(text='hello'), Part(text=' world')]),
         index=0,
         previous_chunks=[],
     )
@@ -155,9 +153,7 @@ def test_chunk_wrapper_output() -> None:
         GenerateResponseChunk(content=[Part(text=', "baz":[1,2,')]),
         index=0,
         previous_chunks=[
-            GenerateResponseChunk(
-                content=[Part(text='{"foo":'), Part(text='"ba')]
-            ),
+            GenerateResponseChunk(content=[Part(text='{"foo":'), Part(text='"ba')]),
             GenerateResponseChunk(content=[Part(text='r"')]),
         ],
     )
@@ -170,9 +166,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         GenerateResponseChunk(content=[Part(text=', "baz":[1,2,')]),
         index=0,
         previous_chunks=[
-            GenerateResponseChunk(
-                content=[Part(text='{"foo":'), Part(text='"ba')]
-            ),
+            GenerateResponseChunk(content=[Part(text='{"foo":'), Part(text='"ba')]),
             GenerateResponseChunk(content=[Part(text='r"')]),
         ],
         chunk_parser=lambda x: 'banana',
@@ -364,10 +358,5 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
         ],
     ),
 )
-def test_get_basic_usage_stats(
-    test_input, test_response, expected_output
-) -> None:
-    assert (
-        get_basic_usage_stats(input_=test_input, response=test_response)
-        == expected_output
-    )
+def test_get_basic_usage_stats(test_input, test_response, expected_output) -> None:
+    assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output

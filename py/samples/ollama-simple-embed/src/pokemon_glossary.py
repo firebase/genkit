@@ -98,9 +98,7 @@ async def embed_pokemons():
         pokemon.embedding = embedding_response.embeddings[0]
 
 
-def find_nearest_pokemons(
-    input_embedding: list[float], top_n: int = 3
-) -> list[PokemonInfo]:
+def find_nearest_pokemons(input_embedding: list[float], top_n: int = 3) -> list[PokemonInfo]:
     if any(pokemon.embedding is None for pokemon in pokemon_list):
         raise AttributeError('Some Pokemon are not yet embedded')
     pokemon_distances = [
@@ -136,10 +134,7 @@ async def generate_response(question: str) -> GenerateResponse:
         documents=[question],
     )
     nearest_pokemon = find_nearest_pokemons(input_embedding.embeddings[0])
-    pokemons_context = '\n'.join(
-        f'{pokemon["name"]}: {pokemon["description"]}'
-        for pokemon in nearest_pokemon
-    )
+    pokemons_context = '\n'.join(f'{pokemon["name"]}: {pokemon["description"]}' for pokemon in nearest_pokemon)
 
     return await ai.generate(
         model=ollama_name(GENERATE_MODEL),

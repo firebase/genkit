@@ -53,11 +53,7 @@ async def test_generate_text_response(mocker, version):
             ),
         ]
     )
-    candidate = genai.types.Candidate(
-        content=genai.types.Content(
-            parts=[genai.types.Part(text=response_text)]
-        )
-    )
+    candidate = genai.types.Candidate(content=genai.types.Content(parts=[genai.types.Part(text=response_text)]))
     resp = genai.types.GenerateContentResponse(candidates=[candidate])
 
     googleai_client_mock = mocker.AsyncMock()
@@ -71,11 +67,7 @@ async def test_generate_text_response(mocker, version):
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
             model=version,
-            contents=[
-                genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role=Role.USER
-                )
-            ],
+            contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
             config=None,
         )
     ])
@@ -100,18 +92,12 @@ async def test_generate_stream_text_response(mocker, version):
             ),
         ]
     )
-    candidate = genai.types.Candidate(
-        content=genai.types.Content(
-            parts=[genai.types.Part(text=response_text)]
-        )
-    )
+    candidate = genai.types.Candidate(content=genai.types.Content(parts=[genai.types.Part(text=response_text)]))
 
     resp = genai.types.GenerateContentResponse(candidates=[candidate])
 
     googleai_client_mock = mocker.AsyncMock()
-    googleai_client_mock.aio.models.generate_content_stream.__aiter__.side_effect = [
-        resp
-    ]
+    googleai_client_mock.aio.models.generate_content_stream.__aiter__.side_effect = [resp]
     on_chunk_mock = mocker.MagicMock()
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
@@ -121,11 +107,7 @@ async def test_generate_stream_text_response(mocker, version):
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content_stream(
             model=version,
-            contents=[
-                genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role=Role.USER
-                )
-            ],
+            contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
             config=None,
         )
     ])
@@ -157,11 +139,7 @@ async def test_generate_media_response(mocker, version):
     candidate = genai.types.Candidate(
         content=genai.types.Content(
             parts=[
-                genai.types.Part(
-                    inline_data=genai.types.Blob(
-                        data=response_byte_string, mime_type=response_mimetype
-                    )
-                )
+                genai.types.Part(inline_data=genai.types.Blob(data=response_byte_string, mime_type=response_mimetype))
             ]
         )
     )
@@ -178,14 +156,8 @@ async def test_generate_media_response(mocker, version):
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
             model=version,
-            contents=[
-                genai.types.Content(
-                    parts=[genai.types.Part(text=request_text)], role=Role.USER
-                )
-            ],
-            config=genai.types.GenerateContentConfig(
-                response_modalities=modalities
-            ),
+            contents=[genai.types.Content(parts=[genai.types.Part(text=request_text)], role=Role.USER)],
+            config=genai.types.GenerateContentConfig(response_modalities=modalities),
         )
     ])
     assert isinstance(response, GenerateResponse)

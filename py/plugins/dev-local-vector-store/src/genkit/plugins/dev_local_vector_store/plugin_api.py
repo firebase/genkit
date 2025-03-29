@@ -74,9 +74,7 @@ class DevLocalVectorStore(Plugin):
             self._configure_dev_local_indexer(ai=ai, params=params)
 
     @classmethod
-    def _configure_dev_local_retriever(
-        cls, ai: GenkitRegistry, params: Params
-    ) -> Action:
+    def _configure_dev_local_retriever(cls, ai: GenkitRegistry, params: Params) -> Action:
         """Registers Local Vector Store retriever for provided parameters
 
         Args:
@@ -98,9 +96,7 @@ class DevLocalVectorStore(Plugin):
         )
 
     @classmethod
-    def _configure_dev_local_indexer(
-        cls, ai: GenkitRegistry, params: Params
-    ) -> Action:
+    def _configure_dev_local_indexer(cls, ai: GenkitRegistry, params: Params) -> Action:
         """Registers Local Vector Store indexer for provided parameters
 
         Args:
@@ -136,7 +132,6 @@ class DevLocalVectorStore(Plugin):
         matching_indexer = cls._indexers.get(index_name)
         if not matching_indexer:
             raise KeyError(
-                f'Failed to find indexer matching name: {index_name}!r\n'
-                f'Registered indexers: {cls._indexers.keys()}'
+                f'Failed to find indexer matching name: {index_name}!r\nRegistered indexers: {cls._indexers.keys()}'
             )
         return await matching_indexer.index(documents)

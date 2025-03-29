@@ -53,9 +53,7 @@ def test_generate_text_response(mocker, version):
     model_response_mock = mocker.MagicMock()
     model_response_mock.text = mocked_respond
     genai_model_mock.generate_content.return_value = model_response_mock
-    mocker.patch(
-        'genkit.plugins.vertex_ai.gemini.Gemini.gemini_model', genai_model_mock
-    )
+    mocker.patch('genkit.plugins.vertex_ai.gemini.Gemini.gemini_model', genai_model_mock)
 
     ctx = ActionRunContext()
     response = gemini.generate(request, ctx)

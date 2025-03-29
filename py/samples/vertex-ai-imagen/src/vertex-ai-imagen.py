@@ -28,9 +28,7 @@ from genkit.plugins.vertex_ai import (
 )
 from genkit.typing import Message, Role, TextPart
 
-ai = Genkit(
-    plugins=[VertexAI()], model=vertexai_name(ImagenVersion.IMAGEN3_FAST)
-)
+ai = Genkit(plugins=[VertexAI()], model=vertexai_name(ImagenVersion.IMAGEN3_FAST))
 
 
 @ai.flow()

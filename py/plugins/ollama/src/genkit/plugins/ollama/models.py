@@ -64,35 +64,25 @@ class OllamaPluginParams(BaseModel):
 
 
 class OllamaModel:
-    def __init__(
-        self, client: ollama_api.AsyncClient, model_definition: ModelDefinition
-    ):
+    def __init__(self, client: ollama_api.AsyncClient, model_definition: ModelDefinition):
         self.client = client
         self.model_definition = model_definition
 
-    async def generate(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
-    ) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
         content = [TextPart(text='Failed to get response from Ollama API')]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
-            api_response = await self._chat_with_ollama(
-                request=request, ctx=ctx
-            )
+            api_response = await self._chat_with_ollama(request=request, ctx=ctx)
             if api_response:
                 content = self._build_multimodal_chat_response(
                     chat_response=api_response,
                 )
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
-            api_response = await self._generate_ollama_response(
-                request=request, ctx=ctx
-            )
+            api_response = await self._generate_ollama_response(request=request, ctx=ctx)
             if api_response:
                 content = [TextPart(text=api_response.response)]
         else:
-            raise ValueError(
-                f'Unresolved API type: {self.model_definition.api_type}'
-            )
+            raise ValueError(f'Unresolved API type: {self.model_definition.api_type}')
 
         if self.is_streaming_request(ctx=ctx):
             content = []
@@ -160,18 +150,12 @@ class OllamaModel:
             idx = 0
             async for chunk in chat_response:
                 idx += 1
-                role = (
-                    Role.MODEL
-                    if chunk.message.role == 'assistant'
-                    else Role.TOOL
-                )
+                role = Role.MODEL if chunk.message.role == 'assistant' else Role.TOOL
                 ctx.send_chunk(
                     chunk=GenerateResponseChunk(
                         role=role,
                         index=idx,
-                        content=self._build_multimodal_chat_response(
-                            chat_response=chunk
-                        ),
+                        content=self._build_multimodal_chat_response(chat_response=chunk),
                     )
                 )
         else:
@@ -219,9 +203,7 @@ class OllamaModel:
                 content.append(
                     MediaPart(
                         media=Media(
-                            content_type=mimetypes.guess_type(
-                                image.value, strict=False
-                            )[0],
+                            content_type=mimetypes.guess_type(image.value, strict=False)[0],
                             url=image.value,
                         )
                     )
@@ -265,9 +247,7 @@ class OllamaModel:
         return prompt
 
     @classmethod
-    def build_chat_messages(
-        cls, request: GenerateRequest
-    ) -> list[dict[str, str]]:
+    def build_chat_messages(cls, request: GenerateRequest) -> list[dict[str, str]]:
         messages = []
         for message in request.messages:
             item = ollama_api.Message(
@@ -315,12 +295,9 @@ class OllamaModel:
         api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse,
     ) -> GenerationUsage:
         if api_response:
-            basic_generation_usage.input_tokens = (
-                api_response.prompt_eval_count or 0
-            )
+            basic_generation_usage.input_tokens = api_response.prompt_eval_count or 0
             basic_generation_usage.output_tokens = api_response.eval_count or 0
             basic_generation_usage.total_tokens = (
-                basic_generation_usage.input_tokens
-                + basic_generation_usage.output_tokens
+                basic_generation_usage.input_tokens + basic_generation_usage.output_tokens
             )
         return basic_generation_usage

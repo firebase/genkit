@@ -43,6 +43,7 @@ Key features demonstrated in this sample:
 
 import asyncio
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
@@ -61,6 +62,8 @@ from genkit.typing import (
     TextPart,
 )
 
+logger = structlog.get_logger(__name__)
+
 ai = Genkit(
     plugins=[GoogleGenai()],
     model=google_genai_name('gemini-2.0-flash-exp'),
@@ -73,9 +76,16 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken')
+@ai.tool('calculates a gablorken', name='gablorkenTool')
 def gablorken_tool(input_: GablorkenInput) -> int:
-    """The user-defined tool function."""
+    """Calculate a gablorken.
+
+    Args:
+        input_: The input to calculate gablorken for.
+
+    Returns:
+        The calculated gablorken.
+    """
     return input_.value * 3 - 5
 
 
@@ -102,7 +112,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
     return response.text
 
 
-@ai.tool('calculates a gablorken')
+@ai.tool('calculates a gablorken', name='gablorkenTool2')
 def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
     """The user-defined tool function.
 
@@ -136,7 +146,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         ],
         tools=['gablorkenTool2'],
     )
-    print(f'len(response.tool_requests)={len(response1.tool_requests)}')
+    await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
     if len(response1.tool_requests) == 0:
         return response1.text
 
@@ -195,9 +205,7 @@ async def say_hi_with_configured_temperature(data: str):
         The generated response with a function.
     """
     return await ai.generate(
-        messages=[
-            Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
-        ],
+        messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
         config=GenerationCommonConfig(temperature=0.1),
     )
 
@@ -299,7 +307,7 @@ async def generate_images(name: str, ctx):
 
 async def main() -> None:
     """Main function."""
-    print(await say_hi(', tell me a joke'))
+    await logger.ainfo(await say_hi(', tell me a joke'))
 
 
 if __name__ == '__main__':

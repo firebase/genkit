@@ -57,14 +57,10 @@ class Document(DocumentData):
     @staticmethod
     def from_document_data(document_data: DocumentData) -> Document:
         """Construct a Document from DocumentData."""
-        return Document(
-            content=document_data.content, metadata=document_data.metadata
-        )
+        return Document(content=document_data.content, metadata=document_data.metadata)
 
     @staticmethod
-    def from_text(
-        text: str, metadata: dict[str, Any] | None = None
-    ) -> Document:
+    def from_text(text: str, metadata: dict[str, Any] | None = None) -> Document:
         """Construct a Document from a single text part."""
         return Document(content=[DocumentPart(text=text)], metadata=metadata)
 
@@ -76,9 +72,7 @@ class Document(DocumentData):
     ) -> Document:
         """Construct a Document from a single media part."""
         return Document(
-            content=[
-                DocumentPart(media=Media(url=url, content_type=content_type))
-            ],
+            content=[DocumentPart(media=Media(url=url, content_type=content_type))],
             metadata=metadata,
         )
 
@@ -95,9 +89,7 @@ class Document(DocumentData):
 
     def text(self) -> str:
         """Concatenates all `text` parts with no delimiter."""
-        return ''.join(
-            p.root.text if p.root.text is not None else '' for p in self.content
-        )
+        return ''.join(p.root.text if p.root.text is not None else '' for p in self.content)
 
     def media(self) -> list[Media]:
         """Media array getter."""
@@ -124,9 +116,7 @@ class Document(DocumentData):
 
         return None
 
-    def get_embedding_documents(
-        self, embeddings: list[Embedding]
-    ) -> list[Document]:
+    def get_embedding_documents(self, embeddings: list[Embedding]) -> list[Document]:
         """Creates documents from embeddings.
 
         Embedders may return multiple embeddings for a single document. But

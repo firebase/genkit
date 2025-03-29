@@ -75,8 +75,7 @@ class GoogleGenai(Plugin):
         api_key = api_key if api_key else os.getenv('GEMINI_API_KEY')
         if not vertexai and not api_key:
             raise ValueError(
-                'Gemini api key should be passed in plugin params '
-                'or as a GEMINI_API_KEY environment variable'
+                'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
         self._vertexai = vertexai
 
@@ -112,13 +111,7 @@ class GoogleGenai(Plugin):
                 config_schema=GeminiConfigSchema,
             )
 
-        embeding_models = (
-            VertexEmbeddingModels
-            if self._client.vertexai
-            else GeminiEmbeddingModels
-        )
+        embeding_models = VertexEmbeddingModels if self._client.vertexai else GeminiEmbeddingModels
         for version in embeding_models:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(
-                name=google_genai_name(version), fn=embedder.generate
-            )
+            ai.define_embedder(name=google_genai_name(version), fn=embedder.generate)

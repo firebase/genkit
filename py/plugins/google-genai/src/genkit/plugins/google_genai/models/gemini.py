@@ -285,18 +285,10 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
 
 
 Deprecations = deprecated_enum_metafactory({
-    'GEMINI_1_0_PRO': DeprecationInfo(
-        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
-    ),
-    'GEMINI_1_5_PRO': DeprecationInfo(
-        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
-    ),
-    'GEMINI_1_5_FLASH': DeprecationInfo(
-        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
-    ),
-    'GEMINI_1_5_FLASH_8B': DeprecationInfo(
-        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
-    ),
+    'GEMINI_1_0_PRO': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
+    'GEMINI_1_5_PRO': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
+    'GEMINI_1_5_FLASH': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
+    'GEMINI_1_5_FLASH_8B': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
 })
 
 
@@ -393,9 +385,7 @@ class GeminiModel:
             Genai tool compatible with Gemini API.
         """
         params = self._convert_schema_property(tool.input_schema)
-        function = genai_types.FunctionDeclaration(
-            name=tool.name, description=tool.description, parameters=params
-        )
+        function = genai_types.FunctionDeclaration(name=tool.name, description=tool.description, parameters=params)
         return genai_types.Tool(function_declarations=[function])
 
     def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
@@ -409,18 +399,12 @@ class GeminiModel:
         """
         tools = []
         for tool in request.tools:
-            genai_tool = (
-                self._create_vertexai_tool(tool)
-                if self._client.vertexai
-                else self._create_gemini_tool(tool)
-            )
+            genai_tool = self._create_vertexai_tool(tool) if self._client.vertexai else self._create_gemini_tool(tool)
             tools.append(genai_tool)
 
         return tools
 
-    def _convert_schema_property(
-        self, input_schema: dict[str, Any]
-    ) -> genai_types.Schema | None:
+    def _convert_schema_property(self, input_schema: dict[str, Any]) -> genai_types.Schema | None:
         """Sanitizes a schema to be compatible with Gemini API.
 
         Args:
@@ -447,9 +431,7 @@ class GeminiModel:
                 schema.properties = {}
                 properties = input_schema['properties']
                 for key in properties:
-                    nested_schema = self._convert_schema_property(
-                        properties[key]
-                    )
+                    nested_schema = self._convert_schema_property(properties[key])
                     schema.properties[key] = nested_schema
 
         return schema
@@ -463,9 +445,7 @@ class GeminiModel:
         Returns:
             Gemini message content to add to the message
         """
-        tool_function = self._registry.registry.lookup_action(
-            ActionKind.TOOL, call.name
-        )
+        tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
         args = tool_function.input_type.validate_python(call.args)
         tool_answer = tool_function.run(args)
         return genai_types.Content(
@@ -479,9 +459,7 @@ class GeminiModel:
             ]
         )
 
-    async def generate(
-        self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -496,9 +474,7 @@ class GeminiModel:
         request_cfg = self._genkit_to_googleai_cfg(request)
 
         if ctx.is_streaming:
-            return await self._streaming_generate(
-                request_contents, request_cfg, ctx
-            )
+            return await self._streaming_generate(request_contents, request_cfg, ctx)
         else:
             return await self._generate(request_contents, request_cfg)
 
@@ -587,9 +563,7 @@ class GeminiModel:
         """
         return SUPPORTED_MODELS[self._version].supports.media
 
-    def _build_messages(
-        self, request: GenerateRequest
-    ) -> list[genai_types.Content]:
+    def _build_messages(self, request: GenerateRequest) -> list[genai_types.Content]:
         """Build google-genai request contents from Genkit request.
 
         Args:
@@ -604,15 +578,11 @@ class GeminiModel:
             content_parts: list[genai_types.Part] = []
             for p in msg.content:
                 content_parts.append(PartConverter.to_gemini(p))
-            request_contents.append(
-                genai_types.Content(parts=content_parts, role=msg.role)
-            )
+            request_contents.append(genai_types.Content(parts=content_parts, role=msg.role))
 
         return request_contents
 
-    def _contents_from_response(
-        self, response: genai_types.GenerateContentResponse
-    ) -> list:
+    def _contents_from_response(self, response: genai_types.GenerateContentResponse) -> list:
         """Retrieve contents from google-genai response.
 
         Args:
@@ -629,9 +599,7 @@ class GeminiModel:
 
         return content
 
-    def _genkit_to_googleai_cfg(
-        self, request: GenerateRequest
-    ) -> genai_types.GenerateContentConfig | None:
+    def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
 
         Args:
@@ -661,17 +629,11 @@ class GeminiModel:
             if not cfg:
                 cfg = genai_types.GenerateContentConfig()
 
-            response_mime_type = (
-                'application/json'
-                if request.output.format == 'json' and not request.tools
-                else None
-            )
+            response_mime_type = 'application/json' if request.output.format == 'json' and not request.tools else None
             cfg.response_mime_type = response_mime_type
 
             if request.output.schema_ and request.output.constrained:
-                cfg.response_schema = self._convert_schema_property(
-                    request.output.schema_
-                )
+                cfg.response_schema = self._convert_schema_property(request.output.schema_)
 
         if request.tools:
             if not cfg:

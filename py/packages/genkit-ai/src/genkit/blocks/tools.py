@@ -52,11 +52,7 @@ def tool_response(
 ) -> Part:
     """Constructs a tool response for an interrupted request."""
     # TODO: validate against tool schema
-    tool_request = (
-        interrupt.root.tool_request
-        if isinstance(interrupt, Part)
-        else interrupt.tool_request
-    )
+    tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
     return Part(
         tool_response=ToolResponse(
             name=tool_request.name,

@@ -124,9 +124,7 @@ class Score(BaseModel):
     """Model for score data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    id: str | None = Field(
-        None, description='Optional ID to differentiate different scores'
-    )
+    id: str | None = Field(None, description='Optional ID to differentiate different scores')
     score: float | str | bool | None = None
     status: EvalStatusEnum | None = None
     error: str | None = None
@@ -146,9 +144,7 @@ class Data1(BaseModel):
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     genkit_error_message: str | None = Field(None, alias='genkitErrorMessage')
-    genkit_error_details: GenkitErrorDetails | None = Field(
-        None, alias='genkitErrorDetails'
-    )
+    genkit_error_details: GenkitErrorDetails | None = Field(None, alias='genkitErrorDetails')
 
 
 class GenkitError(BaseModel):
@@ -308,18 +304,12 @@ class ToolDefinition(BaseModel):
     name: str
     description: str
     input_schema: dict[str, Any] | None = Field(
-        None,
-        alias='inputSchema',
-        description='Valid JSON Schema representing the input of the tool.',
+        None, alias='inputSchema', description='Valid JSON Schema representing the input of the tool.'
     )
     output_schema: dict[str, Any] | None = Field(
-        None,
-        alias='outputSchema',
-        description='Valid JSON Schema describing the output of the tool.',
+        None, alias='outputSchema', description='Valid JSON Schema describing the output of the tool.'
     )
-    metadata: dict[str, Any] | None = Field(
-        None, description='additional metadata for this tool definition'
-    )
+    metadata: dict[str, Any] | None = Field(None, description='additional metadata for this tool definition')
 
 
 class CommonRerankerOptions(BaseModel):
@@ -674,26 +664,10 @@ class Resume(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-class Part(
-    RootModel[
-        TextPart
-        | MediaPart
-        | ToolRequestPart
-        | ToolResponsePart
-        | DataPart
-        | CustomPart
-    ]
-):
+class Part(RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart]):
     """Root model for part."""
 
-    root: (
-        TextPart
-        | MediaPart
-        | ToolRequestPart
-        | ToolResponsePart
-        | DataPart
-        | CustomPart
-    )
+    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart
 
 
 class Link(BaseModel):
@@ -702,9 +676,7 @@ class Link(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     context: SpanContext | None = None
     attributes: dict[str, Any] | None = None
-    dropped_attributes_count: float | None = Field(
-        None, alias='droppedAttributesCount'
-    )
+    dropped_attributes_count: float | None = Field(None, alias='droppedAttributesCount')
 
 
 class TimeEvents(BaseModel):
@@ -726,13 +698,9 @@ class SpanData(BaseModel):
     attributes: dict[str, Any]
     display_name: str = Field(..., alias='displayName')
     links: list[Link] | None = None
-    instrumentation_library: InstrumentationLibrary = Field(
-        ..., alias='instrumentationLibrary'
-    )
+    instrumentation_library: InstrumentationLibrary = Field(..., alias='instrumentationLibrary')
     span_kind: str = Field(..., alias='spanKind')
-    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(
-        None, alias='sameProcessAsParentSpan'
-    )
+    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(None, alias='sameProcessAsParentSpan')
     status: SpanStatus | None = None
     time_events: TimeEvents | None = Field(None, alias='timeEvents')
     truncated: bool | None = None
@@ -745,15 +713,9 @@ class TraceData(BaseModel):
     trace_id: str = Field(..., alias='traceId')
     display_name: str | None = Field(None, alias='displayName')
     start_time: float | None = Field(
-        None,
-        alias='startTime',
-        description='trace start time in milliseconds since the epoch',
+        None, alias='startTime', description='trace start time in milliseconds since the epoch'
     )
-    end_time: float | None = Field(
-        None,
-        alias='endTime',
-        description='end time in milliseconds since the epoch',
-    )
+    end_time: float | None = Field(None, alias='endTime', description='end time in milliseconds since the epoch')
     spans: dict[str, SpanData]
 
 

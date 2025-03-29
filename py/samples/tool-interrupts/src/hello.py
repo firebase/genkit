@@ -35,14 +35,10 @@ class TriviaQuestions(BaseModel):
     """Trivia questions."""
 
     question: str = Field(description='the main question')
-    answers: list[str] = Field(
-        description='list of multiple choice answers (typically 4), 1 correct 3 wrong'
-    )
+    answers: list[str] = Field(description='list of multiple choice answers (typically 4), 1 correct 3 wrong')
 
 
-@ai.tool(
-    "can present questions to the user, responds with the user' selected answer"
-)
+@ai.tool("can present questions to the user, responds with the user' selected answer")
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
     ctx.interrupt(questions)
 
