@@ -22,6 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
+	"github.com/openai/openai-go"
 	openaiClient "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/stretchr/testify/assert"
@@ -110,4 +111,99 @@ func TestGenerator_Stream(t *testing.T) {
 
 	t.Log("\n=== Full Streaming Response ===")
 	t.Log(strings.Join(chunks, ""))
+}
+
+func TestWithConfig(t *testing.T) {
+	// Define a random struct for testing
+	type randomConfig struct {
+		Field1 string
+		Field2 int
+	}
+
+	tests := []struct {
+		name          string
+		config        any
+		expectError   bool
+		errorContains []string
+		validate      func(*testing.T, *openai.ChatCompletionNewParams)
+	}{
+		{
+			name:        "nil config",
+			config:      nil,
+			expectError: false,
+			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+				// Temperature and MaxTokens should be nil and not present
+				assert.False(t, cfg.Temperature.Present)
+				assert.False(t, cfg.MaxTokens.Present)
+			},
+		},
+		{
+			name: "explicitly set to nil",
+			config: &openai.ChatCompletionNewParams{
+				Temperature: openai.Null[float64](),
+				MaxTokens:   openai.Null[int64](),
+			},
+			expectError: false,
+			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+				// Temperature and MaxTokens should be nil and not present
+				assert.Equal(t, openai.Null[float64](), cfg.Temperature)
+				assert.Equal(t, openai.Null[int64](), cfg.MaxTokens)
+			},
+		},
+		{
+			name: "float and int fields",
+			config: &openai.ChatCompletionNewParams{
+				Temperature: openai.Float(0.5),
+				MaxTokens:   openai.Int(100),
+			},
+			expectError: false,
+			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+				// Temperature and MaxTokens should be 0.5 and 100 respectively
+				assert.Equal(t, openai.Float(0.5), cfg.Temperature)
+				assert.Equal(t, openai.Int(100), cfg.MaxTokens)
+			},
+		},
+		{
+			name:          "invalid config type",
+			config:        "this is not a valid config type",
+			expectError:   true,
+			errorContains: []string{"config must be a pointer"},
+			validate:      nil, // No validation needed for error case
+		},
+		{
+			name:          "random struct pointer",
+			config:        &randomConfig{Field1: "test", Field2: 123},
+			expectError:   true,
+			errorContains: []string{"unsupported config type", "randomConfig"},
+			validate:      nil, // No validation needed for error case
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &openai.Client{}
+			generator := compat_oai.NewModelGenerator(client, "test-model")
+
+			// Apply the config and check for errors
+			result, err := generator.WithConfig(tt.config)
+
+			if tt.expectError {
+				assert.Error(t, err, "Expected an error for config type %T", tt.config)
+				for _, errText := range tt.errorContains {
+					assert.Contains(t, err.Error(), errText, "Error message should contain '%s'", errText)
+				}
+				t.Logf("Error message for invalid config: %s", err.Error())
+				return // Skip further validation for error cases
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+
+				// Get request configuration to validate
+				request := generator.GetRequestConfig()
+
+				// Validate the result
+				tt.validate(t, request.(*openai.ChatCompletionNewParams))
+			}
+		})
+	}
 }

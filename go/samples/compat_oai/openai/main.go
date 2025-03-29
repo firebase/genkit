@@ -18,8 +18,9 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
-	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
+	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/server"
+	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
@@ -32,7 +33,7 @@ func main() {
 
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	apiKeyOption := option.WithAPIKey(apiKey)
-	oai := openai.OpenAI{
+	oai := oai.OpenAI{
 		Opts: []option.RequestOption{apiKeyOption},
 	}
 
@@ -45,7 +46,8 @@ func main() {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPromptText(prompt))
+		config := &openai.ChatCompletionNewParams{Temperature: openai.F(0.5), MaxTokens: openai.F(int64(100))}
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPromptText(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}
@@ -58,7 +60,8 @@ func main() {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPromptText(prompt))
+		config := &ai.GenerationCommonConfig{Temperature: 0.5}
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPromptText(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}

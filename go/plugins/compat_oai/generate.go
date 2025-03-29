@@ -17,6 +17,7 @@ package compat_oai
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
@@ -27,6 +28,10 @@ type ModelGenerator struct {
 	client    *openai.Client
 	modelName string
 	request   *openai.ChatCompletionNewParams
+}
+
+func (g *ModelGenerator) GetRequestConfig() any {
+	return g.request
 }
 
 // NewModelGenerator creates a new ModelGenerator instance
@@ -61,12 +66,70 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 }
 
 // WithConfig adds configuration parameters from the model request
-func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
-	if config != nil {
-		// TODO: Implement configuration from model request
-		// modelRequest.Config is any type
+func (g *ModelGenerator) WithConfig(config any) (*ModelGenerator, error) {
+	if config == nil {
+		return g, nil
 	}
-	return g
+
+	// Handle only the supported config types with a type switch
+	switch cfg := config.(type) {
+	case *openai.ChatCompletionNewParams:
+		// Handle OpenAI-specific config
+		if cfg != nil {
+			// Copy all non-nil fields directly from the OpenAI config
+			srcVal := reflect.ValueOf(cfg).Elem()
+			dstVal := reflect.ValueOf(g.request).Elem()
+
+			for i := 0; i < srcVal.NumField(); i++ {
+				field := srcVal.Field(i)
+				if field.Kind() == reflect.Pointer && !field.IsNil() {
+					dstVal.Field(i).Set(field)
+				} else if field.Kind() != reflect.Pointer && !field.IsZero() {
+					// For scalar fields, only copy non-zero values
+					dstVal.Field(i).Set(field)
+				}
+			}
+		}
+	case *ai.GenerationCommonConfig:
+		// Handle common config by mapping specific fields
+		if cfg != nil {
+			// Map fields explicitly from common config to OpenAI config
+			if cfg.MaxOutputTokens != 0 {
+				g.request.MaxTokens = openai.F(int64(cfg.MaxOutputTokens))
+			}
+			if len(cfg.StopSequences) > 0 {
+				g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
+					openai.ChatCompletionNewParamsStopArray(cfg.StopSequences))
+			}
+			if cfg.Temperature != 0 {
+				g.request.Temperature = openai.F(cfg.Temperature)
+			}
+			if cfg.TopP != 0 {
+				g.request.TopP = openai.F(cfg.TopP)
+			}
+		}
+	default:
+		// Provide detailed error message for unsupported types
+		configType := reflect.TypeOf(config)
+		if configType == nil {
+			return g, fmt.Errorf("invalid nil config of unknown type")
+		}
+
+		// Check if it's a pointer to a struct
+		if configType.Kind() != reflect.Pointer {
+			return g, fmt.Errorf("config must be a pointer, got %s", configType.Kind())
+		}
+
+		// If it's a nil pointer, give specific error
+		if reflect.ValueOf(config).IsNil() {
+			return g, fmt.Errorf("config is a nil %s pointer", configType.Elem().Name())
+		}
+
+		// Give helpful message about what types are supported
+		return g, fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
+	}
+
+	return g, nil
 }
 
 // WithTools adds tools to the request
