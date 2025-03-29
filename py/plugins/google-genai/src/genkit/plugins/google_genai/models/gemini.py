@@ -117,6 +117,7 @@ The following models are supported for API only:
 | `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | Supported  |
 """
 
+import copy
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
@@ -129,6 +130,7 @@ from genkit.ai import (
     ActionRunContext,
     GenkitRegistry,
 )
+from genkit.blocks.model import get_basic_usage_stats
 from genkit.lang.deprecations import (
     DeprecationInfo,
     DeprecationStatus,
@@ -140,11 +142,13 @@ from genkit.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
+    GenerationUsage,
     Message,
     ModelInfo,
     Role,
     Stage,
     Supports,
+    TextPart,
     ToolDefinition,
 )
 
@@ -491,16 +495,21 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
+        request_cfg = self._genkit_to_googleai_cfg(request)
         request_contents = self._build_messages(request)
 
-        request_cfg = self._genkit_to_googleai_cfg(request)
-
         if ctx.is_streaming:
-            return await self._streaming_generate(
+            response = await self._streaming_generate(
                 request_contents, request_cfg, ctx
             )
         else:
-            return await self._generate(request_contents, request_cfg)
+            response = await self._generate(request_contents, request_cfg)
+
+        response.usage = self._create_usage_stats(
+            request=request, response=response
+        )
+
+        return response
 
     async def _generate(
         self,
@@ -548,20 +557,25 @@ class GeminiModel:
         generator = self._client.aio.models.generate_content_stream(
             model=self._version, contents=request_contents, config=request_cfg
         )
-        accumulated_content = []
+
+        idx = 0
         async for response_chunk in await generator:
             content = self._contents_from_response(response_chunk)
-            accumulated_content.append(*content)
             ctx.send_chunk(
                 chunk=GenerateResponseChunk(
                     content=content,
                     role=Role.MODEL,
+                    # TODO: this index refers to the message index, not chunk
+                    # index. Please fix.
+                    index=idx,
                 )
             )
+            idx += 1
+
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=accumulated_content,
+                content=[TextPart(text='')],
             )
         )
 
@@ -668,10 +682,9 @@ class GeminiModel:
             )
             cfg.response_mime_type = response_mime_type
 
-            if request.output.schema_ and request.output.constrained:
-                cfg.response_schema = self._convert_schema_property(
-                    request.output.schema_
-                )
+            if request.output.constrained:
+                out = copy.deepcopy(request.output.schema_)
+                cfg.response_schema = self._clean_schema(out)
 
         if request.tools:
             if not cfg:
@@ -680,4 +693,50 @@ class GeminiModel:
             tools = self._get_tools(request)
             cfg.tools = tools
 
+        system_messages = list(
+            filter(lambda m: m.role == Role.SYSTEM, request.messages)
+        )
+        if system_messages:
+            system_parts = []
+            if not cfg:
+                cfg = genai.types.GenerateContentConfig()
+
+            for msg in system_messages:
+                for p in msg.content:
+                    system_parts.append(PartConverter.to_gemini(p))
+                request.messages.remove(msg)
+            cfg.system_instruction = genai.types.Content(parts=system_parts)
+
         return cfg
+
+    def _create_usage_stats(
+        self, request: GenerateRequest, response: GenerateResponse
+    ) -> GenerationUsage:
+        """Create usage statistics
+
+        Args:
+            request: Genkit request
+            response: Genkit response
+
+        Returns:
+            usage statistics
+        """
+
+        usage = get_basic_usage_stats(
+            input_=request.messages, response=response.message
+        )
+        if response.usage:
+            usage.input_tokens = response.usage.input_tokens
+            usage.output_tokens = response.usage.output_tokens
+            usage.total_tokens = response.usage.total_tokens
+
+        return usage
+
+    def _clean_schema(self, schema: dict) -> None:
+        for key in schema:
+            if key == 'schema' or key == 'additionalProperties':
+                del schema[key]
+            if isinstance(schema[key], dict):
+                schema[key] = self._clean_schema(schema[key])
+            if key == 'type' and isinstance(schema[key], list):
+                schema[key] = next(v for v in schema[key] if v is not None)
