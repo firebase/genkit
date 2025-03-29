@@ -2544,6 +2544,7 @@ dependencies = [
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-ollama" },
     { name = "pydantic" },
+    { name = "structlog" },
 ]
 
 [package.metadata]
@@ -2554,6 +2555,7 @@ requires-dist = [
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
