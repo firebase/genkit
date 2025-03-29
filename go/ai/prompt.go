@@ -478,7 +478,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				definePartial(r, partialName, string(source))
+				DefinePartial(r, partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
 				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
@@ -595,9 +595,13 @@ func variantKey(variant string) string {
 	return ""
 }
 
-// definePartial registers a partial template that can be reused in other templates.
+// DefinePartial registers a partial template with the prompting system.
 // Partials can be referenced in templates with the syntax {{>partialName}}.
-func definePartial(r *registry.Registry, name string, source string) {
+//
+// r: The registry containing the dotprompt instance
+// name: The name of the partial template
+// source: The template source code
+func DefinePartial(r *registry.Registry, name string, source string) {
 	if r == nil || r.Dotprompt == nil {
 		return
 	}
@@ -611,7 +615,7 @@ func definePartial(r *registry.Registry, name string, source string) {
 	r.Dotprompt.DefinePartial(name, source, r.Dotprompt.Template)
 }
 
-// defineHelper registers a custom helper function with the prompting system.
+// DefineHelper registers a custom helper function with the prompting system.
 // This allows for extending the templating capabilities with custom logic.
 //
 // r: The registry containing the dotprompt instance
@@ -620,14 +624,14 @@ func definePartial(r *registry.Registry, name string, source string) {
 //
 // Example usage:
 //
-//	ai.defineHelper(r, "uppercase", func(s string) string {
+//	ai.DefineHelper(r, "uppercase", func(s string) string {
 //		return strings.ToUpper(s)
 //	})
 //
 // In a template, you would use it as:
 //
 //	{{uppercase "hello"}} => "HELLO"
-func defineHelper(r *registry.Registry, name string, fn any) {
+func DefineHelper(r *registry.Registry, name string, fn any) {
 	if r == nil || r.Dotprompt == nil {
 		return
 	}
