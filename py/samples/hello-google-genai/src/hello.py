@@ -55,7 +55,7 @@ from genkit.plugins.google_genai import (
     GoogleGenai,
     google_genai_name,
 )
-from genkit.typing import (
+from genkit.types import (
     GenerationCommonConfig,
     Message,
     Role,

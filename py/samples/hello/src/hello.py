@@ -29,7 +29,7 @@ from genkit.plugins.vertex_ai import (
     VertexAI,
     vertexai_name,
 )
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

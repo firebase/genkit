@@ -18,7 +18,7 @@ import pytest
 
 from genkit.plugins.compat_oai.models.model_info import GPT_4
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     Message,
     Role,

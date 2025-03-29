@@ -26,7 +26,7 @@ from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
 )
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

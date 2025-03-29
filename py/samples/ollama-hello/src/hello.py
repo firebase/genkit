@@ -46,7 +46,7 @@ from genkit.plugins.ollama.models import (
     OllamaAPITypes,
     OllamaPluginParams,
 )
-from genkit.typing import Message, Role, TextPart
+from genkit.types import Message, Role, TextPart
 
 logger = structlog.get_logger(__name__)
 

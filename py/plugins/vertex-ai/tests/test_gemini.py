@@ -20,7 +20,7 @@ import pytest
 
 from genkit.ai import ActionRunContext
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Message,

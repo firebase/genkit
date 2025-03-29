@@ -27,7 +27,7 @@ from genkit.plugins.dev_local_vector_store.retriever import (
     DevLocalVectorStoreRetriever,
     RetrieverOptionsSchema,
 )
-from genkit.typing import Docs
+from genkit.types import Docs
 
 LOG = logging.getLogger(__name__)
 

@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from vertexai.preview.vision_models import ImageGenerationModel
 
 from genkit.ai import ActionRunContext
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Media,

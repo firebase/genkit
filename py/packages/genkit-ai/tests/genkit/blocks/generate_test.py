@@ -16,11 +16,7 @@ from genkit.blocks.generate import generate_action
 from genkit.blocks.model import text_from_content, text_from_message
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import ActionRunContext
-from genkit.testing import (
-    define_echo_model,
-    define_programmable_model,
-)
-from genkit.typing import (
+from genkit.core.typing import (
     DocumentData,
     DocumentPart,
     FinishReason,
@@ -31,6 +27,10 @@ from genkit.typing import (
     Message,
     Part,
     Role,
+)
+from genkit.testing import (
+    define_echo_model,
+    define_programmable_model,
 )
 
 

@@ -21,7 +21,7 @@ import enum
 from google import genai
 
 from genkit.plugins.google_genai.models.utils import PartConverter
-from genkit.typing import Embedding, EmbedRequest, EmbedResponse
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 class VertexEmbeddingModels(enum.StrEnum):

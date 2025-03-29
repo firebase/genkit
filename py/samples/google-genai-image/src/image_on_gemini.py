@@ -28,7 +28,7 @@ from genkit.plugins.google_genai import (
     GoogleGenai,
     google_genai_name,
 )
-from genkit.typing import Media, MediaPart, Message, Role, TextPart
+from genkit.types import Media, MediaPart, Message, Role, TextPart
 
 ai = Genkit(plugins=[GoogleGenai()])
 

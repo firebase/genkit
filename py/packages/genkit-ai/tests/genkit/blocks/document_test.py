@@ -17,7 +17,7 @@
 """Tests for Genkit document."""
 
 from genkit.blocks.document import Document
-from genkit.typing import (
+from genkit.core.typing import (
     DocumentData,
     DocumentPart,
     Embedding,

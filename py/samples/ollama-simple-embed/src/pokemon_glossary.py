@@ -34,7 +34,7 @@ from genkit.plugins.ollama.models import (
     ModelDefinition,
     OllamaPluginParams,
 )
-from genkit.typing import GenerateResponse
+from genkit.types import GenerateResponse
 
 logger = structlog.get_logger(__name__)
 

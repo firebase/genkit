@@ -35,7 +35,7 @@ from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.registry import Action, ActionKind, Registry
-from genkit.typing import (
+from genkit.core.typing import (
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,

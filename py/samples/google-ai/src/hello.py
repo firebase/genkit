@@ -27,7 +27,7 @@ from genkit.plugins.google_ai import (
     googleai_name,
 )
 from genkit.plugins.google_ai.models import gemini
-from genkit.typing import GenerationCommonConfig, Message, Role, TextPart
+from genkit.types import GenerationCommonConfig, Message, Role, TextPart
 
 logger = structlog.get_logger(__name__)
 
