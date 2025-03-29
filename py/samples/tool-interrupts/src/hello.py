@@ -14,8 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Tool interrupts.
+
+This sample demonstrates how to use Genkit to create a tool that can interrupt
+the flow of a conversation.
+"""
+
 import asyncio
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import (
@@ -24,6 +31,8 @@ from genkit.ai import (
     tool_response,
 )
 from genkit.plugins.google_genai import GoogleGenai
+
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleGenai()],
@@ -39,21 +48,33 @@ class TriviaQuestions(BaseModel):
 
 
 @ai.tool("can present questions to the user, responds with the user' selected answer")
-def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
+def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
+    """Present questions to the user.
+
+    Args:
+        questions: The questions to present.
+        ctx: The context of the tool run.
+
+    Returns:
+        None
+    """
     ctx.interrupt(questions)
 
 
+PROMPT = """You a trivia game host. Cheerfully greet the user when they first
+join and ask them to for the theme of the trivia game, suggest a few theme
+options, they don't have to use your suggestion, feel free to be silly. When
+they user us ready, call `present_questions` tool with questions and the tools
+will present the questions in a nice UI. The user will pick an answer and then
+you tell them if they were right or wrong. Be dramatic (but terse)! It is a
+show!
+
+[user joined the game]"""
+
+
 async def main() -> None:
-    response = await ai.generate(
-        prompt='You a trivia game host. Cheerfully greet the user when they '
-        + 'first join and ank them to for the theme of the trivia game, suggest '
-        + "a few theme options, they don't have to use your suggestion, feel free "
-        + 'to be silly. When they user us ready, call '
-        + '`present_questions` tool with questions and the tools will present '
-        + 'the questions in a nice UI. The user will pick an answer and then you '
-        + 'tell them if they were right or wrong. Be dramatic (but terse)! It is a '
-        + 'show!\n\n[user joined the game]',
-    )
+    """Main function."""
+    response = await ai.generate(prompt=PROMPT)
     print(response.text)
     messages = response.messages
     while True:
