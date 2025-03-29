@@ -22,7 +22,7 @@ from genkit.plugins.vertex_ai.embedding import (
     EmbeddingModels,
     EmbeddingsTaskType,
 )
-from genkit.typing import EmbedRequest, EmbedResponse
+from genkit.types import EmbedRequest, EmbedResponse
 
 
 @pytest.mark.parametrize(

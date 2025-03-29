@@ -21,7 +21,7 @@ from genkit.ai import ActionRunContext, Document
 from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
     LocalVectorStoreAPI,
 )
-from genkit.typing import Embedding, RetrieverRequest
+from genkit.types import Embedding, RetrieverRequest
 
 
 class ScoredDocument(BaseModel):

@@ -26,7 +26,7 @@ from genkit.plugins.compat_oai.models.model_info import (
     GPT_4,
     SUPPORTED_OPENAI_MODELS,
 )
-from genkit.typing import GenerateResponse, Message, Role, TextPart
+from genkit.types import GenerateResponse, Message, Role, TextPart
 
 
 def test_get_model_handler():

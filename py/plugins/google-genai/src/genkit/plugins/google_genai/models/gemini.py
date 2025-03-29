@@ -135,7 +135,7 @@ from genkit.lang.deprecations import (
     deprecated_enum_metafactory,
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

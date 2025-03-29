@@ -24,7 +24,7 @@ from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     MessageWrapper,
 )
-from genkit.typing import (
+from genkit.core.typing import (
     OutputConfig,
 )
 

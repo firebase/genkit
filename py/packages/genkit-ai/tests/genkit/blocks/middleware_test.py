@@ -23,7 +23,7 @@ import pytest
 
 from genkit.blocks.middleware import augment_with_context
 from genkit.core.action import ActionRunContext
-from genkit.typing import (
+from genkit.core.typing import (
     DocumentData,
     GenerateRequest,
     GenerateResponse,

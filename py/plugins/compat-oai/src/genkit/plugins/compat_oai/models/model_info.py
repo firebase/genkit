@@ -19,7 +19,7 @@
 OpenAI Compatible Models for Genkit.
 """
 
-from genkit.typing import (
+from genkit.types import (
     ModelInfo,
     Supports,
 )

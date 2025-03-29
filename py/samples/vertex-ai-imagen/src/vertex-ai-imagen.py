@@ -26,7 +26,7 @@ from genkit.plugins.vertex_ai import (
     VertexAI,
     vertexai_name,
 )
-from genkit.typing import Message, Role, TextPart
+from genkit.types import Message, Role, TextPart
 
 ai = Genkit(plugins=[VertexAI()], model=vertexai_name(ImagenVersion.IMAGEN3_FAST))
 

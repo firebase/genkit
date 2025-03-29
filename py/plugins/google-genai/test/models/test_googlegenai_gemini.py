@@ -25,7 +25,7 @@ from genkit.plugins.google_genai.models.gemini import (
     GeminiModel,
     GeminiVersion,
 )
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     MediaPart,

@@ -39,7 +39,7 @@ from genkit.blocks.model import (
 from genkit.core.action import ActionRunContext
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
-from genkit.typing import (
+from genkit.core.typing import (
     DocumentData,
     GenerateActionOptions,
     GenerateActionOutputConfig,

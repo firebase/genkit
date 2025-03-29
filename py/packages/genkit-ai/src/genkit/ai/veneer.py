@@ -119,7 +119,7 @@ from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
-from genkit.typing import (
+from genkit.core.typing import (
     DocumentData,
     GenerationCommonConfig,
     Message,

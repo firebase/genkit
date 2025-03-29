@@ -20,7 +20,7 @@ import ollama as ollama_api
 import pytest
 
 from genkit.ai import ActionKind, Genkit
-from genkit.typing import GenerateResponse, Message, Role, TextPart
+from genkit.types import GenerateResponse, Message, Role, TextPart
 
 
 def test_adding_ollama_chat_model_to_genkit_veneer(

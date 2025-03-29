@@ -30,7 +30,7 @@ from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_MODELS,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.typing import (
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
 )

@@ -24,7 +24,7 @@ from genkit.plugins.dev_local_vector_store.constant import DbValue
 from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
     LocalVectorStoreAPI,
 )
-from genkit.typing import Docs, Embedding
+from genkit.types import Docs, Embedding
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):

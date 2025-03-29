@@ -22,7 +22,7 @@ from functools import cached_property
 from google import genai
 
 from genkit.ai import ActionRunContext
-from genkit.typing import (
+from genkit.types import (
     CustomPart,
     GenerateRequest,
     GenerateResponse,
