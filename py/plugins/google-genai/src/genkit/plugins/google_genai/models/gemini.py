@@ -139,6 +139,11 @@ from genkit.ai import (
     Supports,
     ToolDefinition,
 )
+from genkit.lang.deprecations import (
+    DeprecationInfo,
+    DeprecationStatus,
+    deprecated_enum_metafactory,
+)
 from genkit.plugins.google_genai.models.utils import PartConverter
 
 
@@ -277,7 +282,23 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
 )
 
 
-class GeminiVersion(StrEnum):
+Deprecations = deprecated_enum_metafactory({
+    'GEMINI_1_0_PRO': DeprecationInfo(
+        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
+    ),
+    'GEMINI_1_5_PRO': DeprecationInfo(
+        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
+    ),
+    'GEMINI_1_5_FLASH': DeprecationInfo(
+        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
+    ),
+    'GEMINI_1_5_FLASH_8B': DeprecationInfo(
+        recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED
+    ),
+})
+
+
+class GeminiVersion(StrEnum, metaclass=Deprecations):
     """Gemini models.
 
     Model Support:
