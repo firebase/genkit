@@ -99,7 +99,10 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name string, info ai.Mo
 			generator.WithMessages(input.Messages)
 		}
 		if input.Config != nil {
-			generator.WithConfig(input.Config)
+			_, err := generator.WithConfig(input.Config)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Generate response

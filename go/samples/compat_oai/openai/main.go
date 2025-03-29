@@ -20,7 +20,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/server"
-	openai "github.com/openai/openai-go"
+	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
