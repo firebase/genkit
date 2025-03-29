@@ -487,7 +487,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				definePartial(r, partialName, string(source))
+				DefinePartial(r, partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
 				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
@@ -497,11 +497,6 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 		}
 	}
 	return nil
-}
-
-// definePartial registers a partial template in the registry.
-func definePartial(r *registry.Registry, name string, source string) {
-	// TODO: Add this functionality
 }
 
 // LoadPrompt loads a single prompt into the registry.
@@ -607,4 +602,54 @@ func variantKey(variant string) string {
 		return fmt.Sprintf(".%s", variant)
 	}
 	return ""
+}
+
+// DefinePartial registers a partial template with the prompting system.
+// Partials can be referenced in templates with the syntax {{>partialName}}.
+//
+// r: The registry containing the dotprompt instance
+// name: The name of the partial template
+// source: The template source code
+func DefinePartial(r *registry.Registry, name string, source string) {
+	if r == nil || r.Dotprompt == nil {
+		return
+	}
+
+	// Skip if Template is nil to avoid nil pointer dereference
+	if r.Dotprompt.Template == nil {
+		return
+	}
+
+	// Use the template from the dotprompt struct itself
+	r.Dotprompt.DefinePartial(name, source, r.Dotprompt.Template)
+}
+
+// DefineHelper registers a custom helper function with the prompting system.
+// This allows for extending the templating capabilities with custom logic.
+//
+// r: The registry containing the dotprompt instance
+// name: The name of the helper function as it will be used in templates.
+// fn: The Go function that will be executed when the helper is invoked.
+//
+// Example usage:
+//
+//	ai.DefineHelper(r, "uppercase", func(s string) string {
+//		return strings.ToUpper(s)
+//	})
+//
+// In a template, you would use it as:
+//
+//	{{uppercase "hello"}} => "HELLO"
+func DefineHelper(r *registry.Registry, name string, fn any) {
+	if r == nil || r.Dotprompt == nil {
+		return
+	}
+
+	// Skip if Template is nil to avoid nil pointer dereference
+	if r.Dotprompt.Template == nil {
+		return
+	}
+
+	// Use the template from the dotprompt struct itself
+	r.Dotprompt.DefineHelper(name, fn, r.Dotprompt.Template)
 }
