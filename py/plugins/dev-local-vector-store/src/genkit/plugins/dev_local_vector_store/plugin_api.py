@@ -21,7 +21,6 @@ import logging
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import Action
-from genkit.core.typing import Docs
 from genkit.plugins.dev_local_vector_store.constant import Params
 from genkit.plugins.dev_local_vector_store.indexer import (
     DevLocalVectorStoreIndexer,
@@ -30,6 +29,7 @@ from genkit.plugins.dev_local_vector_store.retriever import (
     DevLocalVectorStoreRetriever,
     RetrieverOptionsSchema,
 )
+from genkit.typing import Docs
 
 LOG = logging.getLogger(__name__)
 

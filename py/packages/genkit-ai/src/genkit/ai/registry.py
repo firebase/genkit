@@ -54,7 +54,7 @@ from genkit.codec import dump_dict
 from genkit.core.action import Action, ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
-from genkit.core.typing import (
+from genkit.typing import (
     GenerationCommonConfig,
     Message,
     ModelInfo,

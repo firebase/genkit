@@ -20,7 +20,7 @@ from functools import cached_property, singledispatch
 from google import genai
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.typing import (
     CustomPart,
     GenerateRequest,
     GenerateResponse,

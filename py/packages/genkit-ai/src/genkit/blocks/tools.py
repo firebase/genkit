@@ -17,7 +17,7 @@
 from typing import Any
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import Part, ToolRequestPart, ToolResponse
+from genkit.typing import Part, ToolRequestPart, ToolResponse
 
 
 class ToolRunContext(ActionRunContext):

@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 
 from genkit.core.action import ActionRunContext
 from genkit.core.extract import extract_json
-from genkit.core.typing import (
+from genkit.typing import (
     Candidate,
     DocumentPart,
     GenerateRequest,

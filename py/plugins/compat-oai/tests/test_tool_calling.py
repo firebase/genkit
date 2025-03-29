@@ -17,9 +17,9 @@
 from unittest.mock import MagicMock
 
 from genkit.core.action import ActionKind
-from genkit.core.typing import GenerateResponseChunk
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.typing import GenerateResponseChunk
 
 
 def test_get_evaluated_tool_message_param_returns_expected_message():

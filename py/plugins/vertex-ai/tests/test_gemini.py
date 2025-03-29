@@ -19,14 +19,14 @@
 import pytest
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
+from genkit.typing import (
     GenerateRequest,
     GenerateResponse,
     Message,
     Role,
     TextPart,
 )
-from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
 
 MULTILINE_CONTENT = [
     'Hi, Gemini!',

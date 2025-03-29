@@ -22,7 +22,7 @@ from typing import Any
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
 from genkit.blocks.document import Document
-from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
+from genkit.typing import Embedding, EmbedRequest, EmbedResponse
 
 
 class EmbeddingModels(StrEnum):

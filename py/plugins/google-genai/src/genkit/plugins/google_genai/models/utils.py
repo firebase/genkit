@@ -17,7 +17,7 @@ import base64
 
 from google import genai
 
-from genkit.core.typing import (
+from genkit.typing import (
     CustomPart,
     Media,
     MediaPart,

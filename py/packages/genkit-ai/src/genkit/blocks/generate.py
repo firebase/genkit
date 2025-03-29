@@ -35,7 +35,7 @@ from genkit.codec import dump_dict
 from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.registry import Action, ActionKind, Registry
-from genkit.core.typing import (
+from genkit.typing import (
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
@@ -617,9 +617,11 @@ async def _resolve_tool_request(
                             if tool_request_part.metadata
                             else {}
                         ),
-                        'interrupt': interrupt_error.metadata
-                        if interrupt_error.metadata
-                        else True,
+                        'interrupt': (
+                            interrupt_error.metadata
+                            if interrupt_error.metadata
+                            else True
+                        ),
                     },
                 ),
             )
@@ -686,9 +688,11 @@ async def _resolve_resume_options(
         role=Role.TOOL,
         content=tool_responses,
         metadata={
-            'resumed': raw_request.resume.metadata
-            if raw_request.resume.metadata
-            else True
+            'resumed': (
+                raw_request.resume.metadata
+                if raw_request.resume.metadata
+                else True
+            )
         },
     )
 
@@ -724,9 +728,11 @@ def _resolve_resumed_tool_request(
 
     # if there's a corresponding reply, append it to toolResponses
     provided_response = _find_corresponding_tool_response(
-        raw_request.resume.respond
-        if raw_request.resume and raw_request.resume.respond
-        else [],
+        (
+            raw_request.resume.respond
+            if raw_request.resume and raw_request.resume.respond
+            else []
+        ),
         tool_request_part.root,
     )
     if provided_response:

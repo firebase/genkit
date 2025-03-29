@@ -15,7 +15,7 @@ from genkit.blocks.model import (
     get_basic_usage_stats,
     get_part_counts,
 )
-from genkit.core.typing import (
+from genkit.typing import (
     Candidate,
     GenerateRequest,
     GenerateResponse,

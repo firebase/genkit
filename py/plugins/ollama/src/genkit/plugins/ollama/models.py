@@ -22,7 +22,11 @@ from pydantic import BaseModel, Field, HttpUrl
 import ollama as ollama_api
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.plugins.ollama.constants import (
+    DEFAULT_OLLAMA_SERVER_URL,
+    OllamaAPITypes,
+)
+from genkit.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -37,10 +41,6 @@ from genkit.core.typing import (
     ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
-)
-from genkit.plugins.ollama.constants import (
-    DEFAULT_OLLAMA_SERVER_URL,
-    OllamaAPITypes,
 )
 
 LOG = logging.getLogger(__name__)

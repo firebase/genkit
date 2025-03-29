@@ -18,13 +18,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.core.typing import (
+from genkit.plugins.compat_oai.models import OpenAIModel
+from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     Role,
 )
-from genkit.plugins.compat_oai.models import OpenAIModel
-from genkit.plugins.compat_oai.models.model_info import GPT_4
 
 
 def test_get_messages(sample_request):

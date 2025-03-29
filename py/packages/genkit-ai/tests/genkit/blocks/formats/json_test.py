@@ -7,7 +7,7 @@
 
 from genkit.blocks.formats import JsonFormat
 from genkit.blocks.model import GenerateResponseChunkWrapper, MessageWrapper
-from genkit.core.typing import GenerateResponseChunk, Message, TextPart
+from genkit.typing import GenerateResponseChunk, Message, TextPart
 
 
 def test_json_format() -> None:

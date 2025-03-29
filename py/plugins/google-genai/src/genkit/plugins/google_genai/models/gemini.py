@@ -127,17 +127,7 @@ from google.genai import types as genai_types
 from genkit.ai import (
     ActionKind,
     ActionRunContext,
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
     GenkitRegistry,
-    Message,
-    ModelInfo,
-    Role,
-    Stage,
-    Supports,
-    ToolDefinition,
 )
 from genkit.lang.deprecations import (
     DeprecationInfo,
@@ -145,6 +135,18 @@ from genkit.lang.deprecations import (
     deprecated_enum_metafactory,
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
+from genkit.typing import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    GenerationCommonConfig,
+    Message,
+    ModelInfo,
+    Role,
+    Stage,
+    Supports,
+    ToolDefinition,
+)
 
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):

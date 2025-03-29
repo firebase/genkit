@@ -15,7 +15,13 @@ from genkit.blocks.document import Document
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import MessageWrapper, text_from_message
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.testing import (
+    EchoModel,
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
+)
+from genkit.typing import (
     DocumentData,
     DocumentPart,
     FinishReason,
@@ -36,12 +42,6 @@ from genkit.core.typing import (
     ToolDefinition,
     ToolRequest,
     ToolResponse,
-)
-from genkit.testing import (
-    EchoModel,
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
 )
 
 type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]

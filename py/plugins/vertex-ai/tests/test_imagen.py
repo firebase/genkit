@@ -6,7 +6,8 @@
 import pytest
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
+from genkit.typing import (
     GenerateRequest,
     GenerateResponse,
     Media,
@@ -14,7 +15,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
 
 
 @pytest.mark.parametrize('version', [x for x in ImagenVersion])
