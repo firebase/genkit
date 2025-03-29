@@ -28,6 +28,7 @@ from genkit.core.typing import (
 from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
+    GeminiConfigSchema,
     GeminiEmbeddingModels,
     GoogleGenai,
     google_genai_name,
@@ -35,7 +36,7 @@ from genkit.plugins.google_genai import (
 
 ai = Genkit(
     plugins=[GoogleGenai()],
-    model=google_genai_name('gemini-2.0-flash'),
+    model=google_genai_name('gemini-2.0-flash-exp'),
 )
 
 
@@ -189,6 +190,15 @@ async def generate_character_unconstrained(name: str, ctx):
         output_instructions=True,
     )
     return result.output
+
+
+@ai.flow()
+async def generate_images(name: str, ctx):
+    result = await ai.generate(
+        prompt=f'tell me a about the Eifel Tower with photos',
+        config=GeminiConfigSchema(response_modalities=['text', 'image']),
+    )
+    return result
 
 
 async def main() -> None:

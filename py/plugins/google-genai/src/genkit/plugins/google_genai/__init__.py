@@ -20,7 +20,10 @@ from genkit.plugins.google_genai.models.embedder import (
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
 )
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import (
+    GeminiConfigSchema,
+    GeminiVersion,
+)
 
 
 def package_name() -> str:
@@ -40,4 +43,5 @@ __all__ = [
     VertexEmbeddingModels.__name__,
     GeminiVersion.__name__,
     EmbeddingTaskType.__name__,
+    GeminiConfigSchema.__name__,
 ]

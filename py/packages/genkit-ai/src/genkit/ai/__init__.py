@@ -47,6 +47,7 @@ from genkit.core.typing import (
     Role,
     Supports,
     TextPart,
+    ToolDefinition,
     ToolRequest,
     ToolRequestPart,
     ToolResponse,
@@ -85,5 +86,6 @@ __all__ = [
     ToolResponsePart.__name__,
     GenerationCommonConfig.__name__,
     GenerationUsage.__name__,
+    ToolDefinition.__name__,
     tool_response.__name__,
 ]
