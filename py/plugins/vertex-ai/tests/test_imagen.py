@@ -5,7 +5,7 @@
 
 import pytest
 
-from genkit.core.action import ActionRunContext
+from genkit.ai import ActionRunContext
 from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
 from genkit.typing import (
     GenerateRequest,

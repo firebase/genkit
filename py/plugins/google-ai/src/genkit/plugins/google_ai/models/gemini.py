@@ -14,12 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Gemini Models for Genkit."""
+
 from enum import StrEnum
-from functools import cached_property, singledispatch
+from functools import cached_property
 
 from google import genai
 
-from genkit.core.action import ActionRunContext
+from genkit.ai import ActionRunContext
 from genkit.typing import (
     CustomPart,
     GenerateRequest,

@@ -10,12 +10,12 @@ import pytest
 from genkit.codec import dump_json
 from genkit.core.action import (
     Action,
-    ActionKind,
     ActionRunContext,
     create_action_key,
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
+from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
 
 

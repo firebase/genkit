@@ -14,8 +14,8 @@ import pytest
 from genkit.ai import Genkit
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import ActionKind, ActionMetadataKey
-from genkit.core.registry import ActionKind, Registry
+from genkit.core.action.types import ActionKind, ActionMetadataKey
+from genkit.core.registry import Registry
 
 
 def test_register_action_with_name_and_kind() -> None:

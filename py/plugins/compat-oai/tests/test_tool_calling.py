@@ -16,7 +16,7 @@
 
 from unittest.mock import MagicMock
 
-from genkit.core.action import ActionKind
+from genkit.ai import ActionKind
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import GPT_4
 from genkit.typing import GenerateResponseChunk

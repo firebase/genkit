@@ -19,8 +19,7 @@ from unittest import mock
 import ollama as ollama_api
 import pytest
 
-from genkit.ai import Genkit
-from genkit.core.action import ActionKind
+from genkit.ai import ActionKind, Genkit
 from genkit.typing import GenerateResponse, Message, Role, TextPart
 
 

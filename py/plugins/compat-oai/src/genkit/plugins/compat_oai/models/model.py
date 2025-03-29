@@ -14,10 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
-"""
-OpenAI Compatible Models for Genkit.
-"""
+"""OpenAI Compatible Models for Genkit."""
 
 import json
 from collections.abc import Callable
@@ -28,8 +25,7 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
 
-from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import ActionKind
+from genkit.ai import ActionKind, GenkitRegistry
 from genkit.typing import (
     GenerateRequest,
     GenerateResponse,

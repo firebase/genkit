@@ -14,12 +14,22 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Asynchronous utilities."""
+"""Action module for defining and managing RPC-over-HTTP functions."""
 
-from ._util import ensure_async
-from .channel import Channel
+from ._action import (
+    Action,
+    ActionRunContext,
+)
+from ._key import (
+    create_action_key,
+    parse_action_key,
+)
+from ._util import parse_plugin_name_from_action_name
 
 __all__ = [
-    Channel.__name__,
-    ensure_async.__name__,
+    Action.__name__,
+    ActionRunContext.__name__,
+    create_action_key.__name__,
+    parse_action_key.__name__,
+    parse_plugin_name_from_action_name.__name__,
 ]
