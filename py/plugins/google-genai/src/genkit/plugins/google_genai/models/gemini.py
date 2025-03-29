@@ -117,7 +117,9 @@ The following models are supported for API only:
 | `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | No           |
 """
 
-from enum import StrEnum
+from __future__ import annotations
+
+import enum
 from functools import cached_property
 from typing import Any
 
@@ -133,15 +135,18 @@ from genkit.core.typing import (
     Message,
     ModelInfo,
     Role,
+    Stage,
     Supports,
     TextPart,
     ToolDefinition,
 )
+from genkit.lang.deprecations import deprecate_models
 from genkit.plugins.google_genai.models.utils import PartConverter
 
 GEMINI_1_0_PRO = ModelInfo(
     label='Google AI - Gemini Pro',
     versions=['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
+    stage=Stage.DEPRECATED,
     supports=Supports(
         multiturn=True,
         media=False,
@@ -152,9 +157,9 @@ GEMINI_1_0_PRO = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_PRO = ModelInfo(
     label='Google AI - Gemini 1.5 Pro',
+    stage=Stage.DEPRECATED,
     versions=[
         'gemini-1.5-pro-latest',
         'gemini-1.5-pro-001',
@@ -170,9 +175,9 @@ GEMINI_1_5_PRO = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_FLASH = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
+    stage=Stage.DEPRECATED,
     versions=[
         'gemini-1.5-flash-latest',
         'gemini-1.5-flash-001',
@@ -188,9 +193,9 @@ GEMINI_1_5_FLASH = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_FLASH_8B = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
+    stage=Stage.DEPRECATED,
     versions=['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
     supports=Supports(
         multiturn=True,
@@ -201,7 +206,6 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
         constrained='no-tools',
     ),
 )
-
 
 GEMINI_2_0_FLASH = ModelInfo(
     label='Google AI - Gemini 2.0 Flash',
@@ -266,8 +270,28 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
 )
 
 
-class GeminiVersion(StrEnum):
-    """Gemini models."""
+class GeminiVersion(
+    enum.StrEnum,
+    # metaclass=deprecate_models({
+    #    'GEMINI_1_0_PRO': 'GEMINI_2_0_PRO_EXP_02_05',
+    #    'GEMINI_1_5_PRO': 'GEMINI_2_0_PRO_EXP_02_05',
+    #    'GEMINI_1_5_FLASH': 'GEMINI_2_0_FLASH',
+    #    'GEMINI_1_5_FLASH_8B': None,
+    # }),
+):
+    """Gemini models.
+
+    | Model                       | Description               | Deprecated    |
+    |-----------------------------|---------------------------|---------------|
+    | `gemini-1.0-pro`            | Gemini 1.0 Pro            | Yes           |
+    | `gemini-1.5-pro`            | Gemini 1.5 Pro            | Yes           |
+    | `gemini-1.5-flash`          | Gemini 1.5 Flash          | Yes           |
+    | `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Yes           |
+    | `gemini-2.0-flash`          | Gemini 2.0 Flash          | No            |
+    | `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | No            |
+    | `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | No            |
+    | `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | No            |
+    """
 
     GEMINI_1_0_PRO = 'gemini-1.0-pro'
     GEMINI_1_5_PRO = 'gemini-1.5-pro'
@@ -279,7 +303,7 @@ class GeminiVersion(StrEnum):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
 
 
-class GeminiApiOnlyVersion(StrEnum):
+class GeminiApiOnlyVersion(enum.StrEnum):
     """Gemini API only models."""
 
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
@@ -322,7 +346,7 @@ class GeminiModel:
         """Create a tool that is compatible with VertexAI API.
 
         Args:
-            tool: Genkit Tool Definition
+            tool: Genkit Tool Definition.
 
         Returns:
             Genai tool compatible with VertexAI API.

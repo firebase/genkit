@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from enum import StrEnum
-from functools import cached_property, singledispatch
+from functools import cached_property
 
 from google import genai
 

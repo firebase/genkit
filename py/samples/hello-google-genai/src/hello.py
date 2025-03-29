@@ -14,28 +14,31 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Hello Google GenAI."""
+
 import asyncio
 
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     GenerationCommonConfig,
     Message,
     Role,
     TextPart,
 )
-from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiEmbeddingModels,
+    GeminiVersion,
     GoogleGenai,
     google_genai_name,
 )
 
 ai = Genkit(
     plugins=[GoogleGenai()],
-    model=google_genai_name('gemini-2.0-flash'),
+    model=GeminiVersion.GEMINI_2_0_FLASH,
 )
 
 
@@ -46,7 +49,7 @@ class GablorkenInput(BaseModel):
 
 
 @ai.tool('calculates a gablorken')
-def gablorkenTool(input_: GablorkenInput) -> int:
+def gablorken_tool(input_: GablorkenInput) -> int:
     """The user-defined tool function."""
     return input_.value * 3 - 5
 
@@ -62,7 +65,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         The generated response with a function.
     """
     response = await ai.generate(
-        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        model=GeminiVersion.GEMINI_2_0_FLASH,
         messages=[
             Message(
                 role=Role.USER,
@@ -75,14 +78,31 @@ async def simple_generate_with_tools_flow(value: int) -> str:
 
 
 @ai.tool('calculates a gablorken')
-def gablorkenTool2(input_: GablorkenInput, ctx: ToolRunContext):
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+    """Calculate a gablorken.
+
+    Args:
+        input_: the input to calculate the gablorken for
+        ctx: the tool run context
+
+    Returns:
+        The calculated gablorken.
+    """
     ctx.interrupt()
 
 
 @ai.flow()
 async def simple_generate_with_interrupts(value: int) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
     response1 = await ai.generate(
-        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        model=GeminiVersion.GEMINI_2_0_FLASH,
         messages=[
             Message(
                 role=Role.USER,
@@ -97,7 +117,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.tool_requests[0], 178)
     response = await ai.generate(
-        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        model=GeminiVersion.GEMINI_2_0_FLASH,
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -107,9 +127,15 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
 @ai.flow()
 async def say_hi(data: str):
-    resp = await ai.generate(
-        prompt=f'hi {data}',
-    )
+    """Say hi to the given name.
+
+    Args:
+        data: the name to greet
+
+    Returns:
+        The generated response.
+    """
+    resp = await ai.generate(prompt=f'hi {data}')
     return resp.text
 
 
@@ -133,6 +159,14 @@ async def embed_docs(docs: list[str]):
 
 @ai.flow()
 async def say_hi_with_configured_temperature(data: str):
+    """Say hi to the given name with a configured temperature.
+
+    Args:
+        data: the name to greet
+
+    Returns:
+        The generated response.
+    """
     return await ai.generate(
         messages=[
             Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
@@ -142,10 +176,17 @@ async def say_hi_with_configured_temperature(data: str):
 
 
 @ai.flow()
-async def say_hi_stream(name: str, ctx):
-    stream, _ = ai.generate_stream(
-        prompt=f'hi {name}',
-    )
+async def say_hi_stream(name: str, ctx: ActionRunContext):
+    """Stream a greeting to the given name.
+
+    Args:
+        name: the name to greet
+        ctx: the tool run context
+
+    Returns:
+        The generated response.
+    """
+    stream, _ = ai.generate_stream(prompt=f'hi {name}')
     result = ''
     async for data in stream:
         ctx.send_chunk(data.text)
@@ -156,6 +197,7 @@ async def say_hi_stream(name: str, ctx):
 
 
 async def main() -> None:
+    """Main function."""
     print(await say_hi(', tell me a joke'))
 
 
@@ -164,4 +206,4 @@ if __name__ == '__main__':
 
 
 # prevent app from exiting when genkit is running in dev mode
-ai.join()
+# ai.join()
