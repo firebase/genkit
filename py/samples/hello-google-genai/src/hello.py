@@ -155,6 +155,30 @@ async def say_hi_stream(name: str, ctx):
     return result
 
 
+class RpgCharacter(BaseModel):
+    name: str = Field(description='name of the character')
+    story: str = Field(description='back story')
+    weapons: list[str] = Field(description='list of weapons (3-4)')
+
+
+@ai.flow()
+async def generate_character(name: str, ctx):
+    if ctx.is_streaming:
+        stream, result = ai.generate_stream(
+            prompt=f'generate an RPC character named {name}',
+            output_schema=RpgCharacter,
+        )
+        async for data in stream:
+            ctx.send_chunk(data.output)
+
+        return (await result).output
+    else:
+        result = await ai.generate(
+            prompt=f'generate an RPC character named {name}',
+            output_schema=RpgCharacter,
+        )
+        return result.text
+
 async def main() -> None:
     print(await say_hi(', tell me a joke'))
 

@@ -122,6 +122,7 @@ from functools import cached_property
 from typing import Any
 
 from google import genai
+from google.genai import types as genai_types
 
 from genkit.ai.registry import GenkitRegistry
 from genkit.core.action import ActionKind, ActionRunContext
@@ -318,7 +319,7 @@ class GeminiModel:
         self._client = client
         self._registry = registry
 
-    def _create_vertexai_tool(self, tool: ToolDefinition) -> genai.types.Tool:
+    def _create_vertexai_tool(self, tool: ToolDefinition) -> genai_types.Tool:
         """Create a tool that is compatible with VertexAI API.
 
         Args:
@@ -327,15 +328,15 @@ class GeminiModel:
         Returns:
             Genai tool compatible with VertexAI API.
         """
-        function = genai.types.FunctionDeclaration(
+        function = genai_types.FunctionDeclaration(
             name=tool.name,
             description=tool.description,
             parameters=tool.input_schema,
             response=tool.output_schema,
         )
-        return genai.types.Tool(function_declarations=[function])
+        return genai_types.Tool(function_declarations=[function])
 
-    def _create_gemini_tool(self, tool: ToolDefinition) -> genai.types.Tool:
+    def _create_gemini_tool(self, tool: ToolDefinition) -> genai_types.Tool:
         """Create a tool that is compatible with Gemini API.
 
         Args:
@@ -345,12 +346,12 @@ class GeminiModel:
             Genai tool compatible with Gemini API.
         """
         params = self._convert_schema_property(tool.input_schema)
-        function = genai.types.FunctionDeclaration(
+        function = genai_types.FunctionDeclaration(
             name=tool.name, description=tool.description, parameters=params
         )
-        return genai.types.Tool(function_declarations=[function])
+        return genai_types.Tool(function_declarations=[function])
 
-    def _get_tools(self, request: GenerateRequest) -> list[genai.types.Tool]:
+    def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
 
         Args:
@@ -372,7 +373,7 @@ class GeminiModel:
 
     def _convert_schema_property(
         self, input_schema: dict[str, Any]
-    ) -> genai.types.Schema | None:
+    ) -> genai_types.Schema | None:
         """Sanitizes a schema to be compatible with Gemini API.
 
         Args:
@@ -384,18 +385,18 @@ class GeminiModel:
         if not input_schema or 'type' not in input_schema:
             return None
 
-        schema = genai.types.Schema()
+        schema = genai_types.Schema()
         if input_schema.get('description'):
             schema.description = input_schema['description']
 
         if 'type' in input_schema:
-            schema_type = genai.types.Type(input_schema['type'])
+            schema_type = genai_types.Type(input_schema['type'])
             schema.type = schema_type
 
-            if schema_type == genai.types.Type.ARRAY:
+            if schema_type == genai_types.Type.ARRAY:
                 schema.items = input_schema['items']
 
-            if schema_type == genai.types.Type.OBJECT:
+            if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
                 properties = input_schema['properties']
                 for key in properties:
@@ -406,7 +407,7 @@ class GeminiModel:
 
         return schema
 
-    def _call_tool(self, call: genai.types.FunctionCall) -> genai.types.Content:
+    def _call_tool(self, call: genai_types.FunctionCall) -> genai_types.Content:
         """Calls tool's function from the registry.
 
         Args:
@@ -420,9 +421,9 @@ class GeminiModel:
         )
         args = tool_function.input_type.validate_python(call.args)
         tool_answer = tool_function.run(args)
-        return genai.types.Content(
+        return genai_types.Content(
             parts=[
-                genai.types.Part.from_function_response(
+                genai_types.Part.from_function_response(
                     name=call.name,
                     response={
                         'content': tool_answer.response,
@@ -456,8 +457,8 @@ class GeminiModel:
 
     async def _generate(
         self,
-        request_contents: list[genai.types.Content],
-        request_cfg: genai.types.GenerateContentConfig,
+        request_contents: list[genai_types.Content],
+        request_cfg: genai_types.GenerateContentConfig,
     ) -> GenerateResponse:
         """Call google-genai generate.
 
@@ -483,8 +484,8 @@ class GeminiModel:
 
     async def _streaming_generate(
         self,
-        request_contents: list[genai.types.Content],
-        request_cfg: genai.types.GenerateContentConfig | None,
+        request_contents: list[genai_types.Content],
+        request_cfg: genai_types.GenerateContentConfig | None,
         ctx: ActionRunContext,
     ) -> GenerateResponse:
         """Call google-genai generate for streaming.
@@ -500,9 +501,10 @@ class GeminiModel:
         generator = self._client.aio.models.generate_content_stream(
             model=self._version, contents=request_contents, config=request_cfg
         )
+        accumulated_content = []
         async for response_chunk in await generator:
             content = self._contents_from_response(response_chunk)
-
+            accumulated_content.append(*content)
             ctx.send_chunk(
                 chunk=GenerateResponseChunk(
                     content=content,
@@ -512,7 +514,7 @@ class GeminiModel:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
-                content=[TextPart(text='')],
+                content=accumulated_content,
             )
         )
 
@@ -540,7 +542,7 @@ class GeminiModel:
 
     def _build_messages(
         self, request: GenerateRequest
-    ) -> list[genai.types.Content]:
+    ) -> list[genai_types.Content]:
         """Build google-genai request contents from Genkit request.
 
         Args:
@@ -549,20 +551,20 @@ class GeminiModel:
         Returns:
             list of google-genai contents.
         """
-        request_contents: list[genai.types.Content] = []
+        request_contents: list[genai_types.Content] = []
 
         for msg in request.messages:
-            content_parts: list[genai.types.Part] = []
+            content_parts: list[genai_types.Part] = []
             for p in msg.content:
                 content_parts.append(PartConverter.to_gemini(p))
             request_contents.append(
-                genai.types.Content(parts=content_parts, role=msg.role)
+                genai_types.Content(parts=content_parts, role=msg.role)
             )
 
         return request_contents
 
     def _contents_from_response(
-        self, response: genai.types.GenerateContentResponse
+        self, response: genai_types.GenerateContentResponse
     ) -> list:
         """Retrieve contents from google-genai response.
 
@@ -582,7 +584,7 @@ class GeminiModel:
 
     def _genkit_to_googleai_cfg(
         self, request: GenerateRequest
-    ) -> genai.types.GenerateContentConfig | None:
+    ) -> genai_types.GenerateContentConfig | None:
         """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
 
         Args:
@@ -596,7 +598,7 @@ class GeminiModel:
         if request.config:
             request_config = request.config
             if isinstance(request_config, GenerationCommonConfig):
-                cfg = genai.types.GenerateContentConfig(
+                cfg = genai_types.GenerateContentConfig(
                     max_output_tokens=request_config.max_output_tokens,
                     top_k=request_config.top_k,
                     top_p=request_config.top_p,
@@ -604,11 +606,11 @@ class GeminiModel:
                     stop_sequences=request_config.stop_sequences,
                 )
             elif isinstance(request_config, dict):
-                cfg = genai.types.GenerateContentConfig(**request_config)
+                cfg = genai_types.GenerateContentConfig(**request_config)
 
         if request.output:
             if not cfg:
-                cfg = genai.types.GenerateContentConfig()
+                cfg = genai_types.GenerateContentConfig()
 
             response_mime_type = (
                 'application/json'
@@ -617,9 +619,12 @@ class GeminiModel:
             )
             cfg.response_mime_type = response_mime_type
 
+            if request.output.schema_:
+                cfg.response_schema = self._convert_schema_property(request.output.schema_)
+
         if request.tools:
             if not cfg:
-                cfg = genai.types.GenerateContentConfig()
+                cfg = genai_types.GenerateContentConfig()
 
             tools = self._get_tools(request)
             cfg.tools = tools

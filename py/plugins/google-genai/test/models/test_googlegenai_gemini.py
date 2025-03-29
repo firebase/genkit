@@ -128,7 +128,7 @@ async def test_generate_stream_text_response(mocker, version):
         )
     ])
     assert isinstance(response, GenerateResponse)
-    assert response.message.content[0].root.text == ''
+    assert response.message.content == []
 
 
 @pytest.mark.asyncio
