@@ -30,6 +30,7 @@ from genkit.plugins.google_genai.models.embedder import (
 )
 from genkit.plugins.google_genai.models.gemini import (
     GeminiApiOnlyVersion,
+    GeminiConfigSchema,
     GeminiModel,
     GeminiVersion,
 )
@@ -101,6 +102,7 @@ class GoogleGenai(Plugin):
                 name=google_genai_name(version),
                 fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
+                config_schema=GeminiConfigSchema,
             )
 
         embeding_models = (

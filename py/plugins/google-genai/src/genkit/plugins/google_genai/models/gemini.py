@@ -124,21 +124,26 @@ from typing import Any
 from google import genai
 from google.genai import types as genai_types
 
-from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import (
+    ActionKind,
+    ActionRunContext,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
+    GenkitRegistry,
     Message,
     ModelInfo,
     Role,
     Supports,
-    TextPart,
     ToolDefinition,
 )
 from genkit.plugins.google_genai.models.utils import PartConverter
+
+
+class GeminiConfigSchema(genai_types.GenerateContentConfig):
+    pass
+
 
 GEMINI_1_0_PRO = ModelInfo(
     label='Google AI - Gemini Pro',
@@ -605,6 +610,8 @@ class GeminiModel:
                     temperature=request_config.temperature,
                     stop_sequences=request_config.stop_sequences,
                 )
+            elif isinstance(request_config, GeminiConfigSchema):
+                cfg = request_config
             elif isinstance(request_config, dict):
                 cfg = genai_types.GenerateContentConfig(**request_config)
 
