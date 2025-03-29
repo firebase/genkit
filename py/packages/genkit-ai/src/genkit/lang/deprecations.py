@@ -27,9 +27,7 @@ When a deprecated member is accessed, a deprecation warning is issued.
 
     ```python
     Deprecations = deprecated_enum_metafactory({
-        'OLD_THING': DeprecationInfo(
-            recommendation='NEW_THING', status=DeprecationStatus.DEPRECATED
-        ),
+        'OLD_THING': DeprecationInfo(recommendation='NEW_THING', status=DeprecationStatus.DEPRECATED),
     })
 
 

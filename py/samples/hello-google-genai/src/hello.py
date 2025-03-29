@@ -14,6 +14,33 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Hello Google GenAI sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                                      | Example Function / Code Snippet        |
+|----------------------------------------------------------|----------------------------------------|
+| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleGenai()])` |
+| Default Model Configuration                              | `ai = Genkit(model=...)`               |
+| Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
+| Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
+| Pydantic for Tool Input Schema                           | `GablorkenInput`                       |
+| Simple Generation (Prompt String)                        | `say_hi`                               |
+| Generation with Messages (`Message`, `Role`, `TextPart`) | `simple_generate_with_tools_flow`      |
+| Generation with Tools                                    | `simple_generate_with_tools_flow`      |
+| Tool Response Handling                                   | `simple_generate_with_interrupts`      |
+| Tool Interruption (`ctx.interrupt`)                      | `gablorken_tool2`                      |
+| Embedding (`ai.embed`, `Document`)                       | `embed_docs`                           |
+| Generation Configuration (`temperature`, etc.)           | `say_hi_with_configured_temperature`   |
+| Streaming Generation (`ai.generate_stream`)              | `say_hi_stream`                        |
+| Streaming Chunk Handling (`ctx.send_chunk`)              | `say_hi_stream`, `generate_character`  |
+| Structured Output (Schema)                               | `generate_character`                   |
+| Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
+| Unconstrained Structured Output                          | `generate_character_unconstrained`     |
+| Multi-modal Output Configuration                         | `generate_images`                      |
+
+"""
+
 import asyncio
 
 from pydantic import BaseModel, Field
@@ -47,7 +74,7 @@ class GablorkenInput(BaseModel):
 
 
 @ai.tool('calculates a gablorken')
-def gablorkenTool(input_: GablorkenInput) -> int:
+def gablorken_tool(input_: GablorkenInput) -> int:
     """The user-defined tool function."""
     return input_.value * 3 - 5
 
@@ -76,12 +103,29 @@ async def simple_generate_with_tools_flow(value: int) -> str:
 
 
 @ai.tool('calculates a gablorken')
-def gablorkenTool2(input_: GablorkenInput, ctx: ToolRunContext):
+def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+    """The user-defined tool function.
+
+    Args:
+        input_: the input to the tool
+        ctx: the tool run context
+
+    Returns:
+        The calculated gablorken.
+    """
     ctx.interrupt()
 
 
 @ai.flow()
 async def simple_generate_with_interrupts(value: int) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
     response1 = await ai.generate(
         model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
@@ -107,9 +151,17 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
 
 @ai.flow()
-async def say_hi(data: str):
+async def say_hi(name: str):
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
     resp = await ai.generate(
-        prompt=f'hi {data}',
+        prompt=f'hi {name}',
     )
     return resp.text
 
@@ -134,6 +186,14 @@ async def embed_docs(docs: list[str]):
 
 @ai.flow()
 async def say_hi_with_configured_temperature(data: str):
+    """Generate a greeting for the given name.
+
+    Args:
+        data: the name to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
     return await ai.generate(
         messages=[
             Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])
@@ -144,9 +204,16 @@ async def say_hi_with_configured_temperature(data: str):
 
 @ai.flow()
 async def say_hi_stream(name: str, ctx):
-    stream, _ = ai.generate_stream(
-        prompt=f'hi {name}',
-    )
+    """Generate a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+        ctx: the context of the tool
+
+    Returns:
+        The generated response with a function.
+    """
+    stream, _ = ai.generate_stream(prompt=f'hi {name}')
     result = ''
     async for data in stream:
         ctx.send_chunk(data.text)
@@ -157,6 +224,8 @@ async def say_hi_stream(name: str, ctx):
 
 
 class RpgCharacter(BaseModel):
+    """An RPG character."""
+
     name: str = Field(description='name of the character')
     story: str = Field(description='back story')
     weapons: list[str] = Field(description='list of weapons (3-4)')
@@ -164,6 +233,15 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(name: str, ctx):
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
     if ctx.is_streaming:
         stream, result = ai.generate_stream(
             prompt=f'generate an RPG character named {name}',
@@ -183,6 +261,15 @@ async def generate_character(name: str, ctx):
 
 @ai.flow()
 async def generate_character_unconstrained(name: str, ctx):
+    """Generate an unconstrained RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
         output_schema=RpgCharacter,
@@ -194,14 +281,24 @@ async def generate_character_unconstrained(name: str, ctx):
 
 @ai.flow()
 async def generate_images(name: str, ctx):
+    """Generate images for the given name.
+
+    Args:
+        name: the name to send to test function
+        ctx: the context of the tool
+
+    Returns:
+        The generated response with a function.
+    """
     result = await ai.generate(
-        prompt=f'tell me a about the Eifel Tower with photos',
+        prompt='tell me a about the Eifel Tower with photos',
         config=GeminiConfigSchema(response_modalities=['text', 'image']),
     )
     return result
 
 
 async def main() -> None:
+    """Main function."""
     print(await say_hi(', tell me a joke'))
 
 
