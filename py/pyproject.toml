@@ -82,6 +82,7 @@ genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
+google-genai-image                  = { workspace = true }
 hello                               = { workspace = true }
 hello-google-genai                  = { workspace = true }
 menu                                = { workspace = true }
@@ -190,6 +191,7 @@ mypy_path = [
   "plugins/google-cloud/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",
+  "plugins/google-genai-image/src",
   "plugins/ollama/src",
   "plugins/pinecone/src",
   "plugins/vertex-ai/src",
