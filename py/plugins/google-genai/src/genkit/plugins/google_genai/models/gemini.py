@@ -99,22 +99,22 @@ Date / Snapshot ID (e.g., `02-05`, `03-25`)
 
 The following models are currently supported:
 
-| Model                       | Description               | Deprecated    |
-|-----------------------------|---------------------------|---------------|
-| `gemini-1.0-pro`            | Gemini 1.0 Pro            | Yes           |
-| `gemini-1.5-pro`            | Gemini 1.5 Pro            | Yes           |
-| `gemini-1.5-flash`          | Gemini 1.5 Flash          | Yes           |
-| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Yes           |
-| `gemini-2.0-flash`          | Gemini 2.0 Flash          | No            |
-| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | No            |
-| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | No            |
-| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | No            |
+| Model                       | Description               | Status     |
+|-----------------------------|---------------------------|------------|
+| `gemini-1.0-pro`            | Gemini 1.0 Pro            | Obsolete   |
+| `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
+| `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
+| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
+| `gemini-2.0-flash`          | Gemini 2.0 Flash          | Supported  |
+| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | Supported  |
+| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | Supported  |
+| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
 
 The following models are supported for API only:
 
-| Model                  | Description                   | Deprecated   |
-|------------------------|-------------------------------|--------------|
-| `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | No           |
+| Model                  | Description                   | Status     |
+|------------------------|-------------------------------|------------|
+| `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | Supported  |
 """
 
 from enum import StrEnum
@@ -134,6 +134,7 @@ from genkit.core.typing import (
     Message,
     ModelInfo,
     Role,
+    Stage,
     Supports,
     TextPart,
     ToolDefinition,
@@ -142,6 +143,7 @@ from genkit.plugins.google_genai.models.utils import PartConverter
 
 GEMINI_1_0_PRO = ModelInfo(
     label='Google AI - Gemini Pro',
+    stage=Stage.LEGACY,
     versions=['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
     supports=Supports(
         multiturn=True,
@@ -156,6 +158,7 @@ GEMINI_1_0_PRO = ModelInfo(
 
 GEMINI_1_5_PRO = ModelInfo(
     label='Google AI - Gemini 1.5 Pro',
+    stage=Stage.DEPRECATED,
     versions=[
         'gemini-1.5-pro-latest',
         'gemini-1.5-pro-001',
@@ -174,6 +177,7 @@ GEMINI_1_5_PRO = ModelInfo(
 
 GEMINI_1_5_FLASH = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
+    stage=Stage.DEPRECATED,
     versions=[
         'gemini-1.5-flash-latest',
         'gemini-1.5-flash-001',
@@ -192,6 +196,7 @@ GEMINI_1_5_FLASH = ModelInfo(
 
 GEMINI_1_5_FLASH_8B = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
+    stage=Stage.DEPRECATED,
     versions=['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
     supports=Supports(
         multiturn=True,
@@ -268,7 +273,21 @@ GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
 
 
 class GeminiVersion(StrEnum):
-    """Gemini models."""
+    """Gemini models.
+
+    Model Support:
+
+    | Model                       | Description               | Status     |
+    |-----------------------------|---------------------------|------------|
+    | `gemini-1.0-pro`            | Gemini 1.0 Pro            | Obsolete   |
+    | `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
+    | `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
+    | `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
+    | `gemini-2.0-flash`          | Gemini 2.0 Flash          | Supported  |
+    | `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | Supported  |
+    | `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | Supported  |
+    | `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
+    """
 
     GEMINI_1_0_PRO = 'gemini-1.0-pro'
     GEMINI_1_5_PRO = 'gemini-1.5-pro'

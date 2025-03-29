@@ -62,7 +62,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         The generated response with a function.
     """
     response = await ai.generate(
-        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -82,7 +82,7 @@ def gablorkenTool2(input_: GablorkenInput, ctx: ToolRunContext):
 @ai.flow()
 async def simple_generate_with_interrupts(value: int) -> str:
     response1 = await ai.generate(
-        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -97,7 +97,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.tool_requests[0], 178)
     response = await ai.generate(
-        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_1_5_FLASH),
+        model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -200,4 +200,5 @@ if __name__ == '__main__':
 
 
 # prevent app from exiting when genkit is running in dev mode
+# TODO: Clean this up.
 ai.join()
