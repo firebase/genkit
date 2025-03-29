@@ -79,6 +79,10 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         >>> extract_json('invalid json', throw_on_bad_json=False)
         None
     """
+
+    if text.strip() == '':
+        return None
+
     opening_char = None
     closing_char = None
     start_pos = None
