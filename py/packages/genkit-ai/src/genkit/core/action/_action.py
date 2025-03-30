@@ -289,8 +289,7 @@ class Action:
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        if self.is_async:
-            raise ValueError('This method is not available for asynchronous actions. Use arun instead.')
+        # TODO: handle telemetry_labels
 
         if context:
             _action_context.set(context)
@@ -327,8 +326,7 @@ class Action:
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        if not self.is_async:
-            raise ValueError('This method is not available for synchronous actions. Use run instead.')
+        # TODO: handle telemetry_labels
 
         if context:
             _action_context.set(context)
@@ -366,12 +364,11 @@ class Action:
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        # TODO: Add Telemetry
-        ctx = ActionRunContext(on_chunk=on_chunk, context=context)
+        input_action = self.input_type.validate_python(raw_input) if self.input_type is not None else None
         return await self.arun(
-            input=raw_input,
-            on_chunk=ctx._on_chunk,
-            context=ctx.context,
+            input=input_action,
+            on_chunk=on_chunk,
+            context=context,
             telemetry_labels=telemetry_labels,
         )
 
@@ -402,7 +399,6 @@ class Action:
             - final_response_future: An asyncio.Future that will resolve to the
                                      complete ActionResponse when the action finishes.
         """
-        # TODO: Add Telemetry
         stream = Channel()
 
         resp = self.arun(
