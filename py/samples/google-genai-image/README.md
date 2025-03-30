@@ -23,5 +23,5 @@ export GEMINI_API_KEY=<Your api key>
 TODO
 
 ```bash
-uv run src/image_on_gemini.py
+uv run src/google_genai_image.py
 ```

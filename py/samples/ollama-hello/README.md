@@ -1,4 +1,4 @@
-# Run the sample
+# Hello Ollama
 
 ## NOTE
 
@@ -15,5 +15,5 @@ ollama pull gemma3:latest
 ## Execute "Hello World" Sample
 
 ```bash
-genkit start -- uv run ./ollama-hello/src/hello.py
+genkit start -- uv run src/ollama_hello.py
 ```

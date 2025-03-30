@@ -1,4 +1,4 @@
-# Run the sample
+# Ollama Simple Embed Sample
 
 ## NOTE
 
@@ -8,5 +8,5 @@ In case of questions, please refer to `./py/plugins/ollama/README.md`
 ## Execute "Ollama Embed" Sample
 
 ```bash
-genkit start -- uv run ./ollama-simple-embed/src/pokemon_glossary.py
+genkit start -- uv run src/pokemon_glossary.py
 ```

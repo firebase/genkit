@@ -1,16 +1,9 @@
-# Hello world
-
-## Setup environment
-
-```bash
-uv venv
-source .venv/bin/activate
-```
+# Context Caching example.
 
 ## Run the sample
 
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/context-caching/main.py
+genkit start -- uv run context-caching/src/context_caching.py
 ```

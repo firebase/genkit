@@ -203,6 +203,7 @@ mypy_path = [
   "samples/flow-sample1/src",
   "samples/google-genai-sample/src",
   "samples/hello/src",
+  "samples/google-ai/src",
   "samples/menu/src",
   "samples/multi-server/src",
   "samples/prompt-file/src",

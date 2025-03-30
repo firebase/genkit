@@ -1,8 +1,9 @@
-# Hello world
+# Hello Google Gen AI
 
 ## Setup environment
-Export the api key as env variable GEMINI_API_KEY
-export GEMINI_API_KEY=<Your api key>
+
+Export the api key as env variable GEMINI\_API\_KEY
+export GEMINI\_API\_KEY=<Your api key>
 
 ```bash
 uv venv
@@ -14,5 +15,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/google-ai/main.py
+genkit start -- uv run hello-google-genai/src/hello_google_genai.py
 ```
