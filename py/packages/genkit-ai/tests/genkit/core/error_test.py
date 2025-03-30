@@ -19,6 +19,7 @@
 from genkit.core.error import (
     GenkitError,
     GenkitReflectionApiErrorWireFormat,
+    HttpErrorWireFormat,
     UnstableApiError,
     UserFacingError,
     get_callable_json,
@@ -95,14 +96,14 @@ def test_get_callable_json() -> None:
     """Test that get_callable_json returns the correct JSON data."""
     genkit_error = GenkitError(status='DATA_LOSS', message='Oops')
     json_data = get_callable_json(genkit_error)
-    assert isinstance(json_data, GenkitReflectionApiErrorWireFormat)
-    assert json_data.code == 15
+    assert isinstance(json_data, HttpErrorWireFormat)
+    assert json_data.status == 'DATA_LOSS'
     assert json_data.message == 'Oops'
 
     non_genkit_error = TypeError('Type error')
     json_data = get_callable_json(non_genkit_error)
-    assert isinstance(json_data, GenkitReflectionApiErrorWireFormat)
-    assert json_data.code == 13
+    assert isinstance(json_data, HttpErrorWireFormat)
+    assert json_data.status == 'INTERNAL'
     assert json_data.message == 'Type error'
 
 
