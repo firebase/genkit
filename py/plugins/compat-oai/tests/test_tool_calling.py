@@ -14,15 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Test tool calling."""
+
 from unittest.mock import MagicMock
 
 from genkit.ai import ActionKind
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import GPT_4
-from genkit.types import GenerateResponseChunk
+from genkit.types import GenerateRequest, GenerateResponseChunk
 
 
-def test_get_evaluated_tool_message_param_returns_expected_message():
+def test_get_evaluated_tool_message_param_returns_expected_message() -> None:
+    """Test get evaluated tool message param returns expected message."""
     tool_call = MagicMock()
     tool_call.id = 'abc123'
     tool_call.function.name = 'tool_fn'
@@ -37,7 +40,8 @@ def test_get_evaluated_tool_message_param_returns_expected_message():
     assert result['content'] == 'tool_result'
 
 
-def test_evaluate_tool_executes_registered_action():
+def test_evaluate_tool_executes_registered_action() -> None:
+    """Test evaluate tool executes registered action."""
     mock_action = MagicMock()
     mock_action.input_type.validate_python.return_value = {'a': 1}
     mock_action.run.return_value = 'result'
@@ -54,7 +58,8 @@ def test_evaluate_tool_executes_registered_action():
     assert result == 'result'
 
 
-def test_generate_with_tool_calls_executes_tools(sample_request):
+def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest) -> None:
+    """Test generate with tool calls executes tools."""
     mock_tool_call = MagicMock()
     mock_tool_call.id = 'tool123'
     mock_tool_call.function.name = 'tool_fn'
