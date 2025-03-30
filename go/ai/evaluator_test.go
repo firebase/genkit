@@ -162,33 +162,6 @@ func TestFailingEvaluator(t *testing.T) {
 	}
 }
 
-func TestIsDefinedEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = DefineEvaluator(r, "test", "testEvaluator", &evalOptions, testEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if got, want := IsDefinedEvaluator(r, "test", "testEvaluator"), true; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
-	if got, want := IsDefinedEvaluator(r, "test", "testBatchEvaluator"), true; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
-	if got, want := IsDefinedEvaluator(r, "test", "fakefakefake"), false; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
-
-}
-
 func TestLookupEvaluator(t *testing.T) {
 	r, err := registry.New()
 	if err != nil {
@@ -224,9 +197,9 @@ func TestEvaluate(t *testing.T) {
 	}
 
 	resp, err := Evaluate(context.Background(), evalAction,
-		WithEvaluateDataset(&dataset),
-		WithEvaluateId("testrun"),
-		WithEvaluateOptions("test-options"))
+		WithDataset(&dataset),
+		WithID("testrun"),
+		WithConfig("test-options"))
 	if err != nil {
 		t.Fatal(err)
 	}

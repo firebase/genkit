@@ -45,6 +45,9 @@ type ConfigOption interface {
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
 	applyPromptGenerate(*promptGenerateOptions) error
+	applyEmbed(*embedOptions) error
+	applyRetrieve(*retrieveOptions) error
+	applyEvaluate(*evaluateOptions) error
 }
 
 // applyConfig applies the option to the config options.
@@ -85,6 +88,11 @@ func (o *configOptions) applyEmbed(opts *embedOptions) error {
 
 // applyRetrieve applies the option to the retrieve options.
 func (o *configOptions) applyRetrieve(opts *retrieveOptions) error {
+	return o.applyConfig(&opts.configOptions)
+}
+
+// applyEvaluate applies the option to the evaluate options.
+func (o *configOptions) applyEvaluate(opts *evaluateOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
@@ -507,8 +515,8 @@ func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // applyPromptGenerate applies the option to the prompt request options.
-func (o *executionOptions) applyPromptGenerate(genOpts *promptGenerateOptions) error {
-	return o.applyExecution(&genOpts.executionOptions)
+func (o *executionOptions) applyPromptGenerate(pgOpts *promptGenerateOptions) error {
+	return o.applyExecution(&pgOpts.executionOptions)
 }
 
 // WithStreaming sets the stream callback for the generate request.
@@ -531,13 +539,14 @@ type DocumentOption interface {
 }
 
 // applyDocument applies the option to the context options.
-func (o *documentOptions) applyDocument(ctxOpts *documentOptions) error {
+func (o *documentOptions) applyDocument(docOpts *documentOptions) error {
 	if o.Documents != nil {
-		if ctxOpts.Documents != nil {
+		if docOpts.Documents != nil {
 			return errors.New("cannot set documents more than once (WithDocs)")
 		}
-		ctxOpts.Documents = o.Documents
+		docOpts.Documents = o.Documents
 	}
+
 	return nil
 }
 
@@ -547,18 +556,18 @@ func (o *documentOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // applyPromptGenerate applies the option to the prompt generate options.
-func (o *documentOptions) applyPromptGenerate(genOpts *promptGenerateOptions) error {
-	return o.applyDocument(&genOpts.documentOptions)
+func (o *documentOptions) applyPromptGenerate(pgOpts *promptGenerateOptions) error {
+	return o.applyDocument(&pgOpts.documentOptions)
 }
 
 // applyEmbed applies the option to the embed options.
-func (o *documentOptions) applyEmbed(opts *embedOptions) error {
-	return o.applyDocument(&opts.documentOptions)
+func (o *documentOptions) applyEmbed(embedOpts *embedOptions) error {
+	return o.applyDocument(&embedOpts.documentOptions)
 }
 
 // applyRetrieve applies the option to the retrieve options.
-func (o *documentOptions) applyRetrieve(opts *retrieveOptions) error {
-	return o.applyDocument(&opts.documentOptions)
+func (o *documentOptions) applyRetrieve(retOpts *retrieveOptions) error {
+	return o.applyDocument(&retOpts.documentOptions)
 }
 
 // WithTextDocs sets the text to be used as context documents for generation or as input to an embedder.
@@ -575,6 +584,52 @@ func WithDocs(docs ...*Document) DocumentOption {
 	return &documentOptions{Documents: docs}
 }
 
+// evaluateOptions are options for providing context documents to a prompt or generate request or as input to an embedder.
+type evaluateOptions struct {
+	configOptions
+	Dataset *Dataset // Dataset to evaluate.
+	ID      string   // ID of the evaluation.
+}
+
+// EvaluateOption is an option for providing a dataset to evaluate.
+// It applies only to [Evaluator.Evaluate].
+type EvaluateOption interface {
+	applyEvaluate(*evaluateOptions) error
+}
+
+// applyEvaluate applies the option to the context options.
+func (o *evaluateOptions) applyEvaluate(evalOpts *evaluateOptions) error {
+	if err := o.applyConfig(&evalOpts.configOptions); err != nil {
+		return err
+	}
+
+	if o.Dataset != nil {
+		if evalOpts.Dataset != nil {
+			return errors.New("cannot set dataset more than once (WithDataset)")
+		}
+		evalOpts.Dataset = o.Dataset
+	}
+
+	if o.ID != "" {
+		if evalOpts.ID != "" {
+			return errors.New("cannot set ID more than once (WithID)")
+		}
+		evalOpts.ID = o.ID
+	}
+
+	return nil
+}
+
+// WithDataset sets the dataset to do evaluation on.
+func WithDataset(dataset *Dataset) EvaluateOption {
+	return &evaluateOptions{Dataset: dataset}
+}
+
+// WithID sets the ID of the evaluation to uniquely identify it.
+func WithID(id string) EvaluateOption {
+	return &evaluateOptions{ID: id}
+}
+
 // embedOptions holds configuration and input for an embedder request.
 type embedOptions struct {
 	configOptions
@@ -587,6 +642,19 @@ type EmbedOption interface {
 	applyEmbed(*embedOptions) error
 }
 
+// applyEmbed applies the option to the embed options.
+func (o *embedOptions) applyEmbed(embedOpts *embedOptions) error {
+	if err := o.applyConfig(&embedOpts.configOptions); err != nil {
+		return err
+	}
+
+	if err := o.applyDocument(&embedOpts.documentOptions); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // retrieveOptions holds configuration and input for an embedder request.
 type retrieveOptions struct {
 	configOptions
@@ -597,6 +665,19 @@ type retrieveOptions struct {
 // It applies only to [Embed].
 type RetrieveOption interface {
 	applyRetrieve(*retrieveOptions) error
+}
+
+// applyRetrieve applies the option to the retrieve options.
+func (o *retrieveOptions) applyRetrieve(retOpts *retrieveOptions) error {
+	if err := o.applyConfig(&retOpts.configOptions); err != nil {
+		return err
+	}
+
+	if err := o.applyDocument(&retOpts.documentOptions); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // generateOptions are options for generating a model response by calling a model directly.
@@ -652,24 +733,24 @@ type PromptGenerateOption interface {
 }
 
 // applyPromptGenerate applies the option to the prompt request options.
-func (o *promptGenerateOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
-	if err := o.commonGenOptions.applyPromptGenerate(reqOpts); err != nil {
+func (o *promptGenerateOptions) applyPromptGenerate(pgOpts *promptGenerateOptions) error {
+	if err := o.commonGenOptions.applyPromptGenerate(pgOpts); err != nil {
 		return err
 	}
 
-	if err := o.executionOptions.applyPromptGenerate(reqOpts); err != nil {
+	if err := o.executionOptions.applyPromptGenerate(pgOpts); err != nil {
 		return err
 	}
 
-	if err := o.documentOptions.applyPromptGenerate(reqOpts); err != nil {
+	if err := o.documentOptions.applyPromptGenerate(pgOpts); err != nil {
 		return err
 	}
 
-	if o.Input != nil { // Keep the check for Input separate
-		if reqOpts.Input != nil {
+	if o.Input != nil {
+		if pgOpts.Input != nil {
 			return errors.New("cannot set input more than once (WithInput)")
 		}
-		reqOpts.Input = o.Input
+		pgOpts.Input = o.Input
 	}
 
 	return nil

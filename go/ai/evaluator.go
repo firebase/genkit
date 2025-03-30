@@ -38,11 +38,7 @@ type Evaluator interface {
 	Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error)
 }
 
-type (
-	evaluatorActionDef core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
-
-	evaluatorAction = core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
-)
+type evaluatorActionDef core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
 
 // Example is a single example that requires evaluation
 type Example struct {
@@ -144,7 +140,7 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	actionDef := (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 		var evalResponses []EvaluationResult
 		dataset := *req.Dataset
-		for i := 0; i < len(dataset); i++ {
+		for i := range dataset {
 			datapoint := dataset[i]
 			if datapoint.TestCaseId == "" {
 				datapoint.TestCaseId = uuid.New().String()
@@ -205,63 +201,37 @@ func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *
 	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
 }
 
-// IsDefinedEvaluator reports whether an [Evaluator] is defined.
-func IsDefinedEvaluator(r *registry.Registry, provider, name string) bool {
-	return (*evaluatorActionDef)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, atype.Evaluator, provider, name)) != nil
-}
-
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(r *registry.Registry, provider, name string) Evaluator {
 	return (*evaluatorActionDef)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, atype.Evaluator, provider, name))
 }
 
-// EvaluateOption configures params of the Embed call.
-type EvaluateOption func(req *EvaluatorRequest) error
-
-// WithEvaluateDataset set the dataset on [EvaluatorRequest]
-func WithEvaluateDataset(dataset *Dataset) EvaluateOption {
-	return func(req *EvaluatorRequest) error {
-		req.Dataset = dataset
-		return nil
-	}
-}
-
-// WithEvaluateId set evaluation ID on [EvaluatorRequest]
-func WithEvaluateId(evaluationId string) EvaluateOption {
-	return func(req *EvaluatorRequest) error {
-		req.EvaluationId = evaluationId
-		return nil
-	}
-}
-
-// WithEvaluateOptions set evaluator options on [EvaluatorRequest]
-func WithEvaluateOptions(opts any) EvaluateOption {
-	return func(req *EvaluatorRequest) error {
-		req.Options = opts
-		return nil
-	}
-}
-
 // Evaluate calls the retrivers with provided options.
 func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluateOption) (*EvaluatorResponse, error) {
-	req := &EvaluatorRequest{}
-	for _, with := range opts {
-		err := with(req)
+	evalOpts := &evaluateOptions{}
+	for _, opt := range opts {
+		err := opt.applyEvaluate(evalOpts)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	req := &EvaluatorRequest{
+		Dataset:      evalOpts.Dataset,
+		EvaluationId: evalOpts.ID,
+		Options:      evalOpts.Config,
+	}
+
 	return r.Evaluate(ctx, req)
 }
 
-func (r *evaluatorActionDef) Name() string { return (*evaluatorAction)(r).Name() }
+// Name returns the name of the evaluator.
+func (e evaluatorActionDef) Name() string {
+	return (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(&e).Name()
+}
 
 // Evaluate runs the given [Evaluator].
-func (e *evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
-	if e == nil {
-		return nil, errors.New("Evaluator called on a nil Evaluator; check that all evaluators are defined")
-	}
-	a := (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(e)
-	return a.Run(ctx, req, nil)
+func (e evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+	return (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(&e).Run(ctx, req, nil)
 }
