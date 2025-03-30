@@ -47,6 +47,7 @@ class GenkitReflectionApiErrorWireFormat(BaseModel):
         'populate_by_name': True,
     }
 
+
 class HttpErrorWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
@@ -55,7 +56,6 @@ class HttpErrorWireFormat(BaseModel):
     details: Any
     message: str
     status: str = StatusCodes.INTERNAL.name
-
 
 
 class GenkitError(Exception):

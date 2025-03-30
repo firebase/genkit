@@ -200,9 +200,7 @@ def make_reflection_server(
                         # Since we're streaming, the headers have already been
                         # sent as a 200 OK, but we must indicate an error
                         # regardless.
-                        error_response = get_reflection_json(e).model_dump(
-                            by_alias=True
-                        )
+                        error_response = get_reflection_json(e).model_dump(by_alias=True)
                         logger.error('Error streaming action', error=error_response)
                         if 'message' in error_response:
                             logger.error(error_response['message'])
@@ -234,9 +232,7 @@ def make_reflection_server(
                     except Exception as e:
                         # We aren't streaming here so send a JSON-encoded 500
                         # internal server error response.
-                        error_response = get_reflection_json(e).model_dump(
-                            by_alias=True
-                        )
+                        error_response = get_reflection_json(e).model_dump(by_alias=True)
                         logger.error(f'Error running action {action.name}')
                         if 'message' in error_response:
                             logger.error(error_response['message'])

@@ -16,7 +16,7 @@
 
 import asyncio
 import threading
-from collections.abc import Callable, AsyncIterable, Iterable
+from collections.abc import AsyncIterable, Callable, Iterable
 
 
 def create_loop():
@@ -64,6 +64,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable):
     else:
         return loop.run_until_complete(fn())
 
+
 def iter_over_async(ait: AsyncIterable, loop: asyncio.AbstractEventLoop) -> Iterable:
     """Iterates over an AsyncIterable as a sync Iterable using the provided event loop."""
     ait = ait.__aiter__()
@@ -80,4 +81,3 @@ def iter_over_async(ait: AsyncIterable, loop: asyncio.AbstractEventLoop) -> Iter
         if done:
             break
         yield obj
-

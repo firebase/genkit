@@ -16,13 +16,14 @@
 
 """A simple flow served via a flask server."""
 
+from flask import Flask
+
 from genkit.ai import Genkit
+from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import (
     GoogleGenai,
     google_genai_name,
 )
-from genkit.plugins.flask import genkit_flask_handler
-from flask import Flask
 
 ai = Genkit(
     plugins=[GoogleGenai()],
@@ -31,11 +32,11 @@ ai = Genkit(
 
 app = Flask(__name__)
 
-@app.post("/chat")
+
+@app.post('/chat')
 @genkit_flask_handler(ai)
 @ai.flow()
 async def say_hi(name: str, ctx):
-    raise Exception('oops')
     return await ai.generate(
         on_chunk=ctx.send_chunk,
         prompt=f'tell a medium sized joke about {name}',

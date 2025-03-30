@@ -19,6 +19,7 @@
 
 from .handler import genkit_flask_handler
 
+
 def package_name() -> str:
     """Get the package name for the Flask plugin.
 
@@ -26,8 +27,6 @@ def package_name() -> str:
         The fully qualified package name as a string.
     """
     return 'genkit.plugins.flask'
-
-
 
 
 __all__ = ['package_name', genkit_flask_handler.__name__]
