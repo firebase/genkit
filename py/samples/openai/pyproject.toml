@@ -24,6 +24,8 @@ dependencies = [
   "genkit-plugin-vertex-ai",
   "genkit-plugin-compat-oai",
   "pydantic>=2.10.5",
+  "structlog>=25.2.0",
+  "httpx>=0.28.1",
 ]
 description = "OpenAI sample"
 license = { text = "Apache-2.0" }
