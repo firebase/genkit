@@ -46,6 +46,8 @@ from genkit.core.typing import (
     GenerationCommonConfig,
     Message,
     Part,
+    RetrieverRequest,
+    RetrieverResponse,
     ToolChoice,
 )
 
@@ -289,20 +291,40 @@ class Genkit(GenkitBase):
 
     async def embed(
         self,
-        model: str | None = None,
+        embedder: str | None = None,
         documents: list[Document] | None = None,
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Calculates embeddings for documents.
 
         Args:
-            model: Optional embedder model name to use.
+            embedder: Optional embedder model name to use.
             documents: Texts to embed.
             options: embedding options
 
         Returns:
             The generated response with embeddings.
         """
-        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
+        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder)
 
         return (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+
+    async def retrieve(
+        self,
+        retriever: str | None = None,
+        query: str | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> RetrieverResponse:
+        """Retrieves documents based on query.
+
+        Args:
+            retriever: Optional retriever name to use.
+            query: Texts query.
+            options: retriever options
+
+        Returns:
+            The generated response with embeddings.
+        """
+        retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever)
+
+        return (await retrieve_action.arun(RetrieverRequest(query=query, options=options))).response

@@ -37,7 +37,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext):
         document = Document.from_document_data(document_data=request.query)
         embeddings = await self.ai.embed(
-            model=self.params.embedder,
+            embedder=self.params.embedder,
             documents=[document],
             options=self.params.embedder_options,
         )
