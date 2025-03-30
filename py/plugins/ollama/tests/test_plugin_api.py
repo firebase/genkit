@@ -26,21 +26,25 @@ from genkit.types import GenerateResponse, Message, Role, TextPart
 def test_adding_ollama_chat_model_to_genkit_veneer(
     ollama_model: str,
     genkit_veneer_chat_model: Genkit,
-):
+) -> None:
+    """Test adding ollama chat model to genkit veneer."""
     assert genkit_veneer_chat_model.registry.lookup_action(ActionKind.MODEL, ollama_model)
 
 
 def test_adding_ollama_generation_model_to_genkit_veneer(
     ollama_model: str,
     genkit_veneer_generate_model: Genkit,
-):
+) -> None:
+    """Test adding ollama generation model to genkit veneer."""
     assert genkit_veneer_generate_model.registry.lookup_action(ActionKind.MODEL, ollama_model)
 
 
 @pytest.mark.asyncio
 async def test_async_get_chat_model_response_from_llama_api_flow(
-    mock_ollama_api_async_client: mock.Mock, genkit_veneer_chat_model: Genkit
-):
+    mock_ollama_api_async_client: mock.Mock,
+    genkit_veneer_chat_model: Genkit,
+) -> None:
+    """Test async get chat model response from llama api flow."""
     mock_response_message = 'Mocked response message'
 
     async def fake_chat_response(*args, **kwargs):
@@ -75,7 +79,8 @@ async def test_async_get_chat_model_response_from_llama_api_flow(
 async def test_async_get_generate_model_response_from_llama_api_flow(
     mock_ollama_api_async_client: mock.Mock,
     genkit_veneer_generate_model: Genkit,
-):
+) -> None:
+    """Test async get generate model response from llama api flow."""
     mock_response_message = 'Mocked response message'
 
     async def fake_generate_response(*args, **kwargs):

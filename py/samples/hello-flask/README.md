@@ -1,6 +1,7 @@
 # Flask hello example
 
 ## Setup environment
+
 Use `gcloud auth application-default login` to connect to the VertexAI.
 
 ```bash
@@ -13,5 +14,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- flask --app src/hello.py run
+genkit start -- flask --app src/hello_flask.py run
 ```
