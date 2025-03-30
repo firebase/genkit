@@ -259,7 +259,15 @@ class ServerManager:
         self._signal_handler.add_handler(sig, callback)
 
     def remove_signal_handler(self, sig: int, callback: Callable[[], Any]) -> None:
-        """Remove a handler for a specific signal."""
+        """Remove a callback for a specific signal.
+
+        Args:
+            sig: Signal number (e.g., signal.SIGINT, signal.SIGTERM)
+            callback: Function to remove
+
+        Returns:
+            None
+        """
         self._signal_handler.remove_handler(sig, callback)
 
     async def start_server(self, server: Server) -> None:

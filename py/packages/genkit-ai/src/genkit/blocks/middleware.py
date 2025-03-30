@@ -39,10 +39,18 @@ CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
 
 
 def context_item_template(d: DocumentData, index: int) -> str:
-    """
-    Renders a document into a text part.
+    """Renders a DocumentData object into a formatted string for context injection.
 
-    Uses 'ref', 'id', or index as citation, if no citationKey is available.
+    Creates a string representation of the document, typically for inclusion in a
+    prompt. It attempts to use metadata fields ('ref', 'id') or the provided index
+    as a citation marker.
+
+    Args:
+        d: The DocumentData object to render.
+        index: The index of the document in a list, used as a fallback citation.
+
+    Returns:
+        A formatted string representing the document content with a citation.
     """
     out = '- '
     ref = (d.metadata and (d.metadata.get('ref') or d.metadata.get('id'))) or index
@@ -52,8 +60,14 @@ def context_item_template(d: DocumentData, index: int) -> str:
 
 
 def augment_with_context() -> ModelMiddleware:
-    """
-    Middleware to augment the user's message with context from provided documents.
+    """Returns a ModelMiddleware that augments the prompt with document context.
+
+    This middleware checks if the `GenerateRequest` includes documents (`req.docs`).
+    If documents are present, it finds the last user message and injects the
+    rendered content of the documents into it as a special context Part.
+
+    Returns:
+        A ModelMiddleware function.
     """
 
     async def middleware(
@@ -61,6 +75,21 @@ def augment_with_context() -> ModelMiddleware:
         ctx: ActionRunContext,
         next_middleware: ModelMiddlewareNext,
     ) -> Awaitable[GenerateResponse]:
+        """The actual middleware logic to inject context.
+
+        Checks for documents in the request. If found, locates the last user message.
+        It then either replaces an existing pending context Part or appends a new
+        context Part (rendered from the documents) to the user message before
+        passing the request to the next middleware or the model.
+
+        Args:
+            req: The incoming GenerateRequest.
+            ctx: The ActionRunContext.
+            next_middleware: The next function in the middleware chain.
+
+        Returns:
+            The result from the next middleware or the final GenerateResponse.
+        """
         if not req.docs:
             return await next_middleware(req, ctx)
 

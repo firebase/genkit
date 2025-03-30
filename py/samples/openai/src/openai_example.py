@@ -140,14 +140,14 @@ async def get_weather_flow(location: str) -> str:
 
 
 @ai.flow()
-async def get_weather_flow_stream(location: str):
+async def get_weather_flow_stream(location: str) -> str:
     """Get the weather for a location using a stream.
 
     Args:
         location: The location to get the weather for.
 
     Returns:
-        The weather for the location.
+        The weather for the location as a string.
     """
     stream, _ = ai.generate_stream(
         model=openai_model('gpt-4'),

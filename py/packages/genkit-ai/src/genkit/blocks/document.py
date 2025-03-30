@@ -49,19 +49,42 @@ class Document(DocumentData):
         content: list[DocumentPart],
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Initialize Document object."""
+        """Initializes a Document object.
+
+        Performs a deep copy of the provided content and metadata to prevent
+        unintended modifications to the original objects.
+
+        Args:
+            content: A list of DocumentPart objects representing the document's content.
+            metadata: An optional dictionary containing metadata about the document.
+        """
         doc_content = deepcopy(content)
         doc_metadata = deepcopy(metadata)
         super().__init__(content=doc_content, metadata=doc_metadata)
 
     @staticmethod
     def from_document_data(document_data: DocumentData) -> Document:
-        """Construct a Document from DocumentData."""
+        """Constructs a Document instance from a DocumentData object.
+
+        Args:
+            document_data: The DocumentData object containing content and metadata.
+
+        Returns:
+            A new Document instance initialized with the provided data.
+        """
         return Document(content=document_data.content, metadata=document_data.metadata)
 
     @staticmethod
     def from_text(text: str, metadata: dict[str, Any] | None = None) -> Document:
-        """Construct a Document from a single text part."""
+        """Constructs a Document instance from a single text string.
+
+        Args:
+            text: The text content for the document.
+            metadata: Optional metadata for the document.
+
+        Returns:
+            A new Document instance containing a single text part.
+        """
         return Document(content=[DocumentPart(text=text)], metadata=metadata)
 
     @staticmethod
@@ -70,7 +93,16 @@ class Document(DocumentData):
         content_type: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Document:
-        """Construct a Document from a single media part."""
+        """Constructs a Document instance from a single media URL.
+
+        Args:
+            url: The URL of the media content.
+            content_type: Optional MIME type of the media.
+            metadata: Optional metadata for the document.
+
+        Returns:
+            A new Document instance containing a single media part.
+        """
         return Document(
             content=[DocumentPart(media=Media(url=url, content_type=content_type))],
             metadata=metadata,
@@ -82,22 +114,51 @@ class Document(DocumentData):
         data_type: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Document:
-        """Construct a Document from a single media part."""
+        """Constructs a Document instance from a single data string, determining type.
+
+        If `data_type` is 'text', creates a text document. Otherwise, assumes
+        `data` is a URL and creates a media document.
+
+        Args:
+            data: The data string (either text content or a media URL).
+            data_type: The type of the data ('text' or a media content type).
+            metadata: Optional metadata for the document.
+
+        Returns:
+            A new Document instance.
+        """
         if data_type == TEXT_DATA_TYPE:
             return Document.from_text(data, metadata)
         return Document.from_media(data, data_type, metadata)
 
     def text(self) -> str:
-        """Concatenates all `text` parts with no delimiter."""
+        """Concatenates all text parts of the document's content.
+
+        Returns:
+            A single string containing the text from all text parts, joined
+            without delimiters.
+        """
         return ''.join(p.root.text if p.root.text is not None else '' for p in self.content)
 
     def media(self) -> list[Media]:
-        """Media array getter."""
+        """Retrieves all media parts from the document's content.
+
+        Returns:
+            A list of Media objects contained within the document.
+        """
         media_parts = [part.root.media for part in self.content]
         return list(filter(lambda m: m is not None, media_parts))
 
     def data(self) -> str:
-        """Gets the first item in the document. Either text or media url."""
+        """Gets the primary data content of the document.
+
+        Returns the concatenated text if available, otherwise the URL of the
+        first media part. Returns an empty string if the document has neither
+        text nor media.
+
+        Returns:
+            The primary data string (text or media URL).
+        """
         if self.text():
             return self.text()
 
@@ -107,7 +168,15 @@ class Document(DocumentData):
         return ''
 
     def data_type(self) -> str | None:
-        """Gets the content_type of the data that is returned by data()."""
+        """Gets the data type corresponding to the primary data content.
+
+        Returns 'text' if the primary data is text. If the primary data is media,
+        returns the content type of the first media part. Returns None if the
+        document has no primary data or the media content type is not set.
+
+        Returns:
+            The data type string ('text' or a MIME type) or None.
+        """
         if self.text():
             return TEXT_DATA_TYPE
 
@@ -117,11 +186,19 @@ class Document(DocumentData):
         return None
 
     def get_embedding_documents(self, embeddings: list[Embedding]) -> list[Document]:
-        """Creates documents from embeddings.
+        """Creates multiple Document instances from a single document and its embeddings.
 
-        Embedders may return multiple embeddings for a single document. But
-        storage still requires a 1:1 relationship. So we create an array of
-        Documents from a single document - one per embedding.
+        Since embedders can return multiple embeddings for one input document,
+        but storage often requires a 1:1 document-to-embedding relationship,
+        this method duplicates the original document for each embedding.
+        Embedding metadata is added to the corresponding document's metadata
+        under the 'embedMetadata' key.
+
+        Args:
+            embeddings: A list of Embedding objects generated for this document.
+
+        Returns:
+            A list of Document objects, one for each provided embedding.
         """
         documents = []
         for embedding in embeddings:
@@ -137,14 +214,18 @@ class Document(DocumentData):
 
 
 def check_unique_documents(documents: list[Document]) -> bool:
-    """Check for unique documents in given array.
+    """Checks if a list of documents contains duplicates based on their JSON representation.
 
-    Unique documents are important because we key
-    our vector storage on the Md5 hash of the JSON string of document
-    So if we have multiple duplicate documents with
-    different embeddings, we will either skip or overwrite
-    those entries and lose embedding information.
-    Boolean return value for testing only.
+    Prints a warning if duplicates are found, as this can cause issues with
+    vector storage systems that key documents by their content hash.
+    Duplicate documents might arise if embeddings are generated without unique
+    metadata for different parts or aspects of the same original document.
+
+    Args:
+        documents: A list of Document objects to check.
+
+    Returns:
+        True if all documents are unique, False otherwise (primarily for testing).
     """
     seen = set()
     for doc in documents:

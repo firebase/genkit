@@ -64,7 +64,7 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
 
     Raises:
         ValueError: If `throw_on_bad_json` is True and no valid JSON
-            can be extracted.
+            can be extracted, or if parsing an incomplete structure fails.
 
     Examples:
         >>> extract_json('  { "key" : "value" }  ')
@@ -140,7 +140,13 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
 
 
 class ExtractItemsResult:
-    """Result of array item extraction."""
+    """Holds the result of extracting items from a text array.
+
+    Attributes:
+        items: A list of the extracted JSON objects.
+        cursor: The index in the original text immediately after the last
+                processed character.
+    """
 
     def __init__(self, items: list, cursor: int):
         self.items = items

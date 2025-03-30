@@ -20,14 +20,19 @@ from genkit.codec import dump_json
 
 
 def record_input_metadata(span, kind, name, span_metadata, input):
-    """Record the input metadata for the action.
+    """Records input metadata onto an OpenTelemetry span for a Genkit action.
+
+    Sets standard Genkit attributes like action type, subtype (kind), name,
+    and the JSON representation of the input. Also adds any custom span
+    metadata provided.
 
     Args:
-        span: The span to record the metadata for.
-        kind: The kind of action.
-        name: The name of the action.
-        span_metadata: The span metadata to record.
-        input: The input to the action.
+        span: The OpenTelemetry Span object to add attributes to.
+        kind: The kind (e.g., 'model', 'flow') of the action.
+        name: The specific name of the action.
+        span_metadata: An optional dictionary of custom key-value pairs to add
+                       as span attributes.
+        input: The input data provided to the action.
     """
     span.set_attribute('genkit:type', 'action')
     span.set_attribute('genkit:metadata:subtype', kind)
@@ -41,11 +46,14 @@ def record_input_metadata(span, kind, name, span_metadata, input):
 
 
 def record_output_metadata(span, output) -> None:
-    """Record the output metadata for the action.
+    """Records output metadata onto an OpenTelemetry span for a Genkit action.
+
+    Marks the span state as 'success' and records the JSON representation of
+    the action's output.
 
     Args:
-        span: The span to record the metadata for.
-        output: The output to the action.
+        span: The OpenTelemetry Span object to add attributes to.
+        output: The output data returned by the action.
     """
     span.set_attribute('genkit:state', 'success')
     span.set_attribute('genkit:output', dump_json(output))
