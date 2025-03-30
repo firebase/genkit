@@ -1,16 +1,9 @@
-# Hello world
-
-## Setup environment
-
-```bash
-uv venv
-source .venv/bin/activate
-```
+# Coffee Shop Example
 
 ## Run the sample
 
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/coffee-shop/main.py
+genkit start -- uv run coffee-shop/src/coffee_shop.py
 ```

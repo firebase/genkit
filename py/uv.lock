@@ -2666,7 +2666,9 @@ dependencies = [
     { name = "genkit-plugin-ollama" },
     { name = "genkit-plugin-pinecone" },
     { name = "genkit-plugin-vertex-ai" },
+    { name = "httpx" },
     { name = "pydantic" },
+    { name = "structlog" },
 ]
 
 [package.metadata]
@@ -2679,7 +2681,9 @@ requires-dist = [
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
     { name = "genkit-plugin-pinecone", editable = "plugins/pinecone" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
