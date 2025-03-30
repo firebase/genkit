@@ -147,9 +147,9 @@ indexers, retiervers, models, embedders, etc.
 Ideally, as a user, one would like the API to be async-first because this
 single-threaded model of dealing with concurrency is the direction that Python
 frameworks are taking and Genkit naturally lives in an async world. Genkit is
-majorly I/O bound not computationally bound since it's primary purpose is
-composing various AI foundational components and setting up typed communication
-patterns between them.
+majorly I/O-bound not as much computationally-bound since it's primary purpose
+is composing various AI foundational components and setting up typed
+communication patterns between them.
 
 ### Shape of the API
 
@@ -234,28 +234,28 @@ To make this work, we could have a user-facing veneer
 #### ASCII Diagram
 
 ```ascii
-+-------------------+      +-------------------+
-|   RegistrarMixin  |      |      Registry     |
-|-------------------|      |-------------------|
-| - _registry       |<>----|(placeholder type) |  (Composition: RegistrarMixin has a Registry)
-|-------------------|      +-------------------+
++---------------------+      +-------------------+
+|   RegistrarMixin    |      |      Registry     |
+|---------------------|      |-------------------|
+| - _registry         |<>----|(placeholder type) |  (Composition: RegistrarMixin has a Registry)
+|---------------------|      +-------------------+
 | + __init__(registry)|
-| + flow()          |
-| + tool()          |
-| + registry (prop) |
-+--------^----------+
+| + flow()            |
+| + tool()            |
+| + registry (prop)   |
++--------^------------+
          | (Inheritance: GenkitExperimental is-a RegistrarMixin)
 +--------|-----------------+      +----------------------+     +----------------------+
-|  GenkitExperimental    |----->|      AsyncGenkit       |     |       SyncGenkit       |
-| (in _veneer.py)        |<>--  | (in _async.py)       |     | (in _sync.py)        |
-|------------------------|  |   |----------------------|     |----------------------|
-| - _registry (inherited)|  |   | + generate()         |     | + generate()         |
+|  GenkitExperimental      |----->|      AsyncGenkit     |     |       SyncGenkit     |
+| (in _veneer.py)          |<>--  | (in _async.py)       |     | (in _sync.py)        |
+|--------------------------|  |   |----------------------|     |----------------------|
+| - _registry (inherited)  |  |   | + generate()         |     | + generate()         |
 | - _async_ai : AsyncGenkit|  |   | + generate_stream()  |     | + generate_stream()  |
 | - _sync_ai : SyncGenkit  |  *-->+----------------------+     *-->+----------------------+
-|------------------------|        (Async Implementation)        (Independent Sync Impl.)
-| + __init__(registry)   |
-| + flow() (inherited)   |
-| + tool() (inherited)   |
+|--------------------------|        (Async Implementation)        (Independent Sync Impl.)
+| + __init__(registry)     |
+| + flow() (inherited)     |
+| + tool() (inherited)     |
 |                          |
 | + generate() ----------> calls _sync_ai.generate()
 | + generate_stream() ---> calls _sync_ai.generate_stream()
@@ -265,7 +265,7 @@ To make this work, we could have a user-facing veneer
 |                          |
 | + aio (prop) ---------> returns _async_ai instance
 | + io (prop) ----------> returns _sync_ai instance
-+------------------------+
++--------------------------+
 ```
 
 #### Mermaid Diagram
@@ -399,9 +399,10 @@ elif long-lived server:
 
 ```
 
-Each of these can be demonstrated individual entrpoints sharing a common set of
-flows and tools. For example, the sample can define all the flows in `flows.py`
-and use them in both `server_example.py` and `short_lived_example.py` as a demonstration:
+Each of these can be demonstrated using individual entry-points sharing a common
+set of flows and tools. For example, the sample would define all the flows in
+`flows.py` and use them in both `server_example.py` and `short_lived_example.py`
+as a demonstration:
 
 - `flows.py`
 - `server_example.py`
