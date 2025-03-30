@@ -15,15 +15,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""
-OpenAI Compatible model provider for Genkit.
-"""
+"""OpenAI-compatible model provider for Genkit."""
 
 from .openai_plugin import OpenAI, openai_model
 from .typing import OpenAIConfig
 
 
 def package_name() -> str:
+    """The package name for the OpenAI-compatible model provider."""
     return 'genkit.plugins.compat_oai'
 
 
