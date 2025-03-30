@@ -18,7 +18,7 @@
 
 from genkit.core.error import (
     GenkitError,
-    HttpErrorWireFormat,
+    GenkitReflectionApiErrorWireFormat,
     UnstableApiError,
     UserFacingError,
     get_callable_json,
@@ -53,7 +53,7 @@ def test_genkit_error_to_json() -> None:
     """Test that GenkitError can be serialized to JSON."""
     error = GenkitError(status='NOT_FOUND', message='Resource not found', details={'id': 123})
     serializable = error.to_serializable()
-    assert isinstance(serializable, HttpErrorWireFormat)
+    assert isinstance(serializable, GenkitReflectionApiErrorWireFormat)
     assert serializable.code == 5
     assert serializable.message == 'Resource not found'
     assert serializable.details.model_dump()['id'] == 123
@@ -95,13 +95,13 @@ def test_get_callable_json() -> None:
     """Test that get_callable_json returns the correct JSON data."""
     genkit_error = GenkitError(status='DATA_LOSS', message='Oops')
     json_data = get_callable_json(genkit_error)
-    assert isinstance(json_data, HttpErrorWireFormat)
+    assert isinstance(json_data, GenkitReflectionApiErrorWireFormat)
     assert json_data.code == 15
     assert json_data.message == 'Oops'
 
     non_genkit_error = TypeError('Type error')
     json_data = get_callable_json(non_genkit_error)
-    assert isinstance(json_data, HttpErrorWireFormat)
+    assert isinstance(json_data, GenkitReflectionApiErrorWireFormat)
     assert json_data.code == 13
     assert json_data.message == 'Type error'
 

@@ -325,7 +325,7 @@ class Action:
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ) -> tuple[
-        AsyncIterator[ActionResponse],
+        AsyncIterator,
         asyncio.Future[ActionResponse],
     ]:
         """Run the action and return an async iterator of the results.

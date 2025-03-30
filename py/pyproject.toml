@@ -83,7 +83,9 @@ genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 google-genai-image                  = { workspace = true }
+genkit-plugin-flask                 = { workspace = true }
 hello                               = { workspace = true }
+hello-flask                         = { workspace = true }
 hello-google-genai                  = { workspace = true }
 menu                                = { workspace = true }
 multi-server                        = { workspace = true }
