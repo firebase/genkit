@@ -115,21 +115,6 @@ def create_flows_asgi_app(
         """
         return JSONResponse(content={'status': 'OK'})
 
-    async def handle_list_flows(request: Request) -> JSONResponse:
-        """Handle list flows requests.
-
-        Args:
-            request: The Starlette request object.
-
-        Returns:
-            A JSON response with status code 200.
-        """
-        return JSONResponse(
-            content=registry.list_serializable_actions({ActionKind.FLOW}),
-            status_code=200,
-            headers={'x-genkit-version': version},
-        )
-
     async def handle_run_flows(
         request: Request,
     ) -> JSONResponse | EventSourceResponse:
@@ -325,7 +310,6 @@ def create_flows_asgi_app(
 
     routes = [
         Route('/__health', health_check, methods=['GET']),
-        Route('/listFlows', handle_list_flows, methods=['GET']),
         Route('/{flow_name:path}', handle_run_flows, methods=['POST']),
     ]
 

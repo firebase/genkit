@@ -59,7 +59,7 @@ from genkit.aio.loop import run_async
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
-from genkit.core.error import get_callable_json
+from genkit.core.error import get_reflection_json
 from genkit.core.registry import Registry
 from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.requests import (
@@ -200,7 +200,7 @@ def make_reflection_server(
                         # Since we're streaming, the headers have already been
                         # sent as a 200 OK, but we must indicate an error
                         # regardless.
-                        error_response = get_callable_json(e).model_dump(by_alias=True)
+                        error_response = get_reflection_json(e).model_dump(by_alias=True)
                         logger.error('Error streaming action', error=error_response)
                         if 'message' in error_response:
                             logger.error(error_response['message'])
@@ -232,7 +232,7 @@ def make_reflection_server(
                     except Exception as e:
                         # We aren't streaming here so send a JSON-encoded 500
                         # internal server error response.
-                        error_response = get_callable_json(e).model_dump(by_alias=True)
+                        error_response = get_reflection_json(e).model_dump(by_alias=True)
                         logger.error(f'Error running action {action.name}')
                         if 'message' in error_response:
                             logger.error(error_response['message'])
@@ -420,7 +420,7 @@ def create_reflection_asgi_app(
                 yield f'{json.dumps(final_response)}\n'
 
             except Exception as e:
-                error_response = get_callable_json(e).model_dump(by_alias=True)
+                error_response = get_reflection_json(e).model_dump(by_alias=True)
                 await logger.aerror(
                     'Error streaming action',
                     error=error_response,
@@ -468,7 +468,7 @@ def create_reflection_asgi_app(
                 headers={'x-genkit-version': version},
             )
         except Exception as e:
-            error_response = get_callable_json(e).model_dump(by_alias=True)
+            error_response = get_reflection_json(e).model_dump(by_alias=True)
             await logger.aerror('Error executing action', error=error_response)
             return JSONResponse(
                 content=error_response,
