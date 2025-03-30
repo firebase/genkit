@@ -97,34 +97,41 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
 
 
 class TelemetryServerSpanExporter(SpanExporter):
-    """SpanExporter implementation that exports spans to a telemetry server.
+    """Exports spans to a Genkit telemetry server.
 
-    This exporter sends span data to a telemetry server (default:
-    http://localhost:4033) for monitoring and debugging.  Each span is converted
-    to a JSON format that includes trace ID, span ID, timing information,
-    attributes, and other metadata about the operation.
+    This exporter sends span data in a specific JSON format to a telemetry server,
+    typically running locally during development, for visualization and debugging.
+
+    Attributes:
+        telemetry_server_url: The URL of the telemetry server endpoint.
     """
 
     def __init__(self, telemetry_server_url: str = 'http://localhost:4033/api/traces'):
-        """Initialize the TelemetryServerSpanExporter.
+        """Initializes the TelemetryServerSpanExporter.
 
         Args:
-            telemetry_server_url: The URL of the telemetry server.
+            telemetry_server_url: The URL of the telemetry server's trace endpoint.
+                                  Defaults to 'http://localhost:4033/api/traces'.
         """
         self.telemetry_server_url = telemetry_server_url
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        """Export the spans to the telemetry server.
+        """Exports a sequence of ReadableSpans to the configured telemetry server.
 
-        This method processes each span in the sequence, converts it to the
-        required JSON format, and sends it to the telemetry server via HTTP
-        POST.
+        Iterates through the provided spans, extracts relevant data using
+        `extract_span_data`, converts it to JSON, and sends it via an HTTP POST
+        request to the `telemetry_server_url`.
+
+        Note:
+            This currently uses the `requests` library synchronously. Future
+            versions might switch to an asynchronous HTTP client like `aiohttp`.
 
         Args:
-            spans: A sequence of ReadableSpan objects to export.
+            spans: A sequence of OpenTelemetry ReadableSpan objects to export.
 
         Returns:
-            SpanExportResult.SUCCESS if the export was successful.
+            SpanExportResult.SUCCESS upon successful processing (does not guarantee
+            server-side success).
         """
         for span in spans:
             # TODO: telemetry server URL must be dynamic, whatever tools
@@ -143,13 +150,17 @@ class TelemetryServerSpanExporter(SpanExporter):
         return SpanExportResult.SUCCESS
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
-        """Force flush any pending spans to the telemetry server.
+        """Forces the exporter to flush any buffered spans.
+
+        Since this exporter sends spans immediately in the `export` method,
+        this method currently does nothing but return True.
 
         Args:
-            timeout_millis: Maximum time to wait for the flush to complete.
+            timeout_millis: The maximum time in milliseconds to wait for the flush.
+                            This parameter is ignored in the current implementation.
 
         Returns:
-            True if the flush was successful, False otherwise.
+            True, indicating the flush operation is considered complete.
         """
         return True
 

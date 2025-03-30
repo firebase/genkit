@@ -33,13 +33,22 @@ type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
 
 
 class FormatterConfig(OutputConfig):
-    """Configuration for formatters."""
+    """Defines configuration options specific to formatters.
+
+    Inherits common output configuration from OutputConfig and adds
+    formatter-specific settings like `default_instructions`.
+    """
 
     default_instructions: bool | None = None
 
 
 class Formatter[O, CO]:
-    """Base class for formatters."""
+    """Base class representing a formatter for model outputs.
+
+    Formatters are responsible for parsing raw model messages and chunks
+    into structured data (types O and CO respectively) and potentially
+    providing instructions to the model on how to format its output.
+    """
 
     def __init__(
         self,
@@ -82,7 +91,12 @@ class Formatter[O, CO]:
 
 
 class FormatDef:
-    """Format definitions."""
+    """Represents the definition of a specific output format.
+
+    This class holds the name and configuration for a format and provides
+    a method (`handle`) to create a specific Formatter instance based on
+    an optional schema.
+    """
 
     def __init__(self, name: str, config: FormatterConfig):
         """Initializes a FormatDef.

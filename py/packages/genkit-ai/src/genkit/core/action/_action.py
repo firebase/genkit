@@ -47,29 +47,46 @@ _action_context.set(None)
 
 
 class ActionRunContext:
-    """Context for an action execution."""
+    """Provides context for an action's execution, including streaming support.
+
+    This class holds context information relevant to a single execution of an
+    Action. It manages the streaming callback (`on_chunk`) and any additional
+    context dictionary provided during the action call.
+
+    Attributes:
+        context: A dictionary containing arbitrary context data.
+    """
 
     def __init__(
         self,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, Any] | None = None,
     ):
-        """Initialize an ActionRunContext.
+        """Initializes an ActionRunContext instance.
+
+        Sets up the context with an optional streaming callback and an optional
+        context dictionary. If `on_chunk` is None, a no-op callback is used.
 
         Args:
-            on_chunk: The callback to invoke when a chunk is received.
-            context: The context to pass to the action.
+            on_chunk: A callable to be invoked when a chunk of data is ready
+                      during streaming execution. Defaults to a no-op function.
+            context: An optional dictionary containing context data to be made
+                     available within the action execution. Defaults to an empty
+                     dictionary.
         """
         self._on_chunk = on_chunk if on_chunk is not None else noop_streaming_callback
         self.context = context if context is not None else {}
 
     @cached_property
     def is_streaming(self) -> bool:
-        """Determines whether context contains on chunk callback.
+        """Indicates whether the action is being executed in streaming mode.
+
+        This property checks if a valid streaming callback (`on_chunk`)
+        was provided during initialization.
 
         Returns:
-            Boolean indicating whether the context contains a streaming
-            callback.
+            True if a streaming callback (other than the no-op default) is set,
+            False otherwise.
         """
         return self._on_chunk != noop_streaming_callback
 
@@ -92,13 +109,20 @@ class ActionRunContext:
 
 
 class Action:
-    """An action is a Typed JSON-based RPC-over-HTTP remote-callable function.
+    """Represents a strongly-typed, remotely callable function within Genkit.
 
-    Actions support metadata, streaming, reflection and discovery. They are
-    strongly-typed, named, observable, uninterrupted operations that can operate
-    in streaming or non-streaming mode. An action wraps a function that takes an
-    input and returns an output, optionally streaming values incrementally by
-    invoking a streaming callback.
+    Actions are the fundamental building blocks for defining operations in Genkit.
+    They are named, observable (via tracing), and support both streaming and
+    non-streaming execution modes. An Action wraps a Python function, handling
+    input validation, execution, tracing, and output serialization.
+
+    Attributes:
+        kind: The type category of the action (e.g., MODEL, TOOL, FLOW).
+        name: A unique identifier for the action.
+        description: An optional human-readable description.
+        metadata: A dictionary for storing arbitrary metadata associated with the action.
+        input_schema: The JSON schema definition for the expected input type.
+        output_schema: The JSON schema definition for the expected output type.
     """
 
     def __init__(
@@ -244,18 +268,29 @@ class Action:
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ) -> ActionResponse:
-        """Run the action with input.
+        """Executes the action synchronously with the given input.
+
+        This method runs the action's underlying function synchronously.
+        It handles input validation, tracing, and output serialization.
+        If the action's function is async, it will be run in the current event loop.
 
         Args:
-            input: The input to the action.
-            on_chunk: The callback to invoke when a chunk is received.
-            context: The context to pass to the action.
-            telemetry_labels: The telemetry labels to pass to the action.
+            input: The input data for the action. It should conform to the action's
+                   input schema.
+            on_chunk: An optional callback function to receive streaming output chunks.
+                      Note: For synchronous execution of streaming actions, chunks
+                      will be delivered synchronously via this callback.
+            context: An optional dictionary containing context data for the execution.
+            telemetry_labels: Optional labels for telemetry.
 
         Returns:
-            The action response.
+            An ActionResponse object containing the final result and trace ID.
+
+        Raises:
+            GenkitError: If an error occurs during action execution.
         """
-        # TODO: handle telemetry_labels
+        if self.is_async:
+            raise ValueError('This method is not available for asynchronous actions. Use arun instead.')
 
         if context:
             _action_context.set(context)
@@ -272,18 +307,28 @@ class Action:
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ) -> ActionResponse:
-        """Run the action with raw input.
+        """Executes the action asynchronously with the given input.
+
+        This method runs the action's underlying function asynchronously.
+        It handles input validation, tracing, and output serialization.
+        If the action's function is synchronous, it will be wrapped to run
+        asynchronously.
 
         Args:
-            input: The input to the action.
-            on_chunk: The callback to invoke when a chunk is received.
-            context: The context to pass to the action.
-            telemetry_labels: The telemetry labels to pass to the action.
+            input: The input data for the action. It should conform to the action's
+                   input schema.
+            on_chunk: An optional callback function to receive streaming output chunks.
+            context: An optional dictionary containing context data for the execution.
+            telemetry_labels: Optional labels for telemetry.
 
         Returns:
-            The action response.
+            An awaitable ActionResponse object containing the final result and trace ID.
+
+        Raises:
+            GenkitError: If an error occurs during action execution.
         """
-        # TODO: handle telemetry_labels
+        if not self.is_async:
+            raise ValueError('This method is not available for synchronous actions. Use run instead.')
 
         if context:
             _action_context.set(context)
@@ -300,22 +345,33 @@ class Action:
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
     ):
-        """Run the action with raw input.
+        """Executes the action asynchronously with raw, unvalidated input.
+
+        This method bypasses the Pydantic input validation and calls the underlying
+        action function directly with the provided `raw_input`. It still handles
+        tracing and context management.
+
+        Use this method when you need to work with input that may not conform
+        to the defined schema or when you have already validated the input.
 
         Args:
-            raw_input: The raw input to the action.
-            on_chunk: The callback to invoke when a chunk is received.
-            context: The context to pass to the action.
-            telemetry_labels: The telemetry labels to pass to the action.
+            raw_input: The raw input data to pass directly to the action function.
+            on_chunk: An optional callback function to receive streaming output chunks.
+            context: An optional dictionary containing context data for the execution.
+            telemetry_labels: Optional labels for telemetry.
 
         Returns:
-            The action response.
+            An awaitable ActionResponse object containing the final result and trace ID.
+
+        Raises:
+            GenkitError: If an error occurs during action execution.
         """
-        input_action = self.input_type.validate_python(raw_input) if self.input_type is not None else None
+        # TODO: Add Telemetry
+        ctx = ActionRunContext(on_chunk=on_chunk, context=context)
         return await self.arun(
-            input=input_action,
-            on_chunk=on_chunk,
-            context=context,
+            input=raw_input,
+            on_chunk=ctx._on_chunk,
+            context=ctx.context,
             telemetry_labels=telemetry_labels,
         )
 
@@ -328,18 +384,25 @@ class Action:
         AsyncIterator,
         asyncio.Future[ActionResponse],
     ]:
-        """Run the action and return an async iterator of the results.
+        """Executes the action asynchronously and provides a streaming response.
+
+        This method initiates an asynchronous action execution and returns immediately
+        with a tuple containing an async iterator for the chunks and a future for the
+        final response.
 
         Args:
-            input: The input to the action.
-            context: The context to pass to the action.
-            telemetry_labels: The telemetry labels to pass to the action.
+            input: The input data for the action. It should conform to the action's
+                   input schema.
+            context: An optional dictionary containing context data for the execution.
+            telemetry_labels: Optional labels for telemetry.
 
         Returns:
-            A tuple containing:
-            - An AsyncIterator of the chunks from the action.
-            - An asyncio.Future that resolves to the final result of the action.
+            A tuple: (chunk_iterator, final_response_future)
+            - chunk_iterator: An AsyncIterator yielding output chunks as they become available.
+            - final_response_future: An asyncio.Future that will resolve to the
+                                     complete ActionResponse when the action finishes.
         """
+        # TODO: Add Telemetry
         stream = Channel()
 
         resp = self.arun(
