@@ -39,11 +39,6 @@ from genkit.core.action import (
 )
 from genkit.core.action.types import ActionKind, ActionName, ActionResolver
 
-# TODO: populate this automatically
-GENKIT_VERSION = '0.0.1'
-
-GENKIT_CLIENT_HEADER = f'genkit-python/{GENKIT_VERSION}'
-
 # An action store is a nested dictionary mapping ActionKind to a dictionary of
 # action names and their corresponding Action instances.
 #

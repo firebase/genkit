@@ -27,7 +27,8 @@ throughout the Genkit framework. It includes:
     - Schema types for data validation and serialization
 """
 
-from .registry import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from .constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+
 
 def package_name() -> str:
     """Get the fully qualified package name.
