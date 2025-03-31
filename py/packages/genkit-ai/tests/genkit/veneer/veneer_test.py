@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import json
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field
@@ -16,7 +17,12 @@ from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import MessageWrapper, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
+    BaseEvalDataPoint,
+    Details,
     DocumentData,
+    EvalFnResponse,
+    EvalRequest,
+    EvalResponse,
     FinishReason,
     GenerateRequest,
     GenerateResponse,
@@ -28,6 +34,7 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
     Supports,
     TextPart,
     ToolChoice,
@@ -1255,6 +1262,113 @@ def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
             'type': 'object',
         },
         'label': 'fooRetriever',
+    }
+
+
+def test_define_evaluator_simple(setup_test: SetupFixture) -> None:
+    """Test that the define evaluator function works."""
+    ai, _, _, *_ = setup_test
+
+    def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+        return EvalFnResponse(
+            test_case_id=datapoint.test_case_id,
+            evaluation=Score(
+                score=True, details=Details(reasoning='I think it is true')
+            ),
+        )
+
+    action = ai.define_evaluator(
+        name='my_eval',
+        display_name='Test evaluator',
+        definition='Test evaluator that always returns True',
+        fn=my_eval_fn,
+    )
+
+    assert action.metadata['evaluator'] == {
+        'label': 'my_eval',
+        'evaluatorDefinition': 'Test evaluator that always returns True',
+        'evaluatorDisplayName': 'Test evaluator',
+        'evaluatorIsBilled': False,
+    }
+
+
+def test_define_evaluator_custom_config(setup_test: SetupFixture) -> None:
+    """Test that the define evaluator function works."""
+    ai, _, _, *_ = setup_test
+
+    class CustomOption(BaseModel):
+        foo_bar: str = Field('baz', description='foo_bar field')
+
+    def my_eval_fn(datapoint: BaseEvalDataPoint, options: CustomOption | None):
+        return EvalFnResponse(
+            test_case_id=datapoint.test_case_id,
+            evaluation=Score(
+                score=True, details=Details(reasoning=options.foo_bar)
+            ),
+        )
+
+    action = ai.define_evaluator(
+        name='my_eval',
+        display_name='Test evaluator',
+        definition='Test evaluator that always returns True',
+        fn=my_eval_fn,
+        config_schema=CustomOption,
+    )
+
+    assert action.metadata['evaluator'] == {
+        'label': 'my_eval',
+        'evaluatorDefinition': 'Test evaluator that always returns True',
+        'evaluatorDisplayName': 'Test evaluator',
+        'evaluatorIsBilled': False,
+        'customOptions': {
+            'properties': {
+                'foo_bar': {
+                    'default': 'baz',
+                    'description': 'foo_bar field',
+                    'title': 'Foo Bar',
+                    'type': 'string',
+                }
+            },
+            'title': 'CustomOption',
+            'type': 'object',
+        },
+    }
+
+
+def test_define_batch_evaluator(setup_test: SetupFixture) -> None:
+    """Test that the define batch evaluator function works."""
+    ai, _, _, *_ = setup_test
+
+    def my_eval_fn(req: EvalRequest, options: Any | None):
+        eval_responses: list[EvalFnResponse] = []
+        for index in range(len(req.dataset)):
+            datapoint = req.dataset[index]
+            eval_responses.append(
+                EvalFnResponse(
+                    test_case_id=f'testCase{index}',
+                    evaluation=Score(
+                        score=True,
+                        details=Details(
+                            reasoning=f'I think {datapoint.input} is true'
+                        ),
+                    ),
+                )
+            )
+
+        return EvalResponse(eval_responses)
+
+    action = ai.define_batch_evaluator(
+        name='my_eval',
+        display_name='Test evaluator',
+        definition='Test evaluator that always returns True',
+        fn=my_eval_fn,
+    )
+
+    assert action.metadata['evaluator'] == {
+        'label': 'my_eval',
+        'evaluatorDefinition': 'Test evaluator that always returns True',
+        'evaluatorDisplayName': 'Test evaluator',
+        'evaluatorIsBilled': False,
     }
 
 
