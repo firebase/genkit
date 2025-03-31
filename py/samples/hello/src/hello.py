@@ -228,8 +228,8 @@ def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
 
 ai.define_evaluator(
     name='my_eval',
-    display_name='gablorrk',
-    definition='gutenburg',
+    display_name='test evaluator',
+    definition='dummy eval that does nothing special',
     fn=my_eval_fn,
 )
 
