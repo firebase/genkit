@@ -1,0 +1,28 @@
+---
+model: googleai/gemini-1.5-flash
+config:
+  temperature: 0.9
+input:
+  schema:
+    location: string
+    name?: string
+    style?: string
+  default:
+    name: World
+    location: Firebase
+helpers:
+  upper: |
+    func(text string) string {
+      return strings.ToUpper(text)
+    }
+---
+
+You are a helpful assistant at {{location}}.
+
+Hello {{#if name}}{{upper name}}{{else}}GUEST{{/if}}!
+
+{{#if style}}
+I'll be speaking in the style of {{style}} today.
+{{/if}}
+
+How may I assist you? 

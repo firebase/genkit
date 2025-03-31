@@ -178,3 +178,4 @@ func CurrentEnvironment() Environment {
 	}
 	return EnvironmentProd
 }
+

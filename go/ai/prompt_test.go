@@ -1,3 +1,5 @@
+//go:build notracing
+
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +28,7 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/require"
 )
 
 type InputOutput struct {
@@ -1016,4 +1019,53 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	if prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}
+}
+
+// TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining
+// and using both partials and helpers.
+func TestDefinePartialAndHelperJourney(t *testing.T) {
+	r, err := registry.New()
+	require.NoError(t, err)
+
+	DefinePartial(r, "header", "Welcome {{name}}!")
+	DefineHelper(r, "uppercase", func(s string) string {
+		return strings.ToUpper(s)
+	})
+
+	p, err := DefinePrompt(r, "test", WithPromptText(`{{> header}} {{uppercase greeting}}`))
+	require.NoError(t, err)
+
+	result, err := p.Execute(context.Background(), WithPromptData(map[string]any{
+		"name":     "User",
+		"greeting": "hello",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "Welcome User! HELLO", result)
+}
+
+// TestDefineHelperWithGenkit tests the helper function registration using the lower-level APIs.
+func TestDefineHelperWithGenkit(t *testing.T) {
+	dir := t.TempDir()
+	promptFile := filepath.Join(dir, "greeting.prompt")
+	err := os.WriteFile(promptFile, []byte("AI reply to \"{{uppercase input}}!\""), 0644)
+	require.NoError(t, err)
+
+	r, err := registry.New()
+	require.NoError(t, err)
+
+	DefineHelper(r, "uppercase", func(s string) string {
+		return strings.ToUpper(s)
+	})
+
+	err = LoadPromptDir(r, dir, "")
+	require.NoError(t, err)
+
+	p := LookupPrompt(r, "", "greeting")
+	require.NotNil(t, p)
+
+	result, err := p.Execute(context.Background(), WithPromptData(map[string]any{
+		"input": "Hello world",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "AI reply to \"HELLO WORLD!\"", result)
 }
