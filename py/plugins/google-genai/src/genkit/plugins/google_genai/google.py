@@ -34,6 +34,7 @@ from genkit.plugins.google_genai.models.gemini import (
     GeminiModel,
     GeminiVersion,
 )
+from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 
 PLUGIN_NAME = 'google_genai'
 
@@ -99,7 +100,13 @@ class GoogleGenai(Plugin):
             None
         """
         supported_gemini_models = list(GeminiVersion)
-        if not self._client.vertexai:
+        if self._client.vertexai:
+            for version in ImagenVersion:
+                imagen_model = ImagenModel(version, self._client)
+                ai.define_model(
+                    name=google_genai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata
+                )
+        else:
             supported_gemini_models.extend(list(GeminiApiOnlyVersion))
 
         for version in supported_gemini_models:

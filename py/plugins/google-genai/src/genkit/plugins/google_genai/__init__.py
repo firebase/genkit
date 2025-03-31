@@ -24,6 +24,7 @@ from genkit.plugins.google_genai.models.gemini import (
     GeminiConfigSchema,
     GeminiVersion,
 )
+from genkit.plugins.google_genai.models.imagen import ImagenVersion
 
 
 def package_name() -> str:
@@ -44,4 +45,5 @@ __all__ = [
     GeminiVersion.__name__,
     EmbeddingTaskType.__name__,
     GeminiConfigSchema.__name__,
+    ImagenVersion.__name__,
 ]
