@@ -129,6 +129,8 @@ from genkit.ai import (
     ActionRunContext,
     GenkitRegistry,
 )
+from genkit.codec import dump_dict, dump_json
+from genkit.core.tracing import tracer
 from genkit.lang.deprecations import (
     DeprecationInfo,
     DeprecationStatus,
@@ -404,7 +406,9 @@ class GeminiModel:
 
         return tools
 
-    def _convert_schema_property(self, input_schema: dict[str, Any]) -> genai_types.Schema | None:
+    def _convert_schema_property(
+        self, input_schema: dict[str, Any], defs: dict[str, Any] | None = None
+    ) -> genai_types.Schema | None:
         """Sanitizes a schema to be compatible with Gemini API.
 
         Args:
@@ -413,6 +417,10 @@ class GeminiModel:
         Returns:
             Schema or None
         """
+
+        if not defs:
+            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
+
         if not input_schema or 'type' not in input_schema:
             return None
 
@@ -420,19 +428,35 @@ class GeminiModel:
         if input_schema.get('description'):
             schema.description = input_schema['description']
 
+        if 'required' in input_schema:
+            schema.required = input_schema['required']
+
         if 'type' in input_schema:
             schema_type = genai_types.Type(input_schema['type'])
             schema.type = schema_type
 
+            if 'enum' in input_schema:
+                schema.enum = input_schema['enum']
+
             if schema_type == genai_types.Type.ARRAY:
-                schema.items = input_schema['items']
+                schema.items = self._convert_schema_property(input_schema['items'], defs)
 
             if schema_type == genai_types.Type.OBJECT:
                 schema.properties = {}
                 properties = input_schema['properties']
                 for key in properties:
-                    nested_schema = self._convert_schema_property(properties[key])
-                    schema.properties[key] = nested_schema
+                    if isinstance(properties[key], dict) and '$ref' in properties[key]:
+                        ref_tokens = properties[key]['$ref'].split('/')
+                        if ref_tokens[2] not in defs:
+                            raise Exception(f'Failed to resolve schema for {ref_tokens[2]}')
+                        resolved_schema = self._convert_schema_property(defs[ref_tokens[2]], defs)
+                        schema.properties[key] = resolved_schema
+
+                        if 'description' in properties[key]:
+                            schema.properties[key].description = properties[key]['description']
+                    else:
+                        nested_schema = self._convert_schema_property(properties[key], defs)
+                        schema.properties[key] = nested_schema
 
         return schema
 
@@ -492,9 +516,19 @@ class GeminiModel:
         Returns:
             genai response.
         """
-        response = await self._client.aio.models.generate_content(
-            model=self._version, contents=request_contents, config=request_cfg
-        )
+        with tracer.start_as_current_span('generate_content') as span:
+            span.set_attribute(
+                'genkit:input',
+                dump_json({
+                    'config': dump_dict(request_cfg),
+                    'contents': [dump_dict(c) for c in request_contents],
+                    'model': self._version,
+                }),
+            )
+            response = await self._client.aio.models.generate_content(
+                model=self._version, contents=request_contents, config=request_cfg
+            )
+            span.set_attribute('genkit:output', dump_json(response))
 
         content = self._contents_from_response(response)
 
@@ -521,9 +555,18 @@ class GeminiModel:
         Returns:
             empty genai response
         """
-        generator = self._client.aio.models.generate_content_stream(
-            model=self._version, contents=request_contents, config=request_cfg
-        )
+        with tracer.start_as_current_span('generate_content_stream') as span:
+            span.set_attribute(
+                'genkit:input',
+                dump_json({
+                    'config': dump_dict(request_cfg),
+                    'contents': [dump_dict(c) for c in request_contents],
+                    'model': self._version,
+                }),
+            )
+            generator = self._client.aio.models.generate_content_stream(
+                model=self._version, contents=request_contents, config=request_cfg
+            )
         accumulated_content = []
         async for response_chunk in await generator:
             content = self._contents_from_response(response_chunk)

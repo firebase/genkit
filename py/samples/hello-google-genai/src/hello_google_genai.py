@@ -231,12 +231,19 @@ async def say_hi_stream(name: str, ctx):
     return result
 
 
+class Skills(BaseModel):
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
 class RpgCharacter(BaseModel):
     """An RPG character."""
 
     name: str = Field(description='name of the character')
-    story: str = Field(description='back story')
-    weapons: list[str] = Field(description='list of weapons (3-4)')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
 
 
 @ai.flow()
