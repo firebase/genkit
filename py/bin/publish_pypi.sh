@@ -33,7 +33,7 @@ PACKAGE_NAME=$(toml get pyproject.toml project.name --raw)
 echo "New Version is $NEW_VERSION"
 echo "Package Name is $PACKAGE_NAME"
 
-response=$(curl -s "https://test.pypi.org/pypi/$PACKAGE_NAME/json" || echo "{}")
+response=$(curl -s "https://pypi.org/pypi/$PACKAGE_NAME/json" || echo "{}")
 LATEST_VERSION=$(echo $response | jq --raw-output "select(.releases != null) | .releases | keys_unsorted | last")
 
 if [ -z "$LATEST_VERSION" ]; then

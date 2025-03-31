@@ -33,12 +33,18 @@ on:
         default: genkit-ai
         required: true
         options:
+
           - genkit-ai
+          - compat-oai
+          - dev-local-vector-store
           - firebase
-          - google-genai
+          - flask
           - google-cloud
+          - google-genai
           - ollama
           - vertex-ai
+          
+          
 
 jobs:
   python_build:
@@ -98,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       # change to publish or similar in productive CI
-      name: publish-testpypi
+      name: pypi_github_publishing
     permissions:
       id-token: write
     steps:
@@ -111,8 +117,6 @@ jobs:
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # remove this custom repository-url in productive CI
-          repository-url: https://test.pypi.org/legacy/
           verbose: true
           packages-dir: py/dist/
 
