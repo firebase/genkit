@@ -75,7 +75,7 @@ class ToolInterruptError(Exception):
 
 def tool_response(
     interrupt: Part | ToolRequestPart,
-    responseData: Any | None = None,
+    response_data: Any | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Part:
     """Constructs a ToolResponse Part, typically for an interrupted request.
@@ -86,7 +86,7 @@ def tool_response(
 
     Args:
         interrupt: The original ToolRequest Part or ToolRequestPart that was interrupted.
-        responseData: The data to include in the ToolResponse output. Defaults to None.
+        response_data: The data to include in the ToolResponse output. Defaults to None.
         metadata: Optional metadata to include in the resulting Part, often used
                   to signal that this response corresponds to an interrupt.
                   Defaults to {'interruptResponse': True}.
@@ -100,7 +100,7 @@ def tool_response(
         tool_response=ToolResponse(
             name=tool_request.name,
             ref=tool_request.ref,
-            output=responseData,
+            output=response_data,
         ),
         metadata={
             'interruptResponse': metadata if metadata else True,

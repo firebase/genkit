@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Asyncio loop utilities."""
+
 import asyncio
 import threading
 from collections.abc import AsyncIterable, Callable, Iterable
@@ -30,7 +32,7 @@ def create_loop():
     """
     try:
         return asyncio.get_event_loop()
-    except:
+    except Exception:
         return asyncio.new_event_loop()
 
 

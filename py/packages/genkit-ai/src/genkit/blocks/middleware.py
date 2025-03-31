@@ -14,11 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Awaitable, Callable
-from functools import cached_property
-from typing import Any
+"""Middleware for the Genkit framework."""
 
-from pydantic import Field
+from collections.abc import Awaitable
 
 from genkit.blocks.model import (
     ModelMiddleware,
@@ -128,8 +126,7 @@ def augment_with_context() -> ModelMiddleware:
 
 
 def last_user_message(messages: list[Message]) -> Message | None:
-    """
-    Finds the last message with the role 'user' in a list of messages.
+    """Finds the last message with the role 'user' in a list of messages.
 
     Args:
         messages: A list of message dictionaries.
