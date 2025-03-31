@@ -51,8 +51,8 @@ importers:
         specifier: ^2.0.20
         version: 2.0.20
       dotprompt:
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.1.1
+        version: 1.1.1
       json5:
         specifier: ^2.2.3
         version: 2.2.3
@@ -124,8 +124,8 @@ importers:
         specifier: ^2.8.5
         version: 2.8.5
       dotprompt:
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.1.1
+        version: 1.1.1
       express:
         specifier: ^4.21.0
         version: 4.21.0
@@ -340,8 +340,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       dotprompt:
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.1.1
+        version: 1.1.1
       genkit:
         specifier: workspace:^
         version: link:../../genkit
@@ -4429,8 +4429,8 @@ packages:
     resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
     engines: {node: '>=12'}
 
-  dotprompt@1.1.0:
-    resolution: {integrity: sha512-nfq9YrosIeOKLpStWa4KZon9yOGxCiFcR6WKBDFXsRDbma+thLv6b+25LFA1ARSb0o2HTyYMeGWF45B8JTrUag==}
+  dotprompt@1.1.1:
+    resolution: {integrity: sha512-xll31JxDiE7FaF030t0Dx4EMSV60Qn/pONDn6Hs5bBBeEANbtqIu6fPfaAOoSNbF1Y9TK+pj9Xnvud7G7GHpaA==}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -7550,7 +7550,7 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
-      dotprompt: 1.1.0
+      dotprompt: 1.1.1
       json5: 2.2.3
       node-fetch: 3.3.2
       partial-json: 0.1.7
@@ -7572,7 +7572,7 @@ snapshots:
       async-mutex: 0.5.0
       body-parser: 1.20.3
       cors: 2.8.5
-      dotprompt: 1.1.0
+      dotprompt: 1.1.1
       express: 4.21.2
       get-port: 5.1.1
       json-schema: 0.4.0
@@ -9909,7 +9909,7 @@ snapshots:
 
   dotenv@16.4.5: {}
 
-  dotprompt@1.1.0:
+  dotprompt@1.1.1:
     dependencies:
       '@types/handlebars': 4.1.0
       handlebars: 4.7.8
