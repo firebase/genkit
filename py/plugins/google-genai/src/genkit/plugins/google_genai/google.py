@@ -21,7 +21,7 @@ from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
-from genkit.ai import Plugin
+from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
@@ -86,7 +86,7 @@ class GoogleGenai(Plugin):
             project=project,
             location=location,
             debug_config=debug_config,
-            http_options=http_options,
+            http_options=_inject_attribution_headers(http_options),
         )
 
     def initialize(self, ai: GenkitRegistry) -> None:
@@ -115,3 +115,28 @@ class GoogleGenai(Plugin):
         for version in embeding_models:
             embedder = Embedder(version=version, client=self._client)
             ai.define_embedder(name=google_genai_name(version), fn=embedder.generate)
+
+
+def _inject_attribution_headers(http_options):
+    """Adds genkit client info to the appropriate http headers."""
+
+    if not http_options:
+        http_options = HttpOptions()
+    else:
+        if isinstance(http_options, dict):
+            http_options = HttpOptions(**http_options)
+
+    if not http_options.headers:
+        http_options.headers = {}
+
+    if 'x-goog-api-client' not in http_options.headers:
+        http_options.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
+    else:
+        http_options.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
+
+    if 'user-agent' not in http_options.headers:
+        http_options.headers['user-agent'] = GENKIT_CLIENT_HEADER
+    else:
+        http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
+
+    return http_options
