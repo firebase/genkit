@@ -19,6 +19,7 @@
 Users should import Genkit types from this module.
 """
 
+from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
 from genkit.core.typing import (
     CustomPart,
     Docs,
@@ -77,4 +78,7 @@ __all__ = [
     ToolRequestPart.__name__,
     ToolResponse.__name__,
     ToolResponsePart.__name__,
+    GenerateResponseWrapper.__name__,
+    GenerateResponseChunkWrapper.__name__,
+    MessageWrapper.__name__,
 ]
