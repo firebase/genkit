@@ -72,9 +72,8 @@ nav:
   - Introduction:
     - What is Genkit: index.md
     - get-started.md
-    - flask.md
-    - firebase.md
     - cloud-run.md
+    - flask.md
   - Reference:
     - reference/index.md 
     - reference/models.md 
