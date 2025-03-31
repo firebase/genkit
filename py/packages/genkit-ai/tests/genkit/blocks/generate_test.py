@@ -18,14 +18,15 @@ from genkit.codec import dump_dict, dump_json
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     FinishReason,
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Message,
+    Part,
     Role,
-    TextPart,
 )
 from genkit.testing import (
     define_echo_model,
@@ -53,7 +54,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
     pm.responses.append(
         GenerateResponse(
             finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[TextPart(text='bye')]),
+            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
         )
     )
 
@@ -64,7 +65,7 @@ async def test_simple_text_generate_request(setup_test) -> None:
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='hi')],
+                    content=[Part(text='hi')],
                 ),
             ],
         ),
@@ -80,7 +81,7 @@ async def test_simulates_doc_grounding(setup_test) -> None:
     pm.responses.append(
         GenerateResponse(
             finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[TextPart(text='bye')]),
+            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
         )
     )
 
@@ -91,20 +92,19 @@ async def test_simulates_doc_grounding(setup_test) -> None:
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='hi')],
+                    content=[Part(text='hi')],
                 ),
             ],
-            docs=[DocumentData(content=[TextPart(text='doc content 1')])],
+            docs=[DocumentData(content=[DocumentPart(text='doc content 1')])],
         ),
     )
 
     assert response.request.messages[0] == Message(
         role=Role.USER,
         content=[
-            TextPart(text='hi'),
-            TextPart(
-                text='\n\nUse the following information to complete your task:'
-                + '\n\n- [0]: doc content 1\n\n',
+            Part(text='hi'),
+            Part(
+                text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
                 metadata={'purpose': 'context'},
             ),
         ],
@@ -124,9 +124,7 @@ async def test_generate_applies_middleware(
         return await next(
             GenerateRequest(
                 messages=[
-                    Message(
-                        role=Role.USER, content=[TextPart(text=f'PRE {txt}')]
-                    ),
+                    Message(role=Role.USER, content=[Part(text=f'PRE {txt}')]),
                 ],
             ),
             ctx,
@@ -137,9 +135,7 @@ async def test_generate_applies_middleware(
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
-            message=Message(
-                role=Role.USER, content=[TextPart(text=f'{txt} POST')]
-            ),
+            message=Message(role=Role.USER, content=[Part(text=f'{txt} POST')]),
         )
 
     response = await generate_action(
@@ -149,7 +145,7 @@ async def test_generate_applies_middleware(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='hi')],
+                    content=[Part(text='hi')],
                 ),
             ],
         ),
@@ -172,9 +168,7 @@ async def test_generate_middleware_next_fn_args_optional(
         txt = text_from_message(resp.message)
         return GenerateResponse(
             finishReason=resp.finish_reason,
-            message=Message(
-                role=Role.USER, content=[TextPart(text=f'{txt} POST')]
-            ),
+            message=Message(role=Role.USER, content=[Part(text=f'{txt} POST')]),
         )
 
     response = await generate_action(
@@ -184,7 +178,7 @@ async def test_generate_middleware_next_fn_args_optional(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='hi')],
+                    content=[Part(text='hi')],
                 ),
             ],
         ),
@@ -203,9 +197,7 @@ async def test_generate_middleware_can_modify_context(
     define_echo_model(ai)
 
     async def add_context(req, ctx, next):
-        return await next(
-            req, ActionRunContext(context={**ctx.context, 'banana': True})
-        )
+        return await next(req, ActionRunContext(context={**ctx.context, 'banana': True}))
 
     async def inject_context(req, ctx, next):
         txt = ''.join(text_from_message(m) for m in req.messages)
@@ -214,7 +206,7 @@ async def test_generate_middleware_can_modify_context(
                 messages=[
                     Message(
                         role=Role.USER,
-                        content=[TextPart(text=f'{txt} {ctx.context}')],
+                        content=[Part(text=f'{txt} {ctx.context}')],
                     ),
                 ],
             ),
@@ -228,7 +220,7 @@ async def test_generate_middleware_can_modify_context(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='hi')],
+                    content=[Part(text='hi')],
                 ),
             ],
         ),
@@ -236,9 +228,7 @@ async def test_generate_middleware_can_modify_context(
         context={'foo': 'bar'},
     )
 
-    assert (
-        response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
-    )
+    assert response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
 
 
 @pytest.mark.asyncio
@@ -251,20 +241,14 @@ async def test_generate_middleware_can_modify_stream(
     pm.responses.append(
         GenerateResponse(
             finishReason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[TextPart(text='bye')]),
+            message=Message(role=Role.MODEL, content=[Part(text='bye')]),
         )
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(
-                role=Role.MODEL, content=[TextPart(text='1')]
-            ),
-            GenerateResponseChunk(
-                role=Role.MODEL, content=[TextPart(text='2')]
-            ),
-            GenerateResponseChunk(
-                role=Role.MODEL, content=[TextPart(text='3')]
-            ),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='1')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='2')]),
+            GenerateResponseChunk(role=Role.MODEL, content=[Part(text='3')]),
         ]
     ]
 
@@ -272,7 +256,7 @@ async def test_generate_middleware_can_modify_stream(
         ctx.send_chunk(
             GenerateResponseChunk(
                 role=Role.MODEL,
-                content=[TextPart(text='something extra before')],
+                content=[Part(text='something extra before')],
             )
         )
 
@@ -280,21 +264,15 @@ async def test_generate_middleware_can_modify_stream(
             ctx.send_chunk(
                 GenerateResponseChunk(
                     role=Role.MODEL,
-                    content=[
-                        TextPart(
-                            text=f'intercepted: {text_from_content(chunk.content)}'
-                        )
-                    ],
+                    content=[Part(text=f'intercepted: {text_from_content(chunk.content)}')],
                 )
             )
 
-        resp = await next(
-            req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler)
-        )
+        resp = await next(req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler))
         ctx.send_chunk(
             GenerateResponseChunk(
                 role='model',
-                content=[TextPart(text='something extra after')],
+                content=[Part(text='something extra after')],
             )
         )
         return resp
@@ -311,7 +289,7 @@ async def test_generate_middleware_can_modify_stream(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[TextPart(text='hi')],
+                    content=[Part(text='hi')],
                 ),
             ],
         ),
@@ -334,11 +312,7 @@ async def test_generate_middleware_can_modify_stream(
 ##########################################################################
 
 specs = []
-with open(
-    pathlib.Path(__file__)
-    .parent.joinpath('../../../../../../tests/specs/generate.yaml')
-    .resolve()
-) as stream:
+with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/generate.yaml').resolve()) as stream:
     testsSpec = yaml.safe_load(stream)
     specs = testsSpec['tests']
     specs = [x for x in testsSpec['tests'] if x['name'] == 'calls tools']
@@ -359,19 +333,14 @@ async def test_generate_action_spec(spec) -> None:
         return 'tool called'
 
     if 'modelResponses' in spec:
-        pm.responses = [
-            TypeAdapter(GenerateResponse).validate_python(resp)
-            for resp in spec['modelResponses']
-        ]
+        pm.responses = [TypeAdapter(GenerateResponse).validate_python(resp) for resp in spec['modelResponses']]
 
     if 'streamChunks' in spec:
         pm.chunks = []
         for chunks in spec['streamChunks']:
             converted = []
             for chunk in chunks:
-                converted.append(
-                    TypeAdapter(GenerateResponseChunk).validate_python(chunk)
-                )
+                converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
     response = None

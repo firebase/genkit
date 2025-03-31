@@ -99,9 +99,7 @@ class ServerLifecycle(Protocol):
         """
         ...
 
-    async def on_port_check(
-        self, config: ServerConfig, host: str, port: int
-    ) -> None:
+    async def on_port_check(self, config: ServerConfig, host: str, port: int) -> None:
         """Callback when a port is attempted to be used.
 
         Args:
@@ -111,9 +109,7 @@ class ServerLifecycle(Protocol):
         """
         ...
 
-    async def on_port_available(
-        self, config: ServerConfig, host: str, port: int
-    ) -> None:
+    async def on_port_available(self, config: ServerConfig, host: str, port: int) -> None:
         """Callback when a port is successfully used.
 
         Args:
@@ -123,9 +119,7 @@ class ServerLifecycle(Protocol):
         """
         ...
 
-    async def on_port_unavailable(
-        self, config: ServerConfig, host: str, port: int
-    ) -> None:
+    async def on_port_unavailable(self, config: ServerConfig, host: str, port: int) -> None:
         """Callback when a port is not available.
 
         Args:

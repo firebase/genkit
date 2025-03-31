@@ -41,20 +41,16 @@ def test_json_format() -> None:
 """
     )
 
-    assert json_format.parse_message(
-        MessageWrapper(
-            Message(role='user', content=[TextPart(text='{"foo": "bar')])
-        )
-    ) == {'foo': 'bar'}
+    assert json_format.parse_message(MessageWrapper(Message(role='user', content=[TextPart(text='{"foo": "bar')]))) == {
+        'foo': 'bar'
+    }
 
     assert json_format.parse_chunk(
         GenerateResponseChunkWrapper(
             GenerateResponseChunk(content=[TextPart(text='", "baz": [1,2')]),
             index=0,
             previous_chunks=[
-                GenerateResponseChunk(
-                    content=[TextPart(text='{"bar":'), TextPart(text='"ba')]
-                ),
+                GenerateResponseChunk(content=[TextPart(text='{"bar":'), TextPart(text='"ba')]),
                 GenerateResponseChunk(content=[TextPart(text='z')]),
             ],
         )

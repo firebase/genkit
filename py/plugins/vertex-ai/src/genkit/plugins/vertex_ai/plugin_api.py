@@ -54,9 +54,7 @@ class VertexAI(Plugin):
 
     name = 'vertexai'
 
-    def __init__(
-        self, project_id: str | None = None, location: str | None = None
-    ):
+    def __init__(self, project_id: str | None = None, location: str | None = None):
         """Initialize the Vertex AI plugin.
 
         Args:
@@ -66,9 +64,7 @@ class VertexAI(Plugin):
                 use a default region.
         """
         # If not set, projectId will be read by plugin
-        project_id = (
-            project_id if project_id else os.getenv(const.GCLOUD_PROJECT)
-        )
+        project_id = project_id if project_id else os.getenv(const.GCLOUD_PROJECT)
         location = location if location else const.DEFAULT_REGION
         vertexai.init(project=project_id, location=location)
 

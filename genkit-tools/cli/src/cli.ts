@@ -56,7 +56,7 @@ const commands: Command[] = [
 export async function startCLI(): Promise<void> {
   program
     .name('genkit')
-    .description('Firebase Genkit CLI')
+    .description('Genkit CLI')
     .version(version)
     .hook('preAction', async (_, actionCommand) => {
       await notifyAnalyticsIfFirstRun();

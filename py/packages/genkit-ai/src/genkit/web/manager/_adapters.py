@@ -238,9 +238,7 @@ class GranianAdapter(ASGIServerAdapter):
         # Granian accepts the log level as a string
         # Valid values are: 'trace', 'debug', 'info', 'warn', 'error', or 'off'
         valid_levels = ['trace', 'debug', 'info', 'warn', 'error', 'off']
-        granian_log_level = (
-            log_level.lower() if log_level.lower() in valid_levels else 'info'
-        )
+        granian_log_level = log_level.lower() if log_level.lower() in valid_levels else 'info'
 
         if host == 'localhost':
             ip_address = '127.0.0.1'

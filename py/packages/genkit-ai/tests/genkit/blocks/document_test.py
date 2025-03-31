@@ -19,19 +19,18 @@
 from genkit.blocks.document import Document
 from genkit.core.typing import (
     DocumentData,
+    DocumentPart,
     Embedding,
     Media,
-    MediaPart,
-    TextPart,
 )
 
 
 def test_makes_deep_copy() -> None:
-    content = [TextPart(text='some text')]
+    content = [DocumentPart(text='some text')]
     metadata = {'foo': 'bar'}
     doc = Document(content=content, metadata=metadata)
 
-    content[0].text = 'other text'
+    content[0].root.text = 'other text'
     metadata['foo'] = 'faz'
 
     assert doc.content[0].root.text == 'some text'
@@ -39,9 +38,7 @@ def test_makes_deep_copy() -> None:
 
 
 def test_from_dcoument_data() -> None:
-    doc = Document.from_document_data(
-        DocumentData(content=[TextPart(text='some text')])
-    )
+    doc = Document.from_document_data(DocumentData(content=[DocumentPart(text='some text')]))
 
     assert doc.text() == 'some text'
 
@@ -85,7 +82,7 @@ def test_from_data_media_document() -> None:
 
 
 def test_concatenates_text() -> None:
-    content = [TextPart(text='hello'), TextPart(text='world')]
+    content = [DocumentPart(text='hello'), DocumentPart(text='world')]
     doc = Document(content=content)
 
     assert doc.text() == 'helloworld'
@@ -93,8 +90,8 @@ def test_concatenates_text() -> None:
 
 def test_multiple_media_document() -> None:
     content = [
-        MediaPart(media=Media(url='data:one')),
-        MediaPart(media=Media(url='data:two')),
+        DocumentPart(media=Media(url='data:one')),
+        DocumentPart(media=Media(url='data:two')),
     ]
     doc = Document(content=content)
 
@@ -111,9 +108,7 @@ def test_data_with_text() -> None:
 
 
 def test_data_with_media() -> None:
-    doc = Document.from_media(
-        url='gs://somebucket/someimage.png', content_type='image/png'
-    )
+    doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data() == 'gs://somebucket/someimage.png'
 
@@ -125,9 +120,7 @@ def test_data_type_with_text() -> None:
 
 
 def test_data_type_with_media() -> None:
-    doc = Document.from_media(
-        url='gs://somebucket/someimage.png', content_type='image/png'
-    )
+    doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data_type() == 'image/png'
 

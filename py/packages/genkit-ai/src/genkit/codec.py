@@ -58,8 +58,6 @@ def dump_json(obj: Any, indent=None) -> str:
         A JSON string.
     """
     if isinstance(obj, BaseModel):
-        return obj.model_dump_json(
-            by_alias=True, exclude_none=True, indent=indent
-        )
+        return obj.model_dump_json(by_alias=True, exclude_none=True, indent=indent)
     else:
         return json.dumps(obj, indent=indent)

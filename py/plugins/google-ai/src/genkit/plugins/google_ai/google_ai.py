@@ -39,20 +39,15 @@ def googleai_name(name: str) -> str:
 
 
 class GoogleAi(Plugin):
-    """Google Ai plugin for Firebase Genkit"""
+    """Google Ai plugin for Genkit"""
 
     def __init__(self, plugin_params: GoogleAiPluginOptions | None = None):
         self.name = PLUGIN_NAME
 
-        api_key = (
-            plugin_params.api_key
-            if plugin_params and plugin_params.api_key
-            else os.getenv('GEMINI_API_KEY')
-        )
+        api_key = plugin_params.api_key if plugin_params and plugin_params.api_key else os.getenv('GEMINI_API_KEY')
         if not api_key:
             raise ValueError(
-                'Gemini api key should be passed in plugin params '
-                'or as a GEMINI_API_KEY environment variable'
+                'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
         self._client = genai.client.Client(api_key=api_key)
 

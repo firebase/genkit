@@ -16,6 +16,10 @@
 
 """Asynchronous utilities."""
 
+from ._util import ensure_async
 from .channel import Channel
 
-__all__ = [Channel.__name__]
+__all__ = [
+    Channel.__name__,
+    ensure_async.__name__,
+]

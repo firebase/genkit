@@ -24,40 +24,20 @@ communication protocols.
 from genkit.ai.plugin import Plugin
 from genkit.ai.veneer import Genkit, GenkitRegistry
 from genkit.blocks.document import Document
+from genkit.blocks.tools import ToolRunContext, tool_response
+from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
-    Embedding,
-    EmbedRequest,
-    EmbedResponse,
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    Media,
-    MediaPart,
-    Message,
-    RetrieverRequest,
-    RetrieverResponse,
-    Role,
-    TextPart,
-)
+from genkit.core.action.types import ActionKind
 
 __all__ = [
+    ActionKind.__name__,
     ActionRunContext.__name__,
     Document.__name__,
-    Embedding.__name__,
-    EmbedRequest.__name__,
-    EmbedResponse.__name__,
-    GenerateRequest.__name__,
-    GenerateResponse.__name__,
-    GenerateResponseChunk.__name__,
     Genkit.__name__,
     GenkitRegistry.__name__,
-    Media.__name__,
-    MediaPart.__name__,
-    Message.__name__,
     Plugin.__name__,
-    RetrieverRequest.__name__,
-    RetrieverResponse.__name__,
-    Role.__name__,
-    TextPart.__name__,
+    ToolRunContext.__name__,
+    tool_response.__name__,
+    'GENKIT_CLIENT_HEADER',
+    'GENKIT_VERSION',
 ]

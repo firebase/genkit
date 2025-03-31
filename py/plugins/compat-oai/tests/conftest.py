@@ -16,14 +16,14 @@
 
 import pytest
 
-from genkit.core.typing import (
+from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.types import (
     GenerateRequest,
     Message,
     Role,
     TextPart,
 )
-from genkit.plugins.compat_oai.models.model_info import GPT_4
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 
 
 @pytest.fixture
@@ -31,7 +31,11 @@ def sample_request():
     """Fixture to create a sample GenerateRequest object."""
     return GenerateRequest(
         messages=[
-            Message(role=Role.USER, content=[TextPart(text='Hello, world!')])
+            Message(
+                role=Role.SYSTEM,
+                content=[TextPart(text='You are an assistant')],
+            ),
+            Message(role=Role.USER, content=[TextPart(text='Hello, world!')]),
         ],
         config=OpenAIConfig(
             model=GPT_4,

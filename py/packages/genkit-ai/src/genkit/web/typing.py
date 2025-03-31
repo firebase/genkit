@@ -50,18 +50,10 @@ except ImportError:
 
 # NOTE: Please ask these frameworks to standardize on asgiref.
 if HAVE_LITESTAR and HAVE_STARLETTE:
-    type Application = (
-        atyping.ASGIApplication | litestar.Litestar | starlette.Starlette
-    )
-    type HTTPScope = (
-        atyping.HTTPScope | litestar.HTTPScope | starlette.HTTPScope
-    )
-    type LifespanScope = (
-        atyping.LifespanScope | litestar.LifespanScope | starlette.LifespanScope
-    )
-    type Receive = (
-        atyping.ASGIReceiveCallable | litestar.Receive | starlette.Receive
-    )
+    type Application = atyping.ASGIApplication | litestar.Litestar | starlette.Starlette
+    type HTTPScope = atyping.HTTPScope | litestar.HTTPScope | starlette.HTTPScope
+    type LifespanScope = atyping.LifespanScope | litestar.LifespanScope | starlette.LifespanScope
+    type Receive = atyping.ASGIReceiveCallable | litestar.Receive | starlette.Receive
     type Scope = atyping.Scope | litestar.Scope | starlette.Scope
     type Send = atyping.ASGISendCallable | litestar.Send | starlette.Send
 elif HAVE_LITESTAR:

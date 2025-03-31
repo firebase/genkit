@@ -1,4 +1,4 @@
-# Hello world
+# OpenAI Sample.
 
 ## Setup environment
 
@@ -12,5 +12,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/openai/src/main.py
+genkit start -- uv run src/openai_sample.py
 ```
