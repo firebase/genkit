@@ -18,8 +18,11 @@ import base64
 
 import pytest
 from google import genai
+from google.genai import types as genai_types
+from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     GeminiApiOnlyVersion,
     GeminiModel,
@@ -34,6 +37,7 @@ from genkit.types import (
     Role,
     TextPart,
 )
+from enum import StrEnum
 
 
 @pytest.mark.asyncio
@@ -169,3 +173,81 @@ async def test_generate_media_response(mocker, version):
 
     decoded_url = base64.b64decode(content.root.media.url)
     assert decoded_url == response_byte_string
+
+
+def test_convert_schema_property(mocker):
+    googleai_client_mock = mocker.AsyncMock()
+    gemini = GeminiModel('abc', googleai_client_mock, mocker.MagicMock())
+
+    class Simple(BaseModel):
+        foo: str = Field(description='foo field')
+        bar: int = Field(description='bar field')
+        baz: list[str] = Field(default=None, description='bar field')
+
+    assert gemini._convert_schema_property(to_json_schema(Simple)) == genai_types.Schema(
+        type='OBJECT',
+        properties={
+            'foo': genai_types.Schema(
+                type='STRING',
+                description='foo field',
+            ),
+            'bar': genai_types.Schema(
+                type='INTEGER',
+                description='bar field',
+            ),
+            'baz': genai_types.Schema(
+                type='ARRAY',
+                description='bar field',
+                items={'type': 'string'},
+            ),
+        },
+        required=['foo', 'bar'],
+    )
+
+    class Nested(BaseModel):
+        baz: int = Field(description='baz field')
+
+    class WithNested(BaseModel):
+        foo: str = Field(description='foo field')
+        bar: Nested = Field(description='bar field')
+
+    assert gemini._convert_schema_property(to_json_schema(WithNested)) == genai_types.Schema(
+        type='OBJECT',
+        properties={
+            'foo': genai_types.Schema(
+                type='STRING',
+                description='foo field',
+            ),
+            'bar': genai_types.Schema(
+                type='OBJECT',
+                description='bar field',
+                properties={
+                    'baz': genai_types.Schema(
+                        type='INTEGER',
+                        description='baz field',
+                    ),
+                },
+                required=['baz'],
+            ),
+        },
+        required=['foo', 'bar'],
+    )
+
+    class TestEnum(StrEnum):
+        FOO = 'foo'
+        BAR = 'bar'
+
+    class WitEnum(BaseModel):
+        foo: TestEnum = Field(description='foo field')
+
+    assert gemini._convert_schema_property(to_json_schema(WitEnum)) == genai_types.Schema(
+        type='OBJECT',
+        properties={
+            'foo': genai_types.Schema(
+                type='STRING',
+                description='foo field',
+                enum=['foo', 'bar'],
+            ),
+        },
+        required=['foo'],
+    )
