@@ -1,6 +1,6 @@
 # Monitoring
 
-Firebase Genkit provides two complementary monitoring features: OpenTelemetry
+Genkit provides two complementary monitoring features: OpenTelemetry
 export and trace inspection using the developer UI.
 
 ## OpenTelemetry export

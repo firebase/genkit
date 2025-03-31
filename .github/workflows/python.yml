@@ -16,7 +16,12 @@
 
 name: Python Checks
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - "py/**"
+      - "genkit-tools/**"
+      - ".github/workflows/python.yml"
 
 jobs:
   python-checks:
@@ -68,6 +73,7 @@ jobs:
         run: |
           cd py
           uv pip install -e .[dev,test,docs]
+          uv pip install --group dev
 
       - name: Install NPM packages
         run: |

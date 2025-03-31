@@ -181,9 +181,7 @@ class Channel[T]:
 
         self._close_future = asyncio.ensure_future(future)
         if self._close_future is not None:
-            self._close_future.add_done_callback(
-                lambda v: self.closed.set_result(v.result())
-            )
+            self._close_future.add_done_callback(lambda v: self.closed.set_result(v.result()))
 
     async def _pop(self) -> T:
         """Asynchronously retrieves a value from the internal queue.

@@ -63,7 +63,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	ga.mu.Lock()
 	defer ga.mu.Unlock()
 	if ga.initted {
-		return errors.New("GoogleAI already initialized")
+		return errors.New("plugin already initialized")
 	}
 	defer func() {
 		if err != nil {
@@ -126,13 +126,32 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.initted {
-		return errors.New("VertexAI already initialized")
+		return errors.New("plugin already initialized")
 	}
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("VertexAI.Init: %w", err)
 		}
 	}()
+
+	projectID := v.ProjectID
+	if projectID == "" {
+		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		if projectID == "" {
+			return fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard?project=%s", projectID)
+		}
+	}
+
+	location := v.Location
+	if location == "" {
+		location = os.Getenv("GOOGLE_CLOUD_LOCATION")
+		if location == "" {
+			location = os.Getenv("GOOGLE_CLOUD_REGION")
+		}
+		if location == "" {
+			return fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
+		}
+	}
 
 	// Project and Region values gets validated by genai SDK upon client
 	// creation

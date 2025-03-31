@@ -16,14 +16,16 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
-  "genkit-firebase-plugin",
-  "genkit-google-ai-plugin",
-  "genkit-google-cloud-plugin",
-  "genkit-ollama-plugin",
-  "genkit-pinecone-plugin",
-  "genkit-vertex-ai-plugin",
-  "genkit-compat-oai-plugin",
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-ai",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-ollama",
+  "genkit-plugin-pinecone",
+  "genkit-plugin-vertex-ai",
+  "genkit-plugin-compat-oai",
   "pydantic>=2.10.5",
+  "structlog>=25.2.0",
+  "httpx>=0.28.1",
 ]
 description = "OpenAI sample"
 license = { text = "Apache-2.0" }

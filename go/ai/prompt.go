@@ -67,27 +67,26 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
-			"name":   name,
-			"model":  modelName,
-			"config": p.Config,
-			"input":  map[string]any{"schema": p.InputSchema},
+			"name":         name,
+			"model":        modelName,
+			"config":       p.Config,
+			"input":        map[string]any{"schema": p.InputSchema},
+			"defaultInput": p.DefaultInput,
 		},
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
-	return p, nil
-}
+	// Legacy prompt type; Go never supported it but it does show up in Dev UI for now.
+	core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
-// IsDefinedPrompt reports whether a [Prompt] is defined.
-func IsDefinedPrompt(r *registry.Registry, provider, name string) bool {
-	return LookupPrompt(r, provider, name) != nil
+	return p, nil
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.Prompt, provider, name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.ExecutablePrompt, provider, name)
 	if action == nil {
 		return nil
 	}
@@ -165,6 +164,11 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	if len(p.Middleware) > 0 {
 		logger.FromContext(ctx).Warn(fmt.Sprintf("middleware set on prompt %q will be ignored during Prompt.Render", p.Name()))
+	}
+
+	// TODO: This is hacky; we should have a helper that fetches the metadata.
+	if input == nil {
+		input = p.action.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
 
 	return p.action.Run(ctx, input, nil)

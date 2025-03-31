@@ -37,7 +37,7 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 """
 
 import asyncio
-import json
+import inspect
 import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
@@ -53,8 +53,10 @@ from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
 from genkit.blocks.retriever import RetrieverFn
+from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
-from genkit.core.action import Action, ActionKind
+from genkit.core.action import Action
+from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.tracing import run_in_new_span
@@ -146,9 +148,7 @@ class GenkitRegistry:
 
         return wrapper
 
-    def tool(
-        self, description: str, name: str | None = None
-    ) -> Callable[[Callable], Callable]:
+    def tool(self, description: str, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
 
         Args:
@@ -170,11 +170,26 @@ class GenkitRegistry:
                 The wrapped function that executes the tool.
             """
             tool_name = name if name is not None else func.__name__
+
+            input_spec = inspect.getfullargspec(func)
+
+            def tool_fn_wrapper(*args):
+                match len(input_spec.args):
+                    case 0:
+                        return func()
+                    case 1:
+                        return func(args[0])
+                    case 2:
+                        return func(args[0], ToolRunContext(args[1]))
+                    case _:
+                        raise ValueError('tool must have 0-2 args...')
+
             action = self.registry.register_action(
                 name=tool_name,
                 kind=ActionKind.TOOL,
                 description=description,
-                fn=func,
+                fn=tool_fn_wrapper,
+                metadata_fn=func,
             )
 
             @wraps(func)
@@ -225,15 +240,10 @@ class GenkitRegistry:
         retriever_meta = metadata if metadata else {}
         if 'retriever' not in retriever_meta:
             retriever_meta['retriever'] = {}
-        if (
-            'label' not in retriever_meta['retriever']
-            or not retriever_meta['retriever']['label']
-        ):
+        if 'label' not in retriever_meta['retriever'] or not retriever_meta['retriever']['label']:
             retriever_meta['retriever']['label'] = name
         if config_schema:
-            retriever_meta['retriever']['customOptions'] = to_json_schema(
-                config_schema
-            )
+            retriever_meta['retriever']['customOptions'] = to_json_schema(config_schema)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.RETRIEVER,
@@ -269,24 +279,13 @@ class GenkitRegistry:
         evaluator_meta = metadata if metadata else {}
         if 'evaluator' not in evaluator_meta:
             evaluator_meta['evaluator'] = {}
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = (
-            definition
-        )
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = (
-            display_name
-        )
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = (
-            is_billed
-        )
-        if (
-            'label' not in evaluator_meta['evaluator']
-            or not evaluator_meta['evaluator']['label']
-        ):
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
             evaluator_meta['evaluator']['label'] = name
         if config_schema:
-            evaluator_meta['evaluator']['customOptions'] = to_json_schema(
-                config_schema
-            )
+            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
 
         def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
             eval_responses: list[EvalFnResponse] = []
@@ -299,9 +298,7 @@ class GenkitRegistry:
                     metadata={'evaluator:evalRunId': req.eval_run_id},
                 )
                 try:
-                    with run_in_new_span(
-                        span_metadata, labels={'genkit:type': 'evaluator'}
-                    ) as span:
+                    with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
                         span_id = span.span_id()
                         trace_id = span.trace_id()
                         try:
@@ -366,24 +363,13 @@ class GenkitRegistry:
         evaluator_meta = metadata if metadata else {}
         if 'evaluator' not in evaluator_meta:
             evaluator_meta['evaluator'] = {}
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = (
-            definition
-        )
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = (
-            display_name
-        )
-        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = (
-            is_billed
-        )
-        if (
-            'label' not in evaluator_meta['evaluator']
-            or not evaluator_meta['evaluator']['label']
-        ):
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
             evaluator_meta['evaluator']['label'] = name
         if config_schema:
-            evaluator_meta['evaluator']['customOptions'] = to_json_schema(
-                config_schema
-            )
+            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.EVALUATOR,
@@ -413,10 +399,7 @@ class GenkitRegistry:
             model_meta['model'] = dump_dict(info)
         if 'model' not in model_meta:
             model_meta['model'] = {}
-        if (
-            'label' not in model_meta['model']
-            or not model_meta['model']['label']
-        ):
+        if 'label' not in model_meta['model'] or not model_meta['model']['label']:
             model_meta['model']['label'] = name
 
         if config_schema:
@@ -572,6 +555,4 @@ class FlowWrapper:
             - An AsyncIterator of the chunks from the action.
             - An asyncio.Future that resolves to the final result of the action.
         """
-        return self._action.stream(
-            input=input, context=context, telemetry_labels=telemetry_labels
-        )
+        return self._action.stream(input=input, context=context, telemetry_labels=telemetry_labels)

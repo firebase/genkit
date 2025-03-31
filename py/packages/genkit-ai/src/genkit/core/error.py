@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 
 
-class HttpErrorDetailsWireFormat(BaseModel):
+class GenkitReflectionApiDetailsWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
     model_config = ConfigDict(extra='allow', populate_by_name=True)
@@ -33,10 +33,10 @@ class HttpErrorDetailsWireFormat(BaseModel):
     trace_id: str | None = Field(None, alias='traceId')
 
 
-class HttpErrorWireFormat(BaseModel):
+class GenkitReflectionApiErrorWireFormat(BaseModel):
     """Wire format for HTTP errors."""
 
-    details: HttpErrorDetailsWireFormat | None = None
+    details: GenkitReflectionApiDetailsWireFormat | None = None
     message: str
     code: int = StatusCodes.INTERNAL.value
 
@@ -46,6 +46,16 @@ class HttpErrorWireFormat(BaseModel):
         'extra': 'forbid',
         'populate_by_name': True,
     }
+
+
+class HttpErrorWireFormat(BaseModel):
+    """Wire format for HTTP error details."""
+
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+
+    details: Any
+    message: str
+    status: str = StatusCodes.INTERNAL.name
 
 
 class GenkitError(Exception):
@@ -94,7 +104,7 @@ class GenkitError(Exception):
         self.trace_id = trace_id
         self.cause = cause
 
-    def to_serializable(self) -> HttpErrorWireFormat:
+    def to_callable_serializable(self) -> HttpErrorWireFormat:
         """Returns a JSON-serializable representation of this object.
 
         Returns:
@@ -103,6 +113,20 @@ class GenkitError(Exception):
         # This error type is used by 3P authors with the field "details",
         # but the actual Callable protocol value is "details"
         return HttpErrorWireFormat(
+            details=self.details,
+            status=StatusCodes[self.status].name,
+            message=repr(self.cause) if self.cause else self.original_message,
+        )
+
+    def to_serializable(self) -> GenkitReflectionApiErrorWireFormat:
+        """Returns a JSON-serializable representation of this object.
+
+        Returns:
+            An HttpErrorWireFormat model instance.
+        """
+        # This error type is used by 3P authors with the field "details",
+        # but the actual Callable protocol value is "details"
+        return GenkitReflectionApiErrorWireFormat(
             details=self.details,
             code=StatusCodes[self.status].value,
             message=repr(self.cause) if self.cause else self.original_message,
@@ -136,9 +160,7 @@ class UserFacingError(GenkitError):
     exceptions being leaked to attackers.
     """
 
-    def __init__(
-        self, status: StatusName, message: str, details: Any = None
-    ) -> None:
+    def __init__(self, status: StatusName, message: str, details: Any = None) -> None:
         """Initialize a UserFacingError.
 
         Args:
@@ -163,7 +185,7 @@ def get_http_status(error: Any) -> int:
     return 500
 
 
-def get_callable_json(error: Any) -> HttpErrorWireFormat:
+def get_reflection_json(error: Any) -> GenkitReflectionApiErrorWireFormat:
     """Get the JSON representation of an error for callable responses.
 
     Args:
@@ -174,9 +196,27 @@ def get_callable_json(error: Any) -> HttpErrorWireFormat:
     """
     if isinstance(error, GenkitError):
         return error.to_serializable()
-    return HttpErrorWireFormat(
+    return GenkitReflectionApiErrorWireFormat(
         message=str(error),
         code=StatusCodes.INTERNAL.value,
+        details={'stack': get_error_stack(error)},
+    )
+
+
+def get_callable_json(error: Any) -> HttpErrorWireFormat:
+    """Get the JSON representation of an error for callable responses.
+
+    Args:
+        error: The error to convert to JSON.
+
+    Returns:
+        An HttpErrorWireFormat model instance.
+    """
+    if isinstance(error, GenkitError):
+        return error.to_callable_serializable()
+    return HttpErrorWireFormat(
+        message=str(error),
+        status=StatusCodes.INTERNAL.name,
         details={'stack': get_error_stack(error)},
     )
 

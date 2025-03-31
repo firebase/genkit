@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Flows API module for GenKit.
@@ -62,7 +75,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from genkit.codec import dump_dict
-from genkit.core.action import Action, ActionKind
+from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
 from genkit.core.registry import Registry
@@ -114,21 +127,6 @@ def create_flows_asgi_app(
             A JSON response with status code 200.
         """
         return JSONResponse(content={'status': 'OK'})
-
-    async def handle_list_flows(request: Request) -> JSONResponse:
-        """Handle list flows requests.
-
-        Args:
-            request: The Starlette request object.
-
-        Returns:
-            A JSON response with status code 200.
-        """
-        return JSONResponse(
-            content=registry.list_serializable_actions({ActionKind.FLOW}),
-            status_code=200,
-            headers={'x-genkit-version': version},
-        )
 
     async def handle_run_flows(
         request: Request,
@@ -197,9 +195,7 @@ def create_flows_asgi_app(
 
                 for provider in context_providers:
                     try:
-                        provider_ctx = await provider(
-                            request.app.state.context, request_data
-                        )
+                        provider_ctx = await provider(request.app.state.context, request_data)
                         ctx.update(provider_ctx)
                     except Exception as e:
                         await logger.aerror(
@@ -307,9 +303,7 @@ def create_flows_asgi_app(
             A JSONResponse with the flow result or error.
         """
         try:
-            output = await action.arun_raw(
-                raw_input=input_data, context=context
-            )
+            output = await action.arun_raw(raw_input=input_data, context=context)
 
             result = dump_dict(output.response)
             response = {'result': result}
@@ -329,7 +323,6 @@ def create_flows_asgi_app(
 
     routes = [
         Route('/__health', health_check, methods=['GET']),
-        Route('/listFlows', handle_list_flows, methods=['GET']),
         Route('/{flow_name:path}', handle_run_flows, methods=['POST']),
     ]
 

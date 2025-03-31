@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Embedding actions."""
+
 from collections.abc import Callable
 
 from genkit.core.typing import EmbedRequest, EmbedResponse

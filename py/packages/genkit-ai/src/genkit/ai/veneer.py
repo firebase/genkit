@@ -88,6 +88,7 @@ content, define flows, define formats, etc.
 
 """
 
+import asyncio
 import logging
 import os
 import threading
@@ -100,6 +101,7 @@ from genkit.ai import server
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.aio import Channel
+from genkit.aio.loop import create_loop
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.blocks.formats import built_in_formats
@@ -113,10 +115,10 @@ from genkit.blocks.model import (
     ModelMiddleware,
 )
 from genkit.blocks.prompt import to_generate_action_options
-from genkit.core.action import ActionKind, ActionRunContext
+from genkit.core.action import ActionRunContext
+from genkit.core.action.types import ActionKind
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
-from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     DocumentData,
     GenerationCommonConfig,
@@ -125,9 +127,7 @@ from genkit.core.typing import (
     ToolChoice,
 )
 
-DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
-    scheme='http', host='127.0.0.1', port=3100
-)
+DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(scheme='http', host='127.0.0.1', port=3100)
 
 logger = logging.getLogger(__name__)
 
@@ -158,11 +158,16 @@ class Genkit(GenkitRegistry):
         self.registry.default_model = model
 
         if is_dev_environment():
+            self.loop = create_loop()
             self.thread = threading.Thread(
                 target=self.start_server,
-                args=[reflection_server_spec],
+                args=[reflection_server_spec, self.loop],
+                daemon=True,
             )
             self.thread.start()
+        else:
+            self.thread = None
+            self.loop = None
 
         for format in built_in_formats:
             self.define_format(format)
@@ -177,16 +182,15 @@ class Genkit(GenkitRegistry):
                     def resolver(kind, name, plugin=plugin):
                         return plugin.resolve_action(self, kind, name)
 
-                    self.registry.register_action_resolver(
-                        plugin.plugin_name(), resolver
-                    )
+                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                 else:
-                    raise ValueError(
-                        f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.ai.plugin.Plugin`'
-                    )
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
 
-    def start_server(self, spec: server.ServerSpec) -> None:
+    def join(self):
+        if self.thread and self.loop:
+            self.thread.join()
+
+    def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
@@ -194,7 +198,7 @@ class Genkit(GenkitRegistry):
         """
         httpd = HTTPServer(
             (spec.host, spec.port),
-            make_reflection_server(registry=self.registry),
+            make_reflection_server(registry=self.registry, loop=loop),
         )
         # We need to write the runtime file closest to the point of starting up
         # the server to avoid race conditions with the manager's runtime
@@ -216,6 +220,7 @@ class Genkit(GenkitRegistry):
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice = None,
+        tool_responses: list[Part] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         max_turns: int | None = None,
         on_chunk: ModelStreamingCallback | None = None,
@@ -227,8 +232,6 @@ class Genkit(GenkitRegistry):
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-        # TODO:
-        #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
 
@@ -254,6 +257,11 @@ class Genkit(GenkitRegistry):
                 tool requests instead of executing them directly.
             tool_choice: Optional. A `ToolChoice` object specifying how the
                 model should choose which tool to use.
+            tool_responses: Optional. tool_responses should contain a list of
+                tool response parts corresponding to interrupt tool request
+                parts from the most recent model message. Each entry must have
+                a matching `name` and `ref` (if supplied) for its tool request
+                counterpart.
             config: Optional. A `GenerationCommonConfig` object or a dictionary
                 containing configuration parameters for the generation process.
                 This allows fine-tuning the model's behavior.
@@ -300,6 +308,7 @@ class Genkit(GenkitRegistry):
                 tools=tools,
                 return_tool_requests=return_tool_requests,
                 tool_choice=tool_choice,
+                tool_responses=tool_responses,
                 config=config,
                 max_turns=max_turns,
                 output_format=output_format,
@@ -436,8 +445,4 @@ class Genkit(GenkitRegistry):
         """
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
 
-        return (
-            await embed_action.arun(
-                EmbedRequest(input=documents, options=options)
-            )
-        ).response
+        return (await embed_action.arun(EmbedRequest(input=documents, options=options))).response

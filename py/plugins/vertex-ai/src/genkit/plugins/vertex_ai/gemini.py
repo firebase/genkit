@@ -27,9 +27,8 @@ from typing import Any
 
 import vertexai.generative_models as genai
 
-from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import ActionKind, ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import ActionKind, ActionRunContext, GenkitRegistry
+from genkit.types import (
     CustomPart,
     GenerateRequest,
     GenerateResponse,
@@ -65,37 +64,27 @@ SUPPORTED_MODELS = {
     GeminiVersion.GEMINI_1_5_PRO: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 1.5 Pro',
-        supports=Supports(
-            multiturn=True, media=True, tools=True, systemRole=True
-        ),
+        supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
     ),
     GeminiVersion.GEMINI_1_5_FLASH: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 1.5 Flash',
-        supports=Supports(
-            multiturn=True, media=True, tools=True, systemRole=True
-        ),
+        supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
     ),
     GeminiVersion.GEMINI_2_0_FLASH_001: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 2.0 Flash 001',
-        supports=Supports(
-            multiturn=True, media=True, tools=True, systemRole=True
-        ),
+        supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
     ),
     GeminiVersion.GEMINI_2_0_FLASH_LITE_PREVIEW: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 2.0 Flash Lite Preview 02-05',
-        supports=Supports(
-            multiturn=True, media=True, tools=True, systemRole=True
-        ),
+        supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
     ),
     GeminiVersion.GEMINI_2_0_PRO_EXP: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 2.0 Flash Pro Experimental 02-05',
-        supports=Supports(
-            multiturn=True, media=True, tools=True, systemRole=True
-        ),
+        supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
     ),
 }
 
@@ -137,10 +126,7 @@ class Gemini:
                     parts.append(genai.Part.from_text(part.root.text))
                 elif isinstance(part.root, MediaPart):
                     if not self.is_multimode():
-                        LOG.error(
-                            f'The model {self._version} does not'
-                            f' support multimode input'
-                        )
+                        LOG.error(f'The model {self._version} does not support multimode input')
                         continue
                     parts.append(
                         genai.Part.from_uri(
@@ -198,9 +184,7 @@ class Gemini:
         Returns:
             Gemini message content to add to the message
         """
-        tool_function = self._registry.registry.lookup_action(
-            ActionKind.TOOL, call.name
-        )
+        tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
         args = tool_function.input_type.validate_python(call.args)
         tool_answer = tool_function.run(args)
         return genai.Content(
@@ -214,9 +198,7 @@ class Gemini:
             ]
         )
 
-    def generate(
-        self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse | None:
+    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse | None:
         """Handle a generation request using the Gemini model.
 
         Args:
@@ -230,17 +212,13 @@ class Gemini:
         messages = self.build_messages(request)
         tools = self._get_gemini_tools(request) if request.tools else None
         if request.tools:
-            nn_tool_choice = self.gemini_model.generate_content(
-                contents=messages, stream=ctx.is_streaming, tools=tools
-            )
+            nn_tool_choice = self.gemini_model.generate_content(contents=messages, stream=ctx.is_streaming, tools=tools)
             for candidate in nn_tool_choice.candidates:
                 messages.append(candidate.content)
                 for call in candidate.function_calls:
                     messages.append(self._call_tool(call))
 
-        response = self.gemini_model.generate_content(
-            contents=messages, stream=ctx.is_streaming, tools=tools
-        )
+        response = self.gemini_model.generate_content(contents=messages, stream=ctx.is_streaming, tools=tools)
 
         text_response = ''
         if ctx.is_streaming:

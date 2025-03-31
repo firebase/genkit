@@ -28,15 +28,11 @@ def test_is_dev_environment() -> None:
         assert not is_dev_environment()
 
     # Test when GENKIT_ENV is set to 'dev'
-    with mock.patch.dict(
-        os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}
-    ):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         assert is_dev_environment()
 
     # Test when GENKIT_ENV is set to something else
-    with mock.patch.dict(
-        os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}
-    ):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}):
         assert not is_dev_environment()
 
 
@@ -51,15 +47,11 @@ def test_is_prod_environment() -> None:
         assert is_prod_environment()
 
     # Test when GENKIT_ENV is set to 'prod'
-    with mock.patch.dict(
-        os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}
-    ):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}):
         assert is_prod_environment()
 
     # Test when GENKIT_ENV is set to something else
-    with mock.patch.dict(
-        os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}
-    ):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         assert not is_prod_environment()
 
 
@@ -74,15 +66,11 @@ def test_get_current_environment() -> None:
         assert get_current_environment() == GenkitEnvironment.PROD
 
     # Test when GENKIT_ENV is set to 'prod'
-    with mock.patch.dict(
-        os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}
-    ):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}):
         assert get_current_environment() == GenkitEnvironment.PROD
 
     # Test when GENKIT_ENV is set to 'dev'
-    with mock.patch.dict(
-        os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}
-    ):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         assert get_current_environment() == GenkitEnvironment.DEV
 
     # Test when GENKIT_ENV is set to something else

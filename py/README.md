@@ -1,4 +1,4 @@
-# Firebase Genkit Python SDK
+# Genkit Python SDK
 
 ## Setup Instructions
 
