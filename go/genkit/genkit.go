@@ -201,6 +201,8 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		}
 	}
 
+	ai.DefineGenerateAction(ctx, r)
+
 	r.RegisterValue("genkit/defaultModel", gOpts.DefaultModel)
 	r.RegisterValue("genkit/promptDir", gOpts.PromptDir)
 
