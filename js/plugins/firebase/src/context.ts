@@ -211,14 +211,6 @@ export function firebaseContext<I = any>(
 
     if (typeof policy === 'object' && policy.serverAppConfig) {
       // we dynamically import here to keep `firebase` an optional peer dep
-      console.log(
-        'DEBUG:',
-        {
-          appCheckToken,
-          authIdToken,
-        },
-        policy.serverAppConfig
-      );
       const { initializeServerApp } = await import('firebase/app');
       context.firebaseApp = initializeServerApp(policy.serverAppConfig, {
         appCheckToken,
