@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
-  "google-genai>=1.0.0",
+  "google-genai>=1.7.0",
   "google-cloud-aiplatform>=1.77.0",
 ]
 description = "Genkit Google GenAI Plugin"
