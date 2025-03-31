@@ -2277,6 +2277,7 @@ version = "0.1.0"
 source = { editable = "samples/menu" }
 dependencies = [
     { name = "genkit-ai" },
+    { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -2289,6 +2290,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },

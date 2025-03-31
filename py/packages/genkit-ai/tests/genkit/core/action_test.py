@@ -30,7 +30,6 @@ def test_action_enum_behaves_like_str() -> None:
     assert ActionKind.EVALUATOR == 'evaluator'
     assert ActionKind.EXECUTABLE_PROMPT == 'executable-prompt'
     assert ActionKind.FLOW == 'flow'
-    assert ActionKind.INDEXER == 'indexer'
     assert ActionKind.MODEL == 'model'
     assert ActionKind.PROMPT == 'prompt'
     assert ActionKind.RERANKER == 'reranker'
