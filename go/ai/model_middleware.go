@@ -127,12 +127,12 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				}
 			}
 
-			if len(info.Stage) > 0 {
+			if info.Stage != "" {
 				switch info.Stage {
 				case ModelStageDeprecated:
 					logger.FromContext(ctx).Warn("model is deprecated and may be removed in a future release", "model", model)
 				case ModelStageUnstable:
-					logger.FromContext(ctx).Warn("model is unstable and functionality might be compromised", "model", model)
+					logger.FromContext(ctx).Warn("model is experimental or unstable", "model", model)
 				}
 			}
 
