@@ -207,7 +207,7 @@ type Message struct {
 }
 
 type ModelInfo struct {
-	CustomConfig map[string]any `json:"customConfig,omitempty"`
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
 	Label        string         `json:"label,omitempty"`
 	Stage        ModelStage     `json:"stage,omitempty"`
 	Supports     *ModelSupports `json:"supports,omitempty"`
