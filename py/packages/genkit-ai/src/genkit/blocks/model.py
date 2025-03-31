@@ -129,6 +129,7 @@ class GenerateResponseWrapper(GenerateResponse):
         Args:
             response: The original GenerateResponse object.
             request: The GenerateRequest object associated with the response.
+            message_parser: An optional function to parse the output from the message.
         """
         super().__init__(
             message=MessageWrapper(response.message)

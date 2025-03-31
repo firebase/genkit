@@ -30,8 +30,6 @@ from genkit.core.typing import (
     DocumentPart,
     Embedding,
     Media,
-    MediaPart,
-    TextPart,
 )
 
 TEXT_DATA_TYPE: str = 'text'
