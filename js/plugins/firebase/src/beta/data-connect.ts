@@ -166,7 +166,7 @@ export function dataConnectTools(
           inputJsonSchema: tool.parameters,
         },
         async (input, context) => {
-          const serverApp = serverAppFromContext(context, options.sdk);
+          const serverApp = serverAppFromContext(context, options.firebaseApp);
           const dc = getDataConnect(serverApp, {
             connector: config.connector,
             location: config.location,
