@@ -277,6 +277,7 @@ class ModelInfo(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     versions: list[str] | None = None
     label: str | None = None
+    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
     supports: Supports | None = None
     stage: Stage | None = None
 
