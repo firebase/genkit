@@ -87,7 +87,7 @@ export function serverAppFromContext(
   } catch (e) {
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
-      message: `Must either supply an 'sdk' option or have already initialized a default FirebaseApp when calling Data Connect tools.`,
+      message: `Must either supply a 'firebaseApp' option or have already initialized a default FirebaseApp when calling Data Connect tools.`,
     });
   }
 
@@ -165,7 +165,7 @@ export function dataConnectTools(
           description: tool.description || '',
           inputJsonSchema: tool.parameters,
         },
-        async (input, context) => {
+        async (input, { context }) => {
           const serverApp = serverAppFromContext(context, options.firebaseApp);
           const dc = getDataConnect(serverApp, {
             connector: config.connector,
