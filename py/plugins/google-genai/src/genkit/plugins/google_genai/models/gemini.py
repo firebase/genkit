@@ -418,7 +418,6 @@ class GeminiModel:
             Schema or None
         """
 
-
         if not defs:
             defs = input_schema.get('$defs') if '$defs' in input_schema else {}
 

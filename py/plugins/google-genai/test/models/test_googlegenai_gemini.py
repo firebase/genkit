@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
+from enum import StrEnum
 
 import pytest
 from google import genai
@@ -37,7 +38,6 @@ from genkit.types import (
     Role,
     TextPart,
 )
-from enum import StrEnum
 
 
 @pytest.mark.asyncio
