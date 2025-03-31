@@ -12,6 +12,7 @@ dependencies = [
   "genkit-plugin-ollama",
   "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
+  "liccheck>=0.9.2",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -33,6 +34,7 @@ dev = [
   "pytest-mock>=3.14.0",
   "twine>=6.1.0",
   "poethepoet>=0.33.1",
+  "pip>=25.0.1",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -241,3 +243,38 @@ use-standard-collections = true
 use-subclass-enum        = true
 use-union-operator       = true
 use-unique-items-as-set  = true
+
+[tool.liccheck]
+authorized_licenses = [
+  "3-clause bsd",
+  "apache 2.0",
+  "apache software license",
+  "apache software",
+  "apache",
+  "apache-2.0",
+  "bsd license",
+  "bsd",
+  "cmu license (mit-cmu)",
+  "isc license (iscl)",
+  "isc license",
+  "mit license",
+  "mit",
+  "new bsd license",
+  "new bsd",
+  "psf-2.0",
+  "python software foundation license",
+  "simplified bsd",
+  "the unlicense (unlicense)",          # TODO: verify.
+]
+dependencies = true
+unauthorized_licenses = [
+  "gnu lgpl",
+  "gpl v3",
+  "lgpl with exceptions or zpl",
+  "zpl 2.1",
+  "mpl",
+]
+
+[tool.liccheck.authorized_packages]
+certifi      = "2025.1.31" # TODO: Verify.
+dependencies = true
