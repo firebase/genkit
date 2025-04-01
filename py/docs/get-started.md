@@ -27,11 +27,18 @@ This guide shows you how to get started with Genkit in a Python app.
     mkdir genkit-intro && cd genkit-intro
     ```
 
+1. (recommended) Create a Python virtual environment:
+    ```bash
+    python3 -m venv .
+    ```
+
+    (activate if necessary, depending on the environment)
+
 1. Install dependencies
     
     ```bash
-    pip install git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit-ai
-    pip install git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
+    pip3 install git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit-ai
+    pip3 install git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
     ```
 
     Or create a `requirements.txt` file
@@ -40,18 +47,14 @@ This guide shows you how to get started with Genkit in a Python app.
     genkit-ai @ git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit-ai
     genkit-plugin-google-genai @ git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
     ```
-
-3. (optional, recommended) Create a Python virtual environment:
+    
+    and run:
+   
     ```bash
-    python -m venv .
+    pip3 install -r requirements.txt 
     ```
 
-4. Install packages
-    ```bash
-    pip install -r requirements.txt 
-    ```
-
-5. Configure your model API key
+1. Configure your model API key
 
     The simplest way to get started is with Google AI Gemini API. Make sure it's
     [available in your region](https://ai.google.dev/available_regions).
@@ -64,7 +67,7 @@ This guide shows you how to get started with Genkit in a Python app.
     export GEMINI_API_KEY=<your API key>
     ```
 
-6. Create `main.py` file:
+1. Create `main.py` file:
 
     ```python
     import asyncio
@@ -78,42 +81,35 @@ This guide shows you how to get started with Genkit in a Python app.
         model='google_genai/gemini-2.0-flash',
     )
 
-
     class RpgCharacter(BaseModel):
-        """An RPG game character."""
-
         name: str = Field(description='name of the character')
         back_story: str = Field(description='back story')
         abilities: list[str] = Field(description='list of abilities (3-4)')
 
-
     @ai.flow()
     async def generate_character(name: str):
-        result = await ai.agenerate(
+        result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
         return result.output
 
-
     async def main() -> None:
-        """Main function."""
         print(json.dumps(await generate_character('Goblorb')))
 
     asyncio.run(main())
-
 
     # prevent app from exiting when genkit is running in dev mode
     ai.join()
     ```
 
-2. Run your app. Genkit apps are just regular python application. Run them however you normally run your app.
+1. Run your app. Genkit apps are just regular python application. Run them however you normally run your app.
 
     ```bash
     python main.py
     ```
 
-3. Inspect your app with the Genkit Dev UI
+1. Inspect your app with the Genkit Dev UI
 
     See instructions for installing the Genkit CLI (which includes the Dev UI) below.
 
