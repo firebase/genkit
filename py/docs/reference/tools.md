@@ -123,7 +123,7 @@ for the LLM to make effective use of the available tools.
 Include defined tools in your prompts to generate content.
 
 ```py
-result = await ai.generate(
+result = await ai.agenerate(
     prompt='What is the weather in Baltimore?',
     tools=['get_weather'],
 )
@@ -153,7 +153,7 @@ apply more complicated logic, set the `return_tool_requests` parameter to `True`
 Now it's your responsibility to ensure all of the tool requests are fulfilled:
 
 ```py
-result = await ai.generate(
+result = await ai.agenerate(
     prompt='What is the weather in Baltimore?',
     tools=['get_weather'],
     return_tool_requests=True,

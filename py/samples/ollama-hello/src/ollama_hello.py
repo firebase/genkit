@@ -128,7 +128,7 @@ async def say_hi(hi_input: str):
     Returns:
         A GenerateRequest object with the greeting message.
     """
-    return await ai.generate(
+    return await ai.agenerate(
         model=ollama_name(GEMMA_MODEL),
         messages=[
             Message(
@@ -151,7 +151,7 @@ async def calculate_gablorken(value: int):
     Returns:
         A GenerateRequest object with the evaluation output
     """
-    response = await ai.generate(
+    response = await ai.agenerate(
         messages=[
             Message(
                 role=Role.USER,
@@ -178,7 +178,7 @@ async def say_hi_constrained(hi_input: str):
     Returns:
         A `HelloSchema` object with the greeting message.
     """
-    response = await ai.generate(
+    response = await ai.agenerate(
         messages=[
             Message(
                 role=Role.USER,

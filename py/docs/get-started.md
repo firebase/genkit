@@ -89,7 +89,7 @@ This guide shows you how to get started with Genkit in a Python app.
 
     @ai.flow()
     async def generate_character(name: str):
-        result = await ai.generate(
+        result = await ai.agenerate(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )

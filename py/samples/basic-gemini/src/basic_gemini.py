@@ -57,7 +57,7 @@ async def generate_joke(subject: str) -> str:
     Returns:
         str: The generated joke.
     """
-    return await ai.generate(
+    return await ai.agenerate(
         config=GenerationCommonConfig(temperature=0.1, version='gemini-2.0-flash-001'),
         messages=[
             Message(
@@ -116,7 +116,7 @@ async def convert_with_tools(amount: float) -> str:
 
 @ai.flow()
 async def draw_image(description: str):
-    return await ai.generate(
+    return await ai.agenerate(
         model=vertexai_name(ImagenVersion.IMAGEN3_FAST),
         messages=[
             Message(
@@ -144,7 +144,7 @@ async def generate_structured_content(food: str):
     Returns:
         List of recipes that follows schema config.
     """
-    response = await ai.generate(
+    response = await ai.agenerate(
         model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(

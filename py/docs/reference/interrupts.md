@@ -79,7 +79,7 @@ other types of tools. You can pass both normal tools and interrupts to the
 same `generate` call:
 
 ```py
-interrupted_response = await ai.generate(
+interrupted_response = await ai.agenerate(
     prompt='Ask me a movie trivia question.',
     tools=['ask_question'],
 )
@@ -107,7 +107,7 @@ Once resumed, the model re-enters the generation loop, including tool
 execution, until either it completes or another interrupt is triggered:
 
 ```py
-response = await ai.generate(
+response = await ai.agenerate(
     messages=interrupted_response.messages,
     tool_responses=[tool_response(interrupted_response.tool_requests[0], 'b')],
     tools=['ask_question'],

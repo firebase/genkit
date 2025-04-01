@@ -35,7 +35,7 @@ ai = Genkit(plugins=[VertexAI()], model=vertexai_name(ImagenVersion.IMAGEN3_FAST
 async def draw_image(prompt: str):
     # config is optional
     config = ImagenOptions(number_of_images=3)
-    return await ai.generate(
+    return await ai.agenerate(
         messages=[
             Message(
                 role=Role.USER,

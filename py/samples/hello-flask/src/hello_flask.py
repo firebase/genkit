@@ -37,7 +37,7 @@ app = Flask(__name__)
 @genkit_flask_handler(ai)
 @ai.flow()
 async def say_hi(name: str, ctx):
-    return await ai.generate(
+    return await ai.agenerate(
         on_chunk=ctx.send_chunk,
         prompt=f'tell a medium sized joke about {name}',
     )
