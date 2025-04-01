@@ -79,6 +79,7 @@ nav:
     - reference/models.md 
     - reference/flows.md
     - reference/tools.md
+    - reference/interrupts.md
     - API:
       - reference/api/index.md
       - reference/api/types.md
