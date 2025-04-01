@@ -32,6 +32,8 @@ This guide shows you how to get started with Genkit in a Python app.
     python3 -m venv .
     ```
 
+    (activate if necessary, depending on the environment)
+
 1. Install dependencies
     
     ```bash
