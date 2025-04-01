@@ -60,7 +60,7 @@ class GeminiVersion(StrEnum):
     GEMINI_2_0_PRO_EXP = 'gemini-2.0-pro-exp-02-05'
 
 
-SUPPORTED_MODELS = {
+SUPPORTED_MODELS: dict[GeminiVersion | str, ModelInfo] = {
     GeminiVersion.GEMINI_1_5_PRO: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 1.5 Pro',
@@ -102,21 +102,27 @@ class Gemini:
         Args:
             version: The version of the Gemini model to use, should be
                 one of the values from GeminiVersion.
+            registry: The registry to use for the Gemini client.
         """
         self._version = version
         self._registry = registry
 
     def is_multimode(self):
+        """Check if the model supports multimode input.
+
+        Returns:
+            True if the model supports multimode input, False otherwise.
+        """
         return SUPPORTED_MODELS[self._version].supports.media
 
     def build_messages(self, request: GenerateRequest) -> list[genai.Content]:
         """Builds a list of VertexAI content from a request.
 
         Args:
-            - request: a packed request for the model
+            request: a packed request for the model.
 
         Returns:
-            - a list of VertexAI GenAI Content for the request
+            A list of VertexAI GenAI Content for the request.
         """
         messages: list[genai.Content] = []
         for message in request.messages:
@@ -160,8 +166,8 @@ class Gemini:
         Args:
             request: The generation request.
 
-         Returns:
-             list of Gemini tools
+        Returns:
+            List of Gemini tools.
         """
         tools = []
         for tool in request.tools:
@@ -208,7 +214,6 @@ class Gemini:
         Returns:
             The model's response to the generation request.
         """
-
         messages = self.build_messages(request)
         tools = self._get_gemini_tools(request) if request.tools else None
         if request.tools:
@@ -223,7 +228,7 @@ class Gemini:
         text_response = ''
         if ctx.is_streaming:
             for chunk in response:
-                # TODO: Support other types of output
+                # TODO: Support other types of output.
                 ctx.send_chunk(
                     GenerateResponseChunk(
                         role=Role.MODEL,
@@ -243,6 +248,11 @@ class Gemini:
 
     @property
     def model_metadata(self) -> dict[str, dict[str, Any]]:
+        """Get the model metadata.
+
+        Returns:
+            A dictionary containing the model metadata.
+        """
         supports = SUPPORTED_MODELS[self._version].supports.model_dump()
         return {
             'model': {

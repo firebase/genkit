@@ -250,7 +250,7 @@ class GeminiModel:
         self._name = name
 
     def _genkit_to_googleai_cfg(self, genkit_cfg: GenerationCommonConfig) -> genai.types.GenerateContentConfig:
-        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
+        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
 
         Args:
             genkit_cfg: Genkit request config
@@ -258,7 +258,6 @@ class GeminiModel:
         Returns:
             Google Ai request config
         """
-
         return genai.types.GenerateContentConfig(
             max_output_tokens=genkit_cfg.max_output_tokens,
             top_k=genkit_cfg.top_k,
@@ -277,7 +276,6 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-
         reqest_contents: list[genai.types.Content] = []
         for msg in request.messages:
             content_parts: list[genai.types.Part] = []

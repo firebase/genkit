@@ -104,7 +104,7 @@ class GoogleGenai(Plugin):
             for version in ImagenVersion:
                 imagen_model = ImagenModel(version, self._client)
                 ai.define_model(
-                    name=google_genai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata
+                    name=google_genai_name(version), fn=imagen_model.agenerate, metadata=imagen_model.metadata
                 )
         else:
             supported_gemini_models.extend(list(GeminiApiOnlyVersion))
@@ -113,7 +113,7 @@ class GoogleGenai(Plugin):
             gemini_model = GeminiModel(version, self._client, ai)
             ai.define_model(
                 name=google_genai_name(version),
-                fn=gemini_model.generate,
+                fn=gemini_model.agenerate,
                 metadata=gemini_model.metadata,
                 config_schema=GeminiConfigSchema,
             )
@@ -121,7 +121,7 @@ class GoogleGenai(Plugin):
         embeding_models = VertexEmbeddingModels if self._client.vertexai else GeminiEmbeddingModels
         for version in embeding_models:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(name=google_genai_name(version), fn=embedder.generate)
+            ai.define_embedder(name=google_genai_name(version), fn=embedder.agenerate)
 
 
 def _inject_attribution_headers(http_options):

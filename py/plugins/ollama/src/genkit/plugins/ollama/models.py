@@ -68,7 +68,7 @@ class OllamaModel:
         self.client = client
         self.model_definition = model_definition
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def agenerate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
         content = [TextPart(text='Failed to get response from Ollama API')]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
