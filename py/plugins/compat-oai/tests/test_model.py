@@ -18,13 +18,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.core.typing import (
+from genkit.plugins.compat_oai.models import OpenAIModel
+from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.types import (
     GenerateResponse,
     GenerateResponseChunk,
     Role,
 )
-from genkit.plugins.compat_oai.models import OpenAIModel
-from genkit.plugins.compat_oai.models.model_info import GPT_4
 
 
 def test_get_messages(sample_request):
@@ -35,9 +35,12 @@ def test_get_messages(sample_request):
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
     messages = model._get_messages(sample_request.messages)
 
-    assert len(messages) == 1
-    assert messages[0]['role'] == Role.USER
-    assert messages[0]['content'] == 'Hello, world!'
+    assert len(messages) == 2
+    assert messages[0]['role'] == 'developer'
+    assert messages[0]['content'] == 'You are an assistant'
+
+    assert messages[1]['role'] == Role.USER
+    assert messages[1]['content'] == 'Hello, world!'
 
 
 def test_get_messages_empty():
@@ -45,9 +48,7 @@ def test_get_messages_empty():
     Test _get_messages raises ValueError when no messages are provided.
     """
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
-    with pytest.raises(
-        ValueError, match='No messages provided in the request.'
-    ):
+    with pytest.raises(ValueError, match='No messages provided in the request.'):
         model._get_messages([])
 
 
@@ -104,9 +105,7 @@ def test_generate_stream(sample_request):
         def __next__(self):
             # Return an empty chunk to indicate end of stream
             if self._current == len(self._data):
-                chunk = MagicMock(
-                    choices=[MagicMock(index=0, delta=MagicMock(content=None))]
-                )
+                chunk = MagicMock(choices=[MagicMock(index=0, delta=MagicMock(content=None))])
 
             # Close stream and stop iteration
             elif self._current > len(self._data):

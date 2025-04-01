@@ -46,8 +46,8 @@ from genkit.core.typing import (
     GenerationCommonConfig,
     Message,
     Part,
+    Resume,
     Role,
-    TextPart,
     ToolChoice,
 )
 
@@ -302,6 +302,7 @@ def to_generate_action_options(
     tools: list[str] | None = None,
     return_tool_requests: bool | None = None,
     tool_choice: ToolChoice = None,
+    tool_responses: list[Part] | None = None,
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     max_turns: int | None = None,
     output_format: str | None = None,
@@ -310,8 +311,6 @@ def to_generate_action_options(
     output_schema: type | dict[str, Any] | None = None,
     output_constrained: bool | None = None,
     docs: list[DocumentData] | None = None,
-    # TODO:
-    #  resume: ResumeOptions
 ) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
 
@@ -324,6 +323,7 @@ def to_generate_action_options(
         tools: A list of tool names to use with the prompt.
         return_tool_requests: Whether to return tool requests.
         tool_choice: The tool choice strategy.
+        tool_responses: tool response parts corresponding to interrupts.
         config: The generation configuration.
         max_turns: The maximum number of turns in a conversation.
         output_format: The output format.
@@ -339,19 +339,13 @@ def to_generate_action_options(
     model = model or registry.default_model
     if model is None:
         raise Exception('No model configured.')
-    if not isinstance(config, GenerationCommonConfig | dict | None):
-        raise AttributeError('Invalid generate config provided')
     resolved_msgs: list[Message] = []
     if system:
-        resolved_msgs.append(
-            Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
-        )
+        resolved_msgs.append(Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system)))
     if messages:
         resolved_msgs += messages
     if prompt:
-        resolved_msgs.append(
-            Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
-        )
+        resolved_msgs.append(Message(role=Role.USER, content=_normalize_prompt_arg(prompt)))
 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.
@@ -370,6 +364,10 @@ def to_generate_action_options(
     if output_constrained is not None:
         output.constrained = output_constrained
 
+    resume = None
+    if tool_responses:
+        resume = Resume(respond=[r.root for r in tool_responses])
+
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,
@@ -380,27 +378,30 @@ def to_generate_action_options(
         output=output,
         max_turns=max_turns,
         docs=docs,
+        resume=resume,
     )
 
 
 def _normalize_prompt_arg(
     prompt: str | Part | list[Part] | None,
 ) -> list[Part] | None:
-    """Normalizes the prompt argument to a list of `Part` objects.
+    """Normalizes different prompt input types into a list of Parts.
 
-    This function ensures that the prompt argument is a list of `Part` objects,
-    which is the expected format for the `generate` function.
+    Ensures that the prompt content, whether provided as a string, a single Part,
+    or a list of Parts, is consistently represented as a list of Part objects.
 
     Args:
-        prompt: The prompt argument to normalize.
+        prompt: The prompt input, which can be a string, a Part, a list of Parts,
+            or None.
 
     Returns:
-        A list of `Part` objects, or None if the prompt is None.
+        A list containing the normalized Part(s), or None if the input `prompt`
+        was None.
     """
     if not prompt:
         return None
     if isinstance(prompt, str):
-        return [TextPart(text=prompt)]
+        return [Part(text=prompt)]
     elif hasattr(prompt, '__len__'):
         return prompt
     else:

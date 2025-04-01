@@ -17,7 +17,7 @@ classifiers = [
 dependencies = ["genkit-ai"]
 description = "Genkit Chroma Plugin"
 license = { text = "Apache-2.0" }
-name = "genkit-chroma-plugin"
+name = "genkit-plugin-chroma"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"

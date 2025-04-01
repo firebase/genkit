@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
 import jsonata from 'jsonata';
 
 /**
@@ -38,5 +38,6 @@ export async function jsonataMetric(
 
   return {
     score: !!result,
+    status: !!result ? EvalStatusEnum.PASS : EvalStatusEnum.FAIL,
   };
 }

@@ -185,18 +185,12 @@ class ServerManager:
             await server.lifecycle.on_port_check(server.config, host, port)
             if await is_port_available(port, host):
                 server.config.port = port
-                await server.lifecycle.on_port_available(
-                    server.config, host, port
-                )
+                await server.lifecycle.on_port_available(server.config, host, port)
                 return port
             else:
-                await server.lifecycle.on_port_unavailable(
-                    server.config, host, port
-                )
+                await server.lifecycle.on_port_unavailable(server.config, host, port)
 
-        raise RuntimeError(
-            f'No port available on {host} among {server.config.ports}'
-        )
+        raise RuntimeError(f'No port available on {host} among {server.config.ports}')
 
     def add_server(self, server: Server) -> None:
         """Add a server configuration to be started.
@@ -264,10 +258,16 @@ class ServerManager:
         """
         self._signal_handler.add_handler(sig, callback)
 
-    def remove_signal_handler(
-        self, sig: int, callback: Callable[[], Any]
-    ) -> None:
-        """Remove a handler for a specific signal."""
+    def remove_signal_handler(self, sig: int, callback: Callable[[], Any]) -> None:
+        """Remove a callback for a specific signal.
+
+        Args:
+            sig: Signal number (e.g., signal.SIGINT, signal.SIGTERM)
+            callback: Function to remove
+
+        Returns:
+            None
+        """
         self._signal_handler.remove_handler(sig, callback)
 
     async def start_server(self, server: Server) -> None:
@@ -309,10 +309,7 @@ class ServerManager:
         self._is_running = True
 
         # Create tasks for each server.
-        self._server_tasks = [
-            asyncio.create_task(self.start_server(server))
-            for server in self._servers
-        ]
+        self._server_tasks = [asyncio.create_task(self.start_server(server)) for server in self._servers]
 
         # Add tasks to monitor:
         # - shutdown event and server errors.
@@ -355,9 +352,7 @@ class ServerManager:
                 self._server_tasks.append(task)
                 self._server_queue.task_done()
             except Exception as e:
-                await logger.aerror(
-                    'Error processing server from queue', error=e
-                )
+                await logger.aerror('Error processing server from queue', error=e)
 
     async def _monitor_server_tasks(self) -> None:
         """Monitor server tasks for completion and log any errors."""
@@ -377,9 +372,7 @@ class ServerManager:
                         task_result=task_result,
                     )
                 except Exception as e:
-                    await logger.aerror(
-                        'Server task failed with error', error=e
-                    )
+                    await logger.aerror('Server task failed with error', error=e)
                     # If a server task fails, we should trigger shutdown.
                     self._signal_handler.shutdown_event.set()
                     return

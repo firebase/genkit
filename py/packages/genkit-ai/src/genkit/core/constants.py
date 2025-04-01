@@ -18,3 +18,8 @@
 
 # The version of Genkit sent over HTTP in the headers.
 DEFAULT_GENKIT_VERSION = '0.0.1'
+
+# TODO: make this dynamic
+GENKIT_VERSION = DEFAULT_GENKIT_VERSION
+
+GENKIT_CLIENT_HEADER = f'genkit-python/{DEFAULT_GENKIT_VERSION}'

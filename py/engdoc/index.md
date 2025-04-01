@@ -2,12 +2,12 @@
 
 !!! note
 
-    If you're a user of Firebase Genkit and landed here,
+    If you're a user of Genkit and landed here,
     this is engineering documentation that someone contributing
     to Genkit would use, not necessarily only use it.
 
     For more information about how to get started with using
-    Firebase Genkit, please see: [User Guide](.)
+    Genkit, please see: [User Guide](.)
 
 ## What is Genkit?
 
@@ -96,10 +96,10 @@ capabilities in code:
           model: gemini15Flash,
         })
 
-        response = await ai.generate('Why is AI awesome?')
+        response = await ai.agenerate('Why is AI awesome?')
         await logger.adebug(response.text)
 
-        stream = await ai.generate_stream("Tell me a story")
+        stream, _ = ai.generate_stream("Tell me a story")
         async for chunk in stream:
             await logger.adebug("Received chunk", text=chunk.text)
         await logger.adebug("Finished generating text stream")
@@ -179,7 +179,7 @@ capabilities in code:
         })
 
         await logger.adebug("Generating structured output", prompt="Create a brief profile for a character in a fantasy video game.")
-        response = await ai.generate(
+        response = await ai.agenerate(
             prompt="Create a brief profile for a character in a fantasy video game.",
             output={
                 "format": "json",
@@ -268,7 +268,7 @@ capabilities in code:
         )
 
         await logger.adebug("Generating text with tool", prompt="What is the weather like in New York?")
-        response = await ai.generate(
+        response = await ai.agenerate(
             prompt="What is the weather like in New York?",
             tools=[get_weather_tool],
         )
@@ -477,7 +477,7 @@ capabilities in code:
         docs = await ai.retrieve(retriever=retriever, query=query)
 
         await logger.adebug("Generating answer", query=query)
-        response = await ai.generate(
+        response = await ai.agenerate(
             prompt=f"Use the provided context from the BobFacts database to answer this query: {query}",
             docs=docs,
         )
@@ -517,7 +517,7 @@ capabilities in code:
       query: 'How old is bob?',
     );
 
-    const result = await ai.generate({
+    const result = await ai.agenerate({
         prompt: `Use the provided context from the Genkit documentation to answer this query: ${query}`,
         docs // Pass retrieved documents to the model
     });

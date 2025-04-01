@@ -47,6 +47,7 @@ var (
 			Media:      false,
 		},
 		Versions: []string{"echo-001", "echo-002"},
+		Stage:    ModelStageDeprecated,
 	}
 
 	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
@@ -172,20 +173,18 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format:      string(OutputFormatJSON),
+			Constrained: true,
 		}
-		// FIX: validMessage compares response against a given schema, but
-		// schema is not provided, thus no error should be expected
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format:      string(OutputFormatJSON),
+			Constrained: true,
 		}
-		// FIX: validMessage compares response against a given schema, but
-		// schema is not provided, thus no error should be expected
 		_, err := validMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
 	})
@@ -193,10 +192,9 @@ func TestValidMessage(t *testing.T) {
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format:      string(OutputFormatJSON),
+			Constrained: true,
 		}
-		// FIX: validMessage compares response against a given schema, but
-		// schema is not provided, thus no error should be expected
 		_, err := validMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
 	})

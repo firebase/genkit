@@ -46,9 +46,7 @@ class AbstractBaseServer(abc.ABC):
         """
         ...
 
-    async def on_port_check(
-        self, config: ServerConfig, host: str, port: int
-    ) -> None:
+    async def on_port_check(self, config: ServerConfig, host: str, port: int) -> None:
         """Callback when a port is attempted to be used.
 
         Args:
@@ -61,9 +59,7 @@ class AbstractBaseServer(abc.ABC):
         """
         await logger.ainfo('Checking port', config=config, host=host, port=port)
 
-    async def on_port_available(
-        self, config: ServerConfig, host: str, port: int
-    ) -> None:
+    async def on_port_available(self, config: ServerConfig, host: str, port: int) -> None:
         """Callback when a port is successfully used.
 
         Args:
@@ -74,13 +70,9 @@ class AbstractBaseServer(abc.ABC):
         Returns:
             None
         """
-        await logger.ainfo(
-            'Port available', config=config, host=host, port=port
-        )
+        await logger.ainfo('Port available', config=config, host=host, port=port)
 
-    async def on_port_unavailable(
-        self, config: ServerConfig, host: str, port: int
-    ) -> None:
+    async def on_port_unavailable(self, config: ServerConfig, host: str, port: int) -> None:
         """Callback when a port is not available.
 
         Args:
@@ -91,9 +83,7 @@ class AbstractBaseServer(abc.ABC):
         Returns:
             None
         """
-        await logger.ainfo(
-            'Port unavailable', config=config, host=host, port=port
-        )
+        await logger.ainfo('Port unavailable', config=config, host=host, port=port)
 
     async def on_start(self, config: ServerConfig) -> None:
         """Callback when the server starts.

@@ -17,16 +17,10 @@ def test_server_spec() -> None:
     Verifies that the ServerSpec class correctly generates URLs and
     handles different schemes, hosts, and ports.
     """
-    assert (
-        server.ServerSpec(scheme='http', host='localhost', port=3100).url
-        == 'http://localhost:3100'
-    )
+    assert server.ServerSpec(scheme='http', host='localhost', port=3100).url == 'http://localhost:3100'
 
     # Test with different schemes and hosts
-    assert (
-        server.ServerSpec(scheme='https', host='example.com', port=8080).url
-        == 'https://example.com:8080'
-    )
+    assert server.ServerSpec(scheme='https', host='example.com', port=8080).url == 'https://example.com:8080'
 
     # Test with default values
     spec = server.ServerSpec(port=5000)

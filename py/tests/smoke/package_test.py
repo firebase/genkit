@@ -27,9 +27,7 @@ from genkit.plugins.google_ai import package_name as google_ai_package_name
 from genkit.plugins.google_ai.models import (
     package_name as google_ai_models_package_name,
 )
-from genkit.plugins.google_cloud import (
-    package_name as google_cloud_package_name,
-)
+from genkit.plugins.google_cloud import package_name as google_cloud_package_name
 from genkit.plugins.ollama import package_name as ollama_package_name
 from genkit.plugins.pinecone import package_name as pinecone_package_name
 from genkit.plugins.vertex_ai import package_name as vertex_ai_package_name

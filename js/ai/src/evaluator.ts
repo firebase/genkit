@@ -17,6 +17,7 @@
 import { Action, defineAction, z } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { randomUUID } from 'crypto';
 
@@ -38,6 +39,15 @@ export const BaseEvalDataPointSchema = BaseDataPointSchema.extend({
 });
 export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
 
+const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
+
 export const ScoreSchema = z.object({
   id: z
     .string()
@@ -46,7 +56,7 @@ export const ScoreSchema = z.object({
     )
     .optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
-  // TODO: use StatusSchema
+  status: EvalStatusEnumSchema.optional(),
   error: z.string().optional(),
   details: z
     .object({
@@ -146,11 +156,16 @@ export function defineEvaluator<
   },
   runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
 ) {
-  const metadata = {};
-  metadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
+  const evalMetadata = {};
+  evalMetadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
     options.isBilled == undefined ? true : options.isBilled;
-  metadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
-  metadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
+  evalMetadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
+  evalMetadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
+  if (options.configSchema) {
+    evalMetadata['customOptions'] = toJsonSchema({
+      schema: options.configSchema,
+    });
+  }
   const evaluator = defineAction(
     registry,
     {
@@ -164,7 +179,10 @@ export function defineEvaluator<
         evalRunId: z.string(),
       }),
       outputSchema: EvalResponsesSchema,
-      metadata: metadata,
+      metadata: {
+        type: 'evaluator',
+        evaluator: evalMetadata,
+      },
     },
     async (i) => {
       let evalResponses: EvalResponses = [];
@@ -209,8 +227,10 @@ export function defineEvaluator<
                   testCaseId: datapoint.testCaseId,
                   evaluation: {
                     error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
+                    status: EvalStatusEnum.FAIL,
                   },
                 });
+                // Throw to mark the span as failed.
                 throw e;
               }
             }

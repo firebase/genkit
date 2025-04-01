@@ -4,4 +4,4 @@
 
 ::: genkit.ai.registry
 
-::: genkit.core.action.ActionKind
+::: genkit.core.action.types.ActionKind

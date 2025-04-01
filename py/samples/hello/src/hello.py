@@ -18,15 +18,21 @@
 
 from typing import Any
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import (
-    ActionRunContext,
-    Document,
+from genkit.ai import ActionRunContext, Document, Genkit
+from genkit.plugins.vertex_ai import (
+    EmbeddingModels,
+    EmbeddingsTaskType,
+    GeminiVersion,
+    VertexAI,
+    vertexai_name,
+)
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    Genkit,
     Media,
     MediaPart,
     Message,
@@ -35,13 +41,8 @@ from genkit.ai import (
     Role,
     TextPart,
 )
-from genkit.plugins.vertex_ai import (
-    EmbeddingModels,
-    EmbeddingsTaskType,
-    GeminiVersion,
-    VertexAI,
-    vertexai_name,
-)
+
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[VertexAI()],
@@ -71,7 +72,7 @@ async def say_hi(name: str):
     Returns:
         The generated greeting response.
     """
-    return await ai.generate(
+    return await ai.agenerate(
         messages=[
             Message(
                 role=Role.USER,
@@ -92,7 +93,7 @@ async def embed_docs(docs: list[str]):
         The generated embedding.
     """
     options = {'task': EmbeddingsTaskType.CLUSTERING}
-    return await ai.embed(
+    return await ai.aembed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
@@ -100,11 +101,25 @@ async def embed_docs(docs: list[str]):
 
 
 class GablorkenInput(BaseModel):
+    """Input model for the gablorkenTool function.
+
+    Attributes:
+        value: The value to calculate gablorken for.
+    """
+
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken')
-def gablorkenTool(input: GablorkenInput):
+@ai.tool('calculates a gablorken', name='gablorkenTool')
+def gablorken_tool(input: GablorkenInput):
+    """Calculate a gablorken.
+
+    Args:
+        input: The input to calculate gablorken for.
+
+    Returns:
+        The calculated gablorken.
+    """
     return input.value * 3 - 5
 
 
@@ -113,12 +128,12 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
     """Generate a greeting for the given name.
 
     Args:
-        name: The name of the person to greet.
+        value: The value to calculate gablorken for.
 
     Returns:
         The generated greeting response.
     """
-    response = await ai.generate(
+    response = await ai.agenerate(
         model='vertexai/gemini-1.5-flash',
         messages=[
             Message(
@@ -168,24 +183,24 @@ async def main() -> None:
     This function demonstrates the usage of the AI flow by generating
     greetings and performing simple arithmetic operations.
     """
-    print(await say_hi('John Doe'))
-    print(sum_two_numbers2(MyInput(a=1, b=3)))
-    print(
-        await embed_docs(['banana muffins? ', 'banana bread? banana muffins?'])
-    )
+    await logger.ainfo(await say_hi('John Doe'))
+    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
+    await logger.ainfo(await embed_docs(['banana muffins? ', 'banana bread? banana muffins?']))
 
 
 def my_model(request: GenerateRequest, ctx: ActionRunContext):
+    """Example of a model.
+
+    Args:
+        request: The request to the model.
+        ctx: The context of the model.
+
+    Returns:
+        The model response.
+    """
     if ctx.is_streaming:
-        ctx.send_chunk(
-            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')])
-        )
-        ctx.send_chunk(
-            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='2')])
-        )
-        ctx.send_chunk(
-            GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')])
-        )
+        ctx.send_chunk(GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='1')]))
+        ctx.send_chunk(GenerateResponseChunk(role=Role.MODEL, content=[TextPart(text='3')]))
 
     return GenerateResponse(
         message=Message(
@@ -199,9 +214,16 @@ ai.define_model(name='my_model', fn=my_model)
 
 
 def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
-    return RetrieverResponse(
-        documents=[Document.from_text('Hello'), Document.from_text('World')]
-    )
+    """Example of a retriever.
+
+    Args:
+        request: The request to the retriever.
+        ctx: The context of the retriever.
+
+    Returns:
+        The retriever response.
+    """
+    return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
 
 ai.define_retriever(name='my_retriever', fn=my_retriever)
@@ -209,13 +231,22 @@ ai.define_retriever(name='my_retriever', fn=my_retriever)
 
 @ai.flow()
 async def streaming_model_tester(_: str, ctx: ActionRunContext):
+    """Example of a streaming model tester.
+
+    Args:
+        _: The input to the streaming model tester.
+        ctx: The context of the streaming model tester.
+
+    Returns:
+        The streaming model tester response.
+    """
     stream, res = ai.generate_stream(
         prompt='tell me a long joke',
         model=vertexai_name(GeminiVersion.GEMINI_1_5_PRO),
     )
 
     async for chunk in stream:
-        print(chunk.text)
+        await logger.ainfo(chunk.text)
         ctx.send_chunk(f'chunk: {chunk.text}')
 
     return (await res).text
@@ -223,7 +254,15 @@ async def streaming_model_tester(_: str, ctx: ActionRunContext):
 
 @ai.flow()
 async def describe_picture(url: str):
-    return await ai.generate(
+    """Describe a picture.
+
+    Args:
+        url: The URL of the picture to describe.
+
+    Returns:
+        The description of the picture.
+    """
+    return await ai.agenerate(
         messages=[
             Message(
                 role=Role.USER,
@@ -241,13 +280,29 @@ myprompt = ai.define_prompt(model='my_model', prompt='tell me a long dad joke')
 
 @ai.flow()
 async def call_a_prompt(_: str):
+    """Call a prompt.
+
+    Args:
+        _: The input to the prompt.
+
+    Returns:
+        The prompt response.
+    """
     return (await myprompt()).text
 
 
 @ai.flow()
 async def stream_a_prompt(_: str, ctx: ActionRunContext):
-    stream, res = myprompt.stream()
+    """Stream a prompt.
 
+    Args:
+        _: The input to the prompt.
+        ctx: The context of the prompt.
+
+    Returns:
+        The prompt response.
+    """
+    stream, res = myprompt.stream()
     async for chunk in stream:
         ctx.send_chunk(f'chunk: {chunk.text}')
 
@@ -256,28 +311,59 @@ async def stream_a_prompt(_: str, ctx: ActionRunContext):
 
 @ai.flow()
 def throwy(_: str):
+    """Throw an exception.
+
+    Args:
+        _: The input to the throwy function.
+
+    Raises:
+        Exception: An exception is raised.
+    """
     raise Exception('oops')
 
 
 @ai.flow()
 async def async_throwy(_: str):
+    """Throw an exception.
+
+    Args:
+        _: The input to the throwy function.
+
+    Raises:
+        Exception: An exception is raised.
+    """
     raise Exception('oops')
 
 
 @ai.flow()
 def streamy_throwy(inp: str, ctx: ActionRunContext):
+    """Stream a throwy.
+
+    Args:
+        inp: The input to the streamy_throwy function.
+        ctx: The context of the streamy_throwy function.
+
+    Raises:
+        Exception: An exception is raised.
+    """
     ctx.send_chunk(1)
     ctx.send_chunk({'chunk': 'blah'})
-    ctx.send_chunk(3)
-    raise Exception('oops')
 
 
 @ai.flow()
 async def async_streamy_throwy(inp: str, ctx: ActionRunContext):
+    """Async stream a throwy.
+
+    Args:
+        inp: The input to the async_streamy_throwy function.
+        ctx: The context of the async_streamy_throwy function.
+
+    Raises:
+        Exception: An exception is raised.
+    """
     ctx.send_chunk(1)
     ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
-    raise Exception('oops')
 
 
 # prevent app from exiting when genkit is running in dev mode

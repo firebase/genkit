@@ -64,7 +64,7 @@ content, define flows, define formats, etc.
 
 | Category         | Method                                                                       | Description                          |
 |------------------|------------------------------------------------------------------------------|--------------------------------------|
-| **AI**           | [`generate()`][genkit.ai.veneer.Genkit.generate]                         | Generates content.                   |
+| **AI**           | [`agenerate()`][genkit.ai.veneer.Genkit.generate]                        | Generates content.                   |
 |                  | [`generate_stream()`][genkit.ai.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
 |                  | [`embed()`][genkit.ai.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
 | **Registration** | [`define_embedder()`][genkit.ai.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
@@ -115,7 +115,8 @@ from genkit.blocks.model import (
     ModelMiddleware,
 )
 from genkit.blocks.prompt import to_generate_action_options
-from genkit.core.action import ActionKind, ActionRunContext
+from genkit.core.action import ActionRunContext
+from genkit.core.action.types import ActionKind
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.core.typing import (
@@ -126,9 +127,7 @@ from genkit.core.typing import (
     ToolChoice,
 )
 
-DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(
-    scheme='http', host='127.0.0.1', port=3100
-)
+DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(scheme='http', host='127.0.0.1', port=3100)
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +162,7 @@ class Genkit(GenkitRegistry):
             self.thread = threading.Thread(
                 target=self.start_server,
                 args=[reflection_server_spec, self.loop],
+                daemon=True,
             )
             self.thread.start()
         else:
@@ -182,23 +182,15 @@ class Genkit(GenkitRegistry):
                     def resolver(kind, name, plugin=plugin):
                         return plugin.resolve_action(self, kind, name)
 
-                    self.registry.register_action_resolver(
-                        plugin.plugin_name(), resolver
-                    )
+                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                 else:
-                    raise ValueError(
-                        f'Invalid {plugin=} provided to Genkit: '
-                        f'must be of type `genkit.ai.plugin.Plugin`'
-                    )
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
 
     def join(self):
         if self.thread and self.loop:
-            self.loop.run_forever()
             self.thread.join()
 
-    def start_server(
-        self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop
-    ) -> None:
+    def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
@@ -219,7 +211,7 @@ class Genkit(GenkitRegistry):
         )
         httpd.serve_forever()
 
-    async def generate(
+    async def agenerate(
         self,
         model: str | None = None,
         prompt: str | Part | list[Part] | None = None,
@@ -228,6 +220,7 @@ class Genkit(GenkitRegistry):
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice = None,
+        tool_responses: list[Part] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         max_turns: int | None = None,
         on_chunk: ModelStreamingCallback | None = None,
@@ -239,8 +232,6 @@ class Genkit(GenkitRegistry):
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
-        # TODO:
-        #  resume: ResumeOptions
     ) -> GenerateResponseWrapper:
         """Generates text or structured data using a language model.
 
@@ -266,6 +257,11 @@ class Genkit(GenkitRegistry):
                 tool requests instead of executing them directly.
             tool_choice: Optional. A `ToolChoice` object specifying how the
                 model should choose which tool to use.
+            tool_responses: Optional. tool_responses should contain a list of
+                tool response parts corresponding to interrupt tool request
+                parts from the most recent model message. Each entry must have
+                a matching `name` and `ref` (if supplied) for its tool request
+                counterpart.
             config: Optional. A `GenerationCommonConfig` object or a dictionary
                 containing configuration parameters for the generation process.
                 This allows fine-tuning the model's behavior.
@@ -312,6 +308,7 @@ class Genkit(GenkitRegistry):
                 tools=tools,
                 return_tool_requests=return_tool_requests,
                 tool_choice=tool_choice,
+                tool_responses=tool_responses,
                 config=config,
                 max_turns=max_turns,
                 output_format=output_format,
@@ -406,7 +403,7 @@ class Genkit(GenkitRegistry):
         """
         stream = Channel()
 
-        resp = self.generate(
+        resp = self.agenerate(
             model=model,
             prompt=prompt,
             system=system,
@@ -430,7 +427,7 @@ class Genkit(GenkitRegistry):
 
         return (stream, stream.closed)
 
-    async def embed(
+    async def aembed(
         self,
         model: str | None = None,
         documents: list[Document] | None = None,
@@ -448,8 +445,4 @@ class Genkit(GenkitRegistry):
         """
         embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, model)
 
-        return (
-            await embed_action.arun(
-                EmbedRequest(input=documents, options=options)
-            )
-        ).response
+        return (await embed_action.arun(EmbedRequest(input=documents, options=options))).response

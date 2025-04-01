@@ -1,6 +1,6 @@
 # Managing prompts with Dotprompt
 
-Firebase Genkit provides the Dotprompt plugin and text format to help you write
+Genkit provides the Dotprompt plugin and text format to help you write
 and organize your generative AI prompts.
 
 Dotprompt is designed around the premise that _prompts are code_. You write and

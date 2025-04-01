@@ -31,10 +31,7 @@ def test_dump_json_basic():
     assert dump_json([1, 2, 3]) == '[1, 2, 3]'
 
     # Test nested structures
-    assert (
-        dump_json({'a': [1, 2], 'b': {'c': 3}})
-        == '{"a": [1, 2], "b": {"c": 3}}'
-    )
+    assert dump_json({'a': [1, 2], 'b': {'c': 3}}) == '{"a": [1, 2], "b": {"c": 3}}'
 
 
 def test_dump_json_special_types():

@@ -17,12 +17,12 @@
 import pytest
 
 from genkit.blocks.document import Document
-from genkit.core.typing import EmbedRequest, EmbedResponse
 from genkit.plugins.vertex_ai.embedding import (
     Embedder,
     EmbeddingModels,
     EmbeddingsTaskType,
 )
+from genkit.types import EmbedRequest, EmbedResponse
 
 
 @pytest.mark.parametrize(

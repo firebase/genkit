@@ -42,9 +42,7 @@ class Ollama(Plugin):
 
     def __init__(self, plugin_params: OllamaPluginParams):
         self.plugin_params = plugin_params
-        self.client = ollama_api.AsyncClient(
-            host=self.plugin_params.server_address.unicode_string()
-        )
+        self.client = ollama_api.AsyncClient(host=self.plugin_params.server_address.unicode_string())
 
     def initialize(self, ai: GenkitRegistry) -> None:
         self._initialize_models(ai=ai)
@@ -58,10 +56,9 @@ class Ollama(Plugin):
             )
             ai.define_model(
                 name=ollama_name(model_definition.name),
-                fn=model.generate,
+                fn=model.agenerate,
                 metadata={
-                    'multiturn': model_definition.api_type
-                    == OllamaAPITypes.CHAT,
+                    'multiturn': model_definition.api_type == OllamaAPITypes.CHAT,
                     'system_role': True,
                 },
             )
