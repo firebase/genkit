@@ -32,9 +32,6 @@ class Plugin(abc.ABC):
     This class defines the interface that all plugins must implement.  Plugins
     provide a way to extend functionality by registering new actions, models, or
     other capabilities.
-
-    Attributes:
-        registry: Registry for plugin functionality.
     """
 
     def plugin_name(self):

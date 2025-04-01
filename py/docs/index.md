@@ -56,10 +56,10 @@ See the following code samples for a concrete idea of how to use these capabilit
     import json
     from pydantic import BaseModel, Field
     from genkit.ai import Genkit
-    from genkit.plugins.google_genai import GoogleGenai
+    from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
-        plugins=[GoogleGenai()],
+        plugins=[GoogleAI()],
         model='google_genai/gemini-2.0-flash',
     )
 
@@ -74,6 +74,21 @@ See the following code samples for a concrete idea of how to use these capabilit
     asyncio.run(main())
     ```
 
+In that case you have used GoogleAI entrypoint. To use VertexAI entrypoint,
+you need to have the GCP account import and call the following:
+
+    ```
+    from genkit.plugins.google_genai import VertexAI
+
+    ai = Genkit(
+        plugins=[VertexAI(project=...,location=...)],
+        model='google_genai/gemini-2.0-flash',
+    )
+    ```
+
+The rest is identical. Some models might be available only in Google AI,
+and some - only in Vertex AI.
+
 === "Structured output"
 
     ```python
@@ -81,10 +96,10 @@ See the following code samples for a concrete idea of how to use these capabilit
     import json
     from pydantic import BaseModel, Field
     from genkit.ai import Genkit
-    from genkit.plugins.google_genai import GoogleGenai
+    from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
-        plugins=[GoogleGenai()],
+        plugins=[GoogleAI()],
         model='google_genai/gemini-2.0-flash',
     )
 
