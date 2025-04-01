@@ -372,7 +372,7 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 func renderPrompt(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Part, error) {
 	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
 	if err != nil {
-		return []*Part{}, err
+		return nil, err
 	}
 
 	return renderDotpromptToParts(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
@@ -385,11 +385,9 @@ func renderPrompt(ctx context.Context, opts promptOptions, templateText string, 
 func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Part, error) {
 	// Prepare the context for rendering
 	context := map[string]any{}
-	if ctx != nil {
-		actionCtx := core.FromContext(ctx)
-		for k, v := range actionCtx {
-			context[k] = v
-		}
+	actionCtx := core.FromContext(ctx)
+	for k, v := range actionCtx {
+		context[k] = v
 	}
 
 	// Call the prompt function with the input and context
