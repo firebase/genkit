@@ -246,7 +246,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 
 // DefineEmbedder defines embeddings for the provided contents and embedder
 // model
-func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
