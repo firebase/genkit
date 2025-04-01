@@ -1017,3 +1017,32 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}
 }
+
+// TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining
+// and using both partials and helpers.
+func TestDefinePartialAndHelperJourney(t *testing.T) {
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+
+	model := definePromptModel(reg)
+
+	DefinePartial(reg, "header", "Welcome {{name}}!")
+	DefineHelper(reg, "uppercase", func(s string) string {
+		return strings.ToUpper(s)
+	})
+
+	p, err := DefinePrompt(reg, "test", WithPromptText(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+
+	result, err := p.Execute(context.Background(), WithInput(map[string]any{
+		"name":     "User",
+		"greeting": "hello",
+	}))
+
+	testOutput := "Welcome User!HELLO"
+	if result.Request.Messages[0].Content[0].Text != testOutput {
+		t.Errorf("got %q want %q", result.Request.Messages[0].Content[0].Text, testOutput)
+	}
+}

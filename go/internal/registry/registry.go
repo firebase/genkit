@@ -58,7 +58,10 @@ func New() (*Registry, error) {
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
 		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
 	}
-	r.Dotprompt = dotprompt.NewDotprompt(nil)
+	r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+		Helpers:  make(map[string]any),
+		Partials: make(map[string]string),
+	})
 	return r, nil
 }
 

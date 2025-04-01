@@ -479,7 +479,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				addPartial(r, partialName, string(source))
+				DefinePartial(r, partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
 				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
@@ -491,15 +491,24 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 	return nil
 }
 
-// addPartial adds the partial to the list of partials to the dotprompt instance
-func addPartial(r *registry.Registry, name string, source string) {
-	// TODO: Add this functionality
+// DefinePartial adds the partial to the list of partials to the dotprompt instance
+func DefinePartial(r *registry.Registry, name string, source string) {
 	if r.Dotprompt == nil {
 		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 			Partials: map[string]string{},
 		})
 	}
 	r.Dotprompt.Partials[name] = source
+}
+
+// DefineHelper adds a helper function to the dotprompt instance
+func DefineHelper(r *registry.Registry, name string, fn any) {
+	if r.Dotprompt == nil {
+		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+			Partials: map[string]string{},
+		})
+	}
+	r.Dotprompt.Helpers[name] = fn
 }
 
 // LoadPrompt loads a single prompt into the registry.
