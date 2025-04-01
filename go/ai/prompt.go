@@ -351,24 +351,23 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 	}
 
 	for _, msg := range msgs {
+		msgParts := []*Part{}
 		for _, part := range msg.Content {
 			if part.IsText() {
 				parts, err := renderPrompt(ctx, opts, part.Text, input, dp)
 				if err != nil {
 					return nil, err
 				}
-				var rendered string
-				if len(parts) != 0 {
-					rendered = parts[0].Text
-				}
-				msg.Content[0].Text = rendered
+				msgParts = append(msgParts, parts...)
 			}
 		}
+		msg.Content = msgParts
 	}
 
 	return append(messages, msgs...), nil
 }
 
+// renderPrompt renders a prompt template using dotprompt functionalities
 func renderPrompt(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Part, error) {
 	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
 	if err != nil {
@@ -382,6 +381,7 @@ func renderPrompt(ctx context.Context, opts promptOptions, templateText string, 
 	})
 }
 
+// renderDotpromptToParts executes a dotprompt prompt function and converts the result to a slice of parts
 func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Part, error) {
 	// Prepare the context for rendering
 	context := map[string]any{}
