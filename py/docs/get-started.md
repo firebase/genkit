@@ -47,8 +47,9 @@ This guide shows you how to get started with Genkit in a Python app.
     genkit-ai @ git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit-ai
     genkit-plugin-google-genai @ git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
     ```
-
-1. Install packages
+    
+    and run:
+   
     ```bash
     pip3 install -r requirements.txt 
     ```
