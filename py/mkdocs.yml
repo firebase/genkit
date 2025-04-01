@@ -57,7 +57,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [packages/genkit-ai/src]
+          paths: [packages/genkit/src]
           options:
             docstring_style: google
             annotations_path: full

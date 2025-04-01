@@ -11,7 +11,7 @@ members = [
     "coffee-shop",
     "context-caching",
     "flow-sample1",
-    "genkit-ai",
+    "genkit",
     "genkit-plugin-chroma",
     "genkit-plugin-compat-oai",
     "genkit-plugin-dev-local-vectorstore",
@@ -199,7 +199,7 @@ name = "basic-gemini"
 version = "0.1.0"
 source = { editable = "samples/basic-gemini" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -211,7 +211,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -418,7 +418,7 @@ name = "coffee-shop"
 version = "0.1.0"
 source = { editable = "samples/coffee-shop" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -430,7 +430,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -466,7 +466,7 @@ name = "context-caching"
 version = "0.1.0"
 source = { editable = "samples/context-caching" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -478,7 +478,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -770,7 +770,7 @@ name = "flow-sample1"
 version = "0.1.0"
 source = { editable = "samples/flow-sample1" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -782,7 +782,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -802,9 +802,9 @@ wheels = [
 ]
 
 [[package]]
-name = "genkit-ai"
+name = "genkit"
 version = "0.0.1.dev1"
-source = { editable = "packages/genkit-ai" }
+source = { editable = "packages/genkit" }
 dependencies = [
     { name = "asgiref" },
     { name = "httpx" },
@@ -843,24 +843,24 @@ name = "genkit-plugin-chroma"
 version = "0.1.0"
 source = { editable = "plugins/chroma" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
+requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "genkit-plugin-compat-oai"
 version = "0.0.1.dev1"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "openai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "openai" },
 ]
 
@@ -869,14 +869,14 @@ name = "genkit-plugin-dev-local-vectorstore"
 version = "0.0.1.dev1"
 source = { editable = "plugins/dev-local-vector-store" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
 ]
@@ -886,11 +886,11 @@ name = "genkit-plugin-firebase"
 version = "0.0.1.dev1"
 source = { editable = "plugins/firebase" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
+requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "genkit-plugin-flask"
@@ -898,7 +898,7 @@ version = "0.0.1.dev1"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
 ]
@@ -906,7 +906,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "flask" },
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -917,13 +917,13 @@ name = "genkit-plugin-google-ai"
 version = "0.1.0"
 source = { editable = "plugins/google-ai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "google-genai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "google-genai", specifier = ">=1.7.0" },
 ]
 
@@ -932,25 +932,25 @@ name = "genkit-plugin-google-cloud"
 version = "0.0.1.dev1"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
+requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "genkit-plugin-google-genai"
 version = "0.0.1.dev1"
 source = { editable = "plugins/google-genai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "google-cloud-aiplatform" },
     { name = "google-genai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
     { name = "google-genai", specifier = ">=1.7.0" },
 ]
@@ -960,13 +960,13 @@ name = "genkit-plugin-ollama"
 version = "0.0.1.dev1"
 source = { editable = "plugins/ollama" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "ollama" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "ollama", specifier = "~=0.4" },
 ]
 
@@ -975,25 +975,25 @@ name = "genkit-plugin-pinecone"
 version = "0.1.0"
 source = { editable = "plugins/pinecone" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
+requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
 version = "0.0.1.dev1"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "google-cloud-aiplatform" },
     { name = "pytest-mock" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
     { name = "pytest-mock" },
 ]
@@ -1004,7 +1004,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "dotpromptz" },
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-chroma" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore" },
@@ -1041,7 +1041,7 @@ lint = [
 [package.metadata]
 requires-dist = [
     { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-chroma", editable = "plugins/chroma" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
@@ -1250,7 +1250,7 @@ name = "google-genai-image"
 version = "0.1.0"
 source = { editable = "samples/google-genai-image" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -1263,7 +1263,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -1279,7 +1279,7 @@ name = "google-genai-imagen"
 version = "0.1.0"
 source = { editable = "samples/google-genai-imagen" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -1292,7 +1292,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -1444,7 +1444,7 @@ name = "hello"
 version = "0.1.0"
 source = { editable = "samples/hello" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -1474,7 +1474,7 @@ version = "0.1.0"
 source = { editable = "samples/hello-flask" }
 dependencies = [
     { name = "flask" },
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
@@ -1483,7 +1483,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "flask" },
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -1494,7 +1494,7 @@ name = "hello-genai"
 version = "0.1.0"
 source = { editable = "samples/google-ai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -1507,7 +1507,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -1523,7 +1523,7 @@ name = "hello-google-genai"
 version = "0.1.0"
 source = { editable = "samples/hello-google-genai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
@@ -1532,7 +1532,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -1593,7 +1593,7 @@ name = "imagen"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-imagen" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -1605,7 +1605,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -2276,7 +2276,7 @@ name = "menu"
 version = "0.1.0"
 source = { editable = "samples/menu" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
@@ -2289,7 +2289,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
@@ -2346,7 +2346,7 @@ version = "0.1.0"
 source = { virtual = "samples/multi-server" }
 dependencies = [
     { name = "asgiref" },
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "litestar" },
     { name = "starlette" },
     { name = "structlog" },
@@ -2357,7 +2357,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "asgiref", specifier = ">=3.8.1" },
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "litestar", specifier = ">=2.15.1" },
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "structlog", specifier = ">=25.2.0" },
@@ -2641,7 +2641,7 @@ name = "ollama-example"
 version = "0.1.0"
 source = { virtual = "samples/ollama-hello" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -2652,7 +2652,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -2666,7 +2666,7 @@ name = "ollama-simple-embed"
 version = "0.1.0"
 source = { virtual = "samples/ollama-simple-embed" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -2677,7 +2677,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -2710,7 +2710,7 @@ name = "openai-sample"
 version = "0.1.0"
 source = { editable = "samples/openai" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
@@ -2725,7 +2725,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
@@ -2958,7 +2958,7 @@ name = "prompt-file"
 version = "0.1.0"
 source = { editable = "samples/prompt-file" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -2970,7 +2970,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -3351,7 +3351,7 @@ name = "rag"
 version = "0.1.0"
 source = { editable = "samples/rag" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -3363,7 +3363,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -3747,7 +3747,7 @@ name = "tool-interrupt"
 version = "0.1.0"
 source = { editable = "samples/tool-interrupts" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
@@ -3755,7 +3755,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -3924,7 +3924,7 @@ name = "vertex-ai-model-garden"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-vector-search" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -3936,7 +3936,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -3951,7 +3951,7 @@ name = "vertex-ai-reranker"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-reranker" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -3963,7 +3963,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -3978,7 +3978,7 @@ name = "vertex-ai-vector-search"
 version = "0.1.0"
 source = { editable = "samples/vertex-ai-model-garden" }
 dependencies = [
-    { name = "genkit-ai" },
+    { name = "genkit" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-ai" },
     { name = "genkit-plugin-google-cloud" },
@@ -3990,7 +3990,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },

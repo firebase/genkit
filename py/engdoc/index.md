@@ -115,7 +115,7 @@ capabilities in code:
 
     ```javascript
     import { genkit } from 'genkit';
-    import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+    import { googleAI, gemini15Flash } from '@genkit/googleai';
 
     const ai = genkit({
       plugins: [googleAI()],
@@ -197,7 +197,7 @@ capabilities in code:
 
     ```javascript
     import { genkit, z } from 'genkit';
-    import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+    import { googleAI, gemini15Flash } from '@genkit/googleai';
 
     const ai = genkit({
       plugins: [googleAI()],
@@ -283,7 +283,7 @@ capabilities in code:
 
     ```javascript
     import { genkit, z } from 'genkit';
-    import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+    import { googleAI, gemini15Flash } from '@genkit/googleai';
 
     const ai = genkit({
       plugins: [googleAI()],
@@ -369,7 +369,7 @@ capabilities in code:
 
     ```javascript
     import { genkit, z } from 'genkit';
-    import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+    import { googleAI, gemini15Flash } from '@genkit/googleai';
 
     const ai = genkit({
       plugins: [googleAI()],
@@ -396,7 +396,7 @@ capabilities in code:
 
     ```javascript
     import { genkit, z } from 'genkit';
-    import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+    import { googleAI, gemini15Flash } from '@genkit/googleai';
 
     const ai = genkit({
       plugins: [googleAI()],
@@ -492,8 +492,8 @@ capabilities in code:
 
     ```javascript
     import { genkit } from 'genkit';
-    import { googleAI, gemini15Flash, textEmbedding004 } from '@genkit-ai/googleai';
-    import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
+    import { googleAI, gemini15Flash, textEmbedding004 } from '@genkit/googleai';
+    import { devLocalRetrieverRef } from '@genkit/dev-local-vectorstore';
 
     const ai = genkit({
       plugins: [
