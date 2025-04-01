@@ -64,3 +64,30 @@ Prerequisites: make sure you have everything installed from [Get Started](./get-
     ```
 
     or you can use [Genkit client library](https://js.api.genkit.dev/modules/genkit.beta_client.html).
+
+
+## Authorization and custom context
+
+You can do custom authorization and custom context parsing by passing a `ContextProvider` implementation.
+
+
+```py
+from genkit.types import GenkitError
+
+async def my_context_provider(request):
+    return {'username': parse_request_header(request.headers.get('authorization'))}
+
+@app.post('/say_hi')
+@genkit_flask_handler(ai, context_provider=my_context_provider)
+@ai.flow()
+async def say_hi(name: str, ctx):
+    if not ctx.context.get('username'):
+        raise GenkitError(status='UNAUTHENTICATED', message='user not provided')
+
+    return await ai.agenerate(
+        on_chunk=ctx.send_chunk,
+        prompt=f'say hi to {ctx.context.get('username')}',
+    )
+```
+
+`parse_request_header` can be your custom authorization header parsersing/validation.
