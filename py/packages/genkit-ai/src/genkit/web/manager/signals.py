@@ -161,10 +161,7 @@ class SignalHandler:
         Returns:
             None
         """
-        if (
-            sig in self.signal_handlers
-            and callback in self.signal_handlers[sig]
-        ):
+        if sig in self.signal_handlers and callback in self.signal_handlers[sig]:
             self.signal_handlers[sig].remove(callback)
 
     def setup_signal_handlers(self) -> None:

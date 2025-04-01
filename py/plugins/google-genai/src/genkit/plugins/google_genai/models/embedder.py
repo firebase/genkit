@@ -14,12 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Google-Genai embedder model."""
+
 import enum
 
 from google import genai
 
-from genkit.ai import Embedding, EmbedRequest, EmbedResponse
 from genkit.plugins.google_genai.models.utils import PartConverter
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 class VertexEmbeddingModels(enum.StrEnum):
@@ -59,28 +61,30 @@ class Embedder:
         self._client = client
         self._version = version
 
-    async def generate(self, request: EmbedRequest) -> EmbedResponse:
-        contents = self._build_contents(request)
-        config = self._genkit_to_googleai_cfg(request)
-        response = await self._client.aio.models.embed_content(
-            model=self._version, contents=contents, config=config
-        )
-
-        embeddings = [
-            Embedding(embedding=em.values) for em in response.embeddings
-        ]
-        return EmbedResponse(embeddings=embeddings)
-
-    def _build_contents(
-        self, request: EmbedRequest
-    ) -> list[genai.types.Content]:
-        """Build google-genai request contents from Genkit request
+    async def agenerate(self, request: EmbedRequest) -> EmbedResponse:
+        """Generate embeddings for a given request
 
         Args:
-            request: Genkit request
+            request: Genkit embed request.
 
         Returns:
-            list of google-genai contents
+            EmbedResponse
+        """
+        contents = self._build_contents(request)
+        config = self._genkit_to_googleai_cfg(request)
+        response = await self._client.aio.models.embed_content(model=self._version, contents=contents, config=config)
+
+        embeddings = [Embedding(embedding=em.values) for em in response.embeddings]
+        return EmbedResponse(embeddings=embeddings)
+
+    def _build_contents(self, request: EmbedRequest) -> list[genai.types.Content]:
+        """Build google-genai request contents from Genkit request.
+
+        Args:
+            request: Genkit request.
+
+        Returns:
+            list of google-genai contents.
         """
 
         request_contents: list[genai.types.Content] = []
@@ -92,16 +96,14 @@ class Embedder:
 
         return request_contents
 
-    def _genkit_to_googleai_cfg(
-        self, request: EmbedRequest
-    ) -> genai.types.EmbedContentConfig | None:
-        """Translate EmbedRequest options to Google Ai GenerateContentConfig
+    def _genkit_to_googleai_cfg(self, request: EmbedRequest) -> genai.types.EmbedContentConfig | None:
+        """Translate EmbedRequest options to Google Ai GenerateContentConfig.
 
         Args:
-            request: Genkit embed request
+            request: Genkit embed request.
 
         Returns:
-            Google Ai embed config or None
+            Google Ai embed config or None.
         """
 
         cfg = None
@@ -109,9 +111,7 @@ class Embedder:
             cfg = genai.types.EmbedContentConfig(
                 task_type=request.options.get('task_type'),
                 title=request.options.get('title'),
-                output_dimensionality=request.options.get(
-                    'output_dimensionality'
-                ),
+                output_dimensionality=request.options.get('output_dimensionality'),
             )
 
         return cfg

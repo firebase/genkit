@@ -100,6 +100,11 @@ test_cases_extract_json = [
         {'expected': {'a': 1}},
     ),
     (
+        'returns None for empty str',
+        {'text': ''},
+        {'expected': None},
+    ),
+    (
         'extracts simple array',
         {'text': 'prefix[1,2,3]suffix'},
         {'expected': [1, 2, 3]},

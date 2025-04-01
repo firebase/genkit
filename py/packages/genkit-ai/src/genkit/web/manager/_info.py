@@ -43,9 +43,7 @@ def get_health_info(config: ServerConfig) -> dict[str, Any]:
     Returns:
         A dictionary containing health information.
     """
-    uptime_seconds = (
-        round(time.time() - config.start_time, 2) if config.start_time else None
-    )
+    uptime_seconds = round(time.time() - config.start_time, 2) if config.start_time else None
 
     d = {
         'status': 'ok',
@@ -248,19 +246,14 @@ def _get_deps_info() -> dict[str, Any]:
     """
     try:
         # Get all installed packages
-        packages = {
-            dist.metadata['Name']: dist.version
-            for dist in importlib.metadata.distributions()
-        }
+        packages = {dist.metadata['Name']: dist.version for dist in importlib.metadata.distributions()}
 
         # Get actively used packages (those that are imported)
         modules = set(sys.modules.keys())
         active_packages = {}
         for pkg_name, version in packages.items():
             # Check if this package name (or package_name.something) is in sys.modules
-            if pkg_name in modules or any(
-                m.startswith(f'{pkg_name}.') for m in modules
-            ):
+            if pkg_name in modules or any(m.startswith(f'{pkg_name}.') for m in modules):
                 active_packages[pkg_name] = version
 
         # Filter web-related packages
@@ -284,9 +277,7 @@ def _get_deps_info() -> dict[str, Any]:
         # Get dependencies for this specific module
         module_deps = {}
         try:
-            current_module = __name__.split('.')[
-                0
-            ]  # Get the top-level package name
+            current_module = __name__.split('.')[0]  # Get the top-level package name
             if current_module in packages:
                 module_deps[current_module] = packages[current_module]
 

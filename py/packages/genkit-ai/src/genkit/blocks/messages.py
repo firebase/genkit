@@ -25,19 +25,32 @@ from genkit.core.typing import (
 )
 
 
-def inject_instructions(
-    messages: list[Message], instructions: str
-) -> list[Message]:
-    """
-    Injects instructions into a list of messages.
+def inject_instructions(messages: list[Message], instructions: str) -> list[Message]:
+    """Injects instructions as a new Part into a list of messages.
+
+    This function attempts to add the provided `instructions` string as a new
+    text Part with `metadata={'purpose': 'output'}` into the message history.
+
+    Injection Logic:
+    - If `instructions` is empty, the original list is returned.
+    - If any message already contains a non-pending output Part, the original list is returned.
+    - Otherwise, it looks for a target message:
+        1. The first message containing a Part marked as pending output.
+        2. If none, the first system message.
+        3. If none, the last user message.
+    - If a target message is found:
+        - If the target contains a pending output Part, it's replaced by the new instruction Part.
+        - Otherwise, the new instruction Part is appended to the target message's content.
+    - A *new* list containing the potentially modified message is returned.
 
     Args:
-        messages: A list of MessageData objects.
-        instructions: The instructions to inject, or False or None to skip injection.
+        messages: A list of Message objects representing the conversation history.
+        instructions: The text instructions to inject. If empty, no injection occurs.
 
     Returns:
-        A new list of MessageData objects with the instructions injected,
-        or the original list if injection was skipped.
+        A new list of Message objects with the instructions injected into the
+        appropriate message, or a copy of the original list if no suitable place
+        for injection was found or if instructions were empty.
     """
     if not instructions:
         return messages
@@ -48,19 +61,14 @@ def inject_instructions(
             part.root.metadata
             and 'purpose' in part.root.metadata.root
             and part.root.metadata.root['purpose'] == 'output'
-            and (
-                'pending' not in part.root.metadata.root
-                or not part.root.metadata.root['pending']
-            )
+            and ('pending' not in part.root.metadata.root or not part.root.metadata.root['pending'])
             for part in message.content
         )
         for message in messages
     ):
         return messages
 
-    new_part = Part(
-        TextPart(text=instructions, metadata=Metadata({'purpose': 'output'}))
-    )
+    new_part = Part(TextPart(text=instructions, metadata=Metadata({'purpose': 'output'})))
 
     # find first message with purpose=output
     target_index = next(
@@ -83,20 +91,12 @@ def inject_instructions(
     # find the system message or the last user message
     if target_index < 0:
         target_index = next(
-            (
-                i
-                for i, message in enumerate(messages)
-                if message.role == Role.SYSTEM
-            ),
+            (i for i, message in enumerate(messages) if message.role == Role.SYSTEM),
             -1,  # Default to -1 if not found
         )
     if target_index < 0:
         target_index = next(
-            (
-                i
-                for i, message in reversed(list(enumerate(messages)))
-                if message.role == 'user'
-            ),
+            (i for i, message in reversed(list(enumerate(messages))) if message.role == 'user'),
             -1,  # Default to -1 if not found
         )
     if target_index < 0:

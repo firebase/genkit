@@ -112,7 +112,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 
 	metadata := map[string]any{
 		"model": map[string]any{
-			"supports": map[string]bool{
+			"supports": map[string]any{
 				"media":      info.Supports.Media,
 				"multiturn":  info.Supports.Multiturn,
 				"systemRole": info.Supports.SystemRole,
@@ -120,6 +120,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"toolChoice": info.Supports.ToolChoice,
 			},
 			"versions": info.Versions,
+			"stage":    info.Stage,
 		},
 	}
 	if info.Label != "" {
@@ -370,7 +371,7 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 		return nil, err
 	}
 
-	err = resp.UnmarshalOutput(value)
+	err = resp.Output(value)
 	if err != nil {
 		return nil, err
 	}
@@ -597,15 +598,14 @@ func (gr *ModelResponse) History() []*Message {
 	return append(gr.Request.Messages, gr.Message)
 }
 
-// UnmarshalOutput unmarshals structured JSON output into the provided
+// Output unmarshals structured JSON output into the provided
 // struct pointer.
-func (gr *ModelResponse) UnmarshalOutput(v any) error {
+func (gr *ModelResponse) Output(v any) error {
 	j := base.ExtractJSONFromMarkdown(gr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
-	json.Unmarshal([]byte(j), v)
-	return nil
+	return json.Unmarshal([]byte(j), v)
 }
 
 // Text returns the text content of the [ModelResponseChunk]

@@ -92,6 +92,14 @@ type EvalRequest struct {
 
 type EvalResponse []any
 
+type EvalStatusEnum string
+
+const (
+	EvalStatusEnumUNKNOWN EvalStatusEnum = "UNKNOWN"
+	EvalStatusEnumPASS    EvalStatusEnum = "PASS"
+	EvalStatusEnumFAIL    EvalStatusEnum = "FAIL"
+)
+
 type FinishReason string
 
 const (
@@ -199,10 +207,11 @@ type Message struct {
 }
 
 type ModelInfo struct {
-	Label    string         `json:"label,omitempty"`
-	Stage    ModelStage     `json:"stage,omitempty"`
-	Supports *ModelSupports `json:"supports,omitempty"`
-	Versions []string       `json:"versions,omitempty"`
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
+	Label        string         `json:"label,omitempty"`
+	Stage        ModelStage     `json:"stage,omitempty"`
+	Supports     *ModelSupports `json:"supports,omitempty"`
+	Versions     []string       `json:"versions,omitempty"`
 }
 
 type ModelStage string

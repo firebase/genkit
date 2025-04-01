@@ -14,10 +14,10 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["genkit-ai", "google-genai==1.0.0"]
+dependencies = ["genkit-ai", "google-genai>=1.7.0"]
 description = "Genkit Google AI Plugin"
 license = { text = "Apache-2.0" }
-name = "genkit-google-ai-plugin"
+name = "genkit-plugin-google-ai"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"

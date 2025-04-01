@@ -438,7 +438,13 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 // writeJSON writes a JSON-marshaled value to the response writer.
 func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(value); err != nil {
+
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	if err != nil {
 		logger.FromContext(ctx).Error("writing output", "err", err)
 	}
 	if f, ok := w.(http.Flusher); ok {

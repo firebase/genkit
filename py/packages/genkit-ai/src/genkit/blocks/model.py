@@ -38,12 +38,14 @@ from genkit.core.action import ActionRunContext
 from genkit.core.extract import extract_json
 from genkit.core.typing import (
     Candidate,
+    DocumentPart,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
     Message,
     Part,
+    ToolRequestPart,
 )
 
 # Type alias for a function that takes a GenerateRequest and returns
@@ -55,9 +57,7 @@ type MessageParser[T] = Callable[[MessageWrapper], T]
 type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
 
 
-type ModelMiddlewareNext = Callable[
-    [GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]
-]
+type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
 type ModelMiddleware = Callable[
     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
@@ -65,17 +65,28 @@ type ModelMiddleware = Callable[
 
 
 class MessageWrapper(Message):
-    """A helper wrapper class for Message that offer a few utility methods"""
+    """A wrapper around the base Message type providing utility methods.
+
+    This class extends the standard `Message` by adding convenient cached properties
+    like `text` (for concatenated text content) and `tool_requests`.
+    It stores the original message in the `_original_message` attribute.
+    """
 
     def __init__(
         self,
         message: Message,
     ):
+        """Initializes the MessageWrapper.
+
+        Args:
+            message: The original Message object to wrap.
+        """
         super().__init__(
             role=message.role,
             content=message.content,
             metadata=message.metadata,
         )
+        self._original_message = message
 
     @cached_property
     def text(self) -> str:
@@ -86,9 +97,23 @@ class MessageWrapper(Message):
         """
         return text_from_message(self)
 
+    @cached_property
+    def tool_requests(self) -> list[ToolRequestPart]:
+        """Returns all tool request parts of the response as a list.
+
+        Returns:
+            list[ToolRequestPart]: list of tool requests present in this response.
+        """
+        return [p.root for p in self.content if isinstance(p.root, ToolRequestPart)]
+
 
 class GenerateResponseWrapper(GenerateResponse):
-    """A helper wrapper class for GenerateResponse that offer a few utility methods"""
+    """A wrapper around GenerateResponse providing utility methods.
+
+    Extends the base `GenerateResponse` with cached properties (`text`, `output`,
+    `messages`, `tool_requests`) and methods for validation (`assert_valid`,
+    `assert_valid_schema`). It also handles optional message/chunk parsing.
+    """
 
     message_parser: MessageParser | None = Field(exclude=True)
     message: MessageWrapper = None
@@ -104,15 +129,16 @@ class GenerateResponseWrapper(GenerateResponse):
         Args:
             response: The original GenerateResponse object.
             request: The GenerateRequest object associated with the response.
+            message_parser: An optional function to parse the output from the message.
         """
         super().__init__(
-            message=MessageWrapper(response.message),
+            message=MessageWrapper(response.message)
+            if not isinstance(response.message, MessageWrapper)
+            else response.message,
             finish_reason=response.finish_reason,
             finish_message=response.finish_message,
             latency_ms=response.latency_ms,
-            usage=response.usage
-            if response.usage is not None
-            else GenerationUsage(),
+            usage=response.usage if response.usage is not None else GenerationUsage(),
             custom=response.custom if response.custom is not None else {},
             request=request,
             candidates=response.candidates,
@@ -120,19 +146,23 @@ class GenerateResponseWrapper(GenerateResponse):
         )
 
     def assert_valid(self):
-        """Validate that the response is properly structured.
+        """Validates the basic structure of the response.
+
+        Note: This method is currently a placeholder (TODO).
 
         Raises:
-            AssertionError: If the response is not valid.
+            AssertionError: If the response structure is considered invalid.
         """
         # TODO: implement
         pass
 
     def assert_valid_schema(self):
-        """Validate that the response conforms to the expected schema.
+        """Validates that the response message conforms to any specified output schema.
+
+        Note: This method is currently a placeholder (TODO).
 
         Raises:
-            AssertionError: If the response does not conform to the schema.
+            AssertionError: If the response message does not conform to the schema.
         """
         # TODO: implement
         pass
@@ -157,9 +187,36 @@ class GenerateResponseWrapper(GenerateResponse):
             return self.message_parser(self.message)
         return extract_json(self.text)
 
+    @cached_property
+    def messages(self) -> list[Message]:
+        """Returns all messages of the response, including request messages as a list.
+
+        Returns:
+            list[Message]: list of messages.
+        """
+        return [
+            *(self.request.messages if self.request else []),
+            self.message._original_message,
+        ]
+
+    @cached_property
+    def tool_requests(self) -> list[ToolRequestPart]:
+        """Returns all tool request parts of the response as a list.
+
+        Returns:
+            list[ToolRequestPart]: list of tool requests present in this response.
+        """
+        return self.message.tool_requests
+
 
 class GenerateResponseChunkWrapper(GenerateResponseChunk):
-    """A helper wrapper class for GenerateResponseChunk that offer a few utility methods"""
+    """A wrapper around GenerateResponseChunk providing utility methods.
+
+    Extends the base `GenerateResponseChunk` with cached properties for accessing
+    the text content of the current chunk (`text`), the accumulated text from all
+    previous chunks including the current one (`accumulated_text`), and parsed
+    output from the accumulated text (`output`). It also stores previous chunks.
+    """
 
     previous_chunks: list[GenerateResponseChunk] = Field(exclude=True)
     chunk_parser: ChunkParser | None = Field(exclude=True)
@@ -171,6 +228,14 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         index: int,
         chunk_parser: ChunkParser | None = None,
     ):
+        """Initializes the GenerateResponseChunkWrapper.
+
+        Args:
+            chunk: The raw GenerateResponseChunk to wrap.
+            previous_chunks: A list of preceding chunks in the stream.
+            index: The index of this chunk in the sequence of messages/chunks.
+            chunk_parser: An optional function to parse the output from the chunk.
+        """
         super().__init__(
             role=chunk.role,
             index=index,
@@ -188,9 +253,7 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
         Returns:
             str: The combined text content from the current chunk.
         """
-        return ''.join(
-            p.root.text if p.root.text is not None else '' for p in self.content
-        )
+        return ''.join(p.root.text if p.root.text is not None else '' for p in self.content)
 
     @cached_property
     def accumulated_text(self) -> str:
@@ -221,6 +284,15 @@ class GenerateResponseChunkWrapper(GenerateResponseChunk):
 
 
 class PartCounts(BaseModel):
+    """Stores counts of different types of media parts.
+
+    Attributes:
+        characters: Total number of characters in text parts.
+        images: Total number of image parts.
+        videos: Total number of video parts.
+        audio: Total number of audio parts.
+    """
+
     characters: int = 0
     images: int = 0
     videos: int = 0
@@ -228,20 +300,44 @@ class PartCounts(BaseModel):
 
 
 def text_from_message(msg: Message) -> str:
-    """Extracts text from message object."""
+    """Extracts and concatenates text content from all parts of a Message.
+
+    Args:
+        msg: The Message object.
+
+    Returns:
+        A single string containing all text found in the message parts.
+    """
     return text_from_content(msg.content)
 
 
 def text_from_content(content: list[Part]) -> str:
-    """Extracts text from message content (parts)."""
+    """Extracts and concatenates text content from a list of Parts.
+
+    Args:
+        content: A list of Part objects.
+
+    Returns:
+        A single string containing all text found in the parts.
+    """
     return ''.join(
-        p.root.text if p.root.text is not None else '' for p in content
+        p.root.text if (isinstance(p, Part) or isinstance(p, DocumentPart)) and p.root.text is not None else ''
+        for p in content
     )
 
 
-def get_basic_usage_stats(
-    input_: list[Message], response: Message | list[Candidate]
-) -> GenerationUsage:
+def get_basic_usage_stats(input_: list[Message], response: Message | list[Candidate]) -> GenerationUsage:
+    """Calculates basic usage statistics based on input and output messages/candidates.
+
+    Counts characters, images, videos, and audio files for both input and output.
+
+    Args:
+        input_: A list of input Message objects.
+        response: Either a single output Message object or a list of Candidate objects.
+
+    Returns:
+        A GenerationUsage object populated with the calculated counts.
+    """
     request_parts = []
 
     for msg in input_:
@@ -270,6 +366,17 @@ def get_basic_usage_stats(
 
 
 def get_part_counts(parts: list[Part]) -> PartCounts:
+    """Counts the occurrences of different media types within a list of Parts.
+
+    Iterates through the parts, summing character lengths and counting image,
+    video, and audio parts based on content type or data URL prefix.
+
+    Args:
+        parts: A list of Part objects to analyze.
+
+    Returns:
+        A PartCounts object containing the aggregated counts.
+    """
     part_counts = PartCounts()
 
     for part in parts:
@@ -280,15 +387,9 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
         if media:
             content_type = media.content_type or ''
             url = media.url or ''
-            is_image = content_type.startswith('image') or url.startswith(
-                'data:image'
-            )
-            is_video = content_type.startswith('video') or url.startswith(
-                'data:video'
-            )
-            is_audio = content_type.startswith('audio') or url.startswith(
-                'data:audio'
-            )
+            is_image = content_type.startswith('image') or url.startswith('data:image')
+            is_video = content_type.startswith('video') or url.startswith('data:video')
+            is_audio = content_type.startswith('audio') or url.startswith('data:audio')
 
             part_counts.images += 1 if is_image else 0
             part_counts.videos += 1 if is_video else 0

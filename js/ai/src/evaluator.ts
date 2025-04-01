@@ -39,6 +39,15 @@ export const BaseEvalDataPointSchema = BaseDataPointSchema.extend({
 });
 export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
 
+const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
+
 export const ScoreSchema = z.object({
   id: z
     .string()
@@ -47,7 +56,7 @@ export const ScoreSchema = z.object({
     )
     .optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
-  // TODO: use StatusSchema
+  status: EvalStatusEnumSchema.optional(),
   error: z.string().optional(),
   details: z
     .object({
@@ -218,8 +227,10 @@ export function defineEvaluator<
                   testCaseId: datapoint.testCaseId,
                   evaluation: {
                     error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
+                    status: EvalStatusEnum.FAIL,
                   },
                 });
+                // Throw to mark the span as failed.
                 throw e;
               }
             }
