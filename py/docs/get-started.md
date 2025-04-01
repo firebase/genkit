@@ -81,14 +81,10 @@ This guide shows you how to get started with Genkit in a Python app.
         model='google_genai/gemini-2.0-flash',
     )
 
-
     class RpgCharacter(BaseModel):
-        """An RPG game character."""
-
         name: str = Field(description='name of the character')
         back_story: str = Field(description='back story')
         abilities: list[str] = Field(description='list of abilities (3-4)')
-
 
     @ai.flow()
     async def generate_character(name: str):
@@ -98,9 +94,7 @@ This guide shows you how to get started with Genkit in a Python app.
         )
         return result.output
 
-
     async def main() -> None:
-        """Main function."""
         print(json.dumps(await generate_character('Goblorb')))
 
     asyncio.run(main())
