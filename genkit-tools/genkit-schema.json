@@ -854,6 +854,10 @@
         "label": {
           "type": "string"
         },
+        "configSchema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
         "supports": {
           "type": "object",
           "properties": {

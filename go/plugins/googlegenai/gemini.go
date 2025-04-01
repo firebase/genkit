@@ -14,8 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package gemini contains code that is common to both the Google AI and Vertex AI plugins.
-package gemini
+package googlegenai
 
 import (
 	"context"
@@ -32,11 +31,6 @@ import (
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
-)
-
-const (
-	GoogleAIProvider = "googleai"
-	VertexAIProvider = "vertexai"
 )
 
 var (
@@ -76,10 +70,10 @@ type EmbedOptions struct {
 }
 
 // DefineModel defines a model in the registry
-func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
-	provider := GoogleAIProvider
+func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
+	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
-		provider = VertexAIProvider
+		provider = vertexAIProvider
 	}
 
 	meta := &ai.ModelInfo{
@@ -93,7 +87,7 @@ func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return Generate(ctx, client, name, input, cb)
+		return generate(ctx, client, name, input, cb)
 	}
 	// the gemini api doesn't support downloading media from http(s)
 	if info.Supports.Media {
@@ -117,10 +111,10 @@ func DefineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 
 // DefineEmbedder defines embeddings for the provided contents and embedder
 // model
-func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
-	provider := GoogleAIProvider
+func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
-		provider = VertexAIProvider
+		provider = vertexAIProvider
 	}
 
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
@@ -129,7 +123,7 @@ func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 
 		// check if request options matches VertexAI configuration
 		if opts, _ := input.Options.(*EmbedOptions); opts != nil {
-			if provider == GoogleAIProvider {
+			if provider == googleAIProvider {
 				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
 			}
 			embedConfig = &genai.EmbedContentConfig{
@@ -162,7 +156,7 @@ func DefineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 
 // Generate requests a generate call to the specified model with the provided
 // configuration
-func Generate(
+func generate(
 	ctx context.Context,
 	client *genai.Client,
 	model string,
