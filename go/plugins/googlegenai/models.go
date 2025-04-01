@@ -66,7 +66,7 @@ var (
 				"gemini-1.5-pro-001",
 				"gemini-1.5-pro-002",
 			},
-			Supports: &Multimodal,,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
 		gemini15Flash8b: {
