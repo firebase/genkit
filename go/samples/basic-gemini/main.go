@@ -23,6 +23,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"github.com/firebase/genkit/go/plugins/internal/gemini"
 )
 
 func main() {
@@ -46,9 +47,18 @@ func main() {
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&ai.GenerationCommonConfig{
-				Temperature: 1,
-				Version:     "gemini-2.0-flash-001",
+			ai.WithConfig(&gemini.GenerationGoogleAIConfig{
+				GenerationCommonConfig: ai.GenerationCommonConfig{
+					Temperature:     1.0,
+					MaxOutputTokens: 256,
+				},
+				// Set custom safety settings - reduce restriction on harmfulness
+				SafetySettings: []*gemini.SafetySetting{
+					{
+						Category:  gemini.HarmCategoryHarassment,
+						Threshold: gemini.HarmBlockMediumAndAbove,
+					},
+				},
 			}),
 			ai.WithPromptText(fmt.Sprintf(`Tell silly short jokes about %s`, input)))
 		if err != nil {

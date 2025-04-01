@@ -127,6 +127,10 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		metadata["label"] = info.Label
 	}
 
+	if info.ConfigSchema != nil {
+		metadata["customOptions"] = info.ConfigSchema
+	}
+
 	// Create the middleware list
 	middlewares := []ModelMiddleware{
 		simulateSystemPrompt(info, nil),
