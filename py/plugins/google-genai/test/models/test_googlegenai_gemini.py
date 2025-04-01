@@ -66,7 +66,7 @@ async def test_generate_text_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
-    response = await gemini.generate(request, ctx)
+    response = await gemini.agenerate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
@@ -106,7 +106,7 @@ async def test_generate_stream_text_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
-    response = await gemini.generate(request, ctx)
+    response = await gemini.agenerate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content_stream(
@@ -155,7 +155,7 @@ async def test_generate_media_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
-    response = await gemini.generate(request, ctx)
+    response = await gemini.agenerate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
@@ -287,7 +287,7 @@ async def test_generate_with_system_instructions(mocker):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
     ctx = ActionRunContext()
 
-    response = await gemini.generate(request, ctx)
+    response = await gemini.agenerate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(

@@ -486,7 +486,7 @@ class GeminiModel:
             ]
         )
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def agenerate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:

@@ -61,7 +61,15 @@ class Embedder:
         self._client = client
         self._version = version
 
-    async def generate(self, request: EmbedRequest) -> EmbedResponse:
+    async def agenerate(self, request: EmbedRequest) -> EmbedResponse:
+        """Generate embeddings for a given request
+
+        Args:
+            request: Genkit embed request.
+
+        Returns:
+            EmbedResponse
+        """
         contents = self._build_contents(request)
         config = self._genkit_to_googleai_cfg(request)
         response = await self._client.aio.models.embed_content(model=self._version, contents=contents, config=config)
@@ -70,13 +78,13 @@ class Embedder:
         return EmbedResponse(embeddings=embeddings)
 
     def _build_contents(self, request: EmbedRequest) -> list[genai.types.Content]:
-        """Build google-genai request contents from Genkit request
+        """Build google-genai request contents from Genkit request.
 
         Args:
-            request: Genkit request
+            request: Genkit request.
 
         Returns:
-            list of google-genai contents
+            list of google-genai contents.
         """
 
         request_contents: list[genai.types.Content] = []
@@ -89,13 +97,13 @@ class Embedder:
         return request_contents
 
     def _genkit_to_googleai_cfg(self, request: EmbedRequest) -> genai.types.EmbedContentConfig | None:
-        """Translate EmbedRequest options to Google Ai GenerateContentConfig
+        """Translate EmbedRequest options to Google Ai GenerateContentConfig.
 
         Args:
-            request: Genkit embed request
+            request: Genkit embed request.
 
         Returns:
-            Google Ai embed config or None
+            Google Ai embed config or None.
         """
 
         cfg = None

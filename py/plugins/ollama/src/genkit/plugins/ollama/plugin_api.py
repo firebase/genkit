@@ -56,7 +56,7 @@ class Ollama(Plugin):
             )
             ai.define_model(
                 name=ollama_name(model_definition.name),
-                fn=model.generate,
+                fn=model.agenerate,
                 metadata={
                     'multiturn': model_definition.api_type == OllamaAPITypes.CHAT,
                     'system_role': True,
