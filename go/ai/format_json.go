@@ -25,7 +25,6 @@ import (
 
 type JSONFormatter struct {
 	FormatName string
-	output     OutputConfig
 }
 
 type jsonHandler struct {

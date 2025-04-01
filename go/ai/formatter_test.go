@@ -529,3 +529,161 @@ func TestConstrainedGenerate(t *testing.T) {
 		}
 	})
 }
+
+func TestJsonFormatter(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses json schema",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(JSONMarkdown(`{"name": "John", "age": 19}`)),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("\n{\"name\": \"John\", \"age\": 19}\n"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "contains unexpected field fails",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(JSONMarkdown(`{"name": "John", "height": 190}`)),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "parses JSON with preamble and code fence",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Here is the JSON:\n\n```json\n{\"id\": 1}\n```"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("\n{\"id\": 1}\n"),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := JSONFormatter{"json"}
+			message, err := formatter.Handler(tt.schema).ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestTextFormatter(t *testing.T) {
+	tests := []struct {
+		name     string
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses complete text response",
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Hello World"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Hello World"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles empty response",
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(""),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(""),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := TextFormatter{"text"}
+			message, err := formatter.Handler(nil).ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
