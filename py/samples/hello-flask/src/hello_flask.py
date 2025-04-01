@@ -24,7 +24,6 @@ from genkit.plugins.google_genai import (
     GoogleGenai,
     google_genai_name,
 )
-from genkit.types import GenkitError
 
 ai = Genkit(
     plugins=[GoogleGenai()],
