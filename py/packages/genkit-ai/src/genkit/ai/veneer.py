@@ -96,12 +96,12 @@ from asyncio import Future
 from collections.abc import AsyncIterator
 from http.server import HTTPServer
 from typing import Any
-from genkit.aio.loop import run_async
+
 from genkit.ai import server
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.aio import Channel
-from genkit.aio.loop import create_loop
+from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.blocks.formats import built_in_formats
@@ -192,8 +192,10 @@ class Genkit(GenkitRegistry):
 
     def run_main(self, main):
         if self.loop:
+
             async def run():
                 return await main
+
             run_async(self.loop, run)
         else:
             asyncio.run(main)
