@@ -104,8 +104,7 @@ async def test_simulates_doc_grounding(setup_test) -> None:
         content=[
             Part(text='hi'),
             Part(
-                text='\n\nUse the following information to complete your task:'
-                + '\n\n- [0]: doc content 1\n\n',
+                text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
                 metadata={'purpose': 'context'},
             ),
         ],
@@ -198,9 +197,7 @@ async def test_generate_middleware_can_modify_context(
     define_echo_model(ai)
 
     async def add_context(req, ctx, next):
-        return await next(
-            req, ActionRunContext(context={**ctx.context, 'banana': True})
-        )
+        return await next(req, ActionRunContext(context={**ctx.context, 'banana': True}))
 
     async def inject_context(req, ctx, next):
         txt = ''.join(text_from_message(m) for m in req.messages)
@@ -231,9 +228,7 @@ async def test_generate_middleware_can_modify_context(
         context={'foo': 'bar'},
     )
 
-    assert (
-        response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
-    )
+    assert response.text == '''[ECHO] user: "hi {'foo': 'bar', 'banana': True}"'''
 
 
 @pytest.mark.asyncio
@@ -269,17 +264,11 @@ async def test_generate_middleware_can_modify_stream(
             ctx.send_chunk(
                 GenerateResponseChunk(
                     role=Role.MODEL,
-                    content=[
-                        Part(
-                            text=f'intercepted: {text_from_content(chunk.content)}'
-                        )
-                    ],
+                    content=[Part(text=f'intercepted: {text_from_content(chunk.content)}')],
                 )
             )
 
-        resp = await next(
-            req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler)
-        )
+        resp = await next(req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler))
         ctx.send_chunk(
             GenerateResponseChunk(
                 role='model',
@@ -323,11 +312,7 @@ async def test_generate_middleware_can_modify_stream(
 ##########################################################################
 
 specs = []
-with open(
-    pathlib.Path(__file__)
-    .parent.joinpath('../../../../../../tests/specs/generate.yaml')
-    .resolve()
-) as stream:
+with open(pathlib.Path(__file__).parent.joinpath('../../../../../../tests/specs/generate.yaml').resolve()) as stream:
     testsSpec = yaml.safe_load(stream)
     specs = testsSpec['tests']
     specs = [x for x in testsSpec['tests'] if x['name'] == 'calls tools']
@@ -348,19 +333,14 @@ async def test_generate_action_spec(spec) -> None:
         return 'tool called'
 
     if 'modelResponses' in spec:
-        pm.responses = [
-            TypeAdapter(GenerateResponse).validate_python(resp)
-            for resp in spec['modelResponses']
-        ]
+        pm.responses = [TypeAdapter(GenerateResponse).validate_python(resp) for resp in spec['modelResponses']]
 
     if 'streamChunks' in spec:
         pm.chunks = []
         for chunks in spec['streamChunks']:
             converted = []
             for chunk in chunks:
-                converted.append(
-                    TypeAdapter(GenerateResponseChunk).validate_python(chunk)
-                )
+                converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
     response = None

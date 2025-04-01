@@ -98,7 +98,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 
 	metadata := map[string]any{
 		"model": map[string]any{
-			"supports": map[string]bool{
+			"supports": map[string]any{
 				"media":      info.Supports.Media,
 				"multiturn":  info.Supports.Multiturn,
 				"systemRole": info.Supports.SystemRole,
@@ -106,6 +106,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"toolChoice": info.Supports.ToolChoice,
 			},
 			"versions": info.Versions,
+			"stage":    info.Stage,
 		},
 	}
 	if info.Label != "" {

@@ -38,9 +38,7 @@ def test_makes_deep_copy() -> None:
 
 
 def test_from_dcoument_data() -> None:
-    doc = Document.from_document_data(
-        DocumentData(content=[DocumentPart(text='some text')])
-    )
+    doc = Document.from_document_data(DocumentData(content=[DocumentPart(text='some text')]))
 
     assert doc.text() == 'some text'
 
@@ -110,9 +108,7 @@ def test_data_with_text() -> None:
 
 
 def test_data_with_media() -> None:
-    doc = Document.from_media(
-        url='gs://somebucket/someimage.png', content_type='image/png'
-    )
+    doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data() == 'gs://somebucket/someimage.png'
 
@@ -124,9 +120,7 @@ def test_data_type_with_text() -> None:
 
 
 def test_data_type_with_media() -> None:
-    doc = Document.from_media(
-        url='gs://somebucket/someimage.png', content_type='image/png'
-    )
+    doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data_type() == 'image/png'
 

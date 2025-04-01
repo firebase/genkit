@@ -9,7 +9,6 @@ from genkit.blocks.messages import inject_instructions
 from genkit.core.typing import (
     Message,
     Metadata,
-    Part,
     Role,
     TextPart,
 )
@@ -95,9 +94,7 @@ def test_inject_instructions_purpose() -> None:
                 content=[
                     TextPart(
                         text='will be overridden',
-                        metadata=Metadata(
-                            root={'purpose': 'output', 'pending': True}
-                        ),
+                        metadata=Metadata(root={'purpose': 'output', 'pending': True}),
                     ),
                     TextPart(text='world'),
                 ],

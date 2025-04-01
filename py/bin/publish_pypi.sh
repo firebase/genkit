@@ -19,8 +19,8 @@
 set -euo pipefail
 
 if ((EUID == 0)); then
-    echo "Please do not run as root"
-    exit 1
+  echo "Please do not run as root"
+  exit 1
 fi
 
 # Navigate to the correct project directory
@@ -33,18 +33,18 @@ PACKAGE_NAME=$(toml get pyproject.toml project.name --raw)
 echo "New Version is $NEW_VERSION"
 echo "Package Name is $PACKAGE_NAME"
 
-response=$(curl -s "https://test.pypi.org/pypi/$PACKAGE_NAME/json" || echo "{}")
+response=$(curl -s "https://pypi.org/pypi/$PACKAGE_NAME/json" || echo "{}")
 LATEST_VERSION=$(echo $response | jq --raw-output "select(.releases != null) | .releases | keys_unsorted | last")
 
 if [ -z "$LATEST_VERSION" ]; then
-    echo "Package not found on PyPI."
-    LATEST_VERSION="0.0.0"
+  echo "Package not found on PyPI."
+  LATEST_VERSION="0.0.0"
 else
-    echo "Latest version on PyPI: $LATEST_VERSION"
-    if [ "$(printf '%s\n' "$LATEST_VERSION" "$NEW_VERSION" | sort -rV | head -n 1)" != "$NEW_VERSION" ] || [ "$NEW_VERSION" == "$LATEST_VERSION" ]; then
-        echo "The new version $NEW_VERSION is not greater than the latest version $LATEST_VERSION on PyPI."
-        exit 1
-    fi
+  echo "Latest version on PyPI: $LATEST_VERSION"
+  if [ "$(printf '%s\n' "$LATEST_VERSION" "$NEW_VERSION" | sort -rV | head -n 1)" != "$NEW_VERSION" ] || [ "$NEW_VERSION" == "$LATEST_VERSION" ]; then
+    echo "The new version $NEW_VERSION is not greater than the latest version $LATEST_VERSION on PyPI."
+    exit 1
+  fi
 fi
 
 # Build distributions for the specific project
@@ -56,9 +56,8 @@ TWINE_CHECK=$(twine check "${TOP_DIR}/py/dist/*")
 echo "$TWINE_CHECK"
 
 if echo "$TWINE_CHECK" | grep -q "FAIL"; then
-    echo "Twine check failed"
-    exit 1
+  echo "Twine check failed"
+  exit 1
 else
-    echo "Twine passed"
+  echo "Twine passed"
 fi
-

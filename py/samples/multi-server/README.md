@@ -6,7 +6,7 @@ manager.
 ## Running the sample
 
 ```bash
-env APP_ENV=dev uv run samples/multi_server/multi_server.py
+env GENKIT_ENV=dev uv run multi_server.py
 ```
 
 ## Output

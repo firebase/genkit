@@ -339,19 +339,13 @@ def to_generate_action_options(
     model = model or registry.default_model
     if model is None:
         raise Exception('No model configured.')
-    if not isinstance(config, GenerationCommonConfig | dict | None):
-        raise AttributeError('Invalid generate config provided')
     resolved_msgs: list[Message] = []
     if system:
-        resolved_msgs.append(
-            Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system))
-        )
+        resolved_msgs.append(Message(role=Role.SYSTEM, content=_normalize_prompt_arg(system)))
     if messages:
         resolved_msgs += messages
     if prompt:
-        resolved_msgs.append(
-            Message(role=Role.USER, content=_normalize_prompt_arg(prompt))
-        )
+        resolved_msgs.append(Message(role=Role.USER, content=_normalize_prompt_arg(prompt)))
 
     # If is schema is set but format is not explicitly set, default to
     # `json` format.
@@ -391,16 +385,18 @@ def to_generate_action_options(
 def _normalize_prompt_arg(
     prompt: str | Part | list[Part] | None,
 ) -> list[Part] | None:
-    """Normalizes the prompt argument to a list of `Part` objects.
+    """Normalizes different prompt input types into a list of Parts.
 
-    This function ensures that the prompt argument is a list of `Part` objects,
-    which is the expected format for the `generate` function.
+    Ensures that the prompt content, whether provided as a string, a single Part,
+    or a list of Parts, is consistently represented as a list of Part objects.
 
     Args:
-        prompt: The prompt argument to normalize.
+        prompt: The prompt input, which can be a string, a Part, a list of Parts,
+            or None.
 
     Returns:
-        A list of `Part` objects, or None if the prompt is None.
+        A list containing the normalized Part(s), or None if the input `prompt`
+        was None.
     """
     if not prompt:
         return None

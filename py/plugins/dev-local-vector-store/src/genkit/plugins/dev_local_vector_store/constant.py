@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from genkit.core.typing import DocumentData, Embedding
+from genkit.types import DocumentData, Embedding
 
 
 class Params(BaseModel):

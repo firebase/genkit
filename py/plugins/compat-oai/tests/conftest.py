@@ -16,14 +16,14 @@
 
 import pytest
 
-from genkit.core.typing import (
+from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.types import (
     GenerateRequest,
     Message,
     Role,
     TextPart,
 )
-from genkit.plugins.compat_oai.models.model_info import GPT_4
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 
 
 @pytest.fixture

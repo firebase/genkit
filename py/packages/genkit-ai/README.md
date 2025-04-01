@@ -1,31 +1,51 @@
 # genkit-ai
 
+Genkit is a framework designed to help you build AI-powered applications and features.
+It provides open source libraries for Python, Node.js and Go, plus developer tools for testing
+and debugging.
+
+You can deploy and run Genkit libraries anywhere Python is supported. It's designed to work with
+many AI model providers and vector databases. While we offer integrations for Firebase and Google Cloud,
+you can use Genkit independently of any Google services.
+
 ## Setup Instructions
 
-1. Install `uv` from https://docs.astral.sh/uv/getting-started/installation/
-
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+pip install genkit-ai
+pip install genkit-plugin-google-genai
 ```
 
-2. Install required tools using `uv`
+```python
+import asyncio
+import json
+from pydantic import BaseModel, Field
+from genkit.ai import Genkit
+from genkit.plugins.google_genai import GoogleGenai
 
-```bash
-uv pip install -r pyproject.toml
+ai = Genkit(
+    plugins=[GoogleGenai()],
+    model='google_genai/gemini-2.0-flash',
+)
+
+class RpgCharacter(BaseModel):
+    """An RPG game character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+
+@ai.flow()
+async def generate_character(name: str):
+    result = await ai.agenerate(
+        prompt=f'generate an RPG character named {name}',
+        output_schema=RpgCharacter,
+    )
+    return result.output
+
+
+async def main() -> None:
+    """Main function."""
+    print(json.dumps(await generate_character('Goblorb')))
+
+asyncio.run(main())
 ```
-
-3. If you are using VSCode, install the `Ruff` extension from the marketplace to
-   add linter support.
-
-## Run test app
-
-See the README.md in the samples folder.
-
-
-## Run all unit tests
-
-``` bash
-uv run pytest .
-```
-
-

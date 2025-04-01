@@ -21,7 +21,7 @@ from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
-from genkit.ai.plugin import Plugin
+from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
@@ -30,9 +30,11 @@ from genkit.plugins.google_genai.models.embedder import (
 )
 from genkit.plugins.google_genai.models.gemini import (
     GeminiApiOnlyVersion,
+    GeminiConfigSchema,
     GeminiModel,
     GeminiVersion,
 )
+from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 
 PLUGIN_NAME = 'google_genai'
 
@@ -64,11 +66,17 @@ class GoogleGenai(Plugin):
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
     ):
+        """Initialize the GoogleGenai plugin.
+
+        Args:
+            vertexai: Whether to use Vertex AI.
+            api_key: The API key to use.
+            credentials: The credentials to use.
+        """
         api_key = api_key if api_key else os.getenv('GEMINI_API_KEY')
         if not vertexai and not api_key:
             raise ValueError(
-                'Gemini api key should be passed in plugin params '
-                'or as a GEMINI_API_KEY environment variable'
+                'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
         self._vertexai = vertexai
 
@@ -79,7 +87,7 @@ class GoogleGenai(Plugin):
             project=project,
             location=location,
             debug_config=debug_config,
-            http_options=http_options,
+            http_options=_inject_attribution_headers(http_options),
         )
 
     def initialize(self, ai: GenkitRegistry) -> None:
@@ -92,24 +100,50 @@ class GoogleGenai(Plugin):
             None
         """
         supported_gemini_models = list(GeminiVersion)
-        if not self._client.vertexai:
+        if self._client.vertexai:
+            for version in ImagenVersion:
+                imagen_model = ImagenModel(version, self._client)
+                ai.define_model(
+                    name=google_genai_name(version), fn=imagen_model.agenerate, metadata=imagen_model.metadata
+                )
+        else:
             supported_gemini_models.extend(list(GeminiApiOnlyVersion))
 
         for version in supported_gemini_models:
             gemini_model = GeminiModel(version, self._client, ai)
             ai.define_model(
                 name=google_genai_name(version),
-                fn=gemini_model.generate,
+                fn=gemini_model.agenerate,
                 metadata=gemini_model.metadata,
+                config_schema=GeminiConfigSchema,
             )
 
-        embeding_models = (
-            VertexEmbeddingModels
-            if self._client.vertexai
-            else GeminiEmbeddingModels
-        )
+        embeding_models = VertexEmbeddingModels if self._client.vertexai else GeminiEmbeddingModels
         for version in embeding_models:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(
-                name=google_genai_name(version), fn=embedder.generate
-            )
+            ai.define_embedder(name=google_genai_name(version), fn=embedder.agenerate)
+
+
+def _inject_attribution_headers(http_options):
+    """Adds genkit client info to the appropriate http headers."""
+
+    if not http_options:
+        http_options = HttpOptions()
+    else:
+        if isinstance(http_options, dict):
+            http_options = HttpOptions(**http_options)
+
+    if not http_options.headers:
+        http_options.headers = {}
+
+    if 'x-goog-api-client' not in http_options.headers:
+        http_options.headers['x-goog-api-client'] = GENKIT_CLIENT_HEADER
+    else:
+        http_options.headers['x-goog-api-client'] += f' {GENKIT_CLIENT_HEADER}'
+
+    if 'user-agent' not in http_options.headers:
+        http_options.headers['user-agent'] = GENKIT_CLIENT_HEADER
+    else:
+        http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
+
+    return http_options

@@ -38,6 +38,7 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 PNPM_VERSION="10.2.0"
 NODE_VERSION="23"
 NVM_VERSION="0.40.1"
+GOLANGCI_LINT_VERSION="2.0.2"
 
 AUDIENCE="eng"
 while getopts ":a:" opt; do
@@ -79,7 +80,7 @@ function genkit::update_path() {
 
   # Check if path is already in PATH
   if [[ ":$PATH:" != *":$new_path:"* ]]; then
-    if [ -n "${ZSH_VERSION:-}" ]; then
+    if [ -n "${ZSH_VERSION-}" ]; then
       echo "export PATH=\"$new_path:\$PATH\"" >>"$HOME/.zshrc"
     else
       echo "export PATH=\"$new_path:\$PATH\"" >>"$HOME/.bashrc"
@@ -90,6 +91,11 @@ function genkit::update_path() {
   else
     echo "Path $new_path already exists in PATH"
   fi
+}
+
+function genkit::install_golangci_lint() {
+  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh |
+    sh -s -- -b $(go env GOPATH)/bin "v${GOLANGCI_LINT_VERSION}"
 }
 
 function genkit::preconfigure_environment() {
@@ -300,6 +306,7 @@ function genkit::install_common_packages() {
   genkit::install_python_cli_tools
   genkit::install_docs_cli_tools
   genkit::install_pnpm_cli_tools
+  genkit::install_golangci_lint
 }
 
 # Install all the required tools for CI.

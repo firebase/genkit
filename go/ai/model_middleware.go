@@ -26,6 +26,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/firebase/genkit/go/core/logger"
 )
 
 // AugmentWithContextOptions configures how a request is augmented with context.
@@ -122,6 +124,15 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 					if msg.Role == RoleSystem {
 						return nil, fmt.Errorf("model %q does not support system role, but system role was provided. Request: %+v", model, input)
 					}
+				}
+			}
+
+			if info.Stage != "" {
+				switch info.Stage {
+				case ModelStageDeprecated:
+					logger.FromContext(ctx).Warn("model is deprecated and may be removed in a future release", "model", model)
+				case ModelStageUnstable:
+					logger.FromContext(ctx).Warn("model is experimental or unstable", "model", model)
 				}
 			}
 

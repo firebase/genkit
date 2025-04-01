@@ -33,15 +33,11 @@ from typing import Any
 
 from genkit.core.action import (
     Action,
-    ActionKind,
     create_action_key,
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-
-type ActionName = str
-
-type ActionResolver = Callable[[ActionKind, str], None]
+from genkit.core.action.types import ActionKind, ActionName, ActionResolver
 
 # An action store is a nested dictionary mapping ActionKind to a dictionary of
 # action names and their corresponding Action instances.
@@ -86,9 +82,7 @@ class Registry:
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
-    def register_action_resolver(
-        self, plugin_name: str, resolver: ActionResolver
-    ):
+    def register_action_resolver(self, plugin_name: str, resolver: ActionResolver):
         """Registers an ActionResolver function for a given plugin.
 
         Args:
@@ -122,7 +116,8 @@ class Registry:
             kind: The type of action being registered (e.g., TOOL, MODEL).
             name: A unique name for the action within its kind.
             fn: The function to be called when the action is executed.
-            metadata_fn: The function to be used to infer metadata (e.g. schemas).
+            metadata_fn: The function to be used to infer metadata (e.g.
+                schemas).
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
@@ -188,9 +183,7 @@ class Registry:
         kind, name = parse_action_key(key)
         return self.lookup_action(kind, name)
 
-    def list_serializable_actions(
-        self, allowed_kinds: set[ActionKind] | None = None
-    ) -> dict[str, Action] | None:
+    def list_serializable_actions(self, allowed_kinds: set[ActionKind] | None = None) -> dict[str, Action] | None:
         """Enlist all the actions into a dictionary.
 
         Args:
@@ -241,10 +234,7 @@ class Registry:
                 self._value_by_kind_and_name[kind] = {}
 
             if name in self._value_by_kind_and_name[kind]:
-                raise ValueError(
-                    f'value for kind "{kind}" '
-                    f'and name "{name}" is already registered'
-                )
+                raise ValueError(f'value for kind "{kind}" and name "{name}" is already registered')
 
             self._value_by_kind_and_name[kind][name] = value
 

@@ -51,8 +51,8 @@ importers:
         specifier: ^2.0.20
         version: 2.0.20
       dotprompt:
-        specifier: ^1.0.0
-        version: 1.0.1
+        specifier: ^1.1.1
+        version: 1.1.1
       json5:
         specifier: ^2.2.3
         version: 2.2.3
@@ -124,8 +124,8 @@ importers:
         specifier: ^2.8.5
         version: 2.8.5
       dotprompt:
-        specifier: ^1.0.0
-        version: 1.0.1
+        specifier: ^1.1.1
+        version: 1.1.1
       express:
         specifier: ^4.21.0
         version: 4.21.0
@@ -340,8 +340,8 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       dotprompt:
-        specifier: ^1.0.0
-        version: 1.0.1
+        specifier: ^1.1.1
+        version: 1.1.1
       genkit:
         specifier: workspace:^
         version: link:../../genkit
@@ -1385,7 +1385,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.3.0)(@genkit-ai/core@1.3.0)
+        version: 0.10.1(@genkit-ai/ai@1.4.0)(@genkit-ai/core@1.4.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2307,11 +2307,11 @@ packages:
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
 
-  '@genkit-ai/ai@1.3.0':
-    resolution: {integrity: sha512-pocwD7/a6lXYiCkmTNNqINjLk44c8Mpgx0xpfAlC4PirMjACQSfPaPwrO1SdrmRM/0VV0WihcEOcirPcWOrV/Q==}
+  '@genkit-ai/ai@1.4.0':
+    resolution: {integrity: sha512-s0YZ7quoYF4LYFFVnJz/3GvBmXPl8Ty9a5ZMOCB8k0xmAopiFwKEpaCMFbpIyF04EmB2U8x5/k3bjliD32eZXQ==}
 
-  '@genkit-ai/core@1.3.0':
-    resolution: {integrity: sha512-vwoHaiKkA8VBgGbp7a2oDzBFCicCFOihwCup48PvOY8kA9VYCws/qdUkFnrDh5NqzL7urXmjKE2wNf/59UmU9g==}
+  '@genkit-ai/core@1.4.0':
+    resolution: {integrity: sha512-Y85RsvXfejH7vQOH/O8/GgaKqDeqiDDMnWNKa2Cy2ugwlsy1P5jSHkQ5wUPgCCTSwQG4eOfdmmwGpFVvNi0QXw==}
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -4429,8 +4429,8 @@ packages:
     resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
     engines: {node: '>=12'}
 
-  dotprompt@1.0.1:
-    resolution: {integrity: sha512-mruM6m+pWe4t41InRDRchNLSl3x+q7iIBukVuUfb7vvN7aEOwP+BuONACAdaEeAqlMDtWHcTsuqqBdAAjGwamg==}
+  dotprompt@1.1.1:
+    resolution: {integrity: sha512-xll31JxDiE7FaF030t0Dx4EMSV60Qn/pONDn6Hs5bBBeEANbtqIu6fPfaAOoSNbF1Y9TK+pj9Xnvud7G7GHpaA==}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -7544,13 +7544,13 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@genkit-ai/ai@1.3.0':
+  '@genkit-ai/ai@1.4.0':
     dependencies:
-      '@genkit-ai/core': 1.3.0
+      '@genkit-ai/core': 1.4.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
-      dotprompt: 1.0.1
+      dotprompt: 1.1.1
       json5: 2.2.3
       node-fetch: 3.3.2
       partial-json: 0.1.7
@@ -7558,7 +7558,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.3.0':
+  '@genkit-ai/core@1.4.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.30.1(@opentelemetry/api@1.9.0)
@@ -7572,7 +7572,7 @@ snapshots:
       async-mutex: 0.5.0
       body-parser: 1.20.3
       cors: 2.8.5
-      dotprompt: 1.0.1
+      dotprompt: 1.1.1
       express: 4.21.2
       get-port: 5.1.1
       json-schema: 0.4.0
@@ -9909,7 +9909,7 @@ snapshots:
 
   dotenv@16.4.5: {}
 
-  dotprompt@1.0.1:
+  dotprompt@1.1.1:
     dependencies:
       '@types/handlebars': 4.1.0
       handlebars: 4.7.8
@@ -10514,10 +10514,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.3.0)(@genkit-ai/core@1.3.0):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.4.0)(@genkit-ai/core@1.4.0):
     dependencies:
-      '@genkit-ai/ai': 1.3.0
-      '@genkit-ai/core': 1.3.0
+      '@genkit-ai/ai': 1.4.0
+      '@genkit-ai/core': 1.4.0
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
     transitivePeerDependencies:

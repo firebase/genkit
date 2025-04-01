@@ -14,16 +14,14 @@ import pytest
 from genkit.ai import Genkit
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import ActionKind, ActionMetadataKey
-from genkit.core.registry import ActionKind, Registry
+from genkit.core.action.types import ActionKind, ActionMetadataKey
+from genkit.core.registry import Registry
 
 
 def test_register_action_with_name_and_kind() -> None:
     """Ensure we can register an action with a name and kind."""
     registry = Registry()
-    action = registry.register_action(
-        name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
-    )
+    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
     got = registry.lookup_action(ActionKind.CUSTOM, 'test_action')
 
     assert got == action
@@ -34,9 +32,7 @@ def test_register_action_with_name_and_kind() -> None:
 def test_lookup_action_by_key() -> None:
     """Ensure we can lookup an action by its key."""
     registry = Registry()
-    action = registry.register_action(
-        name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
-    )
+    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
     got = registry.lookup_action_by_key('/custom/test_action')
 
     assert got == action
@@ -54,9 +50,7 @@ def test_lookup_action_by_key_invalid_format() -> None:
 def test_list_serializable_actions() -> None:
     """Ensure we can list serializable actions."""
     registry = Registry()
-    registry.register_action(
-        name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x
-    )
+    registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
 
     got = registry.list_serializable_actions()
     assert got == {
@@ -79,9 +73,7 @@ def test_resolve_action_from_plugin():
     class MyPlugin(Plugin):
         name = 'myplugin'
 
-        def resolve_action(
-            self, ai: GenkitRegistry, kind: ActionKind, name: str
-        ):
+        def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str):
             nonlocal resolver_calls
             resolver_calls.append([kind, name])
 
