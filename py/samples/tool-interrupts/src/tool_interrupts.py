@@ -63,8 +63,8 @@ async def main() -> None:
             tools=['present_questions'],
         )
         messages = response.messages
-        if len(response.tool_requests) > 0:
-            request = response.tool_requests[0]
+        if len(response.interrupts) > 0:
+            request = response.interrupts[0]
             print(request.tool_request.input.get('question'))
             i = 1
             for question in request.tool_request.input.get('answers'):

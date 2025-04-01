@@ -128,14 +128,6 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
 
 @ai.flow()
 async def simple_generate_with_interrupts(value: int) -> str:
-    """Generate a greeting for the given name.
-
-    Args:
-        value: the integer to send to test function
-
-    Returns:
-        The generated response with a function.
-    """
     response1 = await ai.agenerate(
         model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
@@ -147,10 +139,10 @@ async def simple_generate_with_interrupts(value: int) -> str:
         tools=['gablorkenTool2'],
     )
     await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
-    if len(response1.tool_requests) == 0:
+    if len(response1.interrupts) == 0:
         return response1.text
 
-    tr = tool_response(response1.tool_requests[0], 178)
+    tr = tool_response(response1.interrupts[0], 178)
     response = await ai.agenerate(
         model=google_genai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=response1.messages,
