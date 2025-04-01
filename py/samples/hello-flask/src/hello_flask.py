@@ -19,12 +19,12 @@
 from flask import Flask
 
 from genkit.ai import Genkit
-from genkit.types import GenkitError
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import (
     GoogleGenai,
     google_genai_name,
 )
+from genkit.types import GenkitError
 
 ai = Genkit(
     plugins=[GoogleGenai()],

@@ -19,8 +19,8 @@
 Users should import Genkit types from this module.
 """
 
-from genkit.core.error import GenkitError, StatusName
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
+from genkit.core.error import GenkitError, StatusName
 from genkit.core.typing import (
     CustomPart,
     Docs,
