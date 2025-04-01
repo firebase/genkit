@@ -35,7 +35,7 @@ func TestFakeEmbedder(t *testing.T) {
 	emb := ai.DefineEmbedder(r, "fake", "embed", embed.Embed)
 	d := ai.DocumentFromText("fakeembedder test", nil)
 
-	vals := []float32{1, 2}
+	vals := []float64{1, 2}
 	embed.Register(d, vals)
 
 	ctx := context.Background()
