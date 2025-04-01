@@ -19,6 +19,7 @@
 from flask import Flask
 
 from genkit.ai import Genkit
+from genkit.types import GenkitError
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import (
     GoogleGenai,
@@ -33,11 +34,15 @@ ai = Genkit(
 app = Flask(__name__)
 
 
+async def my_context_provider(request):
+    return {'username': request.headers.get('authorization')}
+
+
 @app.post('/chat')
-@genkit_flask_handler(ai)
+@genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
 async def say_hi(name: str, ctx):
     return await ai.agenerate(
         on_chunk=ctx.send_chunk,
-        prompt=f'tell a medium sized joke about {name}',
+        prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username")}',
     )
