@@ -176,7 +176,7 @@ func generate(
 		return nil, err
 	}
 
-	gc, err := convertRequest(client, model, input, cache)
+	gc, err := convertRequest(model, input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func generate(
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+func convertRequest(model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = genai.Ptr[int32](1)
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
