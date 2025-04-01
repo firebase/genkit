@@ -23,7 +23,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
-	"github.com/firebase/genkit/go/plugins/internal/gemini"
 )
 
 func main() {
@@ -47,16 +46,16 @@ func main() {
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&gemini.GenerationGoogleAIConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				GenerationCommonConfig: ai.GenerationCommonConfig{
 					Temperature:     1.0,
 					MaxOutputTokens: 256,
 				},
 				// Set custom safety settings - reduce restriction on harmfulness
-				SafetySettings: []*gemini.SafetySetting{
+				SafetySettings: []*googlegenai.SafetySetting{
 					{
-						Category:  gemini.HarmCategoryHarassment,
-						Threshold: gemini.HarmBlockMediumAndAbove,
+						Category:  googlegenai.HarmCategoryHarassment,
+						Threshold: googlegenai.HarmBlockMediumAndAbove,
 					},
 				},
 			}),
