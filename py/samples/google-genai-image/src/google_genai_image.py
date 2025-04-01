@@ -40,7 +40,7 @@ async def draw_image_with_gemini() -> str:
     Returns:
         The image.
     """
-    return await ai.generate(
+    return await ai.agenerate(
         messages=[Message(role=Role.USER, content=[TextPart(text='Draw a cat in a hat.')])],
         config={'response_modalities': ['Text', 'Image']},
         model=google_genai_name('gemini-2.0-flash-exp'),
@@ -57,7 +57,7 @@ async def describe_image_with_gemini(data: str) -> str:
     Returns:
         The description of the image.
     """
-    result = await ai.generate(
+    result = await ai.agenerate(
         messages=[
             Message(
                 role=Role.USER,

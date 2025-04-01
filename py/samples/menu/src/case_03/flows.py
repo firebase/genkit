@@ -66,7 +66,7 @@ async def s03_multiTurnChatFlow(
 ) -> ChatSessionOutputSchema:
     history = chat_history_store.read(my_input.session_id)
 
-    llm_response = await ai.generate(
+    llm_response = await ai.agenerate(
         model=google_genai_name(GeminiVersion.GEMINI_1_5_FLASH),
         messages=history,
         prompt=[TextPart(text=my_input.question)],

@@ -36,7 +36,7 @@ async def draw_image_with_imagen() -> str:
         The image.
     """
     config = {'number_of_images': 1, 'language': 'en'}
-    return await ai.generate(
+    return await ai.agenerate(
         prompt='Draw a cat in a hat',
         model=google_genai_name('imagegeneration@006'),
         # optional config; check README for available fields

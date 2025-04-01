@@ -64,10 +64,10 @@ See the following code samples for a concrete idea of how to use these capabilit
     )
 
     async def main():
-        result = await ai.generate(prompt=f'Why is AI awesome?')
+        result = await ai.agenerate(prompt=f'Why is AI awesome?')
         print(result.text)
 
-        stream, _ = await ai.generate_stream(prompt=f'Tell me a story')
+        stream, _ = ai.generate_stream(prompt=f'Tell me a story')
         async for chunk in stream:
             print(chunk.text)
 
@@ -96,7 +96,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         abilities: list[str] = Field(description='list of abilities (3-4)')
 
     async def main():
-        result = await ai.generate(
+        result = await ai.agenerate(
             prompt=f'generate an RPG character named Glorb',
             output_schema=RpgCharacter,
         )

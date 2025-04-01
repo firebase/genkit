@@ -64,7 +64,7 @@ content, define flows, define formats, etc.
 
 | Category         | Method                                                                       | Description                          |
 |------------------|------------------------------------------------------------------------------|--------------------------------------|
-| **AI**           | [`generate()`][genkit.ai.veneer.Genkit.generate]                         | Generates content.                   |
+| **AI**           | [`agenerate()`][genkit.ai.veneer.Genkit.generate]                        | Generates content.                   |
 |                  | [`generate_stream()`][genkit.ai.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
 |                  | [`embed()`][genkit.ai.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
 | **Registration** | [`define_embedder()`][genkit.ai.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
@@ -211,7 +211,7 @@ class Genkit(GenkitRegistry):
         )
         httpd.serve_forever()
 
-    async def generate(
+    async def agenerate(
         self,
         model: str | None = None,
         prompt: str | Part | list[Part] | None = None,
@@ -403,7 +403,7 @@ class Genkit(GenkitRegistry):
         """
         stream = Channel()
 
-        resp = self.generate(
+        resp = self.agenerate(
             model=model,
             prompt=prompt,
             system=system,
@@ -427,7 +427,7 @@ class Genkit(GenkitRegistry):
 
         return (stream, stream.closed)
 
-    async def embed(
+    async def aembed(
         self,
         model: str | None = None,
         documents: list[Document] | None = None,

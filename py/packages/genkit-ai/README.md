@@ -8,7 +8,6 @@ You can deploy and run Genkit libraries anywhere Python is supported. It's desig
 many AI model providers and vector databases. While we offer integrations for Firebase and Google Cloud,
 you can use Genkit independently of any Google services.
 
-
 ## Setup Instructions
 
 ```bash
@@ -37,7 +36,7 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(name: str):
-    result = await ai.generate(
+    result = await ai.agenerate(
         prompt=f'generate an RPG character named {name}',
         output_schema=RpgCharacter,
     )
