@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"google.golang.org/genai"
 )
 
@@ -57,7 +56,7 @@ var (
 				"gemini-1.5-flash-001",
 				"gemini-1.5-flash-002",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
 		gemini15Pro: {
@@ -67,7 +66,7 @@ var (
 				"gemini-1.5-pro-001",
 				"gemini-1.5-pro-002",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
 		gemini15Flash8b: {
@@ -76,7 +75,7 @@ var (
 				"gemini-1.5-flash-8b-latest",
 				"gemini-1.5-flash-8b-001",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
 		gemini20Flash: {
@@ -84,7 +83,7 @@ var (
 			Versions: []string{
 				"gemini-2.0-flash-001",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
 		gemini20FlashLite: {
@@ -92,31 +91,31 @@ var (
 			Versions: []string{
 				"gemini-2.0-flash-lite-001",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
 		gemini20FlashLitePrev: {
 			Label:    "Gemini 2.0 Flash Lite Preview 02-05",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20ProExp0205: {
 			Label:    "Gemini 2.0 Pro Exp 02-05",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
 		},
 		gemini25ProExp0305: {
 			Label:    "Gemini 2.5 Pro Exp 03-25",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
 		},
 	}
