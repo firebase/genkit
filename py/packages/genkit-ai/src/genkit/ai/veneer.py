@@ -96,7 +96,7 @@ from asyncio import Future
 from collections.abc import AsyncIterator
 from http.server import HTTPServer
 from typing import Any
-
+from genkit.aio.loop import run_async
 from genkit.ai import server
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
@@ -189,6 +189,15 @@ class Genkit(GenkitRegistry):
     def join(self):
         if self.thread and self.loop:
             self.thread.join()
+
+    def run_main(self, main):
+        if self.loop:
+            async def run():
+                return await main
+            run_async(self.loop, run)
+        else:
+            asyncio.run(main)
+        self.join()
 
     def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.
