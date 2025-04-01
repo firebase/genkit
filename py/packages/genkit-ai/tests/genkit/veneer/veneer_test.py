@@ -524,7 +524,7 @@ async def test_generate_with_interrupt_respond(
     response = await ai.agenerate(
         model='programmableModel',
         messages=interrupted_response.messages,
-        tool_responses=[tool_response(interrupted_response.tool_requests[0], {'bar': 2})],
+        tool_responses=[tool_response(interrupted_response.interrupts[0], {'bar': 2})],
         tools=['test_tool', 'test_interrupt'],
     )
 

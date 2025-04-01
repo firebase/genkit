@@ -106,6 +106,15 @@ class MessageWrapper(Message):
         """
         return [p.root for p in self.content if isinstance(p.root, ToolRequestPart)]
 
+    @cached_property
+    def interrupts(self) -> list[ToolRequestPart]:
+        """Returns all interrupted tool request parts of the message as a list.
+
+        Returns:
+            list[ToolRequestPart]: list of interrupted tool requests.
+        """
+        return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
+
 
 class GenerateResponseWrapper(GenerateResponse):
     """A wrapper around GenerateResponse providing utility methods.
@@ -207,6 +216,15 @@ class GenerateResponseWrapper(GenerateResponse):
             list[ToolRequestPart]: list of tool requests present in this response.
         """
         return self.message.tool_requests
+
+    @cached_property
+    def interrupts(self) -> list[ToolRequestPart]:
+        """Returns all interrupted tool request parts of the response as a list.
+
+        Returns:
+            list[ToolRequestPart]: list of interrupted tool requests.
+        """
+        return self.message.interrupts
 
 
 class GenerateResponseChunkWrapper(GenerateResponseChunk):

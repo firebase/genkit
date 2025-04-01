@@ -24,6 +24,8 @@ from genkit.core.typing import (
     Media,
     Message,
     Part,
+    ToolRequest,
+    ToolRequestPart,
 )
 
 
@@ -360,3 +362,94 @@ def test_get_part_counts(test_parts, expected_part_counts) -> None:
 )
 def test_get_basic_usage_stats(test_input, test_response, expected_output) -> None:
     assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output
+
+
+def test_response_wrapper_tool_requests() -> None:
+    wrapper = GenerateResponseWrapper(
+        response=GenerateResponse(
+            message=Message(
+                role='model',
+                content=[Part(text='bar')],
+            )
+        ),
+        request=GenerateRequest(
+            messages=[
+                Message(
+                    role='user',
+                    content=[Part(text='foo')],
+                ),
+            ],
+        ),
+    )
+
+    assert wrapper.tool_requests == []
+
+    wrapper = GenerateResponseWrapper(
+        response=GenerateResponse(
+            message=Message(
+                role='model',
+                content=[Part(tool_request=ToolRequest(name='tool', input={'abc': 3})), Part(text='bar')],
+            )
+        ),
+        request=GenerateRequest(
+            messages=[
+                Message(
+                    role='user',
+                    content=[Part(text='foo')],
+                ),
+            ],
+        ),
+    )
+
+    assert wrapper.tool_requests == [ToolRequestPart(tool_request=ToolRequest(name='tool', input={'abc': 3}))]
+
+
+def test_response_wrapper_interrupts() -> None:
+    wrapper = GenerateResponseWrapper(
+        response=GenerateResponse(
+            message=Message(
+                role='model',
+                content=[Part(text='bar')],
+            )
+        ),
+        request=GenerateRequest(
+            messages=[
+                Message(
+                    role='user',
+                    content=[Part(text='foo')],
+                ),
+            ],
+        ),
+    )
+
+    assert wrapper.interrupts == []
+
+    wrapper = GenerateResponseWrapper(
+        response=GenerateResponse(
+            message=Message(
+                role='model',
+                content=[
+                    Part(tool_request=ToolRequest(name='tool1', input={'abc': 3})),
+                    Part(
+                        tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
+                        metadata={'interrupt': {'banana': 'yes'}},
+                    ),
+                    Part(text='bar'),
+                ],
+            )
+        ),
+        request=GenerateRequest(
+            messages=[
+                Message(
+                    role='user',
+                    content=[Part(text='foo')],
+                ),
+            ],
+        ),
+    )
+
+    assert wrapper.interrupts == [
+        ToolRequestPart(
+            tool_request=ToolRequest(name='tool2', input={'bcd': 4}), metadata={'interrupt': {'banana': 'yes'}}
+        )
+    ]
