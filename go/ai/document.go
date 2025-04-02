@@ -15,6 +15,7 @@ type OutputFormat string
 const (
 	OutputFormatText  OutputFormat = "text"
 	OutputFormatJSON  OutputFormat = "json"
+	OutputFormatJSONL OutputFormat = "jsonl"
 	OutputFormatMedia OutputFormat = "media"
 )
 

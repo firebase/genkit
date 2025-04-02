@@ -530,7 +530,126 @@ func TestConstrainedGenerate(t *testing.T) {
 	})
 }
 
-func TestJsonFormatter(t *testing.T) {
+func TestHandlers(t *testing.T) {
+	tests := []struct {
+		name         string
+		format       string
+		schema       map[string]any
+		output       *OutputConfig
+		instructions string
+		wantErr      bool
+	}{
+		{
+			name:   "not existing format",
+			format: "foobar",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			wantErr: true,
+		},
+		{
+			name:   "text handler",
+			format: "text",
+			schema: nil,
+			output: &OutputConfig{
+				ContentType: "text/plain",
+			},
+			instructions: "",
+			wantErr:      false,
+		},
+		{
+			name:   "json handler",
+			format: "json",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			output: &OutputConfig{
+				Format: "json",
+				Schema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+						"age":  map[string]any{"type": "integer"},
+					},
+					"additionalProperties": false,
+				},
+				Constrained: true,
+				ContentType: "application/json",
+			},
+			instructions: "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"age\\\":{\\\"type\\\":\\\"integer\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"}},\\\"type\\\":\\\"object\\\"}\"```",
+			wantErr:      false,
+		},
+		{
+			name:   "jsonl handler",
+			format: "jsonl",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+						"age":  map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			output: &OutputConfig{
+				Format: "jsonl",
+				Schema: map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"name": map[string]any{"type": "string"},
+							"age":  map[string]any{"type": "integer"},
+						},
+					},
+					"additionalProperties": false,
+				},
+				Constrained: true,
+				ContentType: "application/jsonl",
+			},
+			instructions: "Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```\"{\\\"properties\\\":{\\\"age\\\":{\\\"type\\\":\\\"integer\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"}},\\\"type\\\":\\\"object\\\"}\"```",
+			wantErr:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			format, err := ResolveFormat(r, tt.schema, tt.format)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ResolveFormat() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				instructions := ResolveInstructions(format, tt.schema, "")
+				config := format.Handler(tt.schema).Config()
+
+				if diff := cmp.Diff(tt.instructions, instructions); diff != "" {
+					t.Errorf("Instructions diff (+got -want):\n%s", diff)
+				}
+				if diff := cmp.Diff(tt.output, config); diff != "" {
+					t.Errorf("config diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestJsonParser(t *testing.T) {
 	tests := []struct {
 		name     string
 		schema   map[string]any
@@ -626,7 +745,7 @@ func TestJsonFormatter(t *testing.T) {
 	}
 }
 
-func TestTextFormatter(t *testing.T) {
+func TestTextParser(t *testing.T) {
 	tests := []struct {
 		name     string
 		response *Message
@@ -671,6 +790,105 @@ func TestTextFormatter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			formatter := TextFormatter{"text"}
 			message, err := formatter.Handler(nil).ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestJsonlParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses jsonl schema",
+			schema: map[string]any{
+				"type":     "object",
+				"required": []string{"id"},
+				"properties": map[string]any{
+					"id":   map[string]any{"type": "integer"},
+					"name": map[string]any{"type": "string"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(JSONMarkdown(`{"id": 1, "name": "test"}\n{"id": 2}\n`)),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("{\"id\": 1, \"name\": \"test\"}"),
+					NewJSONPart("{\"id\": 2}"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "contains unexpected field fails",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(JSONMarkdown(`{"id": 1, "foo": "bar"}\n{"id": 2}\n`)),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "parses JSONl with preamble and code fence",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Here are the objects:\n\n```\n{\"id\": 1}\n{\"id\": 2}\n```"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("{\"id\": 1}"),
+					NewJSONPart("{\"id\": 2}"),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := JSONLFormatter{"jsonl"}
+			message, err := formatter.Handler(tt.schema).ParseMessage(tt.response)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)

@@ -27,6 +27,7 @@ import (
 // Default formats get automatically registered on registry init
 var DEFAULT_FORMATS = []Formatter{
 	JSONFormatter{FormatName: "json"},
+	JSONLFormatter{FormatName: "jsonl"},
 	TextFormatter{FormatName: "text"},
 }
 
