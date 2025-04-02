@@ -15,7 +15,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "genkit-plugin-firebase",
   "genkit-plugin-google-ai",
   "genkit-plugin-google-cloud",

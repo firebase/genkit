@@ -72,7 +72,6 @@ capabilities in code:
 | Pinecone     | ❌     | ✅         | ✅ |
 | Vertex AI    | ❌     | ✅         | ✅ |
 
-
 ## Examples
 
 ### Basic generation
@@ -109,7 +108,7 @@ capabilities in code:
         asyncio.run(content_generation())
     ```
 
-    1. :man_raising_hand: Basic example of annotation.
+1. :man_raising_hand: Basic example of annotation.
 
 === "JavaScript"
 
@@ -142,7 +141,6 @@ capabilities in code:
       fmt.Println("Hello")
     }
     ```
-
 
 ### Structured output
 
@@ -384,6 +382,7 @@ capabilities in code:
     console.log(response.text);
     // Ahoy there! Your name is Pavel, you scurvy dog
     ```
+
 ### Agents
 
 === "Python"
