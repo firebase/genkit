@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -809,7 +808,7 @@ wheels = [
 
 [[package]]
 name = "genkit-ai"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "packages/genkit-ai" }
 dependencies = [
     { name = "asgiref" },
@@ -857,7 +856,7 @@ requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit-ai" },
@@ -872,7 +871,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/dev-local-vector-store" }
 dependencies = [
     { name = "genkit-ai" },
@@ -889,7 +888,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit-ai" },
@@ -904,7 +903,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -939,7 +938,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit-ai" },
@@ -950,7 +949,7 @@ requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit-ai" },
@@ -967,7 +966,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit-ai" },
@@ -993,7 +992,7 @@ requires-dist = [{ name = "genkit-ai", editable = "packages/genkit-ai" }]
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.0.1.dev1"
+version = "0.3.0.dev1"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit-ai" },
