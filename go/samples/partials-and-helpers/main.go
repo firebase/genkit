@@ -37,10 +37,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	genkit.DefinePartial(g, "header", "Welcome {{name}}!")
-	genkit.DefineHelper(g, "uppercase", func(s string) string {
+	if err = genkit.DefinePartial(g, "header", "Welcome {{name}}!"); err != nil {
+		log.Fatal(err)
+	}
+	if err = genkit.DefineHelper(g, "uppercase", func(s string) string {
 		return strings.ToUpper(s)
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
 
 	p, err := genkit.DefinePrompt(g, "test", ai.WithPromptText(`{{> header}} {{uppercase greeting}}`))
 
