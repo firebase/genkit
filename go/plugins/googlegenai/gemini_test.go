@@ -202,4 +202,30 @@ func TestConvertRequest(t *testing.T) {
 			t.Error("function names should be empty")
 		}
 	})
+	t.Run("convert tool choice, nil choice", func(t *testing.T) {
+		tools := []*ai.ToolDefinition{tool}
+		tc, err := convertToolChoice("", tools)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc != nil {
+			t.Fatalf("want: nil, got: %#v", tc)
+		}
+	})
+	t.Run("convert tool choice, nil tools", func(t *testing.T) {
+		_, err := convertToolChoice(ai.ToolChoiceRequired, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("convert tool choice, unknown tool choice", func(t *testing.T) {
+		tools := []*ai.ToolDefinition{tool}
+		tc, err := convertToolChoice("customChoice", tools)
+		if err == nil {
+			t.Fatal("expecting an error, got nil")
+		}
+		if tc != nil {
+			t.Fatalf("expecting empty tool config, got: %#v", tc)
+		}
+	})
 }
