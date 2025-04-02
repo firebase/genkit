@@ -51,16 +51,14 @@ See the following code samples for a concrete idea of how to use these capabilit
 
 === "Basic generation"
 
-    ```python
+    ```py
     import asyncio
-    import json
-    from pydantic import BaseModel, Field
     from genkit.ai import Genkit
     from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
         plugins=[GoogleAI()],
-        model='google_genai/gemini-2.0-flash',
+        model='googleai/gemini-2.0-flash',
     )
 
     async def main():
@@ -74,24 +72,9 @@ See the following code samples for a concrete idea of how to use these capabilit
     asyncio.run(main())
     ```
 
-In that case you have used GoogleAI entrypoint. To use VertexAI entrypoint,
-you need to have the GCP account import and call the following:
-
-    ```
-    from genkit.plugins.google_genai import VertexAI
-
-    ai = Genkit(
-        plugins=[VertexAI(project=...,location=...)],
-        model='google_genai/gemini-2.0-flash',
-    )
-    ```
-
-The rest is identical. Some models might be available only in Google AI,
-and some - only in Vertex AI.
-
 === "Structured output"
 
-    ```python
+    ```py
     import asyncio
     import json
     from pydantic import BaseModel, Field
@@ -100,7 +83,7 @@ and some - only in Vertex AI.
 
     ai = Genkit(
         plugins=[GoogleAI()],
-        model='google_genai/gemini-2.0-flash',
+        model='googleai/gemini-2.0-flash',
     )
 
     class RpgCharacter(BaseModel):
@@ -115,7 +98,7 @@ and some - only in Vertex AI.
             prompt=f'generate an RPG character named Glorb',
             output_schema=RpgCharacter,
         )
-        print(json.dumps(result.output)))
+        print(json.dumps(result.output))
 
     asyncio.run(main())
     ```
@@ -123,15 +106,32 @@ and some - only in Vertex AI.
 === "Tool calling"
 
     ```py
-    # TODO
+    import asyncio
+    from pydantic import BaseModel, Field
+    from genkit.ai import Genkit
+    from genkit.plugins.google_genai import GoogleAI
+
+    ai = Genkit(
+        plugins=[GoogleAI()],
+        model='googleai/gemini-2.0-flash',
+    )
+
+    class WeatherToolInput(BaseModel):
+        location: str = Field(description='weather location')
+
+    @ai.tool('Use it to get weather')
+    def get_weather(input:WeatherToolInput) -> str:
+        return f'Weather in {input.location} is 23°'
+
+    async def main():
+        result = await ai.generate(
+            prompt='What is the weather in London?',
+            tools=['get_weather']
+        )
+        print(result.text)
+
+    asyncio.run(main())
     ```
-
-=== "Data retrieval"
-
-    ```py
-    # TODO
-    ```
-
 
 ## Development tools
 

@@ -76,37 +76,33 @@ This guide shows you how to get started with Genkit in a Python app.
 5. Create `main.py` file:
 
    ```python
-   import asyncio
-   import json
-   from pydantic import BaseModel, Field
-   from genkit.ai import Genkit
-   from genkit.plugins.google_genai import GoogleGenai
+    import json
+    from pydantic import BaseModel, Field
+    from genkit.ai import Genkit
+    from genkit.plugins.google_genai import GoogleAI
 
-   ai = Genkit(
-       plugins=[GoogleGenai()],
-       model='google_genai/gemini-2.0-flash',
-   )
+    ai = Genkit(
+        plugins=[GoogleAI()],
+        model='googleai/gemini-2.0-flash',
+    )
 
-   class RpgCharacter(BaseModel):
-       name: str = Field(description='name of the character')
-       back_story: str = Field(description='back story')
-       abilities: list[str] = Field(description='list of abilities (3-4)')
+    class RpgCharacter(BaseModel):
+        name: str = Field(description='name of the character')
+        back_story: str = Field(description='back story')
+        abilities: list[str] = Field(description='list of abilities (3-4)')
 
-   @ai.flow()
-   async def generate_character(name: str):
-       result = await ai.generate(
-           prompt=f'generate an RPG character named {name}',
-           output_schema=RpgCharacter,
-       )
-       return result.output
+    @ai.flow()
+    async def generate_character(name: str):
+        result = await ai.generate(
+            prompt=f'generate an RPG character named {name}',
+            output_schema=RpgCharacter,
+        )
+        return result.output
 
-   async def main() -> None:
-       print(json.dumps(await generate_character('Goblorb')))
+    async def main() -> None:
+        print(json.dumps(await generate_character('Goblorb')))
 
-   asyncio.run(main())
-
-   # prevent app from exiting when genkit is running in dev mode
-   ai.join()
+    ai.run_async(main())
    ```
 
 6. Run your app. Genkit apps are just regular python application. Run them
