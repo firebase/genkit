@@ -19,7 +19,9 @@
 import asyncio
 import logging
 import os
+import socket
 import threading
+from contextlib import closing
 from http.server import HTTPServer
 
 from genkit.ai import server
@@ -28,9 +30,8 @@ from genkit.ai.registry import GenkitRegistry
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.core.environment import is_dev_environment
+from genkit.core.error import GenkitError
 from genkit.core.reflection import make_reflection_server
-
-DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(scheme='http', host='127.0.0.1', port=3100)
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class GenkitBase(GenkitRegistry):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec: server.ServerSpec = DEFAULT_REFLECTION_SERVER_SPEC,
+        reflection_server_spec: server.ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
@@ -57,6 +58,10 @@ class GenkitBase(GenkitRegistry):
 
         self.loop = create_loop()
         if is_dev_environment():
+            if not reflection_server_spec:
+                reflection_server_spec = server.ServerSpec(
+                    scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999)
+                )
             self.thread = threading.Thread(
                 target=self.start_server,
                 args=[reflection_server_spec, self.loop],
@@ -121,3 +126,18 @@ class GenkitBase(GenkitRegistry):
             at_exit_fn=os.remove,
         )
         httpd.serve_forever()
+
+
+def _find_free_port(min, max):
+    """Find an unused port in min-max range. If not found raises an exception."""
+    current = min
+    while current <= max:
+        try:
+            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+                s.bind(('', current))
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                return s.getsockname()[1]
+        except:
+            current += 1
+            pass
+    raise GenkitError(status='RESOURCE_EXHAUSTED', message=f'Failed to find a free port in range {min}-{max}')

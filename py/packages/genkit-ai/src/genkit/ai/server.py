@@ -23,8 +23,9 @@ The following servers may be started depending upon the host environment:
 
 The reflection API server is started only in dev mode, which is enabled by the
 setting the environment variable `GENKIT_ENV` to `dev`. By default, the
-reflection API server binds and listens on (localhost, 3100).  The flows server
-is the production servers that exposes flows and actions over HTTP.
+reflection API server binds and listens on (localhost, 3100 or the next available
+port).  The flows server is the production servers that exposes flows and actions
+over HTTP.
 """
 
 import atexit

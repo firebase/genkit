@@ -51,7 +51,7 @@ from genkit.core.typing import (
     ToolChoice,
 )
 
-from .base import DEFAULT_REFLECTION_SERVER_SPEC, GenkitBase
+from .base import GenkitBase
 
 
 class Genkit(GenkitBase):
@@ -61,7 +61,7 @@ class Genkit(GenkitBase):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec: server.ServerSpec = DEFAULT_REFLECTION_SERVER_SPEC,
+        reflection_server_spec: server.ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
