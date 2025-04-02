@@ -38,13 +38,17 @@ several kinds of action defined by [ActionKind][genkit.core.action.ActionKind]:
 
 import asyncio
 import inspect
+import traceback
+import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
 from typing import Any
 
+import structlog
 from pydantic import BaseModel
 
 from genkit.blocks.embedding import EmbedderFn
+from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
 from genkit.blocks.prompt import define_prompt
@@ -55,13 +59,25 @@ from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
+from genkit.core.tracing import run_in_new_span
 from genkit.core.typing import (
+    EvalFnResponse,
+    EvalRequest,
+    EvalResponse,
     GenerationCommonConfig,
     Message,
     ModelInfo,
     Part,
+    Score,
+    SpanMetadata,
     ToolChoice,
 )
+
+EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
+EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
+EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
+
+logger = structlog.getLogger(__name__)
 
 
 class GenkitRegistry:
@@ -233,6 +249,132 @@ class GenkitRegistry:
             kind=ActionKind.RETRIEVER,
             fn=fn,
             metadata=retriever_meta,
+        )
+
+    def define_evaluator(
+        self,
+        name: str,
+        display_name: str,
+        definition: str,
+        fn: EvaluatorFn,
+        is_billed: bool = False,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define a evaluator action.
+
+        This action runs the callback function on the every sample of
+        the input dataset.
+
+        Args:
+            name: Name of the evaluator.
+            fn: Function implementing the evaluator behavior.
+            display_name: User-visible display name
+            definition: User-visible evaluator definition
+            is_billed: Whether the evaluator performs any billed actions
+                        (paid  APIs, LLMs etc.)
+            config_schema: Optional schema for evaluator configuration.
+            metadata: Optional metadata for the evaluator.
+        """
+        evaluator_meta = metadata if metadata else {}
+        if 'evaluator' not in evaluator_meta:
+            evaluator_meta['evaluator'] = {}
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
+            evaluator_meta['evaluator']['label'] = name
+        if config_schema:
+            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+
+        def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
+            eval_responses: list[EvalFnResponse] = []
+            for index in range(len(req.dataset)):
+                datapoint = req.dataset[index]
+                if datapoint.test_case_id is None:
+                    datapoint.test_case_id = uuid.uuid4()
+                span_metadata = SpanMetadata(
+                    name=f'Test Case {datapoint.test_case_id}',
+                    metadata={'evaluator:evalRunId': req.eval_run_id},
+                )
+                try:
+                    with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
+                        span_id = span.span_id()
+                        trace_id = span.trace_id()
+                        try:
+                            span.set_input(datapoint)
+                            test_case_output = fn(datapoint, req.options)
+                            test_case_output.span_id = span_id
+                            test_case_output.trace_id = trace_id
+                            span.set_output(test_case_output)
+                            eval_responses.append(test_case_output)
+                        except Exception as e:
+                            logger.debug(f'eval_stepper_fn error: {str(e)}')
+                            logger.debug(traceback.format_exc())
+                            evaluation = Score(
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}'
+                            )
+                            eval_responses.append(
+                                EvalFnResponse(
+                                    span_id=span_id,
+                                    trace_id=trace_id,
+                                    test_case_id=datapoint.test_case_id,
+                                    evaluation=evaluation,
+                                )
+                            )
+                            # Raise to mark span as failed
+                            raise e
+                except Exception:
+                    # Continue to process other points
+                    continue
+            return EvalResponse(eval_responses)
+
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.EVALUATOR,
+            fn=eval_stepper_fn,
+            metadata=evaluator_meta,
+        )
+
+    def define_batch_evaluator(
+        self,
+        name: str,
+        display_name: str,
+        definition: str,
+        fn: BatchEvaluatorFn,
+        is_billed: bool = False,
+        config_schema: BaseModel | dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Callable[[Callable], Callable]:
+        """Define a batch evaluator action.
+
+        This action runs the callback function on the entire dataset.
+
+        Args:
+            name: Name of the evaluator.
+            fn: Function implementing the evaluator behavior.
+            display_name: User-visible display name
+            definition: User-visible evaluator definition
+            is_billed: Whether the evaluator performs any billed actions
+                        (paid  APIs, LLMs etc.)
+            config_schema: Optional schema for evaluator configuration.
+            metadata: Optional metadata for the evaluator.
+        """
+        evaluator_meta = metadata if metadata else {}
+        if 'evaluator' not in evaluator_meta:
+            evaluator_meta['evaluator'] = {}
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DEFINITION] = definition
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_DISPLAY_NAME] = display_name
+        evaluator_meta['evaluator'][EVALUATOR_METADATA_KEY_IS_BILLED] = is_billed
+        if 'label' not in evaluator_meta['evaluator'] or not evaluator_meta['evaluator']['label']:
+            evaluator_meta['evaluator']['label'] = name
+        if config_schema:
+            evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+        return self.registry.register_action(
+            name=name,
+            kind=ActionKind.EVALUATOR,
+            fn=fn,
+            metadata=evaluator_meta,
         )
 
     def define_model(

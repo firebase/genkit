@@ -22,12 +22,17 @@ Users should import Genkit types from this module.
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.typing import (
+    BaseEvalDataPoint,
     CustomPart,
+    Details,
     Docs,
     DocumentData,
     Embedding,
     EmbedRequest,
     EmbedResponse,
+    EvalFnResponse,
+    EvalRequest,
+    EvalResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -41,6 +46,7 @@ from genkit.core.typing import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
     Stage,
     Supports,
     TextPart,
@@ -52,11 +58,16 @@ from genkit.core.typing import (
 )
 
 __all__ = [
+    BaseEvalDataPoint.__name__,
     CustomPart.__name__,
+    Details.__name__,
     Docs.__name__,
     DocumentData.__name__,
     EmbedRequest.__name__,
     EmbedResponse.__name__,
+    EvalFnResponse.__name__,
+    EvalRequest.__name__,
+    EvalResponse.__name__,
     Embedding.__name__,
     GenerateRequest.__name__,
     GenerateResponse.__name__,
@@ -71,6 +82,7 @@ __all__ = [
     RetrieverRequest.__name__,
     RetrieverResponse.__name__,
     Role.__name__,
+    Score.__name__,
     Stage.__name__,
     Supports.__name__,
     TextPart.__name__,

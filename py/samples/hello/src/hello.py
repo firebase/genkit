@@ -16,6 +16,7 @@
 
 """A hello world sample that just calls some flows."""
 
+import random
 from typing import Any
 
 import structlog
@@ -30,6 +31,9 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 from genkit.types import (
+    BaseEvalDataPoint,
+    Details,
+    EvalFnResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -39,6 +43,7 @@ from genkit.types import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
     TextPart,
 )
 
@@ -227,6 +232,24 @@ def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
 
 
 ai.define_retriever(name='my_retriever', fn=my_retriever)
+
+
+def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+    score = random.random()
+    if score < 0.5:
+        raise Exception('testing failures')
+    return EvalFnResponse(
+        test_case_id=datapoint.test_case_id,
+        evaluation=Score(score=score, details=Details(reasoning='I think it is true')),
+    )
+
+
+ai.define_evaluator(
+    name='my_eval',
+    display_name='test evaluator',
+    definition='dummy eval that does nothing special',
+    fn=my_eval_fn,
+)
 
 
 @ai.flow()
