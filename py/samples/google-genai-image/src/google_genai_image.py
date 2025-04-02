@@ -24,13 +24,10 @@ from io import BytesIO
 from PIL import Image
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import (
-    GoogleGenai,
-    google_genai_name,
-)
+from genkit.plugins.google_genai import GoogleAI, googleai_name
 from genkit.types import Media, MediaPart, Message, Role, TextPart
 
-ai = Genkit(plugins=[GoogleGenai()])
+ai = Genkit(plugins=[GoogleAI()])
 
 
 @ai.flow()
@@ -43,7 +40,7 @@ async def draw_image_with_gemini() -> str:
     return await ai.agenerate(
         messages=[Message(role=Role.USER, content=[TextPart(text='Draw a cat in a hat.')])],
         config={'response_modalities': ['Text', 'Image']},
-        model=google_genai_name('gemini-2.0-flash-exp'),
+        model=googleai_name('gemini-2.0-flash-exp'),
     )
 
 
@@ -67,7 +64,7 @@ async def describe_image_with_gemini(data: str) -> str:
                 ],
             ),
         ],
-        model=google_genai_name('gemini-2.5-pro-exp-03-25'),
+        model=googleai_name('gemini-2.5-pro-exp-03-25'),
     )
     return result.text
 

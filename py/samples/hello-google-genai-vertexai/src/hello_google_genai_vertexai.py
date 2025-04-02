@@ -20,7 +20,7 @@ Key features demonstrated in this sample:
 
 | Feature Description                                      | Example Function / Code Snippet        |
 |----------------------------------------------------------|----------------------------------------|
-| Plugin Initialization                                    | `ai = Genkit(plugins=[GoogleAI()])` |
+| Plugin Initialization                                    | `ai = Genkit(plugins=[VertexAI(...)])` |
 | Default Model Configuration                              | `ai = Genkit(model=...)`               |
 | Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
 | Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
@@ -50,10 +50,9 @@ from genkit.ai import Document, Genkit, ToolRunContext, tool_response
 from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
-    GeminiConfigSchema,
-    GeminiEmbeddingModels,
-    GoogleAI,
-    googleai_name,
+    VertexAI,
+    VertexEmbeddingModels,
+    vertexai_name,
 )
 from genkit.types import (
     GenerationCommonConfig,
@@ -65,8 +64,8 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
-    plugins=[GoogleAI()],
-    model=googleai_name('gemini-2.0-flash-exp'),
+    plugins=[VertexAI(project='', location='us-central1')],
+    model=vertexai_name('gemini-2.0-flash'),
 )
 
 
@@ -100,7 +99,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         The generated response with a function.
     """
     response = await ai.agenerate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model=vertexai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -128,8 +127,16 @@ def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
 
 @ai.flow()
 async def simple_generate_with_interrupts(value: int) -> str:
+    """Generate a greeting for the given name.
+
+    Args:
+        value: the integer to send to test function
+
+    Returns:
+        The generated response with a function.
+    """
     response1 = await ai.agenerate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model=vertexai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -139,12 +146,12 @@ async def simple_generate_with_interrupts(value: int) -> str:
         tools=['gablorkenTool2'],
     )
     await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
-    if len(response1.interrupts) == 0:
+    if len(response1.tool_requests) == 0:
         return response1.text
 
-    tr = tool_response(response1.interrupts[0], 178)
+    tr = tool_response(response1.tool_requests[0], 178)
     response = await ai.agenerate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model=vertexai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -180,7 +187,7 @@ async def embed_docs(docs: list[str]):
     """
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.aembed(
-        model=googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
+        model=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
@@ -284,24 +291,6 @@ async def generate_character_unconstrained(name: str, ctx):
         output_instructions=True,
     )
     return result.output
-
-
-@ai.flow()
-async def generate_images(name: str, ctx):
-    """Generate images for the given name.
-
-    Args:
-        name: the name to send to test function
-        ctx: the context of the tool
-
-    Returns:
-        The generated response with a function.
-    """
-    result = await ai.agenerate(
-        prompt='tell me a about the Eifel Tower with photos',
-        config=GeminiConfigSchema(response_modalities=['text', 'image']),
-    )
-    return result
 
 
 async def main() -> None:
