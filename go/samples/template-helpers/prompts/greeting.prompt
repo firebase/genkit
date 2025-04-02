@@ -10,11 +10,6 @@ input:
   default:
     name: World
     location: Firebase
-helpers:
-  upper: |
-    func(text string) string {
-      return strings.ToUpper(text)
-    }
 ---
 
 You are a helpful assistant at {{location}}.
@@ -26,3 +21,4 @@ I'll be speaking in the style of {{style}} today.
 {{/if}}
 
 How may I assist you? 
+

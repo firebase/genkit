@@ -17,8 +17,8 @@ package main
 import (
 	"context"
 	"log"
+	"strings"
 
-	// Import Genkit and the Google AI plugin
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -27,23 +27,35 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}), genkit.WithPromptDir("prompts"))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Look up the prompt by name
-	prompt := genkit.LookupPrompt(g, "local", "greeting")
+	
+	genkit.DefineHelper(g, "upper", func(text string) string {
+		return strings.ToUpper(text)
+	})
+	
+	// Load prompts from the prompts directory
+	err = genkit.LoadPromptDir(g, "prompts", "")
+	if err != nil {
+		log.Fatal("prompt not found")
+	}
+	
+	// Get the prompt
+	prompt := genkit.LookupPrompt(g, "", "greeting")
 	if prompt == nil {
-		log.Fatal("failed to find prompt")
+		log.Fatal("prompt not found")
 	}
-
-	input := map[string]interface{}{
-		"name":     "World",
-		"location": "Firebase",
+	
+	// Prepare input data
+	input := map[string]any{
+		"name": 	"Alice",
+		"location": 	"Firebase",
+		"style":	"a pirate",
 	}
-
-	// Execute the prompt with the provided input
+	
+	// Execute the prompt
 	resp, err := prompt.Execute(ctx, ai.WithInput(input))
 	if err != nil {
 		log.Fatal(err)
@@ -51,3 +63,4 @@ func main() {
 	text := resp.Text()
 	log.Printf("Response: %s", text)
 }
+
