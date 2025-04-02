@@ -195,6 +195,9 @@ func generate(
 			Role:  string(m.Role),
 		})
 	}
+	if len(contents) == 0 {
+		return nil, fmt.Errorf("at least one message is required in generate request")
+	}
 
 	// Send out the actual request.
 	if cb == nil {
