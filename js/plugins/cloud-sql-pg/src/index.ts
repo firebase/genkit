@@ -16,6 +16,7 @@
 
 import {
   CommonRetrieverOptionsSchema,
+  indexerRef,
   retrieverRef,
 } from 'genkit/retriever';
 
@@ -27,6 +28,10 @@ import { EmbedderArgument } from 'genkit/embedder';
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000),
   filter: z.record(z.string(), z.any()).optional(),
+});
+
+const PostgresIndexerOptionsSchema = z.object({
+  namespace: z.string().optional(),
 });
 
 /**
@@ -49,6 +54,25 @@ export const postgresRetrieverRef = (params: {
 };
 
 /**
+ * postgresIndexerRef function creates an indexer for Postgres.
+ * @param params The params for the new Postgres indexer.
+ * @param params.tableName The table name for the Postgres indexer.
+If not specified, the default label will be `Postgres - <tableName>`
+ * @returns A reference to a Postgres indexer.
+ */
+export const postgresIndexerRef = (params: {
+  tableName?: string;
+}) => {
+  return indexerRef({
+    name: `postgres/${params.tableName}`,
+    info: {
+      label: params.tableName ?? `Postgres - ${params.tableName}`,
+    },
+    configSchema: PostgresIndexerOptionsSchema.optional(),
+  });
+};
+
+/**
  * Postgres plugin that provides a Postgres retriever and indexer
  * @param params An array of params to set up Postgres retrievers and indexers
  * @param params.tableName The name of the table
@@ -65,6 +89,7 @@ export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
 ): GenkitPlugin {
   return genkitPlugin('postgres', async (ai: Genkit) => {
     params.map((i) => configurePostgresRetriever(ai, i));
+    params.map((i) => configurePostgresIndexer(ai, i));
   });
 }
 
@@ -94,6 +119,34 @@ export function configurePostgresRetriever<
     {
       name: `postgres/${params.tableName}`,
       configSchema: PostgresRetrieverOptionsSchema,
+    }
+  );
+}
+
+/**
+ * Configures a Postgres indexer.
+ * @param ai A Genkit instance
+ * @param params The params for the indexer
+ * @param params.tableName The name of the indexer
+ * @param params.embedder The embedder to use for the retriever
+ * @param params.embedderOptions  Options to customize the embedder
+ * @returns A Genkit indexer
+ */
+export function configurePostgresIndexer<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+>(
+  ai: Genkit,
+  params: {
+    tableName: string;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }
+) {
+
+  return ai.defineIndexer(
+    {
+      name: `postgres/${params.tableName}`,
+      configSchema: PostgresIndexerOptionsSchema.optional(),
     }
   );
 }
