@@ -98,6 +98,7 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, fn ModelFunc) Model {
+
 	if info == nil {
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
@@ -125,7 +126,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	}
 
 	if info.ConfigSchema != nil {
-		metadata["customOptions"] = info.ConfigSchema
+		metadata["customOptions"] = map[string]interface{}{"schema": info.ConfigSchema}
 	}
 
 	// Create the middleware list

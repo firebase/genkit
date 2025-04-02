@@ -47,15 +47,12 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				GenerationCommonConfig: ai.GenerationCommonConfig{
-					Temperature:     1.0,
-					MaxOutputTokens: 256,
-				},
-				// Set custom safety settings - reduce restriction on harmfulness
+				Temperature:     googlegenai.Ptr[float32](1.0),
+				MaxOutputTokens: googlegenai.Ptr[int32](256),
 				SafetySettings: []*googlegenai.SafetySetting{
 					{
 						Category:  googlegenai.HarmCategoryHarassment,
-						Threshold: googlegenai.HarmBlockMediumAndAbove,
+						Threshold: googlegenai.HarmBlockThresholdBlockMediumAndAbove,
 					},
 				},
 			}),

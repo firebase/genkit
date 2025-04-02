@@ -72,6 +72,8 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
+func Ptr[T any](t T) *T { return &t }
+
 func convertConfigSchemaToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
@@ -98,6 +100,7 @@ func convertSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
 	result := make([]*genai.SafetySetting, len(settings))
 	for i, s := range settings {
 		result[i] = &genai.SafetySetting{
+			Method:    genai.HarmBlockMethod(s.Method),
 			Category:  genai.HarmCategory(s.Category),
 			Threshold: genai.HarmBlockThreshold(s.Threshold),
 		}
@@ -105,61 +108,162 @@ func convertSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
 	return result
 }
 
-type HarmCategory int32
+type HarmCategory string
 
 const (
-	// HarmCategoryUnspecified means category is unspecified.
-	HarmCategoryUnspecified HarmCategory = 0
-	// HarmCategoryDerogatory means negative or harmful comments targeting identity and/or protected attribute.
-	HarmCategoryDerogatory HarmCategory = 1
-	// HarmCategoryToxicity means content that is rude, disrespectful, or profane.
-	HarmCategoryToxicity HarmCategory = 2
-	// HarmCategoryViolence means describes scenarios depicting violence against an individual or group, or
-	// general descriptions of gore.
-	HarmCategoryViolence HarmCategory = 3
-	// HarmCategorySexual means contains references to sexual acts or other lewd content.
-	HarmCategorySexual HarmCategory = 4
-	// HarmCategoryMedical means promotes unchecked medical advice.
-	HarmCategoryMedical HarmCategory = 5
-	// HarmCategoryDangerous means dangerous content that promotes, facilitates, or encourages harmful acts.
-	HarmCategoryDangerous HarmCategory = 6
-	// HarmCategoryHarassment means harasment content.
-	HarmCategoryHarassment HarmCategory = 7
-	// HarmCategoryHateSpeech means hate speech and content.
-	HarmCategoryHateSpeech HarmCategory = 8
-	// HarmCategorySexuallyExplicit means sexually explicit content.
-	HarmCategorySexuallyExplicit HarmCategory = 9
-	// HarmCategoryDangerousContent means dangerous content.
-	HarmCategoryDangerousContent HarmCategory = 10
+	// The harm category is unspecified.
+	HarmCategoryUnspecified HarmCategory = "HARM_CATEGORY_UNSPECIFIED"
+	// The harm category is hate speech.
+	HarmCategoryHateSpeech HarmCategory = "HARM_CATEGORY_HATE_SPEECH"
+	// The harm category is dangerous content.
+	HarmCategoryDangerousContent HarmCategory = "HARM_CATEGORY_DANGEROUS_CONTENT"
+	// The harm category is harassment.
+	HarmCategoryHarassment HarmCategory = "HARM_CATEGORY_HARASSMENT"
+	// The harm category is sexually explicit content.
+	HarmCategorySexuallyExplicit HarmCategory = "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+	// The harm category is civic integrity.
+	HarmCategoryCivicIntegrity HarmCategory = "HARM_CATEGORY_CIVIC_INTEGRITY"
 )
 
-// HarmBlockThreshold specifies block at and beyond a specified harm probability.
-type HarmBlockThreshold int32
+// Specify if the threshold is used for probability or severity score. If not specified,
+// the threshold is used for probability score.
+type HarmBlockMethod string
 
 const (
-	// HarmBlockUnspecified means threshold is unspecified.
-	HarmBlockUnspecified HarmBlockThreshold = 0
-	// HarmBlockLowAndAbove means content with NEGLIGIBLE will be allowed.
-	HarmBlockLowAndAbove HarmBlockThreshold = 1
-	// HarmBlockMediumAndAbove means content with NEGLIGIBLE and LOW will be allowed.
-	HarmBlockMediumAndAbove HarmBlockThreshold = 2
-	// HarmBlockOnlyHigh means content with NEGLIGIBLE, LOW, and MEDIUM will be allowed.
-	HarmBlockOnlyHigh HarmBlockThreshold = 3
-	// HarmBlockNone means all content will be allowed.
-	HarmBlockNone HarmBlockThreshold = 4
+	// The harm block method is unspecified.
+	HarmBlockMethodUnspecified HarmBlockMethod = "HARM_BLOCK_METHOD_UNSPECIFIED"
+	// The harm block method uses both probability and severity scores.
+	HarmBlockMethodSeverity HarmBlockMethod = "SEVERITY"
+	// The harm block method uses the probability score.
+	HarmBlockMethodProbability HarmBlockMethod = "PROBABILITY"
 )
 
+// The harm block threshold.
+type HarmBlockThreshold string
+
+const (
+	// Unspecified harm block threshold.
+	HarmBlockThresholdUnspecified HarmBlockThreshold = "HARM_BLOCK_THRESHOLD_UNSPECIFIED"
+	// Block low threshold and above (i.e. block more).
+	HarmBlockThresholdBlockLowAndAbove HarmBlockThreshold = "BLOCK_LOW_AND_ABOVE"
+	// Block medium threshold and above.
+	HarmBlockThresholdBlockMediumAndAbove HarmBlockThreshold = "BLOCK_MEDIUM_AND_ABOVE"
+	// Block only high threshold (i.e. block less).
+	HarmBlockThresholdBlockOnlyHigh HarmBlockThreshold = "BLOCK_ONLY_HIGH"
+	// Block none.
+	HarmBlockThresholdBlockNone HarmBlockThreshold = "BLOCK_NONE"
+	// Turn off the safety filter.
+	HarmBlockThresholdOff HarmBlockThreshold = "OFF"
+)
+
+// Safety settings.
 type SafetySetting struct {
-	// Required. The category for this setting.
-	Category HarmCategory
-	// Required. Controls the probability threshold at which harm is blocked.
-	Threshold HarmBlockThreshold
+	// Determines if the harm block method uses probability or probability
+	// and severity scores.
+	Method HarmBlockMethod `json:"method,omitempty"`
+	// Required. Harm category.
+	Category HarmCategory `json:"category,omitempty"`
+	// Required. The harm block threshold.
+	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
 }
 
-// GeminiConfig extends GenerationCommonConfig with Google AI specific settings.
+// GeminiConfig mirrors GenerateContentConfig without direct genai dependency
 type GeminiConfig struct {
-	ai.GenerationCommonConfig
-	SafetySettings []*SafetySetting
+	// Basic generation parameters
+	Temperature     *float32 `json:"temperature,omitempty"`
+	TopP            *float32 `json:"topP,omitempty"`
+	TopK            *float32 `json:"topK,omitempty"`
+	CandidateCount  *int32   `json:"candidateCount,omitempty"`
+	MaxOutputTokens *int32   `json:"maxOutputTokens,omitempty"`
+	StopSequences   []string `json:"stopSequences,omitempty"`
+
+	// Advanced parameters
+	ResponseLogprobs bool     `json:"responseLogprobs,omitempty"`
+	Logprobs         *int32   `json:"logprobs,omitempty"`
+	PresencePenalty  *float32 `json:"presencePenalty,omitempty"`
+	FrequencyPenalty *float32 `json:"frequencyPenalty,omitempty"`
+	Seed             *int32   `json:"seed,omitempty"`
+
+	// Response formatting
+	ResponseMIMEType string `json:"responseMimeType,omitempty"`
+
+	// Safety settings
+	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+}
+
+// All the supporting types needed by GeminiConfig:
+
+type Tool struct {
+	FunctionDeclarations []*FunctionDeclaration `json:"functionDeclarations,omitempty"`
+}
+
+type FunctionDeclaration struct {
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
+}
+
+type ToolConfig struct {
+	FunctionCallingConfig *FunctionCallingConfig `json:"functionCallingConfig,omitempty"`
+}
+
+type FunctionCallingConfig struct {
+	Mode                 string   `json:"mode,omitempty"`
+	AllowedFunctionNames []string `json:"allowedFunctionNames,omitempty"`
+}
+
+type SpeechConfig struct {
+	Voice string `json:"voice,omitempty"`
+}
+
+type ResponseSchema struct {
+	Type       string                    `json:"type,omitempty"`
+	Properties map[string]SchemaProperty `json:"properties,omitempty"`
+	Required   []string                  `json:"required,omitempty"`
+}
+
+type SchemaProperty struct {
+	Type        string                    `json:"type,omitempty"`
+	Description string                    `json:"description,omitempty"`
+	Items       *SchemaProperty           `json:"items,omitempty"`
+	Properties  map[string]SchemaProperty `json:"properties,omitempty"`
+}
+
+type Content struct {
+	Parts []*ContentPart `json:"parts,omitempty"`
+	Role  string         `json:"role,omitempty"`
+}
+
+type ContentPart struct {
+	Text       string      `json:"text,omitempty"`
+	InlineData *InlineData `json:"inlineData,omitempty"`
+}
+
+type InlineData struct {
+	MimeType string `json:"mimeType,omitempty"`
+	Data     string `json:"data,omitempty"`
+}
+
+type RoutingConfig struct {
+	ModelRoutes []*ModelRoute `json:"modelRoutes,omitempty"`
+}
+
+type ModelRoute struct {
+	ModelName string         `json:"modelName,omitempty"`
+	Criteria  *ModelCriteria `json:"criteria,omitempty"`
+}
+
+type ModelCriteria struct {
+	TextLength int32 `json:"textLength,omitempty"`
+	MediaCount int32 `json:"mediaCount,omitempty"`
+}
+
+type ThinkingConfig struct {
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+type HTTPOptions struct {
+	Timeout int `json:"timeout,omitempty"`
 }
 
 // extractConfigFromInput converts any supported config type to GoogleAIConfig
@@ -171,21 +275,43 @@ func extractConfigFromInput(input *ai.ModelRequest) (GeminiConfig, error) {
 	case *GeminiConfig:
 		return *config, nil
 	case ai.GenerationCommonConfig:
-		result.MaxOutputTokens = config.MaxOutputTokens
+		if config.MaxOutputTokens != 0 {
+			v := int32(config.MaxOutputTokens)
+			result.MaxOutputTokens = &v
+		}
 		result.StopSequences = config.StopSequences
-		result.Temperature = config.Temperature
-		result.TopK = config.TopK
-		result.TopP = config.TopP
-		result.Version = config.Version
+		if config.Temperature != 0 {
+			v := float32(config.Temperature)
+			result.Temperature = &v
+		}
+		if config.TopK != 0 {
+			v := float32(config.TopK)
+			result.TopK = &v
+		}
+		if config.TopP != 0 {
+			v := float32(config.TopP)
+			result.TopP = &v
+		}
 		return result, nil
 	case *ai.GenerationCommonConfig:
 		if config != nil {
-			result.MaxOutputTokens = config.MaxOutputTokens
+			if config.MaxOutputTokens != 0 {
+				v := int32(config.MaxOutputTokens)
+				result.MaxOutputTokens = &v
+			}
 			result.StopSequences = config.StopSequences
-			result.Temperature = config.Temperature
-			result.TopK = config.TopK
-			result.TopP = config.TopP
-			result.Version = config.Version
+			if config.Temperature != 0 {
+				v := float32(config.Temperature)
+				result.Temperature = &v
+			}
+			if config.TopK != 0 {
+				v := float32(config.TopK)
+				result.TopK = &v
+			}
+			if config.TopP != 0 {
+				v := float32(config.TopP)
+				result.TopP = &v
+			}
 		}
 		return result, nil
 	case map[string]any:
@@ -405,24 +531,27 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 	if err != nil {
 		return nil, err
 	}
-	if c.MaxOutputTokens != 0 {
-		gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
+
+	// Convert standard fields
+	if c.MaxOutputTokens != nil {
+		gc.MaxOutputTokens = genai.Ptr[int32](*c.MaxOutputTokens)
 	}
 	if len(c.StopSequences) > 0 {
 		gc.StopSequences = c.StopSequences
 	}
-	if c.Temperature != 0 {
-		gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
+	if c.Temperature != nil {
+		gc.Temperature = genai.Ptr[float32](*c.Temperature)
 	}
-	if c.TopK != 0 {
-		gc.TopK = genai.Ptr[float32](float32(c.TopK))
+	if c.TopK != nil {
+		gc.TopK = genai.Ptr[float32](*c.TopK)
 	}
-	if c.TopP != 0 {
-		gc.TopP = genai.Ptr[float32](float32(c.TopP))
+	if c.TopP != nil {
+		gc.TopP = genai.Ptr[float32](*c.TopP)
 	}
-	if len(c.SafetySettings) > 0 {
-		gc.SafetySettings = convertSafetySettings(c.SafetySettings)
-	}
+	// Convert non-primitive fields
+	gc.SafetySettings = convertSafetySettings(c.SafetySettings)
+
+	// Handle system messages
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
@@ -440,15 +569,6 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 			Role:  string(ai.RoleSystem),
 		}
 	}
-
-	tools, err := convertTools(input.Tools)
-	if err != nil {
-		return nil, err
-	}
-	gc.Tools = tools
-
-	choice := convertToolChoice(input.ToolChoice, input.Tools)
-	gc.ToolConfig = choice
 
 	if cache != nil {
 		gc.CachedContent = cache.Name
@@ -705,4 +825,114 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 	default:
 		panic("unknown part type in a request")
 	}
+}
+
+func convertContent(content *Content) *genai.Content {
+	if content == nil {
+		return nil
+	}
+	parts := make([]*genai.Part, len(content.Parts))
+	for i, p := range content.Parts {
+		parts[i] = &genai.Part{
+			Text: p.Text,
+		}
+		if p.InlineData != nil {
+			parts[i].InlineData = &genai.Blob{
+				MIMEType: p.InlineData.MimeType,
+				Data:     []byte(p.InlineData.Data),
+			}
+		}
+	}
+	return &genai.Content{
+		Parts: parts,
+		Role:  content.Role,
+	}
+}
+
+func convertTool(tool *Tool) *genai.Tool {
+	if tool == nil {
+		return nil
+	}
+	decls := make([]*genai.FunctionDeclaration, len(tool.FunctionDeclarations))
+	for i, d := range tool.FunctionDeclarations {
+		params, err := convertSchema(nil, d.Parameters)
+		if err != nil {
+			return nil
+		}
+		decls[i] = &genai.FunctionDeclaration{
+			Name:        d.Name,
+			Description: d.Description,
+			Parameters:  params,
+		}
+	}
+	return &genai.Tool{
+		FunctionDeclarations: decls,
+	}
+}
+
+func convertToolConfig(config *ToolConfig) *genai.ToolConfig {
+	if config == nil {
+		return nil
+	}
+	return &genai.ToolConfig{
+		FunctionCallingConfig: &genai.FunctionCallingConfig{
+			Mode:                 genai.FunctionCallingConfigMode(config.FunctionCallingConfig.Mode),
+			AllowedFunctionNames: config.FunctionCallingConfig.AllowedFunctionNames,
+		},
+	}
+}
+
+func convertResponseSchema(schema *ResponseSchema) *genai.Schema {
+	if schema == nil {
+		return nil
+	}
+	props := make(map[string]*genai.Schema)
+	for k, v := range schema.Properties {
+		props[k] = convertSchemaProperty(&v)
+	}
+	return &genai.Schema{
+		Type:       genai.Type(schema.Type),
+		Properties: props,
+		Required:   schema.Required,
+	}
+}
+
+func convertSchemaProperty(prop *SchemaProperty) *genai.Schema {
+	if prop == nil {
+		return nil
+	}
+	props := make(map[string]*genai.Schema)
+	for k, v := range prop.Properties {
+		props[k] = convertSchemaProperty(&v)
+	}
+	return &genai.Schema{
+		Type:        genai.Type(prop.Type),
+		Description: prop.Description,
+		Items:       convertSchemaProperty(prop.Items),
+		Properties:  props,
+	}
+}
+
+func convertRoutingConfig(config *RoutingConfig) *genai.GenerationConfigRoutingConfig {
+	if config == nil {
+		return nil
+	}
+	// Note: This is a simplified version since the genai types are different
+	return &genai.GenerationConfigRoutingConfig{}
+}
+
+func convertThinkingConfig(config *ThinkingConfig) *genai.ThinkingConfig {
+	if config == nil {
+		return nil
+	}
+	// Note: This is a simplified version since the genai types are different
+	return &genai.ThinkingConfig{}
+}
+
+func convertHTTPOptions(opts *HTTPOptions) *genai.HTTPOptions {
+	if opts == nil {
+		return nil
+	}
+	// Note: This is a simplified version since the genai types are different
+	return &genai.HTTPOptions{}
 }
