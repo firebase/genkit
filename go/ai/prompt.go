@@ -57,8 +57,8 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 
 	modelName := p.ModelName
-	if modelName == "" && p.ModelArg != nil {
-		modelName = p.ModelArg.Name()
+	if modelName == "" && p.Model != nil {
+		modelName = p.Model.Name()
 	}
 
 	meta := p.Metadata
@@ -132,14 +132,14 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 	}
 
 	modelName := genOpts.ModelName
-	if modelName == "" && genOpts.ModelArg != nil {
-		modelName = genOpts.ModelArg.Name()
+	if modelName == "" && genOpts.Model != nil {
+		modelName = genOpts.Model.Name()
 	}
 	if modelName == "" {
 		modelName = p.ModelName
 	}
-	if modelName == "" && p.ModelArg != nil {
-		modelName = p.ModelArg.Name()
+	if modelName == "" && p.Model != nil {
+		modelName = p.Model.Name()
 	}
 	if modelName != "" {
 		actionOpts.Model = modelName

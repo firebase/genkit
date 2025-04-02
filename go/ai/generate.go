@@ -305,8 +305,8 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	var modelName string
-	if genOpts.ModelArg != nil {
-		modelName = genOpts.ModelArg.Name()
+	if genOpts.Model != nil {
+		modelName = genOpts.Model.Name()
 	} else {
 		modelName = genOpts.ModelName
 	}
