@@ -36,8 +36,8 @@ from genkit.plugins.google_genai.models.gemini import (
 )
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 
-GOOGLEAI_PLUGIN_NAME = 'google_genai_googleai'
-VERTEXAI_PLUGIN_NAME = 'google_genai_vertexai'
+GOOGLEAI_PLUGIN_NAME = 'googleai'
+VERTEXAI_PLUGIN_NAME = 'vertexai'
 
 
 def googleai_name(name: str) -> str:
