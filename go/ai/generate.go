@@ -49,7 +49,7 @@ type (
 	// ModelRef is a struct to hold model name and configuration.
 	ModelRef struct {
 		name   string
-		Config any
+		config any
 	}
 
 	// ToolConfig handles configuration around tool calls during generation.
@@ -653,17 +653,17 @@ func (m *Message) Text() string {
 	return sb.String()
 }
 
-// ModelConfig returns the configuration of a ModelRef.
-func ModelConfig(m *ModelRef) any {
-	return m.Config
-}
-
 // NewModelRef creates a new ModelRef with the given name and configuration.
 func NewModelRef(name string, config any) *ModelRef {
-	return &ModelRef{name: name, Config: config}
+	return &ModelRef{name: name, config: config}
 }
 
 // Name returns the name of the ModelRef.
 func (m *ModelRef) Name() string {
 	return m.name
+}
+
+// ModelConfig returns the configuration of a ModelRef.
+func (m *ModelRef) Config() any {
+	return m.config
 }
