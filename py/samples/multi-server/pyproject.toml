@@ -1,6 +1,6 @@
 [project]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "asgiref>=3.8.1",
   "litestar>=2.15.1",
   "starlette>=0.46.1",
