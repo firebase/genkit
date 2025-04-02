@@ -35,11 +35,11 @@ func TestFakeEmbedder(t *testing.T) {
 	emb := ai.DefineEmbedder(r, "fake", "embed", embed.Embed)
 	d := ai.DocumentFromText("fakeembedder test", nil)
 
-	vals := []float64{1, 2}
+	vals := []float32{1, 2}
 	embed.Register(d, vals)
 
 	ctx := context.Background()
-	res, err := ai.Embed(ctx, emb, ai.WithEmbedDocs(d))
+	res, err := ai.Embed(ctx, emb, ai.WithDocs(d))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestFakeEmbedder(t *testing.T) {
 		t.Errorf("lookup returned %v, want %v", got, vals)
 	}
 
-	if _, err = ai.Embed(ctx, emb, ai.WithEmbedText("missing document")); err == nil {
+	if _, err = ai.Embed(ctx, emb, ai.WithTextDocs("missing document")); err == nil {
 		t.Error("embedding unknown document succeeded unexpectedly")
 	}
 }

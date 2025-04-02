@@ -30,18 +30,18 @@ import (
 
 // Embedder is a fake implementation of an Embedder.
 type Embedder struct {
-	registry map[*ai.Document][]float64
+	registry map[*ai.Document][]float32
 }
 
 // New returns a new fake embedder.
 func New() *Embedder {
 	return &Embedder{
-		registry: make(map[*ai.Document][]float64),
+		registry: make(map[*ai.Document][]float32),
 	}
 }
 
 // Register records the value to return for a Document.
-func (e *Embedder) Register(d *ai.Document, vals []float64) {
+func (e *Embedder) Register(d *ai.Document, vals []float32) {
 	e.registry[d] = vals
 }
 

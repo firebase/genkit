@@ -42,12 +42,10 @@ var testEvalFunc = func(ctx context.Context, req *EvaluatorCallbackRequest) (*Ev
 
 var testBatchEvalFunc = func(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
 	var evalResponses []EvaluationResult
-	dataset := *req.Dataset
-	for i := 0; i < len(dataset); i++ {
-		input := dataset[i]
-		fmt.Printf("%+v\n", input)
+	for _, datapoint := range req.Dataset {
+		fmt.Printf("%+v\n", datapoint)
 		m := make(map[string]any)
-		m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+		m["reasoning"] = fmt.Sprintf("batch of cookies, %s", datapoint.Input)
 		m["options"] = req.Options
 		score := Score{
 			Id:      "testScore",
@@ -56,7 +54,7 @@ var testBatchEvalFunc = func(ctx context.Context, req *EvaluatorRequest) (*Evalu
 			Details: m,
 		}
 		callbackResponse := EvaluationResult{
-			TestCaseId: input.TestCaseId,
+			TestCaseId: datapoint.TestCaseId,
 			Evaluation: []Score{score},
 		}
 		evalResponses = append(evalResponses, callbackResponse)
@@ -74,7 +72,7 @@ var evalOptions = EvaluatorOptions{
 	IsBilled:    false,
 }
 
-var dataset = Dataset{
+var dataset = []*Example{
 	{
 		Input: "hello world",
 	},
@@ -84,7 +82,7 @@ var dataset = Dataset{
 }
 
 var testRequest = EvaluatorRequest{
-	Dataset:      &dataset,
+	Dataset:      dataset,
 	EvaluationId: "testrun",
 	Options:      "test-options",
 }
@@ -197,7 +195,7 @@ func TestEvaluate(t *testing.T) {
 	}
 
 	resp, err := Evaluate(context.Background(), evalAction,
-		WithDataset(&dataset),
+		WithDataset(dataset...),
 		WithID("testrun"),
 		WithConfig("test-options"))
 	if err != nil {

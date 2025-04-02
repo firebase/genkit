@@ -38,7 +38,7 @@ type Evaluator interface {
 	Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error)
 }
 
-type evaluatorActionDef core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
+type evaluator core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
 
 // Example is a single example that requires evaluation
 type Example struct {
@@ -50,15 +50,12 @@ type Example struct {
 	TraceIds   []string `json:"traceIds,omitempty"`
 }
 
-// Dataset is a collection of [Example]
-type Dataset = []Example
-
 // EvaluatorRequest is the data we pass to evaluate a dataset.
 // The Options field is specific to the actual evaluator implementation.
 type EvaluatorRequest struct {
-	Dataset      *Dataset `json:"dataset"`
-	EvaluationId string   `json:"evalRunId"`
-	Options      any      `json:"options,omitempty"`
+	Dataset      []*Example `json:"dataset"`
+	EvaluationId string     `json:"evalRunId"`
+	Options      any        `json:"options,omitempty"`
 }
 
 // ScoreStatus is an enum used to indicate if a Score has passed or failed. This
@@ -137,20 +134,18 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	actionDef := (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+	actionDef := (*evaluator)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 		var evalResponses []EvaluationResult
-		dataset := *req.Dataset
-		for i := range dataset {
-			datapoint := dataset[i]
+		for _, datapoint := range req.Dataset {
 			if datapoint.TestCaseId == "" {
 				datapoint.TestCaseId = uuid.New().String()
 			}
 			_, err := tracing.RunInNewSpan(ctx, r.TracingState(), fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
-				func(ctx context.Context, input Example) (*EvaluatorCallbackResponse, error) {
+				func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 					spanId := trace.SpanContextFromContext(ctx).SpanID().String()
 					callbackRequest := EvaluatorCallbackRequest{
-						Input:   input,
+						Input:   *input,
 						Options: req.Options,
 					}
 					evaluatorResponse, err := eval(ctx, &callbackRequest)
@@ -198,20 +193,20 @@ func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
+	return (*evaluator)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
 }
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(r *registry.Registry, provider, name string) Evaluator {
-	return (*evaluatorActionDef)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, atype.Evaluator, provider, name))
+	return (*evaluator)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, atype.Evaluator, provider, name))
 }
 
 // Evaluate calls the retrivers with provided options.
-func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluateOption) (*EvaluatorResponse, error) {
-	evalOpts := &evaluateOptions{}
+func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluatorOption) (*EvaluatorResponse, error) {
+	evalOpts := &evaluatorOptions{}
 	for _, opt := range opts {
-		err := opt.applyEvaluate(evalOpts)
+		err := opt.applyEvaluator(evalOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -227,11 +222,11 @@ func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluateOption) (*Evalua
 }
 
 // Name returns the name of the evaluator.
-func (e evaluatorActionDef) Name() string {
+func (e evaluator) Name() string {
 	return (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(&e).Name()
 }
 
 // Evaluate runs the given [Evaluator].
-func (e evaluatorActionDef) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+func (e evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
 	return (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(&e).Run(ctx, req, nil)
 }

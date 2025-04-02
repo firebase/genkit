@@ -169,8 +169,8 @@ func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 	// Generate a simple uniform embedding for each document
 	for _, doc := range req.Input {
 		// Example: Use the length of the document text to generate embeddings
-		embedding := []float64{
-			float64(len(doc.Content[0].Text)) * 0.1, // Scale based on text length
+		embedding := []float32{
+			float32(len(doc.Content[0].Text)) * 0.1, // Scale based on text length
 			0.5,                                     // Static value
 			0.3,                                     // Static value
 		}

@@ -55,7 +55,7 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 		return nil, fmt.Errorf("invalid server address: address cannot be empty")
 	}
 
-	ollamaReq := newOllamaEmbedRequest(options.Model, req.Documents)
+	ollamaReq := newOllamaEmbedRequest(options.Model, req.Input)
 
 	jsonData, err := json.Marshal(ollamaReq)
 	if err != nil {
@@ -110,10 +110,10 @@ func newOllamaEmbedRequest(model string, documents []*ai.Document) ollamaEmbedRe
 
 func newEmbedResponse(embeddings [][]float32) *ai.EmbedResponse {
 	resp := &ai.EmbedResponse{
-		Embeddings: make([]*ai.DocumentEmbedding, len(embeddings)),
+		Embeddings: make([]*ai.Embedding, len(embeddings)),
 	}
 	for i, embedding := range embeddings {
-		resp.Embeddings[i] = &ai.DocumentEmbedding{Embedding: embedding}
+		resp.Embeddings[i] = &ai.Embedding{Embedding: embedding}
 	}
 	return resp
 }

@@ -100,8 +100,8 @@ func run(g *genkit.Genkit) error {
 
 	genkit.DefineFlow(g, "askQuestion", func(ctx context.Context, in input) (string, error) {
 		res, err := ai.Retrieve(ctx, retriever,
-			ai.WithRetrieverOpts(in.Show),
-			ai.WithRetrieverText(in.Question))
+			ai.WithConfig(in.Show),
+			ai.WithTextDocs(in.Question))
 		if err != nil {
 			return "", err
 		}
@@ -122,9 +122,13 @@ const provider = "pgvector"
 // [START retr]
 func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Query))
+		eres, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Query))
 		if err != nil {
 			return nil, err
+		}
+		embedding := make([]float64, len(eres.Embeddings[0].Embedding))
+		for i, v := range eres.Embeddings[0].Embedding {
+			embedding[i] = float64(v)
 		}
 		rows, err := db.QueryContext(ctx, `
 			SELECT episode_id, season_number, chunk as content
@@ -132,7 +136,7 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retr
 			WHERE show_id = $1
 		  	ORDER BY embedding <#> $2
 		  	LIMIT 2`,
-			req.Options, pgv.NewVector(eres.Embeddings[0].Embedding))
+			req.Options, pgv.NewVector(embedding))
 		if err != nil {
 			return nil, err
 		}
@@ -174,7 +178,7 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
 	return genkit.DefineIndexer(g, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Documents...))
+		res, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Documents...))
 		if err != nil {
 			return err
 		}
@@ -190,7 +194,11 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 					return fmt.Errorf("doc[%d]: missing metadata key %q", i, k)
 				}
 			}
-			args[3] = pgv.NewVector(emb.Embedding)
+			embedding := make([]float64, len(emb.Embedding))
+			for i, v := range emb.Embedding {
+				embedding[i] = float64(v)
+			}
+			args[3] = pgv.NewVector(embedding)
 			if _, err := db.ExecContext(ctx, query, args...); err != nil {
 				return err
 			}
@@ -225,5 +233,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...))
+	return ai.Index(ctx, indexer, ai.WithDocs(docs...))
 }

@@ -68,10 +68,10 @@ func (e embedder) Name() string {
 }
 
 // Embed invokes the embedder with provided options.
-func Embed(ctx context.Context, e Embedder, opts ...EmbedOption) (*EmbedResponse, error) {
-	embedOpts := &embedOptions{}
+func Embed(ctx context.Context, e Embedder, opts ...EmbedderOption) (*EmbedResponse, error) {
+	embedOpts := &embedderOptions{}
 	for _, opt := range opts {
-		if err := opt.applyEmbed(embedOpts); err != nil {
+		if err := opt.applyEmbedder(embedOpts); err != nil {
 			return nil, fmt.Errorf("ai.Embed: error applying options: %w", err)
 		}
 	}

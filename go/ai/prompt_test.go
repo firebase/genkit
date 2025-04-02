@@ -252,7 +252,7 @@ func TestValidPrompt(t *testing.T) {
 		config         *GenerationCommonConfig
 		inputType      any
 		input          any
-		executeOptions []PromptGenerateOption
+		executeOptions []PromptExecuteOption
 		wantTextOutput string
 		wantGenerated  *ModelRequest
 		state          any
@@ -266,7 +266,7 @@ func TestValidPrompt(t *testing.T) {
 			systemText: "say hello",
 			promptText: "my name is foo",
 			input:      HelloPromptInput{Name: "foo"},
-			executeOptions: []PromptGenerateOption{
+			executeOptions: []PromptExecuteOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantTextOutput: "Echo: system: say hello; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
@@ -300,7 +300,7 @@ func TestValidPrompt(t *testing.T) {
 				return "my name is {{Name}}", nil
 			},
 			input: HelloPromptInput{Name: "foo"},
-			executeOptions: []PromptGenerateOption{
+			executeOptions: []PromptExecuteOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantTextOutput: "Echo: system: say hello to foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
@@ -335,7 +335,7 @@ func TestValidPrompt(t *testing.T) {
 					Content: []*Part{NewTextPart("you're history")},
 				}},
 			input: HelloPromptInput{Name: "foo"},
-			executeOptions: []PromptGenerateOption{
+			executeOptions: []PromptExecuteOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantTextOutput: "Echo: system: say hello; you're history; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
@@ -376,7 +376,7 @@ func TestValidPrompt(t *testing.T) {
 					}}, nil
 			},
 			input: HelloPromptInput{Name: "foo"},
-			executeOptions: []PromptGenerateOption{
+			executeOptions: []PromptExecuteOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
@@ -422,7 +422,7 @@ func TestValidPrompt(t *testing.T) {
 					}}, nil
 			},
 			input: HelloPromptInput{Name: "foo"},
-			executeOptions: []PromptGenerateOption{
+			executeOptions: []PromptExecuteOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantTextOutput: "Echo: system: say hello; your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
@@ -457,7 +457,7 @@ func TestValidPrompt(t *testing.T) {
 			promptText: "my name is foo",
 			tools:      []ToolRef{testTool(reg, "testTool")},
 			input:      HelloPromptInput{Name: "foo"},
-			executeOptions: []PromptGenerateOption{
+			executeOptions: []PromptExecuteOption{
 				WithInput(HelloPromptInput{Name: "foo"}),
 			},
 			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}; context: null",
@@ -660,7 +660,7 @@ func TestDefaultsOverride(t *testing.T) {
 	var tests = []struct {
 		name           string
 		define         []PromptOption
-		execute        []PromptGenerateOption
+		execute        []PromptExecuteOption
 		wantTextOutput string
 		wantGenerated  *ModelRequest
 	}{
@@ -671,7 +671,7 @@ func TestDefaultsOverride(t *testing.T) {
 				WithConfig(&GenerationCommonConfig{Temperature: 11}),
 				WithModel(model),
 			},
-			execute: []PromptGenerateOption{
+			execute: []PromptExecuteOption{
 				WithConfig(&GenerationCommonConfig{Temperature: 12}),
 			},
 			wantTextOutput: "Echo: my name is foo; config: {\n  \"temperature\": 12\n}; context: null",
@@ -694,7 +694,7 @@ func TestDefaultsOverride(t *testing.T) {
 				WithPromptText("my name is foo"),
 				WithModel(model),
 			},
-			execute: []PromptGenerateOption{
+			execute: []PromptExecuteOption{
 				WithConfig(&GenerationCommonConfig{Temperature: 12}),
 				WithModel(testModel),
 			},
@@ -718,7 +718,7 @@ func TestDefaultsOverride(t *testing.T) {
 				WithPromptText("my name is foo"),
 				WithModelName("test/chat"),
 			},
-			execute: []PromptGenerateOption{
+			execute: []PromptExecuteOption{
 				WithConfig(&GenerationCommonConfig{Temperature: 12}),
 				WithModelName("defineoptions/test"),
 			},

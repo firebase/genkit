@@ -100,7 +100,7 @@ func main() {
 			}
 
 			// Add chunks to the index.
-			err = ai.Index(ctx, menuPDFIndexer, ai.WithIndexerDocs(docs...))
+			err = ai.Index(ctx, menuPDFIndexer, ai.WithDocs(docs...))
 			return nil, err
 		},
 	)

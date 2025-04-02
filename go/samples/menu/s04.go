@@ -67,7 +67,7 @@ Answer this customer's question:
 				}
 				docs = append(docs, ai.DocumentFromText(s, metadata))
 			}
-			if err := ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...)); err != nil {
+			if err := ai.Index(ctx, indexer, ai.WithDocs(docs...)); err != nil {
 				return nil, err
 			}
 
@@ -81,8 +81,8 @@ Answer this customer's question:
 	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := ai.Retrieve(ctx, retriever,
-				ai.WithRetrieverText(input.Question),
-				ai.WithRetrieverOpts(&localvec.RetrieverOptions{
+				ai.WithTextDocs(input.Question),
+				ai.WithConfig(&localvec.RetrieverOptions{
 					K: 3,
 				}))
 			if err != nil {

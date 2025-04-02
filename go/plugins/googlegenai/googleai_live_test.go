@@ -78,7 +78,7 @@ func TestGoogleAILive(t *testing.T) {
 	)
 
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
+		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}

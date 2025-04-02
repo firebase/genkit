@@ -59,7 +59,7 @@ func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions) (ai.Retrie
 		}
 
 		// Generate query embedding using the Embedder
-		embedRequest := &ai.EmbedRequest{Documents: []*ai.Document{req.Query}}
+		embedRequest := &ai.EmbedRequest{Input: []*ai.Document{req.Query}}
 		embedResponse, err := cfg.Embedder.Embed(ctx, embedRequest)
 		if err != nil {
 			return nil, fmt.Errorf("DefineFirestoreRetriever: Embedding failed: %v", err)

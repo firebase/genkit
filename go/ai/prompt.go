@@ -100,14 +100,14 @@ func (p *Prompt) Name() string { return p.action.Name() }
 
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
-func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*ModelResponse, error) {
+func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
 	genOpts := &promptGenerateOptions{}
 	for _, opt := range opts {
-		if err := opt.applyPromptGenerate(genOpts); err != nil {
+		if err := opt.applyPromptExecute(genOpts); err != nil {
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}

@@ -81,7 +81,7 @@ type EmbedResponse struct {
 }
 
 type Embedding struct {
-	Embedding []float64      `json:"embedding,omitempty"`
+	Embedding []float32      `json:"embedding,omitempty"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 

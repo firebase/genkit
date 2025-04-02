@@ -44,10 +44,11 @@ type ConfigOption interface {
 	applyCommonGen(*commonGenOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptGenerate(*promptGenerateOptions) error
-	applyEmbed(*embedOptions) error
-	applyRetrieve(*retrieveOptions) error
-	applyEvaluate(*evaluateOptions) error
+	applyPromptExecute(*promptGenerateOptions) error
+	applyEmbedder(*embedderOptions) error
+	applyRetriever(*retrieverOptions) error
+	applyEvaluator(*evaluatorOptions) error
+	applyIndexer(*indexerOptions) error
 }
 
 // applyConfig applies the option to the config options.
@@ -76,23 +77,28 @@ func (o *configOptions) applyGenerate(opts *generateOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
-// applyPromptGenerate applies the option to the prompt generate options.
-func (o *configOptions) applyPromptGenerate(opts *promptGenerateOptions) error {
+// applyPromptExecute applies the option to the prompt generate options.
+func (o *configOptions) applyPromptExecute(opts *promptGenerateOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
-// applyEmbed applies the option to the embed options.
-func (o *configOptions) applyEmbed(opts *embedOptions) error {
+// applyEmbedder applies the option to the embed options.
+func (o *configOptions) applyEmbedder(opts *embedderOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
-// applyRetrieve applies the option to the retrieve options.
-func (o *configOptions) applyRetrieve(opts *retrieveOptions) error {
+// applyRetriever applies the option to the retrieve options.
+func (o *configOptions) applyRetriever(opts *retrieverOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
-// applyEvaluate applies the option to the evaluate options.
-func (o *configOptions) applyEvaluate(opts *evaluateOptions) error {
+// applyEvaluator applies the option to the evaluate options.
+func (o *configOptions) applyEvaluator(opts *evaluatorOptions) error {
+	return o.applyConfig(&opts.configOptions)
+}
+
+// applyIndexer applies the option to the indexer options.
+func (o *configOptions) applyIndexer(opts *indexerOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
@@ -118,7 +124,7 @@ type CommonGenOption interface {
 	applyCommonGen(*commonGenOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptGenerate(*promptGenerateOptions) error
+	applyPromptExecute(*promptGenerateOptions) error
 }
 
 // applyCommonGen applies the option to the common options.
@@ -186,8 +192,8 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 	return nil
 }
 
-// applyPromptGenerate applies the option to the prompt request options.
-func (o *commonGenOptions) applyPromptGenerate(reqOpts *promptGenerateOptions) error {
+// applyPromptExecute applies the option to the prompt request options.
+func (o *commonGenOptions) applyPromptExecute(reqOpts *promptGenerateOptions) error {
 	return o.applyCommonGen(&reqOpts.commonGenOptions)
 }
 
@@ -494,7 +500,7 @@ type executionOptions struct {
 type ExecutionOption interface {
 	applyExecution(*executionOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptGenerate(*promptGenerateOptions) error
+	applyPromptExecute(*promptGenerateOptions) error
 }
 
 // applyExecution applies the option to the runtime options.
@@ -514,8 +520,8 @@ func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
 	return o.applyExecution(&genOpts.executionOptions)
 }
 
-// applyPromptGenerate applies the option to the prompt request options.
-func (o *executionOptions) applyPromptGenerate(pgOpts *promptGenerateOptions) error {
+// applyPromptExecute applies the option to the prompt request options.
+func (o *executionOptions) applyPromptExecute(pgOpts *promptGenerateOptions) error {
 	return o.applyExecution(&pgOpts.executionOptions)
 }
 
@@ -535,7 +541,10 @@ type documentOptions struct {
 type DocumentOption interface {
 	applyDocument(*documentOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptGenerate(*promptGenerateOptions) error
+	applyPromptExecute(*promptGenerateOptions) error
+	applyEmbedder(*embedderOptions) error
+	applyRetriever(*retrieverOptions) error
+	applyIndexer(*indexerOptions) error
 }
 
 // applyDocument applies the option to the context options.
@@ -555,19 +564,24 @@ func (o *documentOptions) applyGenerate(genOpts *generateOptions) error {
 	return o.applyDocument(&genOpts.documentOptions)
 }
 
-// applyPromptGenerate applies the option to the prompt generate options.
-func (o *documentOptions) applyPromptGenerate(pgOpts *promptGenerateOptions) error {
+// applyPromptExecute applies the option to the prompt generate options.
+func (o *documentOptions) applyPromptExecute(pgOpts *promptGenerateOptions) error {
 	return o.applyDocument(&pgOpts.documentOptions)
 }
 
-// applyEmbed applies the option to the embed options.
-func (o *documentOptions) applyEmbed(embedOpts *embedOptions) error {
+// applyEmbedder applies the option to the embed options.
+func (o *documentOptions) applyEmbedder(embedOpts *embedderOptions) error {
 	return o.applyDocument(&embedOpts.documentOptions)
 }
 
-// applyRetrieve applies the option to the retrieve options.
-func (o *documentOptions) applyRetrieve(retOpts *retrieveOptions) error {
+// applyRetriever applies the option to the retrieve options.
+func (o *documentOptions) applyRetriever(retOpts *retrieverOptions) error {
 	return o.applyDocument(&retOpts.documentOptions)
+}
+
+// applyIndexer applies the option to the indexer options.
+func (o *documentOptions) applyIndexer(idxOpts *indexerOptions) error {
+	return o.applyDocument(&idxOpts.documentOptions)
 }
 
 // WithTextDocs sets the text to be used as context documents for generation or as input to an embedder.
@@ -584,21 +598,21 @@ func WithDocs(docs ...*Document) DocumentOption {
 	return &documentOptions{Documents: docs}
 }
 
-// evaluateOptions are options for providing context documents to a prompt or generate request or as input to an embedder.
-type evaluateOptions struct {
+// evaluatorOptions are options for providing a dataset to evaluate.
+type evaluatorOptions struct {
 	configOptions
-	Dataset *Dataset // Dataset to evaluate.
-	ID      string   // ID of the evaluation.
+	Dataset []*Example // Dataset to evaluate.
+	ID      string     // ID of the evaluation.
 }
 
-// EvaluateOption is an option for providing a dataset to evaluate.
+// EvaluatorOption is an option for providing a dataset to evaluate.
 // It applies only to [Evaluator.Evaluate].
-type EvaluateOption interface {
-	applyEvaluate(*evaluateOptions) error
+type EvaluatorOption interface {
+	applyEvaluator(*evaluatorOptions) error
 }
 
-// applyEvaluate applies the option to the context options.
-func (o *evaluateOptions) applyEvaluate(evalOpts *evaluateOptions) error {
+// applyEvaluator applies the option to the evaluator options.
+func (o *evaluatorOptions) applyEvaluator(evalOpts *evaluatorOptions) error {
 	if err := o.applyConfig(&evalOpts.configOptions); err != nil {
 		return err
 	}
@@ -621,29 +635,29 @@ func (o *evaluateOptions) applyEvaluate(evalOpts *evaluateOptions) error {
 }
 
 // WithDataset sets the dataset to do evaluation on.
-func WithDataset(dataset *Dataset) EvaluateOption {
-	return &evaluateOptions{Dataset: dataset}
+func WithDataset(examples ...*Example) EvaluatorOption {
+	return &evaluatorOptions{Dataset: examples}
 }
 
 // WithID sets the ID of the evaluation to uniquely identify it.
-func WithID(id string) EvaluateOption {
-	return &evaluateOptions{ID: id}
+func WithID(ID string) EvaluatorOption {
+	return &evaluatorOptions{ID: ID}
 }
 
-// embedOptions holds configuration and input for an embedder request.
-type embedOptions struct {
+// embedderOptions holds configuration and input for an embedder request.
+type embedderOptions struct {
 	configOptions
 	documentOptions
 }
 
-// EmbedOption is an option for configuring an embedder request.
+// EmbedderOption is an option for configuring an embedder request.
 // It applies only to [Embed].
-type EmbedOption interface {
-	applyEmbed(*embedOptions) error
+type EmbedderOption interface {
+	applyEmbedder(*embedderOptions) error
 }
 
-// applyEmbed applies the option to the embed options.
-func (o *embedOptions) applyEmbed(embedOpts *embedOptions) error {
+// applyEmbedder applies the option to the embed options.
+func (o *embedderOptions) applyEmbedder(embedOpts *embedderOptions) error {
 	if err := o.applyConfig(&embedOpts.configOptions); err != nil {
 		return err
 	}
@@ -655,25 +669,50 @@ func (o *embedOptions) applyEmbed(embedOpts *embedOptions) error {
 	return nil
 }
 
-// retrieveOptions holds configuration and input for an embedder request.
-type retrieveOptions struct {
+// retrieverOptions holds configuration and input for a retriever request.
+type retrieverOptions struct {
 	configOptions
 	documentOptions
 }
 
-// RetrieveOption is an option for configuring an embedder request.
-// It applies only to [Embed].
-type RetrieveOption interface {
-	applyRetrieve(*retrieveOptions) error
+// RetrieverOption is an option for configuring a retriever request.
+// It applies only to [Retriever.Retrieve].
+type RetrieverOption interface {
+	applyRetriever(*retrieverOptions) error
 }
 
-// applyRetrieve applies the option to the retrieve options.
-func (o *retrieveOptions) applyRetrieve(retOpts *retrieveOptions) error {
+// applyRetriever applies the option to the retrieve options.
+func (o *retrieverOptions) applyRetriever(retOpts *retrieverOptions) error {
 	if err := o.applyConfig(&retOpts.configOptions); err != nil {
 		return err
 	}
 
 	if err := o.applyDocument(&retOpts.documentOptions); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// indexerOptions holds configuration and input for an embedder request.
+type indexerOptions struct {
+	configOptions
+	documentOptions
+}
+
+// IndexerOption is an option for configuring an embedder request.
+// It applies only to [Index].
+type IndexerOption interface {
+	applyIndexer(*indexerOptions) error
+}
+
+// applyIndexer applies the option to the indexer options.
+func (o *indexerOptions) applyIndexer(idxOpts *indexerOptions) error {
+	if err := o.applyConfig(&idxOpts.configOptions); err != nil {
+		return err
+	}
+
+	if err := o.applyDocument(&idxOpts.documentOptions); err != nil {
 		return err
 	}
 
@@ -727,22 +766,22 @@ type promptGenerateOptions struct {
 	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
 }
 
-// PromptGenerateOption is an option for executing a prompt. It applies only to prompt.Execute().
-type PromptGenerateOption interface {
-	applyPromptGenerate(*promptGenerateOptions) error
+// PromptExecuteOption is an option for executing a prompt. It applies only to prompt.Execute().
+type PromptExecuteOption interface {
+	applyPromptExecute(*promptGenerateOptions) error
 }
 
-// applyPromptGenerate applies the option to the prompt request options.
-func (o *promptGenerateOptions) applyPromptGenerate(pgOpts *promptGenerateOptions) error {
-	if err := o.commonGenOptions.applyPromptGenerate(pgOpts); err != nil {
+// applyPromptExecute applies the option to the prompt request options.
+func (o *promptGenerateOptions) applyPromptExecute(pgOpts *promptGenerateOptions) error {
+	if err := o.commonGenOptions.applyPromptExecute(pgOpts); err != nil {
 		return err
 	}
 
-	if err := o.executionOptions.applyPromptGenerate(pgOpts); err != nil {
+	if err := o.executionOptions.applyPromptExecute(pgOpts); err != nil {
 		return err
 	}
 
-	if err := o.documentOptions.applyPromptGenerate(pgOpts); err != nil {
+	if err := o.documentOptions.applyPromptExecute(pgOpts); err != nil {
 		return err
 	}
 
@@ -756,7 +795,8 @@ func (o *promptGenerateOptions) applyPromptGenerate(pgOpts *promptGenerateOption
 	return nil
 }
 
-// WithInput sets the input for the prompt request.
-func WithInput(input any) PromptGenerateOption {
+// WithInput sets the input for the prompt request. Input must conform to the
+// prompt's input schema and can either be a map[string]any or a struct of the same type.
+func WithInput(input any) PromptExecuteOption {
 	return &promptGenerateOptions{Input: input}
 }

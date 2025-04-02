@@ -96,8 +96,8 @@ func (e *MockEmbedder) Name() string {
 }
 
 func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-	var embeddings []*ai.DocumentEmbedding
-	for _, doc := range req.Documents {
+	var embeddings []*ai.Embedding
+	for _, doc := range req.Input {
 		var embedding []float32
 		switch doc.Content[0].Text {
 		case "This is document one":
@@ -117,7 +117,7 @@ func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 			embedding = []float32{0.0, 0.0, 0.0}
 		}
 
-		embeddings = append(embeddings, &ai.DocumentEmbedding{Embedding: embedding})
+		embeddings = append(embeddings, &ai.Embedding{Embedding: embedding})
 	}
 	return &ai.EmbedResponse{Embeddings: embeddings}, nil
 }
@@ -185,7 +185,7 @@ func TestFirestoreRetriever(t *testing.T) {
 		aiDoc := ai.DocumentFromText(doc.Text, doc.Data)
 
 		// Generate embedding
-		embedRequest := &ai.EmbedRequest{Documents: []*ai.Document{aiDoc}}
+		embedRequest := &ai.EmbedRequest{Input: []*ai.Document{aiDoc}}
 		embedResponse, err := embedder.Embed(ctx, embedRequest)
 		if err != nil {
 			t.Fatalf("Failed to generate embedding for document %s: %v", doc.ID, err)

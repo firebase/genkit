@@ -133,8 +133,8 @@ func newDocStore(dir, name string, embedder ai.Embedder, embedderOptions any) (*
 // index indexes a document.
 func (ds *docStore) index(ctx context.Context, req *ai.IndexerRequest) error {
 	ereq := &ai.EmbedRequest{
-		Documents: req.Documents,
-		Options:   ds.embedderOptions,
+		Input:   req.Documents,
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
@@ -194,8 +194,8 @@ func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.embedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {

@@ -93,8 +93,8 @@ func TestCommonOptions(t *testing.T) {
 			}
 
 			for _, opt := range tt.opts {
-				if err = opt.applyPromptGenerate(pgOpts); err != nil {
-					t.Errorf("applyPromptGenerate() unexpected error = %v", err)
+				if err = opt.applyPromptExecute(pgOpts); err != nil {
+					t.Errorf("applyPromptExecute() unexpected error = %v", err)
 					return
 				}
 			}
@@ -312,8 +312,8 @@ func TestExecutionOptions(t *testing.T) {
 			}
 
 			for _, opt := range tt.opts {
-				if err = opt.applyPromptGenerate(pgOpts); err != nil {
-					t.Errorf("applyPromptGenerate() unexpected error = %v", err)
+				if err = opt.applyPromptExecute(pgOpts); err != nil {
+					t.Errorf("applyPromptExecute() unexpected error = %v", err)
 					return
 				}
 			}
@@ -324,19 +324,19 @@ func TestExecutionOptions(t *testing.T) {
 func TestPromptGenerateOptions(t *testing.T) {
 	tests := []struct {
 		name    string
-		opts    []PromptGenerateOption
+		opts    []PromptExecuteOption
 		wantErr bool
 	}{
 		{
 			name: "valid options",
-			opts: []PromptGenerateOption{
+			opts: []PromptExecuteOption{
 				WithInput(map[string]string{"key": "value"}),
 			},
 			wantErr: false,
 		},
 		{
 			name: "duplicate - input",
-			opts: []PromptGenerateOption{
+			opts: []PromptExecuteOption{
 				WithInput("input1"),
 				WithInput("input2"),
 			},
@@ -349,13 +349,13 @@ func TestPromptGenerateOptions(t *testing.T) {
 			opts := &promptGenerateOptions{}
 			var err error
 			for _, opt := range tt.opts {
-				err = opt.applyPromptGenerate(opts)
+				err = opt.applyPromptExecute(opts)
 				if err != nil {
 					break
 				}
 			}
 			if (err != nil) != tt.wantErr {
-				t.Errorf("applyPromptGenerate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("applyPromptExecute() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -546,7 +546,7 @@ func TestPromptGenerateOptionsComplete(t *testing.T) {
 	input := map[string]string{"key": "value"}
 	doc := DocumentFromText("doc", nil)
 
-	options := []PromptGenerateOption{
+	options := []PromptExecuteOption{
 		WithModel(model),
 		WithMessages(NewUserTextMessage("message")),
 		WithConfig(&GenerationCommonConfig{Temperature: 0.7}),
@@ -561,7 +561,7 @@ func TestPromptGenerateOptionsComplete(t *testing.T) {
 	}
 
 	for _, opt := range options {
-		if err := opt.applyPromptGenerate(opts); err != nil {
+		if err := opt.applyPromptExecute(opts); err != nil {
 			t.Fatalf("Failed to apply option: %v", err)
 		}
 	}
