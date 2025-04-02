@@ -599,11 +599,8 @@ func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
 // Partials can be referenced in templates with the syntax {{>partialName}}.
-func DefinePartial(g *Genkit, name string, source string) {
-	if g == nil || g.reg == nil {
-		return
-	}
-	ai.DefinePartial(g.reg, name, source)
+func DefinePartial(g *Genkit, name string, source string) error {
+	return g.reg.DefinePartial(name, source)
 }
 
 // DefineHelper wraps DefineHelper to register a helper function with the given name.
@@ -618,9 +615,6 @@ func DefinePartial(g *Genkit, name string, source string) {
 // In a template, you would use it as:
 //
 //	{{uppercase "hello"}} => "HELLO"
-func DefineHelper(g *Genkit, name string, fn any) {
-	if g == nil || g.reg == nil {
-		return
-	}
-	ai.DefineHelper(g.reg, name, fn)
+func DefineHelper(g *Genkit, name string, fn any) error {
+	return g.reg.DefineHelper(name, fn)
 }

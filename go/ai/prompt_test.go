@@ -1020,7 +1020,7 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 
 // TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining
 // and using both partials and helpers.
-func TestDefinePartialAndHelperJourney(t *testing.T) {
+func TestDefinePartialAndHelper(t *testing.T) {
 	// Initialize a mock registry
 	reg, err := registry.New()
 	if err != nil {
@@ -1029,10 +1029,24 @@ func TestDefinePartialAndHelperJourney(t *testing.T) {
 
 	model := definePromptModel(reg)
 
-	DefinePartial(reg, "header", "Welcome {{name}}!")
-	DefineHelper(reg, "uppercase", func(s string) string {
+	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err != nil {
+		t.Fatalf("Failed to define partial: %v", err)
+	}
+	if err = reg.DefineHelper("uppercase", func(s string) string {
 		return strings.ToUpper(s)
-	})
+	}); err != nil {
+		t.Fatalf("Failed to define helper: %v", err)
+	}
+
+	// Duplicate partial and helper definitions should return an error
+	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err == nil {
+		t.Fatalf("Expected error defining partial with duplicate name")
+	}
+	if err = reg.DefineHelper("uppercase", func(s string) string {
+		return ""
+	}); err == nil {
+		t.Fatalf("Expected error defining helper with duplicate name")
+	}
 
 	p, err := DefinePrompt(reg, "test", WithPromptText(`{{> header}} {{uppercase greeting}}`), WithModel(model))
 

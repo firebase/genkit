@@ -14,7 +14,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/blues/jsonata-go v1.5.4
-	github.com/google/dotprompt/go v0.0.0-20250328143753-e5e8fba19c9a
+	github.com/google/dotprompt/go v0.0.0-20250402175444-30d6a6673f44
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
