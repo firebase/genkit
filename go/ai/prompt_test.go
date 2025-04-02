@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -1017,3 +1018,256 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}
 }
+
+type UpperCaseHelperInput struct {
+	Name string
+}
+
+// createEchoModel creates a simple model that returns the user's input text.
+func createEchoModel(r *registry.Registry) Model {
+	return DefineModel(r, "echo-model", "Simple echo model", nil,
+		func(ctx context.Context, req *ModelRequest, cb func(context.Context, *ModelResponseChunk) error) (*ModelResponse, error) {
+			// Simply return user's message text as is (already rendered with helpers)
+			text := ""
+			for _, msg := range req.Messages {
+				if msg.Role == RoleUser {
+					text = msg.Text()
+					break
+				}
+			}
+
+			return &ModelResponse{
+				Message: &Message{
+					Role: "assistant",
+					Content: []*Part{
+						NewTextPart(text),
+					},
+				},
+				Request: req,
+			}, nil
+		})
+}
+
+// uppercaseHelper converts a string to uppercase.
+func uppercaseHelper(s string) string {
+	return strings.ToUpper(s)
+}
+
+// reverseHelper reverses a string.
+func reverseHelper(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
+// embraceHelper wraps the result of the helper in parentheses.
+func embraceHelper(options *raymond.Options) raymond.SafeString {
+	return raymond.SafeString("(" + options.Fn() + ")")
+}
+
+// formatNameHelper formats a name as "last, first".
+func formatNameHelper(first, last string) string {
+	return fmt.Sprintf("%s, %s", last, first)
+}
+
+// TestDefineHelper tests the DefineHelper function.
+func TestDefineHelper(t *testing.T) {
+	t.Run("basic string helper", func(t *testing.T) {
+		// Create a new registry
+		reg, err := registry.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Define a simple helper function
+		DefineHelper(reg, "uppercase", uppercaseHelper)
+
+		// Create a model that just returns the rendered text
+		model := createEchoModel(reg)
+
+		// Define a prompt that uses the helper
+		p, err := DefinePrompt(reg, "test-helper",
+			WithPromptText("Hello {{uppercase name}}!"),
+			WithModel(model),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Execute the prompt
+		result, err := p.Execute(context.Background(), WithInput(map[string]any{
+			"name": "world",
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify helper was applied correctly
+		expected := "Hello WORLD!"
+		if got := result.Text(); got != expected {
+			t.Errorf("got %q, want %q", got, expected)
+		}
+	})
+
+	t.Run("helper with block syntax", func(t *testing.T) {
+		// Create a new registry
+		reg, err := registry.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Define a helper that works with block syntax
+		DefineHelper(reg, "embrace", embraceHelper)
+
+		// Create an echo model
+		model := createEchoModel(reg)
+
+		// Define a prompt that uses the block helper
+		p, err := DefinePrompt(reg, "test-block-helper",
+			WithPromptText("{{#embrace}}Hello {{name}}{{/embrace}}"),
+			WithModel(model),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Execute the prompt
+		result, err := p.Execute(context.Background(), WithInput(map[string]any{
+			"name": "world",
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify block helper was applied correctly
+		expected := "(Hello world)"
+		if got := result.Text(); got != expected {
+			t.Errorf("got %q, want %q", got, expected)
+		}
+	})
+
+	t.Run("helper with parameters", func(t *testing.T) {
+		// Create a new registry
+		reg, err := registry.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Define a helper that takes parameters
+		DefineHelper(reg, "formatName", formatNameHelper)
+
+		// Create an echo model
+		model := createEchoModel(reg)
+
+		// Define a prompt that uses the helper with parameters
+		p, err := DefinePrompt(reg, "test-param-helper",
+			WithPromptText("Hello {{formatName firstName lastName}}!"),
+			WithModel(model),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Execute the prompt
+		result, err := p.Execute(context.Background(), WithInput(map[string]any{
+			"firstName": "John",
+			"lastName":  "Doe",
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify helper with parameters was applied correctly
+		expected := "Hello Doe, John!"
+		if got := result.Text(); got != expected {
+			t.Errorf("got %q, want %q", got, expected)
+		}
+	})
+
+	t.Run("nil registry", func(t *testing.T) {
+		// Test that DefineHelper gracefully handles nil registry
+		// This should not panic
+		DefineHelper(nil, "test", func(s string) string { return s })
+	})
+
+	t.Run("multiple helpers", func(t *testing.T) {
+		// Create a new registry
+		reg, err := registry.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Define multiple helpers
+		DefineHelper(reg, "uppercase", uppercaseHelper)
+		DefineHelper(reg, "reverse", reverseHelper)
+
+		// Create an echo model
+		model := createEchoModel(reg)
+
+		// Define a prompt that uses multiple helpers
+		p, err := DefinePrompt(reg, "test-multiple-helpers",
+			WithPromptText("{{uppercase (reverse name)}}"),
+			WithModel(model),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Execute the prompt
+		result, err := p.Execute(context.Background(), WithInput(map[string]any{
+			"name": "world",
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify both helpers were applied (uppercase of reversed "world")
+		expected := "DLROW"
+		if got := result.Text(); got != expected {
+			t.Errorf("got %q, want %q", got, expected)
+		}
+	})
+}
+
+// TestDefinePartial tests the DefinePartial function.
+// func TestDefinePartial(t *testing.T) {
+// 	dp := NewDotprompt(nil)
+// 	tpl, err := raymond.Parse("{{> testPartial}}")
+// 	if err != nil {
+// 		t.Fatalf("Failed to parse template: %v", err)
+// 	}
+//
+// 	partialName := "testPartial"
+// 	partialSource := "Partial Content"
+//
+// 	// Initial call.
+// 	dp.DefinePartial(partialName, partialSource, tpl)
+//
+// 	if !dp.knownPartials[partialName] {
+// 		t.Errorf("Expected partial '%s' to be marked as known, but it wasn't", partialName)
+// 	}
+// 	if len(dp.knownPartials) != 1 {
+// 		t.Errorf("Expected knownPartials map to have 1 entry, got %d", len(dp.knownPartials))
+// 	}
+//
+// 	// Verify rendering (indirectly checks registration).
+// 	result, err := tpl.Exec(nil)
+// 	if err != nil {
+// 		t.Errorf("Template execution failed after registering partial: %v", err)
+// 	}
+// 	if result != "Partial Content" {
+// 		t.Errorf("Expected template output 'Partial Content', got '%s'", result)
+// 	}
+//
+// 	// Call again with the same name; should be a no-op.
+// 	dp.DefinePartial(partialName, partialSource, tpl)
+// 	if !dp.knownPartials[partialName] {
+// 		t.Errorf("Expected partial '%s' to still be marked as known after second call", partialName)
+// 	}
+// 	if len(dp.knownPartials) != 1 {
+// 		t.Errorf("Expected knownPartials map to still have 1 entry after second call, got %d", len(dp.knownPartials))
+// 	}
+// }
+//
