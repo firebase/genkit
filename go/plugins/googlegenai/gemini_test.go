@@ -20,10 +20,22 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"google.golang.org/genai"
 )
 
 func TestConvertRequest(t *testing.T) {
 	text := "hello"
+	tool := &ai.ToolDefinition{
+		Description: "this is a dummy tool",
+		Name:        "myTool",
+		InputSchema: map[string]any{
+			"additionalProperties": bool(false),
+			"properties":           map[string]any{"Test": map[string]any{"type": string("string")}},
+			"required":             []any{string("Test")},
+			"type":                 string("object"),
+		},
+		OutputSchema: map[string]any{"type": string("string")},
+	}
 	req := &ai.ModelRequest{
 		Config: &ai.GenerationCommonConfig{
 			MaxOutputTokens: 10,
@@ -33,12 +45,7 @@ func TestConvertRequest(t *testing.T) {
 			TopP:            1.0,
 			Version:         text,
 		},
-		Tools: []*ai.ToolDefinition{
-			{
-				Description: "this is a dummy tool",
-				Name:        "myTool",
-			},
-		},
+		Tools:      []*ai.ToolDefinition{tool},
 		ToolChoice: ai.ToolChoiceAuto,
 		Messages: []*ai.Message{
 			{
@@ -103,6 +110,96 @@ func TestConvertRequest(t *testing.T) {
 		}
 		if gcc.TopK == nil {
 			t.Errorf("topK: got: nil, want %d", ogCfg.TopK)
+		}
+	})
+	t.Run("convert tools with valid tool", func(t *testing.T) {
+		tools := []*ai.ToolDefinition{tool}
+		gt, err := convertTools(tools)
+		if err != nil {
+			t.Fatalf("expected tool convertion but got error: %v", err)
+		}
+		for _, tt := range gt {
+			for _, fd := range tt.FunctionDeclarations {
+				if fd.Description == "" {
+					t.Error("expecting tool description, got empty")
+				}
+				if fd.Name == "" {
+					t.Error("expecting tool name, got empty")
+				}
+				if fd.Parameters == nil {
+					t.Error("expecting parameters, got empty")
+				}
+			}
+		}
+	})
+	t.Run("convert tools with empty tools", func(t *testing.T) {
+		tools := []*ai.ToolDefinition{}
+		gt, err := convertTools(tools)
+		if err != nil {
+			t.Fatal("should not expect errors")
+		}
+		if gt != nil {
+			t.Fatalf("should expect an empty tool list, got %#v", gt)
+		}
+	})
+	t.Run("convert schema with valid schema", func(t *testing.T) {
+		schema := tool.InputSchema
+		gs, err := convertSchema(schema, schema)
+		if err != nil {
+			t.Fatalf("expected schema convertion but got error: %v", err)
+		}
+		if gs == nil {
+			t.Fatal("expected non nil schema")
+		}
+		if gs.Type != genai.TypeObject {
+			t.Errorf("invalid schema type, want: genai.TypeObject, got: %T", gs.Type)
+		}
+		if gs.Properties == nil {
+			t.Error("expecting non nil schema properties")
+		}
+		if len(gs.Required) == 0 {
+			t.Error("expecting required elements, got 0")
+		}
+	})
+	t.Run("convert schema with nil schema", func(t *testing.T) {
+		gs, err := convertSchema(nil, nil)
+		if err != nil {
+			t.Errorf("not expecting an error, got: %v", err)
+		}
+		if gs != nil {
+			t.Errorf("expecting a nil schema, got: %#v", gs)
+		}
+	})
+	t.Run("convert tool choice with choice required", func(t *testing.T) {
+		tools := []*ai.ToolDefinition{tool}
+		tc, err := convertToolChoice(ai.ToolChoiceRequired, tools)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.FunctionCallingConfig == nil {
+			t.Fatal("config should not be empty")
+		}
+		if tc.FunctionCallingConfig.Mode == "" {
+			t.Errorf("mode should not be empty")
+		}
+		if len(tc.FunctionCallingConfig.AllowedFunctionNames) == 0 {
+			t.Error("function names should not be empty")
+		}
+	})
+	t.Run("convert tool choice with choice auto", func(t *testing.T) {
+		tools := []*ai.ToolDefinition{tool}
+		tc, err := convertToolChoice(ai.ToolChoiceAuto, tools)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.FunctionCallingConfig == nil {
+			t.Fatal("config should not be empty")
+		}
+		if tc.FunctionCallingConfig.Mode == "" {
+			t.Errorf("mode should not be empty")
+		}
+		if len(tc.FunctionCallingConfig.AllowedFunctionNames) > 0 {
+			t.Error("function names should be empty")
 		}
 	})
 }
