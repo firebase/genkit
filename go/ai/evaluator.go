@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -175,7 +188,22 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	return actionDef, nil
 }
 
-// TODO(ssbushi): Add defineBatchEvaluator()
+// DefineBatchEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method provide the full
+// [EvaluatorRequest] to the callback function, giving more flexibilty to the
+// user for processing the data, such as batching or parallelization.
+func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, batchEval func(context.Context, *EvaluatorRequest) (*EvaluatorResponse, error)) (Evaluator, error) {
+	if options == nil {
+		return nil, errors.New("EvaluatorOptions must be provided")
+	}
+
+	metadataMap := map[string]any{}
+	metadataMap["evaluatorIsBilled"] = options.IsBilled
+	metadataMap["evaluatorDisplayName"] = options.DisplayName
+	metadataMap["evaluatorDefinition"] = options.Definition
+
+	return (*evaluatorActionDef)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
+}
 
 // IsDefinedEvaluator reports whether an [Evaluator] is defined.
 func IsDefinedEvaluator(r *registry.Registry, provider, name string) bool {

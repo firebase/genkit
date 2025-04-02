@@ -27,13 +27,13 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 		info       *ModelInfo
 		input      *ModelRequest
 		wantMsgs   []*Message
-		wantConfig *OutputConfig
+		wantConfig *ModelOutputConfig
 	}{
 		{
 			name: "simulates constraint if no model support",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
-					Constrained: ModelInfoSupportsConstrainedNone,
+				Supports: &ModelSupports{
+					Constrained: ConstrainedSupportNone,
 				},
 			},
 			input: &ModelRequest{
@@ -41,7 +41,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 					NewSystemTextMessage("You are a helpful assistant."),
 					NewUserTextMessage("hello!"),
 				},
-				Output: &OutputConfig{
+				Output: &ModelOutputConfig{
 					Format:      string(OutputFormatJSON),
 					Constrained: true,
 					Schema: map[string]any{
@@ -68,7 +68,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 				},
 				NewUserTextMessage("hello!"),
 			},
-			wantConfig: &OutputConfig{
+			wantConfig: &ModelOutputConfig{
 				Format:      string(OutputFormatJSON),
 				Constrained: false,
 				Schema: map[string]any{
@@ -83,8 +83,8 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 		{
 			name: "simulates constraint if no tool support and tools are in request",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
-					Constrained: ModelInfoSupportsConstrainedNoTools,
+				Supports: &ModelSupports{
+					Constrained: ConstrainedSupportNoTools,
 				},
 			},
 			input: &ModelRequest{
@@ -92,7 +92,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 					NewSystemTextMessage("You are a helpful assistant."),
 					NewUserTextMessage("hello!"),
 				},
-				Output: &OutputConfig{
+				Output: &ModelOutputConfig{
 					Format:      string(OutputFormatJSON),
 					Constrained: true,
 					Schema: map[string]any{
@@ -125,7 +125,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 				},
 				NewUserTextMessage("hello!"),
 			},
-			wantConfig: &OutputConfig{
+			wantConfig: &ModelOutputConfig{
 				Format:      string(OutputFormatJSON),
 				Constrained: false,
 				Schema: map[string]any{
@@ -140,8 +140,8 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 		{
 			name: "doesn't simulate constraint if no tools are in request",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
-					Constrained: ModelInfoSupportsConstrainedNoTools,
+				Supports: &ModelSupports{
+					Constrained: ConstrainedSupportNoTools,
 				},
 			},
 			input: &ModelRequest{
@@ -149,7 +149,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 					NewSystemTextMessage("You are a helpful assistant."),
 					NewUserTextMessage("hello!"),
 				},
-				Output: &OutputConfig{
+				Output: &ModelOutputConfig{
 					Format:      string(OutputFormatJSON),
 					Constrained: true,
 					Schema: map[string]any{
@@ -170,7 +170,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 				},
 				NewUserTextMessage("hello!"),
 			},
-			wantConfig: &OutputConfig{
+			wantConfig: &ModelOutputConfig{
 				Format:      string(OutputFormatJSON),
 				Constrained: true,
 				Schema: map[string]any{
@@ -185,15 +185,15 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 		{
 			name: "relies on native support -- no instructions",
 			info: &ModelInfo{
-				Supports: &ModelInfoSupports{
-					Constrained: ModelInfoSupportsConstrainedAll,
+				Supports: &ModelSupports{
+					Constrained: ConstrainedSupportAll,
 				},
 			},
 			input: &ModelRequest{
 				Messages: []*Message{
 					NewUserTextMessage("generate json"),
 				},
-				Output: &OutputConfig{
+				Output: &ModelOutputConfig{
 					Format: string(OutputFormatJSON),
 					Schema: map[string]any{
 						"type":     "object",
@@ -207,7 +207,7 @@ func TestSimulateConstrainedGeneration(t *testing.T) {
 			wantMsgs: []*Message{
 				NewUserTextMessage("generate json"),
 			},
-			wantConfig: &OutputConfig{
+			wantConfig: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"type":     "object",
@@ -249,12 +249,12 @@ func TestConstrainedGenerate(t *testing.T) {
 
 	modelInfo := ModelInfo{
 		Label: modelName,
-		Supports: &ModelInfoSupports{
+		Supports: &ModelSupports{
 			Multiturn:   true,
 			Tools:       true,
 			SystemRole:  true,
 			Media:       false,
-			Constrained: ModelInfoSupportsConstrainedAll,
+			Constrained: ConstrainedSupportAll,
 		},
 		Versions: []string{"echo-001", "echo-002"},
 	}
@@ -284,7 +284,7 @@ func TestConstrainedGenerate(t *testing.T) {
 					},
 				},
 			},
-			Output: &OutputConfig{
+			Output: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -350,7 +350,7 @@ func TestConstrainedGenerate(t *testing.T) {
 					},
 				},
 			},
-			Output: &OutputConfig{
+			Output: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -417,7 +417,7 @@ func TestConstrainedGenerate(t *testing.T) {
 					},
 				},
 			},
-			Output: &OutputConfig{
+			Output: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -483,7 +483,7 @@ func TestConstrainedGenerate(t *testing.T) {
 					},
 				},
 			},
-			Output: &OutputConfig{
+			Output: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -535,7 +535,7 @@ func TestHandlers(t *testing.T) {
 		name         string
 		format       string
 		schema       map[string]any
-		output       *OutputConfig
+		output       *ModelOutputConfig
 		instructions string
 		wantErr      bool
 	}{
@@ -556,7 +556,7 @@ func TestHandlers(t *testing.T) {
 			name:   "text handler",
 			format: "text",
 			schema: nil,
-			output: &OutputConfig{
+			output: &ModelOutputConfig{
 				ContentType: "text/plain",
 			},
 			instructions: "",
@@ -573,7 +573,7 @@ func TestHandlers(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			output: &OutputConfig{
+			output: &ModelOutputConfig{
 				Format: "json",
 				Schema: map[string]any{
 					"type": "object",
@@ -603,7 +603,7 @@ func TestHandlers(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			output: &OutputConfig{
+			output: &ModelOutputConfig{
 				Format: "jsonl",
 				Schema: map[string]any{
 					"type": "array",

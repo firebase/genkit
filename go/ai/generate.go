@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -8,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -77,7 +91,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
 			Label:    name,
-			Supports: &ModelInfoSupports{},
+			Supports: &ModelSupports{},
 			Versions: []string{},
 		}
 	}
@@ -93,20 +107,24 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"constrained": info.Supports.Constrained,
 			},
 			"versions": info.Versions,
+			"stage":    info.Stage,
 		},
 	}
 	if info.Label != "" {
 		metadata["label"] = info.Label
 	}
 
-	fn = core.ChainMiddleware(ValidateSupport(name, info), SimulateConstrainedGeneration(name, info))(fn)
+	// Create the middleware list
+	middlewares := []ModelMiddleware{
+		simulateSystemPrompt(info, nil),
+		augmentWithContext(info, nil),
+		validateSupport(name, info),
+		SimulateConstrainedGeneration(name, info),
+	}
+
+	fn = core.ChainMiddleware(middlewares...)(fn)
 
 	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
-}
-
-// IsDefinedModel reports whether a model is defined.
-func IsDefinedModel(r *registry.Registry, provider, name string) bool {
-	return core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name) != nil
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
@@ -146,7 +164,10 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
 func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
-		return nil, errors.New("ai.GenerateWithRequest: model is required")
+		opts.Model = r.LookupValue(registry.DefaultModelKey).(string)
+		if opts.Model == "" {
+			return nil, errors.New("ai.GenerateWithRequest: model is required")
+		}
 	}
 
 	model, err := LookupModelByName(r, opts.Model)
@@ -180,7 +201,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var config *OutputConfig
+	var config *ModelOutputConfig
 	if opts.Output != nil {
 		// Find the correct formatter
 		resolvedFormat, err := ResolveFormat(r, opts.Output.JsonSchema, string(opts.Output.Format))
@@ -289,7 +310,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 	tools := make([]string, len(genOpts.Tools))
 	for i, tool := range genOpts.Tools {
-		tools[i] = tool.Definition().Name
+		tools[i] = tool.Name()
 	}
 
 	messages := []*Message{}
@@ -358,7 +379,7 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 		return nil, err
 	}
 
-	err = resp.UnmarshalOutput(value)
+	err = resp.Output(value)
 	if err != nil {
 		return nil, err
 	}
@@ -507,6 +528,21 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	return newReq, nil, nil
 }
 
+// conformOutput appends a message to the request indicating conformance to the expected schema.
+func conformOutput(req *ModelRequest) error {
+	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
+		jsonBytes, err := json.Marshal(req.Output.Schema)
+		if err != nil {
+			return fmt.Errorf("expected schema is not valid: %w", err)
+		}
+
+		escapedJSON := strconv.Quote(string(jsonBytes))
+		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
+		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
+	}
+	return nil
+}
+
 // Text returns the contents of the first candidate in a
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
@@ -526,15 +562,14 @@ func (gr *ModelResponse) History() []*Message {
 	return append(gr.Request.Messages, gr.Message)
 }
 
-// UnmarshalOutput unmarshals structured JSON output into the provided
+// Output unmarshals structured JSON output into the provided
 // struct pointer.
-func (gr *ModelResponse) UnmarshalOutput(v any) error {
+func (gr *ModelResponse) Output(v any) error {
 	j := base.ExtractJSONFromMarkdown(gr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
-	json.Unmarshal([]byte(j), v)
-	return nil
+	return json.Unmarshal([]byte(j), v)
 }
 
 // Text returns the text content of the [ModelResponseChunk]

@@ -1,7 +1,7 @@
 # Getting Started
 
-::: genkit.veneer.veneer
+::: genkit.ai.veneer
 
-::: genkit.veneer.registry
+::: genkit.ai.registry
 
-::: genkit.core.action.ActionKind
+::: genkit.core.action.types.ActionKind

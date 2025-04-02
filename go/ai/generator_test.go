@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -32,14 +45,15 @@ var (
 	modelName = "echo"
 	metadata  = ModelInfo{
 		Label: modelName,
-		Supports: &ModelInfoSupports{
+		Supports: &ModelSupports{
 			Multiturn:   true,
 			Tools:       true,
 			SystemRole:  true,
 			Media:       false,
-			Constrained: ModelInfoSupportsConstrainedNone,
+			Constrained: ConstrainedSupportNone,
 		},
 		Versions: []string{"echo-001", "echo-002"},
+		Stage:    ModelStageDeprecated,
 	}
 
 	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
@@ -81,10 +95,10 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart("Hello, World!"),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatText),
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +119,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(json)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type":     "object",
@@ -126,7 +140,7 @@ func TestValidMessage(t *testing.T) {
 				},
 			},
 		}
-		message, err := validMessage(message, outputSchema)
+		message, err := validTestMessage(message, outputSchema)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -142,7 +156,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": "30"}`)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
@@ -152,7 +166,7 @@ func TestValidMessage(t *testing.T) {
 				},
 			},
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
 	})
 
@@ -162,27 +176,27 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30`)), // Missing trailing }.
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
-		_, err := validMessage(nil, outputSchema)
+		_, err := validTestMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
 	})
 
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
 	})
 
@@ -192,7 +206,7 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "height": 190}`)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "object",
@@ -203,7 +217,7 @@ func TestValidMessage(t *testing.T) {
 				"additionalProperties": false,
 			},
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
 	})
 
@@ -213,13 +227,13 @@ func TestValidMessage(t *testing.T) {
 				NewTextPart(JSONMarkdown(`{"name": "John", "age": 30}`)),
 			},
 		}
-		outputSchema := &OutputConfig{
+		outputSchema := &ModelOutputConfig{
 			Format: string(OutputFormatJSON),
 			Schema: map[string]any{
 				"type": "invalid",
 			},
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "failed to validate data against expected schema")
 	})
 }
@@ -251,6 +265,11 @@ func TestGenerate(t *testing.T) {
 					Content: []*Part{
 						NewTextPart("You are a helpful assistant."),
 						NewTextPart("ignored (conformance message)"),
+						{
+							Text: "\n\nUse the following information " +
+								"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
+							Metadata: map[string]any{"purpose": "context"},
+						},
 					},
 				},
 				NewUserTextMessage("How many bananas are there?"),
@@ -259,7 +278,7 @@ func TestGenerate(t *testing.T) {
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
 			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
-			Output: &OutputConfig{
+			Output: &ModelOutputConfig{
 				Format: string(OutputFormatJSON),
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -346,7 +365,7 @@ func TestGenerate(t *testing.T) {
 		)
 
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -405,7 +424,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
 		roundCount := 0
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -470,7 +489,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
 		roundCount := 0
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -538,7 +557,7 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("exceeds maximum turns", func(t *testing.T) {
 		info := &ModelInfo{
-			Supports: &ModelInfoSupports{
+			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
@@ -631,19 +650,6 @@ func TestModelVersion(t *testing.T) {
 	})
 }
 
-func TestIsDefinedModel(t *testing.T) {
-	t.Run("should return true", func(t *testing.T) {
-		if IsDefinedModel(r, "test", modelName) != true {
-			t.Errorf("IsDefinedModel did not return true")
-		}
-	})
-	t.Run("should return false", func(t *testing.T) {
-		if IsDefinedModel(r, "foo", "bar") != false {
-			t.Errorf("IsDefinedModel did not return false")
-		}
-	})
-}
-
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
 		if LookupModel(r, "test", modelName) == nil {
@@ -685,7 +691,7 @@ func errorContains(t *testing.T, err error, want string) {
 	}
 }
 
-func validMessage(m *Message, output *OutputConfig) (*Message, error) {
+func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 	resolvedFormat, err := ResolveFormat(r, output.Schema, output.Format)
 	if err != nil {
 		return nil, err

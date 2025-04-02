@@ -1,13 +1,28 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
+"""Gemini Models for Genkit."""
+
 from enum import StrEnum
-from functools import cached_property, singledispatch
+from functools import cached_property
 
 from google import genai
 
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import ActionRunContext
+from genkit.types import (
     CustomPart,
     GenerateRequest,
     GenerateResponse,
@@ -168,11 +183,7 @@ class PartConverter:
             url = part.root.media.url
             return genai.types.Part(
                 inline_data=genai.types.Blob(
-                    data=url[
-                        url.find(cls.DATA) + len(cls.DATA) : url.find(
-                            cls.BASE64
-                        )
-                    ],
+                    data=url[url.find(cls.DATA) + len(cls.DATA) : url.find(cls.BASE64)],
                     mime_type=part.root.media.content_type,
                 )
             )
@@ -185,20 +196,14 @@ class PartConverter:
             return genai.types.Part(
                 executable_code=genai.types.ExecutableCode(
                     code=part.root.custom[cls.EXECUTABLE_CODE][cls.CODE],
-                    language=part.root.custom[cls.EXECUTABLE_CODE][
-                        cls.LANGUAGE
-                    ],
+                    language=part.root.custom[cls.EXECUTABLE_CODE][cls.LANGUAGE],
                 )
             )
         if cls.CODE_EXECUTION_RESULT in part.root.custom:
             return genai.types.Part(
                 code_execution_result=genai.types.CodeExecutionResult(
-                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTCOME
-                    ],
-                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTPUT
-                    ],
+                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTCOME],
+                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTPUT],
                 )
             )
 
@@ -207,11 +212,7 @@ class PartConverter:
         if part.text:
             return TextPart(text=part.text)
         if part.function_call:
-            return ToolRequestPart(
-                toolRequest=ToolRequest(
-                    name=part.function_call.name, args=part.function_call.args
-                )
-            )
+            return ToolRequestPart(toolRequest=ToolRequest(name=part.function_call.name, args=part.function_call.args))
         if part.function_response:
             return ToolResponsePart(
                 toolResponse=ToolResponse(
@@ -248,10 +249,8 @@ class GeminiModel:
         self._model = model_def
         self._name = name
 
-    def _genkit_to_googleai_cfg(
-        self, genkit_cfg: GenerationCommonConfig
-    ) -> genai.types.GenerateContentConfig:
-        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig
+    def _genkit_to_googleai_cfg(self, genkit_cfg: GenerationCommonConfig) -> genai.types.GenerateContentConfig:
+        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
 
         Args:
             genkit_cfg: Genkit request config
@@ -259,7 +258,6 @@ class GeminiModel:
         Returns:
             Google Ai request config
         """
-
         return genai.types.GenerateContentConfig(
             max_output_tokens=genkit_cfg.max_output_tokens,
             top_k=genkit_cfg.top_k,
@@ -268,9 +266,7 @@ class GeminiModel:
             stop_sequences=genkit_cfg.stop_sequences,
         )
 
-    async def generate_callback(
-        self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse:
+    async def generate_callback(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -280,21 +276,14 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-
         reqest_contents: list[genai.types.Content] = []
         for msg in request.messages:
             content_parts: list[genai.types.Part] = []
             for p in msg.content:
                 content_parts.append(PartConverter.to_gemini(p))
-            reqest_contents.append(
-                genai.types.Content(parts=content_parts, role=msg.role)
-            )
+            reqest_contents.append(genai.types.Content(parts=content_parts, role=msg.role))
 
-        request_cfg = (
-            self._genkit_to_googleai_cfg(request.config)
-            if request.config
-            else None
-        )
+        request_cfg = self._genkit_to_googleai_cfg(request.config) if request.config else None
 
         response = await self._client.aio.models.generate_content(
             model=self._name, contents=reqest_contents, config=request_cfg

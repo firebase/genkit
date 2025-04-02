@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -21,16 +34,16 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
-	ModelName               string                  // Name of the model to use.
-	Model                   Model                   // Model to use.
-	MessagesFn              messagesFn              // Messages function. If this is set, Messages should be an empty.
-	Config                  *GenerationCommonConfig // Model configuration. If nil will be taken from the prompt config.
-	Tools                   []Tool                  // Tools to use.
-	ToolChoice              ToolChoice              // Whether tool calls are required, disabled, or optional.
-	MaxTurns                int                     // Maximum number of tool call iterations.
-	ReturnToolRequests      bool                    // Whether to return tool requests instead of making the tool calls and continuing the generation.
-	IsReturnToolRequestsSet bool                    // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
-	Middleware              []ModelMiddleware       // Middleware to apply to the model request.
+	ModelName               string            // Name of the model to use.
+	Model                   Model             // Model to use.
+	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
+	Config                  any               // Model configuration. If nil will be taken from the prompt config.
+	Tools                   []ToolRef         // References to tools to use.
+	ToolChoice              ToolChoice        // Whether tool calls are required, disabled, or optional.
+	MaxTurns                int               // Maximum number of tool call iterations.
+	ReturnToolRequests      bool              // Whether to return tool requests instead of making the tool calls and continuing the generation.
+	IsReturnToolRequestsSet bool              // Whether the ReturnToolRequests field was set (false is not enough information as to whether to override).
+	Middleware              []ModelMiddleware // Middleware to apply to the model request.
 }
 
 type CommonOption interface {
@@ -142,12 +155,12 @@ func WithMessagesFn(fn messagesFn) CommonOption {
 
 // WithTools sets the tools to use for the generate request.
 // Tools cannot be combined with WithToolChoice(ToolChoiceNone).
-func WithTools(tools ...Tool) CommonOption {
+func WithTools(tools ...ToolRef) CommonOption {
 	return &commonOptions{Tools: tools}
 }
 
 // WithConfig sets the model configuration.
-func WithConfig(config *GenerationCommonConfig) CommonOption {
+func WithConfig(config any) CommonOption {
 	return &commonOptions{Config: config}
 }
 

@@ -15,13 +15,14 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit",
-  "genkit-firebase-plugin",
-  "genkit-google-ai-plugin",
-  "genkit-google-cloud-plugin",
-  "genkit-ollama-plugin",
-  "genkit-pinecone-plugin",
-  "genkit-vertex-ai-plugin",
+  "genkit-ai",
+  "genkit-plugin-dev-local-vectorstore",
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-ai",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-ollama",
+  "genkit-plugin-pinecone",
+  "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
 ]
 description = "menu Genkit sample"

@@ -1,5 +1,19 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
+
 import logging
 from enum import StrEnum
 from typing import Any, Literal
@@ -7,8 +21,8 @@ from typing import Any, Literal
 from pydantic import BaseModel
 from vertexai.preview.vision_models import ImageGenerationModel
 
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import ActionRunContext
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Media,
@@ -31,16 +45,10 @@ class ImagenVersion(StrEnum):
 
 class ImagenOptions(BaseModel):
     number_of_images: int = 1
-    language: Literal[
-        'auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'
-    ] = 'auto'
+    language: Literal['auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'] = 'auto'
     aspect_ratio: Literal['1:1', '9:16', '16:9', '3:4', '4:3'] = '1:1'
-    safety_filter_level: Literal[
-        'block_most', 'block_some', 'block_few', 'block_fewest'
-    ] = 'block_some'
-    person_generation: Literal['dont_allow', 'allow_adult', 'allow_all'] = (
-        'allow_adult'
-    )
+    safety_filter_level: Literal['block_most', 'block_some', 'block_few', 'block_fewest'] = 'block_some'
+    person_generation: Literal['dont_allow', 'allow_adult', 'allow_all'] = 'allow_adult'
     negative_prompt: bool = False
 
 
@@ -88,9 +96,7 @@ class Imagen:
     def model(self) -> ImageGenerationModel:
         return ImageGenerationModel.from_pretrained(self._version)
 
-    def generate(
-        self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse:
+    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request using the Imagen model.
 
         Args:
@@ -102,20 +108,13 @@ class Imagen:
         """
         prompt = self.build_prompt(request)
 
-        options = (
-            request.config if request.config else ImagenOptions().model_dump()
-        )
+        options = request.config if request.config else ImagenOptions().model_dump()
         options['prompt'] = prompt
 
         images = self.model.generate_images(**options)
 
         media_content = [
-            MediaPart(
-                media=Media(
-                    contentType=image._mime_type, url=image._as_base64_string()
-                )
-            )
-            for image in images
+            MediaPart(media=Media(contentType=image._mime_type, url=image._as_base64_string())) for image in images
         ]
 
         return GenerateResponse(

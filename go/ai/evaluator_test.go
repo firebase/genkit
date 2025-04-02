@@ -17,6 +17,7 @@ package ai
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/firebase/genkit/go/internal/registry"
@@ -39,6 +40,30 @@ var testEvalFunc = func(ctx context.Context, req *EvaluatorCallbackRequest) (*Ev
 	return &callbackResponse, nil
 }
 
+var testBatchEvalFunc = func(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+	var evalResponses []EvaluationResult
+	dataset := *req.Dataset
+	for i := 0; i < len(dataset); i++ {
+		input := dataset[i]
+		fmt.Printf("%+v\n", input)
+		m := make(map[string]any)
+		m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+		m["options"] = req.Options
+		score := Score{
+			Id:      "testScore",
+			Score:   true,
+			Status:  ScoreStatusPass.String(),
+			Details: m,
+		}
+		callbackResponse := EvaluationResult{
+			TestCaseId: input.TestCaseId,
+			Evaluation: []Score{score},
+		}
+		evalResponses = append(evalResponses, callbackResponse)
+	}
+	return &evalResponses, nil
+}
+
 var testFailingEvalFunc = func(ctx context.Context, req *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error) {
 	return nil, errors.New("i give up")
 }
@@ -52,6 +77,9 @@ var evalOptions = EvaluatorOptions{
 var dataset = Dataset{
 	{
 		Input: "hello world",
+	},
+	{
+		Input: "Foo bar",
 	},
 }
 
@@ -77,6 +105,9 @@ func TestSimpleEvaluator(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if got, want := len(*resp), 2; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
 	if got, want := (*resp)[0].Evaluation[0].Id, "testScore"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
@@ -98,6 +129,10 @@ func TestOptionsRequired(t *testing.T) {
 	}
 
 	_, err = DefineEvaluator(r, "test", "testEvaluator", nil, testEvalFunc)
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+	_, err = DefineBatchEvaluator(r, "test", "testBatchEvaluator", nil, testBatchEvalFunc)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
@@ -137,16 +172,24 @@ func TestIsDefinedEvaluator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if got, want := IsDefinedEvaluator(r, "test", "testEvaluator"), true; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got, want := IsDefinedEvaluator(r, "test", "testBatchEvaluator"), true; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := IsDefinedEvaluator(r, "test", "fakefakefake"), false; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
+
 }
 
-func TestILookupEvaluator(t *testing.T) {
+func TestLookupEvaluator(t *testing.T) {
 	r, err := registry.New()
 	if err != nil {
 		t.Fatal(err)
@@ -156,8 +199,15 @@ func TestILookupEvaluator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	batchEvalAction, err := DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if got, want := LookupEvaluator(r, "test", "testEvaluator"), evalAction; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got, want := LookupEvaluator(r, "test", "testBatchEvaluator"), batchEvalAction; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
@@ -185,6 +235,39 @@ func TestEvaluate(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Score, 1; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestBatchEvaluator(t *testing.T) {
+	r, err := registry.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	evalAction, err := DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := evalAction.Evaluate(context.Background(), &testRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := len(*resp), 2; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got, want := (*resp)[0].Evaluation[0].Id, "testScore"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got, want := (*resp)[0].Evaluation[0].Score, true; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {

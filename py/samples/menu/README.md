@@ -1,16 +1,9 @@
-# Hello world
-
-## Setup environment
-
-```bash
-uv venv
-source .venv/bin/activate
-```
+# Menu Sample
 
 ## Run the sample
 
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/menu/main.py
+genkit start -- uv run src/menu_example.py
 ```

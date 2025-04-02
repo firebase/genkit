@@ -29,7 +29,7 @@ type JSONFormatter struct {
 
 type jsonHandler struct {
 	instructions string
-	output       *OutputConfig
+	output       *ModelOutputConfig
 }
 
 func (j JSONFormatter) Name() string {
@@ -40,7 +40,7 @@ func (j jsonHandler) Instructions() string {
 	return j.instructions
 }
 
-func (j jsonHandler) Config() *OutputConfig {
+func (j jsonHandler) Config() *ModelOutputConfig {
 	return j.output
 }
 
@@ -58,7 +58,7 @@ func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
 	constrained := true
 	handler := &jsonHandler{
 		instructions: instructions,
-		output: &OutputConfig{
+		output: &ModelOutputConfig{
 			Format:      string(OutputFormatJSON),
 			Schema:      schema,
 			Constrained: constrained,

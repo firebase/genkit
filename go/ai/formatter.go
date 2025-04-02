@@ -41,7 +41,7 @@ type Formatter interface {
 type FormatterHandler interface {
 	ParseMessage(message *Message) (*Message, error)
 	Instructions() string
-	Config() *OutputConfig
+	Config() *ModelOutputConfig
 }
 
 // DefineFormatter creates a new Formatter and registers it.
@@ -49,14 +49,14 @@ func DefineFormatter(
 	r *registry.Registry,
 	name string,
 	formatter Formatter) {
-	r.RegisterValue("format", name, formatter)
+	r.RegisterValue(name, formatter)
 }
 
 // ConfigureFormats registers default formats in the registry
 func ConfigureFormats(reg *registry.Registry) {
 	for _, format := range DEFAULT_FORMATS {
 		DefineFormatter(reg,
-			format.Name(),
+			fmt.Sprintf("/format/%s", format.Name()),
 			format,
 		)
 	}
@@ -100,7 +100,7 @@ func ResolveInstructions(format Formatter, schema map[string]any, instructions s
 }
 
 // ShouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.
-func ShouldInjectFormatInstructions(formatConfig *OutputConfig, rawRequestInstructions *string) bool {
+func ShouldInjectFormatInstructions(formatConfig *ModelOutputConfig, rawRequestInstructions *string) bool {
 	return rawRequestInstructions != nil || !formatConfig.Constrained
 }
 
@@ -110,12 +110,12 @@ func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddlewar
 		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
 				info = &ModelInfo{
-					Supports: &ModelInfoSupports{},
+					Supports: &ModelSupports{},
 					Versions: []string{},
 				}
 			}
 
-			if info.Supports.Constrained == ModelInfoSupportsConstrainedNone || (info.Supports.Constrained == ModelInfoSupportsConstrainedNoTools && len(req.Tools) > 0) {
+			if info.Supports.Constrained == ConstrainedSupportNone || (info.Supports.Constrained == ConstrainedSupportNoTools && len(req.Tools) > 0) {
 				// If constrained in model request is set to true and schema is set
 				if req.Output.Constrained && req.Output.Schema != nil && len(req.Messages) > 0 {
 					instructions := defaultConstrainedGenerationInstructions(req.Output.Schema)
