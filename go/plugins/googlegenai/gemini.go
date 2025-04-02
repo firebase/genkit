@@ -184,9 +184,6 @@ type GeminiConfig struct {
 	FrequencyPenalty *float32 `json:"frequencyPenalty,omitempty"`
 	Seed             *int32   `json:"seed,omitempty"`
 
-	// Response formatting
-	ResponseMIMEType string `json:"responseMimeType,omitempty"`
-
 	// Safety settings
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
 
@@ -555,6 +552,32 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 	}
 	// Convert non-primitive fields
 	gc.SafetySettings = convertSafetySettings(c.SafetySettings)
+
+	// Set response MIME type based on output format if specified
+	hasOutput := input.Output != nil
+	isJsonFormat := hasOutput && input.Output.Format == "json"
+	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
+	jsonMode := isJsonFormat || (isJsonContentType && len(input.Tools) == 0)
+	if jsonMode {
+		gc.ResponseMIMEType = "application/json"
+	}
+
+	// Add tool configuration from input.Tools and input.ToolChoice directly
+	// This overrides any functionCallingConfig in the passed config
+	if len(input.Tools) > 0 {
+		// First convert the tools
+		tools, err := convertTools(input.Tools)
+		if err != nil {
+			return nil, err
+		}
+		gc.Tools = tools
+
+		// Then set up the tool configuration based on ToolChoice
+		tc := convertToolChoice(input.ToolChoice, input.Tools)
+		if tc != nil {
+			gc.ToolConfig = tc
+		}
+	}
 
 	// Handle system messages
 	var systemParts []*genai.Part
