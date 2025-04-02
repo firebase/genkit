@@ -14,97 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""User-facing API for Genkit.
+"""User-facing asyncio API for Genkit.
 
 To use Genkit in your application, construct an instance of the `Genkit`
-class while customizing it with any plugins, models, and tooling.  Then use the
-instance to define application flows.
-
-??? example "Examples"
-
-    === "Chat bot"
-
-        ```python
-        # TODO
-        ai = Genkit(...)
-
-        @ai.flow()
-        async def foo(...):
-            await ...
-        ```
-
-    === "Structured Output"
-
-
-        ```python
-        # TODO
-        ai = Genkit(...)
-
-        @ai.flow()
-        async def foo(...):
-            await ...
-        ```
-
-    === "Tool Calling"
-
-
-        ```python
-        # TODO
-        ai = Genkit(...)
-
-        @ai.flow()
-        async def foo(...):
-            await ...
-        ```
-
-## Operations
-
-The `Genkit` class defines the following methods to allow users to generate
-content, define flows, define formats, etc.
-
-| Category         | Method                                                                       | Description                          |
-|------------------|------------------------------------------------------------------------------|--------------------------------------|
-| **AI**           | [`agenerate()`][genkit.ai.veneer.Genkit.generate]                        | Generates content.                   |
-|                  | [`generate_stream()`][genkit.ai.veneer.Genkit.generate_stream]           | Generates a stream of content.       |
-|                  | [`embed()`][genkit.ai.veneer.Genkit.embed]                               | Calculates embeddings for documents. |
-| **Registration** | [`define_embedder()`][genkit.ai.registry.GenkitRegistry.define_embedder] | Defines and registers an embedder.   |
-|                  | [`define_format()`][genkit.ai.registry.GenkitRegistry.define_format]     | Defines and registers a format.      |
-|                  | [`define_model()`][genkit.ai.registry.GenkitRegistry.define_model]       | Defines and registers a model.       |
-
-??? info "Under the hood"
-
-    Creating an instance of [Genkit][genkit.ai.veneer.Genkit]:
-
-    * creates a runtime configuration in the working directory
-    * initializes a registry of actions including plugins, formats, etc.
-    * starts server daemons to expose actions over HTTP
-
-    The following servers are started depending on the environment:
-
-    | Server Type | Purpose                                                         | Notes                                                   |
-    |-------------|-----------------------------------------------------------------|---------------------------------------------------------|
-    | Reflection  | Development-time API for inspecting and interacting with Genkit | Only starts in development mode (`GENKIT_ENV=dev`).     |
-    | Flow        | Exposes registered flows as HTTP endpoints                      | Main server for production environment.                 |
-
+class while customizing it with any plugins.
 """
 
-import asyncio
-import logging
-import os
-import threading
 from asyncio import Future
 from collections.abc import AsyncIterator
-from http.server import HTTPServer
 from typing import Any
 
 from genkit.ai import server
 from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
 from genkit.aio import Channel
-from genkit.aio.loop import create_loop
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
-from genkit.blocks.formats import built_in_formats
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -117,8 +41,6 @@ from genkit.blocks.model import (
 from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
-from genkit.core.environment import is_dev_environment
-from genkit.core.reflection import make_reflection_server
 from genkit.core.typing import (
     DocumentData,
     GenerationCommonConfig,
@@ -127,18 +49,11 @@ from genkit.core.typing import (
     ToolChoice,
 )
 
-DEFAULT_REFLECTION_SERVER_SPEC = server.ServerSpec(scheme='http', host='127.0.0.1', port=3100)
-
-logger = logging.getLogger(__name__)
+from .base import DEFAULT_REFLECTION_SERVER_SPEC, GenkitBase
 
 
-class Genkit(GenkitRegistry):
-    """Veneer user-facing API for application developers who use the SDK.
-
-    The methods exposed by the
-    [GenkitRegistry][genkit.ai.registry.GenkitRegistry] class are also part
-    of the API.
-    """
+class Genkit(GenkitBase):
+    """Genkit asyncio user-facing API."""
 
     def __init__(
         self,
@@ -154,64 +69,9 @@ class Genkit(GenkitRegistry):
             reflection_server_spec: Server spec for the reflection
                 server.
         """
-        super().__init__()
-        self.registry.default_model = model
+        super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
 
-        if is_dev_environment():
-            self.loop = create_loop()
-            self.thread = threading.Thread(
-                target=self.start_server,
-                args=[reflection_server_spec, self.loop],
-                daemon=True,
-            )
-            self.thread.start()
-        else:
-            self.thread = None
-            self.loop = None
-
-        for format in built_in_formats:
-            self.define_format(format)
-
-        if not plugins:
-            logger.warning('No plugins provided to Genkit')
-        else:
-            for plugin in plugins:
-                if isinstance(plugin, Plugin):
-                    plugin.initialize(ai=self)
-
-                    def resolver(kind, name, plugin=plugin):
-                        return plugin.resolve_action(self, kind, name)
-
-                    self.registry.register_action_resolver(plugin.plugin_name(), resolver)
-                else:
-                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
-
-    def join(self):
-        if self.thread and self.loop:
-            self.thread.join()
-
-    def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
-        """Start the HTTP server for handling requests.
-
-        Args:
-            spec: Server spec for the reflection server.
-        """
-        httpd = HTTPServer(
-            (spec.host, spec.port),
-            make_reflection_server(registry=self.registry, loop=loop),
-        )
-        # We need to write the runtime file closest to the point of starting up
-        # the server to avoid race conditions with the manager's runtime
-        # handler.
-        runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-        server.create_runtime(
-            runtime_dir=runtimes_dir,
-            reflection_server_spec=spec,
-            at_exit_fn=os.remove,
-        )
-        httpd.serve_forever()
-
-    async def agenerate(
+    async def generate(
         self,
         model: str | None = None,
         prompt: str | Part | list[Part] | None = None,
@@ -403,7 +263,7 @@ class Genkit(GenkitRegistry):
         """
         stream = Channel()
 
-        resp = self.agenerate(
+        resp = self.generate(
             model=model,
             prompt=prompt,
             system=system,
@@ -427,7 +287,7 @@ class Genkit(GenkitRegistry):
 
         return (stream, stream.closed)
 
-    async def aembed(
+    async def embed(
         self,
         model: str | None = None,
         documents: list[Document] | None = None,

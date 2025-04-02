@@ -64,7 +64,7 @@ See the following code samples for a concrete idea of how to use these capabilit
     )
 
     async def main():
-        result = await ai.agenerate(prompt=f'Why is AI awesome?')
+        result = await ai.generate(prompt=f'Why is AI awesome?')
         print(result.text)
 
         stream, _ = ai.generate_stream(prompt=f'Tell me a story')
@@ -111,7 +111,7 @@ and some - only in Vertex AI.
         abilities: list[str] = Field(description='list of abilities (3-4)')
 
     async def main():
-        result = await ai.agenerate(
+        result = await ai.generate(
             prompt=f'generate an RPG character named Glorb',
             output_schema=RpgCharacter,
         )

@@ -36,7 +36,7 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(name: str):
-    result = await ai.agenerate(
+    result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
         output_schema=RpgCharacter,
     )

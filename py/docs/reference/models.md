@@ -49,12 +49,12 @@ you've already done this. Otherwise, see the [Getting Started](../get-started.md
 guide or the individual plugin's documentation and follow the steps there before
 continuing.
 
-### The agenerate() method
+### The generate() method
 
 In Genkit, the primary interface through which you interact with generative AI
-models is the `agenerate()` method.
+models is the `generate()` method.
 
-The simplest `agenerate()` call specifies the model you want to use and a text
+The simplest `generate()` call specifies the model you want to use and a text
 prompt:
 
 ```py
@@ -68,7 +68,7 @@ ai = Genkit(
 )
 
 async def main() -> None:
-    result = await ai.agenerate(
+    result = await ai.generate(
         prompt='Invent a menu item for a pirate themed restaurant.',
     )
     print(result.text)
@@ -76,7 +76,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-When you run this brief example it will print out the output of the `agenerate()`
+When you run this brief example it will print out the output of the `generate()`
 all, which will usually be Markdown text as in the following example:
 
 ```md
@@ -99,10 +99,10 @@ Run the script again and you'll get a different output.
 The preceding code sample sent the generation request to the default model,
 which you specified when you configured the Genkit instance.
 
-You can also specify a model for a single `agenerate()` call:
+You can also specify a model for a single `generate()` call:
 
 ```py
-result = await ai.agenerate(
+result = await ai.generate(
     prompt='Invent a menu item for a pirate themed restaurant.',
     model='google_genai/gemini-2.0-pro',
 )
@@ -114,14 +114,14 @@ plugin-specific string identifier for a specific version of a model.
 
 
 These examples also illustrate an important point: when you use
-`agenerate()` to make generative AI model calls, changing the model you want to
+`generate()` to make generative AI model calls, changing the model you want to
 use is simply a matter of passing a different value to the model parameter. By
-using `agenerate()` instead of the native model SDKs, you give yourself the
+using `generate()` instead of the native model SDKs, you give yourself the
 flexibility to more easily use several different models in your app and change
 models in the future.
 
-So far you have only seen examples of the simplest `agenerate()` calls. However,
-`agenerate()` also provides an interface for more advanced interactions with
+So far you have only seen examples of the simplest `generate()` calls. However,
+`generate()` also provides an interface for more advanced interactions with
 generative models, which you will see in the sections that follow.
 
 ### System prompts
@@ -135,7 +135,7 @@ If the model you're using supports system prompts, you can provide one with the
 `system` parameter:
 
 ```py
-result = await ai.agenerate(
+result = await ai.generate(
     system='You are a food industry marketing consultant.',
     prompt='Invent a menu item for a pirate themed restaurant.',
 )
@@ -143,11 +143,11 @@ result = await ai.agenerate(
 
 ### Model parameters
 
-The `agenerate()` function takes a `config` parameter, through which you can
+The `generate()` function takes a `config` parameter, through which you can
 specify optional settings that control how the model generates content:
 
 ```py
-result = await ai.agenerate(
+result = await ai.generate(
     prompt='Invent a menu item for a pirate themed restaurant.',
     config={
       'max_output_tokens': 400,
@@ -174,7 +174,7 @@ applications of generative AI, such as programmatic use of the model's output,
 or feeding the output of one model into another, structured output is a must.
 
 In Genkit, you can request structured output from a model by specifying a schema
-when you call `agenerate()`:
+when you call `generate()`:
 
 ```py
 from pydantic import BaseModel
@@ -185,7 +185,7 @@ class MenuItemSchema(BaseModel):
     calories: int
     allergens: list[str]
 
-result = await ai.agenerate(
+result = await ai.generate(
     prompt='Invent a menu item for a pirate themed restaurant.',
     output_schema=MenuItemSchema,
 )
@@ -197,7 +197,7 @@ unpredictable output of generative AI models. Pydantic lets you write code that 
 rely on the fact that a successful generate call will always return output that
 conforms to your Python types.
 
-When you specify a schema in `agenerate()`, Genkit does several things behind the
+When you specify a schema in `generate()`, Genkit does several things behind the
 scenes:
 
 - Augments the prompt with additional guidance about the desired output format.
@@ -224,7 +224,7 @@ improves the perceived responsiveness of the application and enhances the
 illusion of chatting with an intelligent counterpart.
 
 In Genkit, you can stream output using the `generateStream()` method. Its
-syntax is similar to the `agenerate()` method:
+syntax is similar to the `generate()` method:
 
 ```py
 stream, response = ai.generate_stream(
@@ -330,7 +330,7 @@ simple text prompt to `generate`, pass an array consisting of a media part and a
 text part:
 
 ```py
-result = await ai.agenerate(
+result = await ai.generate(
     prompt=[
       Part(media={'url': 'https://example.com/photo.jpg'}),
       Part(text='Compose a poem about this image.'),
@@ -344,7 +344,7 @@ example:
 
 ```ts
 base64_encoded_image = base64.b64encode(read_file('image.jpg'))
-result = await ai.agenerate(
+result = await ai.generate(
     prompt=[
       Part(media={'url': f'data:image/jpeg;base64,{base64_encoded_image}'}),
       Part(text='Compose a poem about this image.'),
@@ -360,7 +360,7 @@ plugin also lets you use Cloud Storage (`gs://`) URLs.
 
 So far, most of the examples on this page have dealt with generating text using
 LLMs. However, Genkit can also be used with image generation models. Using
-`agenerate()` with an image generation model is similar to using an LLM. For
+`generate()` with an image generation model is similar to using an LLM. For
 example, to generate an image using the Imagen model:
 
 ```py
