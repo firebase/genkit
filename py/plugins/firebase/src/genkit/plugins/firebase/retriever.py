@@ -27,8 +27,7 @@ from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
 
 
 class FirestoreRetriever:
-    """
-    Retrieves documents from Google Cloud Firestore using vector similarity search.
+    """Retrieves documents from Google Cloud Firestore using vector similarity search.
 
     Attributes:
         ai: An instance of the Genkit AI registry.
@@ -38,12 +37,24 @@ class FirestoreRetriever:
     """
 
     def __init__(self, ai: Genkit, params: FirestoreRetrieverConfig):
+        """Initialize the FirestoreRetriever.
+
+        Args:
+            ai: An instance of the Genkit AI registry.
+            params: A FirestoreRetrieverConfig object containing the configuration
+                for the retriever
+        """
         self.ai = ai
         self.params = params
         self.firestore_client = params.firestore_client
         self._validate_config()
 
     def _validate_config(self):
+        """Validate the FirestoreRetriever configuration.
+
+        Raises:
+            ValueError: If the configuration is invalid.
+        """
         if not self.params.collection:
             raise ValueError('Firestore Retriever config must include firestore collection name.')
         if not self.params.vector_field:
@@ -54,6 +65,14 @@ class FirestoreRetriever:
             raise ValueError('Firestore Retriever config must include firestore client.')
 
     def _to_content(self, doc_snapshot: DocumentSnapshot) -> list[dict[str, str]]:
+        """Convert a Firestore document snapshot to a list of content dictionaries.
+
+        Args:
+            doc_snapshot: A Firestore DocumentSnapshot object.
+
+        Returns:
+            A list of dictionaries containing the content of the document.
+        """
         content_field = self.params.content_field
         if callable(content_field):
             return content_field(doc_snapshot)
@@ -62,6 +81,14 @@ class FirestoreRetriever:
             return [{'text': content}] if content else []
 
     def _to_metadata(self, doc_snapshot: DocumentSnapshot) -> Document:
+        """Convert a Firestore document snapshot to a list of metadata dictionaries.
+
+        Args:
+            doc_snapshot: A Firestore DocumentSnapshot object.
+
+        Returns:
+            A list of dictionaries containing the metadata of the document.
+        """
         metadata: dict[str, Any] = {}
         metadata_fields = self.params.metadata_fields
         if metadata_fields:
@@ -82,17 +109,24 @@ class FirestoreRetriever:
         return metadata
 
     def _to_document(self, doc_snapshot: DocumentSnapshot) -> Document:
+        """Convert a Firestore document snapshot to a Genkit Document object.
+
+        Args:
+            doc_snapshot: A Firestore DocumentSnapshot object.
+
+        Returns:
+            A Genkit Document object.
+        """
         return Document(content=self._to_content(doc_snapshot), metadata=self._to_metadata(doc_snapshot))
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
-        """
-        Retrieves documents from Firestore using native vector similarity search.
+        """Retrieves documents from Firestore using native vector similarity search.
 
         Args:
             request: A RetrieverRequest Object
+
         Returns:
             A RetrieverResponse Object containing retrieved documents
-
         """
         query = request.query
         query_embedding_result = await self.ai.embed(
@@ -109,11 +143,9 @@ class FirestoreRetriever:
         distance_measure = self.params.distance_measure
         collection = self.firestore_client.collection(self.params.collection)
 
-        limit = (
-            int(request.options.get('limit'))
-            if isinstance(request.options, dict) and request.options.get('limit') is not None
-            else 10
-        )
+        limit = 10
+        if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
+            limit = int(limit_val)
 
         vector_query = collection.find_nearest(
             vector_field=vector_field,
