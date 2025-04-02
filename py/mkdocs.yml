@@ -57,7 +57,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [packages/genkit-ai/src]
+          paths: [packages/genkit/src]
           options:
             docstring_style: google
             annotations_path: full
@@ -75,8 +75,8 @@ nav:
     - cloud-run.md
     - flask.md
   - Reference:
-    - reference/index.md 
-    - reference/models.md 
+    - reference/index.md
+    - reference/models.md
     - reference/flows.md
     - reference/tools.md
     - reference/interrupts.md
