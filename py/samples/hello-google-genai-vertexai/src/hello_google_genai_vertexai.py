@@ -186,7 +186,7 @@ async def embed_docs(docs: list[str]):
         The generated embedding.
     """
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.aembed(
+    return await ai.embed(
         model=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
