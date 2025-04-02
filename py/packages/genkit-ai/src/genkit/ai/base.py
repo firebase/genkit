@@ -25,7 +25,7 @@ from http.server import HTTPServer
 from genkit.ai import server
 from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
-from genkit.aio.loop import create_loop
+from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
@@ -85,8 +85,21 @@ class GenkitBase(GenkitRegistry):
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
 
     def join(self):
-        if self.thread:
+        """Block until Genkit internal threads are closed. Only blocking in dev mode."""
+        if is_dev_environment() and self.thread:
             self.thread.join()
+
+    def run_async(self, async_fn):
+        """Runs the provided async function as a sync/blocking function."""
+        if self.loop:
+
+            async def run():
+                return await async_fn
+
+            run_async(self.loop, run)
+        else:
+            asyncio.run(async_fn)
+        self.join()
 
     def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.

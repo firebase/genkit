@@ -17,7 +17,7 @@
 """User-facing asyncio API for Genkit.
 
 To use Genkit in your application, construct an instance of the `Genkit`
-class while customizing it with any plugins. 
+class while customizing it with any plugins.
 """
 
 from asyncio import Future
@@ -50,6 +50,7 @@ from genkit.core.typing import (
 )
 
 from .base import DEFAULT_REFLECTION_SERVER_SPEC, GenkitBase
+
 
 class Genkit(GenkitBase):
     """Genkit asyncio user-facing API."""
