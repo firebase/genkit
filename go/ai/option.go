@@ -34,7 +34,7 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
-	ModelArg                ModelArg          // New preferred field
+	Model                ModelArg          // Resolvable reference to a model to use with optional embedded config.
 	ModelName               string            // Name of model to use
 	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
 	Config                  any               // Model configuration. If nil will be taken from the prompt config.
