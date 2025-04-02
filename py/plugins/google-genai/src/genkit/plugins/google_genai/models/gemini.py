@@ -525,11 +525,14 @@ class GeminiModel:
         with tracer.start_as_current_span('generate_content') as span:
             span.set_attribute(
                 'genkit:input',
-                dump_json({
-                    'config': dump_dict(request_cfg),
-                    'contents': [dump_dict(c) for c in request_contents],
-                    'model': self._version,
-                }),
+                dump_json(
+                    {
+                        'config': dump_dict(request_cfg),
+                        'contents': [dump_dict(c) for c in request_contents],
+                        'model': self._version,
+                    },
+                    fallback=lambda _: '[!! failed to serialize !!]',
+                ),
             )
             response = await self._client.aio.models.generate_content(
                 model=self._version, contents=request_contents, config=request_cfg
