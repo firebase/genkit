@@ -16,11 +16,13 @@ package compat_oai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/shared"
 )
 
 // ModelGenerator handles OpenAI generation requests
@@ -55,8 +57,32 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 			oaiMessages = append(oaiMessages, openai.SystemMessage(content))
 		case ai.RoleModel:
 			oaiMessages = append(oaiMessages, openai.AssistantMessage(content))
+
+			am := openai.ChatCompletionAssistantMessageParam{
+				Role: openai.F(openai.ChatCompletionAssistantMessageParamRoleAssistant),
+			}
+			if msg.Content[0].Text != "" {
+				am.Content = openai.F([]openai.ChatCompletionAssistantMessageParamContentUnion{
+					openai.TextPart(msg.Content[0].Text),
+				})
+			}
+			toolCalls := convertToolCalls(msg.Content)
+			if len(toolCalls) > 0 {
+				am.ToolCalls = openai.F(toolCalls)
+			}
+			oaiMessages = append(oaiMessages, am)
 		case ai.RoleTool:
-			oaiMessages = append(oaiMessages, openai.ToolMessage("", content)) // TODO: Add tool ID if needed
+			for _, p := range msg.Content {
+				if !p.IsToolResponse() {
+					continue
+				}
+				tm := openai.ToolMessage(
+					// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolResponse struct.
+					p.ToolResponse.Name,
+					anyToJSONString(p.ToolResponse.Output),
+				)
+				oaiMessages = append(oaiMessages, tm)
+			}
 		default:
 			oaiMessages = append(oaiMessages, openai.UserMessage(content))
 		}
@@ -133,9 +159,38 @@ func (g *ModelGenerator) WithConfig(config any) (*ModelGenerator, error) {
 }
 
 // WithTools adds tools to the request
-func (g *ModelGenerator) WithTools(tools []ai.Tool, choice ai.ToolChoice) *ModelGenerator {
-	// TODO: Implement tools from model request
-	// see vertex ai recent pr here for reference: https://github.com/firebase/genkit/pull/2259
+func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolChoice) *ModelGenerator {
+	if len(tools) == 0 {
+		return g
+	}
+
+	toolParams := make([]openai.ChatCompletionToolParam, 0, len(tools))
+	for _, tool := range tools {
+		if tool == nil || tool.Name == "" {
+			continue
+		}
+
+		toolParams = append(toolParams, openai.ChatCompletionToolParam{
+			Type: openai.F(openai.ChatCompletionToolTypeFunction),
+			Function: openai.F(shared.FunctionDefinitionParam{
+				Name:        openai.F(tool.Name),
+				Description: openai.F(tool.Description),
+				Parameters:  openai.F(openai.FunctionParameters(tool.InputSchema)),
+				Strict:      openai.F(false), // TODO: implement strict mode
+			}),
+		})
+	}
+	g.request.Tools = openai.F(toolParams)
+
+	switch choice {
+	case ai.ToolChoiceAuto:
+		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoAuto)
+	case ai.ToolChoiceRequired:
+		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoRequired)
+	case ai.ToolChoiceNone:
+		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoNone)
+	}
+
 	return g
 }
 
@@ -175,9 +230,52 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 		TotalTokens:  0,
 	}
 
+	var currentToolCall *ai.ToolRequest
+	var currentArguments string
+
 	for stream.Next() {
 		chunk := stream.Current()
 		if len(chunk.Choices) > 0 {
+			choice := chunk.Choices[0]
+
+			switch choice.FinishReason {
+			case openai.ChatCompletionChunkChoicesFinishReasonStop, openai.ChatCompletionChunkChoicesFinishReasonToolCalls:
+				fullResponse.FinishReason = ai.FinishReasonStop
+			case openai.ChatCompletionChunkChoicesFinishReasonLength:
+				fullResponse.FinishReason = ai.FinishReasonLength
+			case openai.ChatCompletionChunkChoicesFinishReasonContentFilter:
+				fullResponse.FinishReason = ai.FinishReasonBlocked
+			case openai.ChatCompletionChunkChoicesFinishReasonFunctionCall:
+				fullResponse.FinishReason = ai.FinishReasonOther
+			default:
+				fullResponse.FinishReason = ai.FinishReasonUnknown
+			}
+
+			// handle tool calls
+			for _, toolCall := range choice.Delta.ToolCalls {
+				// first tool call (= current tool call is nil) contains the tool call name
+				if currentToolCall == nil {
+					currentToolCall = &ai.ToolRequest{
+						Name: toolCall.Function.Name,
+					}
+				}
+
+				if toolCall.Function.Arguments != "" {
+					currentArguments += toolCall.Function.Arguments
+				}
+			}
+
+			// when tool call is complete
+			if choice.FinishReason == openai.ChatCompletionChunkChoicesFinishReasonToolCalls && currentToolCall != nil {
+				// parse accumulated arguments string
+				if currentArguments != "" {
+					currentToolCall.Input = jsonStringToMap(currentArguments)
+				}
+
+				fullResponse.Message.Content = []*ai.Part{ai.NewToolRequestPart(currentToolCall)}
+				return &fullResponse, nil
+			}
+
 			content := chunk.Choices[0].Delta.Content
 			modelChunk := &ai.ModelResponseChunk{
 				Content: []*ai.Part{ai.NewTextPart(content)},
@@ -210,19 +308,96 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 		return nil, fmt.Errorf("failed to create completion: %w", err)
 	}
 
-	return &ai.ModelResponse{
-		Message: &ai.Message{
-			Role: ai.RoleModel,
-			Content: []*ai.Part{
-				ai.NewTextPart(completion.Choices[0].Message.Content),
-			},
-		},
-		FinishReason: ai.FinishReason("stop"),
-		Request:      &ai.ModelRequest{},
+	resp := &ai.ModelResponse{
+		Request: &ai.ModelRequest{},
 		Usage: &ai.GenerationUsage{
 			InputTokens:  int(completion.Usage.PromptTokens),
 			OutputTokens: int(completion.Usage.CompletionTokens),
 			TotalTokens:  int(completion.Usage.TotalTokens),
 		},
-	}, nil
+	}
+
+	choice := completion.Choices[0]
+
+	switch choice.FinishReason {
+	case openai.ChatCompletionChoicesFinishReasonStop, openai.ChatCompletionChoicesFinishReasonToolCalls:
+		resp.FinishReason = ai.FinishReasonStop
+	case openai.ChatCompletionChoicesFinishReasonLength:
+		resp.FinishReason = ai.FinishReasonLength
+	case openai.ChatCompletionChoicesFinishReasonContentFilter:
+		resp.FinishReason = ai.FinishReasonBlocked
+	case openai.ChatCompletionChoicesFinishReasonFunctionCall:
+		resp.FinishReason = ai.FinishReasonOther
+	default:
+		resp.FinishReason = ai.FinishReasonUnknown
+	}
+
+	message := &ai.Message{
+		Role: ai.RoleModel,
+	}
+
+	// handle tool calls
+	var toolRequestParts []*ai.Part
+	for _, toolCall := range choice.Message.ToolCalls {
+		toolRequestParts = append(toolRequestParts, ai.NewToolRequestPart(&ai.ToolRequest{
+			Name:  toolCall.Function.Name,
+			Input: jsonStringToMap(toolCall.Function.Arguments),
+		}))
+	}
+	if len(toolRequestParts) > 0 {
+		message.Content = toolRequestParts
+		resp.Message = message
+		return resp, nil
+	}
+
+	message.Content = []*ai.Part{
+		ai.NewTextPart(completion.Choices[0].Message.Content),
+	}
+	resp.Message = message
+	return resp, nil
+}
+
+func convertToolCalls(content []*ai.Part) []openai.ChatCompletionMessageToolCallParam {
+	var toolCalls []openai.ChatCompletionMessageToolCallParam
+	for _, p := range content {
+		if !p.IsToolRequest() {
+			continue
+		}
+		toolCall := convertToolCall(p)
+		toolCalls = append(toolCalls, toolCall)
+	}
+	return toolCalls
+}
+
+func convertToolCall(part *ai.Part) openai.ChatCompletionMessageToolCallParam {
+	param := openai.ChatCompletionMessageToolCallParam{
+		// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolRequest struct.
+		ID:   openai.F(part.ToolRequest.Name),
+		Type: openai.F(openai.ChatCompletionMessageToolCallTypeFunction),
+		Function: openai.F(openai.ChatCompletionMessageToolCallFunctionParam{
+			Name: openai.F(part.ToolRequest.Name),
+		}),
+	}
+
+	if part.ToolRequest.Input != nil {
+		param.Function.Value.Arguments = openai.F(anyToJSONString(part.ToolRequest.Input))
+	}
+
+	return param
+}
+
+func jsonStringToMap(jsonString string) map[string]any {
+	var result map[string]any
+	if err := json.Unmarshal([]byte(jsonString), &result); err != nil {
+		panic(fmt.Errorf("unmarshal failed to parse json string %s: %w", jsonString, err))
+	}
+	return result
+}
+
+func anyToJSONString(data any) string {
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err))
+	}
+	return string(jsonBytes)
 }

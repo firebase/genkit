@@ -105,6 +105,10 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name string, info ai.Mo
 			}
 		}
 
+		if input.Tools != nil {
+			generator.WithTools(input.Tools, input.ToolChoice)
+		}
+
 		// Generate response
 		resp, err := generator.Generate(ctx, cb)
 		if err != nil {
