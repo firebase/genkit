@@ -655,12 +655,12 @@ func (m *Message) Text() string {
 
 // ModelConfig returns the configuration of a ModelRef.
 func ModelConfig(m *ModelRef) any {
-	return m.config
+	return m.Config
 }
 
 // NewModelRef creates a new ModelRef with the given name and configuration.
 func NewModelRef(name string, config any) *ModelRef {
-	return &ModelRef{name: name, config: config}
+	return &ModelRef{name: name, Config: config}
 }
 
 // Name returns the name of the ModelRef.
