@@ -49,7 +49,7 @@ type (
 	// ModelRef is a struct to hold model name and configuration.
 	ModelRef struct {
 		name   string
-		config any
+		Config any
 	}
 
 	// ToolConfig handles configuration around tool calls during generation.
