@@ -54,7 +54,7 @@ export function expressHandler<
     response: express.Response
   ): Promise<void> => {
     const { stream } = request.query;
-    let input = request.body.data as z.infer<I>;
+    let input = request.body?.data as z.infer<I>;
     let context: Record<string, any>;
 
     try {
