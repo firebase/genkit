@@ -278,7 +278,7 @@ func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 }
 
 // GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
-func GoogleAIModelRef(name string, config GeminiConfig) *ai.ModelRef {
+func GoogleAIModelRef(name string, config *GeminiConfig) *ai.ModelRef {
 	return ai.NewModelRef(googleAIProvider+"/"+name, config)
 }
 
