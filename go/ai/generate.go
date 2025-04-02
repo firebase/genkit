@@ -126,7 +126,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	}
 
 	if info.ConfigSchema != nil {
-		metadata["customOptions"] = map[string]interface{}{"schema": info.ConfigSchema}
+		metadata["customOptions"] = info.ConfigSchema
 	}
 
 	// Create the middleware list
