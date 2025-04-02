@@ -189,6 +189,9 @@ type GeminiConfig struct {
 
 	// Safety settings
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+
+	// Model version
+	Version string `json:"version,omitempty"`
 }
 
 // All the supporting types needed by GeminiConfig:
@@ -292,6 +295,7 @@ func extractConfigFromInput(input *ai.ModelRequest) (GeminiConfig, error) {
 			v := float32(config.TopP)
 			result.TopP = &v
 		}
+		result.Version = config.Version
 		return result, nil
 	case *ai.GenerationCommonConfig:
 		if config != nil {
@@ -312,6 +316,7 @@ func extractConfigFromInput(input *ai.ModelRequest) (GeminiConfig, error) {
 				v := float32(config.TopP)
 				result.TopP = &v
 			}
+			result.Version = config.Version
 		}
 		return result, nil
 	case map[string]any:
