@@ -127,6 +127,13 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 
 	if info.ConfigSchema != nil {
 		metadata["customOptions"] = info.ConfigSchema
+		// Make sure "model" exists in metadata
+		if metadata["model"] == nil {
+			metadata["model"] = make(map[string]any)
+		}
+		// Add customOptios to the model metadata
+		modelMeta := metadata["model"].(map[string]any)
+		modelMeta["customOptions"] = info.ConfigSchema
 	}
 
 	// Create the middleware list
