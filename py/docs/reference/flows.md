@@ -45,7 +45,7 @@ a function that calls `generate()`:
 ```py
 @ai.flow()
 async def menu_suggestion_flow(theme: str):
-    response = await ai.agenerate(
+    response = await ai.generate(
       prompt=f'Invent a menu item for a {theme} themed restaurant.',
     )
     return response.text
@@ -74,7 +74,7 @@ class MenuItemSchema(BaseModel):
 
 @ai.flow()
 async def menu_suggestion_flow(theme: str) -> MenuItemSchema:
-    response = await ai.agenerate(
+    response = await ai.generate(
       prompt=f'Invent a menu item for a {theme} themed restaurant.',
       output_schema=MenuItemSchema,
     )
@@ -90,7 +90,7 @@ string, which the flow returns.
 ```py
 @ai.flow()
 async def menu_suggestion_flow(theme: str) => MenuItemSchema:
-    response = await ai.agenerate(
+    response = await ai.generate(
       prompt=f'Invent a menu item for a {theme} themed restaurant.',
       output_schema=MenuItemSchema,
     )

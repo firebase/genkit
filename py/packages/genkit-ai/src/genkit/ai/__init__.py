@@ -22,19 +22,20 @@ communication protocols.
 """
 
 from genkit.ai.plugin import Plugin
-from genkit.ai.veneer import Genkit, GenkitRegistry
+from genkit.ai.base import GenkitRegistry
 from genkit.blocks.document import Document
 from genkit.blocks.tools import ToolRunContext, tool_response
 from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
+from .aio import Genkit
 
 __all__ = [
     ActionKind.__name__,
     ActionRunContext.__name__,
     Document.__name__,
-    Genkit.__name__,
     GenkitRegistry.__name__,
+    Genkit.__name__,
     Plugin.__name__,
     ToolRunContext.__name__,
     tool_response.__name__,

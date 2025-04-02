@@ -77,7 +77,7 @@ async def say_hi(name: str):
     Returns:
         The generated greeting response.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
@@ -98,7 +98,7 @@ async def embed_docs(docs: list[str]):
         The generated embedding.
     """
     options = {'task': EmbeddingsTaskType.CLUSTERING}
-    return await ai.aembed(
+    return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
@@ -138,7 +138,7 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
     Returns:
         The generated greeting response.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='vertexai/gemini-1.5-flash',
         messages=[
             Message(
@@ -285,7 +285,7 @@ async def describe_picture(url: str):
     Returns:
         The description of the picture.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,

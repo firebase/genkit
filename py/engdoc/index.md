@@ -96,7 +96,7 @@ capabilities in code:
           model: gemini15Flash,
         })
 
-        response = await ai.agenerate('Why is AI awesome?')
+        response = await ai.generate('Why is AI awesome?')
         await logger.adebug(response.text)
 
         stream, _ = ai.generate_stream("Tell me a story")
@@ -179,7 +179,7 @@ capabilities in code:
         })
 
         await logger.adebug("Generating structured output", prompt="Create a brief profile for a character in a fantasy video game.")
-        response = await ai.agenerate(
+        response = await ai.generate(
             prompt="Create a brief profile for a character in a fantasy video game.",
             output={
                 "format": "json",
@@ -268,7 +268,7 @@ capabilities in code:
         )
 
         await logger.adebug("Generating text with tool", prompt="What is the weather like in New York?")
-        response = await ai.agenerate(
+        response = await ai.generate(
             prompt="What is the weather like in New York?",
             tools=[get_weather_tool],
         )
@@ -477,7 +477,7 @@ capabilities in code:
         docs = await ai.retrieve(retriever=retriever, query=query)
 
         await logger.adebug("Generating answer", query=query)
-        response = await ai.agenerate(
+        response = await ai.generate(
             prompt=f"Use the provided context from the BobFacts database to answer this query: {query}",
             docs=docs,
         )
@@ -517,7 +517,7 @@ capabilities in code:
       query: 'How old is bob?',
     );
 
-    const result = await ai.agenerate({
+    const result = await ai.generate({
         prompt: `Use the provided context from the Genkit documentation to answer this query: ${query}`,
         docs // Pass retrieved documents to the model
     });
