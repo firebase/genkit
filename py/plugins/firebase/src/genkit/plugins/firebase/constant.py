@@ -14,8 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Firebase constants."""
+
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
@@ -37,10 +39,10 @@ class FirestoreRetrieverConfig(BaseModel):
     """The embedder to use with this retriever."""
     embedder: str
     """Optional configuration to pass to the embedder."""
-    embedder_options: Optional[dict[str, Any]] = None
+    embedder_options: dict[str, Any] | None = None
     """The distance measure to use when comparing vectors. Defaults to 'COSINE'."""
     distance_measure: DistanceMeasure = DistanceMeasure.COSINE
     """The Firestore database instance from which to query."""
     firestore_client: Any
     """Optional list of metadata fields to include."""
-    metadata_fields: Optional[list[str] | MetadataTransformFn] = None
+    metadata_fields: list[str] | MetadataTransformFn | None = None

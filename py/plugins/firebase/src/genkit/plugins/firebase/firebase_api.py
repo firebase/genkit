@@ -22,7 +22,7 @@ from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 
 def firestore_action_name(name: str) -> str:
-    """Create a firestore action name
+    """Create a firestore action name.
 
     Args:
         name: Base name for the action
@@ -35,35 +35,43 @@ def firestore_action_name(name: str) -> str:
 
 
 class FirebaseAPI(Plugin):
-    """Firestore retriever plugin"""
+    """Firestore retriever plugin."""
 
     name = 'firebaseFirestore'
 
     def __init__(self, params: list[FirestoreRetrieverConfig]):
+        """Initialize the firestore plugin.
+
+        Args:
+            params: List of firestore retriever configurations.
+        """
         self.params = params
 
+    # TODO: Extend implementation of firestore indexer.
     def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize firestore plugin by registering actions with the
-        registry making them available for use in the Genkit framework.
-        TO DO: Extend implementation of firestore indexer
+        """Initialize firestore plugin.
+
+        Register actions with the registry making them available for use in the Genkit framework.
 
         Args:
             ai: The registry to register actions with.
+
         Returns:
             None
         """
-
         for params in self.params:
             self._configure_firestore_retriever(ai=ai, params=params)
 
     @classmethod
     def _configure_firestore_retriever(cls, ai: GenkitRegistry, params: FirestoreRetrieverConfig) -> Action:
-        """Registers Local Vector Store retriever for provided parameters
+        """Registers Local Vector Store retriever for provided parameters.
+
         Args:
-            ai: The registry to register retriever with.
-            params: Parameters to register retriever with.
+            ai: The registry to register the retriever with.
+            params: Parameters to register the retriever with.
+
         Returns:
-            registered Action instance
+            registered Action instance.
         """
         retriever = FirestoreRetriever(
             ai=ai,
