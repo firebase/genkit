@@ -165,7 +165,7 @@ func WithConfig(config any) CommonOption {
 	return &commonOptions{Config: config}
 }
 
-// WithModel sets the model to call for generation.
+// WithModel sets a resolvable model reference to use for generation.
 func WithModel(model ModelArg) CommonOption {
 	return &commonOptions{ModelArg: model}
 }
