@@ -18,6 +18,7 @@ package googlegenai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,6 +26,8 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/base"
+	"github.com/invopop/jsonschema"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -69,6 +72,141 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
+func convertConfigSchemaToMap(config any) map[string]any {
+	r := jsonschema.Reflector{
+		DoNotReference: true, // Prevent $ref usage
+		ExpandedStruct: true, // Include all fields directly
+	}
+	schema := r.Reflect(config)
+	result := base.SchemaAsMap(schema)
+	return result
+}
+
+func mapToStruct(m map[string]any, v any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, v)
+}
+
+func convertSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
+	if len(settings) == 0 {
+		return nil
+	}
+
+	result := make([]*genai.SafetySetting, len(settings))
+	for i, s := range settings {
+		result[i] = &genai.SafetySetting{
+			Method:    genai.HarmBlockMethod(s.Method),
+			Category:  genai.HarmCategory(s.Category),
+			Threshold: genai.HarmBlockThreshold(s.Threshold),
+		}
+	}
+	return result
+}
+
+type HarmCategory string
+
+const (
+	// The harm category is unspecified.
+	HarmCategoryUnspecified HarmCategory = "HARM_CATEGORY_UNSPECIFIED"
+	// The harm category is hate speech.
+	HarmCategoryHateSpeech HarmCategory = "HARM_CATEGORY_HATE_SPEECH"
+	// The harm category is dangerous content.
+	HarmCategoryDangerousContent HarmCategory = "HARM_CATEGORY_DANGEROUS_CONTENT"
+	// The harm category is harassment.
+	HarmCategoryHarassment HarmCategory = "HARM_CATEGORY_HARASSMENT"
+	// The harm category is sexually explicit content.
+	HarmCategorySexuallyExplicit HarmCategory = "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+	// The harm category is civic integrity.
+	HarmCategoryCivicIntegrity HarmCategory = "HARM_CATEGORY_CIVIC_INTEGRITY"
+)
+
+// Specify if the threshold is used for probability or severity score. If not specified,
+// the threshold is used for probability score.
+type HarmBlockMethod string
+
+const (
+	// The harm block method is unspecified.
+	HarmBlockMethodUnspecified HarmBlockMethod = "HARM_BLOCK_METHOD_UNSPECIFIED"
+	// The harm block method uses both probability and severity scores.
+	HarmBlockMethodSeverity HarmBlockMethod = "SEVERITY"
+	// The harm block method uses the probability score.
+	HarmBlockMethodProbability HarmBlockMethod = "PROBABILITY"
+)
+
+// The harm block threshold.
+type HarmBlockThreshold string
+
+const (
+	// Unspecified harm block threshold.
+	HarmBlockThresholdUnspecified HarmBlockThreshold = "HARM_BLOCK_THRESHOLD_UNSPECIFIED"
+	// Block low threshold and above (i.e. block more).
+	HarmBlockThresholdBlockLowAndAbove HarmBlockThreshold = "BLOCK_LOW_AND_ABOVE"
+	// Block medium threshold and above.
+	HarmBlockThresholdBlockMediumAndAbove HarmBlockThreshold = "BLOCK_MEDIUM_AND_ABOVE"
+	// Block only high threshold (i.e. block less).
+	HarmBlockThresholdBlockOnlyHigh HarmBlockThreshold = "BLOCK_ONLY_HIGH"
+	// Block none.
+	HarmBlockThresholdBlockNone HarmBlockThreshold = "BLOCK_NONE"
+	// Turn off the safety filter.
+	HarmBlockThresholdOff HarmBlockThreshold = "OFF"
+)
+
+// Safety settings.
+type SafetySetting struct {
+	// Determines if the harm block method uses probability or probability
+	// and severity scores.
+	Method HarmBlockMethod `json:"method,omitempty"`
+	// Required. Harm category.
+	Category HarmCategory `json:"category,omitempty"`
+	// Required. The harm block threshold.
+	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
+}
+
+// GeminiConfig mirrors GenerateContentConfig without direct genai dependency
+type GeminiConfig struct {
+	ai.GenerationCommonConfig
+
+	// Safety settings
+	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+}
+
+// extractConfigFromInput converts any supported config type to GoogleAIConfig
+func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
+	var result GeminiConfig
+	switch config := input.Config.(type) {
+	case GeminiConfig:
+		return &config, nil
+	case *GeminiConfig:
+		return config, nil
+	case ai.GenerationCommonConfig:
+		return &GeminiConfig{
+			GenerationCommonConfig: config,
+		}, nil
+	case *ai.GenerationCommonConfig:
+		if config == nil {
+			return &result, nil
+		}
+		return &GeminiConfig{
+			GenerationCommonConfig: *config,
+		}, nil
+	case map[string]any:
+		// // TODO: FYI Using map[string]any for config may silently ignore unknown parameters, may want to handle explicitly
+		if err := mapToStruct(config, &result); err == nil {
+			return &result, nil
+		} else {
+			return nil, err
+		}
+	case nil:
+		// Empty but valid config
+		return &result, nil
+	default:
+		return nil, fmt.Errorf("unexpected config type: %T", input.Config)
+	}
+}
+
 // DefineModel defines a model in the registry
 func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
 	provider := googleAIProvider
@@ -77,9 +215,10 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 	}
 
 	meta := &ai.ModelInfo{
-		Label:    info.Label,
-		Supports: info.Supports,
-		Versions: info.Versions,
+		Label:        info.Label,
+		Supports:     info.Supports,
+		Versions:     info.Versions,
+		ConfigSchema: convertConfigSchemaToMap(&GeminiConfig{}),
 	}
 
 	fn := func(
@@ -163,12 +302,15 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	// since context caching is only available for specific model versions, we
-	// must make sure the configuration has the right version
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
-		if c != nil && c.Version != "" {
-			model = c.Version
-		}
+	// Extract configuration to get the model version
+	config, err := extractConfigFromInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update model with version if specified
+	if config.Version != "" {
+		model = config.Version
 	}
 
 	cache, err := handleCache(ctx, client, input, model)
@@ -176,7 +318,7 @@ func generate(
 		return nil, err
 	}
 
-	gc, err := convertRequest(client, model, input, cache)
+	gc, err := convertRequest(client, input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -263,24 +405,55 @@ func generate(
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = genai.Ptr[int32](1)
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
+	c, err := extractConfigFromInput(input)
+	if err != nil {
+		return nil, err
+	}
+	// Convert standard fields
+	if c.MaxOutputTokens != 0 {
+		gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
+	}
+	if len(c.StopSequences) > 0 {
+		gc.StopSequences = c.StopSequences
+	}
+	if c.Temperature != 0 {
+		gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
+	}
+	if c.TopK != 0 {
+		gc.TopK = genai.Ptr[float32](float32(c.TopK))
+	}
+	if c.TopP != 0 {
+		gc.TopP = genai.Ptr[float32](float32(c.TopP))
+	}
+	// Convert non-primitive fields
+	gc.SafetySettings = convertSafetySettings(c.SafetySettings)
+
+	// Set response MIME type based on output format if specified
+	hasOutput := input.Output != nil
+	isJsonFormat := hasOutput && input.Output.Format == "json"
+	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
+	jsonMode := isJsonFormat || (isJsonContentType && len(input.Tools) == 0)
+	if jsonMode {
+		gc.ResponseMIMEType = "application/json"
+	}
+
+	// Add tool configuration from input.Tools and input.ToolChoice directly
+	// This overrides any functionCallingConfig in the passed config
+	if len(input.Tools) > 0 {
+		// First convert the tools
+		tools, err := convertTools(input.Tools)
+		if err != nil {
+			return nil, err
 		}
-		if len(c.StopSequences) > 0 {
-			gc.StopSequences = c.StopSequences
-		}
-		if c.Temperature != 0 {
-			gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
-		}
-		if c.TopK != 0 {
-			gc.TopK = genai.Ptr[float32](float32(c.TopK))
-		}
-		if c.TopP != 0 {
-			gc.TopP = genai.Ptr[float32](float32(c.TopP))
+		gc.Tools = tools
+
+		// Then set up the tool configuration based on ToolChoice
+		tc := convertToolChoice(input.ToolChoice, input.Tools)
+		if tc != nil {
+			gc.ToolConfig = tc
 		}
 	}
 
@@ -301,15 +474,6 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 			Role:  string(ai.RoleSystem),
 		}
 	}
-
-	tools, err := convertTools(input.Tools)
-	if err != nil {
-		return nil, err
-	}
-	gc.Tools = tools
-
-	choice := convertToolChoice(input.ToolChoice, input.Tools)
-	gc.ToolConfig = choice
 
 	if cache != nil {
 		gc.CachedContent = cache.Name
