@@ -342,6 +342,13 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewUserTextMessage(prompt))
 	}
 
+	// Apply Model config if no Generate config.
+	modelArg := genOpts.Model
+	if modelRef, ok := modelArg.(ModelRef); ok {
+		if genOpts.Config == nil {
+			genOpts.Config = modelRef.Config()
+		}
+	}
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -654,16 +661,16 @@ func (m *Message) Text() string {
 }
 
 // NewModelRef creates a new ModelRef with the given name and configuration.
-func NewModelRef(name string, config any) *ModelRef {
-	return &ModelRef{name: name, config: config}
+func NewModelRef(name string, config any) ModelRef {
+	return ModelRef{name: name, config: config}
 }
 
 // Name returns the name of the ModelRef.
-func (m *ModelRef) Name() string {
+func (m ModelRef) Name() string {
 	return m.name
 }
 
 // ModelConfig returns the configuration of a ModelRef.
-func (m *ModelRef) Config() any {
+func (m ModelRef) Config() any {
 	return m.config
 }

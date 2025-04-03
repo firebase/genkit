@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"slices"
@@ -33,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -172,9 +172,6 @@ type GeminiConfig struct {
 
 	// Safety settings
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
-
-	// Model version
-	Version string `json:"version,omitempty"`
 }
 
 // extractConfigFromInput converts any supported config type to GoogleAIConfig
@@ -186,14 +183,18 @@ func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
 	case *GeminiConfig:
 		return config, nil
 	case ai.GenerationCommonConfig:
-		return convertFromCommonConfig(config), nil
+		return &googlegenai.GeminiConfig{
+			GenerationCommonConfig: config,
+		}, nil
 	case *ai.GenerationCommonConfig:
 		if config == nil {
 			return &result, nil
 		}
-		return convertFromCommonConfig(*config), nil
+		return &googlegenai.GeminiConfig{
+			GenerationCommonConfig: config,
+		}, nil
 	case map[string]any:
-		log.Printf("Warning: Using map[string]any for config may silently ignore unknown parameters")
+		// // TODO: FYI Using map[string]any for config may silently ignore unknown parameters, may want to handle explicitly
 		if err := mapToStruct(config, &result); err == nil {
 			return &result, nil
 		} else {
@@ -205,18 +206,6 @@ func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
 	default:
 		return nil, fmt.Errorf("unexpected config type: %T", input.Config)
 	}
-}
-
-// Helper function to convert from GenerationCommonConfig to GeminiConfig
-func convertFromCommonConfig(config ai.GenerationCommonConfig) *GeminiConfig {
-	var result GeminiConfig
-	result.MaxOutputTokens = config.MaxOutputTokens
-	result.StopSequences = config.StopSequences
-	result.Temperature = config.Temperature
-	result.TopK = config.TopK
-	result.TopP = config.TopP
-	result.Version = config.Version
-	return &result
 }
 
 // DefineModel defines a model in the registry
