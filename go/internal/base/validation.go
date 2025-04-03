@@ -78,3 +78,20 @@ func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 
 	return nil
 }
+
+func ValidateIsJSONArray(schema map[string]any) bool {
+	sType, ok := schema["type"]
+
+	// If the key doesn't exist or is not an array
+	if !ok || sType != "array" {
+		return false
+	}
+
+	_, ok = schema["items"]
+	// If items don't exist
+	if !ok {
+		return false
+	}
+
+	return true
+}

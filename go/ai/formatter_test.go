@@ -882,11 +882,13 @@ func TestJsonlParser(t *testing.T) {
 		{
 			name: "parses jsonl schema",
 			schema: map[string]any{
-				"type":     "object",
-				"required": []string{"id"},
-				"properties": map[string]any{
-					"id":   map[string]any{"type": "integer"},
-					"name": map[string]any{"type": "string"},
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
 				},
 				"additionalProperties": false,
 			},
@@ -908,10 +910,13 @@ func TestJsonlParser(t *testing.T) {
 		{
 			name: "contains unexpected field fails",
 			schema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"name": map[string]any{"type": "string"},
-					"age":  map[string]any{"type": "integer"},
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+						"age":  map[string]any{"type": "integer"},
+					},
 				},
 				"additionalProperties": false,
 			},
@@ -926,9 +931,12 @@ func TestJsonlParser(t *testing.T) {
 		{
 			name: "parses JSONl with preamble and code fence",
 			schema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"id": map[string]any{"type": "integer"},
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
 				},
 				"additionalProperties": false,
 			},

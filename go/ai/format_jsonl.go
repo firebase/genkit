@@ -47,7 +47,7 @@ func (j jsonlHandler) config() *ModelOutputConfig {
 
 func (j JSONLFormatter) handler(schema map[string]any) FormatterHandler {
 	var instructions string
-	if schema != nil && isJSONL(schema) {
+	if schema != nil && base.ValidateIsJSONArray(schema) {
 		jsonBytes, err := json.Marshal(schema["items"])
 		if err != nil {
 			panic(fmt.Sprintf("error marshalling schema to JSONL: %v", err))
@@ -88,8 +88,9 @@ func (j jsonlHandler) parseMessage(m *Message) (*Message, error) {
 			} else {
 				lines := objectLines(part.Text)
 				for _, line := range lines {
+
 					var schemaBytes []byte
-					schemaBytes, err := json.Marshal(j.output.Schema)
+					schemaBytes, err := json.Marshal(j.output.Schema["items"])
 					if err != nil {
 						return nil, fmt.Errorf("expected schema is not valid: %w", err)
 					}
@@ -135,21 +136,4 @@ func objectLines(text string) []string {
 
 	// Return the slice containing the filtered and trimmed lines.
 	return result
-}
-
-func isJSONL(schema map[string]any) bool {
-	sType, ok := schema["type"]
-
-	// If the key doesn't exist or is not an array
-	if !ok || sType != "array" {
-		return false
-	}
-
-	_, ok = schema["items"]
-	// If items don't exist
-	if !ok {
-		return false
-	}
-
-	return true
 }
