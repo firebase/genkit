@@ -344,13 +344,15 @@ func TestGenerate(t *testing.T) {
 
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
-			t.Errorf("Text() diff (+got -want):\n%s", diff)
+			t.Errorf(" Text() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
 			"{*ai.ModelRequest}.Messages[3].Content[1].Text",
+			// NOTE: to be removed once Formatters (#2417) gets merged
+			"{*ai.ModelRequest}.Output.Constrained",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}
