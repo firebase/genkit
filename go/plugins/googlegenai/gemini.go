@@ -314,12 +314,15 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	// since context caching is only available for specific model versions, we
-	// must make sure the configuration has the right version
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
-		if c != nil && c.Version != "" {
-			model = c.Version
-		}
+	// Extract configuration to get the model version
+	config, err := extractConfigFromInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update model with version if specified
+	if config.Version != "" {
+		model = config.Version
 	}
 
 	cache, err := handleCache(ctx, client, input, model)
