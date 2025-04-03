@@ -104,14 +104,14 @@ class GoogleAI(Plugin):
             gemini_model = GeminiModel(version, self._client, ai)
             ai.define_model(
                 name=googleai_name(version),
-                fn=gemini_model.agenerate,
+                fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
                 config_schema=GeminiConfigSchema,
             )
 
         for version in GeminiEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(name=googleai_name(version), fn=embedder.agenerate)
+            ai.define_embedder(name=googleai_name(version), fn=embedder.generate)
 
 
 class VertexAI(Plugin):
@@ -152,18 +152,18 @@ class VertexAI(Plugin):
             gemini_model = GeminiModel(version, self._client, ai)
             ai.define_model(
                 name=vertexai_name(version),
-                fn=gemini_model.agenerate,
+                fn=gemini_model.generate,
                 metadata=gemini_model.metadata,
                 config_schema=GeminiConfigSchema,
             )
 
         for version in VertexEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(name=vertexai_name(version), fn=embedder.agenerate)
+            ai.define_embedder(name=vertexai_name(version), fn=embedder.generate)
 
         for version in ImagenVersion:
             imagen_model = ImagenModel(version, self._client)
-            ai.define_model(name=vertexai_name(version), fn=imagen_model.agenerate, metadata=imagen_model.metadata)
+            ai.define_model(name=vertexai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata)
 
 
 def _inject_attribution_headers(http_options):
