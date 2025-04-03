@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from genkit.ai.veneer import Genkit
+from genkit.ai import Genkit
 from genkit.plugins.dev_local_vector_store.constant import Params
 from genkit.plugins.dev_local_vector_store.plugin_api import DevLocalVectorStore
 from genkit.plugins.google_genai import GoogleGenai

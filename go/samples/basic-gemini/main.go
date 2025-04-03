@@ -46,9 +46,17 @@ func main() {
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&ai.GenerationCommonConfig{
-				Temperature: 1,
-				Version:     "gemini-2.0-flash-001",
+			ai.WithConfig(&googlegenai.GeminiConfig{
+				GenerationCommonConfig: ai.GenerationCommonConfig{
+					Temperature:     1.0,
+					MaxOutputTokens: 256,
+				},
+				SafetySettings: []*googlegenai.SafetySetting{
+					{
+						Category:  googlegenai.HarmCategoryHarassment,
+						Threshold: googlegenai.HarmBlockThresholdBlockMediumAndAbove,
+					},
+				},
 			}),
 			ai.WithPromptText(fmt.Sprintf(`Tell silly short jokes about %s`, input)))
 		if err != nil {

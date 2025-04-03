@@ -47,7 +47,7 @@ async def say_hi(data: str):
     Returns:
         The generated greeting.
     """
-    return await ai.agenerate(messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])])
+    return await ai.generate(messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])])
 
 
 async def say_hi_with_configured_temperature(data: str):
@@ -59,7 +59,7 @@ async def say_hi_with_configured_temperature(data: str):
     Returns:
         The generated greeting.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
         config=GenerationCommonConfig(temperature=0.1),
     )

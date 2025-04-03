@@ -47,7 +47,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
 
     async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
         embeddings = await self.ai.embed(
-            model=self.params.embedder,
+            embedder=self.params.embedder,
             documents=[document],
             options=self.params.embedder_options,
         )

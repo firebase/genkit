@@ -25,9 +25,9 @@ from pydantic import BaseModel, Field
 from genkit.ai import ActionRunContext
 from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
-    GeminiApiOnlyVersion,
     GeminiModel,
-    GeminiVersion,
+    GoogleAIGeminiVersion,
+    VertexAIGeminiVersion,
 )
 from genkit.types import (
     GenerateRequest,
@@ -39,9 +39,12 @@ from genkit.types import (
     TextPart,
 )
 
+ALL_VERSIONS = list(GoogleAIGeminiVersion) + list(VertexAIGeminiVersion)
+IMAGE_GENERATION_VERSIONS = [GoogleAIGeminiVersion.GEMINI_2_0_FLASH_EXP]
+
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('version', [x for x in GeminiVersion])
+@pytest.mark.parametrize('version', [x for x in ALL_VERSIONS])
 async def test_generate_text_response(mocker, version):
     """Test the generate method for text responses."""
     response_text = 'request answer'
@@ -66,7 +69,7 @@ async def test_generate_text_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
@@ -80,7 +83,7 @@ async def test_generate_text_response(mocker, version):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('version', [x for x in GeminiVersion])
+@pytest.mark.parametrize('version', [x for x in ALL_VERSIONS])
 async def test_generate_stream_text_response(mocker, version):
     """Test the generate method for text responses."""
     response_text = 'request answer'
@@ -106,7 +109,7 @@ async def test_generate_stream_text_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content_stream(
@@ -120,7 +123,7 @@ async def test_generate_stream_text_response(mocker, version):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('version', [x for x in GeminiApiOnlyVersion])
+@pytest.mark.parametrize('version', [x for x in IMAGE_GENERATION_VERSIONS])
 async def test_generate_media_response(mocker, version):
     """Test generate method for media responses."""
     request_text = 'response question'
@@ -155,7 +158,7 @@ async def test_generate_media_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
@@ -258,7 +261,7 @@ async def test_generate_with_system_instructions(mocker):
     response_text = 'request answer'
     request_text = 'response question'
     system_instruction = 'system instruciton text'
-    version = GeminiVersion.GEMINI_2_0_FLASH
+    version = GoogleAIGeminiVersion.GEMINI_2_0_FLASH
 
     request = GenerateRequest(
         messages=[
@@ -287,7 +290,7 @@ async def test_generate_with_system_instructions(mocker):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
     ctx = ActionRunContext()
 
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(

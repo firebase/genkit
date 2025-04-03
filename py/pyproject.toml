@@ -1,7 +1,7 @@
 [project]
 dependencies = [
-  "dotpromptz",
-  "genkit-ai",
+  #"dotpromptz", # TODO: Add when updated to support Python 3.11 and functional.
+  "genkit",
   "genkit-plugin-chroma",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
@@ -18,7 +18,7 @@ description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
 name = "genkit-workspace"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.1.0"
 
 [dependency-groups]
@@ -73,7 +73,7 @@ coffee-shop                         = { workspace = true }
 context-caching                     = { workspace = true }
 dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 flow-sample1                        = { workspace = true }
-genkit-ai                           = { workspace = true }
+genkit                              = { workspace = true }
 genkit-plugin-chroma                = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -136,7 +136,7 @@ exclude = [
 indent-width = 4
 line-length = 120
 preview = true
-target-version = "py312"
+target-version = "py311"
 unsafe-fixes = true
 
 
@@ -186,7 +186,7 @@ disallow_untyped_defs = true
 exclude = ["samples/"]
 explicit_package_bases = true
 mypy_path = [
-  "packages/genkit-ai/src",
+  "packages/genkit/src",
   "plugins/chroma/src",
   "plugins/compat-oai/src",
   "plugins/dev-local-vector-store/src",
@@ -232,11 +232,11 @@ enable-version-header    = true
 field-constraints        = true
 input                    = "../genkit-tools/genkit-schema.json"
 input-file-type          = "jsonschema"
-output                   = "packages/genkit-ai/src/genkit/core/typing.py"
+output                   = "packages/genkit/src/genkit/core/typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true
-target-python-version    = "3.12"
+target-python-version    = "3.11"
 use-default              = false
 use-schema-description   = true
 use-standard-collections = true

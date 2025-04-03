@@ -97,27 +97,36 @@ Date / Snapshot ID (e.g., `02-05`, `03-25`)
 
 # Model support
 
-The following models are currently supported:
+The following models are currently supported by GoogleAI API:
 
-| Model                       | Description               | Status     |
-|-----------------------------|---------------------------|------------|
-| `gemini-1.0-pro`            | Gemini 1.0 Pro            | Obsolete   |
-| `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
-| `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
-| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
-| `gemini-2.0-flash`          | Gemini 2.0 Flash          | Supported  |
-| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | Supported  |
-| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | Supported  |
-| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
+| Model                       | Description                   | Status     |
+|-----------------------------|-------------------------------|------------|
+| `gemini-1.0-pro`            | Gemini 1.0 Pro                | Obsolete   |
+| `gemini-1.5-pro`            | Gemini 1.5 Pro                | Deprecated |
+| `gemini-1.5-flash`          | Gemini 1.5 Flash              | Deprecated |
+| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B           | Deprecated |
+| `gemini-2.0-flash`          | Gemini 2.0 Flash              | Supported  |
+| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite         | Supported  |
+| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05      | Supported  |
+| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25      | Supported  |
+| `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Experimental | Supported  |
 
-The following models are supported for API only:
 
-| Model                  | Description                   | Status     |
-|------------------------|-------------------------------|------------|
-| `gemini-2.0-flash-exp` | Gemini 2.0 Flash Experimental | Supported  |
+The following models are currently supported by VertexAI API:
+
+| Model                       | Description                   | Status       |
+|-----------------------------|-------------------------------|--------------|
+| `gemini-1.0-pro`            | Gemini 1.0 Pro                | Obsolete     |
+| `gemini-1.5-pro`            | Gemini 1.5 Pro                | Deprecated   |
+| `gemini-1.5-flash`          | Gemini 1.5 Flash              | Deprecated   |
+| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B           | Deprecated   |
+| `gemini-2.0-flash`          | Gemini 2.0 Flash              | Supported    |
+| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite         | Supported    |
+| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05      | Supported    |
+| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25      | Supported    |
+| `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Experimental | Unavailable  |
 """
 
-import copy
 from enum import StrEnum
 from functools import cached_property
 from typing import Any
@@ -297,14 +306,13 @@ Deprecations = deprecated_enum_metafactory({
 })
 
 
-class GeminiVersion(StrEnum, metaclass=Deprecations):
-    """Gemini models.
+class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
+    """VertexAIGemini models.
 
     Model Support:
 
     | Model                       | Description               | Status     |
     |-----------------------------|---------------------------|------------|
-    | `gemini-1.0-pro`            | Gemini 1.0 Pro            | Obsolete   |
     | `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
     | `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
     | `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
@@ -314,7 +322,6 @@ class GeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
     """
 
-    GEMINI_1_0_PRO = 'gemini-1.0-pro'
     GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
     GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
@@ -324,22 +331,49 @@ class GeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
 
 
-class GeminiApiOnlyVersion(StrEnum):
-    """Gemini API only models."""
+class GoogleAIGeminiVersion(StrEnum):
+    """VertexAIGemini models.
 
+    Model Support:
+
+    | Model                       | Description               | Status     |
+    |-----------------------------|---------------------------|------------|
+    | `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
+    | `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
+    | `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
+    | `gemini-2.0-flash`          | Gemini 2.0 Flash          | Supported  |
+    | `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | Supported  |
+    | `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | Supported  |
+    | `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
+    | `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Exp      | Supported  |
+    """
+
+    GEMINI_1_5_PRO = 'gemini-1.5-pro'
+    GEMINI_1_5_FLASH = 'gemini-1.5-flash'
+    GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
+    GEMINI_2_0_FLASH = 'gemini-2.0-flash'
+    GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
+    GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
+    GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
 
 
 SUPPORTED_MODELS = {
-    GeminiVersion.GEMINI_1_0_PRO: GEMINI_1_0_PRO,
-    GeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
-    GeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
-    GeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
-    GeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
-    GeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
-    GeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
-    GeminiApiOnlyVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
-    GeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
+    VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
+    VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
+    VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
+    VertexAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
+    VertexAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
+    VertexAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
+    VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
+    GoogleAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
+    GoogleAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
+    GoogleAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
+    GoogleAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
+    GoogleAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
+    GoogleAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
+    GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
+    GoogleAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
 }
 
 
@@ -348,7 +382,7 @@ class GeminiModel:
 
     def __init__(
         self,
-        version: str | GeminiVersion | GeminiApiOnlyVersion,
+        version: str | GoogleAIGeminiVersion | VertexAIGeminiVersion,
         client: genai.Client,
         registry: GenkitRegistry,
     ):
@@ -486,7 +520,7 @@ class GeminiModel:
             ]
         )
 
-    async def agenerate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -525,11 +559,14 @@ class GeminiModel:
         with tracer.start_as_current_span('generate_content') as span:
             span.set_attribute(
                 'genkit:input',
-                dump_json({
-                    'config': dump_dict(request_cfg),
-                    'contents': [dump_dict(c) for c in request_contents],
-                    'model': self._version,
-                }),
+                dump_json(
+                    {
+                        'config': dump_dict(request_cfg),
+                        'contents': [dump_dict(c) for c in request_contents],
+                        'model': self._version,
+                    },
+                    fallback=lambda _: '[!! failed to serialize !!]',
+                ),
             )
             response = await self._client.aio.models.generate_content(
                 model=self._version, contents=request_contents, config=request_cfg

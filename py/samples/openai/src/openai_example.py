@@ -68,7 +68,7 @@ async def say_hi(name: str) -> str:
     Returns:
         The response from the OpenAI API.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model=openai_model('gpt-4'),
         config={'model': 'gpt-4-0613', 'temperature': 1},
         prompt=f'hi {name}',
@@ -98,7 +98,7 @@ async def say_hi_stream(name: str) -> str:
     return result
 
 
-@ai.tool('Get current temperature for provided coordinates in celsius')
+@ai.tool()
 def get_weather_tool(coordinates: WeatherRequest) -> float:
     """Get the current temperature for provided coordinates in celsius.
 
@@ -129,7 +129,7 @@ async def get_weather_flow(location: str) -> str:
     Returns:
         The weather for the location.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model=openai_model('gpt-4'),
         system='You are an assistant that provides current weather information.',
         config={'model': 'gpt-4-0613', 'temperature': 1},

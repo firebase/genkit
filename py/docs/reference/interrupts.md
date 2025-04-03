@@ -63,8 +63,9 @@ class Questions(BaseModel):
     allow_other: bool = Field(description='when true, allow write-ins')
 
 
-@ai.tool('use this to ask the user a clarifying question')
+@ai.tool()
 def ask_question(input: Questions, ctx) -> str:
+    """Use this to ask the user a clarifying question"""
     ctx.interrupt()
 ```
 
@@ -79,7 +80,7 @@ other types of tools. You can pass both normal tools and interrupts to the
 same `generate` call:
 
 ```py
-interrupted_response = await ai.agenerate(
+interrupted_response = await ai.generate(
     prompt='Ask me a movie trivia question.',
     tools=['ask_question'],
 )
@@ -96,7 +97,7 @@ need to check the response for interrupts so that you can handle them:
 // you can check the 'finishReason' of the response
 interrupted_response.finishReason === 'interrupted'
 // or you can check to see if any interrupt requests are on the response
-len(interrupted_response.tool_requests) > 0
+len(interrupted_response.interrupts) > 0
 ```
 
 Responding to an interrupt is done using the `tool_responses` option on a subsequent
@@ -107,9 +108,9 @@ Once resumed, the model re-enters the generation loop, including tool
 execution, until either it completes or another interrupt is triggered:
 
 ```py
-response = await ai.agenerate(
+response = await ai.generate(
     messages=interrupted_response.messages,
-    tool_responses=[tool_response(interrupted_response.tool_requests[0], 'b')],
+    tool_responses=[tool_response(interrupted_response.interrupts[0], 'b')],
     tools=['ask_question'],
 )
 ```

@@ -23,9 +23,9 @@ from io import BytesIO
 from PIL import Image
 
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleGenai, google_genai_name
+from genkit.plugins.google_genai import VertexAI, vertexai_name
 
-ai = Genkit(plugins=[GoogleGenai(vertexai=True, project='', location='us-central1')])
+ai = Genkit(plugins=[VertexAI(project='', location='us-central1')])
 
 
 @ai.flow()
@@ -36,9 +36,9 @@ async def draw_image_with_imagen() -> str:
         The image.
     """
     config = {'number_of_images': 1, 'language': 'en'}
-    return await ai.agenerate(
+    return await ai.generate(
         prompt='Draw a cat in a hat',
-        model=google_genai_name('imagegeneration@006'),
+        model=vertexai_name('imagegeneration@006'),
         # optional config; check README for available fields
         config=config,
     )

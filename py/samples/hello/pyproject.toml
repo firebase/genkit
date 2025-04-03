@@ -15,7 +15,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "genkit-plugin-firebase",
   "genkit-plugin-google-ai",
   "genkit-plugin-google-cloud",
@@ -29,7 +29,7 @@ description = "hello Genkit sample"
 license = { text = "Apache-2.0" }
 name = "hello"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.1.0"
 
 [build-system]

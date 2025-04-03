@@ -57,7 +57,7 @@ async def generate_joke(subject: str) -> str:
     Returns:
         str: The generated joke.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         config=GenerationCommonConfig(temperature=0.1, version='gemini-2.0-flash-001'),
         messages=[
             Message(
@@ -74,7 +74,7 @@ class ConversionInput(BaseModel):
     amount: float = Field(description='The currency amount to convert')
 
 
-@ai.tool('Converts currency with latest exchange rate')
+@ai.tool()
 def convert_currency(input: ConversionInput) -> float:
     """Tool to convert the currency with latest exchange rate.
 
@@ -116,7 +116,7 @@ async def convert_with_tools(amount: float) -> str:
 
 @ai.flow()
 async def draw_image(description: str):
-    return await ai.agenerate(
+    return await ai.generate(
         model=vertexai_name(ImagenVersion.IMAGEN3_FAST),
         messages=[
             Message(
@@ -144,7 +144,7 @@ async def generate_structured_content(food: str):
     Returns:
         List of recipes that follows schema config.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(

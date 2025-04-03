@@ -14,9 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 from typing import Literal
 
+import structlog
 from pydantic import BaseModel, Field, HttpUrl
 
 import ollama as ollama_api
@@ -43,7 +43,7 @@ from genkit.types import (
     ToolResponsePart,
 )
 
-LOG = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ModelDefinition(BaseModel):
@@ -68,7 +68,16 @@ class OllamaModel:
         self.client = client
         self.model_definition = model_definition
 
-    async def agenerate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+        """Generate a response from Ollama.
+
+        Args:
+            request: The request to generate a response for.
+            ctx: The context to generate a response for.
+
+        Returns:
+            The generated response.
+        """
         content = [TextPart(text='Failed to get response from Ollama API')]
 
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
@@ -108,9 +117,19 @@ class OllamaModel:
             ),
         )
 
+    # FIXME: Missing return statement.
     async def _chat_with_ollama(
         self, request: GenerateRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.ChatResponse | None:
+        """Chat with Ollama.
+
+        Args:
+            request: The request to chat with Ollama for.
+            ctx: The context to chat with Ollama for.
+
+        Returns:
+            The chat response from Ollama.
+        """
         messages = self.build_chat_messages(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
@@ -164,6 +183,16 @@ class OllamaModel:
     async def _generate_ollama_response(
         self, request: GenerateRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.GenerateResponse | None:
+        """Generate a response from Ollama.
+
+        Args:
+            request: The request to generate a response for.
+            ctx: The context to generate a response for.
+
+        Returns:
+            The generated response.
+        """
+        # FIXME: Missing return statement.
         prompt = self.build_prompt(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
@@ -194,6 +223,14 @@ class OllamaModel:
     def _build_multimodal_chat_response(
         chat_response: ollama_api.ChatResponse,
     ) -> list[Part]:
+        """Build the multimodal chat response.
+
+        Args:
+            chat_response: The chat response to build the multimodal response for.
+
+        Returns:
+            The multimodal chat response.
+        """
         content = []
         chat_response_message = chat_response.message
         if chat_response_message.content:
@@ -224,6 +261,14 @@ class OllamaModel:
     def build_request_options(
         config: GenerationCommonConfig | dict,
     ) -> ollama_api.Options:
+        """Build request options for the generate API.
+
+        Args:
+            config: The configuration to build the request options for.
+
+        Returns:
+            The request options for the generate API.
+        """
         if isinstance(config, GenerationCommonConfig):
             config = dict(
                 top_k=config.top_k,
@@ -237,17 +282,33 @@ class OllamaModel:
 
     @staticmethod
     def build_prompt(request: GenerateRequest) -> str:
+        """Build the prompt for the generate API.
+
+        Args:
+            request: The request to build the prompt for.
+
+        Returns:
+            The prompt for the generate API.
+        """
         prompt = ''
         for message in request.messages:
             for text_part in message.content:
                 if isinstance(text_part.root, TextPart):
                     prompt += text_part.root.text
                 else:
-                    LOG.error('Non-text messages are not supported')
+                    logger.error('Non-text messages are not supported')
         return prompt
 
     @classmethod
     def build_chat_messages(cls, request: GenerateRequest) -> list[dict[str, str]]:
+        """Build the messages for the chat API.
+
+        Args:
+            request: The request to build the messages for.
+
+        Returns:
+            The messages for the chat API.
+        """
         messages = []
         for message in request.messages:
             item = ollama_api.Message(

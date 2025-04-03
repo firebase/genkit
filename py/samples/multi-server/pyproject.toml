@@ -1,6 +1,6 @@
 [project]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "asgiref>=3.8.1",
   "litestar>=2.15.1",
   "starlette>=0.46.1",
@@ -11,5 +11,5 @@ dependencies = [
 description = "Sample implementation to exercise the Genkit multi server manager."
 name = "multi-server"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.1.0"

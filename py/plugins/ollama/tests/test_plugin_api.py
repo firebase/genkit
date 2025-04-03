@@ -58,7 +58,7 @@ async def test_async_get_chat_model_response_from_llama_api_flow(
     mock_ollama_api_async_client.return_value.chat.side_effect = fake_chat_response
 
     async def _test_fun():
-        return await genkit_veneer_chat_model.agenerate(
+        return await genkit_veneer_chat_model.generate(
             messages=[
                 Message(
                     role=Role.USER,
@@ -91,7 +91,7 @@ async def test_async_get_generate_model_response_from_llama_api_flow(
     mock_ollama_api_async_client.return_value.generate.side_effect = fake_generate_response
 
     async def _test_fun():
-        return await genkit_veneer_generate_model.agenerate(
+        return await genkit_veneer_generate_model.generate(
             messages=[
                 Message(
                     role=Role.USER,
