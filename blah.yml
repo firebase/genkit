@@ -1,0 +1,44 @@
+steps:
+  - name: python
+    args:
+      - '-c'
+      - |
+        ls -al
+        cd genkit
+        git submodule init
+        git submodule update
+        git checkout $_GENKIT_BRANCH
+        ls -al
+        cd py
+        ls -al
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        curl -fsSL https://d2lang.com/install.sh | sh -s --
+        source $$HOME/.local/bin/env
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        . $$HOME/.cargo/env
+        rustup update
+        ls -al ~/.cargo/bin
+        uv sync
+        uv venv
+        ls -al .venv/bin
+        uv tool install \
+          mkdocs \
+          --with mkdocs-autorefs \
+          --with mkdocs-d2-plugin \
+          --with mkdocs-literate-nav \
+          --with mkdocs-material \
+          --with mkdocs-mermaid2-plugin \
+          --with mkdocs-minify-plugin \
+          --with mkdocstrings[python]
+        uv run mkdocs build
+        mkdir ../../py-public
+        cp -r site/* ../../py-public        
+    entrypoint: bash
+  - name: gcr.io/$PROJECT_ID/firebase
+    args:
+      - deploy
+      - '--project=$PROJECT_ID'
+      - '--only=hosting:$_API_ENV'
+
+options:
+  machineType: E2_HIGHCPU_8

@@ -167,7 +167,7 @@ class GenkitRegistry:
 
         return wrapper
 
-    def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
+    def tool(self, description: str | None = None, name: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
 
         Args:
