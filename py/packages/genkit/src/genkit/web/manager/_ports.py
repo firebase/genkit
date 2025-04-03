@@ -51,3 +51,41 @@ async def is_port_available(port: int, host: str = '127.0.0.1') -> bool:
         # Always close the socket
         with contextlib.suppress(Exception):
             sock.close()
+
+
+def is_port_available_sync(port: int, host: str = '127.0.0.1') -> bool:
+    """Check if a specific port is available for binding.
+
+    Args:
+        port: The port number to check
+        host: The host address to bind to (default: '127.0.0.1')
+
+    Returns:
+        True if the port is available, False otherwise.
+    """
+    try:
+        with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.bind(('', port))
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            return True
+    except OSError:
+        return False
+
+
+def find_free_port_sync(lower: int, upper: int) -> int:
+    """Find an unused port in lower-upper range. If not found raises an exception.
+
+    Args:
+        lower: The lower bound of the port range.
+        upper: The upper bound of the port range.
+
+    Returns:
+        An unused port in the range.
+
+    Raises:
+        OSError: If no free port is found in the range.
+    """
+    for port in range(lower, upper + 1):
+        if is_port_available_sync(port):
+            return port
+    raise OSError(f'Failed to find a free port in range {lower}-{upper}')

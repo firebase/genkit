@@ -19,9 +19,7 @@
 import asyncio
 import logging
 import os
-import socket
 import threading
-from contextlib import closing
 from http.server import HTTPServer
 
 from genkit.ai import server
@@ -30,8 +28,8 @@ from genkit.ai.registry import GenkitRegistry
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.core.environment import is_dev_environment
-from genkit.core.error import GenkitError
 from genkit.core.reflection import make_reflection_server
+from genkit.web.manager import find_free_port_sync
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ class GenkitBase(GenkitRegistry):
         if is_dev_environment():
             if not reflection_server_spec:
                 reflection_server_spec = server.ServerSpec(
-                    scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999)
+                    scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999)
                 )
             self.thread = threading.Thread(
                 target=self.start_server,
@@ -111,6 +109,7 @@ class GenkitBase(GenkitRegistry):
 
         Args:
             spec: Server spec for the reflection server.
+            loop: Event loop to use for the server.
         """
         httpd = HTTPServer(
             (spec.host, spec.port),
@@ -126,18 +125,3 @@ class GenkitBase(GenkitRegistry):
             at_exit_fn=os.remove,
         )
         httpd.serve_forever()
-
-
-def _find_free_port(min, max):
-    """Find an unused port in min-max range. If not found raises an exception."""
-    current = min
-    while current <= max:
-        try:
-            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-                s.bind(('', current))
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                return s.getsockname()[1]
-        except:
-            current += 1
-            pass
-    raise GenkitError(status='RESOURCE_EXHAUSTED', message=f'Failed to find a free port in range {min}-{max}')
