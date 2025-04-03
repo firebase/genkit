@@ -21,19 +21,19 @@ import hashlib
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
-from genkit.ai.veneer import Genkit
+from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.core.typing import (
+from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
+from genkit.plugins.firebase.firebase_api import (
+    FirebaseAPI,
+    firestore_action_name,
+)
+from genkit.types import (
     DocumentData,
     Embedding,
     EmbedRequest,
     EmbedResponse,
     TextPart,
-)
-from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
-from genkit.plugins.firebase.firebase_api import (
-    FirebaseAPI,
-    firestore_action_name,
 )
 
 # set GOOGLE_APPLICATION_CREDENTIALS on env
