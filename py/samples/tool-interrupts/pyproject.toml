@@ -15,7 +15,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "genkit-plugin-google-ai",
   "genkit-plugin-google-genai",
   "pydantic>=2.10.5",

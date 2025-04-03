@@ -1,8 +1,8 @@
 # Google Imagen Image Generation
 
-This sample uses the Vertex API for image generation. It is not available with
-core Gemini API. If you need to run image generation on Gemini API, please,
-refer to the google-gemini-image sample.
+This sample uses the Vertex API and Imagen model for image generation.
+Imagen model is not available with Gemini API. If you need to run image
+generation on Gemini API, please, refer to the google-gemini-image sample.
 
 Prerequisites:
 

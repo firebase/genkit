@@ -26,11 +26,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/aymerick/raymond"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
 
@@ -76,8 +76,6 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	// Legacy prompt type; Go never supported it but it does show up in Dev UI for now.
-	core.DefineActionWithInputSchema(r, provider, name, atype.Prompt, meta, p.InputSchema, p.buildRequest)
 	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p, nil
@@ -263,15 +261,15 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 	}
 
 	messages := []*Message{}
-	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input)
+	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input)
+	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input)
+	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +295,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 }
 
 // renderSystemPrompt renders a system prompt message.
-func renderSystemPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any) ([]*Message, error) {
+func renderSystemPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
 	if opts.SystemFn == nil {
 		return messages, nil
 	}
@@ -307,20 +305,20 @@ func renderSystemPrompt(ctx context.Context, opts promptOptions, messages []*Mes
 		return nil, err
 	}
 
-	rendered, err := renderDotprompt(templateText, input, opts.DefaultInput)
+	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
 	if err != nil {
 		return nil, err
 	}
 
-	if rendered != "" {
-		messages = append(messages, NewSystemTextMessage(rendered))
+	if len(parts) != 0 {
+		messages = append(messages, NewSystemMessage(parts...))
 	}
 
 	return messages, nil
 }
 
 // renderUserPrompt renders a user prompt message.
-func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any) ([]*Message, error) {
+func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
 	if opts.PromptFn == nil {
 		return messages, nil
 	}
@@ -330,20 +328,20 @@ func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Messa
 		return nil, err
 	}
 
-	rendered, err := renderDotprompt(templateText, input, opts.DefaultInput)
+	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
 	if err != nil {
 		return nil, err
 	}
 
-	if rendered != "" {
-		messages = append(messages, NewUserTextMessage(rendered))
+	if len(parts) != 0 {
+		messages = append(messages, NewUserMessage(parts...))
 	}
 
 	return messages, nil
 }
 
 // renderMessages renders a slice of messages.
-func renderMessages(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any) ([]*Message, error) {
+func renderMessages(ctx context.Context, opts promptOptions, messages []*Message, input map[string]any, raw any, dp *dotprompt.Dotprompt) ([]*Message, error) {
 	if opts.MessagesFn == nil {
 		return messages, nil
 	}
@@ -354,87 +352,82 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 	}
 
 	for _, msg := range msgs {
+		msgParts := []*Part{}
 		for _, part := range msg.Content {
 			if part.IsText() {
-				rendered, err := renderDotprompt(part.Text, input, opts.DefaultInput)
+				parts, err := renderPrompt(ctx, opts, part.Text, input, dp)
 				if err != nil {
 					return nil, err
 				}
-				msg.Content[0].Text = rendered
+				msgParts = append(msgParts, parts...)
 			}
 		}
+		msg.Content = msgParts
 	}
 
 	return append(messages, msgs...), nil
 }
 
-const rolePrefix = "<<<dotprompt:role:"
-const roleSuffix = ">>>"
-const mediaPrefix = "<<<dotprompt:media:url"
-const mediaSuffix = ">>>"
-
-// jsonHelper is an undocumented template execution helper.
-func jsonHelper(v any, options *raymond.Options) raymond.SafeString {
-	indent := 0
-	if indentArg := options.HashProp("indent"); indentArg != nil {
-		indent, _ = indentArg.(int)
-	}
-	var data []byte
-	var err error
-	if indent == 0 {
-		data, err = json.Marshal(v)
-	} else {
-		data, err = json.MarshalIndent(v, "", strings.Repeat(" ", indent))
-	}
+// renderPrompt renders a prompt template using dotprompt functionalities
+func renderPrompt(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Part, error) {
+	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
 	if err != nil {
-		return raymond.SafeString(err.Error())
+		return nil, err
 	}
-	return raymond.SafeString(data)
+
+	return renderDotpromptToParts(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
+		Input: dotprompt.PromptMetadataInput{
+			Default: opts.DefaultInput,
+		},
+	})
 }
 
-// roleHelper changes roles.
-func roleHelper(role string) raymond.SafeString {
-	return raymond.SafeString(rolePrefix + role + roleSuffix)
-}
-
-// mediaHelper inserts media.
-func mediaHelper(options *raymond.Options) raymond.SafeString {
-	url := options.HashStr("url")
-	contentType := options.HashStr("contentType")
-	add := url
-	if contentType != "" {
-		add += " " + contentType
+// renderDotpromptToParts executes a dotprompt prompt function and converts the result to a slice of parts
+func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Part, error) {
+	// Prepare the context for rendering
+	context := map[string]any{}
+	actionCtx := core.FromContext(ctx)
+	for k, v := range actionCtx {
+		context[k] = v
 	}
-	return raymond.SafeString(mediaPrefix + add + mediaSuffix)
-}
 
-// templateHelpers is the helpers supported by all dotprompt templates.
-var templateHelpers = map[string]any{
-	"json":  jsonHelper,
-	"role":  roleHelper,
-	"media": mediaHelper,
-}
+	// Call the prompt function with the input and context
+	rendered, err := promptFn(&dotprompt.DataArgument{
+		Input:   input,
+		Context: context,
+	}, additionalMetadata)
 
-// RenderMessages executes the prompt's template and converts it into messages.
-// This just runs the template; it does not call a model.
-func renderDotprompt(templateText string, variables map[string]any, defaultInput map[string]any) (string, error) {
-	template, err := raymond.Parse(templateText)
 	if err != nil {
-		return "", fmt.Errorf("prompt.renderDotprompt: failed to parse: %w", err)
+		return nil, fmt.Errorf("failed to render prompt: %w", err)
 	}
-	template.RegisterHelpers(templateHelpers)
 
-	if defaultInput != nil {
-		nv := make(map[string]any)
-		maps.Copy(nv, defaultInput)
-		maps.Copy(nv, variables)
-		variables = nv
+	// Ensure the rendered prompt contains exactly one message
+	if len(rendered.Messages) != 1 {
+		return nil, fmt.Errorf("parts template must produce only one message")
 	}
-	str, err := template.Exec(variables)
+
+	// Convert dotprompt.Part to Part
+	convertedParts, err := convertToPartPointers(rendered.Messages[0].Content)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("failed to convert parts: %w", err)
 	}
-	return str, nil
+
+	return convertedParts, nil
+}
+
+// convertToPartPointers converts []dotprompt.Part to []*Part
+func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
+	result := make([]*Part, len(parts))
+	for i, part := range parts {
+		if p, ok := part.(*dotprompt.TextPart); ok {
+			if p.Text != "" {
+				result[i] = NewTextPart(p.Text)
+			}
+		} else {
+			return nil, fmt.Errorf("unsupported prompt format: %T", part)
+		}
+	}
+	return result, nil
 }
 
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
@@ -487,7 +480,9 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				definePartial(r, partialName, string(source))
+				if err = r.DefinePartial(partialName, string(source)); err != nil {
+					return err
+				}
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
 				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
@@ -497,11 +492,6 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 		}
 	}
 	return nil
-}
-
-// definePartial registers a partial template in the registry.
-func definePartial(r *registry.Registry, name string, source string) {
-	// TODO: Add this functionality
 }
 
 // LoadPrompt loads a single prompt into the registry.
@@ -534,6 +524,21 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 		toolRefs[i] = ToolName(tool)
 	}
 
+	promptMetadata := map[string]any{
+		"template": parsedPrompt.Template,
+	}
+	for k, v := range metadata.Metadata {
+		promptMetadata[k] = v
+	}
+
+	promptOptMetadata := map[string]any{
+		"type":   "prompt",
+		"prompt": promptMetadata,
+	}
+	for k, v := range metadata.Metadata {
+		promptOptMetadata[k] = v
+	}
+
 	opts := &promptOptions{
 		commonOptions: commonOptions{
 			ModelName: metadata.Model,
@@ -541,7 +546,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 			Tools:     toolRefs,
 		},
 		DefaultInput: metadata.Input.Default,
-		Metadata:     metadata.Metadata,
+		Metadata:     promptOptMetadata,
 		Description:  metadata.Description,
 	}
 

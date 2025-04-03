@@ -16,6 +16,7 @@
 
 """Genkit Flask plugin."""
 
+import asyncio
 from collections.abc import Callable
 
 from flask import Response, request
@@ -23,10 +24,26 @@ from genkit.ai import Genkit
 from genkit.ai.registry import FlowWrapper
 from genkit.aio.loop import create_loop, iter_over_async
 from genkit.codec import dump_dict, dump_json
+from genkit.core.context import ContextProvider, RequestData
 from genkit.core.error import GenkitError, get_callable_json
 
 
-def genkit_flask_handler(ai: Genkit) -> Callable:
+class _FlaskRequestData(RequestData):
+    def __init__(self):
+        self.method = request.method
+
+        self.headers = {}
+        for key, value in request.headers:
+            self.headers[key.lower()] = value
+
+        input_data = request.get_json()
+        if 'data' not in input_data:
+            return Response(status=400, response='flow request must be wrapped in {"data": data} object')
+
+        self.input = input_data.get('data')
+
+
+def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = None) -> Callable:
     """A decorator for serving Genkit flows via a flask sever.
 
     ```python
@@ -39,7 +56,7 @@ def genkit_flask_handler(ai: Genkit) -> Callable:
     @genkit_flask_handler(ai)
     @ai.flow()
     async def say_hi(name: str, ctx):
-        return await ai.agenerate(
+        return await ai.generate(
             on_chunk=ctx.send_chunk,
             prompt=f'tell a medium sized joke about {name}',
         )
@@ -57,12 +74,19 @@ def genkit_flask_handler(ai: Genkit) -> Callable:
             if 'data' not in input_data:
                 return Response(status=400, response='flow request must be wrapped in {"data": data} object')
 
-            stream = request.headers.get('Accept') == 'text/event-stream' or request.args.get('stream') == 'true'
+            request_data = _FlaskRequestData()
+            context = None
+            if context_provider:
+                context = context_provider(request_data)
+                if asyncio.iscoroutine(context):
+                    context = await context
+
+            stream = request_data.headers.get('accept') == 'text/event-stream' or request.args.get('stream') == 'true'
             if stream:
 
                 async def async_gen():
                     try:
-                        stream, response = flow._action.stream(input_data.get('data'))
+                        stream, response = flow._action.stream(input_data.get('data'), context=context)
                         async for chunk in stream:
                             yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
 
@@ -77,7 +101,7 @@ def genkit_flask_handler(ai: Genkit) -> Callable:
                 return iter
             else:
                 try:
-                    response = await flow._action.arun_raw(input_data.get('data'))
+                    response = await flow._action.arun_raw(input_data.get('data'), context=context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e

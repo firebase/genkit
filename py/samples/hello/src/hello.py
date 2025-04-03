@@ -16,6 +16,7 @@
 
 """A hello world sample that just calls some flows."""
 
+import random
 from typing import Any
 
 import structlog
@@ -30,6 +31,9 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 from genkit.types import (
+    BaseEvalDataPoint,
+    Details,
+    EvalFnResponse,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -39,6 +43,7 @@ from genkit.types import (
     RetrieverRequest,
     RetrieverResponse,
     Role,
+    Score,
     TextPart,
 )
 
@@ -72,7 +77,7 @@ async def say_hi(name: str):
     Returns:
         The generated greeting response.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
@@ -93,7 +98,7 @@ async def embed_docs(docs: list[str]):
         The generated embedding.
     """
     options = {'task': EmbeddingsTaskType.CLUSTERING}
-    return await ai.aembed(
+    return await ai.embed(
         model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
@@ -110,7 +115,7 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool')
+@ai.tool(name='gablorkenTool')
 def gablorken_tool(input: GablorkenInput):
     """Calculate a gablorken.
 
@@ -133,7 +138,7 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
     Returns:
         The generated greeting response.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='vertexai/gemini-1.5-flash',
         messages=[
             Message(
@@ -229,6 +234,24 @@ def my_retriever(request: RetrieverRequest, ctx: ActionRunContext):
 ai.define_retriever(name='my_retriever', fn=my_retriever)
 
 
+def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+    score = random.random()
+    if score < 0.5:
+        raise Exception('testing failures')
+    return EvalFnResponse(
+        test_case_id=datapoint.test_case_id,
+        evaluation=Score(score=score, details=Details(reasoning='I think it is true')),
+    )
+
+
+ai.define_evaluator(
+    name='my_eval',
+    display_name='test evaluator',
+    definition='dummy eval that does nothing special',
+    fn=my_eval_fn,
+)
+
+
 @ai.flow()
 async def streaming_model_tester(_: str, ctx: ActionRunContext):
     """Example of a streaming model tester.
@@ -262,7 +285,7 @@ async def describe_picture(url: str):
     Returns:
         The description of the picture.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,

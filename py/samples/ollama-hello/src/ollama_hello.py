@@ -105,7 +105,7 @@ class GablorkenOutputSchema(BaseModel):
     result: int
 
 
-@ai.tool('calculates a gablorken')
+@ai.tool()
 def gablorken_tool(input: int) -> int:
     """Calculate a gablorken.
 
@@ -128,7 +128,7 @@ async def say_hi(hi_input: str):
     Returns:
         A GenerateRequest object with the greeting message.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         model=ollama_name(GEMMA_MODEL),
         messages=[
             Message(
@@ -151,7 +151,7 @@ async def calculate_gablorken(value: int):
     Returns:
         A GenerateRequest object with the evaluation output
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
@@ -178,7 +178,7 @@ async def say_hi_constrained(hi_input: str):
     Returns:
         A `HelloSchema` object with the greeting message.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         messages=[
             Message(
                 role=Role.USER,

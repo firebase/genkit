@@ -38,13 +38,14 @@ class TriviaQuestions(BaseModel):
     answers: list[str] = Field(description='list of multiple choice answers (typically 4), 1 correct 3 wrong')
 
 
-@ai.tool("can present questions to the user, responds with the user' selected answer")
+@ai.tool()
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
+    """Can present questions to the user, responds with the user' selected answer."""
     ctx.interrupt(questions)
 
 
 async def main() -> None:
-    response = await ai.agenerate(
+    response = await ai.generate(
         prompt='You a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '
         + "a few theme options, they don't have to use your suggestion, feel free "
@@ -57,14 +58,14 @@ async def main() -> None:
     print(response.text)
     messages = response.messages
     while True:
-        response = await ai.agenerate(
+        response = await ai.generate(
             messages=messages,
             prompt=input('Say: '),
             tools=['present_questions'],
         )
         messages = response.messages
-        if len(response.tool_requests) > 0:
-            request = response.tool_requests[0]
+        if len(response.interrupts) > 0:
+            request = response.interrupts[0]
             print(request.tool_request.input.get('question'))
             i = 1
             for question in request.tool_request.input.get('answers'):
@@ -72,7 +73,7 @@ async def main() -> None:
                 i += 1
 
             tr = tool_response(request, input('Your answer (number): '))
-            response = await ai.agenerate(
+            response = await ai.generate(
                 messages=messages,
                 tool_responses=[tr],
                 tools=['present_questions'],
