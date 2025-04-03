@@ -14,11 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Ollama Plugin for Genkit.
-"""
-
-import logging
+"""Ollama Plugin for Genkit."""
 
 import ollama as ollama_api
 from genkit.ai.plugin import Plugin
@@ -30,21 +26,39 @@ from genkit.plugins.ollama.models import (
     OllamaPluginParams,
 )
 
-LOG = logging.getLogger(__name__)
-
 
 def ollama_name(name: str) -> str:
+    """Get the name of the Ollama model.
+
+    Args:
+        name: The name of the Ollama model.
+
+    Returns:
+        The name of the Ollama model.
+    """
     return f'ollama/{name}'
 
 
 class Ollama(Plugin):
+    """Ollama plugin for Genkit."""
+
     name = 'ollama'
 
     def __init__(self, plugin_params: OllamaPluginParams):
+        """Initialize the Ollama plugin.
+
+        Args:
+            plugin_params: The plugin parameters to initialize the plugin with.
+        """
         self.plugin_params = plugin_params
         self.client = ollama_api.AsyncClient(host=self.plugin_params.server_address.unicode_string())
 
     def initialize(self, ai: GenkitRegistry) -> None:
+        """Initialize the Ollama plugin.
+
+        Args:
+            ai: The AI registry to initialize the plugin with.
+        """
         self._initialize_models(ai=ai)
         self._initialize_embedders(ai=ai)
 
@@ -56,7 +70,7 @@ class Ollama(Plugin):
             )
             ai.define_model(
                 name=ollama_name(model_definition.name),
-                fn=model.agenerate,
+                fn=model.generate,
                 metadata={
                     'multiturn': model_definition.api_type == OllamaAPITypes.CHAT,
                     'system_role': True,

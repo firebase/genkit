@@ -22,15 +22,13 @@ from menu_ai import ai
 from menu_schemas import MenuToolOutputSchema
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
-with open(menu_json_path, 'r') as f:
+with open(menu_json_path) as f:
     menu_data = json.load(f)
 
 
-@ai.tool(
-    description="Use this tool to retrieve all the items on today's menu",
-    name='menu_tool',
-)
+@ai.tool(name='menu_tool')
 def menu_tool(input=None) -> MenuToolOutputSchema:
+    """Use this tool to retrieve all the items on today's menu."""
     return MenuToolOutputSchema(
         menu_data=menu_data,
     )

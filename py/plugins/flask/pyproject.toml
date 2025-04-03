@@ -15,7 +15,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "genkit-plugin-google-genai",
   "genkit-plugin-flask",
   "pydantic>=2.10.5",
@@ -25,8 +25,8 @@ description = "Genkit Firebase Plugin"
 license = { text = "Apache-2.0" }
 name = "genkit-plugin-flask"
 readme = "README.md"
-requires-python = ">=3.12"
-version = "0.0.1.dev1"
+requires-python = ">=3.11"
+version = "0.3.0.dev1"
 
 [build-system]
 build-backend = "hatchling.build"

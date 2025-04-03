@@ -108,7 +108,7 @@ class ImagenModel:
                     raise ValueError('Non-text messages are not supported')
         return ' '.join(prompt)
 
-    async def agenerate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:

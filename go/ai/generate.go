@@ -41,6 +41,17 @@ type (
 		Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
 	}
 
+	// ModelArg is the interface for model arguments.
+	ModelArg interface {
+		Name() string
+	}
+
+	// ModelRef is a struct to hold model name and configuration.
+	ModelRef struct {
+		name   string
+		config any
+	}
+
 	// ToolConfig handles configuration around tool calls during generation.
 	ToolConfig struct {
 		MaxTurns           int  // Maximum number of tool call iterations before erroring.
@@ -87,6 +98,7 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, fn ModelFunc) Model {
+
 	if info == nil {
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
@@ -111,6 +123,17 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	}
 	if info.Label != "" {
 		metadata["label"] = info.Label
+	}
+
+	if info.ConfigSchema != nil {
+		metadata["customOptions"] = info.ConfigSchema
+		// Make sure "model" exists in metadata
+		if metadata["model"] == nil {
+			metadata["model"] = make(map[string]any)
+		}
+		// Add customOptios to the model metadata
+		modelMeta := metadata["model"].(map[string]any)
+		modelMeta["customOptions"] = info.ConfigSchema
 	}
 
 	// Create the middleware list
@@ -162,7 +185,9 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
 func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
-		opts.Model = r.LookupValue(registry.DefaultModelKey).(string)
+		if defaultModel, ok := r.LookupValue(registry.DefaultModelKey).(string); ok && defaultModel != "" {
+			opts.Model = defaultModel
+		}
 		if opts.Model == "" {
 			return nil, errors.New("ai.GenerateWithRequest: model is required")
 		}
@@ -209,7 +234,6 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			output.Format = string(OutputFormatJSON)
 		}
 	}
-
 	req := &ModelRequest{
 		Messages:   opts.Messages,
 		Config:     opts.Config,
@@ -280,9 +304,11 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	modelName := genOpts.ModelName
-	if modelName == "" && genOpts.Model != nil {
+	var modelName string
+	if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
+	} else {
+		modelName = genOpts.ModelName
 	}
 
 	tools := make([]string, len(genOpts.Tools))
@@ -316,6 +342,13 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewUserTextMessage(prompt))
 	}
 
+	// Apply Model config if no Generate config.
+	modelArg := genOpts.Model
+	if modelRef, ok := modelArg.(ModelRef); ok {
+		if genOpts.Config == nil {
+			genOpts.Config = modelRef.Config()
+		}
+	}
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -625,4 +658,19 @@ func (m *Message) Text() string {
 		sb.WriteString(p.Text)
 	}
 	return sb.String()
+}
+
+// NewModelRef creates a new ModelRef with the given name and configuration.
+func NewModelRef(name string, config any) ModelRef {
+	return ModelRef{name: name, config: config}
+}
+
+// Name returns the name of the ModelRef.
+func (m ModelRef) Name() string {
+	return m.name
+}
+
+// ModelConfig returns the configuration of a ModelRef.
+func (m ModelRef) Config() any {
+	return m.config
 }

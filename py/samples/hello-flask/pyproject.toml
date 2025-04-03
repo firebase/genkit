@@ -15,7 +15,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "genkit-plugin-google-genai",
   "genkit-plugin-flask",
   "pydantic>=2.10.5",
@@ -25,7 +25,7 @@ description = "hello Genkit sample"
 license = { text = "Apache-2.0" }
 name = "hello-flask"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.1.0"
 
 [build-system]
