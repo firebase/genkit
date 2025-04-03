@@ -49,7 +49,7 @@ func (j JSONFormatter) handler(schema map[string]any) FormatterHandler {
 	if schema != nil {
 		jsonBytes, err := json.Marshal(schema)
 		if err != nil {
-			panic(fmt.Sprintf("error marshalling schema to JSONL: %v", err))
+			panic(fmt.Sprintf("error marshalling schema to JSON: %v", err))
 		} else {
 			escapedJSON := strconv.Quote(string(jsonBytes))
 			instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON)
