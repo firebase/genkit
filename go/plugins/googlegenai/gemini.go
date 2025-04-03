@@ -32,7 +32,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -183,15 +182,15 @@ func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
 	case *GeminiConfig:
 		return config, nil
 	case ai.GenerationCommonConfig:
-		return &googlegenai.GeminiConfig{
+		return &GeminiConfig{
 			GenerationCommonConfig: config,
 		}, nil
 	case *ai.GenerationCommonConfig:
 		if config == nil {
 			return &result, nil
 		}
-		return &googlegenai.GeminiConfig{
-			GenerationCommonConfig: config,
+		return &GeminiConfig{
+			GenerationCommonConfig: *config,
 		}, nil
 	case map[string]any:
 		// // TODO: FYI Using map[string]any for config may silently ignore unknown parameters, may want to handle explicitly
