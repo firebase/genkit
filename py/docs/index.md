@@ -1,4 +1,4 @@
-# What is Genkit (Test)
+# What is Genkit
 
 Genkit is a framework designed to help you build AI-powered applications and features.
 It provides open source libraries for Python, Node.js and Go, plus developer tools for testing
