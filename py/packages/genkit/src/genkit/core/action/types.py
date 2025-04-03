@@ -20,13 +20,20 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from enum import StrEnum
-from typing import Any
+from typing import Any, Awaitable, Dict, List, Literal, Protocol, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-type ActionName = str
+# Type alias for action name.
+# type ActionName = str
+ActionName = str
 
-type ActionResolver = Callable[[ActionKind, str], None]
+# Type alias for action metadata key.
+# type ActionMetadataKey = str
+ActionMetadataKey = str
+
+# type ActionResolver = Callable[[ActionKind, str], None]
+ActionResolver = Callable[['ActionKind', str], None]
 
 
 class ActionKind(StrEnum):

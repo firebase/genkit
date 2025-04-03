@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 T = TypeVar('T')
 
 
-class Channel[T]:
+class Channel(Generic[T]):
     """An asynchronous channel for sending and receiving values.
 
     This class provides an asynchronous queue-like interface, allowing values to

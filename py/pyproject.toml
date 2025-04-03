@@ -1,6 +1,6 @@
 [project]
 dependencies = [
-  "dotpromptz",
+  #"dotpromptz", # TODO: Add when updated to support Python 3.11 and functional.
   "genkit",
   "genkit-plugin-chroma",
   "genkit-plugin-dev-local-vectorstore",
@@ -18,7 +18,7 @@ description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
 name = "genkit-workspace"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.1.0"
 
 [dependency-groups]
@@ -136,7 +136,7 @@ exclude = [
 indent-width = 4
 line-length = 120
 preview = true
-target-version = "py312"
+target-version = "py311"
 unsafe-fixes = true
 
 
@@ -236,7 +236,7 @@ output                   = "packages/genkit/src/genkit/core/typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true
-target-python-version    = "3.12"
+target-python-version    = "3.11"
 use-default              = false
 use-schema-description   = true
 use-standard-collections = true

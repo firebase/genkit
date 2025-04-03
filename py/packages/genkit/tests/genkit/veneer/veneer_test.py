@@ -51,7 +51,8 @@ from genkit.testing import (
     define_programmable_model,
 )
 
-type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
+# type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
+SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 
 
 @pytest.fixture
