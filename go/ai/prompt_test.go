@@ -1050,6 +1050,7 @@ func TestDefinePartialAndHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create registry: %v", err)
 	}
+	ConfigureFormats(reg)
 
 	model := definePromptModel(reg)
 
