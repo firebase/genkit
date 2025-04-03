@@ -89,7 +89,13 @@ extra:
       link: https://github.com/firebase/genkit
     - icon: fontawesome/brands/discord
       link: https://discord.gg/qXt5zzQKpc
-    - icon: fontawesome/brands/youtube
-      link: https://www.youtube.com/user/Firebase
-    - icon: fontawesome/brands/x-twitter
-      link: https://x.com/Firebase
+  analytics:
+    provider: google
+    property: G-4FWYP18LPS
+  consent:
+    title: Cookie consent
+    description: >- 
+      genkit.dev uses <a href="https://policies.google.com/technologies/cookies">cookies</a>
+      from Google to deliver and enhance the quality of its services and to analyze traffic
+    actions:
+      - accept
