@@ -75,7 +75,7 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool')
+@ai.tool(name='gablorkenTool')
 def gablorken_tool(input_: GablorkenInput) -> int:
     """Calculate a gablorken.
 
@@ -111,7 +111,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
     return response.text
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool2')
+@ai.tool(name='gablorkenTool2')
 def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
     """The user-defined tool function.
 

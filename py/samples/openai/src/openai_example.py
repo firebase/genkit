@@ -98,7 +98,7 @@ async def say_hi_stream(name: str) -> str:
     return result
 
 
-@ai.tool('Get current temperature for provided coordinates in celsius')
+@ai.tool()
 def get_weather_tool(coordinates: WeatherRequest) -> float:
     """Get the current temperature for provided coordinates in celsius.
 

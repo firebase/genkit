@@ -74,7 +74,7 @@ class ConversionInput(BaseModel):
     amount: float = Field(description='The currency amount to convert')
 
 
-@ai.tool('Converts currency with latest exchange rate')
+@ai.tool()
 def convert_currency(input: ConversionInput) -> float:
     """Tool to convert the currency with latest exchange rate.
 
