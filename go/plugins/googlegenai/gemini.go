@@ -170,19 +170,19 @@ type SafetySetting struct {
 // GeminiConfig mirrors GenerateContentConfig without direct genai dependency
 type GeminiConfig struct {
 	// Basic generation parameters
-	Temperature     *float32 `json:"temperature,omitempty"`
-	TopP            *float32 `json:"topP,omitempty"`
-	TopK            *float32 `json:"topK,omitempty"`
-	CandidateCount  *int32   `json:"candidateCount,omitempty"`
-	MaxOutputTokens *int32   `json:"maxOutputTokens,omitempty"`
+	Temperature     float32  `json:"temperature,omitempty"`
+	TopP            float32  `json:"topP,omitempty"`
+	TopK            float32  `json:"topK,omitempty"`
+	CandidateCount  int32    `json:"candidateCount,omitempty"`
+	MaxOutputTokens int32    `json:"maxOutputTokens,omitempty"`
 	StopSequences   []string `json:"stopSequences,omitempty"`
 
 	// Advanced parameters
-	ResponseLogprobs bool     `json:"responseLogprobs,omitempty"`
-	Logprobs         *int32   `json:"logprobs,omitempty"`
-	PresencePenalty  *float32 `json:"presencePenalty,omitempty"`
-	FrequencyPenalty *float32 `json:"frequencyPenalty,omitempty"`
-	Seed             *int32   `json:"seed,omitempty"`
+	ResponseLogprobs bool    `json:"responseLogprobs,omitempty"`
+	Logprobs         int32   `json:"logprobs,omitempty"`
+	PresencePenalty  float32 `json:"presencePenalty,omitempty"`
+	FrequencyPenalty float32 `json:"frequencyPenalty,omitempty"`
+	Seed             int32   `json:"seed,omitempty"`
 
 	// Safety settings
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
@@ -192,68 +192,64 @@ type GeminiConfig struct {
 }
 
 // extractConfigFromInput converts any supported config type to GoogleAIConfig
-func extractConfigFromInput(input *ai.ModelRequest) (GeminiConfig, error) {
+func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
 	var result GeminiConfig
 	switch config := input.Config.(type) {
 	case GeminiConfig:
-		return config, nil
+		return &config, nil
 	case *GeminiConfig:
-		return *config, nil
+		return config, nil
 	case ai.GenerationCommonConfig:
-		if config.MaxOutputTokens != 0 {
-			v := int32(config.MaxOutputTokens)
-			result.MaxOutputTokens = &v
-		}
-		result.StopSequences = config.StopSequences
-		if config.Temperature != 0 {
-			v := float32(config.Temperature)
-			result.Temperature = &v
-		}
-		if config.TopK != 0 {
-			v := float32(config.TopK)
-			result.TopK = &v
-		}
-		if config.TopP != 0 {
-			v := float32(config.TopP)
-			result.TopP = &v
-		}
-		result.Version = config.Version
-		return result, nil
+		return convertFromCommonConfig(config), nil
 	case *ai.GenerationCommonConfig:
-		if config != nil {
-			if config.MaxOutputTokens != 0 {
-				v := int32(config.MaxOutputTokens)
-				result.MaxOutputTokens = &v
-			}
-			result.StopSequences = config.StopSequences
-			if config.Temperature != 0 {
-				v := float32(config.Temperature)
-				result.Temperature = &v
-			}
-			if config.TopK != 0 {
-				v := float32(config.TopK)
-				result.TopK = &v
-			}
-			if config.TopP != 0 {
-				v := float32(config.TopP)
-				result.TopP = &v
-			}
-			result.Version = config.Version
+		if config == nil {
+			return &result, nil
 		}
-		return result, nil
+		return convertFromCommonConfig(*config), nil
 	case map[string]any:
 		// Todo: this will silently fail if extra parameters are passed, may want to expose errors
 		if err := mapToStruct(config, &result); err == nil {
-			return result, nil
+			return &result, nil
 		} else {
-			return result, err
+			return &result, err
 		}
 	case nil:
 		// Empty but valid config
-		return result, nil
+		return &result, nil
 	default:
-		return result, fmt.Errorf("unexpected config type: %T", input.Config)
+		return nil, fmt.Errorf("unexpected config type: %T", input.Config)
 	}
+}
+
+// Helper function to convert from GenerationCommonConfig to GeminiConfig
+func convertFromCommonConfig(config ai.GenerationCommonConfig) *GeminiConfig {
+	var result GeminiConfig
+
+	if config.MaxOutputTokens != 0 {
+		v := int32(config.MaxOutputTokens)
+		result.MaxOutputTokens = v
+	}
+
+	result.StopSequences = config.StopSequences
+
+	if config.Temperature != 0 {
+		v := float32(config.Temperature)
+		result.Temperature = v
+	}
+
+	if config.TopK != 0 {
+		v := float32(config.TopK)
+		result.TopK = v
+	}
+
+	if config.TopP != 0 {
+		v := float32(config.TopP)
+		result.TopP = v
+	}
+
+	result.Version = config.Version
+
+	return &result
 }
 
 // DefineModel defines a model in the registry
@@ -460,20 +456,20 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 	}
 
 	// Convert standard fields
-	if c.MaxOutputTokens != nil {
-		gc.MaxOutputTokens = genai.Ptr[int32](*c.MaxOutputTokens)
+	if c.MaxOutputTokens != 0 {
+		gc.MaxOutputTokens = genai.Ptr[int32](c.MaxOutputTokens)
 	}
 	if len(c.StopSequences) > 0 {
 		gc.StopSequences = c.StopSequences
 	}
-	if c.Temperature != nil {
-		gc.Temperature = genai.Ptr[float32](*c.Temperature)
+	if c.Temperature != 0 {
+		gc.Temperature = genai.Ptr[float32](c.Temperature)
 	}
-	if c.TopK != nil {
-		gc.TopK = genai.Ptr[float32](*c.TopK)
+	if c.TopK != 0 {
+		gc.TopK = genai.Ptr[float32](c.TopK)
 	}
-	if c.TopP != nil {
-		gc.TopP = genai.Ptr[float32](*c.TopP)
+	if c.TopP != 0 {
+		gc.TopP = genai.Ptr[float32](c.TopP)
 	}
 	// Convert non-primitive fields
 	gc.SafetySettings = convertSafetySettings(c.SafetySettings)
