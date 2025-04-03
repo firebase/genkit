@@ -36,6 +36,23 @@ readme = "README.md"
 requires-python = ">=3.11"
 version = "0.3.0.dev1"
 
+[project.optional-dependencies]
+flask = [
+    "genkit-plugin-flask",
+]
+google-genai = [
+    "genkit-plugin-google-genai",
+]
+openai = [
+    "genkit-plugin-compat-oai",
+]
+dev-local-vector-store = [
+    "genkit-plugin-dev-local-vectorstore",
+]
+ollama = [
+    "genkit-plugin-ollama",
+]
+
 [build-system]
 build-backend = "hatchling.build"
 requires      = ["hatchling"]
@@ -46,3 +63,10 @@ packages = ["src/genkit"]
 [tool.pytest.ini_options]
 pythonpath = [".", "src", "tests", "packages/genkit/src"]
 testpaths  = ["tests"]
+
+[tool.uv.sources]
+genkit-plugin-flask = { workspace = true }
+genkit-plugin-google-genai = { workspace = true }
+genkit-plugin-compat-oai = { workspace = true }
+genkit-plugin-dev-local-vectorstore = { workspace = true }
+genkit-plugin-ollama = { workspace = true }
