@@ -46,3 +46,16 @@ def ensure_async(fn: Callable) -> Callable:
         return fn(*args, **kwargs)
 
     return async_wrapper
+
+
+def is_async_context() -> bool:
+    """Checks if the current context is asynchronous.
+
+    Returns:
+        True if the current context is asynchronous, False otherwise.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        return loop.is_running()
+    except RuntimeError:
+        return False

@@ -96,34 +96,40 @@ The veneer Genkit module may also include:
 TODO: Ideally, these should behave the same, but we're making a note of
 differences here for now.
 
-=== "TypeScript"
+\=== "TypeScript"
 
-    | Endpoint                     | HTTP Method | Purpose                     | Request Body                                       | Response                             | Content Type           |
-    |------------------------------|-------------|-----------------------------|----------------------------------------------------|--------------------------------------|------------------------|
-    | `/api/__health`              | GET         | Health check                | -                                                  | "OK" (200)                           | `text/plain`           |
-    | `/api/__quitquitquit`        | GET         | Terminate server            | -                                                  | "OK" (200) and server stops          | `text/plain`           |
-    | `/api/actions`               | GET         | List registered actions     | -                                                  | Action metadata with schemas         | `application/json`     |
-    | `/api/runAction`             | POST        | Run an action               | `{ key, input, context, telemetryLabels }`         | `{ result, telemetry: { traceId } }` | `application/json`     |
-    | `/api/runAction?stream=true` | POST        | Run action with streaming   | `{ key, input, context, telemetryLabels }`         | Stream of chunks and final result    | `text/plain` (chunked) |
-    | `/api/envs`                  | GET         | Get configured environments | -                                                  | List of environment names            | `application/json`     |
-    | `/api/notify`                | POST        | Notify of telemetry server  | `{ telemetryServerUrl, reflectionApiSpecVersion }` | "OK" (200)                           | `text/plain`           |
+```
+| Endpoint                     | HTTP Method | Purpose                     | Request Body                                       | Response                             | Content Type           |
+|------------------------------|-------------|-----------------------------|----------------------------------------------------|--------------------------------------|------------------------|
+| `/api/__health`              | GET         | Health check                | -                                                  | "OK" (200)                           | `text/plain`           |
+| `/api/__quitquitquit`        | GET         | Terminate server            | -                                                  | "OK" (200) and server stops          | `text/plain`           |
+| `/api/actions`               | GET         | List registered actions     | -                                                  | Action metadata with schemas         | `application/json`     |
+| `/api/runAction`             | POST        | Run an action               | `{ key, input, context, telemetryLabels }`         | `{ result, telemetry: { traceId } }` | `application/json`     |
+| `/api/runAction?stream=true` | POST        | Run action with streaming   | `{ key, input, context, telemetryLabels }`         | Stream of chunks and final result    | `text/plain` (chunked) |
+| `/api/envs`                  | GET         | Get configured environments | -                                                  | List of environment names            | `application/json`     |
+| `/api/notify`                | POST        | Notify of telemetry server  | `{ telemetryServerUrl, reflectionApiSpecVersion }` | "OK" (200)                           | `text/plain`           |
+```
 
-=== "Go"
+\=== "Go"
 
-    | Endpoint         | HTTP Method | Purpose                    | Request Body                                       | Response                             | Content Type       |
-    |------------------|-------------|----------------------------|----------------------------------------------------|--------------------------------------|--------------------|
-    | `/api/__health`  | GET         | Health check               | -                                                  | 200 OK status                        | -                  |
-    | `/api/actions`   | GET         | List registered actions    | -                                                  | Action metadata with schemas         | `application/json` |
-    | `/api/runAction` | POST        | Run an action              | `{ key, input, context }`                          | `{ result, telemetry: { traceId } }` | `application/json` |
-    | `/api/notify`    | POST        | Notify of telemetry server | `{ telemetryServerUrl, reflectionApiSpecVersion }` | OK response                          | `application/json` |
+```
+| Endpoint         | HTTP Method | Purpose                    | Request Body                                       | Response                             | Content Type       |
+|------------------|-------------|----------------------------|----------------------------------------------------|--------------------------------------|--------------------|
+| `/api/__health`  | GET         | Health check               | -                                                  | 200 OK status                        | -                  |
+| `/api/actions`   | GET         | List registered actions    | -                                                  | Action metadata with schemas         | `application/json` |
+| `/api/runAction` | POST        | Run an action              | `{ key, input, context }`                          | `{ result, telemetry: { traceId } }` | `application/json` |
+| `/api/notify`    | POST        | Notify of telemetry server | `{ telemetryServerUrl, reflectionApiSpecVersion }` | OK response                          | `application/json` |
+```
 
-=== "Python"
+\=== "Python"
 
-    | Endpoint         | HTTP Method | Purpose                 | Request Body | Response                     | Content Type       |
-    |------------------|-------------|-------------------------|--------------|------------------------------|--------------------|
-    | `/api/__health`  | GET         | Health check            | -            | 200 OK status                | -                  |
-    | `/api/actions`   | GET         | List registered actions | -            | Action metadata with schemas | `application/json` |
-    | `/api/runAction` | POST        | Run an action           | Action input | Action output with traceId   | `application/json` |
+```
+| Endpoint         | HTTP Method | Purpose                 | Request Body | Response                     | Content Type       |
+|------------------|-------------|-------------------------|--------------|------------------------------|--------------------|
+| `/api/__health`  | GET         | Health check            | -            | 200 OK status                | -                  |
+| `/api/actions`   | GET         | List registered actions | -            | Action metadata with schemas | `application/json` |
+| `/api/runAction` | POST        | Run an action           | Action input | Action output with traceId   | `application/json` |
+```
 
 ## Common Patterns
 
@@ -140,6 +146,7 @@ differences here for now.
   query parameters.
 
 # Sync vs Async Design
+
 Genkit is a library that allows application developers to create AI flows for
 their applications using an API that abstracts over various components such as
 indexers, retiervers, models, embedders, etc.
@@ -217,19 +224,21 @@ if __name__ == '__main__':
 
 !!! note
 
-    In an initial iteration of this design, we were considering using decorators
-    to detect whether the callable is a coroutine and change the meaning of the
-    `ai` treating it as a special variable inside it, but this increases the
-    complexity of the implementation and adds very little value.
+```
+In an initial iteration of this design, we were considering using decorators
+to detect whether the callable is a coroutine and change the meaning of the
+`ai` treating it as a special variable inside it, but this increases the
+complexity of the implementation and adds very little value.
 
-    We have, therefore, decided to favor simplicity and add the `a*` prefix to
-    every asynchronous method made available by the API.
+We have, therefore, decided to favor simplicity and add the `a*` prefix to
+every asynchronous method made available by the API.
+```
 
 To make this work, we could have a user-facing veneer
 `genkit.ai.GenkitExperimental` class that composes 2 implementations of Genkit:
 
-- `genkit.ai.AsyncGenkit`
-- `genkit.ai.SyncGenkit`
+* `genkit.ai.AsyncGenkit`
+* `genkit.ai.SyncGenkit`
 
 #### ASCII Diagram
 
@@ -367,16 +376,16 @@ thread-pool executor used by the `SyncGenkit` implementation.
 
 #### Scenarios
 
-- For simple short lived applications, when we don't have the dev server we'd
+* For simple short lived applications, when we don't have the dev server we'd
   want the program to exit since that shouldn't start the reflection server.
 
-- For simple short lived applications, when we have the dev server (meaning the
+* For simple short lived applications, when we have the dev server (meaning the
   `GENKIT_ENV=dev` environment variable has been set), we should start the
   reflection server and prevent the application's main thread from exiting and
   shutting down the process to enable debugging.
 
-- For servers, we'd want the user to be able to add the reflection server to a
-  manager object such as that used in @multi_server.py  passed into the
+* For servers, we'd want the user to be able to add the reflection server to a
+  manager object such as that used in @multi\_server.py  passed into the
   arguments of the Genkit veneer class instance so that it attaches to the
   server manager alongside any application servers written by the end user.
 
@@ -404,6 +413,18 @@ set of flows and tools. For example, the sample would define all the flows in
 `flows.py` and use them in both `server_example.py` and `short_lived_example.py`
 as a demonstration:
 
-- `flows.py`
-- `server_example.py`
-- `short_lived_example.py`
+* `flows.py`
+* `server_example.py`
+* `short_lived_example.py`
+
+| Scenario    | Dev mode | User-provided manager | Reflection server technique                             |
+|-------------|----------|-----------------------|---------------------------------------------------------|
+| Short-lived | Yes      | No                    | Non-daemon thread running reflection server via uvicorn |
+| Short-lived | Yes      | Yes                   | Non-daemon thread running reflection server via uvicorn |
+| Long-lived  | Yes      | Yes                   | Managed by user-provided manager                        |
+| Long-lived  | Yes      | No                    | Managed by internal manager*                            |
+|-------------|----------|-----------------------|---------------------------------------------------------|
+| Short-lived | No       | No                    | No reflection server                                    |
+| Short-lived | No       | Yes                   | No reflection server                                    |
+| Long-lived  | No       | Yes                   | No reflection server                                    |
+| Long-lived  | No       | No                    | No reflection server                                    |

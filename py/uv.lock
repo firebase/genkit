@@ -9,6 +9,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "async-vs-sync",
     "basic-gemini",
     "coffee-shop",
     "context-caching",
@@ -176,6 +177,31 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b2/4d/71ec4d3939dc755264f680f6c2b4906423a304c3d18e96853f0a595dfe97/async_lru-2.0.5.tar.gz", hash = "sha256:481d52ccdd27275f42c43a928b4a50c3bfb2d67af4e78b170e3e0bb39c66e5bb", size = 10380 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/03/49/d10027df9fce941cb8184e78a02857af36360d33e1721df81c5ed2179a1a/async_lru-2.0.5-py3-none-any.whl", hash = "sha256:ab95404d8d2605310d345932697371a5f40def0487c03d6d0ad9138de52c9943", size = 6069 },
+]
+
+[[package]]
+name = "async-vs-sync"
+version = "0.1.0"
+source = { editable = "samples/async-vs-sync" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "structlog" },
+    { name = "uvicorn" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=14.0.0" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvicorn", specifier = ">=0.34.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
 ]
 
 [[package]]
@@ -927,6 +953,7 @@ dependencies = [
     { name = "starlette" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
+    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
@@ -967,6 +994,7 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvicorn", specifier = ">=0.34.0" },
 ]
 provides-extras = ["dev-local-vector-store", "flask", "google-genai", "ollama", "openai"]
 
@@ -1157,6 +1185,7 @@ dependencies = [
     { name = "genkit-plugin-pinecone" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "liccheck" },
+    { name = "rich" },
 ]
 
 [package.dev-dependencies]
@@ -1194,6 +1223,7 @@ requires-dist = [
     { name = "genkit-plugin-pinecone", editable = "plugins/pinecone" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "liccheck", specifier = ">=0.9.2" },
+    { name = "rich", specifier = ">=13.9.4" },
 ]
 
 [package.metadata.requires-dev]

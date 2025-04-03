@@ -83,7 +83,9 @@ def make_reflection_server(
 
     Args:
         registry: The registry to use for the reflection server.
+        loop: The event loop to use for the reflection server.
         encoding: The text encoding to use; default 'utf-8'.
+        quiet: Whether to suppress logging of the server's activity.
 
     Returns:
         A ReflectionServer class configured with the given registry.
@@ -100,12 +102,10 @@ def make_reflection_server(
             if not quiet:
                 message = format % args
                 logger.debug(
-                    '%s - - [%s] %s'
-                    % (
-                        self.address_string(),
-                        self.log_date_time_string(),
-                        message.translate(self._control_char_table),
-                    )
+                    '%s - - [%s] %s',
+                    self.address_string(),
+                    self.log_date_time_string(),
+                    message.translate(self._control_char_table),
                 )
 
         def do_GET(self) -> None:  # noqa: N802
