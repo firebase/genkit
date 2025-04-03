@@ -54,7 +54,20 @@ export function expressHandler<
     response: express.Response
   ): Promise<void> => {
     const { stream } = request.query;
-    let input = request.body?.data as z.infer<I>;
+    if (!request.body) {
+      const errMsg =
+        `Error: request.body is undefined. ` +
+        `Are you missing 'content-type: application/json' in your headers? ` +
+        `Or did you forget to use 'express.json()'? `;
+      logger.error(errMsg);
+      response
+        .status(400)
+        .json({ message: errMsg, status: 'BAD REQUEST' })
+        .end();
+      return;
+    }
+
+    let input = request.body.data as z.infer<I>;
     let context: Record<string, any>;
 
     try {
