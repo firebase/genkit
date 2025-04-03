@@ -73,8 +73,6 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
-func Ptr[T any](t T) *T { return &t }
-
 func convertConfigSchemaToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
