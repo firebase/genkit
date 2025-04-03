@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"slices"
@@ -169,20 +170,7 @@ type SafetySetting struct {
 
 // GeminiConfig mirrors GenerateContentConfig without direct genai dependency
 type GeminiConfig struct {
-	// Basic generation parameters
-	Temperature     float32  `json:"temperature,omitempty"`
-	TopP            float32  `json:"topP,omitempty"`
-	TopK            float32  `json:"topK,omitempty"`
-	CandidateCount  int32    `json:"candidateCount,omitempty"`
-	MaxOutputTokens int32    `json:"maxOutputTokens,omitempty"`
-	StopSequences   []string `json:"stopSequences,omitempty"`
-
-	// Advanced parameters
-	ResponseLogprobs bool    `json:"responseLogprobs,omitempty"`
-	Logprobs         int32   `json:"logprobs,omitempty"`
-	PresencePenalty  float32 `json:"presencePenalty,omitempty"`
-	FrequencyPenalty float32 `json:"frequencyPenalty,omitempty"`
-	Seed             int32   `json:"seed,omitempty"`
+	ai.GenerationCommonConfig
 
 	// Safety settings
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
@@ -207,11 +195,11 @@ func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
 		}
 		return convertFromCommonConfig(*config), nil
 	case map[string]any:
-		// Todo: this will silently fail if extra parameters are passed, may want to expose errors
+		log.Printf("Warning: Using map[string]any for config may silently ignore unknown parameters")
 		if err := mapToStruct(config, &result); err == nil {
 			return &result, nil
 		} else {
-			return &result, err
+			return nil, err
 		}
 	case nil:
 		// Empty but valid config
@@ -224,31 +212,12 @@ func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
 // Helper function to convert from GenerationCommonConfig to GeminiConfig
 func convertFromCommonConfig(config ai.GenerationCommonConfig) *GeminiConfig {
 	var result GeminiConfig
-
-	if config.MaxOutputTokens != 0 {
-		v := int32(config.MaxOutputTokens)
-		result.MaxOutputTokens = v
-	}
-
+	result.MaxOutputTokens = config.MaxOutputTokens
 	result.StopSequences = config.StopSequences
-
-	if config.Temperature != 0 {
-		v := float32(config.Temperature)
-		result.Temperature = v
-	}
-
-	if config.TopK != 0 {
-		v := float32(config.TopK)
-		result.TopK = v
-	}
-
-	if config.TopP != 0 {
-		v := float32(config.TopP)
-		result.TopP = v
-	}
-
+	result.Temperature = config.Temperature
+	result.TopK = config.TopK
+	result.TopP = config.TopP
 	result.Version = config.Version
-
 	return &result
 }
 
@@ -454,22 +423,21 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 	if err != nil {
 		return nil, err
 	}
-
 	// Convert standard fields
 	if c.MaxOutputTokens != 0 {
-		gc.MaxOutputTokens = genai.Ptr[int32](c.MaxOutputTokens)
+		gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
 	}
 	if len(c.StopSequences) > 0 {
 		gc.StopSequences = c.StopSequences
 	}
 	if c.Temperature != 0 {
-		gc.Temperature = genai.Ptr[float32](c.Temperature)
+		gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
 	}
 	if c.TopK != 0 {
-		gc.TopK = genai.Ptr[float32](c.TopK)
+		gc.TopK = genai.Ptr[float32](float32(c.TopK))
 	}
 	if c.TopP != 0 {
-		gc.TopP = genai.Ptr[float32](c.TopP)
+		gc.TopP = genai.Ptr[float32](float32(c.TopP))
 	}
 	// Convert non-primitive fields
 	gc.SafetySettings = convertSafetySettings(c.SafetySettings)
@@ -774,114 +742,4 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 	default:
 		panic("unknown part type in a request")
 	}
-}
-
-func convertContent(content *Content) *genai.Content {
-	if content == nil {
-		return nil
-	}
-	parts := make([]*genai.Part, len(content.Parts))
-	for i, p := range content.Parts {
-		parts[i] = &genai.Part{
-			Text: p.Text,
-		}
-		if p.InlineData != nil {
-			parts[i].InlineData = &genai.Blob{
-				MIMEType: p.InlineData.MimeType,
-				Data:     []byte(p.InlineData.Data),
-			}
-		}
-	}
-	return &genai.Content{
-		Parts: parts,
-		Role:  content.Role,
-	}
-}
-
-func convertTool(tool *Tool) *genai.Tool {
-	if tool == nil {
-		return nil
-	}
-	decls := make([]*genai.FunctionDeclaration, len(tool.FunctionDeclarations))
-	for i, d := range tool.FunctionDeclarations {
-		params, err := convertSchema(nil, d.Parameters)
-		if err != nil {
-			return nil
-		}
-		decls[i] = &genai.FunctionDeclaration{
-			Name:        d.Name,
-			Description: d.Description,
-			Parameters:  params,
-		}
-	}
-	return &genai.Tool{
-		FunctionDeclarations: decls,
-	}
-}
-
-func convertToolConfig(config *ToolConfig) *genai.ToolConfig {
-	if config == nil {
-		return nil
-	}
-	return &genai.ToolConfig{
-		FunctionCallingConfig: &genai.FunctionCallingConfig{
-			Mode:                 genai.FunctionCallingConfigMode(config.FunctionCallingConfig.Mode),
-			AllowedFunctionNames: config.FunctionCallingConfig.AllowedFunctionNames,
-		},
-	}
-}
-
-func convertResponseSchema(schema *ResponseSchema) *genai.Schema {
-	if schema == nil {
-		return nil
-	}
-	props := make(map[string]*genai.Schema)
-	for k, v := range schema.Properties {
-		props[k] = convertSchemaProperty(&v)
-	}
-	return &genai.Schema{
-		Type:       genai.Type(schema.Type),
-		Properties: props,
-		Required:   schema.Required,
-	}
-}
-
-func convertSchemaProperty(prop *SchemaProperty) *genai.Schema {
-	if prop == nil {
-		return nil
-	}
-	props := make(map[string]*genai.Schema)
-	for k, v := range prop.Properties {
-		props[k] = convertSchemaProperty(&v)
-	}
-	return &genai.Schema{
-		Type:        genai.Type(prop.Type),
-		Description: prop.Description,
-		Items:       convertSchemaProperty(prop.Items),
-		Properties:  props,
-	}
-}
-
-func convertRoutingConfig(config *RoutingConfig) *genai.GenerationConfigRoutingConfig {
-	if config == nil {
-		return nil
-	}
-	// Note: This is a simplified version since the genai types are different
-	return &genai.GenerationConfigRoutingConfig{}
-}
-
-func convertThinkingConfig(config *ThinkingConfig) *genai.ThinkingConfig {
-	if config == nil {
-		return nil
-	}
-	// Note: This is a simplified version since the genai types are different
-	return &genai.ThinkingConfig{}
-}
-
-func convertHTTPOptions(opts *HTTPOptions) *genai.HTTPOptions {
-	if opts == nil {
-		return nil
-	}
-	// Note: This is a simplified version since the genai types are different
-	return &genai.HTTPOptions{}
 }
