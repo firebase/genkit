@@ -18,6 +18,7 @@ package googlegenai_test
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"math"
 	"os"
@@ -248,6 +249,35 @@ func TestVertexAILive(t *testing.T) {
 		}
 		if !strings.Contains(resp.Text(), "Mario Kart") {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
+	t.Run("constrained generation", func(t *testing.T) {
+		type outFormat struct {
+			Country string
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Which country was Napoleon the emperor of?"),
+			ai.WithOutputType(outFormat{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Log(resp.Text())
+		var ans outFormat
+		err = json.Unmarshal([]byte(resp.Text()), &ans)
+		if err != nil {
+			t.Error(err)
+		}
+		const want = "France"
+		if ans.Country != want {
+			t.Errorf("got %q, expecting %q", ans.Country, want)
+		}
+		if resp.Request == nil {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
 }
