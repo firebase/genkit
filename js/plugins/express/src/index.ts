@@ -57,8 +57,8 @@ export function expressHandler<
     if (!request.body) {
       const errMsg =
         `Error: request.body is undefined. ` +
-        `Are you missing 'content-type: application/json' in your headers? ` +
-        `Or did you forget to use 'express.json()'? `;
+        `Possible reasons: missing 'content-type: application/json' in request ` +
+        `headers or misconfigured JSON middleware ('app.use(express.json()')? `;
       logger.error(errMsg);
       response
         .status(400)
