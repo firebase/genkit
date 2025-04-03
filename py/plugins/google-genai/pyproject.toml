@@ -18,6 +18,7 @@ dependencies = [
   "genkit",
   "google-genai>=1.7.0",
   "google-cloud-aiplatform>=1.77.0",
+  "structlog>=25.2.0",
 ]
 description = "Genkit Google GenAI Plugin"
 license = { text = "Apache-2.0" }

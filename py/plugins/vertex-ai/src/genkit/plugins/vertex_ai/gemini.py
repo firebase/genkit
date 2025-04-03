@@ -21,10 +21,10 @@ Gemini models through the Vertex AI platform. It includes version
 definitions and a client class for making requests to Gemini models.
 """
 
-import logging
 from enum import StrEnum
 from typing import Any
 
+import structlog
 import vertexai.generative_models as genai
 
 from genkit.ai import ActionKind, ActionRunContext, GenkitRegistry
@@ -43,7 +43,7 @@ from genkit.types import (
     ToolResponsePart,
 )
 
-LOG = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class GeminiVersion(StrEnum):
@@ -132,7 +132,7 @@ class Gemini:
                     parts.append(genai.Part.from_text(part.root.text))
                 elif isinstance(part.root, MediaPart):
                     if not self.is_multimode():
-                        LOG.error(f'The model {self._version} does not support multimode input')
+                        logger.error(f'The model {self._version} does not support multimode input')
                         continue
                     parts.append(
                         genai.Part.from_uri(
@@ -141,12 +141,12 @@ class Gemini:
                         )
                     )
                 elif isinstance(part.root, ToolRequestPart | ToolResponsePart):
-                    LOG.warning('Tools are not supported yet')
+                    logger.warning('Tools are not supported yet')
                 elif isinstance(part.root, CustomPart):
                     # TODO: handle CustomPart
-                    LOG.warning('The code part is not supported yet.')
+                    logger.warning('The code part is not supported yet.')
                 else:
-                    LOG.error('The type is not supported')
+                    logger.error('The type is not supported')
             messages.append(genai.Content(role=message.role.value, parts=parts))
 
         return messages

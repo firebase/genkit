@@ -17,10 +17,11 @@
 """Base/shared implementation for Genkit user-facing API."""
 
 import asyncio
-import logging
 import os
 import threading
 from http.server import HTTPServer
+
+import structlog
 
 from genkit.ai import server
 from genkit.ai.plugin import Plugin
@@ -31,7 +32,7 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.web.manager import find_free_port_sync
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class GenkitBase(GenkitRegistry):

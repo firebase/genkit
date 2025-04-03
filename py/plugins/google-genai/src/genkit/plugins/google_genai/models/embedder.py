@@ -61,7 +61,7 @@ class Embedder:
         self._client = client
         self._version = version
 
-    async def agenerate(self, request: EmbedRequest) -> EmbedResponse:
+    async def generate(self, request: EmbedRequest) -> EmbedResponse:
         """Generate embeddings for a given request
 
         Args:
