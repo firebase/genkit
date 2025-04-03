@@ -821,3 +821,25 @@ func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
 func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 	g.reg.RegisterSpanProcessor(sp)
 }
+
+// DefinePartial wraps DefinePartial to register a partial template with the given name and source.
+// Partials can be referenced in templates with the syntax {{>partialName}}.
+func DefinePartial(g *Genkit, name string, source string) error {
+	return g.reg.DefinePartial(name, source)
+}
+
+// DefineHelper wraps DefineHelper to register a helper function with the given name.
+// This allows for extending the templating capabilities with custom logic.
+//
+// Example usage:
+//
+//	genkit.DefineHelper(g, "uppercase", func(s string) string {
+//		return strings.ToUpper(s)
+//	})
+//
+// In a template, you would use it as:
+//
+//	{{uppercase "hello"}} => "HELLO"
+func DefineHelper(g *Genkit, name string, fn any) error {
+	return g.reg.DefineHelper(name, fn)
+}
