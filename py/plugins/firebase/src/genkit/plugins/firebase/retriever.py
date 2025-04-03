@@ -19,11 +19,11 @@ from typing import Any
 from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.vector import Vector
 
-from genkit.ai.veneer import Genkit
+from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import RetrieverRequest, RetrieverResponse
 from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
+from genkit.types import RetrieverRequest, RetrieverResponse
 
 
 class FirestoreRetriever:
