@@ -14,6 +14,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
+	github.com/blues/jsonata-go v1.5.4
 	github.com/google/dotprompt/go v0.0.0-20250320235217-796c6442a3c1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
@@ -32,7 +33,7 @@ require (
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
 	golang.org/x/tools v0.23.0
 	google.golang.org/api v0.197.0
-	google.golang.org/genai v0.6.0
+	google.golang.org/genai v0.7.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -53,7 +54,6 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
