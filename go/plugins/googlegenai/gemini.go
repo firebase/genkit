@@ -458,7 +458,6 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 		}
 	}
 
-	// Handle system messages
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
