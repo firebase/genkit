@@ -203,9 +203,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	var output *ModelOutputConfig
 	if opts.Output != nil {
 		output = &ModelOutputConfig{
-			Format:      opts.Output.Format,
-			Schema:      opts.Output.JsonSchema,
-			Constrained: opts.Output.JsonSchema != nil,
+			Format: opts.Output.Format,
+			Schema: opts.Output.JsonSchema,
 		}
 		if output.Schema != nil && output.Format == "" {
 			output.Format = string(OutputFormatJSON)
@@ -221,14 +220,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Output:     output,
 	}
 
-	modelFeat, err := modelFeatures(r, opts.Model)
-	if err != nil {
+	if err := conformOutput(req); err != nil {
 		return nil, err
-	}
-	if modelFeat.Constrained == ConstrainedSupportNone {
-		if err := conformOutput(req); err != nil {
-			return nil, err
-		}
 	}
 
 	fn := core.ChainMiddleware(mw...)(model.Generate)
@@ -383,48 +376,6 @@ func (m *modelActionDef) Generate(ctx context.Context, req *ModelRequest, cb Mod
 	return (*ModelAction)(m).Run(ctx, req, cb)
 }
 
-// modelFeatures retrieves the features supported by the model
-func modelFeatures(r *registry.Registry, name string) (*ModelSupports, error) {
-	if name == "" {
-		return nil, errors.New("ai.modelFeatures: model name is empty")
-	}
-
-	provider, name, found := strings.Cut(name, "/")
-	if !found {
-		name = provider
-		provider = ""
-	}
-
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name)
-	if action == nil {
-		if provider == "" {
-			return nil, fmt.Errorf("ai.modelFeatures: no model named %q", name)
-		}
-		return nil, fmt.Errorf("ai.modelFeatures: no model named %q for provider %q", name, provider)
-	}
-
-	metadata := action.Desc().Metadata
-	m, ok := metadata["model"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("ai.modelFeatures: model metadata not definedd")
-	}
-	s, ok := m["supports"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("ai.modelFeatures: model features not specified")
-	}
-	sJson, err := json.Marshal(s)
-	if err != nil {
-		return nil, fmt.Errorf("ai.modelFeatures: unable to marshal model features, err: %v", err)
-	}
-
-	modelFeatures := &ModelSupports{}
-	err = json.Unmarshal(sJson, modelFeatures)
-	if err != nil {
-		return nil, fmt.Errorf("ai.modelFeatures: unable to unmarshal model features, err: %v", err)
-	}
-	return modelFeatures, nil
-}
-
 // cloneMessage creates a deep copy of the provided Message.
 func cloneMessage(m *Message) *Message {
 	if m == nil {
@@ -564,6 +515,9 @@ func conformOutput(req *ModelRequest) error {
 
 		escapedJSON := strconv.Quote(string(jsonBytes))
 		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
+		part.Metadata = map[string]any{
+			"purpose": "output",
+		}
 		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
 	}
 	return nil
@@ -583,7 +537,7 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 // validMessage will validate the message against the expected schema.
 // It will return an error if it does not match, otherwise it will return a message with JSON content and type.
 func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
-	if output != nil && output.Format == string(OutputFormatJSON) && output.Constrained {
+	if output != nil && output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}

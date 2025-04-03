@@ -269,6 +269,11 @@ func TestGenerate(t *testing.T) {
 					Content: []*Part{
 						NewTextPart("Where can they be found?"),
 						{
+							ContentType: "plain/text",
+							Text:        "ignored (conformance message)",
+							Metadata:    map[string]any{"purpose": string("output")},
+						},
+						{
 							Text: "\n\nUse the following information " +
 								"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
 							Metadata: map[string]any{"purpose": "context"},
@@ -289,7 +294,6 @@ func TestGenerate(t *testing.T) {
 					"required": []any{string("subject"), string("location")},
 					"type":     string("object"),
 				},
-				Constrained: true,
 			},
 			Tools: []*ToolDefinition{
 				{
@@ -329,6 +333,89 @@ func TestGenerate(t *testing.T) {
 			}{}),
 			WithTools(gablorkenTool),
 			WithToolChoice(ToolChoiceAuto),
+			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
+				streamText += grc.Text()
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gotText := res.Text()
+		if diff := cmp.Diff(gotText, wantText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
+			"{*ai.ModelRequest}.Messages[3].Content[1].Text",
+		})); diff != "" {
+			t.Errorf("Request diff (+got -want):\n%s", diff)
+		}
+	})
+
+	t.Run("constructs request with constrained gen", func(t *testing.T) {
+		wantText := JSON
+		wantStreamText := "stream!"
+		wantRequest := &ModelRequest{
+			Messages: []*Message{
+				NewSystemTextMessage("You are a helpful assistant."),
+				NewUserTextMessage("How many bananas are there?"),
+				NewModelTextMessage("There are at least 10 bananas."),
+				{
+					Role: RoleUser,
+					Content: []*Part{
+						NewTextPart("Where can they be found?"),
+						{
+							ContentType: "plain/text",
+							Text:        "ignored (conformance message)",
+							Metadata:    map[string]any{"purpose": string("output")},
+						},
+						{
+							Text: "\n\nUse the following information " +
+								"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
+							Metadata: map[string]any{"purpose": "context"},
+						},
+					},
+				},
+			},
+			Config: &GenerationCommonConfig{Temperature: 1},
+			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
+			Output: &ModelOutputConfig{
+				Format: string(OutputFormatJSON),
+				Schema: map[string]any{
+					"additionalProperties": bool(false),
+					"properties": map[string]any{
+						"subject":  map[string]any{"type": string("string")},
+						"location": map[string]any{"type": string("string")},
+					},
+					"required": []any{string("subject"), string("location")},
+					"type":     string("object"),
+				},
+				Constrained: true,
+			},
+			Tools: []*ToolDefinition{},
+		}
+
+		streamText := ""
+		res, err := Generate(context.Background(), r,
+			WithModel(bananaModel),
+			WithSystemText("You are a helpful assistant."),
+			WithMessages(
+				NewUserTextMessage("How many bananas are there?"),
+				NewModelTextMessage("There are at least 10 bananas."),
+			),
+			WithPromptText("Where can they be found?"),
+			WithConfig(&GenerationCommonConfig{
+				Temperature: 1,
+			}),
+			WithDocs(DocumentFromText("Bananas are plentiful in the tropics.", nil)),
+			WithOutputType(struct {
+				Subject  string `json:"subject"`
+				Location string `json:"location"`
+			}{}),
 			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
 				streamText += grc.Text()
 				return nil

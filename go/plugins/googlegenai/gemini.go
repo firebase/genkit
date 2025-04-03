@@ -185,13 +185,22 @@ func generate(
 
 	var contents []*genai.Content
 	for _, m := range input.Messages {
+		// system parts are handled separately
 		if m.Role == ai.RoleSystem {
 			continue
 		}
-		parts, err := convertParts(m.Content)
+
+		content := m.Content
+		// gc.ResponseSchema should only be set when constrained generation requirements are met
+		if gc.ResponseSchema != nil {
+			content = removeOutputPart(m.Content)
+		}
+
+		parts, err := convertParts(content)
 		if err != nil {
 			return nil, err
 		}
+
 		contents = append(contents, &genai.Content{
 			Parts: parts,
 			Role:  string(m.Role),
@@ -261,6 +270,20 @@ func generate(
 	}
 
 	return r, nil
+}
+
+// removeOutputPart removes the simulated constrained generation part from the request messages
+func removeOutputPart(content []*ai.Part) []*ai.Part {
+	for i, p := range content {
+		if p.Metadata != nil {
+			// skip simulated constrained generation, use native instead
+			v, ok := p.Metadata["purpose"].(string)
+			if ok && v == "output" {
+				return append(content[:i], content[i+1:]...)
+			}
+		}
+	}
+	return content
 }
 
 // convertRequest translates from [*ai.ModelRequest] to
