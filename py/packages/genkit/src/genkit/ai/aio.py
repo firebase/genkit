@@ -41,7 +41,6 @@ from genkit.blocks.model import (
 from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
-from genkit.core.typing import ToolChoice
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -49,6 +48,7 @@ from genkit.types import (
     Part,
     RetrieverRequest,
     RetrieverResponse,
+    ToolChoice,
 )
 
 from .base import GenkitBase

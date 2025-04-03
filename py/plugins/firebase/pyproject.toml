@@ -19,7 +19,7 @@ description = "Genkit Firebase Plugin"
 license = { text = "Apache-2.0" }
 name = "genkit-plugin-firebase"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.3.0.dev1"
 
 [build-system]

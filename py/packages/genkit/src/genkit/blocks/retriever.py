@@ -23,9 +23,21 @@ to accomplish a task.
 """
 
 from collections.abc import Callable
+from typing import Any, Generic, TypeVar
+
+from pydantic import BaseModel
 
 from genkit.blocks.document import Document
-from genkit.core.typing import RetrieverResponse
+from genkit.core.typing import RetrieverRequest, RetrieverResponse
 
-# User-provided retriever function that queries the datastore
-type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
+T = TypeVar('T')
+# type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]
+RetrieverFn = Callable[[Document, T], RetrieverResponse]
+
+
+class Retriever(Generic[T]):
+    def __init__(
+        self,
+        retriever_fn: RetrieverFn[T],
+    ):
+        self.retriever_fn = retriever_fn

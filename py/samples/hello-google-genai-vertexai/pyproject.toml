@@ -25,7 +25,7 @@ description = "Hello world sample on VertexAI API on GenAI"
 license = { text = "Apache-2.0" }
 name = "hello-google-genai-vertexai"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 version = "0.1.0"
 
 [build-system]

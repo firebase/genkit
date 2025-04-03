@@ -18,7 +18,7 @@
 
 import abc
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -28,8 +28,11 @@ from genkit.core.typing import (
     OutputConfig,
 )
 
-type MessageParser[T] = Callable[[MessageWrapper], T]
-type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+T = TypeVar('T')
+# type MessageParser[T] = Callable[[MessageWrapper], T]
+MessageParser = Callable[[MessageWrapper], T]
+# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+ChunkParser = Callable[[GenerateResponseChunkWrapper], T]
 
 
 class FormatterConfig(OutputConfig):
@@ -42,7 +45,11 @@ class FormatterConfig(OutputConfig):
     default_instructions: bool | None = None
 
 
-class Formatter[O, CO]:
+O = TypeVar('O')
+CO = TypeVar('CO')
+
+
+class Formatter(Generic[O, CO]):
     """Base class representing a formatter for model outputs.
 
     Formatters are responsible for parsing raw model messages and chunks
