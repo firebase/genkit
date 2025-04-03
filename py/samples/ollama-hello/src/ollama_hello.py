@@ -105,7 +105,7 @@ class GablorkenOutputSchema(BaseModel):
     result: int
 
 
-@ai.tool('calculates a gablorken')
+@ai.tool()
 def gablorken_tool(input: int) -> int:
     """Calculate a gablorken.
 

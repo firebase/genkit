@@ -108,8 +108,9 @@ async def test_prompt_with_kitchensink() -> None:
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='testTool')
+    @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return 'abc'
 
     my_prompt = ai.define_prompt(
