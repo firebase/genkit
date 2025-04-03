@@ -46,3 +46,14 @@ packages = ["src/genkit"]
 [tool.pytest.ini_options]
 pythonpath = [".", "src", "tests", "packages/genkit/src"]
 testpaths  = ["tests"]
+
+
+[dependency-groups]
+typing = [
+    "mypy<2.0,>=1.10"
+]
+
+[tool.mypy]
+ignore_missing_imports = "True"
+disallow_untyped_defs = "True"
+exclude = ["notebooks", "examples", "example_data"]
