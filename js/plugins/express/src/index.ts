@@ -62,7 +62,7 @@ export function expressHandler<
       logger.error(errMsg);
       response
         .status(400)
-        .json({ message: errMsg, status: 'BAD REQUEST' })
+        .json({ message: errMsg, status: 'INVALID ARGUMENT' })
         .end();
       return;
     }
