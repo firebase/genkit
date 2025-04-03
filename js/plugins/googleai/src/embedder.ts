@@ -50,9 +50,10 @@ export const GeminiEmbeddingConfigSchema = z.object({
    * By default, the model generates embeddings with 768 dimensions. Models such as
    * `text-embedding-004`, `text-embedding-005`, and `text-multilingual-embedding-002`
    * allow the output dimensionality to be adjusted between 1 and 768.
+   * The `gemini-embedding-exp-03-07` model supports elastic output dimensions of 3072, 1536, or 768.
    * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
    **/
-  outputDimensionality: z.number().min(1).max(768).optional(),
+  outputDimensionality: z.number().min(1).max(3072).optional(),
 });
 
 export type GeminiEmbeddingConfig = z.infer<typeof GeminiEmbeddingConfigSchema>;
@@ -81,9 +82,22 @@ export const textEmbedding004 = embedderRef({
   },
 });
 
+export const geminiEmbeddingExp0307 = embedderRef({
+  name: 'googleai/gemini-embedding-exp-03-07',
+  configSchema: GeminiEmbeddingConfigSchema,
+  info: {
+    dimensions: 3072,
+    label: 'Google Gen AI - Gemini Embedding Experimental 03-07',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+
 export const SUPPORTED_MODELS = {
   'embedding-001': textEmbeddingGecko001,
   'text-embedding-004': textEmbedding004,
+  'gemini-embedding-exp-03-07': geminiEmbeddingExp0307,
 };
 
 export function defineGoogleAIEmbedder(
