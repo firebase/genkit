@@ -109,7 +109,7 @@ func handleCache(
 	if cs.ttl > 0 {
 		cache, err = client.Caches.Create(ctx, model, &genai.CreateCachedContentConfig{
 			DisplayName: hash,
-			TTL:         time.Duration(cs.ttl),
+			TTL:         time.Duration(cs.ttl) * time.Second,
 			Contents:    messages,
 		})
 		if err != nil {
