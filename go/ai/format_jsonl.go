@@ -50,21 +50,21 @@ func (j JSONLFormatter) Handler(schema map[string]any) FormatterHandler {
 	if schema != nil && isJSONL(schema) {
 		jsonBytes, err := json.Marshal(schema["items"])
 		if err != nil {
-			instructions = fmt.Sprintf("Error marshalling schema to JSONL: %v", err)
+			panic(fmt.Sprintf("error marshalling schema to JSONL: %v", err))
 		} else {
 			escapedJSON := strconv.Quote(string(jsonBytes))
 			instructions = fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", escapedJSON)
 		}
 	} else {
-		instructions = "Error, schema not valid JSONL"
+		panic(fmt.Sprint("error, schema not valid JSONL"))
 	}
-	constrained := true
+
 	handler := &jsonlHandler{
 		instructions: instructions,
 		output: &ModelOutputConfig{
 			Format:      string(OutputFormatJSONL),
 			Schema:      schema,
-			Constrained: constrained,
+			Constrained: true,
 			ContentType: "application/jsonl",
 		},
 	}

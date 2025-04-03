@@ -49,19 +49,19 @@ func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
 	if schema != nil {
 		jsonBytes, err := json.Marshal(schema)
 		if err != nil {
-			instructions = fmt.Sprintf("Error marshalling schema to JSON: %v", err)
+			panic(fmt.Sprintf("error marshalling schema to JSONL: %v", err))
 		} else {
 			escapedJSON := strconv.Quote(string(jsonBytes))
 			instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON)
 		}
 	}
-	constrained := true
+
 	handler := &jsonHandler{
 		instructions: instructions,
 		output: &ModelOutputConfig{
 			Format:      string(OutputFormatJSON),
 			Schema:      schema,
-			Constrained: constrained,
+			Constrained: true,
 			ContentType: "application/json",
 		},
 	}

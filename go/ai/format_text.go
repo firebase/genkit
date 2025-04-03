@@ -23,19 +23,19 @@ type textHandler struct {
 	output       *ModelOutputConfig
 }
 
-func (j TextFormatter) Name() string {
-	return j.FormatName
+func (t TextFormatter) Name() string {
+	return t.FormatName
 }
 
-func (j textHandler) Config() *ModelOutputConfig {
-	return j.output
+func (t textHandler) Config() *ModelOutputConfig {
+	return t.output
 }
 
-func (j textHandler) Instructions() string {
-	return j.instructions
+func (t textHandler) Instructions() string {
+	return t.instructions
 }
 
-func (j TextFormatter) Handler(schema map[string]any) FormatterHandler {
+func (t TextFormatter) Handler(schema map[string]any) FormatterHandler {
 	handler := &textHandler{
 		output: &ModelOutputConfig{
 			ContentType: "text/plain",
@@ -45,6 +45,6 @@ func (j TextFormatter) Handler(schema map[string]any) FormatterHandler {
 	return handler
 }
 
-func (j textHandler) ParseMessage(m *Message) (*Message, error) {
+func (t textHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }

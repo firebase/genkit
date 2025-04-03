@@ -699,7 +699,7 @@ func errorContains(t *testing.T, err error, want string) {
 }
 
 func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
-	resolvedFormat, err := ResolveFormat(r, output.Schema, output.Format)
+	resolvedFormat, err := resolveFormat(r, output.Schema, output.Format)
 	if err != nil {
 		return nil, err
 	}

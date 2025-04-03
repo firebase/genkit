@@ -119,7 +119,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
-		SimulateConstrainedGeneration(name, info),
+		simulateConstrainedGeneration(name, info),
 	}
 
 	fn = core.ChainMiddleware(middlewares...)(fn)
@@ -204,14 +204,13 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	var config *ModelOutputConfig
 	if opts.Output != nil {
 		// Find the correct formatter
-		resolvedFormat, err := ResolveFormat(r, opts.Output.JsonSchema, string(opts.Output.Format))
+		resolvedFormat, err := resolveFormat(r, opts.Output.JsonSchema, string(opts.Output.Format))
 		if err != nil {
 			return nil, err
 		}
 
 		// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
-		// @TODO: user defined custom parser / instructions
-		iInstructions := ResolveInstructions(resolvedFormat, opts.Output.JsonSchema, "")
+		iInstructions := resolveInstructions(resolvedFormat, opts.Output.JsonSchema, opts.Output.Instructions)
 		config = resolvedFormat.Handler(opts.Output.JsonSchema).Config()
 
 		// Allow override constraint
@@ -220,12 +219,12 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 
 		// Allow override instructions
-		if opts.Output.Instructions != nil {
-			config.Instructions = *opts.Output.Instructions
-		}
+		// if opts.Output.Instructions != nil {
+		// 	config.Instructions = *opts.Output.Instructions
+		// }
 
 		// Override request
-		if ShouldInjectFormatInstructions(config, opts.Output.Instructions) {
+		if shouldInjectFormatInstructions(config, opts.Output.Instructions) {
 			opts.Messages = injectInstructions(opts.Messages, iInstructions)
 		}
 	}
@@ -249,7 +248,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 
 		if req.Output != nil {
-			resolvedFormat, err := ResolveFormat(r, req.Output.Schema, req.Output.Format)
+			resolvedFormat, err := resolveFormat(r, req.Output.Schema, req.Output.Format)
 			if err != nil {
 				return nil, err
 			}

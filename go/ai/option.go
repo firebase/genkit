@@ -446,16 +446,16 @@ func WithOutputFormat(format OutputFormat) OutputOption {
 	return &outputOptions{OutputFormat: format}
 }
 
-// WithOutputInstructions sets whether output instructions should be added.
-func WithOutputInstructions(addInstructions bool) OutputOption {
-	var instructions string
-	if addInstructions {
-		instructions = ""
-	}
-	return &outputOptions{OutputInstructions: &instructions}
+// WithOutputInstructions sets which, if any, output instructions should be added.
+// Nil/not set: default instructions will be added.
+// Empty string: no instructions will be added.
+// Non-empty string: will be used as instructions.
+func WithOutputInstructions(instructions *string) OutputOption {
+	return &outputOptions{OutputInstructions: instructions}
 }
 
-// WithOutputNativeConstrained sets whether to use model native constrained output generation. Defaults to true.
+// WithOutputNativeConstrained sets whether to use model native constrained output generation.
+// If this is set to true and the model does not support native constrained generation, it will be simulated instead. Defaults to true.
 func WithOutputNativeConstrained(constrained bool) OutputOption {
 	return &outputOptions{OutputConstrained: &constrained}
 }

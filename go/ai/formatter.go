@@ -17,11 +17,16 @@ package ai
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/firebase/genkit/go/internal/registry"
+)
+
+const (
+	regFormatText  = "/format/text"
+	regFormatJSON  = "/format/json"
+	regFormatJSONL = "/format/jsonl"
 )
 
 // Default formats get automatically registered on registry init
@@ -44,36 +49,33 @@ type FormatterHandler interface {
 	Config() *ModelOutputConfig
 }
 
-// DefineFormatter creates a new Formatter and registers it.
-func DefineFormatter(
+// ConfigureFormats registers default formats in the registry
+func ConfigureFormats(reg *registry.Registry) {
+	for _, format := range DEFAULT_FORMATS {
+		defineFormatter(reg, fmt.Sprintf("/format/%s", format.Name()), format)
+	}
+}
+
+// defineFormatter creates a new Formatter and registers it.
+func defineFormatter(
 	r *registry.Registry,
 	name string,
 	formatter Formatter) {
 	r.RegisterValue(name, formatter)
 }
 
-// ConfigureFormats registers default formats in the registry
-func ConfigureFormats(reg *registry.Registry) {
-	for _, format := range DEFAULT_FORMATS {
-		DefineFormatter(reg,
-			fmt.Sprintf("/format/%s", format.Name()),
-			format,
-		)
-	}
-}
-
-// ResolveFormat returns a Formatter, either a default one or one from the registry
-func ResolveFormat(reg *registry.Registry, schema map[string]any, format string) (Formatter, error) {
+// resolveFormat returns a Formatter, either a default one or one from the registry
+func resolveFormat(reg *registry.Registry, schema map[string]any, format string) (Formatter, error) {
 	var formatter any
 
 	// If schema is set but no explicit format is set we default to json.
 	if schema != nil && format == "" {
-		formatter = reg.LookupValue("/format/json")
+		formatter = reg.LookupValue(regFormatJSON)
 	}
 
 	// If format is not set we default to text
 	if format == "" {
-		formatter = reg.LookupValue("/format/text")
+		formatter = reg.LookupValue(regFormatText)
 	}
 
 	// Lookup format in registry
@@ -85,27 +87,27 @@ func ResolveFormat(reg *registry.Registry, schema map[string]any, format string)
 	if ok {
 		return f, nil
 	} else {
-		return nil, errors.New("invalid output format")
+		return nil, fmt.Errorf("output format %q is invalid", format)
 	}
 }
 
 // Resolve instructions based on format.
-func ResolveInstructions(format Formatter, schema map[string]any, instructions string) string {
-	if instructions != "" {
-		return instructions // User provided instructions
+func resolveInstructions(format Formatter, schema map[string]any, instructions *string) string {
+	if instructions != nil {
+		return *instructions // User provided instructions
 	}
 
 	result := format.Handler(schema)
 	return result.Instructions()
 }
 
-// ShouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.
-func ShouldInjectFormatInstructions(formatConfig *ModelOutputConfig, rawRequestInstructions *string) bool {
+// shouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.
+func shouldInjectFormatInstructions(formatConfig *ModelOutputConfig, rawRequestInstructions *string) bool {
 	return rawRequestInstructions != nil || !formatConfig.Constrained
 }
 
-// SimulateConstrainedGeneration simulates constrained generation by injecting generation instructions into the user message.
-func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddleware {
+// simulateConstrainedGeneration simulates constrained generation by injecting generation instructions into the user message.
+func simulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddleware {
 	return func(next ModelFunc) ModelFunc {
 		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 			if info == nil {
@@ -118,7 +120,11 @@ func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddlewar
 			if info.Supports.Constrained == ConstrainedSupportNone || (info.Supports.Constrained == ConstrainedSupportNoTools && len(req.Tools) > 0) {
 				// If constrained in model request is set to true and schema is set
 				if req.Output.Constrained && req.Output.Schema != nil && len(req.Messages) > 0 {
-					instructions := defaultConstrainedGenerationInstructions(req.Output.Schema)
+					instructions, err := defaultInstructions(req.Output.Schema)
+					if err != nil {
+						return nil, fmt.Errorf("error marshalling schema to JSON for default instructions: %v", err)
+					}
+
 					req.Messages = injectInstructions(req.Messages, instructions)
 					// we're simulating it, so to the underlying model it's unconstrained.
 					req.Output.Constrained = false
@@ -130,16 +136,16 @@ func SimulateConstrainedGeneration(model string, info *ModelInfo) ModelMiddlewar
 	}
 }
 
-// Default constrained generation instructions.
-func defaultConstrainedGenerationInstructions(schema map[string]any) string {
+// defaultInstructions returns default instructions to constrain output.
+func defaultInstructions(schema map[string]any) (string, error) {
 	jsonBytes, err := json.Marshal(schema)
 	if err != nil {
-		return fmt.Sprintf("Error marshalling schema to JSON: %v", err)
+		return "", err
 	}
 
 	escapedJSON := strconv.Quote(string(jsonBytes))
 	instructions := fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON)
-	return instructions
+	return instructions, nil
 }
 
 // injectInstructions looks through the messages and injects formatting directives
