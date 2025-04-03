@@ -264,7 +264,18 @@ func TestGenerate(t *testing.T) {
 					Role: RoleSystem,
 					Content: []*Part{
 						NewTextPart("You are a helpful assistant."),
-						NewTextPart("ignored (conformance message)"),
+						{
+							ContentType: "plain/text",
+							Text:        "ignored (conformance message)",
+						},
+					},
+				},
+				NewUserTextMessage("How many bananas are there?"),
+				NewModelTextMessage("There are at least 10 bananas."),
+				{
+					Role: RoleUser,
+					Content: []*Part{
+						NewTextPart("Where can they be found?"),
 						{
 							Text: "\n\nUse the following information " +
 								"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
@@ -272,14 +283,12 @@ func TestGenerate(t *testing.T) {
 						},
 					},
 				},
-				NewUserTextMessage("How many bananas are there?"),
-				NewModelTextMessage("There are at least 10 bananas."),
-				NewUserTextMessage("Where can they be found?"),
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
 			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
+				Format:      string(OutputFormatJSON),
+				ContentType: "application/json",
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -289,8 +298,6 @@ func TestGenerate(t *testing.T) {
 					"required": []any{string("subject"), string("location")},
 					"type":     string("object"),
 				},
-				Constrained: false, // Constrained generation
-				ContentType: "application/json",
 			},
 			Tools: []*ToolDefinition{
 				{
@@ -346,7 +353,7 @@ func TestGenerate(t *testing.T) {
 		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
-		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
+		if diff := cmp.Diff(wantRequest, res.Request, test_utils.IgnoreNoisyParts([]string{
 			"{*ai.ModelRequest}.Messages[0].Content[1].Text", "{*ai.ModelRequest}.Messages[0].Content[1].Metadata",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
