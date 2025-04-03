@@ -72,7 +72,7 @@ async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] user: "hi" {"temperature": 11}'
 
-    response = await ai.agenerate(prompt='hi', config={'temperature': 11})
+    response = await ai.generate(prompt='hi', config={'temperature': 11})
 
     assert response.text == want_txt
 
@@ -86,7 +86,7 @@ async def test_generate_with_explicit_model(setup_test: SetupFixture) -> None:
     """Test that the generate function uses the explicit model."""
     ai, *_ = setup_test
 
-    response = await ai.agenerate(model='echoModel', prompt='hi', config={'temperature': 11})
+    response = await ai.generate(model='echoModel', prompt='hi', config={'temperature': 11})
 
     assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
@@ -100,7 +100,7 @@ async def test_generate_with_str_prompt(setup_test: SetupFixture) -> None:
     """Test that the generate function with a string prompt works."""
     ai, *_ = setup_test
 
-    response = await ai.agenerate(prompt='hi', config={'temperature': 11})
+    response = await ai.generate(prompt='hi', config={'temperature': 11})
 
     assert response.text == '[ECHO] user: "hi" {"temperature": 11}'
 
@@ -112,7 +112,7 @@ async def test_generate_with_part_prompt(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] user: "hi" {"temperature": 11}'
 
-    response = await ai.agenerate(prompt=Part(text='hi'), config={'temperature': 11})
+    response = await ai.generate(prompt=Part(text='hi'), config={'temperature': 11})
 
     assert response.text == want_txt
 
@@ -128,7 +128,7 @@ async def test_generate_with_part_list_prompt(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] user: "hello","world" {"temperature": 11}'
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         prompt=[Part(text='hello'), Part(text='world')],
         config={'temperature': 11},
     )
@@ -150,7 +150,7 @@ async def test_generate_with_str_system(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
 
-    response = await ai.agenerate(system='talk like pirate', prompt='hi', config={'temperature': 11})
+    response = await ai.generate(system='talk like pirate', prompt='hi', config={'temperature': 11})
 
     assert response.text == want_txt
 
@@ -166,7 +166,7 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature": 11}'
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         system=Part(text='talk like pirate'),
         prompt='hi',
         config={'temperature': 11},
@@ -190,7 +190,7 @@ async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] system: "talk","like pirate" user: "hi" {"temperature": 11}'
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         system=[Part(text='talk'), Part(text='like pirate')],
         prompt='hi',
         config={'temperature': 11},
@@ -212,7 +212,7 @@ async def test_generate_with_messages(setup_test: SetupFixture) -> None:
     """Test that the generate function with a list of messages works."""
     ai, *_ = setup_test
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
@@ -246,7 +246,7 @@ async def test_generate_with_system_prompt_messages(
 
     want_txt = '[ECHO] system: "talk like pirate" user: "hi" model: "bye" user: "hi again"'
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         system='talk like pirate',
         prompt='hi again',
         messages=[
@@ -293,7 +293,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     def test_tool(input: ToolInput):
         return input.value
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='echoModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
@@ -377,7 +377,7 @@ async def test_generate_with_iterrupting_tools(
         )
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='programmableModel',
         prompt='hi',
         tools=['test_tool', 'test_interrupt'],
@@ -483,7 +483,7 @@ async def test_generate_with_interrupt_respond(
         )
     )
 
-    interrupted_response = await ai.agenerate(
+    interrupted_response = await ai.generate(
         model='programmableModel',
         prompt='hi',
         tools=['test_tool', 'test_interrupt'],
@@ -528,7 +528,7 @@ async def test_generate_with_interrupt_respond(
         ),
     ]
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='programmableModel',
         messages=interrupted_response.messages,
         tool_responses=[tool_response(interrupted_response.interrupts[0], {'bar': 2})],
@@ -610,7 +610,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         )
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='programmableModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
@@ -786,7 +786,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         ),
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='echoModel',
         prompt='hi',
         output_constrained=True,
@@ -854,7 +854,7 @@ async def test_generate_defaults_to_json_format(
         ),
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
@@ -913,7 +913,7 @@ async def test_generate_json_format_unconstrained(
         ),
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
@@ -960,7 +960,7 @@ async def test_generate_with_middleware(
 
     want = '[ECHO] user: "PRE hi" POST'
 
-    response = await ai.agenerate(model='echoModel', prompt='hi', use=[pre_middle, post_middle])
+    response = await ai.generate(model='echoModel', prompt='hi', use=[pre_middle, post_middle])
 
     assert response.text == want
 
@@ -991,7 +991,7 @@ async def test_generate_passes_through_current_action_context(
         )
 
     async def action_fn():
-        return await ai.agenerate(model='echoModel', prompt='hi', use=[inject_context])
+        return await ai.generate(model='echoModel', prompt='hi', use=[inject_context])
 
     action = ai.registry.register_action(name='test_action', kind='custom', fn=action_fn)
     action_response = await action.arun(context={'foo': 'bar'})
@@ -1021,7 +1021,7 @@ async def test_generate_uses_explicitly_passed_in_context(
         )
 
     async def action_fn():
-        return await ai.agenerate(
+        return await ai.generate(
             model='echoModel',
             prompt='hi',
             use=[inject_context],
@@ -1085,7 +1085,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         ),
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
@@ -1124,7 +1124,7 @@ async def test_generate_simulates_doc_grounding(
         ],
     )
 
-    response = await ai.agenerate(
+    response = await ai.generate(
         messages=[
             Message(
                 role=Role.USER,

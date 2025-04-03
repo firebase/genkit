@@ -1,4 +1,4 @@
-# genkit-ai
+# genkit
 
 Genkit is a framework designed to help you build AI-powered applications and features.
 It provides open source libraries for Python, Node.js and Go, plus developer tools for testing
@@ -11,7 +11,7 @@ you can use Genkit independently of any Google services.
 ## Setup Instructions
 
 ```bash
-pip install genkit-ai
+pip install genkit
 pip install genkit-plugin-google-genai
 ```
 
@@ -36,7 +36,7 @@ class RpgCharacter(BaseModel):
 
 @ai.flow()
 async def generate_character(name: str):
-    result = await ai.agenerate(
+    result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
         output_schema=RpgCharacter,
     )

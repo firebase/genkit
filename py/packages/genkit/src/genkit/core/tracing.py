@@ -28,6 +28,7 @@ The module includes:
 """
 
 import json
+import os
 import sys
 import traceback
 from collections.abc import Mapping, Sequence
@@ -47,6 +48,7 @@ from opentelemetry.util import types
 from pydantic import BaseModel
 
 from genkit.core.environment import is_dev_environment
+from genkit.core.error import GenkitError
 from genkit.core.typing import SpanMetadata
 
 ATTR_PREFIX = 'genkit'
@@ -115,12 +117,11 @@ class TelemetryServerSpanExporter(SpanExporter):
         telemetry_server_url: The URL of the telemetry server endpoint.
     """
 
-    def __init__(self, telemetry_server_url: str = 'http://localhost:4033/api/traces'):
+    def __init__(self, telemetry_server_url: str):
         """Initializes the TelemetryServerSpanExporter.
 
         Args:
             telemetry_server_url: The URL of the telemetry server's trace endpoint.
-                                  Defaults to 'http://localhost:4033/api/traces'.
         """
         self.telemetry_server_url = telemetry_server_url
 
@@ -147,7 +148,7 @@ class TelemetryServerSpanExporter(SpanExporter):
             # notification says.
             # TODO: replace this with aiohttp client.
             requests.post(
-                self.telemetry_server_url,
+                f'{self.telemetry_server_url}/api/traces',
                 data=json.dumps(extract_span_data(span)),
                 headers={
                     'Content-Type': 'application/json',
@@ -194,9 +195,12 @@ def convert_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
 
 if is_dev_environment():
     provider = TracerProvider()
+    telemetry_server_url = os.environ['GENKIT_TELEMETRY_SERVER']
+    if not telemetry_server_url:
+        raise GenkitError(status='INVALID_ARGUMENT', message='GENKIT_TELEMETRY_SERVER is not set')
     processor = SimpleSpanProcessor(
         TelemetryServerSpanExporter(
-            telemetry_server_url='http://localhost:4033/api/traces',
+            telemetry_server_url=telemetry_server_url,
         )
     )
     provider.add_span_processor(processor)

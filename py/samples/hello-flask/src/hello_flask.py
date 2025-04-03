@@ -41,7 +41,7 @@ async def my_context_provider(request):
 @genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
 async def say_hi(name: str, ctx):
-    return await ai.agenerate(
+    return await ai.generate(
         on_chunk=ctx.send_chunk,
         prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username")}',
     )

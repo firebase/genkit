@@ -51,20 +51,18 @@ See the following code samples for a concrete idea of how to use these capabilit
 
 === "Basic generation"
 
-    ```python
+    ```py
     import asyncio
-    import json
-    from pydantic import BaseModel, Field
     from genkit.ai import Genkit
-    from genkit.plugins.google_genai import GoogleGenai
+    from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
-        plugins=[GoogleGenai()],
-        model='google_genai/gemini-2.0-flash',
+        plugins=[GoogleAI()],
+        model='googleai/gemini-2.0-flash',
     )
 
     async def main():
-        result = await ai.agenerate(prompt=f'Why is AI awesome?')
+        result = await ai.generate(prompt=f'Why is AI awesome?')
         print(result.text)
 
         stream, _ = ai.generate_stream(prompt=f'Tell me a story')
@@ -76,16 +74,16 @@ See the following code samples for a concrete idea of how to use these capabilit
 
 === "Structured output"
 
-    ```python
+    ```py
     import asyncio
     import json
     from pydantic import BaseModel, Field
     from genkit.ai import Genkit
-    from genkit.plugins.google_genai import GoogleGenai
+    from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
-        plugins=[GoogleGenai()],
-        model='google_genai/gemini-2.0-flash',
+        plugins=[GoogleAI()],
+        model='googleai/gemini-2.0-flash',
     )
 
     class RpgCharacter(BaseModel):
@@ -96,11 +94,11 @@ See the following code samples for a concrete idea of how to use these capabilit
         abilities: list[str] = Field(description='list of abilities (3-4)')
 
     async def main():
-        result = await ai.agenerate(
+        result = await ai.generate(
             prompt=f'generate an RPG character named Glorb',
             output_schema=RpgCharacter,
         )
-        print(json.dumps(result.output)))
+        print(json.dumps(result.output))
 
     asyncio.run(main())
     ```
@@ -108,15 +106,32 @@ See the following code samples for a concrete idea of how to use these capabilit
 === "Tool calling"
 
     ```py
-    # TODO
+    import asyncio
+    from pydantic import BaseModel, Field
+    from genkit.ai import Genkit
+    from genkit.plugins.google_genai import GoogleAI
+
+    ai = Genkit(
+        plugins=[GoogleAI()],
+        model='googleai/gemini-2.0-flash',
+    )
+
+    class WeatherToolInput(BaseModel):
+        location: str = Field(description='weather location')
+
+    @ai.tool('Use it to get weather')
+    def get_weather(input:WeatherToolInput) -> str:
+        return f'Weather in {input.location} is 23°'
+
+    async def main():
+        result = await ai.generate(
+            prompt='What is the weather in London?',
+            tools=['get_weather']
+        )
+        print(result.text)
+
+    asyncio.run(main())
     ```
-
-=== "Data retrieval"
-
-    ```py
-    # TODO
-    ```
-
 
 ## Development tools
 
