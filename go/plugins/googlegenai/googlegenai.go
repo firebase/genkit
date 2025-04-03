@@ -283,7 +283,7 @@ func GoogleAIModelRef(name string, config *GeminiConfig) *ai.ModelRef {
 }
 
 // VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given name and configuration.
-func VertexAIModelRef(name string, config GeminiConfig) *ai.ModelRef {
+func VertexAIModelRef(name string, config *GeminiConfig) *ai.ModelRef {
 	return ai.NewModelRef(vertexAIProvider+"/"+name, config)
 }
 
