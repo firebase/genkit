@@ -29,23 +29,23 @@ type JSONLFormatter struct {
 }
 
 type jsonlHandler struct {
-	instructions string
-	output       *ModelOutputConfig
+	instruction string
+	output      *ModelOutputConfig
 }
 
-func (j JSONLFormatter) Name() string {
+func (j JSONLFormatter) name() string {
 	return j.FormatName
 }
 
-func (j jsonlHandler) Instructions() string {
-	return j.instructions
+func (j jsonlHandler) instructions() string {
+	return j.instruction
 }
 
-func (j jsonlHandler) Config() *ModelOutputConfig {
+func (j jsonlHandler) config() *ModelOutputConfig {
 	return j.output
 }
 
-func (j JSONLFormatter) Handler(schema map[string]any) FormatterHandler {
+func (j JSONLFormatter) handler(schema map[string]any) FormatterHandler {
 	var instructions string
 	if schema != nil && isJSONL(schema) {
 		jsonBytes, err := json.Marshal(schema["items"])
@@ -60,7 +60,7 @@ func (j JSONLFormatter) Handler(schema map[string]any) FormatterHandler {
 	}
 
 	handler := &jsonlHandler{
-		instructions: instructions,
+		instruction: instructions,
 		output: &ModelOutputConfig{
 			Format:      string(OutputFormatJSONL),
 			Schema:      schema,
@@ -72,7 +72,7 @@ func (j JSONLFormatter) Handler(schema map[string]any) FormatterHandler {
 	return handler
 }
 
-func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
+func (j jsonlHandler) parseMessage(m *Message) (*Message, error) {
 	if j.output != nil && j.output.Format == string(OutputFormatJSONL) {
 		if m == nil {
 			return nil, errors.New("message is empty")

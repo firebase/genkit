@@ -38,21 +38,21 @@ var DEFAULT_FORMATS = []Formatter{
 
 // Formatter represents the Formatter interface.
 type Formatter interface {
-	Name() string
-	Handler(schema map[string]any) FormatterHandler
+	name() string
+	handler(schema map[string]any) FormatterHandler
 }
 
 // FormatterHandler represents the handler part of the Formatter interface.
 type FormatterHandler interface {
-	ParseMessage(message *Message) (*Message, error)
-	Instructions() string
-	Config() *ModelOutputConfig
+	parseMessage(message *Message) (*Message, error)
+	instructions() string
+	config() *ModelOutputConfig
 }
 
 // ConfigureFormats registers default formats in the registry
 func ConfigureFormats(reg *registry.Registry) {
 	for _, format := range DEFAULT_FORMATS {
-		defineFormatter(reg, fmt.Sprintf("/format/%s", format.Name()), format)
+		defineFormatter(reg, fmt.Sprintf("/format/%s", format.name()), format)
 	}
 }
 
@@ -97,8 +97,8 @@ func resolveInstructions(format Formatter, schema map[string]any, instructions *
 		return *instructions // User provided instructions
 	}
 
-	result := format.Handler(schema)
-	return result.Instructions()
+	result := format.handler(schema)
+	return result.instructions()
 }
 
 // shouldInjectFormatInstructions checks GenerateActionOutputConfig and override instruction to determine whether to inject format instructions.

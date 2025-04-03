@@ -28,23 +28,23 @@ type JSONFormatter struct {
 }
 
 type jsonHandler struct {
-	instructions string
-	output       *ModelOutputConfig
+	instruction string
+	output      *ModelOutputConfig
 }
 
-func (j JSONFormatter) Name() string {
+func (j JSONFormatter) name() string {
 	return j.FormatName
 }
 
-func (j jsonHandler) Instructions() string {
-	return j.instructions
+func (j jsonHandler) instructions() string {
+	return j.instruction
 }
 
-func (j jsonHandler) Config() *ModelOutputConfig {
+func (j jsonHandler) config() *ModelOutputConfig {
 	return j.output
 }
 
-func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
+func (j JSONFormatter) handler(schema map[string]any) FormatterHandler {
 	var instructions string
 	if schema != nil {
 		jsonBytes, err := json.Marshal(schema)
@@ -57,7 +57,7 @@ func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
 	}
 
 	handler := &jsonHandler{
-		instructions: instructions,
+		instruction: instructions,
 		output: &ModelOutputConfig{
 			Format:      string(OutputFormatJSON),
 			Schema:      schema,
@@ -69,7 +69,7 @@ func (j JSONFormatter) Handler(schema map[string]any) FormatterHandler {
 	return handler
 }
 
-func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
+func (j jsonHandler) parseMessage(m *Message) (*Message, error) {
 	if j.output != nil && j.output.Format == string(OutputFormatJSON) {
 		if m == nil {
 			return nil, errors.New("message is empty")

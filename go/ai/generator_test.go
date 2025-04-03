@@ -704,5 +704,5 @@ func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 		return nil, err
 	}
 
-	return resolvedFormat.Handler(output.Schema).ParseMessage(m)
+	return resolvedFormat.handler(output.Schema).parseMessage(m)
 }

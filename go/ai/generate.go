@@ -211,17 +211,12 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 		// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
 		iInstructions := resolveInstructions(resolvedFormat, opts.Output.JsonSchema, opts.Output.Instructions)
-		config = resolvedFormat.Handler(opts.Output.JsonSchema).Config()
+		config = resolvedFormat.handler(opts.Output.JsonSchema).config()
 
 		// Allow override constraint
 		if opts.Output.Constrained != nil {
 			config.Constrained = *opts.Output.Constrained
 		}
-
-		// Allow override instructions
-		// if opts.Output.Instructions != nil {
-		// 	config.Instructions = *opts.Output.Instructions
-		// }
 
 		// Override request
 		if shouldInjectFormatInstructions(config, opts.Output.Instructions) {
@@ -252,7 +247,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			if err != nil {
 				return nil, err
 			}
-			resp.Message, err = resolvedFormat.Handler(req.Output.Schema).ParseMessage(resp.Message)
+			resp.Message, err = resolvedFormat.handler(req.Output.Schema).parseMessage(resp.Message)
 			if err != nil {
 				logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
 				return nil, errors.New("generation did not result in a message matching expected schema")
