@@ -46,6 +46,12 @@ func main() {
 			return "", errors.New("imageFlow: failed to find model")
 		}
 
+		if input == "" {
+			input = `A little blue gopher with big eyes trying to learn Python,
+				use a cartoon style, the story should be tragic because he
+				chose the wrong programming language, the proper programing
+				language for a gopher should be Go`
+		}
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
@@ -55,18 +61,27 @@ func main() {
 					googlegenai.TextMode,
 				},
 			}),
-			ai.WithPromptText(fmt.Sprintf(`Generate images about %s`, input)))
+			ai.WithPromptText(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
 		if err != nil {
 			return "", err
 		}
 
-		text := resp.Text()
-		err = base64toFile(text, "out.png")
+		story := ""
+		scene := 0
+		for _, p := range resp.Message.Content {
+			if p.IsMedia() {
+				scene += 1
+				err = base64toFile(p.Text, fmt.Sprintf("out_%d.png", scene))
+			}
+			if p.IsText() {
+				story += p.Text
+			}
+		}
 		if err != nil {
 			return "", err
 		}
 
-		return text, nil
+		return story, nil
 	})
 
 	<-ctx.Done()
