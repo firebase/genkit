@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
@@ -31,16 +30,15 @@ func (j jsonFormatter) Name() string {
 }
 
 // Handler returns a new formatter handler for the given schema.
-func (j jsonFormatter) Handler(schema map[string]any) FormatHandler {
+func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	var instructions string
 	if schema != nil {
 		jsonBytes, err := json.Marshal(schema)
 		if err != nil {
-			panic(fmt.Sprintf("error marshalling schema to JSON: %v", err))
-		} else {
-			escapedJSON := strconv.Quote(string(jsonBytes))
-			instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON)
+			return nil, fmt.Errorf("error marshalling schema to JSON: %w", err)
 		}
+
+		instructions = fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", string(jsonBytes))
 	}
 
 	handler := &jsonHandler{
@@ -53,7 +51,7 @@ func (j jsonFormatter) Handler(schema map[string]any) FormatHandler {
 		},
 	}
 
-	return handler
+	return handler, nil
 }
 
 // jsonHandler is a handler for the JSON formatter.

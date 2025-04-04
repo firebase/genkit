@@ -285,7 +285,6 @@ class OutputConfig(BaseModel):
     format: str | None = None
     schema_: dict[str, Any] | None = Field(None, alias='schema')
     constrained: bool | None = None
-    instructions: str | None = None
     content_type: str | None = Field(None, alias='contentType')
 
 

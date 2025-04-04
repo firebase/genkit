@@ -204,13 +204,17 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		if err != nil {
 			return nil, err
 		}
-		formatHandler = formatter.Handler(opts.Output.JsonSchema)
+
+		formatHandler, err = formatter.Handler(opts.Output.JsonSchema)
+		if err != nil {
+			return nil, err
+		}
 		outputCfg = formatHandler.Config()
 
-		// The formatter's ModelOutputConfig.Constrained indicates if native constrained output
-		// is required, while GenerateActionOutputConfig.Constrained represents the user's
-		// preference for using native constraints, and model.SupportsConstrained() indicates
-		// if the model supports native constraints.
+		// Native constrained output is enabled only when all three conditions are met:
+		// 1. The formatter requires it (ModelOutputConfig.Constrained)
+		// 2. The user has requested it (GenerateActionOutputConfig.Constrained)
+		// 3. The model supports it (model.SupportsConstrained())
 		outputCfg.Constrained = outputCfg.Constrained &&
 			opts.Output.Constrained && model.SupportsConstrained()
 

@@ -704,5 +704,10 @@ func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 		return nil, err
 	}
 
-	return resolvedFormat.Handler(output.Schema).ParseMessage(m)
+	handler, err := resolvedFormat.Handler(output.Schema)
+	if err != nil {
+		return nil, err
+	}
+
+	return handler.ParseMessage(m)
 }

@@ -284,11 +284,10 @@ type ModelResponseChunk struct {
 // should conform to. If Format is [OutputFormatJSON], then Schema
 // can describe the desired form of the generated JSON.
 type ModelOutputConfig struct {
-	Constrained  bool           `json:"constrained,omitempty"`
-	ContentType  string         `json:"contentType,omitempty"`
-	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
-	Schema       map[string]any `json:"schema,omitempty"`
+	Constrained bool           `json:"constrained,omitempty"`
+	ContentType string         `json:"contentType,omitempty"`
+	Format      string         `json:"format,omitempty"`
+	Schema      map[string]any `json:"schema,omitempty"`
 }
 
 type PathMetadata struct {

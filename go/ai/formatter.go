@@ -39,7 +39,7 @@ type Formatter interface {
 	// Name returns the name of the formatter.
 	Name() string
 	// Handler returns the handler for the formatter.
-	Handler(schema map[string]any) FormatHandler
+	Handler(schema map[string]any) (FormatHandler, error)
 }
 
 // FormatHandler represents the handler part of the Formatter interface.

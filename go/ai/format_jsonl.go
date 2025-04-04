@@ -31,21 +31,21 @@ func (j jsonlFormatter) Name() string {
 }
 
 // Handler returns a new formatter handler for the given schema.
-func (j jsonlFormatter) Handler(schema map[string]any) FormatHandler {
-	var instructions string
-	if schema != nil && base.ValidateIsJSONArray(schema) {
-		jsonBytes, err := json.Marshal(schema["items"])
-		if err != nil {
-			panic(fmt.Sprintf("error marshalling schema to JSONL: %v", err))
-		}
-		instructions = fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
-	} else {
-		panic(fmt.Sprint("schema is not valid JSONL"))
+func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
+	if schema == nil || !base.ValidateIsJSONArray(schema) {
+		return nil, fmt.Errorf("schema is not valid JSONL")
 	}
 
+	jsonBytes, err := json.Marshal(schema["items"])
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling schema to JSONL: %w", err)
+	}
+
+	instructions := fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
+
 	handler := &jsonlHandler{
-		instruction: instructions,
-		output: &ModelOutputConfig{
+		instructions: instructions,
+		config: &ModelOutputConfig{
 			Format:      OutputFormatJSONL,
 			Schema:      schema,
 			Constrained: true,
@@ -53,27 +53,27 @@ func (j jsonlFormatter) Handler(schema map[string]any) FormatHandler {
 		},
 	}
 
-	return handler
+	return handler, nil
 }
 
 type jsonlHandler struct {
-	instruction string
-	output      *ModelOutputConfig
+	instructions string
+	config       *ModelOutputConfig
 }
 
 // Instructions returns the instructions for the formatter.
 func (j jsonlHandler) Instructions() string {
-	return j.instruction
+	return j.instructions
 }
 
 // Config returns the output config for the formatter.
 func (j jsonlHandler) Config() *ModelOutputConfig {
-	return j.output
+	return j.config
 }
 
 // ParseMessage parses the message and returns the formatted message.
 func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.output != nil && j.output.Format == OutputFormatJSONL {
+	if j.config != nil && j.config.Format == OutputFormatJSONL {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -90,7 +90,7 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 				for _, line := range lines {
 
 					var schemaBytes []byte
-					schemaBytes, err := json.Marshal(j.output.Schema["items"])
+					schemaBytes, err := json.Marshal(j.config.Schema["items"])
 					if err != nil {
 						return nil, fmt.Errorf("expected schema is not valid: %w", err)
 					}

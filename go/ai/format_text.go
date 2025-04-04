@@ -22,29 +22,29 @@ func (t textFormatter) Name() string {
 }
 
 // Handler returns a new formatter handler for the given schema.
-func (t textFormatter) Handler(schema map[string]any) FormatHandler {
+func (t textFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	handler := &textHandler{
-		output: &ModelOutputConfig{
+		config: &ModelOutputConfig{
 			ContentType: "text/plain",
 		},
 	}
 
-	return handler
+	return handler, nil
 }
 
 type textHandler struct {
-	instruction string
-	output      *ModelOutputConfig
+	instructions string
+	config       *ModelOutputConfig
 }
 
 // Config returns the output config for the formatter.
 func (t textHandler) Config() *ModelOutputConfig {
-	return t.output
+	return t.config
 }
 
 // Instructions returns the instructions for the formatter.
 func (t textHandler) Instructions() string {
-	return t.instruction
+	return t.instructions
 }
 
 // ParseMessage parses the message and returns the formatted message.

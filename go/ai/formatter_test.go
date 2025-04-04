@@ -477,8 +477,12 @@ func TestHandlers(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				instructions := format.Handler(tt.schema).Instructions()
-				config := format.Handler(tt.schema).Config()
+				handler, err := format.Handler(tt.schema)
+				if err != nil {
+					t.Fatalf("Handler() error = %v", err)
+				}
+				instructions := handler.Instructions()
+				config := handler.Config()
 
 				if diff := cmp.Diff(tt.instructions, instructions); diff != "" {
 					t.Errorf("Instructions diff (+got -want):\n%s", diff)
@@ -569,7 +573,11 @@ func TestJsonParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			formatter := jsonFormatter{}
-			message, err := formatter.Handler(tt.schema).ParseMessage(tt.response)
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
@@ -631,7 +639,11 @@ func TestTextParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			formatter := textFormatter{}
-			message, err := formatter.Handler(nil).ParseMessage(tt.response)
+			handler, err := formatter.Handler(nil)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
@@ -743,7 +755,12 @@ func TestJsonlParser(t *testing.T) {
 					t.Log("Test passed, panic was caught!")
 				}
 			}()
-			message, err := formatter.Handler(tt.schema).ParseMessage(tt.response)
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+
+			message, err := handler.ParseMessage(tt.response)
 			if err != nil {
 				t.Errorf("Parse failed")
 			}
