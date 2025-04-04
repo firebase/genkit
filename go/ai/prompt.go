@@ -50,7 +50,6 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 			return nil, err
 		}
 	}
-	// Apply Model config if no Prompt config.
 	modelArg := pOpts.Model
 	if modelRef, ok := modelArg.(ModelRef); ok {
 		if pOpts.Config == nil {
@@ -74,7 +73,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 
 	var tools []string
 	for _, value := range pOpts.commonOptions.Tools {
-		tools = append(tools, fmt.Sprintf("local/%s", value.Name()))
+		tools = append(tools, fmt.Sprintf("%s/%s", toolProvider, value.Name()))
 	}
 
 	promptMeta := map[string]any{
@@ -89,7 +88,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, provider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, toolProvider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p, nil
 }
@@ -173,7 +172,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 
 	actionOpts.Output = &GenerateActionOutputConfig{
 		JsonSchema:   p.OutputSchema,
-		Format:       string(p.OutputFormat),
+		Format:       p.OutputFormat,
 		Instructions: p.OutputInstructions,
 		Constrained:  !p.CustomConstrained,
 	}
@@ -554,22 +553,18 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	promptMetadata := map[string]any{
 		"template": parsedPrompt.Template,
 	}
-	for k, v := range metadata.Metadata {
-		promptMetadata[k] = v
-	}
+	maps.Copy(promptMetadata, metadata.Metadata)
 
 	promptOptMetadata := map[string]any{
 		"type":   "prompt",
 		"prompt": promptMetadata,
 	}
-	for k, v := range metadata.Metadata {
-		promptOptMetadata[k] = v
-	}
+	maps.Copy(promptOptMetadata, metadata.Metadata)
 
 	opts := &promptOptions{
 		commonOptions: commonOptions{
 			ModelName: metadata.Model,
-			Config:    metadata.Config,
+			Config:    (map[string]any)(metadata.Config),
 			Tools:     toolRefs,
 		},
 		DefaultInput: metadata.Input.Default,
