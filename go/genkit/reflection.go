@@ -19,7 +19,6 @@ package genkit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -250,26 +249,9 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 		w.Header().Set("x-genkit-version", "go/"+internal.Version)
 
 		if err = h(w, r); err != nil {
-			var traceID string
-			statusCode := http.StatusInternalServerError
-			if herr, ok := err.(*base.HTTPError); ok {
-				traceID = herr.TraceID
-				statusCode = herr.Code
-			}
-
-			genkitErr := &ai.GenkitError{
-				Message: err.Error(),
-				Details: struct {
-					TraceID string `json:"traceId"`
-					Stack   string `json:"stack"`
-				}{
-					TraceID: traceID,
-					Stack:   "", // TODO: Propagate stack trace from local error.
-				},
-			}
-
-			w.WriteHeader(statusCode)
-			writeJSON(ctx, w, genkitErr)
+			errorResponse := core.GetReflectionJSON(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			writeJSON(ctx, w, errorResponse)
 		}
 	}
 }
@@ -421,12 +403,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		var herr *base.HTTPError
-		if errors.As(err, &herr) {
-			herr.TraceID = traceID
-			return nil, herr
-		}
-		return nil, &base.HTTPError{Code: http.StatusInternalServerError, Err: err, TraceID: traceID}
+		return nil, core.NewGenkitError("", core.INTERNAL, err, nil, &traceID, nil)
 	}
 
 	return &runActionResponse{

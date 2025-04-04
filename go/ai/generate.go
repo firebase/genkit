@@ -193,7 +193,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	maxTurns := opts.MaxTurns
 	if maxTurns < 0 {
-		return nil, fmt.Errorf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns)
+		return nil, core.NewUserFacingError(core.ABORTED, fmt.Sprintf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns), nil)
 	}
 	if maxTurns == 0 {
 		maxTurns = 5 // Default max turns.
