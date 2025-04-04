@@ -43,7 +43,7 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 	handler := &jsonHandler{
 		instructions: instructions,
-		config: &ModelOutputConfig{
+		config: ModelOutputConfig{
 			Format:      OutputFormatJSON,
 			Schema:      schema,
 			ContentType: "application/json",
@@ -56,7 +56,7 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 // jsonHandler is a handler for the JSON formatter.
 type jsonHandler struct {
 	instructions string
-	config       *ModelOutputConfig
+	config       ModelOutputConfig
 }
 
 // Instructions returns the instructions for the formatter.
@@ -65,13 +65,13 @@ func (j jsonHandler) Instructions() string {
 }
 
 // Config returns the output config for the formatter.
-func (j jsonHandler) Config() *ModelOutputConfig {
+func (j jsonHandler) Config() ModelOutputConfig {
 	return j.config
 }
 
 // ParseMessage parses the message and returns the formatted message.
 func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.config != nil && j.config.Format == OutputFormatJSON {
+	if j.config.Format == OutputFormatJSON {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -98,5 +98,6 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 			m.Content[i] = NewJSONPart(text)
 		}
 	}
+
 	return m, nil
 }

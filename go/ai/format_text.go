@@ -24,7 +24,7 @@ func (t textFormatter) Name() string {
 // Handler returns a new formatter handler for the given schema.
 func (t textFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	handler := &textHandler{
-		config: &ModelOutputConfig{
+		config: ModelOutputConfig{
 			ContentType: "text/plain",
 		},
 	}
@@ -34,11 +34,11 @@ func (t textFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 type textHandler struct {
 	instructions string
-	config       *ModelOutputConfig
+	config       ModelOutputConfig
 }
 
 // Config returns the output config for the formatter.
-func (t textHandler) Config() *ModelOutputConfig {
+func (t textHandler) Config() ModelOutputConfig {
 	return t.config
 }
 

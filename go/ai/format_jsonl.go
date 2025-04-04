@@ -45,7 +45,7 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 	handler := &jsonlHandler{
 		instructions: instructions,
-		config: &ModelOutputConfig{
+		config: ModelOutputConfig{
 			Format:      OutputFormatJSONL,
 			Schema:      schema,
 			ContentType: "application/jsonl",
@@ -57,7 +57,7 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 
 type jsonlHandler struct {
 	instructions string
-	config       *ModelOutputConfig
+	config       ModelOutputConfig
 }
 
 // Instructions returns the instructions for the formatter.
@@ -66,13 +66,13 @@ func (j jsonlHandler) Instructions() string {
 }
 
 // Config returns the output config for the formatter.
-func (j jsonlHandler) Config() *ModelOutputConfig {
+func (j jsonlHandler) Config() ModelOutputConfig {
 	return j.config
 }
 
 // ParseMessage parses the message and returns the formatted message.
 func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.config != nil && j.config.Format == OutputFormatJSONL {
+	if j.config.Format == OutputFormatJSONL {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}

@@ -218,7 +218,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var outputCfg *ModelOutputConfig
+	var outputCfg ModelOutputConfig
 	var formatHandler FormatHandler
 
 	if opts.Output != nil {
@@ -262,7 +262,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Docs:       opts.Docs,
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
-		Output:     outputCfg,
+		Output:     &outputCfg,
 	}
 
 	fn := core.ChainMiddleware(mw...)(m.Generate)
@@ -277,8 +277,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		if formatHandler != nil {
 			resp.Message, err = formatHandler.ParseMessage(resp.Message)
 			if err != nil {
-				logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
-				return nil, errors.New("generation did not result in a message matching expected schema")
+				logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
+				return nil, fmt.Errorf("model failed to generate output matching expected schema: %w", err)
 			}
 		}
 
