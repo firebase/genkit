@@ -74,7 +74,8 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
-func convertConfigSchemaToMap(config any) map[string]any {
+// configToMap converts a config struct to a map[string]any.
+func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
 		ExpandedStruct: true, // Include all fields directly
@@ -84,6 +85,7 @@ func convertConfigSchemaToMap(config any) map[string]any {
 	return result
 }
 
+// mapToStruct unmarshals a map[string]any to the expected config type.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -92,7 +94,8 @@ func mapToStruct(m map[string]any, v any) error {
 	return json.Unmarshal(jsonData, v)
 }
 
-func convertSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
+// toGeminiSafetySettings converts a list of [SafetySetting] to a list of [genai.SafetySetting].
+func toGeminiSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
 	if len(settings) == 0 {
 		return nil
 	}
@@ -169,44 +172,43 @@ type SafetySetting struct {
 
 // GeminiConfig mirrors GenerateContentConfig without direct genai dependency
 type GeminiConfig struct {
-	ai.GenerationCommonConfig
-
-	// Safety settings
+	// MaxOutputTokens is the maximum number of tokens to generate.
+	MaxOutputTokens int `json:"maxOutputTokens,omitempty"`
+	// StopSequences is the list of sequences where the model will stop generating further tokens.
+	StopSequences []string `json:"stopSequences,omitempty"`
+	// Temperature is the temperature to use for the model.
+	Temperature float64 `json:"temperature,omitempty"`
+	// TopK is the number of top tokens to consider for the model.
+	TopK int `json:"topK,omitempty"`
+	// TopP is the top-p value to use for the model.
+	TopP float64 `json:"topP,omitempty"`
+	// Version is the version of the model to use.
+	Version string `json:"version,omitempty"`
+	// SafetySettings is the list of safety settings to use for the model.
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
 }
 
-// extractConfigFromInput converts any supported config type to GoogleAIConfig
-func extractConfigFromInput(input *ai.ModelRequest) (*GeminiConfig, error) {
+// configFromRequest converts any supported config type to [GeminiConfig].
+func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
 	var result GeminiConfig
+
 	switch config := input.Config.(type) {
 	case GeminiConfig:
-		return &config, nil
+		result = config
 	case *GeminiConfig:
-		return config, nil
-	case ai.GenerationCommonConfig:
-		return &GeminiConfig{
-			GenerationCommonConfig: config,
-		}, nil
-	case *ai.GenerationCommonConfig:
-		if config == nil {
-			return &result, nil
-		}
-		return &GeminiConfig{
-			GenerationCommonConfig: *config,
-		}, nil
+		result = *config
 	case map[string]any:
-		// // TODO: FYI Using map[string]any for config may silently ignore unknown parameters, may want to handle explicitly
-		if err := mapToStruct(config, &result); err == nil {
-			return &result, nil
-		} else {
+		// TODO: Log warnings if unknown parameters are found.
+		if err := mapToStruct(config, &result); err != nil {
 			return nil, err
 		}
 	case nil:
 		// Empty but valid config
-		return &result, nil
 	default:
 		return nil, fmt.Errorf("unexpected config type: %T", input.Config)
 	}
+
+	return &result, nil
 }
 
 // DefineModel defines a model in the registry
@@ -220,7 +222,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		Label:        info.Label,
 		Supports:     info.Supports,
 		Versions:     info.Versions,
-		ConfigSchema: convertConfigSchemaToMap(&GeminiConfig{}),
+		ConfigSchema: configToMap(&GeminiConfig{}),
 	}
 
 	fn := func(
@@ -274,7 +276,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		}
 
 		for _, doc := range input.Documents {
-			parts, err := convertParts(doc.Content)
+			parts, err := toGeminiParts(doc.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -305,7 +307,7 @@ func generate(
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
 	// Extract configuration to get the model version
-	config, err := extractConfigFromInput(input)
+	config, err := configFromRequest(input)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +322,7 @@ func generate(
 		return nil, err
 	}
 
-	gc, err := convertRequest(client, input, cache)
+	gcc, err := convertRequest(input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -334,11 +336,11 @@ func generate(
 
 		content := m.Content
 		// gc.ResponseSchema should only be set when constrained generation requirements are met
-		if gc.ResponseSchema != nil {
+		if gcc.ResponseSchema != nil {
 			content = removeOutputPart(m.Content)
 		}
 
-		parts, err := convertParts(content)
+		parts, err := toGeminiParts(content)
 		if err != nil {
 			return nil, err
 		}
@@ -351,7 +353,7 @@ func generate(
 
 	// Send out the actual request.
 	if cb == nil {
-		resp, err := client.Models.GenerateContent(ctx, model, contents, gc)
+		resp, err := client.Models.GenerateContent(ctx, model, contents, gcc)
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +366,7 @@ func generate(
 	}
 
 	// Streaming version.
-	iter := client.Models.GenerateContentStream(ctx, model, contents, gc)
+	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
 	var r *ai.ModelResponse
 
 	// merge all streamed responses
@@ -430,31 +432,34 @@ func removeOutputPart(content []*ai.Part) []*ai.Part {
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
-	gc := genai.GenerateContentConfig{}
-	gc.CandidateCount = genai.Ptr[int32](1)
-	c, err := extractConfigFromInput(input)
+func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+	gcc := genai.GenerateContentConfig{
+		CandidateCount: genai.Ptr[int32](1),
+	}
+
+	c, err := configFromRequest(input)
 	if err != nil {
 		return nil, err
 	}
+
 	// Convert standard fields
 	if c.MaxOutputTokens != 0 {
-		gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
+		gcc.MaxOutputTokens = genai.Ptr(int32(c.MaxOutputTokens))
 	}
 	if len(c.StopSequences) > 0 {
-		gc.StopSequences = c.StopSequences
+		gcc.StopSequences = c.StopSequences
 	}
 	if c.Temperature != 0 {
-		gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
+		gcc.Temperature = genai.Ptr(float32(c.Temperature))
 	}
 	if c.TopK != 0 {
-		gc.TopK = genai.Ptr[float32](float32(c.TopK))
+		gcc.TopK = genai.Ptr(float32(c.TopK))
 	}
 	if c.TopP != 0 {
-		gc.TopP = genai.Ptr[float32](float32(c.TopP))
+		gcc.TopP = genai.Ptr(float32(c.TopP))
 	}
 	// Convert non-primitive fields
-	gc.SafetySettings = convertSafetySettings(c.SafetySettings)
+	gcc.SafetySettings = toGeminiSafetySettings(c.SafetySettings)
 
 	// Set response MIME type based on output format if specified
 	hasOutput := input.Output != nil
@@ -462,30 +467,38 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
 	jsonMode := isJsonFormat || (isJsonContentType && len(input.Tools) == 0)
 	if jsonMode {
-		gc.ResponseMIMEType = "application/json"
+		gcc.ResponseMIMEType = "application/json"
+	}
+
+	if input.Output.Constrained {
+		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
+		if err != nil {
+			return nil, err
+		}
+		gcc.ResponseSchema = schema
 	}
 
 	// Add tool configuration from input.Tools and input.ToolChoice directly
 	// This overrides any functionCallingConfig in the passed config
 	if len(input.Tools) > 0 {
 		// First convert the tools
-		tools, err := convertTools(input.Tools)
+		tools, err := toGeminiTools(input.Tools)
 		if err != nil {
 			return nil, err
 		}
-		gc.Tools = tools
+		gcc.Tools = tools
 
 		// Then set up the tool configuration based on ToolChoice
 		tc := convertToolChoice(input.ToolChoice, input.Tools)
 		if tc != nil {
-			gc.ToolConfig = tc
+			gcc.ToolConfig = tc
 		}
 	}
 
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
-			parts, err := convertParts(m.Content)
+			parts, err := toGeminiParts(m.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -494,39 +507,24 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 	}
 
 	if len(systemParts) > 0 {
-		gc.SystemInstruction = &genai.Content{
+		gcc.SystemInstruction = &genai.Content{
 			Parts: systemParts,
 			Role:  string(ai.RoleSystem),
 		}
 	}
 
 	if cache != nil {
-		gc.CachedContent = cache.Name
+		gcc.CachedContent = cache.Name
 	}
 
-	// constrained generation should be avoided if Tools are defined
-	if input.Output.Constrained && len(gc.Tools) == 0 {
-		gc.ResponseMIMEType = "application/json"
-		schema, err := convertSchema(input.Output.Schema, input.Output.Schema)
-		if err != nil {
-			return nil, err
-		}
-		gc.ResponseSchema = schema
-	}
-
-	if input.Output.Format == string(ai.OutputFormatJSON) && len(input.Output.Schema) == 0 {
-		gc.ResponseMIMEType = "application/json"
-		return &gc, nil
-	}
-
-	return &gc, nil
+	return &gcc, nil
 }
 
-// convertTools translates an [*ai.ToolDefinition] to a *genai.Tool
-func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
+// toGeminiTools translates a slice of [ai.ToolDefinition] to a slice of [genai.Tool].
+func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
-		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
+		inputSchema, err := toGeminiSchema(t.InputSchema, t.InputSchema)
 		if err != nil {
 			return nil, err
 		}
@@ -540,7 +538,9 @@ func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	return outTools, nil
 }
 
-func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
+// toGeminiSchema translates a map representing a standard JSON schema to a more
+// limited [genai.Schema].
+func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
 	// this covers genkitSchema == nil and {}
 	// genkitSchema will be {} if it's any
 	if len(genkitSchema) == 0 {
@@ -548,7 +548,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 	}
 	if v, ok := genkitSchema["$ref"]; ok {
 		ref := v.(string)
-		return convertSchema(originalSchema, resolveRef(originalSchema, ref))
+		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
 	}
 	schema := &genai.Schema{}
 
@@ -617,7 +617,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 		schema.Enum = castToStringArray(v.([]any))
 	}
 	if v, ok := genkitSchema["items"]; ok {
-		items, err := convertSchema(originalSchema, v.(map[string]any))
+		items, err := toGeminiSchema(originalSchema, v.(map[string]any))
 		if err != nil {
 			return nil, err
 		}
@@ -626,7 +626,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 	if val, ok := genkitSchema["properties"]; ok {
 		props := map[string]*genai.Schema{}
 		for k, v := range val.(map[string]any) {
-			p, err := convertSchema(originalSchema, v.(map[string]any))
+			p, err := toGeminiSchema(originalSchema, v.(map[string]any))
 			if err != nil {
 				return nil, err
 			}
@@ -750,11 +750,11 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	return r
 }
 
-// convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertParts(parts []*ai.Part) ([]*genai.Part, error) {
+// toGeminiParts converts a slice of [ai.Part] to a slice of [genai.Part].
+func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 	res := make([]*genai.Part, 0, len(parts))
 	for _, p := range parts {
-		part, err := convertPart(p)
+		part, err := toGeminiPart(p)
 		if err != nil {
 			return nil, err
 		}
@@ -763,8 +763,8 @@ func convertParts(parts []*ai.Part) ([]*genai.Part, error) {
 	return res, nil
 }
 
-// convertPart converts a *ai.Part to a genai.Part.
-func convertPart(p *ai.Part) (*genai.Part, error) {
+// toGeminiPart converts a [ai.Part] to a [genai.Part].
+func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil

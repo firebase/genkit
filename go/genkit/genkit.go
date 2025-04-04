@@ -846,3 +846,41 @@ func DefinePartial(g *Genkit, name string, source string) error {
 func DefineHelper(g *Genkit, name string, fn any) error {
 	return g.reg.DefineHelper(name, fn)
 }
+
+// DefineFormat defines a new [ai.Formatter] and registers it in the registry.
+// Formatters control how model responses are structured and parsed.
+//
+// Formatters can be used with [ai.WithOutputFormat] to inject specific formatting
+// instructions into prompts and automatically format the model response according
+// to the desired output structure.
+//
+// Built-in formatters include:
+//   - "text": Plain text output (default if no format specified)
+//   - "json": Structured JSON output (default when an output schema is provided)
+//   - "jsonl": JSON Lines format for streaming structured data
+//
+// Example:
+//
+//	// Define a custom formatter
+//	type csvFormatter struct{}
+//	func (f csvFormatter) Name() string { return "csv" }
+//	func (f csvFormatter) Handler(schema map[string]any) (ai.FormatHandler, error) {
+//		// Implementation details...
+//	}
+//
+//	// Register the formatter
+//	genkit.DefineFormat(g, "csv", csvFormatter{})
+//
+//	// Use the formatter in a generation request
+//	resp, err := genkit.Generate(ctx, g,
+//		ai.WithPromptText("List 3 countries and their capitals"),
+//		ai.WithOutputFormat("csv"), // Use the custom formatter
+//	)
+func DefineFormat(g *Genkit, name string, formatter ai.Formatter) {
+	ai.DefineFormat(g.reg, name, formatter)
+}
+
+// IsDefinedFormat checks if a formatter with the given name is registered in the registry.
+func IsDefinedFormat(g *Genkit, name string) bool {
+	return g.reg.LookupValue("/format/"+name) != nil
+}
