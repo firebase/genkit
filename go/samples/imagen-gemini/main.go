@@ -58,7 +58,7 @@ func main() {
 				Temperature: 0.5,
 				ResponseModalities: []googlegenai.Modality{
 					googlegenai.ImageMode,
-					// googlegenai.TextMode,
+					googlegenai.TextMode,
 				},
 			}),
 			ai.WithPromptText(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
