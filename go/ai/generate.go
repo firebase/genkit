@@ -56,11 +56,8 @@ type (
 	// ModelMiddleware is middleware for model generate requests that takes in a ModelFunc, does something, then returns another ModelFunc.
 	ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-	// ModelAction is the type for model generation actions.
-	ModelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
-
-	// modelActionDef is an action with functions specific to model generation such as Generate().
-	modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+	// model is an action with functions specific to model generation such as Generate().
+	model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 	// generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 	generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
@@ -114,17 +111,14 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		metadata["label"] = info.Label
 	}
 
-	// Create the middleware list
-	middlewares := []ModelMiddleware{
+	mws := []ModelMiddleware{
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
-		simulateConstrainedGeneration(name, info),
 	}
+	fn = core.ChainMiddleware(mws...)(fn)
 
-	fn = core.ChainMiddleware(middlewares...)(fn)
-
-	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
+	return (*model)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
@@ -134,7 +128,7 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 	if action == nil {
 		return nil
 	}
-	return (*modelActionDef)(action)
+	return (*model)(action)
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
@@ -170,10 +164,11 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 	}
 
-	model, err := LookupModelByName(r, opts.Model)
+	m, err := LookupModelByName(r, opts.Model)
 	if err != nil {
 		return nil, err
 	}
+	model, _ := m.(*model)
 
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
@@ -201,26 +196,36 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		maxTurns = 5 // Default max turns.
 	}
 
-	var config *ModelOutputConfig
+	var outputCfg *ModelOutputConfig
+	var formatHandler FormatHandler
+
 	if opts.Output != nil {
-		// Find the correct formatter
-		resolvedFormat, err := resolveFormat(r, opts.Output.JsonSchema, string(opts.Output.Format))
+		formatter, err := resolveFormat(r, opts.Output.JsonSchema, opts.Output.Format)
 		if err != nil {
 			return nil, err
 		}
+		formatHandler = formatter.Handler(opts.Output.JsonSchema)
+		outputCfg = formatHandler.Config()
 
-		// Resolve instructions and config based on format. Instructions set in output will overrule formatter.
-		iInstructions := resolveInstructions(resolvedFormat, opts.Output.JsonSchema, opts.Output.Instructions)
-		config = resolvedFormat.handler(opts.Output.JsonSchema).config()
+		// The formatter's ModelOutputConfig.Constrained indicates if native constrained output
+		// is required, while GenerateActionOutputConfig.Constrained represents the user's
+		// preference for using native constraints, and model.SupportsConstrained() indicates
+		// if the model supports native constraints.
+		outputCfg.Constrained = outputCfg.Constrained &&
+			opts.Output.Constrained && model.SupportsConstrained()
 
-		// Allow override constraint
-		if opts.Output.Constrained != nil {
-			config.Constrained = *opts.Output.Constrained
-		}
-
-		// Override request
-		if shouldInjectFormatInstructions(config, opts.Output.Instructions) {
-			opts.Messages = injectInstructions(opts.Messages, iInstructions)
+		// Add schema instructions to prompt when not using native constraints.
+		// This is a no-op for unstructured output requests.
+		if !outputCfg.Constrained {
+			instructions := ""
+			if opts.Output.Instructions != nil {
+				instructions = *opts.Output.Instructions
+			} else {
+				instructions = formatHandler.Instructions()
+			}
+			if instructions != "" {
+				opts.Messages = injectInstructions(opts.Messages, instructions)
+			}
 		}
 	}
 
@@ -230,10 +235,10 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Docs:       opts.Docs,
 		ToolChoice: opts.ToolChoice,
 		Tools:      toolDefs,
-		Output:     config,
+		Output:     outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(model.Generate)
+	fn := core.ChainMiddleware(mw...)(m.Generate)
 
 	currentTurn := 0
 	for {
@@ -242,12 +247,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			return nil, err
 		}
 
-		if req.Output != nil {
-			resolvedFormat, err := resolveFormat(r, req.Output.Schema, req.Output.Format)
-			if err != nil {
-				return nil, err
-			}
-			resp.Message, err = resolvedFormat.handler(req.Output.Schema).parseMessage(resp.Message)
+		if formatHandler != nil {
+			resp.Message, err = formatHandler.ParseMessage(resp.Message)
 			if err != nil {
 				logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
 				return nil, errors.New("generation did not result in a message matching expected schema")
@@ -346,7 +347,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			JsonSchema:   genOpts.OutputSchema,
 			Format:       string(genOpts.OutputFormat),
 			Instructions: genOpts.OutputInstructions,
-			Constrained:  genOpts.OutputConstrained,
+			Constrained:  !genOpts.CustomConstrained,
 		},
 	}
 
@@ -382,15 +383,47 @@ func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...
 }
 
 // Name returns the name of the model.
-func (m *modelActionDef) Name() string { return (*ModelAction)(m).Name() }
+func (m *model) Name() string {
+	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Name()
+}
 
 // Generate applies the [Action] to provided request.
-func (m *modelActionDef) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, errors.New("Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
-	return (*ModelAction)(m).Run(ctx, req, cb)
+	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
+}
+
+// SupportsConstrained returns whether the model supports constrained output.
+func (m *model) SupportsConstrained() bool {
+	if m == nil {
+		return false
+	}
+
+	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m)
+	if action == nil {
+		return false
+	}
+
+	metadata := action.Desc().Metadata
+	if metadata == nil {
+		return false
+	}
+
+	modelMeta, ok := metadata["model"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	supportsMeta, ok := modelMeta["supports"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	constrained, ok := supportsMeta["constrained"].(bool)
+	return ok && constrained
 }
 
 // cloneMessage creates a deep copy of the provided Message.
@@ -524,7 +557,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == string(OutputFormatJSON) && len(req.Messages) > 0 {
+	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
 		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)

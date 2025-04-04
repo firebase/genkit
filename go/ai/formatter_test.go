@@ -21,228 +21,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestSimulateConstrainedGeneration(t *testing.T) {
-	tests := []struct {
-		name       string
-		info       *ModelInfo
-		input      *ModelRequest
-		wantMsgs   []*Message
-		wantConfig *ModelOutputConfig
-	}{
-		{
-			name: "simulates constraint if no model support",
-			info: &ModelInfo{
-				Supports: &ModelSupports{
-					Constrained: ConstrainedSupportNone,
-				},
-			},
-			input: &ModelRequest{
-				Messages: []*Message{
-					NewSystemTextMessage("You are a helpful assistant."),
-					NewUserTextMessage("hello!"),
-				},
-				Output: &ModelOutputConfig{
-					Format:      string(OutputFormatJSON),
-					Constrained: true,
-					Schema: map[string]any{
-						"type":     "object",
-						"required": []string{"name"},
-						"properties": map[string]any{
-							"name": map[string]any{"type": "string"},
-						},
-					},
-				},
-			},
-			wantMsgs: []*Message{
-				{
-					Role: RoleSystem,
-					Content: []*Part{
-						NewTextPart("You are a helpful assistant."),
-						{
-							Kind:        PartText,
-							ContentType: "plain/text",
-							Text:        "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"properties\\\":{\\\"name\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"name\\\"],\\\"type\\\":\\\"object\\\"}\"```",
-							Metadata:    map[string]any{"purpose": "output"},
-						},
-					},
-				},
-				NewUserTextMessage("hello!"),
-			},
-			wantConfig: &ModelOutputConfig{
-				Format:      string(OutputFormatJSON),
-				Constrained: false,
-				Schema: map[string]any{
-					"type":     "object",
-					"required": []string{"name"},
-					"properties": map[string]any{
-						"name": map[string]any{"type": "string"},
-					},
-				},
-			},
-		},
-		{
-			name: "simulates constraint if no tool support and tools are in request",
-			info: &ModelInfo{
-				Supports: &ModelSupports{
-					Constrained: ConstrainedSupportNoTools,
-				},
-			},
-			input: &ModelRequest{
-				Messages: []*Message{
-					NewSystemTextMessage("You are a helpful assistant."),
-					NewUserTextMessage("hello!"),
-				},
-				Output: &ModelOutputConfig{
-					Format:      string(OutputFormatJSON),
-					Constrained: true,
-					Schema: map[string]any{
-						"type":     "object",
-						"required": []string{"name"},
-						"properties": map[string]any{
-							"name": map[string]any{"type": "string"},
-						},
-					},
-				},
-				Tools: []*ToolDefinition{
-					{
-						Name:        "test-tool",
-						Description: "A test tool",
-					},
-				},
-			},
-			wantMsgs: []*Message{
-				{
-					Role: RoleSystem,
-					Content: []*Part{
-						NewTextPart("You are a helpful assistant."),
-						{
-							Kind:        PartText,
-							ContentType: "plain/text",
-							Text:        "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"properties\\\":{\\\"name\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"name\\\"],\\\"type\\\":\\\"object\\\"}\"```",
-							Metadata:    map[string]any{"purpose": "output"},
-						},
-					},
-				},
-				NewUserTextMessage("hello!"),
-			},
-			wantConfig: &ModelOutputConfig{
-				Format:      string(OutputFormatJSON),
-				Constrained: false,
-				Schema: map[string]any{
-					"type":     "object",
-					"required": []string{"name"},
-					"properties": map[string]any{
-						"name": map[string]any{"type": "string"},
-					},
-				},
-			},
-		},
-		{
-			name: "doesn't simulate constraint if no tools are in request",
-			info: &ModelInfo{
-				Supports: &ModelSupports{
-					Constrained: ConstrainedSupportNoTools,
-				},
-			},
-			input: &ModelRequest{
-				Messages: []*Message{
-					NewSystemTextMessage("You are a helpful assistant."),
-					NewUserTextMessage("hello!"),
-				},
-				Output: &ModelOutputConfig{
-					Format:      string(OutputFormatJSON),
-					Constrained: true,
-					Schema: map[string]any{
-						"type":     "object",
-						"required": []string{"name"},
-						"properties": map[string]any{
-							"name": map[string]any{"type": "string"},
-						},
-					},
-				},
-			},
-			wantMsgs: []*Message{
-				{
-					Role: RoleSystem,
-					Content: []*Part{
-						NewTextPart("You are a helpful assistant."),
-					},
-				},
-				NewUserTextMessage("hello!"),
-			},
-			wantConfig: &ModelOutputConfig{
-				Format:      string(OutputFormatJSON),
-				Constrained: true,
-				Schema: map[string]any{
-					"type":     "object",
-					"required": []string{"name"},
-					"properties": map[string]any{
-						"name": map[string]any{"type": "string"},
-					},
-				},
-			},
-		},
-		{
-			name: "relies on native support -- no instructions",
-			info: &ModelInfo{
-				Supports: &ModelSupports{
-					Constrained: ConstrainedSupportAll,
-				},
-			},
-			input: &ModelRequest{
-				Messages: []*Message{
-					NewUserTextMessage("generate json"),
-				},
-				Output: &ModelOutputConfig{
-					Format: string(OutputFormatJSON),
-					Schema: map[string]any{
-						"type":     "object",
-						"required": []string{"name"},
-						"properties": map[string]any{
-							"name": map[string]any{"type": "string"},
-						},
-					},
-				},
-			},
-			wantMsgs: []*Message{
-				NewUserTextMessage("generate json"),
-			},
-			wantConfig: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
-				Schema: map[string]any{
-					"type":     "object",
-					"required": []string{"name"},
-					"properties": map[string]any{
-						"name": map[string]any{"type": "string"},
-					},
-				},
-			},
-		},
-	}
-
-	mockModelFunc := func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-		return &ModelResponse{Request: req}, nil
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			handler := simulateConstrainedGeneration("test-model", tt.info)(mockModelFunc)
-			resp, err := handler(context.Background(), tt.input, nil)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if diff := cmp.Diff(resp.Request.Messages, tt.wantMsgs); diff != "" {
-				t.Errorf("Request msgs diff (+got -want):\n%s", diff)
-			}
-
-			if diff := cmp.Diff(resp.Request.Output, tt.wantConfig); diff != "" {
-				t.Errorf("Request config diff (+got -want):\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestConstrainedGenerate(t *testing.T) {
 	JSON := "\n{\"foo\": \"bar\"}\n"
 	JSONmd := "```json" + JSON + "```"
@@ -285,7 +63,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
+				Format: OutputFormatJSON,
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -345,7 +123,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
+				Format: OutputFormatJSON,
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -375,8 +153,8 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithOutputNativeConstrained(false), // Need to set to false to satisfy testcase
-			WithOutputInstructions(new(string)),
+			WithCustomConstrainedOutput(),
+			WithOutputInstructions(""),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -414,7 +192,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
+				Format: OutputFormatJSON,
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -444,8 +222,8 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithOutputNativeConstrained(false),
-			WithOutputInstructions(&customInstructions),
+			WithCustomConstrainedOutput(),
+			WithOutputInstructions(customInstructions),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -482,7 +260,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
+				Format: OutputFormatJSON,
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -512,7 +290,7 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithOutputNativeConstrained(false),
+			WithCustomConstrainedOutput(),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -548,7 +326,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
+				Format: OutputFormatJSON,
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
 					"properties": map[string]any{
@@ -570,7 +348,7 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithOutputNativeConstrained(false),
+			WithCustomConstrainedOutput(),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -655,7 +433,7 @@ func TestHandlers(t *testing.T) {
 		},
 		{
 			name:   "jsonl handler",
-			format: "jsonl",
+			format: OutputFormatJSONL,
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -668,7 +446,7 @@ func TestHandlers(t *testing.T) {
 				"additionalProperties": false,
 			},
 			output: &ModelOutputConfig{
-				Format: "jsonl",
+				Format: OutputFormatJSONL,
 				Schema: map[string]any{
 					"type": "array",
 					"items": map[string]any{
@@ -699,8 +477,8 @@ func TestHandlers(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				instructions := resolveInstructions(format, tt.schema, nil)
-				config := format.handler(tt.schema).config()
+				instructions := format.Handler(tt.schema).Instructions()
+				config := format.Handler(tt.schema).Config()
 
 				if diff := cmp.Diff(tt.instructions, instructions); diff != "" {
 					t.Errorf("Instructions diff (+got -want):\n%s", diff)
@@ -790,8 +568,8 @@ func TestJsonParser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatter := JSONFormatter{"json"}
-			message, err := formatter.handler(tt.schema).parseMessage(tt.response)
+			formatter := jsonFormatter{}
+			message, err := formatter.Handler(tt.schema).ParseMessage(tt.response)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
@@ -852,8 +630,8 @@ func TestTextParser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatter := TextFormatter{"text"}
-			message, err := formatter.handler(nil).parseMessage(tt.response)
+			formatter := textFormatter{}
+			message, err := formatter.Handler(nil).ParseMessage(tt.response)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
@@ -959,13 +737,13 @@ func TestJsonlParser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatter := JSONLFormatter{"jsonl"}
+			formatter := jsonlFormatter{}
 			defer func() {
 				if r := recover(); r != nil && tt.wantErr {
 					t.Log("Test passed, panic was caught!")
 				}
 			}()
-			message, err := formatter.handler(tt.schema).parseMessage(tt.response)
+			message, err := formatter.Handler(tt.schema).ParseMessage(tt.response)
 			if err != nil {
 				t.Errorf("Parse failed")
 			}

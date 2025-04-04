@@ -18,51 +18,35 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type JSONLFormatter struct {
-	FormatName string
+type jsonlFormatter struct{}
+
+// Name returns the name of the formatter.
+func (j jsonlFormatter) Name() string {
+	return OutputFormatJSONL
 }
 
-type jsonlHandler struct {
-	instruction string
-	output      *ModelOutputConfig
-}
-
-func (j JSONLFormatter) name() string {
-	return j.FormatName
-}
-
-func (j jsonlHandler) instructions() string {
-	return j.instruction
-}
-
-func (j jsonlHandler) config() *ModelOutputConfig {
-	return j.output
-}
-
-func (j JSONLFormatter) handler(schema map[string]any) FormatterHandler {
+// Handler returns a new formatter handler for the given schema.
+func (j jsonlFormatter) Handler(schema map[string]any) FormatHandler {
 	var instructions string
 	if schema != nil && base.ValidateIsJSONArray(schema) {
 		jsonBytes, err := json.Marshal(schema["items"])
 		if err != nil {
 			panic(fmt.Sprintf("error marshalling schema to JSONL: %v", err))
-		} else {
-			escapedJSON := strconv.Quote(string(jsonBytes))
-			instructions = fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", escapedJSON)
 		}
+		instructions = fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
 	} else {
-		panic(fmt.Sprint("error, schema not valid JSONL"))
+		panic(fmt.Sprint("schema is not valid JSONL"))
 	}
 
 	handler := &jsonlHandler{
 		instruction: instructions,
 		output: &ModelOutputConfig{
-			Format:      string(OutputFormatJSONL),
+			Format:      OutputFormatJSONL,
 			Schema:      schema,
 			Constrained: true,
 			ContentType: "application/jsonl",
@@ -72,8 +56,24 @@ func (j JSONLFormatter) handler(schema map[string]any) FormatterHandler {
 	return handler
 }
 
-func (j jsonlHandler) parseMessage(m *Message) (*Message, error) {
-	if j.output != nil && j.output.Format == string(OutputFormatJSONL) {
+type jsonlHandler struct {
+	instruction string
+	output      *ModelOutputConfig
+}
+
+// Instructions returns the instructions for the formatter.
+func (j jsonlHandler) Instructions() string {
+	return j.instruction
+}
+
+// Config returns the output config for the formatter.
+func (j jsonlHandler) Config() *ModelOutputConfig {
+	return j.output
+}
+
+// ParseMessage parses the message and returns the formatted message.
+func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
+	if j.output != nil && j.output.Format == OutputFormatJSONL {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}

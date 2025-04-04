@@ -96,7 +96,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatText),
+			Format: OutputFormatText,
 		}
 		_, err := validTestMessage(message, outputSchema)
 		if err != nil {
@@ -120,7 +120,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type":     "object",
 				"required": []string{"name", "age", "address"},
@@ -157,7 +157,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -177,7 +177,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 		}
 		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
@@ -185,7 +185,7 @@ func TestValidMessage(t *testing.T) {
 
 	t.Run("No message", func(t *testing.T) {
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 		}
 		_, err := validTestMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
@@ -194,7 +194,7 @@ func TestValidMessage(t *testing.T) {
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 		}
 		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
@@ -207,7 +207,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -228,7 +228,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type": "invalid",
 			},
@@ -287,7 +287,7 @@ func TestGenerate(t *testing.T) {
 			Config: &GenerationCommonConfig{Temperature: 1},
 			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
 			Output: &ModelOutputConfig{
-				Format:      string(OutputFormatJSON),
+				Format:      OutputFormatJSON,
 				ContentType: "application/json",
 				Schema: map[string]any{
 					"additionalProperties": bool(false),
@@ -704,5 +704,5 @@ func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 		return nil, err
 	}
 
-	return resolvedFormat.handler(output.Schema).parseMessage(m)
+	return resolvedFormat.Handler(output.Schema).ParseMessage(m)
 }

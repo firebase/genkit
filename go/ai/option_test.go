@@ -227,7 +227,7 @@ func TestOutputOptions(t *testing.T) {
 		{
 			name: "valid - output instruction",
 			opts: []OutputOption{
-				WithOutputInstructions(new(string)), //empty string
+				WithOutputInstructions(""),
 			},
 			wantErr: false,
 		},
@@ -236,7 +236,7 @@ func TestOutputOptions(t *testing.T) {
 			opts: []OutputOption{
 				WithOutputType(map[string]string{"key": "value"}),
 				WithOutputFormat(OutputFormatText),
-				WithOutputInstructions(new(string)), //empty string
+				WithOutputInstructions(""),
 			},
 			wantErr: true,
 		},
@@ -399,7 +399,7 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		WithPromptText("user prompt"),
 		WithDocs(DocumentFromText("doc", nil)),
 		WithOutputType(map[string]string{"key": "value"}),
-		WithOutputInstructions(new(string)),
+		WithOutputInstructions(""),
 		WithStreaming(streamFunc),
 	}
 
@@ -490,7 +490,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 		WithDescription("test description"),
 		WithMetadata(map[string]any{"key": "value"}),
 		WithOutputType(map[string]string{"key": "value"}),
-		WithOutputInstructions(new(string)),
+		WithOutputInstructions(""),
 		WithInputType(input),
 	}
 

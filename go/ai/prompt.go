@@ -155,7 +155,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 		JsonSchema:   p.OutputSchema,
 		Format:       string(p.OutputFormat),
 		Instructions: p.OutputInstructions,
-		Constrained:  p.OutputConstrained,
+		Constrained:  !p.CustomConstrained,
 	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
@@ -575,7 +575,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	if metadata.Output.Format != "" {
-		opts.OutputFormat = OutputFormat(metadata.Output.Format)
+		opts.OutputFormat = metadata.Output.Format
 	}
 
 	if metadata.Output.Schema != nil {

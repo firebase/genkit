@@ -14,28 +14,15 @@
 
 package ai
 
-type TextFormatter struct {
-	FormatName string
+type textFormatter struct{}
+
+// Name returns the name of the formatter.
+func (t textFormatter) Name() string {
+	return OutputFormatText
 }
 
-type textHandler struct {
-	instruction string
-	output      *ModelOutputConfig
-}
-
-func (t TextFormatter) name() string {
-	return t.FormatName
-}
-
-func (t textHandler) config() *ModelOutputConfig {
-	return t.output
-}
-
-func (t textHandler) instructions() string {
-	return t.instruction
-}
-
-func (t TextFormatter) handler(schema map[string]any) FormatterHandler {
+// Handler returns a new formatter handler for the given schema.
+func (t textFormatter) Handler(schema map[string]any) FormatHandler {
 	handler := &textHandler{
 		output: &ModelOutputConfig{
 			ContentType: "text/plain",
@@ -45,6 +32,22 @@ func (t TextFormatter) handler(schema map[string]any) FormatterHandler {
 	return handler
 }
 
-func (t textHandler) parseMessage(m *Message) (*Message, error) {
+type textHandler struct {
+	instruction string
+	output      *ModelOutputConfig
+}
+
+// Config returns the output config for the formatter.
+func (t textHandler) Config() *ModelOutputConfig {
+	return t.output
+}
+
+// Instructions returns the instructions for the formatter.
+func (t textHandler) Instructions() string {
+	return t.instruction
+}
+
+// ParseMessage parses the message and returns the formatted message.
+func (t textHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }

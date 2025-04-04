@@ -46,7 +46,7 @@ func TestOutputFormat(t *testing.T) {
 	var tests = []struct {
 		name   string
 		output any
-		format OutputFormat
+		format string
 		err    bool
 	}{
 		{

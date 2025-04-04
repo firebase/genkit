@@ -23,28 +23,15 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type JSONFormatter struct {
-	FormatName string
+type jsonFormatter struct{}
+
+// Name returns the name of the formatter.
+func (j jsonFormatter) Name() string {
+	return OutputFormatJSON
 }
 
-type jsonHandler struct {
-	instruction string
-	output      *ModelOutputConfig
-}
-
-func (j JSONFormatter) name() string {
-	return j.FormatName
-}
-
-func (j jsonHandler) instructions() string {
-	return j.instruction
-}
-
-func (j jsonHandler) config() *ModelOutputConfig {
-	return j.output
-}
-
-func (j JSONFormatter) handler(schema map[string]any) FormatterHandler {
+// Handler returns a new formatter handler for the given schema.
+func (j jsonFormatter) Handler(schema map[string]any) FormatHandler {
 	var instructions string
 	if schema != nil {
 		jsonBytes, err := json.Marshal(schema)
@@ -57,9 +44,9 @@ func (j JSONFormatter) handler(schema map[string]any) FormatterHandler {
 	}
 
 	handler := &jsonHandler{
-		instruction: instructions,
-		output: &ModelOutputConfig{
-			Format:      string(OutputFormatJSON),
+		instructions: instructions,
+		config: &ModelOutputConfig{
+			Format:      OutputFormatJSON,
 			Schema:      schema,
 			Constrained: true,
 			ContentType: "application/json",
@@ -69,8 +56,25 @@ func (j JSONFormatter) handler(schema map[string]any) FormatterHandler {
 	return handler
 }
 
-func (j jsonHandler) parseMessage(m *Message) (*Message, error) {
-	if j.output != nil && j.output.Format == string(OutputFormatJSON) {
+// jsonHandler is a handler for the JSON formatter.
+type jsonHandler struct {
+	instructions string
+	config       *ModelOutputConfig
+}
+
+// Instructions returns the instructions for the formatter.
+func (j jsonHandler) Instructions() string {
+	return j.instructions
+}
+
+// Config returns the output config for the formatter.
+func (j jsonHandler) Config() *ModelOutputConfig {
+	return j.config
+}
+
+// ParseMessage parses the message and returns the formatted message.
+func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
+	if j.config != nil && j.config.Format == OutputFormatJSON {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -86,7 +90,7 @@ func (j jsonHandler) parseMessage(m *Message) (*Message, error) {
 			text := base.ExtractJSONFromMarkdown(part.Text)
 
 			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(j.output.Schema)
+			schemaBytes, err := json.Marshal(j.config.Schema)
 			if err != nil {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}
