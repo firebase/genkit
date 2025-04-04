@@ -47,9 +47,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				GenerationCommonConfig: ai.GenerationCommonConfig{
-					Temperature: 1.0,
-				},
+				Temperature: 1.0,
 			}),
 			ai.WithPromptText(fmt.Sprintf(`Tell short jokes about %s`, input)))
 		if err != nil {
