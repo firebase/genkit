@@ -18,13 +18,14 @@ description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
 name = "genkit-workspace"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 version = "0.1.0"
 
 [dependency-groups]
 dev = [
   "bpython>=0.25",
-  "ipython>=9.0.2",
+  "ipython~=8.22; python_version <= '3.10'",
+  "ipython~=9.0.2; python_version >= '3.11'",
   "jupyter>=1.1.1",
   "pytest-asyncio>=0.25.3",
   "pytest>=8.3.4",
@@ -47,7 +48,10 @@ py-modules = []
 
 # Pytest for unit testing and coverage.
 [tool.pytest]
-asyncio_default_fixture_loop_scope = "function"
+
+[tool.pytest.ini_options]
+addopts = ["--cov"]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "strict"
 python_files = [
   "packages/**/*_test.py",
@@ -55,10 +59,6 @@ python_files = [
   "samples/**/*_test.py",
 ]
 testpaths = ["packages", "plugins", "samples"]
-
-[tool.pytest.ini_options]
-addopts                            = ["--cov"]
-asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.report]
 fail_under = 80
@@ -136,7 +136,7 @@ exclude = [
 indent-width = 4
 line-length = 120
 preview = true
-target-version = "py311"
+target-version = "py311" # NOTE: Keep this at 3.11 not 3.10. We use backported libs for enums.
 unsafe-fixes = true
 
 
