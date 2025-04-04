@@ -129,7 +129,6 @@ class ClassTransformer(ast.NodeTransformer):
         node = super().generic_visit(node)
 
         new_body = []
-        docstring_added = False
 
         # Handle Docstrings
         if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Str):
@@ -146,7 +145,6 @@ class ClassTransformer(ast.NodeTransformer):
 
             new_body.append(ast.Expr(value=ast.Str(s=docstring)))
             self.modified = True
-            docstring_added = True
         else:  # Ensure existing docstring is kept
             new_body.append(node.body[0])
 
