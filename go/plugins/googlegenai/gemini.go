@@ -18,6 +18,7 @@ package googlegenai
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -57,7 +58,7 @@ var (
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
-	GenkitClientHeader   = http.Header{
+	genkitClientHeader   = http.Header{
 		xGoogApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
 	}
 )
@@ -165,12 +166,22 @@ type SafetySetting struct {
 	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
 }
 
+type Modality string
+
+const (
+	ImageMode Modality = "IMAGE"
+	TextMode  Modality = "TEXT"
+	AudioMode Modality = "AUDIO"
+)
+
 // GeminiConfig mirrors GenerateContentConfig without direct genai dependency
 type GeminiConfig struct {
 	ai.GenerationCommonConfig
 
 	// Safety settings
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+	// Response modalities for returned model messages
+	ResponseModalities []Modality `json:"responseModalities,omitempty"`
 }
 
 // extractConfigFromInput converts any supported config type to GoogleAIConfig
@@ -318,9 +329,26 @@ func generate(
 		return nil, err
 	}
 
-	gc, err := convertRequest(client, input, cache)
+	gc, err := convertRequest(input, cache)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(config.ResponseModalities) > 0 {
+		err := validateResponseModalities(model, config.ResponseModalities)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range config.ResponseModalities {
+			gc.ResponseModalities = append(gc.ResponseModalities, string(m))
+		}
+
+		// prevent an error in the client where:
+		// if TEXT modality is not present and the model supports it, the client
+		// will return an error
+		if !slices.Contains(gc.ResponseModalities, string(genai.ModalityText)) {
+			gc.ResponseModalities = append(gc.ResponseModalities, string(genai.ModalityText))
+		}
 	}
 
 	var contents []*genai.Content
@@ -405,7 +433,7 @@ func generate(
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = genai.Ptr[int32](1)
 	c, err := extractConfigFromInput(input)
@@ -480,6 +508,25 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 	}
 
 	return &gc, nil
+}
+
+// validateResponseModalities checks if response modality is valid for the requested model
+func validateResponseModalities(model string, modalities []Modality) error {
+	for _, m := range modalities {
+		switch m {
+		case AudioMode:
+			return fmt.Errorf("AUDIO response modality is not supported for model %q", model)
+		case ImageMode:
+			if !slices.Contains(imageGenModels, model) {
+				return fmt.Errorf("IMAGE response modality is not supported for model %q", model)
+			}
+		case TextMode:
+			continue
+		default:
+			return fmt.Errorf("unknown response modality provided: %q", m)
+		}
+	}
+	return nil
 }
 
 // convertTools translates an [*ai.ToolDefinition] to a *genai.Tool
@@ -644,7 +691,11 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		}
 		if part.InlineData != nil {
 			partFound++
-			p = ai.NewMediaPart(part.InlineData.MIMEType, string(part.InlineData.Data))
+			p = ai.NewMediaPart(part.InlineData.MIMEType, base64.StdEncoding.EncodeToString(part.InlineData.Data))
+		}
+		if part.FileData != nil {
+			partFound++
+			p = ai.NewMediaPart(part.FileData.MIMEType, part.FileData.FileURI)
 		}
 		if part.FunctionCall != nil {
 			partFound++
