@@ -318,7 +318,7 @@ func generate(
 		return nil, err
 	}
 
-	gc, err := convertRequest(client, input, cache)
+	gc, err := convertRequest(model, input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -337,6 +337,9 @@ func generate(
 			Role:  string(m.Role),
 		})
 	}
+	if len(contents) == 0 {
+		return nil, fmt.Errorf("at least one message is required in generate request")
+	}
 
 	// Send out the actual request.
 	if cb == nil {
@@ -344,7 +347,10 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
-		r := translateResponse(resp)
+		r, err := translateResponse(resp)
+		if err != nil {
+			return nil, err
+		}
 		r.Request = input
 		if cache != nil {
 			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -365,8 +371,11 @@ func generate(
 			return nil, err
 		}
 		for i, c := range chunk.Candidates {
-			tc := translateCandidate(c)
-			err := cb(ctx, &ai.ModelResponseChunk{
+			tc, err := translateCandidate(c)
+			if err != nil {
+				return nil, err
+			}
+			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
 			})
 			if err != nil {
@@ -389,7 +398,10 @@ func generate(
 		},
 	}
 	resp.Candidates = merged
-	r = translateResponse(resp)
+	r, err = translateResponse(resp)
+	if err != nil {
+		return nil, err
+	}
 	if r == nil {
 		// No candidates were returned. Probably rare, but it might avoid a NPE
 		// to return an empty instead of nil result.
@@ -405,7 +417,7 @@ func generate(
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+func convertRequest(model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gc := genai.GenerateContentConfig{}
 	gc.CandidateCount = genai.Ptr[int32](1)
 	c, err := extractConfigFromInput(input)
@@ -451,10 +463,11 @@ func convertRequest(client *genai.Client, input *ai.ModelRequest, cache *genai.C
 		gc.Tools = tools
 
 		// Then set up the tool configuration based on ToolChoice
-		tc := convertToolChoice(input.ToolChoice, input.Tools)
-		if tc != nil {
-			gc.ToolConfig = tc
+		tc, err := convertToolChoice(input.ToolChoice, input.Tools)
+		if err != nil {
+			return nil, err
 		}
+		gc.ToolConfig = tc
 	}
 
 	var systemParts []*genai.Part
@@ -582,11 +595,11 @@ func castToStringArray(i []any) []string {
 	return r
 }
 
-func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *genai.ToolConfig {
+func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
 	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
-		return nil
+		return nil, nil
 	case ai.ToolChoiceAuto:
 		mode = genai.FunctionCallingConfigModeAuto
 	case ai.ToolChoiceRequired:
@@ -594,7 +607,7 @@ func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *ge
 	case ai.ToolChoiceNone:
 		mode = genai.FunctionCallingConfigModeNone
 	default:
-		panic(fmt.Sprintf("tool choice mode %q not supported", toolChoice))
+		return nil, fmt.Errorf("tool choice mode %q not supported", toolChoice)
 	}
 
 	var toolNames []string
@@ -609,11 +622,11 @@ func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *ge
 			Mode:                 mode,
 			AllowedFunctionNames: toolNames,
 		},
-	}
+	}, nil
 }
 
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
-func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
+func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 	m := &ai.ModelResponse{}
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
@@ -654,18 +667,21 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 			})
 		}
 		if partFound > 1 {
-			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
+			return nil, fmt.Errorf("expected only 1 content part in response, got %d, part: %#v", partFound, part)
 		}
 
 		msg.Content = append(msg.Content, p)
 	}
 	m.Message = msg
-	return m
+	return m, nil
 }
 
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
-func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
-	r := translateCandidate(resp.Candidates[0])
+func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, error) {
+	r, err := translateCandidate(resp.Candidates[0])
+	if err != nil {
+		return nil, err
+	}
 
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
@@ -673,7 +689,7 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 		r.Usage.OutputTokens = int(*u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
-	return r
+	return r, nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
@@ -728,6 +744,6 @@ func convertPart(p *ai.Part) (*genai.Part, error) {
 		fc := genai.NewPartFromFunctionCall(toolReq.Name, input)
 		return fc, nil
 	default:
-		panic("unknown part type in a request")
+		return nil, fmt.Errorf("unsupported part in the request: %#v", p)
 	}
 }

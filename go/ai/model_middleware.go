@@ -132,7 +132,7 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				case ModelStageDeprecated:
 					logger.FromContext(ctx).Warn("model is deprecated and may be removed in a future release", "model", model)
 				case ModelStageUnstable:
-					logger.FromContext(ctx).Warn("model is experimental or unstable", "model", model)
+					logger.FromContext(ctx).Info("model is experimental or unstable", "model", model)
 				}
 			}
 
