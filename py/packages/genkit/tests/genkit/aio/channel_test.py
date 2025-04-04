@@ -102,8 +102,8 @@ async def test_channel_invalid_timeout():
 async def test_channel_timeout():
     """Tests that the channel raises TimeoutError when timeout is reached."""
     channel = Channel(timeout=0.1)
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(channel.__anext__(), timeout=0.2)
+    with pytest.raises(TimeoutError):
+        await channel.__anext__()
 
 
 @pytest.mark.asyncio
@@ -124,8 +124,8 @@ async def test_channel_timeout_with_close_future():
     channel = Channel(timeout=0.1)
     close_future = asyncio.Future()
     channel.set_close_future(close_future)
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(channel.__anext__(), timeout=0.2)
+    with pytest.raises(TimeoutError):
+        await channel.__anext__()
     close_future.set_result(None)
     with pytest.raises(StopAsyncIteration):
         await channel.__anext__()
