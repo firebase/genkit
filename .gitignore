@@ -48,3 +48,9 @@ next-env.d.ts
 
 !samples/chatbot/server/genkit-ai-vertexai-*.tgz
 .idea/
+
+# Build artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.nox/
