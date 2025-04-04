@@ -39,14 +39,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	SimplePrompt(ctx, g)
-	PromptWithInput(ctx, g)
+	// SimplePrompt(ctx, g)
+	// PromptWithInput(ctx, g)
 	PromptWithOutputType(ctx, g)
-	PromptWithOutputTypeDotprompt(ctx, g)
-	PromptWithTool(ctx, g)
-	PromptWithMessageHistory(ctx, g)
-	PromptWithExecuteOverrides(ctx, g)
-	PromptWithFunctions(ctx, g)
+	PromptWithComplexOutputType(ctx, g)
+	// PromptWithTool(ctx, g)
+	// PromptWithMessageHistory(ctx, g)
+	// PromptWithExecuteOverrides(ctx, g)
+	// PromptWithFunctions(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -111,7 +111,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
-		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
+		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
 		ai.WithSystemText("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
 		ai.WithPromptText("Give me the 10 biggest countries in the world by habitants."),
 	)
@@ -136,7 +136,8 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	}
 }
 
-func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
+func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
+	fmt.Printf("## prompt with output t ype dotmpromt ## \n\n")
 	type countryData struct {
 		Name      string `json:"name"`
 		Language  string `json:"language"`
@@ -146,9 +147,17 @@ func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
 	type countries struct {
 		Countries []countryData `json:"countries"`
 	}
-	prompt := genkit.LookupPrompt(g, "local", "countries")
-	if prompt == nil {
-		log.Fatal("empty prompt")
+
+	// Define prompt with output type.
+	prompt, err := genkit.DefinePrompt(
+		g, "PromptWithComplexOutputType",
+		ai.WithOutputType(countries{}),
+		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
+		ai.WithSystemText("You are a geography teacher. When asked a question about geography."),
+		ai.WithPromptText("Give me the 10 biggest countries in the world by habitants and language."),
+	)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// Call the model.
@@ -158,7 +167,7 @@ func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	var c countries
-	err = json.Unmarshal([]byte(resp.Text()), &c)
+	err = resp.Output(&c)
 	if err != nil {
 		log.Fatal(err)
 	}
