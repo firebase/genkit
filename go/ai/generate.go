@@ -130,8 +130,8 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		modelMeta := metadata["model"].(map[string]any)
 		modelMeta["customOptions"] = info.ConfigSchema
 	}
-  
-  mws := []ModelMiddleware{
+
+	mws := []ModelMiddleware{
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
