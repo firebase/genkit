@@ -289,15 +289,6 @@ func TestGenerate(t *testing.T) {
 			Output: &ModelOutputConfig{
 				Format:      OutputFormatJSON,
 				ContentType: "application/json",
-				Schema: map[string]any{
-					"additionalProperties": bool(false),
-					"properties": map[string]any{
-						"subject":  map[string]any{"type": string("string")},
-						"location": map[string]any{"type": string("string")},
-					},
-					"required": []any{string("subject"), string("location")},
-					"type":     string("object"),
-				},
 			},
 			Tools: []*ToolDefinition{
 				{

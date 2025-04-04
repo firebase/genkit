@@ -863,7 +863,7 @@ Hello, {{name}}!
 	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example")
+	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
@@ -958,7 +958,7 @@ Hello, {{name}}!
 	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example.variant")
+	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example.variant")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
@@ -1016,13 +1016,13 @@ Hello, {{name}}!
 	LoadPromptDir(reg, tempDir, "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example")
+	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
 
 	// Verify the prompt in the subdirectory was registered correctly
-	subPrompt := LookupPrompt(reg, provider, "test-namespace/sub_example")
+	subPrompt := LookupPrompt(reg, toolProvider, "test-namespace/sub_example")
 	if subPrompt == nil {
 		t.Fatalf("Prompt in subdirectory was not registered")
 	}

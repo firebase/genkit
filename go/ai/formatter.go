@@ -49,7 +49,7 @@ type FormatHandler interface {
 	// Instructions returns the formatter instructions to embed in the prompt.
 	Instructions() string
 	// Config returns the output config for the model request.
-	Config() *ModelOutputConfig
+	Config() ModelOutputConfig
 }
 
 // ConfigureFormats registers default formats in the registry

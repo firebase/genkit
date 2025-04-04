@@ -128,7 +128,7 @@ func getMessagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, err
 		if m.Role == ai.RoleSystem {
 			continue
 		}
-		parts, err := convertParts(m.Content)
+		parts, err := toGeminiParts(m.Content)
 		if err != nil {
 			return nil, err
 		}

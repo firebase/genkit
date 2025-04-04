@@ -123,16 +123,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: OutputFormatJSON,
-				Schema: map[string]any{
-					"additionalProperties": bool(false),
-					"properties": map[string]any{
-						"foo": map[string]any{"type": string("string")},
-					},
-					"required": []any{string("foo")},
-					"type":     string("object"),
-				},
-				Constrained: false,
+				Format:      OutputFormatJSON,
 				ContentType: "application/json",
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
@@ -191,16 +182,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: OutputFormatJSON,
-				Schema: map[string]any{
-					"additionalProperties": bool(false),
-					"properties": map[string]any{
-						"foo": map[string]any{"type": string("string")},
-					},
-					"required": []any{string("foo")},
-					"type":     string("object"),
-				},
-				Constrained: false, // Need to set to false to satisfy testcase
+				Format:      OutputFormatJSON,
 				ContentType: "application/json",
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
@@ -221,7 +203,6 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithCustomConstrainedOutput(),
 			WithOutputInstructions(customInstructions),
 		)
 		if err != nil {
@@ -259,16 +240,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: OutputFormatJSON,
-				Schema: map[string]any{
-					"additionalProperties": bool(false),
-					"properties": map[string]any{
-						"foo": map[string]any{"type": string("string")},
-					},
-					"required": []any{string("foo")},
-					"type":     string("object"),
-				},
-				Constrained: false,
+				Format:      OutputFormatJSON,
 				ContentType: "application/json",
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
@@ -325,16 +297,7 @@ func TestConstrainedGenerate(t *testing.T) {
 				},
 			},
 			Output: &ModelOutputConfig{
-				Format: OutputFormatJSON,
-				Schema: map[string]any{
-					"additionalProperties": bool(false),
-					"properties": map[string]any{
-						"foo": map[string]any{"type": string("string")},
-					},
-					"required": []any{string("foo")},
-					"type":     string("object"),
-				},
-				Constrained: false,
+				Format:      OutputFormatJSON,
 				ContentType: "application/json",
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
@@ -376,7 +339,7 @@ func TestHandlers(t *testing.T) {
 		name         string
 		format       string
 		schema       map[string]any
-		output       *ModelOutputConfig
+		output       ModelOutputConfig
 		instructions string
 		wantErr      bool
 	}{
@@ -397,7 +360,7 @@ func TestHandlers(t *testing.T) {
 			name:   "text handler",
 			format: "text",
 			schema: nil,
-			output: &ModelOutputConfig{
+			output: ModelOutputConfig{
 				ContentType: "text/plain",
 			},
 			instructions: "",
@@ -414,7 +377,7 @@ func TestHandlers(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			output: &ModelOutputConfig{
+			output: ModelOutputConfig{
 				Format: "json",
 				Schema: map[string]any{
 					"type": "object",
@@ -424,7 +387,6 @@ func TestHandlers(t *testing.T) {
 					},
 					"additionalProperties": false,
 				},
-				Constrained: true,
 				ContentType: "application/json",
 			},
 			instructions: "Output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"age\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
@@ -444,7 +406,7 @@ func TestHandlers(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			output: &ModelOutputConfig{
+			output: ModelOutputConfig{
 				Format: OutputFormatJSONL,
 				Schema: map[string]any{
 					"type": "array",
@@ -457,7 +419,6 @@ func TestHandlers(t *testing.T) {
 					},
 					"additionalProperties": false,
 				},
-				Constrained: true,
 				ContentType: "application/jsonl",
 			},
 			instructions: "Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```{\"properties\":{\"age\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
