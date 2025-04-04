@@ -32,6 +32,7 @@ def tests(session: nox.Session):
     session.run(
         'uv',
         'run',
+        '--active',
         'pytest',
         # '-v', # Adding verbosity drops coverage for some reason...
         '.',
