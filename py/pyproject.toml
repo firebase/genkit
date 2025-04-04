@@ -55,18 +55,13 @@ py-modules = []
 
 [tool.pytest.ini_options]
 addopts = [
-    "--cov",
-    #"--cov-report=", # Disable terminal report generation by pytest-cov
-    "-ra",
-    "-vv",
-]
-testpaths = [
-    "packages",
-    "plugins",
-    "samples",
-    "tests",
+  "--cov",
+  #"--cov-report=", # Disable terminal report generation by pytest-cov
+  "-ra",
+  "-vv",
 ]
 asyncio_default_fixture_loop_scope = "session"
+testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"
 
