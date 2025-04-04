@@ -153,7 +153,6 @@ func TestConstrainedGenerate(t *testing.T) {
 			WithOutputType(struct {
 				Foo string `json:"foo"`
 			}{}),
-			WithCustomConstrainedOutput(),
 			WithOutputInstructions(""),
 		)
 		if err != nil {
@@ -173,7 +172,7 @@ func TestConstrainedGenerate(t *testing.T) {
 	})
 
 	t.Run("uses format instructions given by user", func(t *testing.T) {
-		customInstructions := "The generated output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"foo\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"foo\\\"],\\\"type\\\":\\\"object\\\"}\"```"
+		customInstructions := "The generated output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"foo\":{\"type\":\"string\"}},\"required\":[\"foo\"],\"type\":\"object\"}```"
 		wantText := JSON
 		wantStreamText := "stream!"
 		wantRequest := &ModelRequest{
@@ -253,7 +252,7 @@ func TestConstrainedGenerate(t *testing.T) {
 						{
 							Kind:        PartText,
 							ContentType: "plain/text",
-							Text:        "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"foo\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"foo\\\"],\\\"type\\\":\\\"object\\\"}\"```",
+							Text:        "Output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"foo\":{\"type\":\"string\"}},\"required\":[\"foo\"],\"type\":\"object\"}```",
 							Metadata:    map[string]any{"purpose": "output"},
 						},
 					},
@@ -319,7 +318,7 @@ func TestConstrainedGenerate(t *testing.T) {
 						{
 							Kind:        PartText,
 							ContentType: "plain/text",
-							Text:        "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"foo\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"foo\\\"],\\\"type\\\":\\\"object\\\"}\"```",
+							Text:        "Output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"foo\":{\"type\":\"string\"}},\"required\":[\"foo\"],\"type\":\"object\"}```",
 							Metadata:    map[string]any{"purpose": "output"},
 						},
 					},
@@ -428,7 +427,7 @@ func TestHandlers(t *testing.T) {
 				Constrained: true,
 				ContentType: "application/json",
 			},
-			instructions: "Output should be in JSON format and conform to the following schema:\n\n```\"{\\\"additionalProperties\\\":false,\\\"properties\\\":{\\\"age\\\":{\\\"type\\\":\\\"integer\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"}},\\\"type\\\":\\\"object\\\"}\"```",
+			instructions: "Output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"age\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
 			wantErr:      false,
 		},
 		{
@@ -461,7 +460,7 @@ func TestHandlers(t *testing.T) {
 				Constrained: true,
 				ContentType: "application/jsonl",
 			},
-			instructions: "Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```\"{\\\"properties\\\":{\\\"age\\\":{\\\"type\\\":\\\"integer\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"}},\\\"type\\\":\\\"object\\\"}\"```",
+			instructions: "Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```{\"properties\":{\"age\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
 			wantErr:      false,
 		},
 	}

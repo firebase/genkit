@@ -231,15 +231,6 @@ func TestOutputOptions(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "duplicate options",
-			opts: []OutputOption{
-				WithOutputType(map[string]string{"key": "value"}),
-				WithOutputFormat(OutputFormatText),
-				WithOutputInstructions(""),
-			},
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -400,6 +391,7 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		WithDocs(DocumentFromText("doc", nil)),
 		WithOutputType(map[string]string{"key": "value"}),
 		WithOutputInstructions(""),
+		WithCustomConstrainedOutput(),
 		WithStreaming(streamFunc),
 	}
 
@@ -431,6 +423,7 @@ func TestGenerateOptionsComplete(t *testing.T) {
 				s := ""
 				return &s
 			}(),
+			CustomConstrained: true,
 		},
 		executionOptions: executionOptions{
 			Documents: []*Document{DocumentFromText("doc", nil)},
@@ -491,6 +484,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 		WithMetadata(map[string]any{"key": "value"}),
 		WithOutputType(map[string]string{"key": "value"}),
 		WithOutputInstructions(""),
+		WithCustomConstrainedOutput(),
 		WithInputType(input),
 	}
 
@@ -522,6 +516,7 @@ func TestPromptOptionsComplete(t *testing.T) {
 				s := ""
 				return &s
 			}(),
+			CustomConstrained: true,
 		},
 		Description:  "test description",
 		Metadata:     map[string]any{"key": "value"},

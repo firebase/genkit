@@ -216,7 +216,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		// 2. The user has requested it (GenerateActionOutputConfig.Constrained)
 		// 3. The model supports it (model.SupportsConstrained())
 		outputCfg.Constrained = outputCfg.Constrained &&
-			opts.Output.Constrained && model.SupportsConstrained()
+			opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -401,7 +401,7 @@ func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamC
 }
 
 // SupportsConstrained returns whether the model supports constrained output.
-func (m *model) SupportsConstrained() bool {
+func (m *model) SupportsConstrained(hasTools bool) bool {
 	if m == nil {
 		return false
 	}
@@ -426,8 +426,18 @@ func (m *model) SupportsConstrained() bool {
 		return false
 	}
 
-	constrained, ok := supportsMeta["constrained"].(bool)
-	return ok && constrained
+	constrained, ok := supportsMeta["constrained"].(ConstrainedSupport)
+	if !ok {
+		return false
+	}
+
+	if constrained == "" ||
+		constrained == ConstrainedSupportNone ||
+		(constrained == ConstrainedSupportNoTools && hasTools) {
+		return false
+	}
+
+	return true
 }
 
 // cloneMessage creates a deep copy of the provided Message.

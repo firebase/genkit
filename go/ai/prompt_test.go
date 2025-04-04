@@ -69,17 +69,20 @@ func TestOutputFormat(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var err error
+			reg, err := registry.New()
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			if test.output == nil {
 				_, err = DefinePrompt(
-					r, "aModel",
+					reg, "aModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputFormat(test.format),
 				)
 			} else {
 				_, err = DefinePrompt(
-					r, "bModel",
+					reg, "bModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputType(test.output),
 					WithOutputFormat(test.format),

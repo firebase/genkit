@@ -139,7 +139,7 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 			if (info.Supports.Constrained == "" ||
 				info.Supports.Constrained == ConstrainedSupportNone ||
 				(info.Supports.Constrained == ConstrainedSupportNoTools && len(input.Tools) > 0)) &&
-				input.Output.Constrained {
+				input.Output != nil && input.Output.Constrained {
 				return nil, fmt.Errorf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input)
 			}
 
