@@ -25,7 +25,7 @@ def test_generate(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=f'Draw a test.'),
+                    TextPart(text='Draw a test.'),
                 ],
             ),
         ]

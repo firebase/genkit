@@ -454,7 +454,6 @@ class GeminiModel:
         Returns:
             Schema or None
         """
-
         if not defs:
             defs = input_schema.get('$defs') if '$defs' in input_schema else {}
 
@@ -744,7 +743,7 @@ class GeminiModel:
         return cfg
 
     def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
-        """Create usage statistics
+        """Create usage statistics.
 
         Args:
             request: Genkit request
@@ -753,7 +752,6 @@ class GeminiModel:
         Returns:
             usage statistics
         """
-
         usage = get_basic_usage_stats(input_=request.messages, response=response.message)
         if response.usage:
             usage.input_tokens = response.usage.input_tokens

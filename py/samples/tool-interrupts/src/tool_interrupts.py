@@ -45,6 +45,7 @@ def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
 
 
 async def main() -> None:
+    """Main function."""
     response = await ai.generate(
         prompt='You a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '

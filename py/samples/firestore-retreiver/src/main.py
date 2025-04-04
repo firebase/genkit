@@ -151,7 +151,6 @@ async def main() -> None:
     This function demonstrates how to create and use AI flows in the
     Genkit framework.
     """
-
     print(await index_documents())
     print(await retreive_documents())
 

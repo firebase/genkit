@@ -40,7 +40,7 @@ class LocalVectorStoreAPI(ABC):
     def _load_filestore(self) -> dict[str, DbValue]:
         data = {}
         if os.path.exists(self.index_file_name):
-            with open(self.index_file_name, 'r', encoding='utf-8') as f:
+            with open(self.index_file_name, encoding='utf-8') as f:
                 data = json.load(f)
         return self._deserialize_data(data)
 
