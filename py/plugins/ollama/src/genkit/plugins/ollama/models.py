@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Literal
+from typing import Any, Literal
 
 import structlog
 from pydantic import BaseModel, Field, HttpUrl
@@ -48,7 +48,7 @@ logger = structlog.get_logger(__name__)
 
 class ModelDefinition(BaseModel):
     name: str
-    api_type: OllamaAPITypes
+    api_type: OllamaAPITypes = 'chat'
 
 
 class EmbeddingModelDefinition(BaseModel):
@@ -152,10 +152,7 @@ class OllamaModel:
                     function=ollama_api.Tool.Function(
                         name=tool.name,
                         description=tool.description,
-                        parameters=ollama_api.Tool.Function.Parameters(
-                            type='object',
-                            properties={'input': tool.input_schema},
-                        ),
+                        parameters=_convert_parameters(tool.input_schema),
                     )
                 )
                 for tool in request.tools or []
@@ -251,7 +248,7 @@ class OllamaModel:
                     ToolRequestPart(
                         tool_request=ToolRequest(
                             name=tool_call.function.name,
-                            input=tool_call.function.arguments.get('input'),
+                            input=tool_call.function.arguments,
                         )
                     )
                 )
@@ -362,3 +359,27 @@ class OllamaModel:
                 basic_generation_usage.input_tokens + basic_generation_usage.output_tokens
             )
         return basic_generation_usage
+
+
+def _convert_parameters(input_schema: dict[str, Any]) -> ollama_api.Tool.Function.Parameters | None:
+    """Sanitizes a schema to be compatible with Ollama API."""
+    if not input_schema or 'type' not in input_schema:
+        return None
+
+    schema = ollama_api.Tool.Function.Parameters()
+    if 'required' in input_schema:
+        schema.required = input_schema['required']
+
+    if 'type' in input_schema:
+        schema_type = input_schema['type']
+        schema.type = schema_type
+
+        if schema_type == 'object':
+            schema.properties = {}
+            properties = input_schema['properties']
+            for key in properties:
+                schema.properties[key] = ollama_api.Tool.Function.Parameters.Property(
+                    type=properties[key]['type'], description=properties[key]['description'] or ''
+                )
+
+    return schema
