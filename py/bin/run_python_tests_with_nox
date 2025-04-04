@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,3 +14,16 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
+# Run tests for all supported Python versions
+
+set -euo pipefail
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+PY_DIR="$TOP_DIR/py"
+
+echo "Running Python tests via nox..."
+
+# Execute nox, passing any arguments received by this script
+# Run from workspace root where noxfile.py resides
+uv run --directory "$PY_DIR" nox -s tests "$@"

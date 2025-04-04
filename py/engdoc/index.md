@@ -148,7 +148,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit
@@ -225,7 +224,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit
@@ -319,7 +317,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit
@@ -441,7 +438,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit

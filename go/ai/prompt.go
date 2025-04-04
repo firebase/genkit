@@ -50,7 +50,13 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 			return nil, err
 		}
 	}
-
+	// Apply Model config if no Prompt config.
+	modelArg := pOpts.Model
+	if modelRef, ok := modelArg.(ModelRef); ok {
+		if pOpts.Config == nil {
+			pOpts.Config = modelRef.Config()
+		}
+	}
 	p := &Prompt{
 		registry:      r,
 		promptOptions: *pOpts,
@@ -65,6 +71,12 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	if meta == nil {
 		meta = map[string]any{}
 	}
+
+	var tools []string
+	for _, value := range pOpts.commonOptions.Tools {
+		tools = append(tools, fmt.Sprintf("local/%s", value.Name()))
+	}
+
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
 			"name":         name,
@@ -72,6 +84,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 			"config":       p.Config,
 			"input":        map[string]any{"schema": p.InputSchema},
 			"defaultInput": p.DefaultInput,
+			"tools":        tools,
 		},
 	}
 	maps.Copy(meta, promptMeta)
@@ -109,6 +122,13 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 		err := opt.applyPromptGenerate(genOpts)
 		if err != nil {
 			return nil, err
+		}
+	}
+	// Apply Model config if no Prompt Generate config.
+	modelArg := genOpts.Model
+	if modelRef, ok := modelArg.(ModelRef); ok {
+		if genOpts.Config == nil {
+			genOpts.Config = modelRef.Config()
 		}
 	}
 

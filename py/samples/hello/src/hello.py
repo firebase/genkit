@@ -115,7 +115,7 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool')
+@ai.tool(name='gablorkenTool')
 def gablorken_tool(input: GablorkenInput):
     """Calculate a gablorken.
 

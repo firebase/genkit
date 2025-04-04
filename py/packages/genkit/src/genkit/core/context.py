@@ -14,40 +14,44 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Action context definitions."""
+
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Any, Union
-
-
-class RequestMethod(StrEnum):
-    """Request method."""
-
-    GET = 'GET'
-    PUT = 'PUT'
-    POST = 'POST'
-    DELETE = 'DELETE'
-    OPTIONS = 'OPTIONS'
-    QUERY = 'QUERY'
+from typing import Any, Generic, TypeVar
 
 
 @dataclass
-class RequestData[T]:
-    """A universal type that request handling extensions (e.g. flask) can map their request to.
-    This allows ContextProviders to build consistent interfacese on any web framework.
-    Headers must be lowercase to ensure portability."""
+class ContextMetadata:
+    """A base class for Context metadata."""
 
-    method: RequestMethod
-    headers: dict[str, str]
-    input: T
+    trace_id: str | None = None
 
 
-type ContextProvider[T] = Callable[[RequestData[T]], Union[dict[str, Any], Awaitable[dict[str, Any]]]]
+T = TypeVar('T')
+
+
+@dataclass
+class RequestData(Generic[T]):
+    """A universal type that request handling extensions.
+
+    For example, Flask can map their request to this type.  This allows
+    ContextProviders to build consistent interfaces on any web framework.
+    """
+
+    request: T
+    metadata: ContextMetadata | None = None
+
+
+ContextProvider = Callable[[RequestData[T]], dict[str, Any] | Awaitable[dict[str, Any]]]
 """Middleware can read request data and add information to the context that will be passed to the
 Action. If middleware throws an error, that error will fail the request and the Action will not
-be invoked. Expected cases should return a UserFacingError, which allows the request handler to
-know what data is safe to return to end users.
+be called.
 
+Expected cases should return a UserFacingError, which allows the request handler to
+know what data is safe to return to end users.
 Middleware can provide validation in addition to parsing. For example, an auth middleware can have
 policies for validating auth in addition to passing auth context to the Action.
 """

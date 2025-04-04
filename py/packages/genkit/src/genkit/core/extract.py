@@ -44,8 +44,7 @@ def parse_partial_json(json_string: str) -> Any:
 
 
 def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
-    """
-    Extracts JSON from a string with lenient parsing.
+    """Extracts JSON from a string with lenient parsing.
 
     This function attempts to extract a valid JSON object or array from a
     string, even if the string contains extraneous characters or minor
@@ -79,7 +78,6 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         >>> extract_json('invalid json', throw_on_bad_json=False)
         None
     """
-
     if text.strip() == '':
         return None
 
@@ -154,8 +152,7 @@ class ExtractItemsResult:
 
 
 def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
-    """
-    Extracts complete JSON objects from the first array found in the text.
+    """Extracts complete JSON objects from the first array found in the text.
 
     This function searches for the first JSON array within the input string,
     starting from an optional cursor position. It extracts complete JSON

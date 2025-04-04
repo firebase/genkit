@@ -34,8 +34,8 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
-	ModelName               string            // Name of the model to use.
-	Model                   Model             // Model to use.
+	Model                   ModelArg          // Resolvable reference to a model to use with optional embedded config.
+	ModelName               string            // Name of model to use
 	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
 	Config                  any               // Model configuration. If nil will be taken from the prompt config.
 	Tools                   []ToolRef         // References to tools to use.
@@ -67,6 +67,7 @@ func (o *commonOptions) applyCommon(opts *commonOptions) error {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
 		opts.Model = o.Model
+		return nil
 	}
 
 	if o.ModelName != "" {
@@ -164,8 +165,8 @@ func WithConfig(config any) CommonOption {
 	return &commonOptions{Config: config}
 }
 
-// WithModel sets the model to call for generation.
-func WithModel(model Model) CommonOption {
+// WithModel sets a resolvable model reference to use for generation.
+func WithModel(model ModelArg) CommonOption {
 	return &commonOptions{Model: model}
 }
 

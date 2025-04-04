@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,3 +14,17 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
+# Run tests for all supported Python versions using tox
+
+set -euo pipefail
+
+TOP_DIR=$(git rev-parse --show-toplevel)
+PY_DIR="$TOP_DIR/py"
+
+echo "Running Python tests via tox..."
+
+# Use uv run to execute tox, passing the --parallel flag to tox
+# The '-p auto' flag tells tox to use available CPU cores for parallelism.
+# Any arguments passed to this script ($@) are forwarded to tox (and then pytest)
+uv run --directory "$PY_DIR" tox --parallel auto "$@"

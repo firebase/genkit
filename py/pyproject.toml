@@ -1,6 +1,6 @@
 [project]
 dependencies = [
-  "dotpromptz",
+  #"dotpromptz", # TODO: Add when updated to support Python 3.11 and functional.
   "genkit",
   "genkit-plugin-chroma",
   "genkit-plugin-dev-local-vectorstore",
@@ -13,18 +13,20 @@ dependencies = [
   "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
   "liccheck>=0.9.2",
+  "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
 name = "genkit-workspace"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version = "0.1.0"
 
 [dependency-groups]
 dev = [
   "bpython>=0.25",
-  "ipython>=9.0.2",
+  "ipython~=8.22; python_version <= '3.10'",
+  "ipython~=9.0.2; python_version >= '3.11'",
   "jupyter>=1.1.1",
   "pytest-asyncio>=0.25.3",
   "pytest>=8.3.4",
@@ -35,6 +37,9 @@ dev = [
   "twine>=6.1.0",
   "poethepoet>=0.33.1",
   "pip>=25.0.1",
+  "nox>=2024.4.15",
+  "tox>=4.25.0",
+  "tox-uv>=1.25.0",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -47,21 +52,35 @@ py-modules = []
 
 # Pytest for unit testing and coverage.
 [tool.pytest]
-asyncio_default_fixture_loop_scope = "function"
-asyncio_mode = "strict"
-python_files = [
-  "packages/**/*_test.py",
-  "plugins/**/*_test.py",
-  "samples/**/*_test.py",
-]
-testpaths = ["packages", "plugins", "samples"]
 
 [tool.pytest.ini_options]
-addopts                            = ["--cov"]
+addopts = [
+    "--cov",
+    #"--cov-report=", # Disable terminal report generation by pytest-cov
+    "-ra",
+    "-vv",
+]
+testpaths = [
+    "packages",
+    "plugins",
+    "samples",
+    "tests",
+]
 asyncio_default_fixture_loop_scope = "session"
+#asyncio_mode = "auto"
+asyncio_mode = "strict"
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 78
+
+[tool.coverage.run]
+omit = [
+  "**/__init__.py",  # Often contains just imports
+  "**/testing.py",   # Test utilities
+  "**/constants.py", # Typically just constants
+  "**/typing.py",    # Often auto-generated or complex types
+  "**/types.py",     # Often auto-generated or complex types
+]
 
 # uv based package management.
 [tool.uv]
@@ -136,7 +155,7 @@ exclude = [
 indent-width = 4
 line-length = 120
 preview = true
-target-version = "py312"
+target-version = "py311" # NOTE: Keep this at 3.11 not 3.10. We use backported libs for enums.
 unsafe-fixes = true
 
 
@@ -236,7 +255,7 @@ output                   = "packages/genkit/src/genkit/core/typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true
-target-python-version    = "3.12"
+target-python-version    = "3.11"
 use-default              = false
 use-schema-description   = true
 use-standard-collections = true

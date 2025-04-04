@@ -3,7 +3,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the JSON format"""
+"""Tests for the JSON format."""
 
 from genkit.blocks.formats import JsonFormat
 from genkit.blocks.model import GenerateResponseChunkWrapper, MessageWrapper

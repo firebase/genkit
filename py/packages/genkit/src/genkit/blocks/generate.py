@@ -17,7 +17,6 @@
 """Generate action."""
 
 import copy
-import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -51,8 +50,6 @@ from genkit.core.typing import (
     ToolResponse,
     ToolResponsePart,
 )
-
-logger = logging.getLogger(__name__)
 
 StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 

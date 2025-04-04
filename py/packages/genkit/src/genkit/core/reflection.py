@@ -100,12 +100,7 @@ def make_reflection_server(
             if not quiet:
                 message = format % args
                 logger.debug(
-                    '%s - - [%s] %s'
-                    % (
-                        self.address_string(),
-                        self.log_date_time_string(),
-                        message.translate(self._control_char_table),
-                    )
+                    f'{self.address_string()} - - [{self.log_date_time_string()}] {message.translate(self._control_char_table)}'
                 )
 
         def do_GET(self) -> None:  # noqa: N802

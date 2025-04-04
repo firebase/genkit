@@ -38,12 +38,14 @@ class TriviaQuestions(BaseModel):
     answers: list[str] = Field(description='list of multiple choice answers (typically 4), 1 correct 3 wrong')
 
 
-@ai.tool("can present questions to the user, responds with the user' selected answer")
+@ai.tool()
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
+    """Can present questions to the user, responds with the user' selected answer."""
     ctx.interrupt(questions)
 
 
 async def main() -> None:
+    """Main function."""
     response = await ai.generate(
         prompt='You a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '

@@ -81,7 +81,7 @@ async def test_simple_prompt_with_override_config() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_with_system() -> None:
-    """Test that the propmt utilizez both prompt and system prompt"""
+    """Test that the propmt utilises both prompt and system prompt."""
     ai, *_ = setup_test()
 
     want_txt = '[ECHO] system: "talk like a pirate" user: "hi"'
@@ -108,8 +108,9 @@ async def test_prompt_with_kitchensink() -> None:
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='testTool')
+    @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return 'abc'
 
     my_prompt = ai.define_prompt(

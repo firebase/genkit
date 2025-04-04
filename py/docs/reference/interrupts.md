@@ -63,8 +63,9 @@ class Questions(BaseModel):
     allow_other: bool = Field(description='when true, allow write-ins')
 
 
-@ai.tool('use this to ask the user a clarifying question')
+@ai.tool()
 def ask_question(input: Questions, ctx) -> str:
+    """Use this to ask the user a clarifying question"""
     ctx.interrupt()
 ```
 

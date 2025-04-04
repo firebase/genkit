@@ -119,8 +119,9 @@ See the following code samples for a concrete idea of how to use these capabilit
     class WeatherToolInput(BaseModel):
         location: str = Field(description='weather location')
 
-    @ai.tool('Use it to get weather')
+    @ai.tool()
     def get_weather(input:WeatherToolInput) -> str:
+        """Use it get the weather."""
         return f'Weather in {input.location} is 23°'
 
     async def main():

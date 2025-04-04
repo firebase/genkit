@@ -41,7 +41,7 @@ from genkit.blocks.model import (
 from genkit.blocks.prompt import to_generate_action_options
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
-from genkit.core.typing import (
+from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
     Message,
@@ -312,19 +312,22 @@ class Genkit(GenkitBase):
     async def retrieve(
         self,
         retriever: str | None = None,
-        query: str | None = None,
+        query: str | DocumentData | None = None,
         options: dict[str, Any] | None = None,
     ) -> RetrieverResponse:
         """Retrieves documents based on query.
 
         Args:
             retriever: Optional retriever name to use.
-            query: Texts query.
+            query: Text query or a DocumentData containing query text.
             options: retriever options
 
         Returns:
             The generated response with embeddings.
         """
+        if isinstance(query, str):
+            query = Document.from_text(query)
+
         retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever)
 
         return (await retrieve_action.arun(RetrieverRequest(query=query, options=options))).response

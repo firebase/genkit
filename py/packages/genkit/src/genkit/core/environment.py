@@ -16,8 +16,14 @@
 
 """Convenience functionality to determine the running environment."""
 
+import enum
 import os
-from enum import StrEnum
+import sys
+
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
 
 class EnvVar(StrEnum):

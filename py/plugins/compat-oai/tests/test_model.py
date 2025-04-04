@@ -28,8 +28,7 @@ from genkit.types import (
 
 
 def test_get_messages(sample_request):
-    """
-    Test _get_messages method.
+    """Test _get_messages method.
     Ensures the method correctly converts GenerateRequest messages into OpenAI-compatible ChatMessage format.
     """
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
@@ -44,17 +43,14 @@ def test_get_messages(sample_request):
 
 
 def test_get_messages_empty():
-    """
-    Test _get_messages raises ValueError when no messages are provided.
-    """
+    """Test _get_messages raises ValueError when no messages are provided."""
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
     with pytest.raises(ValueError, match='No messages provided in the request.'):
         model._get_messages([])
 
 
 def test_get_openai_config(sample_request):
-    """
-    Test _get_openai_config method.
+    """Test _get_openai_config method.
     Ensures the method correctly constructs the OpenAI API configuration dictionary.
     """
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
@@ -67,9 +63,7 @@ def test_get_openai_config(sample_request):
 
 
 def test_generate(sample_request):
-    """
-    Test generate method calls OpenAI API and returns GenerateResponse.
-    """
+    """Test generate method calls OpenAI API and returns GenerateResponse."""
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content='Hello, user!'))]
@@ -85,9 +79,7 @@ def test_generate(sample_request):
 
 
 def test_generate_stream(sample_request):
-    """
-    Test generate_stream method ensures it processes streamed responses correctly.
-    """
+    """Test generate_stream method ensures it processes streamed responses correctly."""
     mock_client = MagicMock()
 
     class MockStream:

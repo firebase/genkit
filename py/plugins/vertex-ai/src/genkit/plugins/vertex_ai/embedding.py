@@ -16,7 +16,13 @@
 
 """Vertex AI embedding plugin."""
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from typing import Any
 
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel

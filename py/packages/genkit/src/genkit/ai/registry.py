@@ -77,7 +77,22 @@ EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
 EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
 
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+
+
+def get_func_description(func: Callable, description: str | None = None) -> str:
+    """Get the description of a function.
+
+    Args:
+        func: The function to get the description of.
+        description: The description to use if the function docstring is
+            empty.
+    """
+    if description is not None:
+        return description
+    if func.__doc__ is not None:
+        return func.__doc__
+    return ''
 
 
 class GenkitRegistry:
@@ -85,14 +100,16 @@ class GenkitRegistry:
 
     def __init__(self):
         """Initialize the Genkit registry."""
-        self.registry = Registry()
+        self.registry: Registry = Registry()
 
-    def flow(self, name: str | None = None) -> Callable[[Callable], Callable]:
+    def flow(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.
 
         Args:
             name: Optional name for the flow. If not provided, uses the
                 function name.
+            description: Optional description for the flow. If not provided,
+                uses the function docstring.
 
         Returns:
             A decorator function that registers the flow.
@@ -108,10 +125,12 @@ class GenkitRegistry:
                 The wrapped function that executes the flow.
             """
             flow_name = name if name is not None else func.__name__
+            flow_description = get_func_description(func, description)
             action = self.registry.register_action(
                 name=flow_name,
                 kind=ActionKind.FLOW,
                 fn=func,
+                description=flow_description,
                 span_metadata={'genkit:metadata:flow:name': flow_name},
             )
 
@@ -148,13 +167,14 @@ class GenkitRegistry:
 
         return wrapper
 
-    def tool(self, description: str, name: str | None = None) -> Callable[[Callable], Callable]:
+    def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a tool.
 
         Args:
-            description: Description for the tool to be passed to the model.
             name: Optional name for the flow. If not provided, uses the function
                 name.
+            description: Description for the tool to be passed to the model;
+                if not provided, uses the function docstring.
 
         Returns:
             A decorator function that registers the tool.
@@ -170,6 +190,7 @@ class GenkitRegistry:
                 The wrapped function that executes the tool.
             """
             tool_name = name if name is not None else func.__name__
+            tool_description = get_func_description(func, description)
 
             input_spec = inspect.getfullargspec(func)
 
@@ -187,7 +208,7 @@ class GenkitRegistry:
             action = self.registry.register_action(
                 name=tool_name,
                 kind=ActionKind.TOOL,
-                description=description,
+                description=tool_description,
                 fn=tool_fn_wrapper,
                 metadata_fn=func,
             )
@@ -228,6 +249,7 @@ class GenkitRegistry:
         fn: RetrieverFn,
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        description: str | None = None,
     ) -> Callable[[Callable], Callable]:
         """Define a retriever action.
 
@@ -236,6 +258,7 @@ class GenkitRegistry:
             fn: Function implementing the retriever behavior.
             config_schema: Optional schema for retriever configuration.
             metadata: Optional metadata for the retriever.
+            description: Optional description for the retriever.
         """
         retriever_meta = metadata if metadata else {}
         if 'retriever' not in retriever_meta:
@@ -244,11 +267,14 @@ class GenkitRegistry:
             retriever_meta['retriever']['label'] = name
         if config_schema:
             retriever_meta['retriever']['customOptions'] = to_json_schema(config_schema)
+
+        retriever_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.RETRIEVER,
             fn=fn,
             metadata=retriever_meta,
+            description=retriever_description,
         )
 
     def define_evaluator(
@@ -260,6 +286,7 @@ class GenkitRegistry:
         is_billed: bool = False,
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        description: str | None = None,
     ) -> Callable[[Callable], Callable]:
         """Define a evaluator action.
 
@@ -275,6 +302,7 @@ class GenkitRegistry:
                         (paid  APIs, LLMs etc.)
             config_schema: Optional schema for evaluator configuration.
             metadata: Optional metadata for the evaluator.
+            description: Optional description for the evaluator.
         """
         evaluator_meta = metadata if metadata else {}
         if 'evaluator' not in evaluator_meta:
@@ -286,6 +314,8 @@ class GenkitRegistry:
             evaluator_meta['evaluator']['label'] = name
         if config_schema:
             evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+
+        evaluator_description = get_func_description(fn, description)
 
         def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
             eval_responses: list[EvalFnResponse] = []
@@ -334,6 +364,7 @@ class GenkitRegistry:
             kind=ActionKind.EVALUATOR,
             fn=eval_stepper_fn,
             metadata=evaluator_meta,
+            description=evaluator_description,
         )
 
     def define_batch_evaluator(
@@ -345,6 +376,7 @@ class GenkitRegistry:
         is_billed: bool = False,
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        description: str | None = None,
     ) -> Callable[[Callable], Callable]:
         """Define a batch evaluator action.
 
@@ -359,6 +391,7 @@ class GenkitRegistry:
                         (paid  APIs, LLMs etc.)
             config_schema: Optional schema for evaluator configuration.
             metadata: Optional metadata for the evaluator.
+            description: Optional description for the evaluator.
         """
         evaluator_meta = metadata if metadata else {}
         if 'evaluator' not in evaluator_meta:
@@ -370,11 +403,14 @@ class GenkitRegistry:
             evaluator_meta['evaluator']['label'] = name
         if config_schema:
             evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
+
+        evaluator_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.EVALUATOR,
             fn=fn,
             metadata=evaluator_meta,
+            description=evaluator_description,
         )
 
     def define_model(
@@ -384,6 +420,7 @@ class GenkitRegistry:
         config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         info: ModelInfo | None = None,
+        description: str | None = None,
     ) -> Action:
         """Define a custom model action.
 
@@ -393,8 +430,9 @@ class GenkitRegistry:
             config_schema: Optional schema for model configuration.
             metadata: Optional metadata for the model.
             info: Optional ModelInfo for the model.
+            description: Optional description for the model.
         """
-        model_meta = metadata if metadata else {}
+        model_meta: dict[str, Any] = metadata if metadata else {}
         if info:
             model_meta['model'] = dump_dict(info)
         if 'model' not in model_meta:
@@ -405,11 +443,13 @@ class GenkitRegistry:
         if config_schema:
             model_meta['model']['customOptions'] = to_json_schema(config_schema)
 
+        model_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.MODEL,
             fn=fn,
             metadata=model_meta,
+            description=model_description,
         )
 
     def define_embedder(
@@ -417,6 +457,7 @@ class GenkitRegistry:
         name: str,
         fn: EmbedderFn,
         metadata: dict[str, Any] | None = None,
+        description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
 
@@ -424,16 +465,23 @@ class GenkitRegistry:
             name: Name of the model.
             fn: Function implementing the embedder behavior.
             metadata: Optional metadata for the model.
+            description: Optional description for the embedder.
         """
+        embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.EMBEDDER,
             fn=fn,
             metadata=metadata,
+            description=embedder_description,
         )
 
-    def define_format(self, format: FormatDef):
-        """Registers a custom format in the registry."""
+    def define_format(self, format: FormatDef) -> None:
+        """Registers a custom format in the registry.
+
+        Args:
+            format: The format to register.
+        """
         self.registry.register_value('format', format.name, format)
 
     def define_prompt(
@@ -512,7 +560,7 @@ class GenkitRegistry:
 class FlowWrapper:
     """A wapper for flow functions to add `stream` method."""
 
-    def __init__(self, fn, action: Action):
+    def __init__(self, fn: Callable, action: Action):
         """Initialize the FlowWrapper.
 
         Args:
@@ -522,7 +570,7 @@ class FlowWrapper:
         self._fn = fn
         self._action = action
 
-    def __call__(self, *args, **kwds):
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Call the wrapped function.
 
         Args:
