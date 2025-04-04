@@ -23,12 +23,10 @@ to accomplish a task.
 """
 
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar
-
-from pydantic import BaseModel
+from typing import Generic, TypeVar
 
 from genkit.blocks.document import Document
-from genkit.core.typing import RetrieverRequest, RetrieverResponse
+from genkit.core.typing import RetrieverResponse
 
 T = TypeVar('T')
 # type RetrieverFn[T] = Callable[[Document, T], RetrieverResponse]

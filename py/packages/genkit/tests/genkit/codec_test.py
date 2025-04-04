@@ -16,7 +16,6 @@
 
 """Tests for the codec module."""
 
-import pytest
 from pydantic import BaseModel
 
 from genkit.codec import dump_json

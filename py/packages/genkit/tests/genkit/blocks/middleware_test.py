@@ -50,7 +50,6 @@ async def run_augmenter(req: GenerateRequest):
 @pytest.mark.asyncio
 async def test_augment_with_context_ignores_no_docs() -> None:
     """Test simple prompt rendering."""
-
     req = GenerateRequest(
         messages=[
             Message(role=Role.USER, content=[TextPart(text='hi')]),
@@ -65,7 +64,6 @@ async def test_augment_with_context_ignores_no_docs() -> None:
 @pytest.mark.asyncio
 async def test_augment_with_context_adds_docs_as_context() -> None:
     """Test simple prompt rendering."""
-
     req = GenerateRequest(
         messages=[
             Message(role=Role.USER, content=[TextPart(text='hi')]),
@@ -104,7 +102,6 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
 @pytest.mark.asyncio
 async def test_augment_with_context_should_not_modify_non_pending_part() -> None:
     """Test simple prompt rendering."""
-
     req = GenerateRequest(
         messages=[
             Message(
@@ -131,7 +128,6 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
 @pytest.mark.asyncio
 async def test_augment_with_context_with_purpose_part() -> None:
     """Test simple prompt rendering."""
-
     req = GenerateRequest(
         messages=[
             Message(

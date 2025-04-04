@@ -62,7 +62,7 @@ class Embedder:
         self._version = version
 
     async def generate(self, request: EmbedRequest) -> EmbedResponse:
-        """Generate embeddings for a given request
+        """Generate embeddings for a given request.
 
         Args:
             request: Genkit embed request.
@@ -86,7 +86,6 @@ class Embedder:
         Returns:
             list of google-genai contents.
         """
-
         request_contents: list[genai.types.Content] = []
         for doc in request.input:
             content_parts: list[genai.types.Part] = []
@@ -105,7 +104,6 @@ class Embedder:
         Returns:
             Google Ai embed config or None.
         """
-
         cfg = None
         if request.options:
             cfg = genai.types.EmbedContentConfig(

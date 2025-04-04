@@ -19,36 +19,52 @@ from pydantic import BaseModel, Field
 
 
 class MenuItemSchema(BaseModel):
+    """Schema for a menu item."""
+
     title: str = Field(..., description='The name of the menu item')
     description: str = Field(..., description='Details including ingredients and preparation')
     price: float = Field(..., description='Price in dollars')
 
 
 class MenuQuestionInputSchema(BaseModel):
+    """Input schema for the menu question prompt."""
+
     question: str = Field(..., description='A question about the menu')
 
 
 class AnswerOutputSchema(BaseModel):
+    """Output schema for the answer prompt."""
+
     answer: str = Field(..., description='An answer to a menu-related question')
 
 
 class DataMenuQuestionInputSchema(BaseModel):
+    """Input schema for the data menu question prompt."""
+
     menuData: list[MenuItemSchema] = Field(...)
     question: str = Field(..., description='A question about the menu')
 
 
 class TextMenuQuestionInputSchema(BaseModel):
+    """Input schema for the text menu question prompt."""
+
     menu_text: str = Field(...)
     question: str = Field(..., description='A question about the menu')
 
 
 class MenuToolOutputSchema(BaseModel):
+    """Output schema for the menu tool."""
+
     menu_data: list[MenuItemSchema] = Field(..., description='A list of all the items on the menu')
 
 
 class ReadMenuImagePromptSchema(BaseModel):
+    """Input schema for the read menu image prompt."""
+
     image_url: str = Field(...)
 
 
 class ReadMenuPromptOutputSchema(BaseModel):
+    """Output schema for the read menu prompt."""
+
     menu_text: str = Field(...)

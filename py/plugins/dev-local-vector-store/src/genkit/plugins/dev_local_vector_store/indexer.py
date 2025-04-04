@@ -53,7 +53,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         )
         embedding_docs = document.get_embedding_documents(embeddings.embeddings)
 
-        for embedding, emb_doc in zip(embeddings, embedding_docs):
+        for embedding, emb_doc in zip(embeddings, embedding_docs, strict=False):
             self._add_document(data=data, embedding=embedding, doc=emb_doc)
 
     def _add_document(
