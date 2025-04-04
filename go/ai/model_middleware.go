@@ -136,11 +136,16 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				}
 			}
 
+			if (info.Supports.Constrained == "" ||
+				info.Supports.Constrained == ConstrainedSupportNone ||
+				(info.Supports.Constrained == ConstrainedSupportNoTools && len(input.Tools) > 0)) &&
+				input.Output != nil && input.Output.Constrained {
+				return nil, fmt.Errorf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input)
+			}
+
 			if err := validateVersion(model, info.Versions, input.Config); err != nil {
 				return nil, err
 			}
-
-			// TODO: Add validation for features that won't have simulated support via middleware.
 
 			return next(ctx, input, cb)
 		}

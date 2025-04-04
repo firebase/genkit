@@ -194,6 +194,9 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		return nil, err
 	}
 
+	// Register default formats
+	ai.ConfigureFormats(r)
+
 	gOpts := &genkitOptions{}
 	for _, opt := range opts {
 		if err := opt.apply(gOpts); err != nil {
