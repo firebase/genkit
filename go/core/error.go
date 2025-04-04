@@ -91,7 +91,7 @@ func (e *GenkitError) ToSerializable() GenkitReflectionAPIErrorWireFormat {
 
 	return GenkitReflectionAPIErrorWireFormat{
 		Details: detailsWire,
-		Code:    StatusNameToCode[e.Status], // Use the integer code
+		Code:    HTTPStatusCode(e.Status), // Use the integer code
 		Message: msg,
 	}
 }

@@ -250,7 +250,7 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 
 		if err = h(w, r); err != nil {
 			errorResponse := core.GetReflectionJSON(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(errorResponse.Code)
 			writeJSON(ctx, w, errorResponse)
 		}
 	}
@@ -394,7 +394,11 @@ type telemetry struct {
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
-		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
+		return nil, &core.GenkitError{
+			Message: fmt.Sprintf("no action with key %q", key),
+			Status:  core.NOT_FOUND,
+		}
+		//& base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
