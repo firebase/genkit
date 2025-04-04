@@ -117,6 +117,7 @@ class Channel(Generic[T]):
             # Wait for either the pop task or the close future to complete.  A
             # timeout is added to prevent indefinite blocking, unless
             # specifically set to None.
+            # NOTE: asyncio.wait does not cancel tasks on timeout by default.
             finished, pending = await asyncio.wait(
                 [pop_task, self._close_future],
                 return_when=asyncio.FIRST_COMPLETED,

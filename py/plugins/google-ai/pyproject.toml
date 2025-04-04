@@ -8,18 +8,24 @@ classifiers = [
   "Operating System :: OS Independent",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["genkit", "google-genai>=1.7.0"]
+dependencies = [
+  "genkit",
+  "google-genai>=1.7.0",
+  "strenum>=0.4.15; python_version < '3.11'",
+]
 description = "Genkit Google AI Plugin"
 license = { text = "Apache-2.0" }
 name = "genkit-plugin-google-ai"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 version = "0.1.0"
 
 [build-system]

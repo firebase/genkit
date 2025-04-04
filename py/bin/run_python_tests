@@ -21,6 +21,7 @@ set -euo pipefail
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 PYTHON_VERSIONS=(
+  #"python3.10" # TODO: Add back in when asyncio channel is fixed.
   "python3.11"
   "python3.12"
   "python3.13"

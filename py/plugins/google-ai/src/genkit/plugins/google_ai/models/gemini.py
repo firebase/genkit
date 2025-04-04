@@ -16,7 +16,13 @@
 
 """Gemini Models for Genkit."""
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from functools import cached_property
 
 from google import genai

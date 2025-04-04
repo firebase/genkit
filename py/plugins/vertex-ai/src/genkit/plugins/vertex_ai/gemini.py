@@ -21,7 +21,13 @@ Gemini models through the Vertex AI platform. It includes version
 definitions and a client class for making requests to Gemini models.
 """
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from typing import Any
 
 import structlog

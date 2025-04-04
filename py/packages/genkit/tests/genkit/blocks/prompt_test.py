@@ -81,7 +81,7 @@ async def test_simple_prompt_with_override_config() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_with_system() -> None:
-    """Test that the propmt utilizez both prompt and system prompt"""
+    """Test that the propmt utilises both prompt and system prompt."""
     ai, *_ = setup_test()
 
     want_txt = '[ECHO] system: "talk like a pirate" user: "hi"'

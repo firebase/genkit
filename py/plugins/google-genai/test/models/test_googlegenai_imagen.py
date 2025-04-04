@@ -18,7 +18,6 @@ import base64
 
 import pytest
 from google import genai
-from google.genai import types as genai_types
 
 from genkit.ai import ActionRunContext
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion

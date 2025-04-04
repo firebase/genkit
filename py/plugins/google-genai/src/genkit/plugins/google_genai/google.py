@@ -168,7 +168,6 @@ class VertexAI(Plugin):
 
 def _inject_attribution_headers(http_options):
     """Adds genkit client info to the appropriate http headers."""
-
     if not http_options:
         http_options = HttpOptions()
     else:

@@ -1,0 +1,395 @@
+#!/usr/bin/env bash
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Kills processes listening on specified TCP ports or port ranges.
+# Works on macOS and Linux.
+#
+# Usage:
+#   killports [<options>] <port_or_range> [<port_or_range>...]
+#
+# Options:
+#   -f, --force: Use SIGKILL (kill -9) instead of the default SIGTERM.
+#   -y, --yes:   Automatically answer yes to confirmation prompts.
+#
+# Arguments:
+#   <port_or_range>: A single TCP port number or a range specified as start..end (inclusive).
+#
+# Examples:
+#   killports 8000 8080                # Kills processes on ports 8000 and 8080 with SIGTERM after confirmation
+#   killports 9000..9010               # Kills processes on ports 9000 through 9010 with SIGTERM after confirmation
+#   killports -y 3100..3102 3400       # Kills processes on 3100-3102 and 3400 with SIGTERM, skipping confirmation
+#   killports --force 8000             # Force kills process on port 8000 with SIGKILL, skipping confirmation
+#   killports -y --force 8080 9090     # Force kills processes on 8080 and 9090 with SIGKILL, skipping confirmation
+#
+# To test the script, run the following commands to start test servers:
+#   python3 -m http.server 3100 &
+#   python3 -m http.server 3101 &
+#   python3 -m http.server 3102 &
+#   python3 -m http.server 3400 &
+#
+# Then run the script with the following command to kill the processes:
+#   killports 3100..3102 3400
+#
+# To force kill the processes, run the following command:
+#   killports --force 3100..3102 3400
+#
+# To skip confirmation, run the following command:
+#   killports -y 3100..3102 3400
+#
+# To force kill and skip confirmation, run the following command:
+#   killports --force -y 3100..3102 3400
+
+#set -x
+set -euo pipefail
+
+DEFAULT_SIGNAL="TERM" # Default signal (TERM allows graceful shutdown)
+FORCE_SIGNAL="KILL"   # Force signal (KILL terminates immediately)
+
+# Populated by killports::parse_args
+declare -A TARGET_PORTS_MAP=() # Associative array for unique target ports
+FORCE_KILL=0                   # 1 if --force is used, 0 otherwise
+SKIP_CONFIRMATION=0            # 1 if -y/--yes is used, 0 otherwise
+KILL_SIGNAL=$DEFAULT_SIGNAL    # Signal to use (TERM or KILL)
+# Populated by killports::kill_processes
+KILLED_COUNT=0 # Number of processes successfully signaled
+FAILED_COUNT=0 # Number of processes failed to signal
+
+# Print usage instructions and exit.
+killports::usage() {
+  local script_name
+  script_name=$(basename "$0")
+  echo "Usage: $script_name [<options>] <port_or_range> [<port_or_range>...]" >&2
+  echo "" >&2
+  echo "Options:" >&2
+  echo "  -f, --force: Use SIGKILL (kill -9) instead of the default SIGTERM." >&2
+  echo "  -y, --yes:   Automatically answer yes to confirmation prompts." >&2
+  echo "" >&2
+  echo "Arguments:" >&2
+  echo "  <port_or_range>: A single TCP port number or a range specified as start..end (inclusive)." >&2
+  echo "" >&2
+  echo "Examples:" >&2
+  echo "  $script_name 8000 8080                # Kills processes on ports 8000 and 8080 with SIGTERM after confirmation" >&2
+  echo "  $script_name 9000..9010               # Kills processes on ports 9000 through 9010 with SIGTERM after confirmation" >&2
+  echo "  $script_name -y 3100..3102 3400       # Kills processes on 3100-3102 and 3400 with SIGTERM, skipping confirmation" >&2
+  echo "  $script_name --force 8000             # Force kills process on port 8000 with SIGKILL, skipping confirmation" >&2
+  echo "  $script_name -y --force 8080 9090     # Force kills processes on 8080 and 9090 with SIGKILL, skipping confirmation" >&2
+  exit 1
+}
+
+# Check if a command exists.
+killports::command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Parse command line arguments.
+# Populates global variables: TARGET_PORTS_MAP, FORCE_KILL, SKIP_CONFIRMATION, KILL_SIGNAL.
+killports::parse_args() {
+  local args_remaining=()
+  local arg port start_port end_port
+
+  # Separate flags from port/range arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -f | --force)
+      FORCE_KILL=1
+      KILL_SIGNAL=$FORCE_SIGNAL
+      shift
+      ;;
+    -y | --yes)
+      SKIP_CONFIRMATION=1
+      shift
+      ;;
+    --)
+      # End of options marker
+      shift
+      args_remaining+=("$@") # Add all remaining arguments
+      break                  # Stop processing options
+      ;;
+    -*)
+      echo "Error: Unknown option: $1" >&2
+      killports::usage
+      ;;
+    *)
+      # Not an option, assume it's a port/range
+      args_remaining+=("$1")
+      shift # consume the argument
+      ;;
+    esac
+  done
+
+  # Validation after Parsing Flags.
+  if [[ ${#args_remaining[@]} -eq 0 ]]; then
+    echo "Error: No ports or ranges specified." >&2
+    killports::usage
+  fi
+
+  if [[ $FORCE_KILL -eq 1 ]]; then
+    echo "Using force kill (SIGKILL)."
+  fi
+  if [[ $SKIP_CONFIRMATION -eq 1 && $FORCE_KILL -eq 0 ]]; then
+    echo "Skipping confirmation prompt."
+  fi
+
+  # Process Port/Range Arguments.
+  for arg in "${args_remaining[@]}"; do
+    if [[ $arg =~ ^([0-9]+)\.\.([0-9]+)$ ]]; then
+      # Range a..b
+      start_port="${BASH_REMATCH[1]}"
+      end_port="${BASH_REMATCH[2]}"
+      if ! [[ $start_port =~ ^[0-9]+$ && $end_port =~ ^[0-9]+$ && $start_port -ge 0 && $start_port -le 65535 && $end_port -ge 0 && $end_port -le 65535 ]]; then
+        echo "Error: Invalid port numbers in range '$arg'. Ports must be between 0 and 65535." >&2
+        killports::usage
+      fi
+      if ((start_port > end_port)); then
+        echo "Error: Start port ($start_port) cannot be greater than end port ($end_port) in range '$arg'." >&2
+        killports::usage
+      fi
+      echo "Adding ports from range $start_port to $end_port."
+      for ((port = start_port; port <= end_port; port++)); do
+        TARGET_PORTS_MAP[$port]=1
+      done
+    elif [[ $arg =~ ^[0-9]+$ ]]; then
+      # Single port
+      port="$arg"
+      if ! [[ $port =~ ^[0-9]+$ && $port -ge 0 && $port -le 65535 ]]; then
+        echo "Error: Invalid port number '$port'. Port must be between 0 and 65535." >&2
+        killports::usage
+      fi
+      echo "Adding port $port."
+      TARGET_PORTS_MAP[$port]=1
+    else
+      echo "Error: Invalid argument '$arg'. Must be a port number (0-65535) or a range (e.g., 8000..8010)." >&2
+      killports::usage
+    fi
+  done
+
+  # This check should technically be covered by the args_remaining check above,
+  # but keeping it as a safeguard in case of future logic changes.
+  if [[ ${#TARGET_PORTS_MAP[@]} -eq 0 ]]; then
+    echo "Error: No valid ports or ranges were ultimately processed." >&2
+    killports::usage
+  fi
+}
+
+# Check for required dependencies.
+killports::check_dependencies() {
+  if ! killports::command_exists lsof; then
+    echo "Error: 'lsof' command not found. Please install it." >&2
+    echo "  On Debian/Ubuntu: sudo apt-get update && sudo apt-get install lsof" >&2
+    echo "  On Fedora/CentOS/RHEL: sudo yum install lsof" >&2
+    echo "  On macOS: 'lsof' is usually pre-installed." >&2
+    exit 1
+  fi
+}
+
+# Find processes listening on specified ports.
+#
+# Args:
+#   $1: Comma-separated string of sorted target ports.
+# Outputs:
+#   Prints process info (PID and Command) to stdout.
+killports::find_processes() {
+  local awk_ports_list=$1
+  local process_info
+
+  # Note: On some systems, lsof might need root privileges to see all processes.
+  process_info=$(lsof -i TCP -sTCP:LISTEN -P -n 2>/dev/null | awk -v ports="$awk_ports_list" '
+    BEGIN {
+        split(ports, port_arr, ",");
+        for (i in port_arr) {
+            target_ports[port_arr[i]] = 1;
+        }
+        # Skip header line explicitly if present (safer than tail)
+        header_skipped = 0
+    }
+    # Check if line looks like a header and skip
+    NR == 1 && $1 == "COMMAND" && $2 == "PID" { next }
+    {
+        # Extract port from NAME field (column 9)
+        # Matches *:port, 127.0.0.1:port, [::1]:port etc.
+        if (match($9, /[:][0-9]+$/)) {
+            port = substr($9, RSTART + 1) # Extract port number after ":"
+            if (port in target_ports) {
+                # Print PID (col 2) and Command (col 1)
+                print $2 " " $1;
+            }
+        }
+    }' | sort -k1,1n -u)
+
+  echo "$process_info"
+}
+
+# Confirm and kill processes.
+#
+# Args:
+#   $1: Process info string (multiline, PID COMMAND per line).
+#   $2: Kill signal (e.g., TERM, KILL).
+#   $3: Force kill flag (1 for force, 0 for confirmation).
+#   $4: Skip confirmation flag (1 for yes, 0 otherwise).
+# Populates global variables: KILLED_COUNT, FAILED_COUNT.
+killports::kill_processes() {
+  local process_info="$1"
+  local signal_to_use="$2"
+  local force_flag="$3"
+  local skip_confirm_flag="$4"
+  local pid cmd_rest confirm
+  local line_count
+
+  # Count lines/processes found.
+  line_count=$(echo "$process_info" | wc -l)
+
+  if [[ -z $process_info ]]; then
+    # Should not happen if called after checking process_info, but defensive check.
+    echo "Warning: kill_processes called with no PIDs found." >&2
+    return
+  fi
+
+  echo ""
+  echo "Found the following $line_count process(es)/PID(s) listening on the specified ports:"
+  echo "--------------------------------------------------"
+  echo "PID     COMMAND"
+  echo "$process_info"
+  echo "--------------------------------------------------"
+  echo ""
+
+  # Ask for confirmation unless force killing or skipping confirmation.
+  if [[ $force_flag -eq 0 && $skip_confirm_flag -eq 0 ]]; then
+    # Use line_count instead of array length.
+    read -p "Terminate these $line_count process(es) with signal $signal_to_use? [y/N]: " confirm
+    # Convert confirmation to lowercase.
+    confirm=${confirm,,}
+    if [[ $confirm != "y" && $confirm != "yes" ]]; then
+      echo "Aborted by user."
+      exit 0
+    fi
+  elif [[ $force_flag -eq 1 ]]; then
+    echo "Force killing specified. Skipping confirmation."
+  # No need for an explicit message if only -y was used, parse_args already printed it.
+  fi
+
+  echo "Attempting to terminate PIDs with signal $signal_to_use..."
+  KILLED_COUNT=0 # Reset counts for this run
+  FAILED_COUNT=0
+
+  # Temporarily disable exit-on-error for the loop, as read can exit non-zero at EOF.
+  set +e                                                  # Temporarily disable exit on error for the loop.
+  while IFS=' ' read -r pid cmd_rest || [[ -n $pid ]]; do # Handle potential missing newline at EOF.
+    if [[ -z $pid ]]; then continue; fi                   # Skip empty lines if any.
+    # cmd_rest will contain the command name and any subsequent parts.
+    echo -n "Killing PID $pid ($cmd_rest)... "
+    # Execute kill command.
+    if kill "-${signal_to_use}" "$pid" 2>/dev/null; then
+      echo "Success."
+      ((KILLED_COUNT++))
+    else
+      # Check if the process still exists before declaring failure.
+      if ps -p "$pid" >/dev/null; then
+        echo "Failed. (Process might require higher privileges)."
+        ((FAILED_COUNT++))
+      else
+        echo "Failed. (Process likely already exited)."
+      fi
+    fi
+  done <<<"$process_info"
+  set -e # Re-enable exit on error.
+
+  # Print Summary.
+  killports::print_summary "$KILL_SIGNAL" "$KILLED_COUNT" "$FAILED_COUNT"
+
+  # Exit Status.
+  # Exit with 0 if all targeted processes were signaled successfully or didn't need signaling.
+  # Exit with 1 if some processes failed to be signaled (might need sudo).
+  if ((FAILED_COUNT > 0)); then
+    exit 1
+  else
+    exit 0
+  fi
+}
+
+# Print the final summary.
+#
+# Args:
+#   $1: Kill signal used (e.g., TERM, KILL).
+#   $2: Number of processes killed.
+#   $3: Number of processes failed.
+killports::print_summary() {
+  local signal_used="$1"
+  local killed_num="$2"
+  local failed_num="$3"
+
+  echo ""
+  echo "Summary:"
+  echo "  Successfully sent signal $signal_used to $killed_num process(es)."
+  if ((failed_num > 0)); then
+    echo "  Failed to send signal $signal_used to $failed_num process(es)." >&2
+    echo "  (You might need to run this script with 'sudo' for some processes)." >&2
+  fi
+}
+
+# Run the main function.
+#
+# Args:
+#   $@: The command line arguments.
+main() {
+  # Parse Arguments.
+  # This populates TARGET_PORTS_MAP, FORCE_KILL, SKIP_CONFIRMATION, KILL_SIGNAL.
+  killports::parse_args "$@"
+
+  # Check Dependencies.
+  killports::check_dependencies
+
+  # Prepare Port List for Display and Filtering.
+  local target_ports_sorted=()
+  local ports_str=""
+  # Get the unique sorted list of ports as a comma-separated list.
+  mapfile -t target_ports_sorted < <(echo "${!TARGET_PORTS_MAP[@]}" | tr ' ' '\n' | sort -n)
+  ports_str=$(
+    IFS=,
+    echo "${target_ports_sorted[*]}"
+  )
+
+  echo "Searching for processes listening on TCP ports: $ports_str ..."
+
+  # Find Processes.
+  local process_info
+  process_info=$(killports::find_processes "$ports_str")
+
+  if [[ -z $process_info ]]; then
+    echo "No processes found listening on the specified ports ($ports_str)."
+    exit 0
+  fi
+
+  # Kill Processes (includes confirmation logic).
+  # This populates KILLED_COUNT, FAILED_COUNT.
+  killports::kill_processes "$process_info" "$KILL_SIGNAL" "$FORCE_KILL" "$SKIP_CONFIRMATION"
+
+  # Print Summary
+  killports::print_summary "$KILL_SIGNAL" "$KILLED_COUNT" "$FAILED_COUNT"
+
+  # Exit Status
+  # - Exit with 0 if all targeted processes were signaled successfully or didn't
+  #   need signaling.
+  # - Exit with 1 if some processes failed to be signaled (might need sudo).
+  if ((FAILED_COUNT > 0)); then
+    exit 1
+  else
+    exit 0
+  fi
+}
+
+# Run the main function
+main "$@"

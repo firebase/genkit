@@ -73,4 +73,4 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
     @staticmethod
     def dot(a: list[int], b: list[int]) -> float:
-        return sum(a * b for a, b in zip(a, b))
+        return sum(a * b for a, b in zip(a, b, strict=False))
