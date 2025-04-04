@@ -269,7 +269,11 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return &core.GenkitError{
+				Message: err.Error(),
+				Status:  core.FAILED_PRECONDITION,
+			}
+			//return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -403,7 +407,10 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		return nil, core.NewGenkitError("", core.INTERNAL, err, nil, &traceID, nil)
+		return nil, &core.GenkitError{
+			Message: err.Error(),
+			Status:  core.INTERNAL,
+		}
 	}
 
 	return &runActionResponse{

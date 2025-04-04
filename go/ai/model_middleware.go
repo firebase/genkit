@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 )
 
@@ -101,28 +102,43 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				for _, msg := range input.Messages {
 					for _, part := range msg.Content {
 						if part.IsMedia() {
-							return nil, fmt.Errorf("model %q does not support media, but media was provided. Request: %+v", model, input)
+							return nil, &core.GenkitError{
+								Message: fmt.Sprintf("model %q does not support media, but media was provided. Request: %+v", model, input),
+								Status:  core.ABORTED,
+							}
 						}
 					}
 				}
 			}
 
 			if !info.Supports.Tools && len(input.Tools) > 0 {
-				return nil, fmt.Errorf("model %q does not support tool use, but tools were provided. Request: %+v", model, input)
+				return nil, &core.GenkitError{
+					Message: fmt.Sprintf("model %q does not support tool use, but tools were provided. Request: %+v", model, input),
+					Status:  core.UNAVAILABLE,
+				}
 			}
 
 			if !info.Supports.Multiturn && len(input.Messages) > 1 {
-				return nil, fmt.Errorf("model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input)
+				return nil, &core.GenkitError{
+					Message: fmt.Sprintf("model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input),
+					Status:  core.UNAVAILABLE,
+				}
 			}
 
 			if !info.Supports.ToolChoice && input.ToolChoice != "" && input.ToolChoice != ToolChoiceAuto {
-				return nil, fmt.Errorf("model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input)
+				return nil, &core.GenkitError{
+					Message: fmt.Sprintf("model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input),
+					Status:  core.UNAVAILABLE,
+				}
 			}
 
 			if !info.Supports.SystemRole {
 				for _, msg := range input.Messages {
 					if msg.Role == RoleSystem {
-						return nil, fmt.Errorf("model %q does not support system role, but system role was provided. Request: %+v", model, input)
+						return nil, &core.GenkitError{
+							Message: fmt.Sprintf("model %q does not support system role, but system role was provided. Request: %+v", model, input),
+							Status:  core.UNAVAILABLE,
+						}
 					}
 				}
 			}
@@ -171,14 +187,20 @@ func validateVersion(model string, versions []string, config any) error {
 
 	version, ok := versionVal.(string)
 	if !ok {
-		return fmt.Errorf("version must be a string, got %T", versionVal)
+		return &core.GenkitError{
+			Message: fmt.Sprintf("version must be a string, got %T", versionVal),
+			Status:  core.INVALID_ARGUMENT,
+		}
 	}
 
 	if slices.Contains(versions, version) {
 		return nil
 	}
 
-	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
+	return &core.GenkitError{
+		Message: fmt.Sprintf("model %q does not support version %q, supported versions: %v", model, version, versions),
+		Status:  core.NOT_FOUND,
+	}
 }
 
 // ContextItemTemplate is the default item template for context augmentation.
@@ -297,13 +319,19 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 
 					resp, err := client.Get(mediaUrl)
 					if err != nil {
-						return nil, fmt.Errorf("HTTP error downloading media %q: %w", mediaUrl, err)
+						return nil, &core.GenkitError{
+							Message: fmt.Sprintf("HTTP error downloading media %q: %v", mediaUrl, err),
+							Status:  core.ABORTED,
+						}
 					}
 					defer resp.Body.Close()
 
 					if resp.StatusCode != http.StatusOK {
 						body, _ := io.ReadAll(resp.Body)
-						return nil, fmt.Errorf("HTTP error downloading media %q: %s", mediaUrl, string(body))
+						return nil, &core.GenkitError{
+							Message: fmt.Sprintf("HTTP error downloading media %q: %s", mediaUrl, string(body)),
+							Status:  core.ABORTED,
+						}
 					}
 
 					contentType := part.ContentType
@@ -319,7 +347,10 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 						data, err = io.ReadAll(resp.Body)
 					}
 					if err != nil {
-						return nil, fmt.Errorf("error reading media %q: %v", mediaUrl, err)
+						return nil, &core.GenkitError{
+							Message: fmt.Sprintf("error reading media %q: %v", mediaUrl, err),
+							Status:  core.ABORTED,
+						}
 					}
 
 					message.Content[j] = NewMediaPart(contentType, fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)))
