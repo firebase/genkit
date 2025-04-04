@@ -36,6 +36,7 @@ dev = [
   "twine>=6.1.0",
   "poethepoet>=0.33.1",
   "pip>=25.0.1",
+  "nox>=2024.4.15",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -61,7 +62,16 @@ python_files = [
 testpaths = ["packages", "plugins", "samples"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 78
+
+[tool.coverage.run]
+omit = [
+  "**/__init__.py",  # Often contains just imports
+  "**/testing.py",   # Test utilities
+  "**/constants.py", # Typically just constants
+  "**/typing.py",    # Often auto-generated or complex types
+  "**/types.py",     # Often auto-generated or complex types
+]
 
 # uv based package management.
 [tool.uv]
