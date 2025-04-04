@@ -48,7 +48,6 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 		config: &ModelOutputConfig{
 			Format:      OutputFormatJSONL,
 			Schema:      schema,
-			Constrained: true,
 			ContentType: "application/jsonl",
 		},
 	}

@@ -46,7 +46,6 @@ func (j jsonFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 		config: &ModelOutputConfig{
 			Format:      OutputFormatJSON,
 			Schema:      schema,
-			Constrained: true,
 			ContentType: "application/json",
 		},
 	}

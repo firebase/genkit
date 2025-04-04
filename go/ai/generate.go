@@ -130,8 +130,8 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		modelMeta := metadata["model"].(map[string]any)
 		modelMeta["customOptions"] = info.ConfigSchema
 	}
-  
-  mws := []ModelMiddleware{
+
+	mws := []ModelMiddleware{
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
@@ -233,12 +233,9 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 		outputCfg = formatHandler.Config()
 
-		// Native constrained output is enabled only when all three conditions are met:
-		// 1. The formatter requires it (ModelOutputConfig.Constrained)
-		// 2. The user has requested it (GenerateActionOutputConfig.Constrained)
-		// 3. The model supports it (model.SupportsConstrained())
-		outputCfg.Constrained = outputCfg.Constrained &&
-			opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
+		// Native constrained output is enabled only when the user has
+		// requested it and the model supports it.
+		outputCfg.Constrained = opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -252,8 +249,12 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			if instructions != "" {
 				opts.Messages = injectInstructions(opts.Messages, instructions)
 			}
+
+			// This is optional to make the output config internally consistent.
+			outputCfg.Schema = nil
 		}
 	}
+
 	req := &ModelRequest{
 		Messages:   opts.Messages,
 		Config:     opts.Config,
