@@ -19,7 +19,6 @@ package googlegenai_test
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"flag"
 	"io"
 	"log"
@@ -301,11 +300,10 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		t.Log(resp.Text())
 		var ans outFormat
-		err = json.Unmarshal([]byte(resp.Text()), &ans)
+		err = resp.Output(&ans)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		const want = "France"
 		if ans.Country != want {
