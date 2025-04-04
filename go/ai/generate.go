@@ -238,7 +238,9 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		// 2. The user has requested it (GenerateActionOutputConfig.Constrained)
 		// 3. The model supports it (model.SupportsConstrained())
 		outputCfg.Constrained = outputCfg.Constrained &&
-			opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained &&
+			model.SupportsConstrained(len(toolDefs) > 0) &&
+			opts.Output.JsonSchema != nil
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -272,7 +274,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			return nil, err
 		}
 
-		if formatHandler != nil {
+		if formatHandler != nil && outputCfg.Constrained {
 			resp.Message, err = formatHandler.ParseMessage(resp.Message)
 			if err != nil {
 				logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
