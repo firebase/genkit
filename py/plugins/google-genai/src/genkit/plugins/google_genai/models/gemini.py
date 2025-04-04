@@ -127,7 +127,13 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Experimental | Unavailable  |
 """
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from functools import cached_property
 from typing import Any
 
