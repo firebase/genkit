@@ -234,8 +234,9 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		outputCfg = formatHandler.Config()
 
 		// Native constrained output is enabled only when the user has
-		// requested it and the model supports it.
-		outputCfg.Constrained = opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
+		// requested it, the model supports it, and there's a JSON schema.
+		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
+			opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
