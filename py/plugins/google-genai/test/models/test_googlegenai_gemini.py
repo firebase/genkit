@@ -15,7 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
 
 import pytest
 from google import genai
