@@ -58,7 +58,7 @@ func main() {
 				Temperature: 0.5,
 				ResponseModalities: []googlegenai.Modality{
 					googlegenai.ImageMode,
-					googlegenai.TextMode,
+					// googlegenai.TextMode,
 				},
 			}),
 			ai.WithPromptText(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
@@ -71,7 +71,7 @@ func main() {
 		for _, p := range resp.Message.Content {
 			if p.IsMedia() {
 				scene += 1
-				err = base64toFile(p.Text, fmt.Sprintf("out_%d.png", scene))
+				err = base64toFile(p.Text, fmt.Sprintf("scene_%d.png", scene))
 			}
 			if p.IsText() {
 				story += p.Text
