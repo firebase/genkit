@@ -22,8 +22,6 @@ import asyncio
 from collections.abc import AsyncIterator
 from typing import Generic, TypeVar
 
-from genkit.aio._compat import async_wait_for
-
 T = TypeVar('T')
 
 
@@ -113,7 +111,7 @@ class Channel(Generic[T]):
             # Wait for the pop task with a timeout, raise TimeoutError if a
             # timeout is specified and is exceeded and automatically cancel the
             # pending task.
-            return await async_wait_for(pop_task, timeout=self._timeout)
+            return await asyncio.wait_for(pop_task, timeout=self._timeout)
 
         try:
             # Wait for either the pop task or the close future to complete.  A
@@ -126,20 +124,16 @@ class Channel(Generic[T]):
                 timeout=self._timeout,
             )
 
-        except TimeoutError:
+        except TimeoutError as e:
             # If the wait operation timed out, both tasks will be in pending.
             # asyncio.wait() doesn't automatically cancel pending tasks, so we
             # ensure we cancel our pending tasks.
             for t in pending:
-                if not t.done():
-                    t.cancel()
-            raise asyncio.TimeoutError()
+                t.cancel()
+            raise e
 
         # If the pop task completed, return its result.
         if pop_task in finished:
-            # Ensure the close_future is cancelled if pop_task finished first
-            if self._close_future in pending:
-                self._close_future.cancel()
             return pop_task.result()
 
         # If the close future completed, raise StopAsyncIteration.
@@ -151,7 +145,7 @@ class Channel(Generic[T]):
         # Wait for the pop task with a timeout, raise TimeoutError if a timeout
         # is specified and is exceeded and automatically cancel the pending
         # task.
-        return await async_wait_for(pop_task, timeout=self._timeout)
+        return await asyncio.wait_for(pop_task, timeout=self._timeout)
 
     def send(self, value: T) -> None:
         """Sends a value into the channel.
