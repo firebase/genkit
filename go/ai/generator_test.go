@@ -139,7 +139,6 @@ func TestValidMessage(t *testing.T) {
 					"phone": map[string]any{"type": "string"},
 				},
 			},
-			Constrained: true,
 		}
 		message, err := validTestMessage(message, outputSchema)
 		if err != nil {
@@ -166,7 +165,6 @@ func TestValidMessage(t *testing.T) {
 					"age":  map[string]any{"type": "integer"},
 				},
 			},
-			Constrained: true,
 		}
 		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
@@ -218,7 +216,6 @@ func TestValidMessage(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			Constrained: true,
 		}
 		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
@@ -235,7 +232,6 @@ func TestValidMessage(t *testing.T) {
 			Schema: map[string]any{
 				"type": "invalid",
 			},
-			Constrained: true,
 		}
 		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "failed to validate data against expected schema")

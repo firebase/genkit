@@ -95,7 +95,6 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, fn ModelFunc) Model {
-
 	if info == nil {
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
@@ -130,8 +129,8 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		modelMeta := metadata["model"].(map[string]any)
 		modelMeta["customOptions"] = info.ConfigSchema
 	}
-  
-  mws := []ModelMiddleware{
+
+	mws := []ModelMiddleware{
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
@@ -609,9 +608,7 @@ func conformOutput(req *ModelRequest) error {
 
 		escapedJSON := strconv.Quote(string(jsonBytes))
 		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
-		part.Metadata = map[string]any{
-			"purpose": "output",
-		}
+
 		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
 	}
 	return nil
