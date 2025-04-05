@@ -21,9 +21,11 @@ from genkit.ai.plugin import Plugin
 from genkit.ai.registry import GenkitRegistry
 from genkit.plugins.ollama.embedders import OllamaEmbedder
 from genkit.plugins.ollama.models import (
+    DEFAULT_OLLAMA_SERVER_URL,
+    EmbeddingModelDefinition,
+    ModelDefinition,
     OllamaAPITypes,
     OllamaModel,
-    OllamaPluginParams,
 )
 
 
@@ -44,14 +46,20 @@ class Ollama(Plugin):
 
     name = 'ollama'
 
-    def __init__(self, plugin_params: OllamaPluginParams):
-        """Initialize the Ollama plugin.
+    def __init__(
+        self,
+        models: list[ModelDefinition] | None = None,
+        embedders: list[EmbeddingModelDefinition] | None = None,
+        server_address: str | None = None,
+        request_headers: dict[str, str] | None = None,
+    ):
+        """Initialize the Ollama plugin."""
+        self.models = models or []
+        self.embedders = embedders or []
+        self.server_address = server_address or DEFAULT_OLLAMA_SERVER_URL
+        self.request_headers = request_headers or {}
 
-        Args:
-            plugin_params: The plugin parameters to initialize the plugin with.
-        """
-        self.plugin_params = plugin_params
-        self.client = ollama_api.AsyncClient(host=self.plugin_params.server_address.unicode_string())
+        self.client = ollama_api.AsyncClient(host=self.server_address)
 
     def initialize(self, ai: GenkitRegistry) -> None:
         """Initialize the Ollama plugin.
@@ -63,7 +71,7 @@ class Ollama(Plugin):
         self._initialize_embedders(ai=ai)
 
     def _initialize_models(self, ai: GenkitRegistry):
-        for model_definition in self.plugin_params.models:
+        for model_definition in self.models:
             model = OllamaModel(
                 client=self.client,
                 model_definition=model_definition,
@@ -78,7 +86,7 @@ class Ollama(Plugin):
             )
 
     def _initialize_embedders(self, ai: GenkitRegistry):
-        for embedding_definition in self.plugin_params.embedders:
+        for embedding_definition in self.embedders:
             embedder = OllamaEmbedder(
                 client=self.client,
                 embedding_definition=embedding_definition,

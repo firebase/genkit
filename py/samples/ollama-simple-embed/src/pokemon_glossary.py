@@ -32,7 +32,6 @@ from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.models import (
     EmbeddingModelDefinition,
     ModelDefinition,
-    OllamaPluginParams,
 )
 from genkit.types import GenerateResponse
 
@@ -42,25 +41,21 @@ EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768
 GENERATE_MODEL = 'phi3.5:latest'
 
-plugin_params = OllamaPluginParams(
-    models=[
-        ModelDefinition(
-            name=GENERATE_MODEL,
-            api_type=OllamaAPITypes.GENERATE,
-        )
-    ],
-    embedders=[
-        EmbeddingModelDefinition(
-            name=EMBEDDER_MODEL,
-            dimensions=512,
-        )
-    ],
-)
-
 ai = Genkit(
     plugins=[
         Ollama(
-            plugin_params=plugin_params,
+            models=[
+                ModelDefinition(
+                    name=GENERATE_MODEL,
+                    api_type=OllamaAPITypes.GENERATE,
+                )
+            ],
+            embedders=[
+                EmbeddingModelDefinition(
+                    name=EMBEDDER_MODEL,
+                    dimensions=512,
+                )
+            ],
         )
     ],
 )

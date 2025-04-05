@@ -43,10 +43,7 @@ from genkit.ai import Genkit
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
-    OllamaAPITypes,
-    OllamaPluginParams,
 )
-from genkit.types import Message, Role, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -60,17 +57,13 @@ MISTRAL_MODEL = 'mistral-nemo:latest'
 # Run your ollama models with `ollama run *MODEL_NAME*`
 # e.g. `ollama run gemma3:latest`
 
-plugin_params = OllamaPluginParams(
-    models=[
-        ModelDefinition(name=GEMMA_MODEL),
-        ModelDefinition(name=MISTRAL_MODEL),
-    ],
-)
-
 ai = Genkit(
     plugins=[
         Ollama(
-            plugin_params=plugin_params,
+            models=[
+                ModelDefinition(name=GEMMA_MODEL),
+                ModelDefinition(name=MISTRAL_MODEL),
+            ],
         )
     ],
     model=ollama_name(GEMMA_MODEL),
