@@ -297,10 +297,20 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		tools = append(tools, t.Name())
 	}
 
-	a := &GenerateActionOptions{
-		Config:             p.Config,
+	modelName := p.ModelName
+	if modelName == "" && p.Model != nil {
+		modelName = p.Model.Name()
+	}
+
+	config := p.Config
+	if modelRef, ok := p.Model.(ModelRef); ok && config == nil {
+		config = modelRef.Config()
+	}
+
+	return &GenerateActionOptions{
+		Model:              modelName,
+		Config:             config,
 		ToolChoice:         p.ToolChoice,
-		Model:              p.ModelName,
 		MaxTurns:           p.MaxTurns,
 		ReturnToolRequests: p.ReturnToolRequests,
 		Messages:           messages,
@@ -311,9 +321,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 			Instructions: p.OutputInstructions,
 			Constrained:  !p.CustomConstrained,
 		},
-	}
-
-	return a, nil
+	}, nil
 }
 
 // renderSystemPrompt renders a system prompt message.
