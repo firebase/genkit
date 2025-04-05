@@ -92,40 +92,14 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name string, info ai.Mo
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		generator := NewModelGenerator(o.client, modelName)
 
-		// Configure the generator with input
-		if input.Messages != nil {
-			generator.WithMessages(input.Messages)
-		}
-		if input.Config != nil {
-			_, err := generator.WithConfig(input.Config)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if input.Tools != nil {
-			generator.WithTools(input.Tools, input.ToolChoice)
-		}
+		// Configure the response generator with input
+		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools, input.ToolChoice)
 
 		// Generate response
 		resp, err := generator.Generate(ctx, cb)
 		if err != nil {
 			return nil, err
-		}
-
-		// Ensure response has required fields
-		if resp == nil {
-			resp = &ai.ModelResponse{}
-		}
-		if resp.Message == nil {
-			resp.Message = &ai.Message{
-				Role: ai.RoleModel,
-			}
-		}
-		if resp.Usage == nil {
-			resp.Usage = &ai.GenerationUsage{}
 		}
 
 		return resp, nil
