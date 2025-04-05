@@ -64,9 +64,7 @@ def genkit_veneer_chat_model(
         Genkit veneer chat model.
     """
     return Genkit(
-        plugins=[
-            chat_model_plugin
-        ],
+        plugins=[chat_model_plugin],
         model=ollama_model,
     )
 
@@ -106,9 +104,7 @@ def genkit_veneer_generate_model(
         Genkit veneer generate model.
     """
     return Genkit(
-        plugins=[
-            generate_model_plugin
-        ],
+        plugins=[generate_model_plugin],
         model=ollama_model,
     )
 

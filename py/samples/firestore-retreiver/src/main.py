@@ -15,9 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import asyncio
-import hashlib
-
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
@@ -28,11 +25,13 @@ from genkit.plugins.firebase.firebase_api import (
     FirebaseAPI,
     firestore_action_name,
 )
+from genkit.plugins.google_genai import (
+    VertexAI,
+    VertexEmbeddingModels,
+    vertexai_name,
+)
 from genkit.types import (
     DocumentData,
-    Embedding,
-    EmbedRequest,
-    EmbedResponse,
     TextPart,
 )
 
@@ -41,6 +40,7 @@ firestore_client = firestore.Client()
 
 ai = Genkit(
     plugins=[
+        VertexAI(),
         FirebaseAPI(
             params=[
                 FirestoreRetrieverConfig(
@@ -48,50 +48,13 @@ ai = Genkit(
                     collection='films',
                     vector_field='embedding',
                     content_field='text',
-                    embedder='mockembedder',
+                    embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
                     distance_measure=DistanceMeasure.EUCLIDEAN,
                     firestore_client=firestore_client,
                 )
             ]
-        )
+        ),
     ]
-)
-
-
-class MockEmbedder:
-    """A mock embedder which generates embeddings based on first three words for tests.
-
-    Attributes:
-        embedding_dimension: The dimensionality of the generated embeddings(defaults=3).
-    """
-
-    name = 'mockembedder'
-
-    def __init__(self, embedding_dimension: int = 3) -> None:
-        self.embedding_dimension = embedding_dimension
-
-    async def embed(self, request: EmbedRequest) -> EmbedResponse:
-        embeddings_list: list[Embedding] = []
-        for doc in request.input:
-            text = doc.content[0].root.text
-            words = text.split()
-            first_three_words = ' '.join(words[:3]) if len(words) >= 3 else text
-            identifier = first_three_words.encode('utf-8')
-            hashed_identifier = hashlib.md5(identifier).hexdigest()
-            embedding_values = [
-                (int(hashed_identifier[i * 8 : (i + 1) * 8], 16) % 100) / 100.0 for i in range(self.embedding_dimension)
-            ]
-            embedding: Embedding = Embedding(embedding=embedding_values)
-            embeddings_list.append(embedding)
-        return EmbedResponse(embeddings=embeddings_list)
-
-
-embedder = MockEmbedder(
-    embedding_dimension=3,
-)
-ai.define_embedder(
-    name=embedder.name,
-    fn=embedder.embed,
 )
 
 collection_name = 'films'
@@ -113,9 +76,10 @@ films = [
 @ai.flow()
 async def index_documents() -> None:
     """Indexes the film documents in Firestore."""
-    mock_embedder = MockEmbedder(embedding_dimension=3)
     genkit_documents = [Document(content=[TextPart(text=film)]) for film in films]
-    embed_response = await mock_embedder.embed(EmbedRequest(input=genkit_documents))
+    embed_response = await ai.embed(
+        embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG), documents=genkit_documents
+    )
     embeddings = [emb.embedding for emb in embed_response.embeddings]
 
     for i, film_text in enumerate(films):
@@ -156,4 +120,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    ai.run_async(main())
