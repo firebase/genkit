@@ -38,17 +38,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//
-	// SimplePrompt(ctx, g)
-	// PromptWithInput(ctx, g)
-	// PromptWithOutputType(ctx, g)
-	// PromptWithComplexOutputType(ctx, g)
-	// PromptWithTool(ctx, g)
-	// PromptWithMessageHistory(ctx, g)
-	// PromptWithExecuteOverrides(ctx, g)
-	// PromptWithFunctions(ctx, g)
-	PromptWithOutputTypeDotprompt(ctx, g)
+
+	SimplePrompt(ctx, g)
 	PromptWithInput(ctx, g)
+	PromptWithOutputType(ctx, g)
+	PromptWithComplexOutputType(ctx, g)
+	PromptWithTool(ctx, g)
+	PromptWithMessageHistory(ctx, g)
+	PromptWithExecuteOverrides(ctx, g)
+	PromptWithFunctions(ctx, g)
+	PromptWithOutputTypeDotprompt(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -160,7 +159,6 @@ func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf(resp.Text())
 	var c countries
 	if err = resp.Output(&c); err != nil {
 		log.Fatal(err)
