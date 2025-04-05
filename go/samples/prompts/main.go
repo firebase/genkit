@@ -38,15 +38,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	SimplePrompt(ctx, g)
+	//
+	// SimplePrompt(ctx, g)
+	// PromptWithInput(ctx, g)
+	// PromptWithOutputType(ctx, g)
+	// PromptWithComplexOutputType(ctx, g)
+	// PromptWithTool(ctx, g)
+	// PromptWithMessageHistory(ctx, g)
+	// PromptWithExecuteOverrides(ctx, g)
+	// PromptWithFunctions(ctx, g)
+	PromptWithOutputTypeDotprompt(ctx, g)
 	PromptWithInput(ctx, g)
-	PromptWithOutputType(ctx, g)
-	PromptWithComplexOutputType(ctx, g)
-	PromptWithTool(ctx, g)
-	PromptWithMessageHistory(ctx, g)
-	PromptWithExecuteOverrides(ctx, g)
-	PromptWithFunctions(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -126,14 +128,50 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	var countryList CountryList
-	err = json.Unmarshal([]byte(resp.Text()), &countryList)
-	if err != nil {
+	if err = resp.Output(&countryList); err != nil {
 		log.Fatal(err)
 	}
 
 	for _, country := range countryList.Countries {
 		fmt.Println(country)
 	}
+}
+
+func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
+	type countryData struct {
+		Name      string `json:"name"`
+		Language  string `json:"language"`
+		Habitants int    `json:"habitants"`
+	}
+	type countries struct {
+		Countries []countryData `json:"countries"`
+	}
+	prompt, err := genkit.LoadPrompt(g, "./prompts/countries.prompt", "countries")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if prompt == nil {
+		fmt.Printf("empty prompt")
+		return
+	}
+
+	// Call the model.
+	resp, err := prompt.Execute(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf(resp.Text())
+	var c countries
+	if err = resp.Output(&c); err != nil {
+		log.Fatal(err)
+	}
+
+	pretty, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(pretty))
 }
 
 func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
@@ -166,8 +204,7 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	var c countries
-	err = resp.Output(&c)
-	if err != nil {
+	if err = resp.Output(&c); err != nil {
 		log.Fatal(err)
 	}
 
