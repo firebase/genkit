@@ -531,8 +531,8 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("GenerateWithRequest failed: %v", err)
 //	}
 //	var out1 GeoOutput
-//	if err = resp1.UnmarshalOutput(&out1); err != nil {
-//		log.Fatalf("UnmarshalOutput failed: %v", err)
+//	if err = resp1.Output(&out1); err != nil {
+//		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of USA: %s\n", out1.Capital) // Output: Capital of USA: Washington D.C.
 //
@@ -542,8 +542,8 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("Execute failed: %v", err)
 //	}
 //	var out2 GeoOutput
-//	if err = resp2.UnmarshalOutput(&out2); err != nil {
-//		log.Fatalf("UnmarshalOutput failed: %v", err)
+//	if err = resp2.Output(&out2); err != nil {
+//		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of France: %s\n", out2.Capital) // Output: Capital of France: Paris
 func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, error) {
