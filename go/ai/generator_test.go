@@ -180,7 +180,8 @@ func TestValidMessage(t *testing.T) {
 			Format: OutputFormatJSON,
 		}
 		_, err := validTestMessage(message, outputSchema)
-		errorContains(t, err, "data is not valid JSON")
+		t.Log(err)
+		errorContains(t, err, "not a valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
@@ -340,7 +341,7 @@ func TestGenerate(t *testing.T) {
 
 		gotText := res.Text()
 		if diff := cmp.Diff(gotText, wantText); diff != "" {
-			t.Errorf(" Text() diff (+got -want):\n%s", diff)
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)

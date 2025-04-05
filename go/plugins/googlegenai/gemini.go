@@ -334,13 +334,7 @@ func generate(
 			continue
 		}
 
-		content := m.Content
-		// gc.ResponseSchema should only be set when constrained generation requirements are met
-		if gcc.ResponseSchema != nil {
-			content = removeOutputPart(m.Content)
-		}
-
-		parts, err := toGeminiParts(content)
+		parts, err := toGeminiParts(m.Content)
 		if err != nil {
 			return nil, err
 		}
@@ -414,20 +408,6 @@ func generate(
 	}
 
 	return r, nil
-}
-
-// removeOutputPart removes the simulated constrained generation part from the request messages
-func removeOutputPart(content []*ai.Part) []*ai.Part {
-	for i, p := range content {
-		if p.Metadata != nil {
-			// skip simulated constrained generation, use native instead
-			v, ok := p.Metadata["purpose"].(string)
-			if ok && v == "output" {
-				return append(content[:i], content[i+1:]...)
-			}
-		}
-	}
-	return content
 }
 
 // convertRequest translates from [*ai.ModelRequest] to

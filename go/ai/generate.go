@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -598,22 +597,6 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	newReq.Messages = append(append([]*Message{}, req.Messages...), resp.Message, toolMessage)
 
 	return newReq, nil, nil
-}
-
-// conformOutput appends a message to the request indicating conformance to the expected schema.
-func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
-		jsonBytes, err := json.Marshal(req.Output.Schema)
-		if err != nil {
-			return fmt.Errorf("expected schema is not valid: %w", err)
-		}
-
-		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
-
-		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
-	}
-	return nil
 }
 
 // Text returns the contents of the first candidate in a
