@@ -125,7 +125,7 @@ class VertexAI(Plugin):
         self,
         credentials: Credentials | None = None,
         project: str | None = None,
-        location: str | None = None,
+        location: str | None = 'us-central1',
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
     ):
