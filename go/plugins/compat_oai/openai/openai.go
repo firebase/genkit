@@ -28,9 +28,45 @@ const provider = "openai"
 
 var (
 	supportedModels = map[string]ai.ModelInfo{
+		openaiGo.ChatModelO3Mini: {
+			Label:    "o3-mini",
+			Supports: compat_oai.BasicText.Supports,
+		},
+		openaiGo.ChatModelO1: {
+			Label:    "o1",
+			Supports: compat_oai.Multimodal.Supports,
+		},
+		openaiGo.ChatModelO1Preview: {
+			Label:    "o1-preview",
+			Supports: compat_oai.BasicText.Supports,
+		},
+		openaiGo.ChatModelO1Mini: {
+			Label:    "o1-mini",
+			Supports: compat_oai.BasicText.Supports,
+		},
+		openaiGo.ChatModelGPT4_5Preview: {
+			Label:    "GPT-4.5-preview",
+			Supports: compat_oai.Multimodal.Supports,
+		},
+		openaiGo.ChatModelGPT4o: {
+			Label:    "GPT-4o",
+			Supports: compat_oai.Multimodal.Supports,
+		},
 		openaiGo.ChatModelGPT4oMini: {
 			Label:    "GPT-4o-mini",
 			Supports: compat_oai.Multimodal.Supports,
+		},
+		openaiGo.ChatModelGPT4Turbo: {
+			Label:    "GPT-4-turbo",
+			Supports: compat_oai.Multimodal.Supports,
+		},
+		openaiGo.ChatModelGPT4: {
+			Label:    "GPT-4",
+			Supports: compat_oai.BasicText.Supports,
+		},
+		openaiGo.ChatModelGPT3_5Turbo: {
+			Label:    "GPT-3.5-turbo",
+			Supports: compat_oai.BasicText.Supports,
 		},
 	}
 
