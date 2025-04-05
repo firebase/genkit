@@ -43,15 +43,15 @@ This guide shows you how to get started with Genkit in a Python app.
 3. Install dependencies
 
    ```bash
-   pip3 install git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit
-   pip3 install git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
+   pip3 install genkit=>0.3.0.dev1
+   pip3 install genkit-plugin-google-genai=>0.3.0.dev1
    ```
 
    Or create a `requirements.txt` file
 
    ```
-   genkit @ git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit
-   genkit-plugin-google-genai @ git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
+   genkit==0.3.0.dev1
+   genkit-plugin-google-genai==0.3.0.dev1
    ```
 
    and run:
@@ -100,7 +100,7 @@ This guide shows you how to get started with Genkit in a Python app.
         return result.output
 
     async def main() -> None:
-        print(json.dumps(await generate_character('Goblorb')))
+        print(json.dumps(await generate_character('Goblorb'), indent=2))
 
     ai.run_async(main())
    ```
@@ -109,7 +109,7 @@ This guide shows you how to get started with Genkit in a Python app.
    however you normally run your app.
 
    ```bash
-   python main.py
+   python3 main.py
    ```
 
 7. Inspect your app with the Genkit Dev UI
@@ -121,7 +121,7 @@ This guide shows you how to get started with Genkit in a Python app.
    command. E.g.:
 
    ```bash
-   genkit start -- python main.py
+   genkit start -- python3 main.py
    ```
 
    The command will print the Dev UI URL. E.g.:
