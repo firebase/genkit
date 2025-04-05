@@ -87,14 +87,15 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 			} else {
 				lines := objectLines(part.Text)
 				for _, line := range lines {
-
-					var schemaBytes []byte
-					schemaBytes, err := json.Marshal(j.config.Schema["items"])
-					if err != nil {
-						return nil, fmt.Errorf("expected schema is not valid: %w", err)
-					}
-					if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
-						return nil, err
+					if j.config.Schema != nil {
+						var schemaBytes []byte
+						schemaBytes, err := json.Marshal(j.config.Schema["items"])
+						if err != nil {
+							return nil, fmt.Errorf("expected schema is not valid: %w", err)
+						}
+						if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
+							return nil, err
+						}
 					}
 
 					newParts = append(newParts, NewJSONPart(line))
