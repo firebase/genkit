@@ -363,13 +363,10 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewUserTextMessage(prompt))
 	}
 
-	// Apply Model config if no Generate config.
-	modelArg := genOpts.Model
-	if modelRef, ok := modelArg.(ModelRef); ok {
-		if genOpts.Config == nil {
-			genOpts.Config = modelRef.Config()
-		}
+	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
+		genOpts.Config = modelRef.Config()
 	}
+
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -381,7 +378,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		ReturnToolRequests: genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema:   genOpts.OutputSchema,
-			Format:       string(genOpts.OutputFormat),
+			Format:       genOpts.OutputFormat,
 			Instructions: genOpts.OutputInstructions,
 			Constrained:  !genOpts.CustomConstrained,
 		},

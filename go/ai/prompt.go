@@ -16,7 +16,6 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -29,6 +28,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
@@ -50,12 +50,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 			return nil, err
 		}
 	}
-	modelArg := pOpts.Model
-	if modelRef, ok := modelArg.(ModelRef); ok {
-		if pOpts.Config == nil {
-			pOpts.Config = modelRef.Config()
-		}
-	}
+
 	p := &Prompt{
 		registry:      r,
 		promptOptions: *pOpts,
@@ -64,6 +59,10 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	modelName := p.ModelName
 	if modelName == "" && p.Model != nil {
 		modelName = p.Model.Name()
+	}
+
+	if modelRef, ok := pOpts.Model.(ModelRef); ok && pOpts.Config == nil {
+		pOpts.Config = modelRef.Config()
 	}
 
 	meta := p.Metadata
@@ -76,12 +75,19 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 		tools = append(tools, fmt.Sprintf("%s/%s", toolProvider, value.Name()))
 	}
 
+	var inputSchema map[string]any
+	if p.InputSchema != nil {
+		inputSchema = base.SchemaAsMap(p.InputSchema)
+	}
+
 	promptMeta := map[string]any{
 		"prompt": map[string]any{
 			"name":         name,
+			"description":  p.Description,
 			"model":        modelName,
 			"config":       p.Config,
-			"input":        map[string]any{"schema": p.InputSchema},
+			"input":        map[string]any{"schema": inputSchema},
+			"output":       map[string]any{"schema": p.OutputSchema},
 			"defaultInput": p.DefaultInput,
 			"tools":        tools,
 		},
@@ -123,21 +129,20 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 			return nil, err
 		}
 	}
-	// Apply Model config if no Prompt Generate config.
-	modelArg := genOpts.Model
-	if modelRef, ok := modelArg.(ModelRef); ok {
-		if genOpts.Config == nil {
-			genOpts.Config = modelRef.Config()
-		}
-	}
 
 	p.MessagesFn = mergeMessagesFn(p.MessagesFn, genOpts.MessagesFn)
 
+	// Render() should populate all data from the prompt. Prompt fields should
+	// *not* be referenced in this function as it may have been loaded from
+	// the registry and is missing the options passed in at definition.
 	actionOpts, err := p.Render(ctx, genOpts.Input)
 	if err != nil {
 		return nil, err
 	}
 
+	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
+		genOpts.Config = modelRef.Config()
+	}
 	if genOpts.Config != nil {
 		actionOpts.Config = genOpts.Config
 	}
@@ -152,12 +157,6 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 	if modelName == "" && genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
 	}
-	if modelName == "" {
-		modelName = p.ModelName
-	}
-	if modelName == "" && p.Model != nil {
-		modelName = p.Model.Name()
-	}
 	if modelName != "" {
 		actionOpts.Model = modelName
 	}
@@ -168,13 +167,6 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 
 	if genOpts.IsReturnToolRequestsSet {
 		actionOpts.ReturnToolRequests = genOpts.ReturnToolRequests
-	}
-
-	actionOpts.Output = &GenerateActionOutputConfig{
-		JsonSchema:   p.OutputSchema,
-		Format:       p.OutputFormat,
-		Instructions: p.OutputInstructions,
-		Constrained:  !p.CustomConstrained,
 	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
@@ -305,7 +297,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		tools = append(tools, t.Name())
 	}
 
-	return &GenerateActionOptions{
+	a := &GenerateActionOptions{
 		Config:             p.Config,
 		ToolChoice:         p.ToolChoice,
 		Model:              p.ModelName,
@@ -314,10 +306,14 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		Messages:           messages,
 		Tools:              tools,
 		Output: &GenerateActionOutputConfig{
-			Format:     string(p.OutputFormat),
-			JsonSchema: p.OutputSchema,
+			Format:       p.OutputFormat,
+			JsonSchema:   p.OutputSchema,
+			Instructions: p.OutputInstructions,
+			Constrained:  !p.CustomConstrained,
 		},
-	}, nil
+	}
+
+	return a, nil
 }
 
 // renderSystemPrompt renders a system prompt message.
@@ -593,19 +589,11 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 		opts.OutputFormat = metadata.Output.Format
 	}
 
-	if metadata.Output.Schema != nil {
-		outputSchema := map[string]any{}
-		schemaBytes, err := json.Marshal(metadata.Output.Schema)
-		if err != nil {
-			slog.Error("Failed to marshal output schema", "file", sourceFile, "error", err)
-			return nil, nil
+	if outputSchema, ok := metadata.Output.Schema.(*jsonschema.Schema); ok {
+		opts.OutputSchema = base.SchemaAsMap(outputSchema)
+		if opts.OutputFormat == "" {
+			opts.OutputFormat = OutputFormatJSON
 		}
-
-		if err = json.Unmarshal(schemaBytes, &outputSchema); err != nil {
-			slog.Error("Failed to unmarshal output schema", "file", sourceFile, "error", err)
-			return nil, nil
-		}
-		opts.OutputSchema = outputSchema
 	}
 
 	key := promptKey(name, variant, namespace)
