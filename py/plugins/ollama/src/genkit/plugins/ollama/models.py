@@ -56,13 +56,6 @@ class EmbeddingModelDefinition(BaseModel):
     dimensions: int
 
 
-class OllamaPluginParams(BaseModel):
-    models: list[ModelDefinition] = Field(default_factory=list)
-    embedders: list[EmbeddingModelDefinition] = Field(default_factory=list)
-    server_address: HttpUrl = Field(default=HttpUrl(DEFAULT_OLLAMA_SERVER_URL))
-    request_headers: dict[str, str] | None = None
-
-
 class OllamaModel:
     def __init__(self, client: ollama_api.AsyncClient, model_definition: ModelDefinition):
         self.client = client
