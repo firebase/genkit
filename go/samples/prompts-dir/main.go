@@ -18,7 +18,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}), genkit.WithPromptDir("prompts"))
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithPromptDir("prompts"),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,6 +30,10 @@ func main() {
 		Style    string `json:"style"`
 		Location string `json:"location"`
 		Name     string `json:"name"`
+	}
+
+	type greeting struct {
+		Greeting string `json:"greeting"`
 	}
 
 	// Define a simple flow that prompts an LLM to generate greetings using a
@@ -43,8 +50,13 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text := resp.Text()
-		return text, nil
+
+		var output greeting
+		if err = resp.Output(&output); err != nil {
+			return "", err
+		}
+
+		return output.Greeting, nil
 	})
 
 	<-ctx.Done()
