@@ -1086,6 +1086,9 @@ func TestDefinePartialAndHelper(t *testing.T) {
 		"name":     "User",
 		"greeting": "hello",
 	}))
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
 
 	testOutput := "Welcome User!HELLO"
 	if result.Request.Messages[0].Content[0].Text != testOutput {

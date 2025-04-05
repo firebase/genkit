@@ -344,6 +344,9 @@ func generate(
 			Role:  string(m.Role),
 		})
 	}
+	if len(contents) == 0 {
+		return nil, fmt.Errorf("at least one message is required in generate request")
+	}
 
 	// Send out the actual request.
 	if cb == nil {
@@ -469,10 +472,12 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.Tools = tools
 
 		// Then set up the tool configuration based on ToolChoice
-		tc := convertToolChoice(input.ToolChoice, input.Tools)
-		if tc != nil {
-			gcc.ToolConfig = tc
+		tc, err := convertToolChoice(input.ToolChoice, input.Tools)
+		if err != nil {
+			return nil, err
 		}
+
+		gcc.ToolConfig = tc
 	}
 
 	var systemParts []*genai.Part
@@ -636,11 +641,11 @@ func castToStringArray(i []any) []string {
 	return r
 }
 
-func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *genai.ToolConfig {
+func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
 	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
-		return nil
+		return nil, nil
 	case ai.ToolChoiceAuto:
 		mode = genai.FunctionCallingConfigModeAuto
 	case ai.ToolChoiceRequired:
@@ -648,7 +653,7 @@ func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *ge
 	case ai.ToolChoiceNone:
 		mode = genai.FunctionCallingConfigModeNone
 	default:
-		panic(fmt.Sprintf("tool choice mode %q not supported", toolChoice))
+		return nil, fmt.Errorf("tool choice mode %q not supported", toolChoice)
 	}
 
 	var toolNames []string
@@ -663,7 +668,7 @@ func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *ge
 			Mode:                 mode,
 			AllowedFunctionNames: toolNames,
 		},
-	}
+	}, nil
 }
 
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
