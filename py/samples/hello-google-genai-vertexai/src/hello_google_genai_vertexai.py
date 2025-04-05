@@ -64,7 +64,7 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
-    plugins=[VertexAI(project='', location='us-central1')],
+    plugins=[VertexAI()],
     model=vertexai_name('gemini-2.0-flash'),
 )
 
