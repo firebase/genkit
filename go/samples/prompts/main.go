@@ -39,14 +39,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// SimplePrompt(ctx, g)
-	// PromptWithInput(ctx, g)
+	SimplePrompt(ctx, g)
+	PromptWithInput(ctx, g)
 	PromptWithOutputType(ctx, g)
 	PromptWithComplexOutputType(ctx, g)
-	// PromptWithTool(ctx, g)
-	// PromptWithMessageHistory(ctx, g)
-	// PromptWithExecuteOverrides(ctx, g)
-	// PromptWithFunctions(ctx, g)
+	PromptWithTool(ctx, g)
+	PromptWithMessageHistory(ctx, g)
+	PromptWithExecuteOverrides(ctx, g)
+	PromptWithFunctions(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -137,7 +137,6 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
-	fmt.Printf("## prompt with output t ype dotmpromt ## \n\n")
 	type countryData struct {
 		Name      string `json:"name"`
 		Language  string `json:"language"`
