@@ -150,7 +150,17 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 			}
 		}
 	default:
-		g.err = fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
+		// Provide detailed error message for unsupported types
+		configType := reflect.TypeOf(config)
+		if configType == nil {
+			g.err = fmt.Errorf("invalid nil config of unknown type")
+		} else if configType.Kind() != reflect.Pointer {
+			g.err = fmt.Errorf("config must be a pointer, got %s", configType.Kind())
+		} else if reflect.ValueOf(config).IsNil() {
+			g.err = fmt.Errorf("config is a nil %s pointer", configType.Elem().Name())
+		} else {
+			g.err = fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
+		}
 	}
 	return g
 }

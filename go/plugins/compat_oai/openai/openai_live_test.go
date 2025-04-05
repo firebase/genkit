@@ -213,9 +213,4 @@ func TestPlugin(t *testing.T) {
 
 		t.Logf("system message response: %+v", out)
 	})
-
-	t.Run("multi-turn conversation", func(t *testing.T) {
-		// TODO: Implement multi-turn conversation
-		t.Log("skipping multi-turn conversation")
-	})
 }
