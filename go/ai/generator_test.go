@@ -180,7 +180,8 @@ func TestValidMessage(t *testing.T) {
 			Format: OutputFormatJSON,
 		}
 		_, err := validTestMessage(message, outputSchema)
-		errorContains(t, err, "data is not valid JSON")
+		t.Log(err)
+		errorContains(t, err, "not a valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
@@ -267,6 +268,7 @@ func TestGenerate(t *testing.T) {
 						{
 							ContentType: "plain/text",
 							Text:        "ignored (conformance message)",
+							Metadata:    map[string]any{"purpose": string("output")},
 						},
 					},
 				},
