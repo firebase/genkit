@@ -140,6 +140,7 @@ differences here for now.
   query parameters.
 
 # Sync vs Async Design
+
 Genkit is a library that allows application developers to create AI flows for
 their applications using an API that abstracts over various components such as
 indexers, retiervers, models, embedders, etc.
@@ -228,8 +229,8 @@ if __name__ == '__main__':
 To make this work, we could have a user-facing veneer
 `genkit.ai.GenkitExperimental` class that composes 2 implementations of Genkit:
 
-- `genkit.ai.AsyncGenkit`
-- `genkit.ai.SyncGenkit`
+* `genkit.ai.AsyncGenkit`
+* `genkit.ai.SyncGenkit`
 
 #### ASCII Diagram
 
@@ -367,16 +368,16 @@ thread-pool executor used by the `SyncGenkit` implementation.
 
 #### Scenarios
 
-- For simple short lived applications, when we don't have the dev server we'd
+* For simple short lived applications, when we don't have the dev server we'd
   want the program to exit since that shouldn't start the reflection server.
 
-- For simple short lived applications, when we have the dev server (meaning the
+* For simple short lived applications, when we have the dev server (meaning the
   `GENKIT_ENV=dev` environment variable has been set), we should start the
   reflection server and prevent the application's main thread from exiting and
   shutting down the process to enable debugging.
 
-- For servers, we'd want the user to be able to add the reflection server to a
-  manager object such as that used in @multi_server.py  passed into the
+* For servers, we'd want the user to be able to add the reflection server to a
+  manager object such as that used in @multi\_server.py  passed into the
   arguments of the Genkit veneer class instance so that it attaches to the
   server manager alongside any application servers written by the end user.
 
@@ -404,6 +405,18 @@ set of flows and tools. For example, the sample would define all the flows in
 `flows.py` and use them in both `server_example.py` and `short_lived_example.py`
 as a demonstration:
 
-- `flows.py`
-- `server_example.py`
-- `short_lived_example.py`
+* `flows.py`
+* `server_example.py`
+* `short_lived_example.py`
+
+| Scenario    | Dev mode | User-provided manager | Reflection server technique                             |
+|-------------|----------|-----------------------|---------------------------------------------------------|
+| Short-lived | Yes      | No                    | Non-daemon thread running reflection server via uvicorn |
+| Short-lived | Yes      | Yes                   | Non-daemon thread running reflection server via uvicorn |
+| Long-lived  | Yes      | Yes                   | Managed by user-provided manager                        |
+| Long-lived  | Yes      | No                    | Managed by internal manager*                            |
+|-------------|----------|-----------------------|---------------------------------------------------------|
+| Short-lived | No       | No                    | No reflection server                                    |
+| Short-lived | No       | Yes                   | No reflection server                                    |
+| Long-lived  | No       | Yes                   | No reflection server                                    |
+| Long-lived  | No       | No                    | No reflection server                                    |

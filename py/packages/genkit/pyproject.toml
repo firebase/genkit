@@ -17,20 +17,21 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "opentelemetry-api>=1.29.0",
-  "opentelemetry-sdk>=1.29.0",
-  "pydantic>=2.10.5",
-  "requests>=2.32.3",
-  "partial-json-parser>=0.2.1.1.post5",
-  "json5>=0.10.0",
-  "structlog>=25.2.0",
   "asgiref>=3.8.1",
   "httpx>=0.28.1",
-  "psutil>=7.0.0",
-  "starlette>=0.46.1",
-  "sse-starlette>=2.2.1",
+  "json5>=0.10.0",
+  "opentelemetry-api>=1.29.0",
+  "opentelemetry-sdk>=1.29.0",
+  "partial-json-parser>=0.2.1.1.post5",
   "pillow",
+  "psutil>=7.0.0",
+  "pydantic>=2.10.5",
+  "requests>=2.32.3",
+  "sse-starlette>=2.2.1",
+  "starlette>=0.46.1",
   "strenum>=0.4.15; python_version < '3.11'",
+  "structlog>=25.2.0",
+  "uvicorn>=0.34.0",
 ]
 description = "Genkit AI Framework"
 license = { text = "Apache-2.0" }

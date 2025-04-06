@@ -32,14 +32,14 @@ from genkit.core.action.types import ActionKind
 from .aio import Genkit
 
 __all__ = [
+    'GENKIT_CLIENT_HEADER',
+    'GENKIT_VERSION',
     ActionKind.__name__,
     ActionRunContext.__name__,
     Document.__name__,
-    GenkitRegistry.__name__,
     Genkit.__name__,
+    GenkitRegistry.__name__,
     Plugin.__name__,
     ToolRunContext.__name__,
     tool_response.__name__,
-    'GENKIT_CLIENT_HEADER',
-    'GENKIT_VERSION',
 ]

@@ -51,7 +51,7 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model=vertexai_name(GeminiVersion.GEMINI_1_5_FLASH),
+    model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
 )
 
 
@@ -235,9 +235,16 @@ ai.define_retriever(name='my_retriever', fn=my_retriever)
 
 
 def my_eval_fn(datapoint: BaseEvalDataPoint, options: Any | None):
+    """Example of an evaluator.
+
+    Args:
+        datapoint: The datapoint to evaluate.
+        options: The options for the evaluator.
+
+    Returns:
+        The evaluator response.
+    """
     score = random.random()
-    if score < 0.5:
-        raise Exception('testing failures')
     return EvalFnResponse(
         test_case_id=datapoint.test_case_id,
         evaluation=Score(score=score, details=Details(reasoning='I think it is true')),

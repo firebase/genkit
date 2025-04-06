@@ -14,6 +14,7 @@ dependencies = [
   "genkit-plugin-vertex-ai",
   "liccheck>=0.9.2",
   "strenum>=0.4.15; python_version < '3.11'",
+  "rich>=13.9.4",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
@@ -82,6 +83,7 @@ omit = [
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+async-vs-sync                       = { workspace = true }
 basic-gemini                        = { workspace = true }
 coffee-shop                         = { workspace = true }
 context-caching                     = { workspace = true }
@@ -212,6 +214,7 @@ mypy_path = [
   "plugins/ollama/src",
   "plugins/pinecone/src",
   "plugins/vertex-ai/src",
+  "samples/async-vs-sync/src",
   "samples/basic-gemini/src",
   "samples/coffee-shop/src",
   "samples/context-caching/src",

@@ -83,7 +83,9 @@ def make_reflection_server(
 
     Args:
         registry: The registry to use for the reflection server.
+        loop: The event loop to use for the reflection server.
         encoding: The text encoding to use; default 'utf-8'.
+        quiet: Whether to suppress logging of the server's activity.
 
     Returns:
         A ReflectionServer class configured with the given registry.
