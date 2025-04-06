@@ -24,24 +24,23 @@ from ._adapters import (
 )
 from ._base_server import AbstractBaseServer
 from ._info import get_health_info, get_server_info
-from ._loop import run_loop
-from ._manager import ServerManager
+from ._manager import ServerManager, ServerManagerProtocol
 from ._ports import find_free_port_sync, is_port_available_sync
 from ._server import Server, ServerConfig, ServerLifecycle
 
 __all__ = [
     ASGIServerAdapter.__name__,
     AbstractBaseServer.__name__,
-    find_free_port_sync.__name__,
-    get_health_info.__name__,
-    get_server_info.__name__,
     GranianAdapter.__name__,
-    is_port_available_sync.__name__,
-    run_loop.__name__,
     Server.__name__,
     ServerConfig.__name__,
     ServerLifecycle.__name__,
     ServerManager.__name__,
+    ServerManagerProtocol.__name__,
     ServerType.__name__,
     UvicornAdapter.__name__,
+    find_free_port_sync.__name__,
+    get_health_info.__name__,
+    get_server_info.__name__,
+    is_port_available_sync.__name__,
 ]

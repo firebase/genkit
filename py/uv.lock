@@ -42,6 +42,7 @@ members = [
     "openai-sample",
     "prompt-file",
     "rag",
+    "short-n-long",
     "tool-interrupt",
     "vertex-ai-model-garden",
     "vertex-ai-reranker",
@@ -979,6 +980,7 @@ dependencies = [
     { name = "starlette" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
+    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
@@ -1019,6 +1021,7 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.46.1" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvicorn", specifier = ">=0.34.0" },
 ]
 provides-extras = ["dev-local-vector-store", "flask", "google-genai", "ollama", "openai"]
 
@@ -4327,6 +4330,31 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5d/6e/37ff3c6af1d408cacb0a7d7bfea7b8ab163a5486e35acb08997eae9d8756/shapely-2.1.0-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:8e6c229e7bb87aae5df82fa00b6718987a43ec168cc5affe095cca59d233f314", size = 4036148 },
     { url = "https://files.pythonhosted.org/packages/c8/6a/8c0b7de3aeb5014a23f06c5e9d3c7852ebcf0d6b00fe660b93261e310e24/shapely-2.1.0-cp313-cp313t-win32.whl", hash = "sha256:a9580bda119b1f42f955aa8e52382d5c73f7957e0203bc0c0c60084846f3db94", size = 1535993 },
     { url = "https://files.pythonhosted.org/packages/a8/91/ae80359a58409d52e4d62c7eacc7eb3ddee4b9135f1db884b6a43cf2e174/shapely-2.1.0-cp313-cp313t-win_amd64.whl", hash = "sha256:e8ff4e5cfd799ba5b6f37b5d5527dbd85b4a47c65b6d459a03d0962d2a9d4d10", size = 1717777 },
+]
+
+[[package]]
+name = "short-n-long"
+version = "0.1.0"
+source = { editable = "samples/short-n-long" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-ai" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-ai", editable = "plugins/google-ai" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=14.0.0" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
