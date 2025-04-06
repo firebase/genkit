@@ -273,7 +273,6 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 				Message: err.Error(),
 				Status:  core.FAILED_PRECONDITION,
 			}
-			//return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -398,7 +397,6 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 			Message: fmt.Sprintf("no action with key %q", key),
 			Status:  core.NOT_FOUND,
 		}
-		//& base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
@@ -413,7 +411,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 	if err != nil {
 		return nil, &core.GenkitError{
 			Message: err.Error(),
-			Status:  core.INTERNAL,
+			Status:  core.INVALID_ARGUMENT,
 		}
 	}
 

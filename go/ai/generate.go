@@ -555,7 +555,11 @@ func validResponse(ctx context.Context, resp *ModelResponse) (*Message, error) {
 	msg, err := validMessage(resp.Message, resp.Request.Output)
 	if err != nil {
 		logger.FromContext(ctx).Debug("message did not match expected schema", "error", err.Error())
-		return nil, errors.New("generation did not result in a message matching expected schema")
+		return nil, &core.GenkitError{
+			Message: "generation did not result in a message matching expected schema",
+			Status:  core.INVALID_ARGUMENT,
+		}
+		//errors.New("generation did not result in a message matching expected schema")
 	}
 	return msg, nil
 }
@@ -584,7 +588,10 @@ func validMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}
 			if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
-				return nil, err
+				return nil, &core.GenkitError{
+					Message: err.Error(),
+					Status:  core.INVALID_ARGUMENT,
+				}
 			}
 
 			m.Content[i] = NewJSONPart(text)
