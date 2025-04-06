@@ -21,8 +21,8 @@ including server configuration, runtime management, and client-server
 communication protocols.
 """
 
-from genkit.ai.base import GenkitRegistry
 from genkit.ai.plugin import Plugin
+from genkit.ai.registry import GenkitRegistry
 from genkit.blocks.document import Document
 from genkit.blocks.tools import ToolRunContext, tool_response
 from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
