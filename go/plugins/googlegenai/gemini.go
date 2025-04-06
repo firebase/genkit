@@ -18,6 +18,7 @@ package googlegenai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,6 +26,8 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/base"
+	"github.com/invopop/jsonschema"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -69,6 +72,143 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
+// configToMap converts a config struct to a map[string]any.
+func configToMap(config any) map[string]any {
+	r := jsonschema.Reflector{
+		DoNotReference: true, // Prevent $ref usage
+		ExpandedStruct: true, // Include all fields directly
+	}
+	schema := r.Reflect(config)
+	result := base.SchemaAsMap(schema)
+	return result
+}
+
+// mapToStruct unmarshals a map[string]any to the expected config type.
+func mapToStruct(m map[string]any, v any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, v)
+}
+
+// toGeminiSafetySettings converts a list of [SafetySetting] to a list of [genai.SafetySetting].
+func toGeminiSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
+	if len(settings) == 0 {
+		return nil
+	}
+
+	result := make([]*genai.SafetySetting, len(settings))
+	for i, s := range settings {
+		result[i] = &genai.SafetySetting{
+			Method:    genai.HarmBlockMethod(s.Method),
+			Category:  genai.HarmCategory(s.Category),
+			Threshold: genai.HarmBlockThreshold(s.Threshold),
+		}
+	}
+	return result
+}
+
+type HarmCategory string
+
+const (
+	// The harm category is unspecified.
+	HarmCategoryUnspecified HarmCategory = "HARM_CATEGORY_UNSPECIFIED"
+	// The harm category is hate speech.
+	HarmCategoryHateSpeech HarmCategory = "HARM_CATEGORY_HATE_SPEECH"
+	// The harm category is dangerous content.
+	HarmCategoryDangerousContent HarmCategory = "HARM_CATEGORY_DANGEROUS_CONTENT"
+	// The harm category is harassment.
+	HarmCategoryHarassment HarmCategory = "HARM_CATEGORY_HARASSMENT"
+	// The harm category is sexually explicit content.
+	HarmCategorySexuallyExplicit HarmCategory = "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+	// The harm category is civic integrity.
+	HarmCategoryCivicIntegrity HarmCategory = "HARM_CATEGORY_CIVIC_INTEGRITY"
+)
+
+// Specify if the threshold is used for probability or severity score. If not specified,
+// the threshold is used for probability score.
+type HarmBlockMethod string
+
+const (
+	// The harm block method is unspecified.
+	HarmBlockMethodUnspecified HarmBlockMethod = "HARM_BLOCK_METHOD_UNSPECIFIED"
+	// The harm block method uses both probability and severity scores.
+	HarmBlockMethodSeverity HarmBlockMethod = "SEVERITY"
+	// The harm block method uses the probability score.
+	HarmBlockMethodProbability HarmBlockMethod = "PROBABILITY"
+)
+
+// The harm block threshold.
+type HarmBlockThreshold string
+
+const (
+	// Unspecified harm block threshold.
+	HarmBlockThresholdUnspecified HarmBlockThreshold = "HARM_BLOCK_THRESHOLD_UNSPECIFIED"
+	// Block low threshold and above (i.e. block more).
+	HarmBlockThresholdBlockLowAndAbove HarmBlockThreshold = "BLOCK_LOW_AND_ABOVE"
+	// Block medium threshold and above.
+	HarmBlockThresholdBlockMediumAndAbove HarmBlockThreshold = "BLOCK_MEDIUM_AND_ABOVE"
+	// Block only high threshold (i.e. block less).
+	HarmBlockThresholdBlockOnlyHigh HarmBlockThreshold = "BLOCK_ONLY_HIGH"
+	// Block none.
+	HarmBlockThresholdBlockNone HarmBlockThreshold = "BLOCK_NONE"
+	// Turn off the safety filter.
+	HarmBlockThresholdOff HarmBlockThreshold = "OFF"
+)
+
+// Safety settings.
+type SafetySetting struct {
+	// Determines if the harm block method uses probability or probability
+	// and severity scores.
+	Method HarmBlockMethod `json:"method,omitempty"`
+	// Required. Harm category.
+	Category HarmCategory `json:"category,omitempty"`
+	// Required. The harm block threshold.
+	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
+}
+
+// GeminiConfig mirrors GenerateContentConfig without direct genai dependency
+type GeminiConfig struct {
+	// MaxOutputTokens is the maximum number of tokens to generate.
+	MaxOutputTokens int `json:"maxOutputTokens,omitempty"`
+	// StopSequences is the list of sequences where the model will stop generating further tokens.
+	StopSequences []string `json:"stopSequences,omitempty"`
+	// Temperature is the temperature to use for the model.
+	Temperature float64 `json:"temperature,omitempty"`
+	// TopK is the number of top tokens to consider for the model.
+	TopK int `json:"topK,omitempty"`
+	// TopP is the top-p value to use for the model.
+	TopP float64 `json:"topP,omitempty"`
+	// Version is the version of the model to use.
+	Version string `json:"version,omitempty"`
+	// SafetySettings is the list of safety settings to use for the model.
+	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+}
+
+// configFromRequest converts any supported config type to [GeminiConfig].
+func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
+	var result GeminiConfig
+
+	switch config := input.Config.(type) {
+	case GeminiConfig:
+		result = config
+	case *GeminiConfig:
+		result = *config
+	case map[string]any:
+		// TODO: Log warnings if unknown parameters are found.
+		if err := mapToStruct(config, &result); err != nil {
+			return nil, err
+		}
+	case nil:
+		// Empty but valid config
+	default:
+		return nil, fmt.Errorf("unexpected config type: %T", input.Config)
+	}
+
+	return &result, nil
+}
+
 // DefineModel defines a model in the registry
 func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
 	provider := googleAIProvider
@@ -77,9 +217,10 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 	}
 
 	meta := &ai.ModelInfo{
-		Label:    info.Label,
-		Supports: info.Supports,
-		Versions: info.Versions,
+		Label:        info.Label,
+		Supports:     info.Supports,
+		Versions:     info.Versions,
+		ConfigSchema: configToMap(&GeminiConfig{}),
 	}
 
 	fn := func(
@@ -133,7 +274,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		}
 
 		for _, doc := range input.Documents {
-			parts, err := convertParts(doc.Content)
+			parts, err := toGeminiParts(doc.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -163,12 +304,15 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	// since context caching is only available for specific model versions, we
-	// must make sure the configuration has the right version
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
-		if c != nil && c.Version != "" {
-			model = c.Version
-		}
+	// Extract configuration to get the model version
+	config, err := configFromRequest(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update model with version if specified
+	if config.Version != "" {
+		model = config.Version
 	}
 
 	cache, err := handleCache(ctx, client, input, model)
@@ -176,7 +320,7 @@ func generate(
 		return nil, err
 	}
 
-	gc, err := convertRequest(client, model, input, cache)
+	gcc, err := convertRequest(input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +330,7 @@ func generate(
 		if m.Role == ai.RoleSystem {
 			continue
 		}
-		parts, err := convertParts(m.Content)
+		parts, err := toGeminiParts(m.Content)
 		if err != nil {
 			return nil, err
 		}
@@ -195,10 +339,13 @@ func generate(
 			Role:  string(m.Role),
 		})
 	}
+	if len(contents) == 0 {
+		return nil, fmt.Errorf("at least one message is required in generate request")
+	}
 
 	// Send out the actual request.
 	if cb == nil {
-		resp, err := client.Models.GenerateContent(ctx, model, contents, gc)
+		resp, err := client.Models.GenerateContent(ctx, model, contents, gcc)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +358,7 @@ func generate(
 	}
 
 	// Streaming version.
-	iter := client.Models.GenerateContentStream(ctx, model, contents, gc)
+	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
 	var r *ai.ModelResponse
 
 	// merge all streamed responses
@@ -263,31 +410,67 @@ func generate(
 
 // convertRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
-	gc := genai.GenerateContentConfig{}
-	gc.CandidateCount = genai.Ptr[int32](1)
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			gc.MaxOutputTokens = genai.Ptr[int32](int32(c.MaxOutputTokens))
+func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+	gcc := genai.GenerateContentConfig{
+		CandidateCount: genai.Ptr[int32](1),
+	}
+
+	c, err := configFromRequest(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert standard fields
+	if c.MaxOutputTokens != 0 {
+		gcc.MaxOutputTokens = genai.Ptr(int32(c.MaxOutputTokens))
+	}
+	if len(c.StopSequences) > 0 {
+		gcc.StopSequences = c.StopSequences
+	}
+	if c.Temperature != 0 {
+		gcc.Temperature = genai.Ptr(float32(c.Temperature))
+	}
+	if c.TopK != 0 {
+		gcc.TopK = genai.Ptr(float32(c.TopK))
+	}
+	if c.TopP != 0 {
+		gcc.TopP = genai.Ptr(float32(c.TopP))
+	}
+	// Convert non-primitive fields
+	gcc.SafetySettings = toGeminiSafetySettings(c.SafetySettings)
+
+	// Set response MIME type based on output format if specified
+	hasOutput := input.Output != nil
+	isJsonFormat := hasOutput && input.Output.Format == "json"
+	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
+	jsonMode := isJsonFormat || (isJsonContentType && len(input.Tools) == 0)
+	if jsonMode {
+		gcc.ResponseMIMEType = "application/json"
+	}
+
+	// Add tool configuration from input.Tools and input.ToolChoice directly
+	// This overrides any functionCallingConfig in the passed config
+	if len(input.Tools) > 0 {
+		// First convert the tools
+		tools, err := toGeminiTools(input.Tools)
+		if err != nil {
+			return nil, err
 		}
-		if len(c.StopSequences) > 0 {
-			gc.StopSequences = c.StopSequences
+		gcc.Tools = tools
+
+		// Then set up the tool configuration based on ToolChoice
+		tc, err := convertToolChoice(input.ToolChoice, input.Tools)
+		if err != nil {
+			return nil, err
 		}
-		if c.Temperature != 0 {
-			gc.Temperature = genai.Ptr[float32](float32(c.Temperature))
-		}
-		if c.TopK != 0 {
-			gc.TopK = genai.Ptr[float32](float32(c.TopK))
-		}
-		if c.TopP != 0 {
-			gc.TopP = genai.Ptr[float32](float32(c.TopP))
-		}
+
+		gcc.ToolConfig = tc
 	}
 
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
-			parts, err := convertParts(m.Content)
+			parts, err := toGeminiParts(m.Content)
 			if err != nil {
 				return nil, err
 			}
@@ -296,33 +479,24 @@ func convertRequest(client *genai.Client, model string, input *ai.ModelRequest, 
 	}
 
 	if len(systemParts) > 0 {
-		gc.SystemInstruction = &genai.Content{
+		gcc.SystemInstruction = &genai.Content{
 			Parts: systemParts,
 			Role:  string(ai.RoleSystem),
 		}
 	}
 
-	tools, err := convertTools(input.Tools)
-	if err != nil {
-		return nil, err
-	}
-	gc.Tools = tools
-
-	choice := convertToolChoice(input.ToolChoice, input.Tools)
-	gc.ToolConfig = choice
-
 	if cache != nil {
-		gc.CachedContent = cache.Name
+		gcc.CachedContent = cache.Name
 	}
 
-	return &gc, nil
+	return &gcc, nil
 }
 
-// convertTools translates an [*ai.ToolDefinition] to a *genai.Tool
-func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
+// toGeminiTools translates a slice of [ai.ToolDefinition] to a slice of [genai.Tool].
+func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
-		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
+		inputSchema, err := toGeminiSchema(t.InputSchema, t.InputSchema)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +510,9 @@ func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	return outTools, nil
 }
 
-func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
+// toGeminiSchema translates a map representing a standard JSON schema to a more
+// limited [genai.Schema].
+func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
 	// this covers genkitSchema == nil and {}
 	// genkitSchema will be {} if it's any
 	if len(genkitSchema) == 0 {
@@ -344,7 +520,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 	}
 	if v, ok := genkitSchema["$ref"]; ok {
 		ref := v.(string)
-		return convertSchema(originalSchema, resolveRef(originalSchema, ref))
+		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
 	}
 	schema := &genai.Schema{}
 
@@ -379,7 +555,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 		schema.Enum = castToStringArray(v.([]any))
 	}
 	if v, ok := genkitSchema["items"]; ok {
-		items, err := convertSchema(originalSchema, v.(map[string]any))
+		items, err := toGeminiSchema(originalSchema, v.(map[string]any))
 		if err != nil {
 			return nil, err
 		}
@@ -388,7 +564,7 @@ func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (
 	if val, ok := genkitSchema["properties"]; ok {
 		props := map[string]*genai.Schema{}
 		for k, v := range val.(map[string]any) {
-			p, err := convertSchema(originalSchema, v.(map[string]any))
+			p, err := toGeminiSchema(originalSchema, v.(map[string]any))
 			if err != nil {
 				return nil, err
 			}
@@ -418,11 +594,11 @@ func castToStringArray(i []any) []string {
 	return r
 }
 
-func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *genai.ToolConfig {
+func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
 	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
-		return nil
+		return nil, nil
 	case ai.ToolChoiceAuto:
 		mode = genai.FunctionCallingConfigModeAuto
 	case ai.ToolChoiceRequired:
@@ -430,7 +606,7 @@ func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *ge
 	case ai.ToolChoiceNone:
 		mode = genai.FunctionCallingConfigModeNone
 	default:
-		panic(fmt.Sprintf("tool choice mode %q not supported", toolChoice))
+		return nil, fmt.Errorf("tool choice mode %q not supported", toolChoice)
 	}
 
 	var toolNames []string
@@ -445,7 +621,7 @@ func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) *ge
 			Mode:                 mode,
 			AllowedFunctionNames: toolNames,
 		},
-	}
+	}, nil
 }
 
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
@@ -512,11 +688,11 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	return r
 }
 
-// convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertParts(parts []*ai.Part) ([]*genai.Part, error) {
+// toGeminiParts converts a slice of [ai.Part] to a slice of [genai.Part].
+func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 	res := make([]*genai.Part, 0, len(parts))
 	for _, p := range parts {
-		part, err := convertPart(p)
+		part, err := toGeminiPart(p)
 		if err != nil {
 			return nil, err
 		}
@@ -525,8 +701,8 @@ func convertParts(parts []*ai.Part) ([]*genai.Part, error) {
 	return res, nil
 }
 
-// convertPart converts a *ai.Part to a genai.Part.
-func convertPart(p *ai.Part) (*genai.Part, error) {
+// toGeminiPart converts a [ai.Part] to a [genai.Part].
+func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil

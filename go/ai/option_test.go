@@ -225,12 +225,11 @@ func TestOutputOptions(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "duplicate options",
+			name: "valid - output instruction",
 			opts: []OutputOption{
-				WithOutputType(map[string]string{"key": "value"}),
-				WithOutputFormat(OutputFormatText),
+				WithOutputInstructions(""),
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
@@ -391,6 +390,8 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		WithPromptText("user prompt"),
 		WithDocs(DocumentFromText("doc", nil)),
 		WithOutputType(map[string]string{"key": "value"}),
+		WithOutputInstructions(""),
+		WithCustomConstrainedOutput(),
 		WithStreaming(streamFunc),
 	}
 
@@ -418,6 +419,11 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		outputOptions: outputOptions{
 			OutputFormat: OutputFormatJSON,
 			OutputSchema: opts.OutputSchema,
+			OutputInstructions: func() *string {
+				s := ""
+				return &s
+			}(),
+			CustomConstrained: true,
 		},
 		executionOptions: executionOptions{
 			Documents: []*Document{DocumentFromText("doc", nil)},
@@ -477,6 +483,8 @@ func TestPromptOptionsComplete(t *testing.T) {
 		WithDescription("test description"),
 		WithMetadata(map[string]any{"key": "value"}),
 		WithOutputType(map[string]string{"key": "value"}),
+		WithOutputInstructions(""),
+		WithCustomConstrainedOutput(),
 		WithInputType(input),
 	}
 
@@ -504,6 +512,11 @@ func TestPromptOptionsComplete(t *testing.T) {
 		outputOptions: outputOptions{
 			OutputFormat: OutputFormatJSON,
 			OutputSchema: opts.OutputSchema,
+			OutputInstructions: func() *string {
+				s := ""
+				return &s
+			}(),
+			CustomConstrained: true,
 		},
 		Description:  "test description",
 		Metadata:     map[string]any{"key": "value"},

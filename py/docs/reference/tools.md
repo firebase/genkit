@@ -108,14 +108,15 @@ class WeatherInput(BaseModel):
     location: str = Field(description='The location to get the current weather for')
 
 
-@ai.tool('Gets the current weather in a given location')
+@ai.tool()
 def get_weather(input: WeatherInput) -> str:
+    """Gets the current weather in a given location"""
     return f'The current weather in ${input.location} is 63°F and sunny.'
 ```
 
-The syntax here looks just like the `flow()` syntax; however `description` 
-parameter is required. When writing a tool definition, take special care 
-with the wording and descriptiveness of these parameters. They are vital 
+The syntax here looks just like the `flow()` syntax; however `description`
+parameter is required. When writing a tool definition, take special care
+with the wording and descriptiveness of these parameters. They are vital
 for the LLM to make effective use of the available tools.
 
 ### Using tools
@@ -123,7 +124,7 @@ for the LLM to make effective use of the available tools.
 Include defined tools in your prompts to generate content.
 
 ```py
-result = await ai.agenerate(
+result = await ai.generate(
     prompt='What is the weather in Baltimore?',
     tools=['get_weather'],
 )
@@ -153,7 +154,7 @@ apply more complicated logic, set the `return_tool_requests` parameter to `True`
 Now it's your responsibility to ensure all of the tool requests are fulfilled:
 
 ```py
-result = await ai.agenerate(
+result = await ai.generate(
     prompt='What is the weather in Baltimore?',
     tools=['get_weather'],
     return_tool_requests=True,

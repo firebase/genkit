@@ -64,7 +64,7 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
-    plugins=[VertexAI(project='', location='us-central1')],
+    plugins=[VertexAI()],
     model=vertexai_name('gemini-2.0-flash'),
 )
 
@@ -75,7 +75,7 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool')
+@ai.tool(name='gablorkenTool')
 def gablorken_tool(input_: GablorkenInput) -> int:
     """Calculate a gablorken.
 
@@ -98,7 +98,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
     Returns:
         The generated response with a function.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model=vertexai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
@@ -111,7 +111,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
     return response.text
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool2')
+@ai.tool(name='gablorkenTool2')
 def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
     """The user-defined tool function.
 
@@ -135,7 +135,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
     Returns:
         The generated response with a function.
     """
-    response1 = await ai.agenerate(
+    response1 = await ai.generate(
         model=vertexai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
@@ -150,7 +150,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         return response1.text
 
     tr = tool_response(response1.tool_requests[0], 178)
-    response = await ai.agenerate(
+    response = await ai.generate(
         model=vertexai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
         messages=response1.messages,
         tool_responses=[tr],
@@ -169,7 +169,7 @@ async def say_hi(name: str):
     Returns:
         The generated response with a function.
     """
-    resp = await ai.agenerate(
+    resp = await ai.generate(
         prompt=f'hi {name}',
     )
     return resp.text
@@ -186,8 +186,8 @@ async def embed_docs(docs: list[str]):
         The generated embedding.
     """
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
-    return await ai.aembed(
-        model=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
+    return await ai.embed(
+        embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
@@ -203,7 +203,7 @@ async def say_hi_with_configured_temperature(data: str):
     Returns:
         The generated response with a function.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[Message(role=Role.USER, content=[TextPart(text=f'hi {data}')])],
         config=GenerationCommonConfig(temperature=0.1),
     )
@@ -266,7 +266,7 @@ async def generate_character(name: str, ctx):
 
         return (await result).output
     else:
-        result = await ai.agenerate(
+        result = await ai.generate(
             prompt=f'generate an RPG character named {name}',
             output_schema=RpgCharacter,
         )
@@ -284,7 +284,7 @@ async def generate_character_unconstrained(name: str, ctx):
     Returns:
         The generated RPG character.
     """
-    result = await ai.agenerate(
+    result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
         output_schema=RpgCharacter,
         output_constrained=False,

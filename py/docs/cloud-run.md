@@ -7,7 +7,7 @@ For prerequisites and basic scaffolding see [Cloud Run - Python quickstart](http
 Once you have a simple Cloud Run app set up and ready to go, update the `requirements.txt` to add Genkit libraries. In this example we'll be using the Google GenAI plugin.
 
 ```
-genkit-ai
+genkit
 genkit-plugin-google-genai
 ```
 
@@ -36,7 +36,7 @@ app = Flask(__name__)
 @genkit_flask_handler(ai)
 @ai.flow()
 async def joke(name: str, ctx):
-    return await ai.agenerate(
+    return await ai.generate(
         on_chunk=ctx.send_chunk,
         prompt=f'tell a medium sized joke about {name}',
     )

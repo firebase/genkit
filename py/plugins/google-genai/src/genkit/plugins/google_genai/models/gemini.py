@@ -127,7 +127,13 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Experimental | Unavailable  |
 """
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from functools import cached_property
 from typing import Any
 
@@ -454,7 +460,6 @@ class GeminiModel:
         Returns:
             Schema or None
         """
-
         if not defs:
             defs = input_schema.get('$defs') if '$defs' in input_schema else {}
 
@@ -520,7 +525,7 @@ class GeminiModel:
             ]
         )
 
-    async def agenerate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -559,11 +564,14 @@ class GeminiModel:
         with tracer.start_as_current_span('generate_content') as span:
             span.set_attribute(
                 'genkit:input',
-                dump_json({
-                    'config': dump_dict(request_cfg),
-                    'contents': [dump_dict(c) for c in request_contents],
-                    'model': self._version,
-                }),
+                dump_json(
+                    {
+                        'config': dump_dict(request_cfg),
+                        'contents': [dump_dict(c) for c in request_contents],
+                        'model': self._version,
+                    },
+                    fallback=lambda _: '[!! failed to serialize !!]',
+                ),
             )
             response = await self._client.aio.models.generate_content(
                 model=self._version, contents=request_contents, config=request_cfg
@@ -741,7 +749,7 @@ class GeminiModel:
         return cfg
 
     def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
-        """Create usage statistics
+        """Create usage statistics.
 
         Args:
             request: Genkit request
@@ -750,7 +758,6 @@ class GeminiModel:
         Returns:
             usage statistics
         """
-
         usage = get_basic_usage_stats(input_=request.messages, response=response.message)
         if response.usage:
             usage.input_tokens = response.usage.input_tokens

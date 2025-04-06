@@ -323,7 +323,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 				}
 
 				errorJSON, _ := json.Marshal(genkitErr)
-				_, writeErr := fmt.Fprintf(w, "%s\n", errorJSON)
+				_, writeErr := fmt.Fprintf(w, "%s\n\n", errorJSON)
 				if writeErr != nil {
 					return writeErr
 				}

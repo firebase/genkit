@@ -46,7 +46,7 @@ func TestOutputFormat(t *testing.T) {
 	var tests = []struct {
 		name   string
 		output any
-		format OutputFormat
+		format string
 		err    bool
 	}{
 		{
@@ -69,17 +69,20 @@ func TestOutputFormat(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var err error
+			reg, err := registry.New()
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			if test.output == nil {
 				_, err = DefinePrompt(
-					r, "aModel",
+					reg, "aModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputFormat(test.format),
 				)
 			} else {
 				_, err = DefinePrompt(
-					r, "bModel",
+					reg, "bModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputType(test.output),
 					WithOutputFormat(test.format),
@@ -237,6 +240,8 @@ func TestValidPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ConfigureFormats(reg)
+
 	model := definePromptModel(reg)
 
 	var tests = []struct {
@@ -274,7 +279,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -308,7 +315,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -343,7 +352,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -384,7 +395,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -430,7 +443,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -465,7 +480,9 @@ func TestValidPrompt(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
 				},
-				Output:     &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				ToolChoice: "required",
 				Messages: []*Message{
 					{
@@ -596,6 +613,8 @@ func TestOptionsPatternExecute(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ConfigureFormats(reg)
+
 	testModel := DefineModel(reg, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
@@ -653,6 +672,8 @@ func TestDefaultsOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Set up default formats
+	ConfigureFormats(reg)
 
 	testModel := DefineModel(reg, "defineoptions", "test", nil, testGenerate)
 	model := definePromptModel(reg)
@@ -679,7 +700,9 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -703,7 +726,9 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -727,7 +752,9 @@ func TestDefaultsOverride(t *testing.T) {
 				Config: &GenerationCommonConfig{
 					Temperature: 12,
 				},
-				Output: &ModelOutputConfig{},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
 				Messages: []*Message{
 					{
 						Role:    RoleUser,
@@ -836,7 +863,7 @@ Hello, {{name}}!
 	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example")
+	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
@@ -931,7 +958,7 @@ Hello, {{name}}!
 	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example.variant")
+	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example.variant")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
@@ -989,13 +1016,13 @@ Hello, {{name}}!
 	LoadPromptDir(reg, tempDir, "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, provider, "test-namespace/example")
+	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
 
 	// Verify the prompt in the subdirectory was registered correctly
-	subPrompt := LookupPrompt(reg, provider, "test-namespace/sub_example")
+	subPrompt := LookupPrompt(reg, toolProvider, "test-namespace/sub_example")
 	if subPrompt == nil {
 		t.Fatalf("Prompt in subdirectory was not registered")
 	}
@@ -1015,5 +1042,52 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	prompt := LookupPrompt(reg, "test-namespace", "example")
 	if prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
+	}
+}
+
+// TestDefinePartialAndHelperJourney demonstrates a complete user journey for defining
+// and using both partials and helpers.
+func TestDefinePartialAndHelper(t *testing.T) {
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+	ConfigureFormats(reg)
+
+	model := definePromptModel(reg)
+
+	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err != nil {
+		t.Fatalf("Failed to define partial: %v", err)
+	}
+	if err = reg.DefineHelper("uppercase", func(s string) string {
+		return strings.ToUpper(s)
+	}); err != nil {
+		t.Fatalf("Failed to define helper: %v", err)
+	}
+
+	// Duplicate partial and helper definitions should return an error
+	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err == nil {
+		t.Fatalf("Expected error defining partial with duplicate name")
+	}
+	if err = reg.DefineHelper("uppercase", func(s string) string {
+		return ""
+	}); err == nil {
+		t.Fatalf("Expected error defining helper with duplicate name")
+	}
+
+	p, err := DefinePrompt(reg, "test", WithPromptText(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+
+	result, err := p.Execute(context.Background(), WithInput(map[string]any{
+		"name":     "User",
+		"greeting": "hello",
+	}))
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+
+	testOutput := "Welcome User!HELLO"
+	if result.Request.Messages[0].Content[0].Text != testOutput {
+		t.Errorf("got %q want %q", result.Request.Messages[0].Content[0].Text, testOutput)
 	}
 }

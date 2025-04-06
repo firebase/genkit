@@ -35,16 +35,22 @@ type StructuredResponse struct {
 
 var r, _ = registry.New()
 
+func init() {
+	// Set up default formats
+	ConfigureFormats(r)
+}
+
 // echoModel attributes
 var (
 	modelName = "echo"
 	metadata  = ModelInfo{
 		Label: modelName,
 		Supports: &ModelSupports{
-			Multiturn:  true,
-			Tools:      true,
-			SystemRole: true,
-			Media:      false,
+			Multiturn:   true,
+			Tools:       true,
+			SystemRole:  true,
+			Media:       false,
+			Constrained: ConstrainedSupportNone,
 		},
 		Versions: []string{"echo-001", "echo-002"},
 		Stage:    ModelStageDeprecated,
@@ -90,9 +96,9 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatText),
+			Format: OutputFormatText,
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -114,7 +120,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type":     "object",
 				"required": []string{"name", "age", "address"},
@@ -134,7 +140,7 @@ func TestValidMessage(t *testing.T) {
 				},
 			},
 		}
-		message, err := validMessage(message, outputSchema)
+		message, err := validTestMessage(message, outputSchema)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -151,7 +157,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -160,7 +166,7 @@ func TestValidMessage(t *testing.T) {
 				},
 			},
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
 	})
 
@@ -171,26 +177,26 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data is not valid JSON")
 	})
 
 	t.Run("No message", func(t *testing.T) {
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 		}
-		_, err := validMessage(nil, outputSchema)
+		_, err := validTestMessage(nil, outputSchema)
 		errorContains(t, err, "message is empty")
 	})
 
 	t.Run("Empty message", func(t *testing.T) {
 		message := &Message{}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "message has no content")
 	})
 
@@ -201,7 +207,7 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -211,7 +217,7 @@ func TestValidMessage(t *testing.T) {
 				"additionalProperties": false,
 			},
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "data did not match expected schema")
 	})
 
@@ -222,12 +228,12 @@ func TestValidMessage(t *testing.T) {
 			},
 		}
 		outputSchema := &ModelOutputConfig{
-			Format: string(OutputFormatJSON),
+			Format: OutputFormatJSON,
 			Schema: map[string]any{
 				"type": "invalid",
 			},
 		}
-		_, err := validMessage(message, outputSchema)
+		_, err := validTestMessage(message, outputSchema)
 		errorContains(t, err, "failed to validate data against expected schema")
 	})
 }
@@ -254,17 +260,22 @@ func TestGenerate(t *testing.T) {
 		wantStreamText := "stream!"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
-				NewSystemTextMessage("You are a helpful assistant."),
+				{
+					Role: RoleSystem,
+					Content: []*Part{
+						NewTextPart("You are a helpful assistant."),
+						{
+							ContentType: "plain/text",
+							Text:        "ignored (conformance message)",
+						},
+					},
+				},
 				NewUserTextMessage("How many bananas are there?"),
 				NewModelTextMessage("There are at least 10 bananas."),
 				{
 					Role: RoleUser,
 					Content: []*Part{
 						NewTextPart("Where can they be found?"),
-						{
-							ContentType: "plain/text",
-							Text:        "ignored (conformance message)",
-						},
 						{
 							Text: "\n\nUse the following information " +
 								"to complete your task:\n\n- [0]: Bananas are plentiful in the tropics.\n\n",
@@ -276,16 +287,8 @@ func TestGenerate(t *testing.T) {
 			Config: &GenerationCommonConfig{Temperature: 1},
 			Docs:   []*Document{DocumentFromText("Bananas are plentiful in the tropics.", nil)},
 			Output: &ModelOutputConfig{
-				Format: string(OutputFormatJSON),
-				Schema: map[string]any{
-					"additionalProperties": bool(false),
-					"properties": map[string]any{
-						"subject":  map[string]any{"type": string("string")},
-						"location": map[string]any{"type": string("string")},
-					},
-					"required": []any{string("subject"), string("location")},
-					"type":     string("object"),
-				},
+				Format:      OutputFormatJSON,
+				ContentType: "application/json",
 			},
 			Tools: []*ToolDefinition{
 				{
@@ -341,8 +344,8 @@ func TestGenerate(t *testing.T) {
 		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
-		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
-			"{*ai.ModelRequest}.Messages[3].Content[1].Text",
+		if diff := cmp.Diff(wantRequest, res.Request, test_utils.IgnoreNoisyParts([]string{
+			"{*ai.ModelRequest}.Messages[0].Content[1].Text", "{*ai.ModelRequest}.Messages[0].Content[1].Metadata",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}
@@ -684,4 +687,18 @@ func errorContains(t *testing.T, err error, want string) {
 	} else if !strings.Contains(err.Error(), want) {
 		t.Errorf("got error message %q, want it to contain %q", err, want)
 	}
+}
+
+func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
+	resolvedFormat, err := resolveFormat(r, output.Schema, output.Format)
+	if err != nil {
+		return nil, err
+	}
+
+	handler, err := resolvedFormat.Handler(output.Schema)
+	if err != nil {
+		return nil, err
+	}
+
+	return handler.ParseMessage(m)
 }

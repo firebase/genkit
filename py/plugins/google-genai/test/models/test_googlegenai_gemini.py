@@ -15,7 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
 
 import pytest
 from google import genai
@@ -69,7 +74,7 @@ async def test_generate_text_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
@@ -109,7 +114,7 @@ async def test_generate_stream_text_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext(on_chunk=on_chunk_mock)
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content_stream(
@@ -158,7 +163,7 @@ async def test_generate_media_response(mocker, version):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
 
     ctx = ActionRunContext()
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(
@@ -290,7 +295,7 @@ async def test_generate_with_system_instructions(mocker):
     gemini = GeminiModel(version, googleai_client_mock, mocker.MagicMock())
     ctx = ActionRunContext()
 
-    response = await gemini.agenerate(request, ctx)
+    response = await gemini.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_content(

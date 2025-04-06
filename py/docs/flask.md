@@ -39,7 +39,7 @@ Prerequisites: make sure you have everything installed from [Get Started](./get-
     @genkit_flask_handler(ai)
     @ai.flow()
     async def joke(name: str, ctx):
-        return await ai.agenerate(
+        return await ai.generate(
             on_chunk=ctx.send_chunk,
             prompt=f'tell a medium sized joke about {name}',
         )
@@ -84,7 +84,7 @@ async def say_hi(name: str, ctx):
     if not ctx.context.get('username'):
         raise GenkitError(status='UNAUTHENTICATED', message='user not provided')
 
-    return await ai.agenerate(
+    return await ai.generate(
         on_chunk=ctx.send_chunk,
         prompt=f'say hi to {ctx.context.get('username')}',
     )
