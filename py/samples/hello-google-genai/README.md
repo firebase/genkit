@@ -1,19 +1,20 @@
-# Hello Google Gen AI
+# Hello Google GenAI
+
+An example demonstrating running flows using the Google GenAI plugin.
 
 ## Setup environment
 
-Export the api key as env variable GEMINI\_API\_KEY
-export GEMINI\_API\_KEY=<Your api key>
+Obtain an API key from [ai.dev](https://ai.dev).
+
+Export the API key as env variable `GEMINI\_API\_KEY` in your shell
+configuration.
 
 ```bash
-uv venv
-source .venv/bin/activate
+export GEMINI_API_KEY='<Your api key>'
 ```
 
 ## Run the sample
 
-TODO
-
 ```bash
-genkit start -- uv run hello-google-genai/src/hello_google_genai.py
+genkit start -- uv run src/hello_google_genai.py
 ```

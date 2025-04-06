@@ -18,7 +18,12 @@
 
 import asyncio
 import threading
-from collections.abc import AsyncIterable, Callable, Iterable
+from collections.abc import AsyncIterable, Callable, Coroutine, Iterable
+from typing import Any
+
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 def create_loop():
@@ -119,3 +124,26 @@ def iter_over_async(ait: AsyncIterable, loop: asyncio.AbstractEventLoop) -> Iter
         if done:
             break
         yield obj
+
+
+def run_loop(coro: Coroutine[Any, Any, Any], *args: Any, **kwargs: Any) -> Any:
+    """Runs a coroutine using uvloop if available.
+
+    Otherwise uses plain `asyncio.run`.
+
+    Args:
+        coro: The asynchronous coroutine to run.
+        *args: Additional positional arguments to pass to asyncio.run.
+        **kwargs: Additional keyword arguments to pass to asyncio.run.
+    """
+    try:
+        import uvloop
+
+        logger.debug('✅ Using uvloop (recommended)')
+        return uvloop.run(coro, *args, **kwargs)
+    except ImportError as e:
+        logger.debug(
+            '❓ Using asyncio (install uvloop for better performance)',
+            error=e,
+        )
+        return asyncio.run(coro, *args, **kwargs)

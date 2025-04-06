@@ -41,6 +41,7 @@ Key features demonstrated in this sample:
 
 """
 
+import argparse
 import asyncio
 
 import structlog
@@ -61,6 +62,7 @@ from genkit.types import (
     Role,
     TextPart,
 )
+from short_n_long import parse_args
 
 logger = structlog.get_logger(__name__)
 
@@ -319,10 +321,11 @@ async def main() -> None:
     await logger.ainfo(await say_hi(', tell me a joke'))
 
 
+async def server_main() -> None:
+    """Server main function."""
+    await logger.ainfo(await say_hi(', tell me a joke'))
+
+
 if __name__ == '__main__':
-    asyncio.run(main())
-
-
-# prevent app from exiting when genkit is running in dev mode
-# TODO: Clean this up.
-ai.join()
+    config: argparse.Namespace = parse_args()
+    asyncio.run(main if config.server else server_main)

@@ -107,6 +107,7 @@ menu                                = { workspace = true }
 multi-server                        = { workspace = true }
 prompt-file                         = { workspace = true }
 rag                                 = { workspace = true }
+short-n-long                        = { workspace = true }
 tool-interrupts                     = { workspace = true }
 vertex-ai-imagen                    = { workspace = true }
 vertex-ai-model-garden              = { workspace = true }
@@ -226,6 +227,7 @@ mypy_path = [
   "samples/multi-server/src",
   "samples/prompt-file/src",
   "samples/rag/src",
+  "samples/short-n-long/src",
   "samples/tool-interrupts/src",
   "samples/vertex-ai-imagen/src",
   "samples/vertex-ai-model-garden/src",

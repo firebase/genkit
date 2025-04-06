@@ -1,8 +1,11 @@
-# Hello Google Gen AI
+# Hello Google GenAI - Vertex AI
+
+An example demonstrating the use of the Google GenAI plugin to use
+Vertex AI.
 
 ## Setup environment
 
-1. Install [GCP CLI](https://cloud.google.com/sdk/docs/install)
+1. Install [GCP CLI](https://cloud.google.com/sdk/docs/install).
 2. Put your GCP project and location in the code to run VertexAI there.
 3. Run the sample.
 
@@ -16,5 +19,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run hello-google-genai/src/hello_google_genai.py
+genkit start -- uv run src/hello_google_genai_vertexai.py
 ```
