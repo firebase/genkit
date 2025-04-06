@@ -44,7 +44,6 @@ func TestPlugin(t *testing.T) {
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
 		genkit.WithPlugins(compat_oai_plugin),
 	)
-	// compat_oai_plugin.Init(ctx, g)
 	if err != nil {
 		t.Fatal(err)
 	}
