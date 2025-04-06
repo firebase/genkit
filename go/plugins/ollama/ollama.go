@@ -156,6 +156,10 @@ type Ollama struct {
 	initted bool       // Whether the plugin has been initialized.
 }
 
+func (o *Ollama) Name() string {
+	return provider
+}
+
 // Init initializes the plugin.
 // Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
 // After downloading a model, call [DefineModel] to use it.
