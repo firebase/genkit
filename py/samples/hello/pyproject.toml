@@ -18,11 +18,6 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-firebase",
-  "genkit-plugin-google-ai",
-  "genkit-plugin-google-cloud",
-  "genkit-plugin-ollama",
-  "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
