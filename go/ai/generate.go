@@ -56,11 +56,8 @@ type (
 	// ModelMiddleware is middleware for model generate requests that takes in a ModelFunc, does something, then returns another ModelFunc.
 	ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-	// ModelAction is the type for model generation actions.
-	ModelAction = core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
-
-	// modelActionDef is an action with functions specific to model generation such as Generate().
-	modelActionDef core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+	// model is an action with functions specific to model generation such as Generate().
+	model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 	// generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 	generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
@@ -121,7 +118,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 
 	fn = core.ChainMiddleware(middlewares...)(fn)
 
-	return (*modelActionDef)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
+	return (*model)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
@@ -131,7 +128,7 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 	if action == nil {
 		return nil
 	}
-	return (*modelActionDef)(action)
+	return (*model)(action)
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
@@ -290,7 +287,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 	messages := []*Message{}
 	if genOpts.SystemFn != nil {
-		system, err := genOpts.SystemFn(ctx, genOpts)
+		system, err := genOpts.SystemFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -298,7 +295,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewSystemTextMessage(system))
 	}
 	if genOpts.MessagesFn != nil {
-		msgs, err := genOpts.MessagesFn(ctx, genOpts)
+		msgs, err := genOpts.MessagesFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +303,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, msgs...)
 	}
 	if genOpts.PromptFn != nil {
-		prompt, err := genOpts.PromptFn(ctx, genOpts)
+		prompt, err := genOpts.PromptFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -344,32 +341,35 @@ func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOpt
 
 // Generate run generate request for this model. Returns ModelResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...GenerateOption) (*ModelResponse, error) {
+func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
+	var value Out
 	opts = append(opts, WithOutputType(value))
 
 	resp, err := Generate(ctx, r, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = resp.Output(value)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return resp, nil
+	return &value, resp, nil
 }
 
 // Name returns the name of the model.
-func (m *modelActionDef) Name() string { return (*ModelAction)(m).Name() }
+func (m *model) Name() string {
+	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Name()
+}
 
 // Generate applies the [Action] to provided request.
-func (m *modelActionDef) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, errors.New("Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
-	return (*ModelAction)(m).Run(ctx, req, cb)
+	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
 }
 
 // cloneMessage creates a deep copy of the provided Message.
@@ -572,21 +572,32 @@ func (gr *ModelResponse) Text() string {
 
 // History returns messages from the request combined with the response message
 // to represent the conversation history.
-func (gr *ModelResponse) History() []*Message {
-	if gr.Message == nil {
-		return gr.Request.Messages
+func (mr *ModelResponse) History() []*Message {
+	if mr.Message == nil {
+		return mr.Request.Messages
 	}
-	return append(gr.Request.Messages, gr.Message)
+	return append(mr.Request.Messages, mr.Message)
 }
 
 // Output unmarshals structured JSON output into the provided
 // struct pointer.
-func (gr *ModelResponse) Output(v any) error {
-	j := base.ExtractJSONFromMarkdown(gr.Text())
+func (mr *ModelResponse) Output(v any) error {
+	j := base.ExtractJSONFromMarkdown(mr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
 	return json.Unmarshal([]byte(j), v)
+}
+
+// ToolRequests returns the tool requests from the response.
+func (mr *ModelResponse) ToolRequests() ([]*ToolRequest, error) {
+	toolReqs := []*ToolRequest{}
+	for _, part := range mr.Message.Content {
+		if part.IsToolRequest() {
+			toolReqs = append(toolReqs, part.ToolRequest)
+		}
+	}
+	return toolReqs, nil
 }
 
 // Text returns the text content of the [ModelResponseChunk]

@@ -173,7 +173,7 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 }
 
 // mergeMessagesFn merges two messages functions.
-func mergeMessagesFn(promptFn, reqFn messagesFn) messagesFn {
+func mergeMessagesFn(promptFn, reqFn MessagesFn) MessagesFn {
 	if reqFn == nil {
 		return promptFn
 	}
@@ -581,7 +581,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt, err := DefinePrompt(r, key, opts, WithPromptText(parsedPrompt.Template))
+	prompt, err := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
 	if err != nil {
 		slog.Error("Failed to register dotprompt", "file", sourceFile, "error", err)
 		return nil, err

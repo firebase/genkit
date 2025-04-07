@@ -58,7 +58,7 @@ func m1() error {
 	// [END model]
 
 	// [START call]
-	responseText, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPromptText("Tell me a joke."))
+	responseText, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func opts() error {
 	// [START options]
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModel(model),
-		ai.WithPromptText("Tell me a joke about dogs."),
+		ai.WithPrompt("Tell me a joke about dogs."),
 		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature:     1.67,
 			StopSequences:   []string{"cat"},
@@ -102,7 +102,7 @@ func streaming() error {
 	// [START streaming]
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModel(gemini15pro),
-		ai.WithPromptText("Tell a long story about robots and ninjas."),
+		ai.WithPrompt("Tell a long story about robots and ninjas."),
 		// stream callback
 		ai.WithStreaming(
 			func(ctx context.Context, grc *ai.ModelResponseChunk) error {
@@ -166,7 +166,7 @@ func tools() error {
 
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModel(gemini15pro),
-		ai.WithPromptText("Tell me a joke."),
+		ai.WithPrompt("Tell me a joke."),
 		ai.WithTools(myJokeTool))
 	// [END tools]
 	_ = response

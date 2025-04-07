@@ -26,11 +26,11 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// promptFn is a function that generates a prompt.
-type promptFn = func(context.Context, any) (string, error)
+// PromptFn is a function that generates a prompt.
+type PromptFn = func(context.Context, any) (string, error)
 
-// messagesFn is a function that generates messages.
-type messagesFn = func(context.Context, any) ([]*Message, error)
+// MessagesFn is a function that generates messages.
+type MessagesFn = func(context.Context, any) ([]*Message, error)
 
 // configOptions holds configuration options.
 type configOptions struct {
@@ -38,7 +38,6 @@ type configOptions struct {
 }
 
 // ConfigOption is an option for model configuration.
-// It applies to [DefinePrompt], [[Generate], and [Prompt.Execute].
 type ConfigOption interface {
 	applyConfig(*configOptions) error
 	applyCommonGen(*commonGenOptions) error
@@ -112,7 +111,7 @@ type commonGenOptions struct {
 	configOptions
 	ModelName          string            // Name of the model to use.
 	Model              Model             // Model to use.
-	MessagesFn         messagesFn        // Function to generate messages.
+	MessagesFn         MessagesFn        // Function to generate messages.
 	Tools              []ToolRef         // References to tools to use.
 	ToolChoice         ToolChoice        // Whether tool calls are required, disabled, or optional.
 	MaxTurns           int               // Maximum number of tool call iterations.
@@ -219,7 +218,7 @@ func WithMessages(messages ...*Message) CommonGenOption {
 
 // WithMessagesFn sets the request messages to the result of the function.
 // These messages will be sandwiched between the system and user messages.
-func WithMessagesFn(fn messagesFn) CommonGenOption {
+func WithMessagesFn(fn MessagesFn) CommonGenOption {
 	return &commonGenOptions{MessagesFn: fn}
 }
 
@@ -362,8 +361,8 @@ func WithInputType(input any) PromptOption {
 
 // promptingOptions are options for the system and user prompts of a prompt or generate request.
 type promptingOptions struct {
-	SystemFn promptFn // Function to generate the system prompt.
-	PromptFn promptFn // Function to generate the user prompt.
+	SystemFn PromptFn // Function to generate the system prompt.
+	PromptFn PromptFn // Function to generate the user prompt.
 }
 
 // PromptingOption is an option for the system and user prompts of a prompt or generate request.
@@ -403,35 +402,35 @@ func (o *promptingOptions) applyGenerate(opts *generateOptions) error {
 	return o.applyPrompting(&opts.promptingOptions)
 }
 
-// WithSystemText sets the system prompt message.
+// WithSystem sets the system prompt message.
 // The system prompt is always the first message in the list.
-func WithSystemText(text string) PromptingOption {
+func WithSystem(text string, args ...any) PromptingOption {
 	return &promptingOptions{
 		SystemFn: func(ctx context.Context, _ any) (string, error) {
-			return text, nil
+			return fmt.Sprintf(text, args...), nil
 		},
 	}
 }
 
 // WithSystemFn sets the function that generates the system prompt message.
 // The system prompt is always the first message in the list.
-func WithSystemFn(fn promptFn) PromptingOption {
+func WithSystemFn(fn PromptFn) PromptingOption {
 	return &promptingOptions{SystemFn: fn}
 }
 
-// WithPromptText sets the user prompt message.
+// WithPrompt sets the user prompt message.
 // The user prompt is always the last message in the list.
-func WithPromptText(text string) PromptingOption {
+func WithPrompt(text string, args ...any) PromptingOption {
 	return &promptingOptions{
 		PromptFn: func(ctx context.Context, _ any) (string, error) {
-			return text, nil
+			return fmt.Sprintf(text, args...), nil
 		},
 	}
 }
 
 // WithPromptFn sets the function that generates the user prompt message.
 // The user prompt is always the last message in the list.
-func WithPromptFn(fn promptFn) PromptingOption {
+func WithPromptFn(fn PromptFn) PromptingOption {
 	return &promptingOptions{PromptFn: fn}
 }
 

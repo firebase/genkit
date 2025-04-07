@@ -57,7 +57,7 @@ func vertexaiEx(ctx context.Context) error {
 	// [START gen]
 	genRes, err := genkit.GenerateText(ctx, g,
 		ai.WithModel(langModel),
-		ai.WithPromptText("Tell me a joke."))
+		ai.WithPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}

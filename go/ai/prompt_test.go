@@ -32,7 +32,7 @@ type InputOutput struct {
 	Text string `json:"text"`
 }
 
-func testTool(reg *registry.Registry, name string) *ToolDef[struct{ Test string }, string] {
+func testTool(reg *registry.Registry, name string) Tool {
 	return DefineTool(reg, name, "use when need to execute a test",
 		func(ctx *ToolContext, input struct {
 			Test string
@@ -135,11 +135,11 @@ func TestInputFormat(t *testing.T) {
 
 			if test.inputType != nil {
 				p, err = DefinePrompt(reg, test.name,
-					WithPromptText(test.templateText),
+					WithPrompt(test.templateText),
 					WithInputType(test.inputType),
 				)
 			} else {
-				p, err = DefinePrompt(reg, test.name, WithPromptText(test.templateText))
+				p, err = DefinePrompt(reg, test.name, WithPrompt(test.templateText))
 			}
 
 			if err != nil {
@@ -243,11 +243,11 @@ func TestValidPrompt(t *testing.T) {
 		name           string
 		model          Model
 		systemText     string
-		systemFn       promptFn
+		systemFn       PromptFn
 		promptText     string
-		promptFn       promptFn
+		promptFn       PromptFn
 		messages       []*Message
-		messagesFn     messagesFn
+		messagesFn     MessagesFn
 		tools          []ToolRef
 		config         *GenerationCommonConfig
 		inputType      any
@@ -526,7 +526,7 @@ func TestValidPrompt(t *testing.T) {
 			opts = append(opts, WithMaxTurns(1))
 
 			if test.systemText != "" {
-				opts = append(opts, WithSystemText(test.systemText))
+				opts = append(opts, WithSystem(test.systemText))
 			}
 			if test.systemFn != nil {
 				opts = append(opts, WithSystemFn(test.systemFn))
@@ -538,7 +538,7 @@ func TestValidPrompt(t *testing.T) {
 				opts = append(opts, WithMessagesFn(test.messagesFn))
 			}
 			if test.promptText != "" {
-				opts = append(opts, WithPromptText(test.promptText))
+				opts = append(opts, WithPrompt(test.promptText))
 			}
 			if test.promptFn != nil {
 				opts = append(opts, WithPromptFn(test.promptFn))
@@ -599,7 +599,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	testModel := DefineModel(reg, "options", "test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPromptText("TestExecute"))
+		p, err := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPrompt("TestExecute"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -628,7 +628,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPromptText("TestModelname"))
+		p, err := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPrompt("TestModelname"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -667,7 +667,7 @@ func TestDefaultsOverride(t *testing.T) {
 		{
 			name: "Config",
 			define: []PromptOption{
-				WithPromptText("my name is foo"),
+				WithPrompt("my name is foo"),
 				WithConfig(&GenerationCommonConfig{Temperature: 11}),
 				WithModel(model),
 			},
@@ -691,7 +691,7 @@ func TestDefaultsOverride(t *testing.T) {
 		{
 			name: "Model",
 			define: []PromptOption{
-				WithPromptText("my name is foo"),
+				WithPrompt("my name is foo"),
 				WithModel(model),
 			},
 			execute: []PromptExecuteOption{
@@ -715,7 +715,7 @@ func TestDefaultsOverride(t *testing.T) {
 		{
 			name: "ModelName",
 			define: []PromptOption{
-				WithPromptText("my name is foo"),
+				WithPrompt("my name is foo"),
 				WithModelName("test/chat"),
 			},
 			execute: []PromptExecuteOption{

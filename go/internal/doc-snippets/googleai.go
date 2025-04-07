@@ -49,7 +49,7 @@ func googleaiEx(ctx context.Context) error {
 	// [END model]
 
 	// [START gen]
-	text, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPromptText("Tell me a joke."))
+	text, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}

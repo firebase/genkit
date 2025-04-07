@@ -57,14 +57,14 @@ func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
 	return (*embedder)(action)
 }
 
-// Embed runs the given [Embedder].
-func (e embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
-	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(&e).Run(ctx, req, nil)
+// Name returns the name of the embedder.
+func (e *embedder) Name() string {
+	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e).Name()
 }
 
-// Name returns the name of the embedder.
-func (e embedder) Name() string {
-	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(&e).Name()
+// Embed runs the given [Embedder].
+func (e *embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e).Run(ctx, req, nil)
 }
 
 // Embed invokes the embedder with provided options.

@@ -108,7 +108,7 @@ func main() {
 
 	m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash")
 	simpleGreetingPrompt, err := genkit.DefinePrompt(g, "simpleGreeting2",
-		ai.WithPromptText(simpleGreetingPromptTemplate),
+		ai.WithPrompt(simpleGreetingPromptTemplate),
 		ai.WithModel(m),
 		ai.WithInputType(simpleGreetingInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
@@ -135,7 +135,7 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := genkit.DefinePrompt(g, "greetingWithHistory",
-		ai.WithPromptText(greetingWithHistoryPromptTemplate),
+		ai.WithPrompt(greetingWithHistoryPromptTemplate),
 		ai.WithModel(m),
 		ai.WithInputType(customerTimeAndHistoryInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
@@ -155,7 +155,7 @@ func main() {
 	})
 
 	simpleStructuredGreetingPrompt, err := genkit.DefinePrompt(g, "simpleStructuredGreeting",
-		ai.WithPromptText(simpleStructuredGreetingPromptTemplate),
+		ai.WithPrompt(simpleStructuredGreetingPromptTemplate),
 		ai.WithModel(m),
 		ai.WithInputType(simpleGreetingInput{}),
 		ai.WithOutputType(simpleGreetingOutput{}),

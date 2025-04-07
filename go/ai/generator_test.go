@@ -307,12 +307,12 @@ func TestGenerate(t *testing.T) {
 		streamText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(bananaModel),
-			WithSystemText("You are a helpful assistant."),
+			WithSystem("You are a helpful assistant."),
 			WithMessages(
 				NewUserTextMessage("How many bananas are there?"),
 				NewModelTextMessage("There are at least 10 bananas."),
 			),
-			WithPromptText("Where can they be found?"),
+			WithPrompt("Where can they be found?"),
 			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
@@ -381,7 +381,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(interruptModel),
-			WithPromptText("trigger interrupt"),
+			WithPrompt("trigger interrupt"),
 			WithTools(interruptTool),
 		)
 		if err != nil {
@@ -466,7 +466,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(parallelModel),
-			WithPromptText("trigger parallel tools"),
+			WithPrompt("trigger parallel tools"),
 			WithTools(gablorkenTool),
 		)
 		if err != nil {
@@ -531,7 +531,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(multiRoundModel),
-			WithPromptText("trigger multiple rounds"),
+			WithPrompt("trigger multiple rounds"),
 			WithTools(gablorkenTool),
 			WithMaxTurns(2),
 		)
@@ -573,7 +573,7 @@ func TestGenerate(t *testing.T) {
 
 		_, err := Generate(context.Background(), r,
 			WithModel(infiniteModel),
-			WithPromptText("trigger infinite loop"),
+			WithPrompt("trigger infinite loop"),
 			WithTools(gablorkenTool),
 			WithMaxTurns(2),
 		)
@@ -598,7 +598,7 @@ func TestGenerate(t *testing.T) {
 
 		res, err := Generate(context.Background(), r,
 			WithModel(echoModel),
-			WithPromptText("test middleware"),
+			WithPrompt("test middleware"),
 			WithMiddleware(testMiddleware),
 		)
 		if err != nil {
@@ -624,7 +624,7 @@ func TestModelVersion(t *testing.T) {
 				Temperature: 1,
 				Version:     "echo-001",
 			}),
-			WithPromptText("tell a joke about batman"))
+			WithPrompt("tell a joke about batman"))
 		if err != nil {
 			t.Errorf("model version should be valid")
 		}
@@ -636,7 +636,7 @@ func TestModelVersion(t *testing.T) {
 				Temperature: 1,
 				Version:     "echo-im-not-a-version",
 			}),
-			WithPromptText("tell a joke about batman"))
+			WithPrompt("tell a joke about batman"))
 		if err == nil {
 			t.Errorf("model version should be invalid: %v", err)
 		}

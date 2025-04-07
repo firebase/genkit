@@ -147,15 +147,15 @@ func TestPromptingOptions(t *testing.T) {
 		{
 			name: "valid options",
 			opts: []PromptingOption{
-				WithSystemText("system instruction"),
-				WithPromptText("user prompt"),
+				WithSystem("system instruction"),
+				WithPrompt("user prompt"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "mutually exclusive - system",
 			opts: []PromptingOption{
-				WithSystemText("system instruction"),
+				WithSystem("system instruction"),
 				WithSystemFn(func(context.Context, any) (string, error) { return "system", nil }),
 			},
 			wantErr: true,
@@ -163,7 +163,7 @@ func TestPromptingOptions(t *testing.T) {
 		{
 			name: "mutually exclusive - prompt",
 			opts: []PromptingOption{
-				WithPromptText("user prompt"),
+				WithPrompt("user prompt"),
 				WithPromptFn(func(context.Context, any) (string, error) { return "prompt", nil }),
 			},
 			wantErr: true,
@@ -378,8 +378,8 @@ func TestGenerateOptionsComplete(t *testing.T) {
 		WithMaxTurns(3),
 		WithReturnToolRequests(true),
 		WithMiddleware(mw),
-		WithSystemText("system prompt"),
-		WithPromptText("user prompt"),
+		WithSystem("system prompt"),
+		WithPrompt("user prompt"),
 		WithDocs(DocumentFromText("doc", nil)),
 		WithOutputType(map[string]string{"key": "value"}),
 		WithStreaming(streamFunc),
@@ -464,8 +464,8 @@ func TestPromptOptionsComplete(t *testing.T) {
 		WithMaxTurns(3),
 		WithReturnToolRequests(true),
 		WithMiddleware(mw),
-		WithSystemText("system prompt"),
-		WithPromptText("user prompt"),
+		WithSystem("system prompt"),
+		WithPrompt("user prompt"),
 		WithDescription("test description"),
 		WithMetadata(map[string]any{"key": "value"}),
 		WithOutputType(map[string]string{"key": "value"}),

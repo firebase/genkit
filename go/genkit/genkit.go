@@ -466,8 +466,9 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //	if err != nil {
 //		log.Fatalf("Generate failed: %v", err)
 //	}
+//
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
-func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) *ai.ToolDef[In, Out] {
+func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
 }
 
@@ -658,17 +659,15 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //		Year   int    `json:"year"`
 //	}
 //
-//	var book BookInfo
-//	_, err := genkit.GenerateData(ctx, g, &book, // Pass pointer to the struct
+//	book, _, err := genkit.GenerateData[BookInfo](ctx, g,
 //		ai.WithPromptText("Provide information about 'The Hitchhiker's Guide to the Galaxy' as JSON."),
-//		ai.WithOutputType(BookInfo{}), // Instruct model on desired output structure
 //	)
 //	if err != nil {
 //		log.Fatalf("GenerateData failed: %v", err)
 //	}
 //	fmt.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
-func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
-	return ai.GenerateData(ctx, g.reg, value, opts...)
+func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*Out, *ai.ModelResponse, error) {
+	return ai.GenerateData[Out](ctx, g.reg, opts...)
 }
 
 // DefineRetriever defines a custom retriever implementation, registers it as a

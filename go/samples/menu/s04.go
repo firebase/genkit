@@ -27,7 +27,7 @@ import (
 
 func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
 	ragDataMenuPrompt, err := genkit.DefinePrompt(g, "s04_ragDataMenu",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.

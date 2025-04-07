@@ -65,7 +65,7 @@ func main() {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPromptText(prompt),
+			ai.WithPrompt(prompt),
 		)
 		if err != nil {
 			return "", nil
@@ -78,7 +78,7 @@ func main() {
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithMessages(resp.History()...),
-			ai.WithPromptText("now rewrite the previous summary and make it look like a pirate wrote it"),
+			ai.WithPrompt("now rewrite the previous summary and make it look like a pirate wrote it"),
 		)
 		if err != nil {
 			return "", nil

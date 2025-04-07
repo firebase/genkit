@@ -103,7 +103,7 @@ func main() {
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
 		ai.WithModelName("googlegenai/gemini-2.0-flash"),
-		ai.WithPromptText(simpleQaPromptTemplate),
+		ai.WithPrompt(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 	)
