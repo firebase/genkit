@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -143,29 +144,29 @@ type ClassConfig struct {
 	EmbedderOptions any
 }
 
-// DefineRetriever defines a [ai.Retriever] that retrieves documents from a Weaviate class.
-// The class name uniquely identifies the Retriever in the registry.
-// It requires a properly configured Weaviate plugin and an embedder to convert
-// queries into vector embeddings for similarity search.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig) (ai.Retriever, error) {
+// DefineIndexerAndRetriever defines an [ai.Indexer] and [ai.Retriever]
+// that use the same class.
+// The name uniquely identifies the Indexer and Retriever in the registry.
+func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
 	if cfg.Embedder == nil {
-		return nil, errors.New("weaviate: Embedder required")
+		return nil, nil, errors.New("weaviate: Embedder required")
 	}
 	if cfg.Class == "" {
-		return nil, errors.New("weaviate: class required")
+		return nil, nil, errors.New("weaviate: class required")
 	}
 
 	w := genkit.LookupPlugin(g, provider).(*Weaviate)
 	if w == nil {
-		return nil, errors.New("weaviate plugin not found; did you call genkit.Init with the weaviate plugin?")
+		return nil, nil, errors.New("weaviate plugin not found; did you call genkit.Init with the weaviate plugin?")
 	}
 
 	ds, err := w.newDocStore(ctx, &cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	indexer := genkit.DefineIndexer(g, provider, cfg.Class, ds.Index)
 	retriever := genkit.DefineRetriever(g, provider, cfg.Class, ds.Retrieve)
-	return retriever, nil
+	return indexer, retriever, nil
 }
 
 // docStore defines an Indexer and a Retriever.
@@ -208,16 +209,69 @@ func (w *Weaviate) newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore
 	return ds, nil
 }
 
+// Indexer returns the indexer for the given class.
+func Indexer(g *genkit.Genkit, class string) ai.Indexer {
+	return genkit.LookupIndexer(g, provider, class)
+}
+
 // Retriever returns the retriever for the given class.
 func Retriever(g *genkit.Genkit, class string) ai.Retriever {
 	return genkit.LookupRetriever(g, provider, class)
 }
 
-// RetrieverConfig may be passed in the Options field
+// Index implements the genkit Retriever.Index method.
+func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
+	if len(req.Documents) == 0 {
+		return nil
+	}
+
+	// Use the embedder to convert each Document into a vector.
+	ereq := &ai.EmbedRequest{
+		Input:   req.Documents,
+		Options: ds.embedderOptions,
+	}
+	eres, err := ds.embedder.Embed(ctx, ereq)
+	if err != nil {
+		return fmt.Errorf("weaviate index embedding failed: %v", err)
+	}
+
+	objects := make([]*models.Object, 0, len(eres.Embeddings))
+	for i, de := range eres.Embeddings {
+		doc := req.Documents[i]
+
+		var sb strings.Builder
+		for _, p := range doc.Content {
+			sb.WriteString(p.Text)
+		}
+
+		metadata := make(map[string]any)
+		metadata[textKey] = sb.String()
+
+		if doc.Metadata != nil {
+			metadata[metadataKey] = doc.Metadata
+		}
+
+		obj := &models.Object{
+			Class:      ds.class,
+			Properties: metadata,
+			Vector:     de.Embedding,
+		}
+		objects = append(objects, obj)
+	}
+
+	_, err = ds.client.Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
+	if err != nil {
+		return fmt.Errorf("weaviate insert failed: %v", err)
+	}
+
+	return nil
+}
+
+// RetrieverOptions may be passed in the Options field
 // [ai.RetrieverRequest] to pass options to Weaviate.
 // The options field should be either nil or
-// a value of type *RetrieverConfig.
-type RetrieverConfig struct {
+// a value of type *RetrieverOptions.
+type RetrieverOptions struct {
 	// Maximum number of values to retrieve.
 	Count int `json:"count,omitempty"`
 	// Keys to retrieve from document metadata.
@@ -230,9 +284,9 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	count := 3 // by default we fetch 3 documents
 	var metadataKeys []string
 	if req.Options != nil {
-		ropt, ok := req.Options.(*RetrieverConfig)
+		ropt, ok := req.Options.(*RetrieverOptions)
 		if !ok {
-			return nil, fmt.Errorf("weaviate.Retrieve options have type %T, want %T", req.Options, &RetrieverConfig{})
+			return nil, fmt.Errorf("weaviate.Retrieve options have type %T, want %T", req.Options, &RetrieverOptions{})
 		}
 		count = ropt.Count
 		metadataKeys = ropt.MetadataKeys
