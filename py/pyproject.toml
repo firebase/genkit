@@ -1,6 +1,6 @@
 [project]
 dependencies = [
-  #"dotpromptz", # TODO: Add when updated to support Python 3.11 and functional.
+  "dotpromptz",
   "genkit",
   "genkit-plugin-chroma",
   "genkit-plugin-dev-local-vectorstore",
