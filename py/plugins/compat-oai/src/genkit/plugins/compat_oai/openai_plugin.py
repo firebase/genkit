@@ -19,7 +19,7 @@
 
 from openai import OpenAI as OpenAIClient
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai import Genkit, Plugin
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_MODELS,
     OpenAIModelHandler,
@@ -36,7 +36,7 @@ class OpenAI(Plugin):
 
     name = 'openai-compat'
 
-    def __init__(self, **openai_params):
+    def __init__(self, **openai_params) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
 
         Args:
@@ -47,7 +47,7 @@ class OpenAI(Plugin):
         self._openai_params = openai_params
         self._openai_client = OpenAIClient(**openai_params)
 
-    def initialize(self, ai: GenkitRegistry) -> None:
+    def initialize(self, ai: Genkit) -> None:
         """Registers supported OpenAI models in the given registry.
 
         Args:
@@ -63,7 +63,7 @@ class OpenAI(Plugin):
                 metadata={
                     'model': {
                         'label': model_info.label,
-                        'supports': {'multiturn': model_info.supports.multiturn},
+                        'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
                     },
                 },
             )
