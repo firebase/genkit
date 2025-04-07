@@ -27,7 +27,7 @@ members = [
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
     "google-genai-image",
-    "google-genai-imagen",
+    "google-genai-vertexai-image",
     "hello",
     "hello-flask",
     "hello-google-genai",
@@ -1458,9 +1458,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "google-genai-imagen"
+name = "google-genai-vertexai-image"
 version = "0.1.0"
-source = { editable = "samples/google-genai-imagen" }
+source = { editable = "samples/google-genai-vertexai-image" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
