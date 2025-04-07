@@ -46,7 +46,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p, err := genkit.DefinePrompt(g, "test", ai.WithPromptText(`{{> header}} {{uppercase greeting}}`))
+	p, err := genkit.DefinePrompt(g, "test", ai.WithPrompt(`{{> header}} {{uppercase greeting}}`))
 
 	result, err := p.Execute(context.Background(), ai.WithInput(map[string]any{
 		"name":     "User",

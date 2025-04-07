@@ -1080,7 +1080,7 @@ func TestDefinePartialAndHelper(t *testing.T) {
 		t.Fatalf("Expected error defining helper with duplicate name")
 	}
 
-	p, err := DefinePrompt(reg, "test", WithPromptText(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+	p, err := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",

@@ -378,14 +378,14 @@ type PromptingOption interface {
 func (o *promptingOptions) applyPrompting(opts *promptingOptions) error {
 	if o.SystemFn != nil {
 		if opts.SystemFn != nil {
-			return errors.New("cannot set system text more than once (either WithSystemText or WithSystemFn)")
+			return errors.New("cannot set system text more than once (either WithSystem or WithSystemFn)")
 		}
 		opts.SystemFn = o.SystemFn
 	}
 
 	if o.PromptFn != nil {
 		if opts.PromptFn != nil {
-			return errors.New("cannot set prompt text more than once (either WithPromptText or WithPromptFn)")
+			return errors.New("cannot set prompt text more than once (either WithPrompt or WithPromptFn)")
 		}
 		opts.PromptFn = o.PromptFn
 	}
@@ -408,7 +408,9 @@ func (o *promptingOptions) applyGenerate(opts *generateOptions) error {
 func WithSystem(text string, args ...any) PromptingOption {
 	return &promptingOptions{
 		SystemFn: func(ctx context.Context, _ any) (string, error) {
-			return fmt.Sprintf(text, args...), nil
+			// Avoids a compile-time warning about non-constant text.
+			t := text
+			return fmt.Sprintf(t, args...), nil
 		},
 	}
 }
@@ -424,7 +426,9 @@ func WithSystemFn(fn PromptFn) PromptingOption {
 func WithPrompt(text string, args ...any) PromptingOption {
 	return &promptingOptions{
 		PromptFn: func(ctx context.Context, _ any) (string, error) {
-			return fmt.Sprintf(text, args...), nil
+			// Avoids a compile-time warning about non-constant text.
+			t := text
+			return fmt.Sprintf(t, args...), nil
 		},
 	}
 }

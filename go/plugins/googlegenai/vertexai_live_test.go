@@ -254,7 +254,7 @@ func TestVertexAILive(t *testing.T) {
 			Country string
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Which country was Napoleon the emperor of?"),
+			ai.WithPrompt("Which country was Napoleon the emperor of?"),
 			ai.WithOutputType(outFormat{}),
 		)
 		if err != nil {

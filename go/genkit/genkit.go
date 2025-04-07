@@ -164,7 +164,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		}
 //
 //		// Generate text using the default model
-//		funFact, err := genkit.GenerateText(ctx, g, ai.WithPromptText("Tell me a fake fun fact!"))
+//		funFact, err := genkit.GenerateText(ctx, g, ai.WithPrompt("Tell me a fake fun fact!"))
 //		if err != nil {
 //			log.Fatalf("GenerateText failed: %v", err)
 //		}
@@ -464,7 +464,7 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //
 //	// Use the tool in a generation request:
 //	resp, err := genkit.Generate(ctx, g,
-//		ai.WithPromptText("What's the weather like in Paris?"),
+//		ai.WithPrompt("What's the weather like in Paris?"),
 //		ai.WithTools(weatherTool), // Make the tool available
 //		// Optionally use ai.WithToolChoice(...)
 //	)
@@ -512,10 +512,10 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //	capitalPrompt, err := genkit.DefinePrompt(g, "findCapital",
 //		ai.WithDescription("Finds the capital of a country."),
 //		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify the model
-//		ai.WithSystemText("You are a helpful geography assistant."),
-//		ai.WithPromptText("What is the capital of {{country}}?"), // Handlebars template
-//		ai.WithInputType(GeoInput{Country: "USA"}),               // Define input schema and default
-//		ai.WithOutputType(GeoOutput{}),                           // Define output schema (implies JSON format)
+//		ai.WithSystem("You are a helpful geography assistant."),
+//		ai.WithPrompt("What is the capital of {{country}}?"),
+//		ai.WithInputType(GeoInput{Country: "USA"}),
+//		ai.WithOutputType(GeoOutput{}),
 //		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
 //	)
 //	if err != nil {
@@ -597,7 +597,7 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //
 //	resp, err := genkit.Generate(ctx, g,
 //		ai.WithModelName("googleai/gemini-2.0-flash"),
-//		ai.WithPromptText("Write a short poem about clouds."),
+//		ai.WithPrompt("Write a short poem about clouds."),
 //		ai.WithConfig(&googlegenai.GeminiConfig{MaxOutputTokens: 50}),
 //	)
 //	if err != nil {
@@ -617,7 +617,7 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 // Example:
 //
 //	joke, err := genkit.GenerateText(ctx, g,
-//		ai.WithPromptText("Tell me a funny programming joke."),
+//		ai.WithPrompt("Tell me a funny programming joke."),
 //	)
 //	if err != nil {
 //		log.Fatalf("GenerateText failed: %v", err)
@@ -648,7 +648,7 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //	}
 //
 //	book, _, err := genkit.GenerateData[BookInfo](ctx, g,
-//		ai.WithPromptText("Tell me about 'The Hitchhiker's Guide to the Galaxy'."),
+//		ai.WithPrompt("Tell me about 'The Hitchhiker's Guide to the Galaxy'."),
 //	)
 //	if err != nil {
 //		log.Fatalf("GenerateData failed: %v", err)
@@ -874,7 +874,7 @@ func DefineHelper(g *Genkit, name string, fn any) error {
 //
 //	// Use the formatter in a generation request
 //	resp, err := genkit.Generate(ctx, g,
-//		ai.WithPromptText("List 3 countries and their capitals"),
+//		ai.WithPrompt("List 3 countries and their capitals"),
 //		ai.WithOutputFormat("csv"), // Use the custom formatter
 //	)
 func DefineFormat(g *Genkit, name string, formatter ai.Formatter) {
