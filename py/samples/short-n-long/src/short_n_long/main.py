@@ -42,12 +42,13 @@ Key features demonstrated in this sample:
 """
 
 import argparse
-import asyncio
 
 import structlog
+import uvicorn
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.core.flows import create_flows_asgi_app
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -62,7 +63,6 @@ from genkit.types import (
     Role,
     TextPart,
 )
-from short_n_long import parse_args
 
 logger = structlog.get_logger(__name__)
 
@@ -316,17 +316,46 @@ async def generate_images(name: str, ctx):
     return result
 
 
-async def main() -> None:
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments.
+
+    Returns:
+        The parsed command line arguments.
+    """
+    parser: argparse.ArgumentParser = argparse.ArgumentParser()
+    parser.add_argument('--server', action='store_true', help='Run the application as a server')
+    return parser.parse_args()
+
+
+async def server_main(ai: Genkit) -> None:
+    """Entry point function for the server application."""
+
+    async def on_app_startup() -> None:
+        """Handle application startup."""
+        await logger.ainfo('[LIFESPAN] Starting flows server...')
+        # Any initialization could go here
+
+    async def on_app_shutdown() -> None:
+        """Handle application shutdown."""
+        await logger.ainfo('[LIFESPAN] Shutting down flows server...')
+
+    app = create_flows_asgi_app(
+        registry=ai.registry,
+        context_providers=[],
+        on_app_startup=on_app_startup,
+        on_app_shutdown=on_app_shutdown,
+    )
+    config = uvicorn.Config(app, host='localhost', port=3400)
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
+async def main(ai: Genkit) -> None:
     """Main function."""
-    await logger.ainfo(await say_hi(', tell me a joke'))
-
-
-async def server_main() -> None:
-    """Server main function."""
     await logger.ainfo(await say_hi(', tell me a joke'))
 
 
 if __name__ == '__main__':
     config: argparse.Namespace = parse_args()
     runner = server_main if config.server else main
-    asyncio.run(runner())
+    ai.run(runner(ai))

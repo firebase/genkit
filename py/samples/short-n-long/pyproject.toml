@@ -23,6 +23,7 @@ dependencies = [
   "structlog>=25.2.0",
   "strenum>=0.4.15; python_version < '3.11'",
   "rich>=14.0.0",
+  "uvloop>=0.21.0",
 ]
 description = "Short and long sample"
 license = { text = "Apache-2.0" }
