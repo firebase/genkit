@@ -82,6 +82,7 @@ default-groups = ["dev", "lint"]
 [tool.uv.sources]
 basic-gemini                        = { workspace = true }
 coffee-shop                         = { workspace = true }
+compat-oai-hello                    = { workspace = true }
 context-caching                     = { workspace = true }
 dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 flask-hello                         = { workspace = true }
@@ -211,6 +212,7 @@ mypy_path = [
   "plugins/vertex-ai/src",
   "samples/basic-gemini/src",
   "samples/coffee-shop/src",
+  "samples/compat-oai-hello/src",
   "samples/context-caching/src",
   "samples/flask-hello/src",
   "samples/flow-sample1/src",

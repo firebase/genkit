@@ -11,6 +11,7 @@ resolution-markers = [
 members = [
     "basic-gemini",
     "coffee-shop",
+    "compat-oai-hello",
     "context-caching",
     "firestore-retreiver",
     "flask-hello",
@@ -37,7 +38,6 @@ members = [
     "multi-server",
     "ollama-hello",
     "ollama-simple-embed",
-    "openai-sample",
     "prompt-file",
     "rag",
     "short-n-long",
@@ -522,6 +522,27 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e9/a8/fb783cb0abe2b5fded9f55e5703015cdf1c9c85b3669087c538dd15a6a86/comm-0.2.2.tar.gz", hash = "sha256:3fd7a84065306e07bea1773df6eb8282de51ba82f77c72f9c85716ab11fe980e", size = 6210 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/75/49e5bfe642f71f272236b5b2d2691cf915a7283cc0ceda56357b61daa538/comm-0.2.2-py3-none-any.whl", hash = "sha256:e6fb86cb70ff661ee8c9c14e7d36d6de3b4066f1441be4063df9c5009f0a64d3", size = 7180 },
+]
+
+[[package]]
+name = "compat-oai-hello"
+version = "0.1.0"
+source = { editable = "samples/compat-oai-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-compat-oai" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
@@ -3037,27 +3058,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/87/f5/ae0f3cd226c2993b4ac1cc4b5f6ca099764689f403c14922c9356accec66/openai-1.70.0.tar.gz", hash = "sha256:e52a8d54c3efeb08cf58539b5b21a5abef25368b5432965e4de88cdf4e091b2b", size = 409640 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e2/39/c4b38317d2c702c4bc763957735aaeaf30dfc43b5b824121c49a4ba7ba0f/openai-1.70.0-py3-none-any.whl", hash = "sha256:f6438d053fd8b2e05fd6bef70871e832d9bbdf55e119d0ac5b92726f1ae6f614", size = 599070 },
-]
-
-[[package]]
-name = "openai-sample"
-version = "0.1.0"
-source = { editable = "samples/openai" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-compat-oai" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
