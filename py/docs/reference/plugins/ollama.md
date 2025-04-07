@@ -48,7 +48,7 @@ genereate_response = await ai.generate(
 )
 
 embedding_response = await ai.embed(
-    model='ollama/nomic-embed-text',
+    embedder='ollama/nomic-embed-text',
     documents=[Document.from_text('...')],
 )
 ```
