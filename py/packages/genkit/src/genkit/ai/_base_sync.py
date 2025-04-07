@@ -32,7 +32,7 @@ from genkit.web.manager import find_free_port_sync
 
 from ._plugin import Plugin
 from ._registry import GenkitRegistry
-from ._server import ServerSpec
+from ._server import ServerSpec, init_default_runtime
 
 logger = structlog.get_logger(__name__)
 
@@ -168,5 +168,5 @@ class GenkitBase(GenkitRegistry):
         # We need to write the runtime file closest to the point of starting up
         # the server to avoid race conditions with the manager's runtime
         # handler.
-        server.init_default_runtime(spec)
+        init_default_runtime(spec)
         httpd.serve_forever()

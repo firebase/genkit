@@ -31,8 +31,8 @@ from genkit.web.manager import find_free_port_sync
 
 from ._plugin import Plugin
 from ._registry import GenkitRegistry
+from ._runtime import RuntimeManager
 from ._server import ServerSpec
-from .runtime import RuntimeManager
 
 logger = structlog.get_logger(__name__)
 
