@@ -22,9 +22,9 @@ dependencies = [
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
 ]
-description = "Hello world sample"
+description = "Hello world sample on VertexAI API on GenAI"
 license = { text = "Apache-2.0" }
-name = "hello-google-genai"
+name = "google-genai-vertexai-hello"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
@@ -34,4 +34,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/hello"]
+packages = ["src/google_genai_vertexai_hello"]

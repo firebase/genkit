@@ -29,9 +29,9 @@ members = [
     "google-genai-image",
     "google-genai-vertexai-image",
     "hello",
-    "hello-flask",
-    "hello-google-genai",
-    "hello-google-genai-vertexai",
+    "flask-hello",
+    "google-genai-hello",
+    "google-genai-vertexai-hello",
     "imagen",
     "menu",
     "multi-server",
@@ -1661,9 +1661,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "hello-flask"
+name = "flask-hello"
 version = "0.1.0"
-source = { editable = "samples/hello-flask" }
+source = { editable = "samples/flask-hello" }
 dependencies = [
     { name = "flask" },
     { name = "genkit" },
@@ -1680,9 +1680,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "hello-google-genai"
+name = "google-genai-hello"
 version = "0.1.0"
-source = { editable = "samples/hello-google-genai" }
+source = { editable = "samples/google-genai-hello" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
@@ -1699,9 +1699,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "hello-google-genai-vertexai"
+name = "google-genai-vertexai-hello"
 version = "0.1.0"
-source = { editable = "samples/hello-google-genai-vertexai" }
+source = { editable = "samples/google-genai-vertexai-hello" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },

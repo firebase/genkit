@@ -21,19 +21,21 @@ from flask import Flask
 from genkit.ai import Genkit
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import (
-    GoogleGenai,
-    google_genai_name,
+    GoogleAI,
+    googleai_name,
 )
+from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
 ai = Genkit(
-    plugins=[GoogleGenai()],
-    model=google_genai_name('gemini-2.0-flash'),
+    plugins=[GoogleAI()],
+    model=googleai_name(GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
 )
 
 app = Flask(__name__)
 
 
 async def my_context_provider(request):
+    """Provide a context for the flow."""
     return {'username': request.headers.get('authorization')}
 
 
@@ -41,6 +43,7 @@ async def my_context_provider(request):
 @genkit_flask_handler(ai, context_provider=my_context_provider)
 @ai.flow()
 async def say_hi(name: str, ctx):
+    """Say hi to the user."""
     return await ai.generate(
         on_chunk=ctx.send_chunk,
         prompt=f'tell a medium sized joke about {name} for user {ctx.context.get("username")}',
