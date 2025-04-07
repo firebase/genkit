@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""This sample demonstrates how to use Gemini to describe and draw images."""
+"""This sample demonstrates how to use Gemini VertexAI to describe and draw images."""
 
 import asyncio
 import base64

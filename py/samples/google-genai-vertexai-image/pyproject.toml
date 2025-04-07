@@ -24,7 +24,7 @@ dependencies = [
 ]
 description = "Image Generation on VertexAI with GenAI library example"
 license = { text = "Apache-2.0" }
-name = "google-genai-imagen"
+name = "google-genai-vertexai-image"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
@@ -34,4 +34,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/google_genai_imagen"]
+packages = ["src/google_genai_vertexai_image"]
