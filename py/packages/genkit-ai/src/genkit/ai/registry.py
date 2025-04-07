@@ -64,6 +64,7 @@ from genkit.core.typing import (
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
+    EvalStatusEnum,
     GenerationCommonConfig,
     Message,
     ModelInfo,
@@ -287,7 +288,7 @@ class GenkitRegistry:
         if config_schema:
             evaluator_meta['evaluator']['customOptions'] = to_json_schema(config_schema)
 
-        def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
+        async def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
             eval_responses: list[EvalFnResponse] = []
             for index in range(len(req.dataset)):
                 datapoint = req.dataset[index]
@@ -303,7 +304,7 @@ class GenkitRegistry:
                         trace_id = span.trace_id()
                         try:
                             span.set_input(datapoint)
-                            test_case_output = fn(datapoint, req.options)
+                            test_case_output = await fn(datapoint, req.options)
                             test_case_output.span_id = span_id
                             test_case_output.trace_id = trace_id
                             span.set_output(test_case_output)
@@ -312,7 +313,8 @@ class GenkitRegistry:
                             logger.debug(f'eval_stepper_fn error: {str(e)}')
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
-                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}'
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                status=EvalStatusEnum.FAIL,
                             )
                             eval_responses.append(
                                 EvalFnResponse(

@@ -23,6 +23,12 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Document, Genkit
+from genkit.plugins.evaluators import (
+    GenkitEvaluators,
+    GenkitMetricType,
+    MetricConfig,
+    PluginOptions,
+)
 from genkit.plugins.vertex_ai import (
     EmbeddingModels,
     EmbeddingsTaskType,
@@ -50,7 +56,14 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
-    plugins=[VertexAI()],
+    plugins=[
+        VertexAI(),
+        GenkitEvaluators(
+            PluginOptions([
+                MetricConfig(metric_type=GenkitMetricType.FAITHFULNESS, judge_model='vertexai/gemini-1.5-pro')
+            ])
+        ),
+    ],
     model=vertexai_name(GeminiVersion.GEMINI_1_5_FLASH),
 )
 
@@ -311,7 +324,10 @@ async def call_a_prompt(_: str):
     Returns:
         The prompt response.
     """
-    return (await myprompt()).text
+    response = await ai.agenerate(model='vertexai/gemini-1.5-pro', prompt='Say hello in pirate-speak to a unicorn')
+    logger.debug(response.text)
+    return response.text
+    # return (await myprompt()).text
 
 
 @ai.flow()
