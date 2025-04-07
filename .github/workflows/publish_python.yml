@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       # change to publish or similar in productive CI
-      name: pypi_github_publishing
+      name: publish-testpypi
     permissions:
       id-token: write
     steps:
