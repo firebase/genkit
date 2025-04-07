@@ -58,7 +58,7 @@ func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvid
 		const bearerPrefix = "bearer "
 
 		if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
-			return nil, core.UserFacingError(core.UNAUTHENTICATED, "invalid authorization header format", nil))
+			return nil, core.UserFacingError(core.UNAUTHENTICATED, "invalid authorization header format", nil)
 		}
 
 		token := authHeader[len(bearerPrefix):]
