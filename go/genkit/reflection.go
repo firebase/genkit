@@ -28,13 +28,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -307,22 +305,9 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
 			if stream {
-				var traceID string
-				if herr, ok := err.(*base.HTTPError); ok {
-					traceID = herr.TraceID
-				}
-
-				genkitErr := &ai.GenkitError{
-					Message: err.Error(),
-					Data: &ai.GenkitErrorData{
-						GenkitErrorMessage: err.Error(),
-						GenkitErrorDetails: &ai.GenkitErrorDetails{
-							TraceID: traceID,
-						},
-					},
-				}
-
+				genkitErr := core.GetReflectionJSON(err)
 				errorJSON, _ := json.Marshal(genkitErr)
+				fmt.Printf("%v", string(errorJSON))
 				_, writeErr := fmt.Fprintf(w, "%s\n\n", errorJSON)
 				if writeErr != nil {
 					return writeErr
@@ -349,7 +334,10 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return &core.GenkitError{
+				Message: err.Error(),
+				Status:  core.INVALID_ARGUMENT,
+			}
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {

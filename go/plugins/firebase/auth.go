@@ -19,7 +19,6 @@ package firebase
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -53,19 +52,19 @@ func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvid
 	return func(ctx context.Context, input core.RequestData) (core.ActionContext, error) {
 		authHeader, ok := input.Headers["authorization"]
 		if !ok {
-			return nil, errors.New("authorization header is required but not provided")
+			return nil, core.UserFacingError(core.UNAUTHENTICATED, "authorization header is required but not provided", nil)
 		}
 
 		const bearerPrefix = "bearer "
 
 		if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
-			return nil, errors.New("invalid authorization header format")
+			return nil, core.UserFacingError(core.UNAUTHENTICATED, "invalid authorization header format", nil))
 		}
 
 		token := authHeader[len(bearerPrefix):]
 		authCtx, err := client.VerifyIDToken(ctx, token)
 		if err != nil {
-			return nil, fmt.Errorf("error verifying ID token: %v", err)
+			return nil, core.UserFacingError(core.UNAUTHENTICATED, fmt.Sprintf("error verifying ID token: %v", err), nil)
 		}
 
 		if policy != nil {

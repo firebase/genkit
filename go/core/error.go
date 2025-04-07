@@ -25,8 +25,6 @@ import (
 type GenkitReflectionAPIDetailsWireFormat struct {
 	Stack   *string `json:"stack,omitempty"` // Use pointer for optional
 	TraceID *string `json:"traceId,omitempty"`
-	// Use map[string]any if you need truly arbitrary fields, or embed if known.
-	// For simplicity here, we only define known fields. Add more needed.
 }
 
 // GenkitReflectionAPIErrorWireFormat is the wire format for HTTP errors.
@@ -42,8 +40,6 @@ type HTTPErrorWireFormat struct {
 	Message string     `json:"message"`
 	Status  StatusName `json:"status"` // Use the defined StatusName type
 }
-
-// --- GenkitError ---
 
 // GenkitError is the base error type for Genkit errors.
 type GenkitError struct {
@@ -70,8 +66,20 @@ func (e *GenkitError) ToCallableSerializable() HTTPErrorWireFormat {
 	msg := e.Message
 	return HTTPErrorWireFormat{
 		Details: e.Details,
-		Status:  e.Status, // Directly use the status name
+		Status:  e.Status,
 		Message: msg,
+	}
+}
+
+// UserFacingError  error allows a web framework handler to know it
+// is safe to return the message in a request. Other kinds of errors will
+// result in a generic 500 message to avoid the possibility of internal
+// exceptions being leaked to attackers.
+func UserFacingError(status StatusName, message string, details map[string]any) *GenkitError {
+	return &GenkitError{
+		Status:  status,
+		Details: details,
+		Message: message,
 	}
 }
 
@@ -114,34 +122,11 @@ func GetReflectionJSON(err error) GenkitReflectionAPIErrorWireFormat {
 	}
 }
 
-//
-//// GetCallableJSON gets the JSON representation for callable responses.
-//func GetCallableJSON(err error) HTTPErrorWireFormat {
-//	var ge *GenkitError
-//	if errors.As(err, &ge) {
-//		return ge.ToCallableSerializable()
-//	}
-//
-//	// Handle non-Genkit errors
-//	details := make(map[string]any)
-//	stack := getErrorStack(err)
-//	if stack != "" {
-//		details["stack"] = stack
-//	}
-//
-//	return HTTPErrorWireFormat{
-//		Message: err.Error(), // Use the standard error message
-//		Status:  INTERNAL,    // Default to INTERNAL status name
-//		Details: details,     // Include stack if available
-//	}
-//}
-
 // getErrorStack extracts stack trace from an error object.
 // This captures the stack trace of the current goroutine when called.
 func getErrorStack(err error) string {
 	if err == nil {
 		return ""
 	}
-	// Capture the stack trace of the current goroutine.
 	return string(debug.Stack())
 }
