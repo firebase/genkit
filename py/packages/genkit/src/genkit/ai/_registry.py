@@ -322,7 +322,7 @@ class GenkitRegistry:
             for index in range(len(req.dataset)):
                 datapoint = req.dataset[index]
                 if datapoint.test_case_id is None:
-                    datapoint.test_case_id = uuid.uuid4()
+                    datapoint.test_case_id = str(uuid.uuid4())
                 span_metadata = SpanMetadata(
                     name=f'Test Case {datapoint.test_case_id}',
                     metadata={'evaluator:evalRunId': req.eval_run_id},
