@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -993,7 +994,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -1055,10 +1056,11 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
+provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "openai"]
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -1075,7 +1077,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "genkit" },
@@ -1094,7 +1096,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -1111,7 +1113,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -1131,7 +1133,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -1146,7 +1148,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -1167,7 +1169,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -1184,7 +1186,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.3.0.dev1"
+version = "0.3.0.dev2"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
