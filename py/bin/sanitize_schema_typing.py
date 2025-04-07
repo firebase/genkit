@@ -129,7 +129,6 @@ class ClassTransformer(ast.NodeTransformer):
         node = super().generic_visit(node)
 
         new_body = []
-        docstring_added = False
 
         # Handle Docstrings
         if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Str):
@@ -146,7 +145,6 @@ class ClassTransformer(ast.NodeTransformer):
 
             new_body.append(ast.Expr(value=ast.Str(s=docstring)))
             self.modified = True
-            docstring_added = True
         else:  # Ensure existing docstring is kept
             new_body.append(node.body[0])
 
@@ -241,9 +239,32 @@ for various data types used throughout the Genkit framework, including messages,
 actions, tools, and configuration options.
 """
 
-from __future__ import annotations
 '''
-    return header.format(year=datetime.now().year) + content
+    # Ensure there's exactly one newline between header and content
+    # and future import is right after the header block's closing quotes.
+    future_import = 'from __future__ import annotations'
+    str_enum_block = """
+import sys # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else: # noqa
+    from enum import StrEnum  # noqa
+"""
+
+    header_text = header.format(year=datetime.now().year)
+
+    # Remove existing future import and StrEnum import from content.
+    lines = content.splitlines()
+    filtered_lines = [
+        line for line in lines if line.strip() != future_import and line.strip() != 'from enum import StrEnum'
+    ]
+    cleaned_content = '\n'.join(filtered_lines)
+
+    final_output = header_text + future_import + '\n' + str_enum_block + '\n\n' + cleaned_content
+    if not final_output.endswith('\n'):
+        final_output += '\n'
+    return final_output
 
 
 def process_file(filename: str) -> None:
@@ -269,28 +290,23 @@ def process_file(filename: str) -> None:
             source = f.read()
 
         tree = ast.parse(source)
-        # Apply the consolidated transformer
         class_transformer = ClassTransformer()
         modified_tree = class_transformer.visit(tree)
 
-        # Check the modified flag from the single transformer
-        if class_transformer.modified:
-            # Format the modified code
-            ast.fix_missing_locations(modified_tree)
-            modified_source = ast.unparse(modified_tree)
-            src = add_header(modified_source)
+        # Generate source from potentially modified AST
+        ast.fix_missing_locations(modified_tree)
+        modified_source_no_header = ast.unparse(modified_tree)
+
+        # Add header and specific imports correctly
+        final_source = add_header(modified_source_no_header)
+
+        # Write back only if content has changed (header or AST)
+        if final_source != source:
             with open(path, 'w', encoding='utf-8') as f:
-                f.write(src)
-            print(f'Successfully processed {filename}')
+                f.write(final_source)
+            print(f'Successfully processed and updated {filename}')
         else:
-            # Even if no AST modifications, still write back to add the header
-            # if the source doesn't already have it.
-            # A simple check for the SPDX line is usually sufficient.
-            if 'SPDX-License-Identifier: Apache-2.0' not in source.splitlines()[15]:
-                path.write_text(add_header(source), encoding='utf-8')
-                print(f'Added header to {filename}')
-            else:
-                print(f'No changes needed for {filename}')
+            print(f'No changes needed for {filename}')
 
     except SyntaxError as e:
         print(f'Error: Invalid Python syntax in {filename}: {e}')

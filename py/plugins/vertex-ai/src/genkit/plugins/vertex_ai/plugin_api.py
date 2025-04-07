@@ -16,19 +16,15 @@
 
 """Google Cloud Vertex AI Plugin for Genkit."""
 
-import logging
 import os
 
 import vertexai
 
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.vertex_ai import constants as const
 from genkit.plugins.vertex_ai.embedding import Embedder, EmbeddingModels
 from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
 from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
-
-LOG = logging.getLogger(__name__)
 
 
 def vertexai_name(name: str) -> str:

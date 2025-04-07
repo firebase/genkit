@@ -9,6 +9,9 @@ input:
     name?: string
   default:
     name: Rutuja
+output:
+  schema:
+    greeting: string
 ---
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.

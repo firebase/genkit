@@ -70,26 +70,50 @@ const SafetySettingsSchema = z.object({
 });
 
 const VertexRetrievalSchema = z.object({
-  datastore: z.object({
-    projectId: z.string().optional(),
-    location: z.string().optional(),
-    dataStoreId: z.string(),
-  }),
-  disableAttribution: z.boolean().optional(),
+  datastore: z
+    .object({
+      projectId: z.string().describe('Google Cloud Project ID.').optional(),
+      location: z
+        .string()
+        .describe('Google Cloud region e.g. us-central1.')
+        .optional(),
+      dataStoreId: z
+        .string()
+        .describe(
+          'The data store id, when project id and location are provided as ' +
+            'separate options. Alternatively, the full path to the data ' +
+            'store should be provided in the form: "projects/{project}/' +
+            'locations/{location}/collections/default_collection/dataStores/{data_store}".'
+        ),
+    })
+    .describe('Vertex AI Search data store details'),
+  disableAttribution: z
+    .boolean()
+    .describe(
+      'Disable using the search data in detecting grounding attribution. This ' +
+        'does not affect how the result is given to the model for generation.'
+    )
+    .optional(),
 });
 
 const GoogleSearchRetrievalSchema = z.object({
-  disableAttribution: z.boolean().optional(),
+  disableAttribution: z
+    .boolean()
+    .describe(
+      'Disable using the search data in detecting grounding attribution. This ' +
+        'does not affect how the result is given to the model for generation.'
+    )
+    .optional(),
 });
 
 /**
  * Zod schema of Gemini model options.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  /**
-   * GCP region (e.g. us-central1)
-   */
-  location: z.string().optional(),
+  location: z
+    .string()
+    .describe('Google Cloud region e.g. us-central1.')
+    .optional(),
 
   /**
    * Safety filter settings. See: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters#configurable-filters
@@ -119,7 +143,13 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    * }
    * ```
    */
-  safetySettings: z.array(SafetySettingsSchema).optional(),
+  safetySettings: z
+    .array(SafetySettingsSchema)
+    .describe(
+      'Adjust how likely you are to see responses that could be harmful. ' +
+        'Content is blocked based on the probability that it is harmful.'
+    )
+    .optional(),
 
   /**
    * Vertex retrieval options.
@@ -139,7 +169,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    *   }
    * ```
    */
-  vertexRetrieval: VertexRetrievalSchema.optional(),
+  vertexRetrieval: VertexRetrievalSchema.describe(
+    'Retrieve from Vertex AI Search data store for grounding ' +
+      'generative responses.'
+  ).optional(),
 
   /**
    * Google Search retrieval options.
@@ -152,7 +185,9 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    *   }
    * ```
    */
-  googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.describe(
+    'Retrieve public web data for grounding, powered by Google Search.'
+  ).optional(),
 
   /**
    * Function calling options.
@@ -172,6 +207,14 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
     })
+    .describe(
+      'Controls how the model uses the provided tools (function declarations). ' +
+        'With AUTO (Default) mode, the model decides whether to generate a ' +
+        'natural language response or suggest a function call based on the ' +
+        'prompt and context. With ANY, the model is constrained to always ' +
+        'predict a function call and guarantee function schema adherence. ' +
+        'With NONE, the model is prohibited from making function calls.'
+    )
     .optional(),
 });
 
@@ -408,6 +451,40 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25ProExp0325 = modelRef({
+  name: 'vertexai/gemini-2.5-pro-exp-03-25',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro Experimental 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25ProPreview0325 = modelRef({
+  name: 'vertexai/gemini-2.5-pro-preview-03-25',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro Preview 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -435,6 +512,8 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-flash-lite-preview-02-05': gemini20FlashLitePreview0205,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
+  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
+  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {

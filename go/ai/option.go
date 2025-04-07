@@ -34,8 +34,8 @@ type messagesFn = func(context.Context, any) ([]*Message, error)
 
 // commonOptions are common options for model generation, prompt definition, and prompt execution.
 type commonOptions struct {
-	ModelName               string            // Name of the model to use.
-	Model                   Model             // Model to use.
+	Model                   ModelArg          // Resolvable reference to a model to use with optional embedded config.
+	ModelName               string            // Name of model to use
 	MessagesFn              messagesFn        // Messages function. If this is set, Messages should be an empty.
 	Config                  any               // Model configuration. If nil will be taken from the prompt config.
 	Tools                   []ToolRef         // References to tools to use.
@@ -67,6 +67,7 @@ func (o *commonOptions) applyCommon(opts *commonOptions) error {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
 		opts.Model = o.Model
+		return nil
 	}
 
 	if o.ModelName != "" {
@@ -164,8 +165,8 @@ func WithConfig(config any) CommonOption {
 	return &commonOptions{Config: config}
 }
 
-// WithModel sets the model to call for generation.
-func WithModel(model Model) CommonOption {
+// WithModel sets a resolvable model reference to use for generation.
+func WithModel(model ModelArg) CommonOption {
 	return &commonOptions{Model: model}
 }
 
@@ -376,8 +377,10 @@ func WithPromptFn(fn promptFn) PromptingOption {
 
 // outputOptions are options for the output of a prompt or generate request.
 type outputOptions struct {
-	OutputSchema map[string]any // JSON schema of the output.
-	OutputFormat OutputFormat   // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
+	OutputSchema       map[string]any // JSON schema of the output.
+	OutputFormat       string         // Format of the output. If OutputSchema is set, this is set to OutputFormatJSON.
+	OutputInstructions *string        // Instructions to add to conform the output to a schema. If nil, default instructions will be added. If empty string, no instructions will be added.
+	CustomConstrained  bool           // Whether generation should use custom constrained output instead of native model constrained output.
 }
 
 // OutputOption is an option for the output of a prompt or generate request.
@@ -397,11 +400,19 @@ func (o *outputOptions) applyOutput(opts *outputOptions) error {
 		opts.OutputSchema = o.OutputSchema
 	}
 
-	if o.OutputFormat != "" {
-		if opts.OutputFormat != "" && opts.OutputFormat != o.OutputFormat {
-			return errors.New("cannot set output format more than once (WithOutputFormat)")
+	if o.OutputInstructions != nil {
+		if opts.OutputInstructions != nil {
+			return errors.New("cannot set output instructions more than once (WithOutputFormat)")
 		}
+		opts.OutputInstructions = o.OutputInstructions
+	}
+
+	if o.OutputFormat != "" {
 		opts.OutputFormat = o.OutputFormat
+	}
+
+	if o.CustomConstrained {
+		opts.CustomConstrained = o.CustomConstrained
 	}
 
 	return nil
@@ -426,8 +437,30 @@ func WithOutputType(output any) OutputOption {
 }
 
 // WithOutputFormat sets the format of the output.
-func WithOutputFormat(format OutputFormat) OutputOption {
+func WithOutputFormat(format string) OutputOption {
 	return &outputOptions{OutputFormat: format}
+}
+
+// WithOutputInstructions sets custom instructions for constraining output format in the prompt.
+//
+// When [WithOutputType] is used without this option, default instructions will be automatically set.
+// If you provide empty instructions, no instructions will be added to the prompt.
+//
+// This will automatically set [WithCustomConstrainedOutput].
+func WithOutputInstructions(instructions string) OutputOption {
+	return &outputOptions{
+		OutputInstructions: &instructions,
+		CustomConstrained:  true,
+	}
+}
+
+// WithCustomConstrainedOutput opts out of using the model's native constrained output generation.
+//
+// By default, the system will use the model's native constrained output capabilities when available.
+// When this option is set, or when the model doesn't support native constraints, the system will
+// use custom implementation to guide the model toward producing properly formatted output.
+func WithCustomConstrainedOutput() OutputOption {
+	return &outputOptions{CustomConstrained: true}
 }
 
 // executionOptions are options for the execution of a prompt or generate request.

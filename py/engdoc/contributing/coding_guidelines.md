@@ -64,8 +64,6 @@ functions.
 
 ### Porting
 
-- Use the `a*` prefix when defining async method equivalents for the sync methods. For example,
-  `agenerate` would be the async equivalent of the sync `generate`.
 - If porting from another language (e.g., JS or TypeScript), maintain 1:1 logic
 parity in implementation and tests.
 

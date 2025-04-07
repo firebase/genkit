@@ -3,9 +3,9 @@
 Get started with Genkit using Python (alpha)
 
 The Genkit libraries for Python are now available for preview! Because the
-Python libraries are currently in Alpha, you might see API and functional changes as
-development progresses. We recommend using it only for prototyping and
-exploration.
+Python libraries are currently in Alpha, you might see API and functional
+changes as development progresses. We recommend using it only for prototyping
+and exploration.
 
 If you discover issues with the libraries or this documentation please report
 them in our [GitHub repository](https://github.com/firebase/genkit/).
@@ -14,71 +14,76 @@ This guide shows you how to get started with Genkit in a Python app.
 
 ## Requirements
 
-- Python 3.12 or later. See [Download and install](https://www.python.org/downloads/) in
-  the official Python docs.
+* Python 3.12 or later. See [Download and
+  install](https://www.python.org/downloads/) in the official Python docs.
 
-- Node.js 20 or later (for the Genkit CLI and UI). See the below for a brief guide on installing Node.
+* Node.js 20 or later (for the Genkit CLI and UI). See the below for a brief
+  guide on installing Node.
 
 ## Create and explore a sample project
 
-1.  Create a new project directory:
+1. Create a new project directory:
 
-    ```posix-terminal
-    mkdir genkit-intro && cd genkit-intro
-    ```
+   ```posix-terminal
+   mkdir genkit-intro && cd genkit-intro
+   ```
 
-1. (recommended) Create a Python virtual environment:
-    ```bash
-    python3 -m venv .
-    ```
+2. (recommended) Create a Python virtual environment:
 
-    (activate if necessary, depending on the environment)
+   ```bash
+   python3 -m venv .
+   ```
 
-1. Install dependencies
-    
-    ```bash
-    pip3 install git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit-ai
-    pip3 install git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
-    ```
+   (activate if necessary, depending on the environment)
 
-    Or create a `requirements.txt` file
+   ```bash
+   source bin/activate  # for bash
+   ```
 
-    ```
-    genkit-ai @ git+https://github.com/firebase/genkit#subdirectory=py/packages/genkit-ai
-    genkit-plugin-google-genai @ git+https://github.com/firebase/genkit#subdirectory=py/plugins/google-genai
-    ```
-    
-    and run:
-   
-    ```bash
-    pip3 install -r requirements.txt 
-    ```
+3. Install dependencies
 
-1. Configure your model API key
+   ```bash
+   pip3 install genkit=>0.3.0.dev1
+   pip3 install genkit-plugin-google-genai=>0.3.0.dev1
+   ```
 
-    The simplest way to get started is with Google AI Gemini API. Make sure it's
-    [available in your region](https://ai.google.dev/available_regions).
+   Or create a `requirements.txt` file
 
-    [Generate an API key](https://aistudio.google.com/app/apikey) for the
-    Gemini API using Google AI Studio. Then, set the `GEMINI_API_KEY`
-    environment variable to your key:
+   ```
+   genkit==0.3.0.dev1
+   genkit-plugin-google-genai==0.3.0.dev1
+   ```
 
-    ```posix-terminal
-    export GEMINI_API_KEY=<your API key>
-    ```
+   and run:
 
-1. Create `main.py` file:
+   ```bash
+   pip3 install -r requirements.txt
+   ```
 
-    ```python
-    import asyncio
+4. Configure your model API key
+
+   The simplest way to get started is with Google AI Gemini API. Make sure it's
+   [available in your region](https://ai.google.dev/available_regions).
+
+   [Generate an API key](https://aistudio.google.com/app/apikey) for the
+   Gemini API using Google AI Studio. Then, set the `GEMINI_API_KEY`
+   environment variable to your key:
+
+   ```posix-terminal
+   export GEMINI_API_KEY=<your API key>
+   ```
+
+5. Create `main.py` file:
+
+   ```python
     import json
     from pydantic import BaseModel, Field
     from genkit.ai import Genkit
-    from genkit.plugins.google_genai import GoogleGenai
+    from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
-        plugins=[GoogleGenai()],
-        model='google_genai/gemini-2.0-flash',
+        plugins=[GoogleAI()],
+        model='googleai/gemini-2.0-flash',
     )
 
     class RpgCharacter(BaseModel):
@@ -95,74 +100,73 @@ This guide shows you how to get started with Genkit in a Python app.
         return result.output
 
     async def main() -> None:
-        print(json.dumps(await generate_character('Goblorb')))
+        print(json.dumps(await generate_character('Goblorb'), indent=2))
 
-    asyncio.run(main())
+    ai.run(main())
+   ```
 
-    # prevent app from exiting when genkit is running in dev mode
-    ai.join()
-    ```
+6. Run your app. Genkit apps are just regular python application. Run them
+   however you normally run your app.
 
-1. Run your app. Genkit apps are just regular python application. Run them however you normally run your app.
+   ```bash
+   python3 main.py
+   ```
 
-    ```bash
-    python main.py
-    ```
+7. Inspect your app with the Genkit Dev UI
 
-1. Inspect your app with the Genkit Dev UI
+   See instructions for installing the Genkit CLI (which includes the Dev UI)
+   below.
 
-    See instructions for installing the Genkit CLI (which includes the Dev UI) below.
+   To inspect your app with Genkit Dev UI run with `genkit start -- <app>`
+   command. E.g.:
 
-    To inspect your app with Genkit Dev UI run with `genkit start -- <app>` command. E.g.:
+   ```bash
+   genkit start -- python3 main.py
+   ```
 
-    ```bash
-    genkit start -- python main.py
-    ```
+   The command will print the Dev UI URL. E.g.:
 
-    The command will print the Dev UI URL. E.g.:
-
-    ```
-    Genkit Developer UI: http://localhost:4000
-    ```
-
-
+   ```
+   Genkit Developer UI: http://localhost:4000
+   ```
 
 ## Install Genkit CLI
 
-1.  If you don't already have Node 20 or newer on your system, install it now.
+1. If you don't already have Node 20 or newer on your system, install it now.
 
-    Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
-    [`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
-    convenient way to install specific versions of Node if it's not already
-    installed on your system. These tools install Node on a per-user basis, so you
-    don't need to make system-wide changes.
+   Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
+   [`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
+   convenient way to install specific versions of Node if it's not already
+   installed on your system. These tools install Node on a per-user basis, so
+   you don't need to make system-wide changes.
 
-    To install `nvm`:
+   To install `nvm`:
 
-    - {Linux, macOS, etc.}
+   * {Linux, macOS, etc.}
 
-      Run the following command:
+     Run the following command:
 
-      ```posix-terminal
-      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-      ```
+     ```posix-terminal
+     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+     ```
 
-    - {Windows}
+   * {Windows}
 
-      Download and run the installer as described in the [nvm-windows docs](https://github.com/coreybutler/nvm-windows?tab=readme-ov-file#install-nvm-windows).
+     Download and run the installer as described in the [nvm-windows
+     docs](https://github.com/coreybutler/nvm-windows?tab=readme-ov-file#install-nvm-windows).
 
-    Then, to install Node and `npm`, open a new shell and run the following
-    command:
+   Then, to install Node and `npm`, open a new shell and run the following
+   command:
 
-    ```posix-terminal
-    nvm install 20
-    ```
+   ```posix-terminal
+   nvm install 20
+   ```
 
-1.  Install the Genkit CLI by running the following command:
+2. Install the Genkit CLI by running the following command:
 
-    ```posix-terminal
-    npm i -g genkit-cli
-    ```
+   ```posix-terminal
+   npm i -g genkit-cli
+   ```
 
-    This command installs the Genkit CLI into your Node installation directory
-    so that it can be used outside of a Node project.
+   This command installs the Genkit CLI into your Node installation directory so
+   that it can be used outside of a Node project.

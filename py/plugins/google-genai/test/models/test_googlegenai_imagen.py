@@ -18,7 +18,6 @@ import base64
 
 import pytest
 from google import genai
-from google.genai import types as genai_types
 
 from genkit.ai import ActionRunContext
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
@@ -65,7 +64,7 @@ async def test_generate_media_response(mocker, version):
     imagen = ImagenModel(version, googleai_client_mock)
 
     ctx = ActionRunContext()
-    response = await imagen.agenerate(request, ctx)
+    response = await imagen.generate(request, ctx)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_images(model=version, prompt=request_text, config=None)

@@ -47,13 +47,13 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
 
     async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
         embeddings = await self.ai.embed(
-            model=self.params.embedder,
+            embedder=self.params.embedder,
             documents=[document],
             options=self.params.embedder_options,
         )
         embedding_docs = document.get_embedding_documents(embeddings.embeddings)
 
-        for embedding, emb_doc in zip(embeddings, embedding_docs):
+        for embedding, emb_doc in zip(embeddings, embedding_docs, strict=False):
             self._add_document(data=data, embedding=embedding, doc=emb_doc)
 
     def _add_document(

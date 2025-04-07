@@ -198,7 +198,7 @@ ai = Genkit()
 
 @ai.flow()
 async def async_flow(...):
-    response = await ai.agenerate(f"Answer this: {query}")
+    response = await ai.generate(f"Answer this: {query}")
     return {"answer": response.text}
 
 @ai.flow()

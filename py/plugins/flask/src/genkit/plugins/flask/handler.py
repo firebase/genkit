@@ -20,8 +20,7 @@ import asyncio
 from collections.abc import Callable
 
 from flask import Response, request
-from genkit.ai import Genkit
-from genkit.ai.registry import FlowWrapper
+from genkit.ai import FlowWrapper, Genkit
 from genkit.aio.loop import create_loop, iter_over_async
 from genkit.codec import dump_dict, dump_json
 from genkit.core.context import ContextProvider, RequestData
@@ -56,7 +55,7 @@ def genkit_flask_handler(ai: Genkit, context_provider: ContextProvider | None = 
     @genkit_flask_handler(ai)
     @ai.flow()
     async def say_hi(name: str, ctx):
-        return await ai.agenerate(
+        return await ai.generate(
             on_chunk=ctx.send_chunk,
             prompt=f'tell a medium sized joke about {name}',
         )

@@ -90,7 +90,7 @@ async def say_hi(name: str):
     Returns:
         The generated greeting response.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
@@ -111,8 +111,8 @@ async def embed_docs(docs: list[str]):
         The generated embedding.
     """
     options = {'task': EmbeddingsTaskType.CLUSTERING}
-    return await ai.aembed(
-        model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
+    return await ai.embed(
+        embedder=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
@@ -128,7 +128,7 @@ class GablorkenInput(BaseModel):
     value: int = Field(description='value to calculate gablorken for')
 
 
-@ai.tool('calculates a gablorken', name='gablorkenTool')
+@ai.tool(name='gablorkenTool')
 def gablorken_tool(input: GablorkenInput):
     """Calculate a gablorken.
 
@@ -151,7 +151,7 @@ async def simple_generate_action_with_tools_flow(value: int) -> Any:
     Returns:
         The generated greeting response.
     """
-    response = await ai.agenerate(
+    response = await ai.generate(
         model='vertexai/gemini-1.5-flash',
         messages=[
             Message(
@@ -193,17 +193,6 @@ async def streaming_async_flow(inp: str, ctx: ActionRunContext):
     ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
     return 'streamingAsyncFlow 4'
-
-
-async def main() -> None:
-    """Main entry point for the hello sample.
-
-    This function demonstrates the usage of the AI flow by generating
-    greetings and performing simple arithmetic operations.
-    """
-    await logger.ainfo(await say_hi('John Doe'))
-    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
-    await logger.ainfo(await embed_docs(['banana muffins? ', 'banana bread? banana muffins?']))
 
 
 def my_model(request: GenerateRequest, ctx: ActionRunContext):
@@ -298,7 +287,7 @@ async def describe_picture(url: str):
     Returns:
         The description of the picture.
     """
-    return await ai.agenerate(
+    return await ai.generate(
         messages=[
             Message(
                 role=Role.USER,
@@ -405,5 +394,16 @@ async def async_streamy_throwy(inp: str, ctx: ActionRunContext):
     ctx.send_chunk(3)
 
 
-# prevent app from exiting when genkit is running in dev mode
-ai.join()
+async def main() -> None:
+    """Main entry point for the hello sample.
+
+    This function demonstrates the usage of the AI flow by generating
+    greetings and performing simple arithmetic operations.
+    """
+    await logger.ainfo(await say_hi('John Doe'))
+    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
+    await logger.ainfo(await embed_docs(['banana muffins? ', 'banana bread? banana muffins?']))
+
+
+if __name__ == '__main__':
+    ai.run(main())

@@ -26,7 +26,6 @@ from genkit.plugins.ollama import Ollama
 from genkit.plugins.ollama.models import (
     ModelDefinition,
     OllamaAPITypes,
-    OllamaPluginParams,
 )
 from genkit.plugins.ollama.plugin_api import ollama_api
 
@@ -38,9 +37,9 @@ def ollama_model() -> str:
 
 
 @pytest.fixture
-def chat_model_plugin_params(ollama_model: str) -> OllamaPluginParams:
+def chat_model_plugin(ollama_model: str) -> Ollama:
     """Chat model plugin parameters."""
-    return OllamaPluginParams(
+    return Ollama(
         models=[
             ModelDefinition(
                 name=ollama_model.split('/')[-1],
@@ -53,29 +52,25 @@ def chat_model_plugin_params(ollama_model: str) -> OllamaPluginParams:
 @pytest.fixture
 def genkit_veneer_chat_model(
     ollama_model: str,
-    chat_model_plugin_params: OllamaPluginParams,
+    chat_model_plugin: Ollama,
 ) -> Genkit:
     """Genkit veneer chat model.
 
     Args:
         ollama_model: Ollama model to use for testing.
-        chat_model_plugin_params: Chat model plugin parameters.
+        chat_model_plugin: Chat model plugin parameters.
 
     Returns:
         Genkit veneer chat model.
     """
     return Genkit(
-        plugins=[
-            Ollama(
-                plugin_params=chat_model_plugin_params,
-            )
-        ],
+        plugins=[chat_model_plugin],
         model=ollama_model,
     )
 
 
 @pytest.fixture
-def generate_model_plugin_params(ollama_model: str) -> OllamaPluginParams:
+def generate_model_plugin(ollama_model: str) -> Ollama:
     """Generate model plugin parameters.
 
     Args:
@@ -84,7 +79,7 @@ def generate_model_plugin_params(ollama_model: str) -> OllamaPluginParams:
     Returns:
         Generate model plugin parameters.
     """
-    return OllamaPluginParams(
+    return Ollama(
         models=[
             ModelDefinition(
                 name=ollama_model.split('/')[-1],
@@ -97,23 +92,19 @@ def generate_model_plugin_params(ollama_model: str) -> OllamaPluginParams:
 @pytest.fixture
 def genkit_veneer_generate_model(
     ollama_model: str,
-    generate_model_plugin_params: OllamaPluginParams,
+    generate_model_plugin: Ollama,
 ) -> Genkit:
     """Genkit veneer generate model.
 
     Args:
         ollama_model: Ollama model to use for testing.
-        generate_model_plugin_params: Generate model plugin parameters.
+        generate_model_plugin: Generate model plugin parameters.
 
     Returns:
         Genkit veneer generate model.
     """
     return Genkit(
-        plugins=[
-            Ollama(
-                plugin_params=generate_model_plugin_params,
-            )
-        ],
+        plugins=[generate_model_plugin],
         model=ollama_model,
     )
 

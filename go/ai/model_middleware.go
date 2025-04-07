@@ -132,15 +132,20 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				case ModelStageDeprecated:
 					logger.FromContext(ctx).Warn("model is deprecated and may be removed in a future release", "model", model)
 				case ModelStageUnstable:
-					logger.FromContext(ctx).Warn("model is experimental or unstable", "model", model)
+					logger.FromContext(ctx).Info("model is experimental or unstable", "model", model)
 				}
+			}
+
+			if (info.Supports.Constrained == "" ||
+				info.Supports.Constrained == ConstrainedSupportNone ||
+				(info.Supports.Constrained == ConstrainedSupportNoTools && len(input.Tools) > 0)) &&
+				input.Output != nil && input.Output.Constrained {
+				return nil, fmt.Errorf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input)
 			}
 
 			if err := validateVersion(model, info.Versions, input.Config); err != nil {
 				return nil, err
 			}
-
-			// TODO: Add validation for features that won't have simulated support via middleware.
 
 			return next(ctx, input, cb)
 		}
