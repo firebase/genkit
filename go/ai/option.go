@@ -208,7 +208,7 @@ func (o *commonGenOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // WithMessages sets the messages.
-// These messages will be sandwiched between the system and user messages.
+// These messages will be sandwiched between the system and user prompts.
 func WithMessages(messages ...*Message) CommonGenOption {
 	return &commonGenOptions{
 		MessagesFn: func(ctx context.Context, _ any) ([]*Message, error) {

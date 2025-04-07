@@ -41,7 +41,7 @@ type ToolName string
 
 // Name returns the name of the tool.
 func (t ToolName) Name() string {
-	return string(t)
+	return (string)(t)
 }
 
 // A ToolDef is an implementation of a single tool.
