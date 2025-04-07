@@ -24,17 +24,15 @@ from genkit.plugins.firebase.firestore import (
     FirestoreVectorStore,
     firestore_action_name,
 )
-from genkit.plugins.google_genai import (
-    VertexAI,
-    VertexEmbeddingModels,
-    vertexai_name,
-)
+from genkit.plugins.google_genai import VertexAI
 from genkit.types import (
     DocumentData,
     TextPart,
 )
 
-# set GOOGLE_APPLICATION_CREDENTIALS on env
+# Important: use the same embedding model for indexing and retrieval.
+EMBEDDING_MODEL = 'vertexai/text-embedding-004'
+
 firestore_client = firestore.Client()
 
 ai = Genkit(
@@ -45,7 +43,7 @@ ai = Genkit(
             collection='films',
             vector_field='embedding',
             content_field='text',
-            embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
+            embedder=EMBEDDING_MODEL,
             distance_measure=DistanceMeasure.EUCLIDEAN,
             firestore_client=firestore_client,
         ),
@@ -72,9 +70,7 @@ films = [
 async def index_documents() -> None:
     """Indexes the film documents in Firestore."""
     genkit_documents = [Document(content=[TextPart(text=film)]) for film in films]
-    embed_response = await ai.embed(
-        embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG), documents=genkit_documents
-    )
+    embed_response = await ai.embed(embedder=EMBEDDING_MODEL, documents=genkit_documents)
     embeddings = [emb.embedding for emb in embed_response.embeddings]
 
     for i, film_text in enumerate(films):

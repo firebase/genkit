@@ -22,9 +22,7 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document
-from genkit.core.action import ActionRunContext
-from genkit.types import RetrieverRequest, RetrieverResponse
+from genkit.types import ActionRunContext, Document, GenkitError, RetrieverRequest, RetrieverResponse
 
 from .constant import MetadataTransformFn
 
@@ -157,12 +155,11 @@ class FirestoreRetriever:
             options=self.embedder_options,
         )
 
-        if not query_embedding_result.embeddings:
-            return RetrieverResponse(documents=[])
+        if not query_embedding_result.embeddings or len(query_embedding_result.embeddings) == 0:
+            raise GenkitError(message='Embedder returned no embeddings')
+
         query_embedding = query_embedding_result.embeddings[0].embedding
-        vector_field = self.vector_field
         query_vector = Vector(query_embedding)
-        distance_measure = self.distance_measure
         collection = self.firestore_client.collection(self.collection)
 
         limit = 10
@@ -170,9 +167,9 @@ class FirestoreRetriever:
             limit = int(limit_val)
 
         vector_query = collection.find_nearest(
-            vector_field=vector_field,
+            vector_field=self.vector_field,
             query_vector=query_vector,
-            distance_measure=distance_measure,
+            distance_measure=self.distance_measure,
             limit=limit,
         )
         query_snapshot = vector_query.get()
