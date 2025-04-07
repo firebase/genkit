@@ -83,6 +83,7 @@ basic-gemini                        = { workspace = true }
 coffee-shop                         = { workspace = true }
 compat-oai-hello                    = { workspace = true }
 context-caching                     = { workspace = true }
+dev-local-vectorstore-hello         = { workspace = true }
 dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 flask-hello                         = { workspace = true }
 flow-sample1                        = { workspace = true }
@@ -108,7 +109,6 @@ vertex-ai-imagen                    = { workspace = true }
 vertex-ai-model-garden              = { workspace = true }
 vertex-ai-reranker                  = { workspace = true }
 vertex-ai-vector-search             = { workspace = true }
-dev-local-vectorstore-hello         = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
