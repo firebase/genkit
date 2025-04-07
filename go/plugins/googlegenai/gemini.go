@@ -350,8 +350,8 @@ func generate(
 		// prevent an error in the client where:
 		// if TEXT modality is not present and the model supports it, the client
 		// will return an error
-		if !slices.Contains(gc.ResponseModalities, string(genai.ModalityText)) {
-			gc.ResponseModalities = append(gc.ResponseModalities, string(genai.ModalityText))
+		if !slices.Contains(gcc.ResponseModalities, string(genai.ModalityText)) {
+			gcc.ResponseModalities = append(gcc.ResponseModalities, string(genai.ModalityText))
 		}
 	}
 
