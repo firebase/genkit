@@ -20,9 +20,8 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
-from genkit.plugins.firebase.firebase_api import (
-    FirebaseAPI,
+from genkit.plugins.firebase.firestore import (
+    FirestoreVectorStore,
     firestore_action_name,
 )
 from genkit.plugins.google_genai import (
@@ -41,18 +40,14 @@ firestore_client = firestore.Client()
 ai = Genkit(
     plugins=[
         VertexAI(),
-        FirebaseAPI(
-            params=[
-                FirestoreRetrieverConfig(
-                    name='filmsretriever',
-                    collection='films',
-                    vector_field='embedding',
-                    content_field='text',
-                    embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
-                    distance_measure=DistanceMeasure.EUCLIDEAN,
-                    firestore_client=firestore_client,
-                )
-            ]
+        FirestoreVectorStore(
+            name='filmsretriever',
+            collection='films',
+            vector_field='embedding',
+            content_field='text',
+            embedder=vertexai_name(VertexEmbeddingModels.TEXT_EMBEDDING_004_ENG),
+            distance_measure=DistanceMeasure.EUCLIDEAN,
+            firestore_client=firestore_client,
         ),
     ]
 )

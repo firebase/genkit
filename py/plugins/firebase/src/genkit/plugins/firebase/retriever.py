@@ -14,16 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Callable
 from typing import Any
 
 from google.cloud.firestore_v1 import DocumentSnapshot
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
-from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
 from genkit.types import RetrieverRequest, RetrieverResponse
+
+from .constant import MetadataTransformFn
 
 
 class FirestoreRetriever:
@@ -36,7 +39,19 @@ class FirestoreRetriever:
         firestore_client: The initialized Firestore client from the configuration.
     """
 
-    def __init__(self, ai: Genkit, params: FirestoreRetrieverConfig):
+    def __init__(
+        self,
+        ai: Genkit,
+        name: str,
+        firestore_client: Any,
+        collection: str,
+        vector_field: str,
+        content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]],
+        embedder: str,
+        embedder_options: dict[str, Any] | None = None,
+        distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
+        metadata_fields: list[str] | MetadataTransformFn | None = None,
+    ):
         """Initialize the FirestoreRetriever.
 
         Args:
@@ -45,8 +60,15 @@ class FirestoreRetriever:
                 for the retriever
         """
         self.ai = ai
-        self.params = params
-        self.firestore_client = params.firestore_client
+        self.name = name
+        self.firestore_client = firestore_client
+        self.collection = collection
+        self.vector_field = vector_field
+        self.content_field = content_field
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+        self.distance_measure = distance_measure
+        self.metadata_fields = metadata_fields
         self._validate_config()
 
     def _validate_config(self):
@@ -55,11 +77,11 @@ class FirestoreRetriever:
         Raises:
             ValueError: If the configuration is invalid.
         """
-        if not self.params.collection:
+        if not self.collection:
             raise ValueError('Firestore Retriever config must include firestore collection name.')
-        if not self.params.vector_field:
+        if not self.vector_field:
             raise ValueError('Firestore Retriever config must include vector field name.')
-        if not self.params.embedder:
+        if not self.embedder:
             raise ValueError('Firestore Retriever config must include embedder name.')
         if not self.firestore_client:
             raise ValueError('Firestore Retriever config must include firestore client.')
@@ -73,7 +95,7 @@ class FirestoreRetriever:
         Returns:
             A list of dictionaries containing the content of the document.
         """
-        content_field = self.params.content_field
+        content_field = self.content_field
         if callable(content_field):
             return content_field(doc_snapshot)
         else:
@@ -90,7 +112,7 @@ class FirestoreRetriever:
             A list of dictionaries containing the metadata of the document.
         """
         metadata: dict[str, Any] = {}
-        metadata_fields = self.params.metadata_fields
+        metadata_fields = self.metadata_fields
         if metadata_fields:
             if callable(metadata_fields):
                 metadata = metadata_fields(doc_snapshot)
@@ -100,8 +122,8 @@ class FirestoreRetriever:
                         metadata[field] = doc_snapshot.get(field)
         else:
             metadata = doc_snapshot.to_dict()
-            vector_field = self.params.vector_field
-            content_field = self.params.content_field
+            vector_field = self.vector_field
+            content_field = self.content_field
             if vector_field in metadata:
                 del metadata[vector_field]
             if isinstance(content_field, str) and content_field in metadata:
@@ -130,18 +152,18 @@ class FirestoreRetriever:
         """
         query = request.query
         query_embedding_result = await self.ai.embed(
-            embedder=self.params.embedder,
+            embedder=self.embedder,
             documents=[query],
-            options=self.params.embedder_options,
+            options=self.embedder_options,
         )
 
         if not query_embedding_result.embeddings:
             return RetrieverResponse(documents=[])
         query_embedding = query_embedding_result.embeddings[0].embedding
-        vector_field = self.params.vector_field
+        vector_field = self.vector_field
         query_vector = Vector(query_embedding)
-        distance_measure = self.params.distance_measure
-        collection = self.firestore_client.collection(self.params.collection)
+        distance_measure = self.distance_measure
+        collection = self.firestore_client.collection(self.collection)
 
         limit = 10
         if isinstance(request.options, dict) and (limit_val := request.options.get('limit')) is not None:
