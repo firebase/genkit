@@ -48,7 +48,6 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
-from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -56,6 +55,7 @@ from genkit.plugins.google_genai import (
     GoogleAI,
     googleai_name,
 )
+from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
     GenerationCommonConfig,
     Message,
@@ -102,7 +102,7 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         The generated response with a function.
     """
     response = await ai.generate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -139,7 +139,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -154,7 +154,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.interrupts[0], 178)
     response = await ai.generate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -328,4 +328,5 @@ async def server_main() -> None:
 
 if __name__ == '__main__':
     config: argparse.Namespace = parse_args()
-    asyncio.run(main if config.server else server_main)
+    runner = server_main if config.server else main
+    asyncio.run(runner())

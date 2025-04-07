@@ -47,7 +47,6 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
-from genkit.plugins.google_ai.models import gemini
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -55,6 +54,7 @@ from genkit.plugins.google_genai import (
     GoogleAI,
     googleai_name,
 )
+from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
     GenerationCommonConfig,
     Message,

@@ -7,7 +7,6 @@ dependencies = [
   "genkit-plugin-compat-oai",
   "genkit-plugin-firebase",
   "genkit-plugin-google-genai",
-  "genkit-plugin-google-ai",
   "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
   "genkit-plugin-pinecone",
@@ -93,7 +92,6 @@ genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
-genkit-plugin-google-ai             = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
@@ -207,7 +205,6 @@ mypy_path = [
   "plugins/dev-local-vector-store/src",
   "plugins/firebase/src",
   "plugins/flask/src",
-  "plugins/google-ai/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",
   "plugins/ollama/src",
@@ -217,7 +214,6 @@ mypy_path = [
   "samples/coffee-shop/src",
   "samples/context-caching/src",
   "samples/flow-sample1/src",
-  "samples/google-ai/src",
   "samples/google-genai-image/src",
   "samples/google-genai-sample/src",
   "samples/hello-flask/src",
