@@ -85,6 +85,7 @@ basic-gemini                        = { workspace = true }
 coffee-shop                         = { workspace = true }
 context-caching                     = { workspace = true }
 dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
+flask-hello                         = { workspace = true }
 flow-sample1                        = { workspace = true }
 genkit                              = { workspace = true }
 genkit-plugin-chroma                = { workspace = true }
@@ -97,10 +98,9 @@ genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
+google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
 hello                               = { workspace = true }
-hello-flask                         = { workspace = true }
-hello-google-genai                  = { workspace = true }
 menu                                = { workspace = true }
 multi-server                        = { workspace = true }
 prompt-file                         = { workspace = true }
@@ -216,8 +216,8 @@ mypy_path = [
   "samples/flow-sample1/src",
   "samples/google-genai-image/src",
   "samples/google-genai-sample/src",
-  "samples/hello-flask/src",
-  "samples/hello-google-genai/src",
+  "samples/flask-hello/src",
+  "samples/google-genai-hello/src",
   "samples/hello/src",
   "samples/menu/src",
   "samples/multi-server/src",

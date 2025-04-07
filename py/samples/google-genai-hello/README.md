@@ -16,5 +16,5 @@ export GEMINI_API_KEY='<Your api key>'
 ## Run the sample
 
 ```bash
-genkit start -- uv run src/hello_google_genai.py
+genkit start -- uv run src/google_genai_hello.py
 ```

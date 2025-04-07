@@ -24,7 +24,7 @@ dependencies = [
 ]
 description = "hello Genkit sample"
 license = { text = "Apache-2.0" }
-name = "hello-flask"
+name = "flask-hello"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
