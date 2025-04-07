@@ -28,7 +28,7 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-const provider = "local"
+const toolProvider = "local"
 
 // ToolRef is a reference to a tool.
 type ToolRef interface {
@@ -107,7 +107,7 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 		return fn(toolCtx, input)
 	}
 
-	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, wrappedFn)
+	toolAction := core.DefineAction(r, toolProvider, name, atype.Tool, metadata, wrappedFn)
 
 	return &tool{action: toolAction}
 }
@@ -179,7 +179,7 @@ func runAction(ctx context.Context, def *ToolDefinition, action core.Action, inp
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
 func LookupTool(r *registry.Registry, name string) Tool {
-	action := r.LookupAction(fmt.Sprintf("/%s/%s/%s", atype.Tool, provider, name))
+	action := r.LookupAction(fmt.Sprintf("/%s/%s/%s", atype.Tool, toolProvider, name))
 	if action == nil {
 		return nil
 	}

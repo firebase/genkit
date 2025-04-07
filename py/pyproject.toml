@@ -1,29 +1,29 @@
 [project]
 dependencies = [
   "dotpromptz",
-  "genkit-ai",
-  "genkit-plugin-chroma",
+  "genkit",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
   "genkit-plugin-firebase",
   "genkit-plugin-google-genai",
-  "genkit-plugin-google-ai",
   "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
-  "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
+  "liccheck>=0.9.2",
+  "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Workspace for Genkit packages"
 license = { text = "Apache-2.0" }
 name = "genkit-workspace"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version = "0.1.0"
 
 [dependency-groups]
 dev = [
   "bpython>=0.25",
-  "ipython>=9.0.2",
+  "ipython~=8.22; python_version <= '3.10'",
+  "ipython~=9.0.2; python_version >= '3.11'",
   "jupyter>=1.1.1",
   "pytest-asyncio>=0.25.3",
   "pytest>=8.3.4",
@@ -32,6 +32,10 @@ dev = [
   "pytest-watcher>=0.4.3",
   "pytest-mock>=3.14.0",
   "twine>=6.1.0",
+  "poethepoet>=0.33.1",
+  "pip>=25.0.1",
+  "tox>=4.25.0",
+  "tox-uv>=1.25.0",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -44,21 +48,31 @@ py-modules = []
 
 # Pytest for unit testing and coverage.
 [tool.pytest]
-asyncio_default_fixture_loop_scope = "function"
-asyncio_mode = "strict"
-python_files = [
-  "packages/**/*_test.py",
-  "plugins/**/*_test.py",
-  "samples/**/*_test.py",
-]
-testpaths = ["packages", "plugins", "samples"]
 
 [tool.pytest.ini_options]
-addopts                            = ["--cov"]
+addopts = [
+  "--cov",
+  #"--cov-report=", # Disable terminal report generation by pytest-cov
+  "-ra",
+  "-vv",
+]
 asyncio_default_fixture_loop_scope = "session"
+python_files = ["test_*.py", "*_test.py"]
+testpaths = ["packages", "plugins", "samples", "tests"]
+#asyncio_mode = "auto"
+asyncio_mode = "strict"
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 78
+
+[tool.coverage.run]
+omit = [
+  "**/__init__.py",  # Often contains just imports
+  "**/testing.py",   # Test utilities
+  "**/constants.py", # Typically just constants
+  "**/typing.py",    # Often auto-generated or complex types
+  "**/types.py",     # Often auto-generated or complex types
+]
 
 # uv based package management.
 [tool.uv]
@@ -67,26 +81,28 @@ default-groups = ["dev", "lint"]
 [tool.uv.sources]
 basic-gemini                        = { workspace = true }
 coffee-shop                         = { workspace = true }
+compat-oai-hello                    = { workspace = true }
 context-caching                     = { workspace = true }
 dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
+flask-hello                         = { workspace = true }
 flow-sample1                        = { workspace = true }
-genkit-ai                           = { workspace = true }
-genkit-plugin-chroma                = { workspace = true }
+genkit                              = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
-genkit-plugin-google-ai             = { workspace = true }
+genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
-genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
+google-genai-hello                  = { workspace = true }
+google-genai-image                  = { workspace = true }
 hello                               = { workspace = true }
-hello-google-genai                  = { workspace = true }
 menu                                = { workspace = true }
 multi-server                        = { workspace = true }
 prompt-file                         = { workspace = true }
 rag                                 = { workspace = true }
+short-n-long                        = { workspace = true }
 tool-interrupts                     = { workspace = true }
 vertex-ai-imagen                    = { workspace = true }
 vertex-ai-model-garden              = { workspace = true }
@@ -128,9 +144,9 @@ exclude = [
   "venv",
 ]
 indent-width = 4
-line-length = 80
+line-length = 120
 preview = true
-target-version = "py312"
+target-version = "py311" # NOTE: Keep this at 3.11 not 3.10. We use backported libs for enums.
 unsafe-fixes = true
 
 
@@ -167,7 +183,7 @@ convention = "google"
 
 [tool.ruff.format]
 docstring-code-format      = true
-docstring-code-line-length = 80
+docstring-code-line-length = 120
 indent-style               = "space"
 line-ending                = "lf"
 quote-style                = "single"
@@ -177,16 +193,15 @@ skip-magic-trailing-comma  = false
 [tool.mypy]
 disallow_incomplete_defs = true
 disallow_untyped_defs = true
+exclude = ["samples/"]
 explicit_package_bases = true
 mypy_path = [
-  "packages/genkit-ai/src",
+  "packages/genkit/src",
   "plugins/chroma/src",
   "plugins/compat-oai/src",
   "plugins/dev-local-vector-store/src",
   "plugins/firebase/src",
-  "plugins/google-ai/src",
-  "plugins/google-ai/src",
-  "plugins/google-cloud/src",
+  "plugins/flask/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",
   "plugins/ollama/src",
@@ -194,14 +209,22 @@ mypy_path = [
   "plugins/vertex-ai/src",
   "samples/basic-gemini/src",
   "samples/coffee-shop/src",
+  "samples/compat-oai-hello/src",
   "samples/context-caching/src",
+  "samples/flask-hello/src",
   "samples/flow-sample1/src",
-  "samples/google-genai-sample/src",
+  "samples/google-genai-hello/src",
+  "samples/google-genai-image/src",
+  "samples/google-genai-vertexai-hello/src",
+  "samples/google-genai-vertexai-image/src",
   "samples/hello/src",
   "samples/menu/src",
   "samples/multi-server/src",
   "samples/prompt-file/src",
   "samples/rag/src",
+  "samples/short-n-long/src",
+  "samples/tool-interrupts/src",
+  "samples/vertex-ai-imagen/src",
   "samples/vertex-ai-model-garden/src",
   "samples/vertex-ai-reranker/src",
   "samples/vertex-ai-vector-search/src",
@@ -220,14 +243,49 @@ enable-version-header    = true
 field-constraints        = true
 input                    = "../genkit-tools/genkit-schema.json"
 input-file-type          = "jsonschema"
-output                   = "packages/genkit-ai/src/genkit/core/typing.py"
+output                   = "packages/genkit/src/genkit/core/typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true
-target-python-version    = "3.12"
+target-python-version    = "3.11"
 use-default              = false
 use-schema-description   = true
 use-standard-collections = true
 use-subclass-enum        = true
 use-union-operator       = true
 use-unique-items-as-set  = true
+
+[tool.liccheck]
+authorized_licenses = [
+  "3-clause bsd",
+  "apache 2.0",
+  "apache software license",
+  "apache software",
+  "apache",
+  "apache-2.0",
+  "bsd license",
+  "bsd",
+  "cmu license (mit-cmu)",
+  "isc license (iscl)",
+  "isc license",
+  "mit license",
+  "mit",
+  "new bsd license",
+  "new bsd",
+  "psf-2.0",
+  "python software foundation license",
+  "simplified bsd",
+  "the unlicense (unlicense)",          # TODO: verify.
+]
+dependencies = true
+unauthorized_licenses = [
+  "gnu lgpl",
+  "gpl v3",
+  "lgpl with exceptions or zpl",
+  "zpl 2.1",
+  "mpl",
+]
+
+[tool.liccheck.authorized_packages]
+certifi      = "2025.1.31" # TODO: Verify.
+dependencies = true

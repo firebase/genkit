@@ -72,9 +72,7 @@ logger = structlog.get_logger(__name__)
 class LitestarLoggingMiddleware(AbstractMiddleware):
     """Logging middleware for Litestar that logs requests and responses."""
 
-    async def __call__(
-        self, scope: Scope, receive: Receive, send: Send
-    ) -> None:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process the ASGI request/response cycle with logging."""
         if str(scope['type']) != 'http':
             await self.app(scope, receive, send)
@@ -89,9 +87,7 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
         try:
             # Extract request headers
             headers = dict(scope.get('headers', []))
-            formatted_headers = {
-                k.decode('utf-8'): v.decode('utf-8') for k, v in headers.items()
-            }
+            formatted_headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in headers.items()}
             await logger.ainfo(
                 f'HTTP Request {method} {path}',
                 request_id=request_id,
@@ -114,12 +110,7 @@ class LitestarLoggingMiddleware(AbstractMiddleware):
                     # Get response headers
                     resp_headers = message.get('headers', [])
                     formatted_resp_headers = (
-                        {
-                            k.decode('utf-8'): v.decode('utf-8')
-                            for k, v in resp_headers
-                        }
-                        if resp_headers
-                        else {}
+                        {k.decode('utf-8'): v.decode('utf-8') for k, v in resp_headers} if resp_headers else {}
                     )
                     await logger.ainfo(
                         f'HTTP Response {method} {path}',
@@ -225,9 +216,7 @@ class FlowsServerLifecycle(AbstractBaseServer):
             logging_config=logging_config,
             middleware=[LitestarLoggingMiddleware],
             plugins=[StructlogPlugin()],
-            state=State({
-                'config': config
-            }),  # Set the config in the application state
+            state=State({'config': config}),  # Set the config in the application state
         )
 
 
@@ -243,15 +232,11 @@ class ReflectionServerStarletteLifecycle(AbstractBaseServer):
 
         async def on_app_startup() -> None:
             """Handle application startup."""
-            await logger.ainfo(
-                '[LIFESPAN] Starting Starlette Reflection API server...'
-            )
+            await logger.ainfo('[LIFESPAN] Starting Starlette Reflection API server...')
 
         async def on_app_shutdown() -> None:
             """Handle application shutdown."""
-            await logger.ainfo(
-                '[LIFESPAN] Shutting down Starlette Reflection API server...'
-            )
+            await logger.ainfo('[LIFESPAN] Shutting down Starlette Reflection API server...')
 
         return create_reflection_asgi_app(
             registry=Registry(),
@@ -260,9 +245,7 @@ class ReflectionServerStarletteLifecycle(AbstractBaseServer):
         )
 
 
-async def add_server_after(
-    mgr: ServerManager, server: Server, delay: float
-) -> None:
+async def add_server_after(mgr: ServerManager, server: Server, delay: float) -> None:
     """Add a server to the servers manager after a delay.
 
     Args:

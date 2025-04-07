@@ -44,7 +44,12 @@ import {
 } from 'genkit';
 import { ModelAction, modelRef } from 'genkit/model';
 
+/**
+ * See https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
+ */
 export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
+  // TODO: Update this with all the parameters in
+  // https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post.
   location: z.string().optional(),
   maxOutputTokens: z.number().optional(),
   temperature: z.number().optional(),

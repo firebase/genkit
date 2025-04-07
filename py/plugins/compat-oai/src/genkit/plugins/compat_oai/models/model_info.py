@@ -15,11 +15,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""
-OpenAI Compatible Models for Genkit.
-"""
+"""OpenAI Compatible Models for Genkit."""
 
-from genkit.core.typing import (
+from genkit.types import (
     ModelInfo,
     Supports,
 )

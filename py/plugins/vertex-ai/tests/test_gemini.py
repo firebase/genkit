@@ -18,15 +18,15 @@
 
 import pytest
 
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import ActionRunContext
+from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Message,
     Role,
     TextPart,
 )
-from genkit.plugins.vertex_ai.gemini import Gemini, GeminiVersion
 
 MULTILINE_CONTENT = [
     'Hi, Gemini!',
@@ -43,7 +43,7 @@ def test_generate_text_response(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=f'Hi, mock!'),
+                    TextPart(text='Hi, mock!'),
                 ],
             ),
         ]
@@ -53,9 +53,7 @@ def test_generate_text_response(mocker, version):
     model_response_mock = mocker.MagicMock()
     model_response_mock.text = mocked_respond
     genai_model_mock.generate_content.return_value = model_response_mock
-    mocker.patch(
-        'genkit.plugins.vertex_ai.gemini.Gemini.gemini_model', genai_model_mock
-    )
+    mocker.patch('genkit.plugins.vertex_ai.gemini.Gemini.gemini_model', genai_model_mock)
 
     ctx = ActionRunContext()
     response = gemini.generate(request, ctx)
@@ -89,7 +87,7 @@ def test_built_gemini_message_multiple_parts(mocker):
     assert isinstance(result[0].parts, list)
     assert len(result[0].parts) == len(MULTILINE_CONTENT)
 
-    for part, text in zip(result[0].parts, MULTILINE_CONTENT):
+    for part, text in zip(result[0].parts, MULTILINE_CONTENT, strict=False):
         assert part.text == text
 
 
@@ -107,5 +105,5 @@ def test_built_gemini_message_multiple_messages(mocker):
     result = gemini.build_messages(request)
     assert isinstance(result, list)
     assert len(result) == len(MULTILINE_CONTENT)
-    for message, text in zip(result, MULTILINE_CONTENT):
+    for message, text in zip(result, MULTILINE_CONTENT, strict=False):
         assert message.parts[0].text == text

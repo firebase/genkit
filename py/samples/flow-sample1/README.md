@@ -1,4 +1,4 @@
-# Hello world
+# Flow Sample 1
 
 ## Setup environment
 
@@ -12,5 +12,5 @@ source .venv/bin/activate
 TODO
 
 ```bash
-genkit start -- uv run --directory py samples/flow-sample1/main.py
+genkit start -- uv run --directory py flow-sample1/src/flow_sample1.py
 ```

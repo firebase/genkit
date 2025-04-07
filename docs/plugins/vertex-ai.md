@@ -381,7 +381,7 @@ Both evaluators can be run using the `genkit eval:run` command with a compatible
 
 The Genkit Vertex AI plugin includes indexer and retriever implementations backed by the Vertex AI Vector Search service.
 
-(See the [Retrieval-augmented generation](http://../rag.md) page to learn how indexers and retrievers are used in a RAG implementation.)
+(See the [Retrieval-augmented generation](../rag.md) page to learn how indexers and retrievers are used in a RAG implementation.)
 
 The Vertex AI Vector Search service is a document index that works alongside the document store of your choice: the document store contains the content of documents, and the Vertex AI Vector Search index contains, for each document, its vector embedding and a reference to the document in the document store. After your documents are indexed by the Vertex AI Vector Search service, it can respond to search queries, producing lists of indexes into your document store.
 

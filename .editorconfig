@@ -15,9 +15,11 @@ quote_type = single
 
 [*.py]
 indent_size = 4
+max_line_length = 120
 indent_style = space
 quote_type = single
 
 [{Makefile,go.mod,go.sum,*.go,.gitmodules}]
 indent_size = 4
 indent_style = tab
+max_line_length = 120

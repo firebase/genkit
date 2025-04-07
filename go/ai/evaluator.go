@@ -69,9 +69,9 @@ const (
 )
 
 var statusName = map[ScoreStatus]string{
-	ScoreStatusUnknown: "unknown",
-	ScoreStatusFail:    "fail",
-	ScoreStatusPass:    "pass",
+	ScoreStatusUnknown: "UNKNOWN",
+	ScoreStatusFail:    "FAIL",
+	ScoreStatusPass:    "PASS",
 }
 
 func (ss ScoreStatus) String() string {
@@ -85,7 +85,7 @@ func (ss ScoreStatus) String() string {
 type Score struct {
 	Id      string         `json:"id,omitempty"`
 	Score   any            `json:"score,omitempty"`
-	Status  string         `json:"status,omitempty" jsonschema:"enum=unknown,enum=fail,enum=pass"`
+	Status  string         `json:"status,omitempty" jsonschema:"enum=UNKNOWN,enum=FAIL,enum=PASS"`
 	Error   string         `json:"error,omitempty"`
 	Details map[string]any `json:"details,omitempty"`
 }
@@ -134,7 +134,7 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	actionDef := (*evaluator)(core.DefineAction(r, provider, name, atype.Evaluator, metadataMap, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+	actionDef := (*evaluator)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 		var evalResponses []EvaluationResult
 		for _, datapoint := range req.Dataset {
 			if datapoint.TestCaseId == "" {

@@ -14,10 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
-"""
-OpenAI Compatible Models for Genkit.
-"""
+"""OpenAI Compatible Models for Genkit."""
 
 import json
 from collections.abc import Callable
@@ -28,9 +25,8 @@ from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
 
-from genkit.ai.registry import GenkitRegistry
-from genkit.core.action import ActionKind
-from genkit.core.typing import (
+from genkit.ai import ActionKind, GenkitRegistry
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -42,60 +38,62 @@ from genkit.core.typing import (
 
 
 class OpenAIModel:
-    """
-    Handles OpenAI API interactions for the Genkit plugin.
-    """
+    """Handles OpenAI API interactions for the Genkit plugin."""
 
     _role_map = {Role.SYSTEM: 'developer', Role.MODEL: 'assistant'}
 
     def __init__(self, model: str, client: OpenAI, registry: GenkitRegistry):
-        """
-        Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
+        """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
-        :param model: The OpenAI model to use for generating responses.
-        :param client: OpenAI client instance.
+        Args:
+            model: The OpenAI model to use for generating responses.
+            client: OpenAI client instance.
+            registry: The registry where OpenAI models will be registered.
         """
         self._model = model
         self._openai_client = client
         self._registry = registry
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """The name of the OpenAI model."""
         return self._model
 
     def _get_messages(self, messages: list[Message]) -> list[dict]:
-        """
-        Converts the request messages into the format required by OpenAI's API.
+        """Converts the request messages into the format required by OpenAI's API.
 
-        :param messages: A list of the user messages.
-        :return: A list of dictionaries, where each dictionary represents a message
-                 with 'role' and 'content' fields.
-        :raises ValueError: If no messages are provided in the request.
+        Args:
+            messages: A list of the user messages.
+
+        Returns:
+            A list of dictionaries, where each dictionary represents a message
+            with 'role' and 'content' fields.
+
+        Raises:
+            ValueError: If no messages are provided in the request.
         """
         if not messages:
             raise ValueError('No messages provided in the request.')
         return [
             {
                 'role': self._role_map.get(m.role, m.role.value),
-                'content': ''.join(
-                    filter(None, (part.root.text for part in m.content))
-                ),
+                'content': ''.join(filter(None, (part.root.text for part in m.content))),
             }
             for m in messages
         ]
 
     def _get_tools_definition(self, tools: list[ToolDefinition]) -> list[dict]:
-        """
-        Converts the provided tools into OpenAI-compatible function call format.
+        """Converts the provided tools into OpenAI-compatible function call format.
 
-        :param tools: A list of tool definitions.
-        :return: A list of dictionaries representing the formatted tools.
+        Args:
+            tools: A list of tool definitions.
+
+        Returns:
+            A list of dictionaries representing the formatted tools.
         """
         result = []
         for tool_definition in tools:
-            action = self._registry.registry.lookup_action(
-                ActionKind.TOOL, tool_definition.name
-            )
+            action = self._registry.registry.lookup_action(ActionKind.TOOL, tool_definition.name)
             function_call = pydantic_function_tool(
                 model=action.input_type._type,
                 name=tool_definition.name,
@@ -105,6 +103,14 @@ class OpenAIModel:
         return result
 
     def _get_openai_request_config(self, request: GenerateRequest) -> dict:
+        """Get the OpenAI request configuration.
+
+        Args:
+            request: The request containing messages and configurations.
+
+        Returns:
+            A dictionary representing the OpenAI request configuration.
+        """
         openai_config = {
             'messages': self._get_messages(request.messages),
             'model': self._model,
@@ -115,48 +121,48 @@ class OpenAIModel:
             openai_config.update(**request.config.model_dump())
         return openai_config
 
-    def _evaluate_tool(self, name: str, arguments: str):
-        """
-        Executes a registered tool with the given arguments and returns the result.
+    def _evaluate_tool(self, name: str, arguments: str) -> str:
+        """Executes a registered tool with the given arguments and returns the result.
 
-        :param name: Name of the tool to execute.
-        :param arguments: JSON-encoded arguments for the tool.
-        :return: String representation of the tool's output.
+        Args:
+            name: Name of the tool to execute.
+            arguments: JSON-encoded arguments for the tool.
+
+        Returns:
+            String representation of the tool's output.
         """
         action = self._registry.registry.lookup_action(ActionKind.TOOL, name)
 
-        # Parse and validate arguments
+        # Parse and validate arguments.
         arguments = json.loads(arguments)
         arguments = action.input_type.validate_python(arguments)
 
-        # Execute the tool and return its result
+        # Execute the tool and return its result.
         return str(action.run(arguments))
 
-    def _get_evaluated_tool_message_param(
-        self, tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall
-    ) -> dict:
-        """
-        Evaluates a tool call and formats its response in a structure compatible with OpenAI's API.
+    def _get_evaluated_tool_message_param(self, tool_call: ChoiceDeltaToolCall | ChatCompletionMessageToolCall) -> dict:
+        """Evaluates a tool call and formats its response in OpenAI compatible format.
 
-        :param tool_call: The tool call object containing function name and arguments.
-        :return: A dictionary formatted as a response message from a tool.
+        Args:
+            tool_call: The tool call object containing function name and arguments.
+
+        Returns:
+            A dictionary formatted as a response message from a tool.
         """
         return {
             'role': self._role_map.get(Role.TOOL, Role.TOOL.value),
             'tool_call_id': tool_call.id,
-            'content': self._evaluate_tool(
-                tool_call.function.name, tool_call.function.arguments
-            ),
+            'content': self._evaluate_tool(tool_call.function.name, tool_call.function.arguments),
         }
 
-    def _get_assistant_message_param(
-        self, tool_calls: list[ChoiceDeltaToolCall]
-    ) -> dict:
-        """
-        Formats tool call data into assistant message structure compatible with OpenAI's API.
+    def _get_assistant_message_param(self, tool_calls: list[ChoiceDeltaToolCall]) -> dict:
+        """Formats tool call data into OpenAI-compatible assistant message structure.
 
-        :param tool_calls: A list of tool call objects.
-        :return: A dictionary representing the tool calls formatted for OpenAI.
+        Args:
+            tool_calls: A list of tool call objects.
+
+        Returns:
+            A dictionary representing the tool calls formatted for OpenAI.
         """
         return {
             'role': self._role_map.get(Role.MODEL, 'assistant'),
@@ -174,11 +180,13 @@ class OpenAIModel:
         }
 
     def generate(self, request: GenerateRequest) -> GenerateResponse:
-        """
-        Processes the request using OpenAI's chat completion API and returns the generated response.
+        """Processes the request using OpenAI's chat completion API and returns the generated response.
 
-        :param request: The GenerateRequest object containing the input text and configuration.
-        :return: A GenerateResponse object containing the generated message.
+        Args:
+            request: The GenerateRequest object containing the input text and configuration.
+
+        Returns:
+            A GenerateResponse object containing the generated message.
         """
         openai_config = self._get_openai_request_config(request=request)
         response = self._openai_client.chat.completions.create(**openai_config)
@@ -189,13 +197,9 @@ class OpenAIModel:
 
             # Evaluate tool calls and append their responses
             for tool_call in completion.message.tool_calls:
-                openai_config['messages'].append(
-                    self._get_evaluated_tool_message_param(tool_call)
-                )
+                openai_config['messages'].append(self._get_evaluated_tool_message_param(tool_call))
 
-            response = self._openai_client.chat.completions.create(
-                **openai_config
-            )
+            response = self._openai_client.chat.completions.create(**openai_config)
 
         return GenerateResponse(
             request=request,
@@ -205,15 +209,12 @@ class OpenAIModel:
             ),
         )
 
-    def generate_stream(
-        self, request: GenerateRequest, callback: Callable
-    ) -> GenerateResponse:
-        """
-        Generates a streaming response from the OpenAI client and processes it in chunks.
+    def generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
+        """Generates a streaming response from the OpenAI client and processes it in chunks.
 
         Args:
-            request (GenerateRequest): The request object containing generation parameters.
-            callback (Callable): A function to handle each chunk of the streamed response.
+            request: The request object containing generation parameters.
+            callback: A function to handle each chunk of the streamed response.
 
         Returns:
             GenerateResponse: An empty response message when streaming is complete.
@@ -225,7 +226,7 @@ class OpenAIModel:
         stream = self._openai_client.chat.completions.create(**openai_config)
 
         while not stream.response.is_closed:
-            tool_calls = {}
+            tool_calls: dict[int, ChoiceDeltaToolCall] = {}
 
             for chunk in stream:
                 choice = chunk.choices[0]
@@ -250,19 +251,13 @@ class OpenAIModel:
 
             # If tool calls were requested, process them and continue the conversation
             if tool_calls:
-                openai_config['messages'].append(
-                    self._get_assistant_message_param(tool_calls.values())
-                )
+                openai_config['messages'].append(self._get_assistant_message_param(list(tool_calls.values())))
 
                 for tool_call in tool_calls.values():
-                    openai_config['messages'].append(
-                        self._get_evaluated_tool_message_param(tool_call)
-                    )
+                    openai_config['messages'].append(self._get_evaluated_tool_message_param(tool_call))
 
                 # Re-initiate streaming after processing tool calls
-                stream = self._openai_client.chat.completions.create(
-                    **openai_config
-                )
+                stream = self._openai_client.chat.completions.create(**openai_config)
 
         # Return an empty response when streaming is complete
         return GenerateResponse(

@@ -58,7 +58,10 @@ func New() (*Registry, error) {
 	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
 		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
 	}
-	r.Dotprompt = dotprompt.NewDotprompt(nil)
+	r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+		Helpers:  make(map[string]any),
+		Partials: make(map[string]string),
+	})
 	return r, nil
 }
 
@@ -163,6 +166,13 @@ func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.tstate.RegisterSpanProcessor(sp)
 }
 
+// ListValues returns a list of values of all registered values.
+func (r *Registry) ListValues() map[string]any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.values
+}
+
 // An Environment is the execution context in which the program is running.
 type Environment string
 
@@ -177,4 +187,40 @@ func CurrentEnvironment() Environment {
 		return Environment(v)
 	}
 	return EnvironmentProd
+}
+
+// DefinePartial adds the partial to the list of partials to the dotprompt instance
+func (r *Registry) DefinePartial(name string, source string) error {
+	if r.Dotprompt == nil {
+		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+			Partials: map[string]string{},
+		})
+	}
+	if r.Dotprompt.Partials == nil {
+		r.Dotprompt.Partials = make(map[string]string)
+	}
+
+	if r.Dotprompt.Partials[name] != "" {
+		return fmt.Errorf("partial %q is already defined", name)
+	}
+	r.Dotprompt.Partials[name] = source
+	return nil
+}
+
+// DefineHelper adds a helper function to the dotprompt instance
+func (r *Registry) DefineHelper(name string, fn any) error {
+	if r.Dotprompt == nil {
+		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+			Helpers: map[string]any{},
+		})
+	}
+	if r.Dotprompt.Helpers == nil {
+		r.Dotprompt.Helpers = make(map[string]any)
+	}
+
+	if r.Dotprompt.Helpers[name] != nil {
+		return fmt.Errorf("helper %q is already defined", name)
+	}
+	r.Dotprompt.Helpers[name] = fn
+	return nil
 }

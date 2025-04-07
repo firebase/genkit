@@ -47,6 +47,8 @@ import {
   gemini20FlashLite,
   gemini20FlashLitePreview0205,
   gemini20ProExp0205,
+  gemini25ProExp0325,
+  gemini25ProPreview0325,
   type GeminiConfig,
 } from './gemini.js';
 import {
@@ -67,6 +69,8 @@ export {
   gemini20FlashLite,
   gemini20FlashLitePreview0205,
   gemini20ProExp0205,
+  gemini25ProExp0325,
+  gemini25ProPreview0325,
   imagen2,
   imagen3,
   imagen3Fast,

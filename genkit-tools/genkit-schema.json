@@ -854,6 +854,10 @@
         "label": {
           "type": "string"
         },
+        "configSchema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
         "supports": {
           "type": "object",
           "properties": {
@@ -1007,9 +1011,6 @@
         },
         "constrained": {
           "type": "boolean"
-        },
-        "instructions": {
-          "type": "string"
         },
         "contentType": {
           "type": "string"

@@ -16,21 +16,17 @@
 
 from unittest.mock import MagicMock, patch
 
-from genkit.ai import GenkitRegistry
-from genkit.plugins.compat_oai.models.model_info import (
-    SUPPORTED_OPENAI_MODELS,
-)
+from genkit.ai import Genkit
+from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
 
-def test_openai_plugin_initialize():
+def test_openai_plugin_initialize() -> None:
     """Test OpenAI plugin registry initialization."""
-    registry = MagicMock(spec=GenkitRegistry)
+    registry = MagicMock(spec=Genkit)
     plugin = OpenAI(api_key='test-key')
 
-    with patch(
-        'genkit.plugins.compat_oai.models.OpenAIModelHandler.get_model_handler'
-    ) as mock_get_handler:
+    with patch('genkit.plugins.compat_oai.models.OpenAIModelHandler.get_model_handler') as mock_get_handler:
         mock_handler = MagicMock()
         mock_get_handler.return_value = mock_handler
 
@@ -40,6 +36,6 @@ def test_openai_plugin_initialize():
         assert registry.define_model.call_count == len(SUPPORTED_OPENAI_MODELS)
 
 
-def test_openai_model_function():
+def test_openai_model_function() -> None:
     """Test openai_model function."""
     assert openai_model('gpt-4') == 'openai/gpt-4'

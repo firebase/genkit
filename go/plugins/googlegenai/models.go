@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"google.golang.org/genai"
 )
 
@@ -22,7 +21,8 @@ const (
 	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
 	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
 
-	gemini25ProExp0305 = "gemini-2.5-pro-exp-03-25"
+	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
+	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
 )
 
 var (
@@ -36,6 +36,8 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini25ProExp0325,
+		gemini25ProPreview0325,
 	}
 
 	googleAIModels = []string{
@@ -46,7 +48,8 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
-		gemini25ProExp0305,
+		gemini25ProExp0325,
+		gemini25ProPreview0325,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelInfo{
@@ -57,7 +60,8 @@ var (
 				"gemini-1.5-flash-001",
 				"gemini-1.5-flash-002",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini15Pro: {
 			Label: "Gemini 1.5 Pro",
@@ -66,7 +70,8 @@ var (
 				"gemini-1.5-pro-001",
 				"gemini-1.5-pro-002",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini15Flash8b: {
 			Label: "Gemini 1.5 Flash 8B",
@@ -74,41 +79,54 @@ var (
 				"gemini-1.5-flash-8b-latest",
 				"gemini-1.5-flash-8b-001",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini20Flash: {
 			Label: "Gemini 2.0 Flash",
 			Versions: []string{
 				"gemini-2.0-flash-001",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini20FlashLite: {
 			Label: "Gemini 2.0 Flash Lite",
 			Versions: []string{
 				"gemini-2.0-flash-lite-001",
 			},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini20FlashLitePrev: {
 			Label:    "Gemini 2.0 Flash Lite Preview 02-05",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20ProExp0205: {
 			Label:    "Gemini 2.0 Pro Exp 02-05",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
-		gemini25ProExp0305: {
+		gemini25ProExp0325: {
 			Label:    "Gemini 2.5 Pro Exp 03-25",
 			Versions: []string{},
-			Supports: &gemini.Multimodal,
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
+		},
+		gemini25ProPreview0325: {
+			Label:    "Gemini 2.5 Pro Preview 03-25",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
 		},
 	}
 
@@ -132,12 +150,15 @@ var (
 // based on the detected backend
 func listModels(provider string) (map[string]ai.ModelInfo, error) {
 	names := []string{}
+	var prefix string
 
 	switch provider {
 	case googleAIProvider:
 		names = googleAIModels
+		prefix = googleAILabelPrefix
 	case vertexAIProvider:
 		names = vertexAIModels
+		prefix = vertexAILabelPrefix
 	default:
 		return nil, fmt.Errorf("unknown provider detected %s", provider)
 	}
@@ -149,7 +170,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
 		models[n] = ai.ModelInfo{
-			Label:    provider + " - " + m.Label,
+			Label:    prefix + " - " + m.Label,
 			Versions: m.Versions,
 			Supports: m.Supports,
 		}

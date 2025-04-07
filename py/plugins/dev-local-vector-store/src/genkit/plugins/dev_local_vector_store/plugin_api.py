@@ -16,12 +16,8 @@
 
 """Local file-based vectorstore plugin that provides retriever and indexer for Genkit."""
 
-import logging
-
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import GenkitRegistry, Plugin
 from genkit.core.action import Action
-from genkit.core.typing import Docs
 from genkit.plugins.dev_local_vector_store.constant import Params
 from genkit.plugins.dev_local_vector_store.indexer import (
     DevLocalVectorStoreIndexer,
@@ -30,8 +26,7 @@ from genkit.plugins.dev_local_vector_store.retriever import (
     DevLocalVectorStoreRetriever,
     RetrieverOptionsSchema,
 )
-
-LOG = logging.getLogger(__name__)
+from genkit.types import Docs
 
 
 def dev_local_vectorstore_name(name: str) -> str:
@@ -70,16 +65,13 @@ class DevLocalVectorStore(Plugin):
         Returns:
             None
         """
-
         for params in self.params:
             self._configure_dev_local_retriever(ai=ai, params=params)
             self._configure_dev_local_indexer(ai=ai, params=params)
 
     @classmethod
-    def _configure_dev_local_retriever(
-        cls, ai: GenkitRegistry, params: Params
-    ) -> Action:
-        """Registers Local Vector Store retriever for provided parameters
+    def _configure_dev_local_retriever(cls, ai: GenkitRegistry, params: Params) -> Action:
+        """Registers Local Vector Store retriever for provided parameters.
 
         Args:
             ai: The registry to register retriever with.
@@ -100,10 +92,8 @@ class DevLocalVectorStore(Plugin):
         )
 
     @classmethod
-    def _configure_dev_local_indexer(
-        cls, ai: GenkitRegistry, params: Params
-    ) -> Action:
-        """Registers Local Vector Store indexer for provided parameters
+    def _configure_dev_local_indexer(cls, ai: GenkitRegistry, params: Params) -> Action:
+        """Registers Local Vector Store indexer for provided parameters.
 
         Args:
             ai: The registry to register indexer with.
@@ -138,7 +128,6 @@ class DevLocalVectorStore(Plugin):
         matching_indexer = cls._indexers.get(index_name)
         if not matching_indexer:
             raise KeyError(
-                f'Failed to find indexer matching name: {index_name}!r\n'
-                f'Registered indexers: {cls._indexers.keys()}'
+                f'Failed to find indexer matching name: {index_name}!r\nRegistered indexers: {cls._indexers.keys()}'
             )
         return await matching_indexer.index(documents)

@@ -193,12 +193,17 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		return nil, err
 	}
 
+	// Register default formats
+	ai.ConfigureFormats(r)
+
 	gOpts := &genkitOptions{}
 	for _, opt := range opts {
 		if err := opt.apply(gOpts); err != nil {
 			return nil, fmt.Errorf("genkit.Init: error applying options: %w", err)
 		}
 	}
+
+	ai.DefineGenerateAction(ctx, r)
 
 	r.RegisterValue("genkit/defaultModel", gOpts.DefaultModel)
 	r.RegisterValue("genkit/promptDir", gOpts.PromptDir)
@@ -209,6 +214,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		if err := plugin.Init(ctx, g); err != nil {
 			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
 		}
+		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
 	ai.LoadPromptDir(r, gOpts.PromptDir, "")
@@ -526,8 +532,8 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("GenerateWithRequest failed: %v", err)
 //	}
 //	var out1 GeoOutput
-//	if err = resp1.UnmarshalOutput(&out1); err != nil {
-//		log.Fatalf("UnmarshalOutput failed: %v", err)
+//	if err = resp1.Output(&out1); err != nil {
+//		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of USA: %s\n", out1.Capital) // Output: Capital of USA: Washington D.C.
 //
@@ -537,8 +543,8 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("Execute failed: %v", err)
 //	}
 //	var out2 GeoOutput
-//	if err = resp2.UnmarshalOutput(&out2); err != nil {
-//		log.Fatalf("UnmarshalOutput failed: %v", err)
+//	if err = resp2.Output(&out2); err != nil {
+//		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of France: %s\n", out2.Capital) // Output: Capital of France: Paris
 func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, error) {
@@ -818,4 +824,64 @@ func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
 // all spans are processed. Multiple processors can be registered.
 func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 	g.reg.RegisterSpanProcessor(sp)
+}
+
+// DefinePartial wraps DefinePartial to register a partial template with the given name and source.
+// Partials can be referenced in templates with the syntax {{>partialName}}.
+func DefinePartial(g *Genkit, name string, source string) error {
+	return g.reg.DefinePartial(name, source)
+}
+
+// DefineHelper wraps DefineHelper to register a helper function with the given name.
+// This allows for extending the templating capabilities with custom logic.
+//
+// Example usage:
+//
+//	genkit.DefineHelper(g, "uppercase", func(s string) string {
+//		return strings.ToUpper(s)
+//	})
+//
+// In a template, you would use it as:
+//
+//	{{uppercase "hello"}} => "HELLO"
+func DefineHelper(g *Genkit, name string, fn any) error {
+	return g.reg.DefineHelper(name, fn)
+}
+
+// DefineFormat defines a new [ai.Formatter] and registers it in the registry.
+// Formatters control how model responses are structured and parsed.
+//
+// Formatters can be used with [ai.WithOutputFormat] to inject specific formatting
+// instructions into prompts and automatically format the model response according
+// to the desired output structure.
+//
+// Built-in formatters include:
+//   - "text": Plain text output (default if no format specified)
+//   - "json": Structured JSON output (default when an output schema is provided)
+//   - "jsonl": JSON Lines format for streaming structured data
+//
+// Example:
+//
+//	// Define a custom formatter
+//	type csvFormatter struct{}
+//	func (f csvFormatter) Name() string { return "csv" }
+//	func (f csvFormatter) Handler(schema map[string]any) (ai.FormatHandler, error) {
+//		// Implementation details...
+//	}
+//
+//	// Register the formatter
+//	genkit.DefineFormat(g, "csv", csvFormatter{})
+//
+//	// Use the formatter in a generation request
+//	resp, err := genkit.Generate(ctx, g,
+//		ai.WithPromptText("List 3 countries and their capitals"),
+//		ai.WithOutputFormat("csv"), // Use the custom formatter
+//	)
+func DefineFormat(g *Genkit, name string, formatter ai.Formatter) {
+	ai.DefineFormat(g.reg, name, formatter)
+}
+
+// IsDefinedFormat checks if a formatter with the given name is registered in the registry.
+func IsDefinedFormat(g *Genkit, name string) bool {
+	return g.reg.LookupValue("/format/"+name) != nil
 }

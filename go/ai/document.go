@@ -23,14 +23,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type OutputFormat string
-
-const (
-	OutputFormatText  OutputFormat = "text"
-	OutputFormatJSON  OutputFormat = "json"
-	OutputFormatMedia OutputFormat = "media"
-)
-
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
 // It includes metadata. It can contain multiple parts.
 type Document struct {

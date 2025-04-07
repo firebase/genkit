@@ -42,14 +42,82 @@ import {
   type CompletionChoice,
 } from 'openai/resources/index.mjs';
 
+/**
+ * See https://platform.openai.com/docs/api-reference/chat/create.
+ */
 export const OpenAIConfigSchema = GenerationCommonConfigSchema.extend({
-  frequencyPenalty: z.number().min(-2).max(2).optional(),
-  logitBias: z.record(z.string(), z.number().min(-100).max(100)).optional(),
-  logProbs: z.boolean().optional(),
-  presencePenalty: z.number().min(-2).max(2).optional(),
-  seed: z.number().int().optional(),
-  topLogProbs: z.number().int().min(0).max(20).optional(),
-  user: z.string().optional(),
+  // TODO: topK is not supported and some of the other common config options
+  // have different names in the above doc. Eg: max_completion_tokens.
+  // Update to use the parameters in above doc.
+  frequencyPenalty: z
+    .number()
+    .min(-2)
+    .max(2)
+    .describe(
+      'Positive values penalize new tokens based on their ' +
+        "existing frequency in the text so far, decreasing the model's " +
+        'likelihood to repeat the same line verbatim.'
+    )
+    .optional(),
+  logitBias: z
+    .record(
+      z.string().describe('Token string.'),
+      z.number().min(-100).max(100).describe('Associated bias value.')
+    )
+    .describe(
+      'Controls the likelihood of specified tokens appearing ' +
+        'in the generated output. Map of tokens to an associated bias ' +
+        'value from -100 (which will in most cases block that token ' +
+        'from being generated) to 100 (exclusive selection of the ' +
+        'token which makes it more likely to be generated). Moderate ' +
+        'values like -1 and 1 will change the probability of a token ' +
+        'being selected to a lesser degree.'
+    )
+    .optional(),
+  logProbs: z
+    .boolean()
+    .describe(
+      'Whether to return log probabilities of the output tokens or not.'
+    )
+    .optional(),
+  presencePenalty: z
+    .number()
+    .min(-2)
+    .max(2)
+    .describe(
+      'Positive values penalize new tokens based on whether ' +
+        "they appear in the text so far, increasing the model's " +
+        'likelihood to talk about new topics.'
+    )
+    .optional(),
+  seed: z
+    .number()
+    .int()
+    .describe(
+      'If specified, the system will make a best effort to sample ' +
+        'deterministically, such that repeated requests with the same seed ' +
+        'and parameters should return the same result. Determinism is not ' +
+        'guaranteed, and you should refer to the system_fingerprint response ' +
+        'parameter to monitor changes in the backend.'
+    )
+    .optional(),
+  topLogProbs: z
+    .number()
+    .int()
+    .min(0)
+    .max(20)
+    .describe(
+      'An integer specifying the number of most likely tokens to ' +
+        'return at each token position, each with an associated log ' +
+        'probability. logprobs must be set to true if this parameter is used.'
+    )
+    .optional(),
+  user: z
+    .string()
+    .describe(
+      'A unique identifier representing your end-user to monitor and detect abuse.'
+    )
+    .optional(),
 });
 
 export function toOpenAIRole(role: Role): ChatCompletionRole {

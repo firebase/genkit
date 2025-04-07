@@ -17,7 +17,7 @@ import base64
 
 from google import genai
 
-from genkit.core.typing import (
+from genkit.types import (
     CustomPart,
     Media,
     MediaPart,
@@ -75,20 +75,14 @@ class PartConverter:
             return genai.types.Part(
                 executable_code=genai.types.ExecutableCode(
                     code=part.root.custom[cls.EXECUTABLE_CODE][cls.CODE],
-                    language=part.root.custom[cls.EXECUTABLE_CODE][
-                        cls.LANGUAGE
-                    ],
+                    language=part.root.custom[cls.EXECUTABLE_CODE][cls.LANGUAGE],
                 )
             )
         if cls.CODE_EXECUTION_RESULT in part.root.custom:
             return genai.types.Part(
                 code_execution_result=genai.types.CodeExecutionResult(
-                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTCOME
-                    ],
-                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTPUT
-                    ],
+                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTCOME],
+                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTPUT],
                 )
             )
 

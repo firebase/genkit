@@ -20,11 +20,11 @@ import json
 from hashlib import md5
 
 from genkit.blocks.document import Document
-from genkit.core.typing import Docs, Embedding
 from genkit.plugins.dev_local_vector_store.constant import DbValue
 from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
     LocalVectorStoreAPI,
 )
+from genkit.types import Docs, Embedding
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
@@ -35,9 +35,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         for doc_data in docs.root:
             tasks.append(
                 self.process_document(
-                    document=Document.from_document_data(
-                        document_data=doc_data
-                    ),
+                    document=Document.from_document_data(document_data=doc_data),
                     data=data,
                 )
             )
@@ -47,17 +45,15 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         with open(self.index_file_name, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
 
-    async def process_document(
-        self, document: Document, data: dict[str, DbValue]
-    ) -> None:
+    async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
         embeddings = await self.ai.embed(
-            model=self.params.embedder,
+            embedder=self.params.embedder,
             documents=[document],
             options=self.params.embedder_options,
         )
         embedding_docs = document.get_embedding_documents(embeddings.embeddings)
 
-        for embedding, emb_doc in zip(embeddings, embedding_docs):
+        for embedding, emb_doc in zip(embeddings, embedding_docs, strict=False):
             self._add_document(data=data, embedding=embedding, doc=emb_doc)
 
     def _add_document(
@@ -66,9 +62,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         embedding: Embedding,
         doc: Document,
     ) -> None:
-        data_str = json.dumps(
-            self._serialize_data(data=data), ensure_ascii=False
-        )
+        data_str = json.dumps(self._serialize_data(data=data), ensure_ascii=False)
         _idx = md5(data_str.encode('utf-8')).hexdigest()
         if _idx not in data:
             data[_idx] = DbValue(

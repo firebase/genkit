@@ -17,12 +17,11 @@
 
 from pydantic import BaseModel, Field
 
-from genkit.blocks.document import Document
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import Embedding, RetrieverRequest
+from genkit.ai import ActionRunContext, Document
 from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
     LocalVectorStoreAPI,
 )
+from genkit.types import Embedding, RetrieverRequest
 
 
 class ScoredDocument(BaseModel):
@@ -31,16 +30,14 @@ class ScoredDocument(BaseModel):
 
 
 class RetrieverOptionsSchema(BaseModel):
-    limit: int | None = Field(
-        title='Number of documents to retrieve', default=None
-    )
+    limit: int | None = Field(title='Number of documents to retrieve', default=None)
 
 
 class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext):
         document = Document.from_document_data(document_data=request.query)
         embeddings = await self.ai.embed(
-            model=self.params.embedder,
+            embedder=self.params.embedder,
             documents=[document],
             options=self.params.embedder_options,
         )
@@ -53,9 +50,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
             query_embeddings=embeddings.embeddings[0],
         )
 
-    def _get_closest_documents(
-        self, k: int, query_embeddings: Embedding
-    ) -> list[ScoredDocument]:
+    def _get_closest_documents(self, k: int, query_embeddings: Embedding) -> list[ScoredDocument]:
         db = self._load_filestore()
         scored_documents = []
 
@@ -69,9 +64,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
                 )
             )
 
-        scored_documents = sorted(
-            scored_documents, key=lambda d: d.score, reverse=True
-        )
+        scored_documents = sorted(scored_documents, key=lambda d: d.score, reverse=True)
         return scored_documents[:k]
 
     @classmethod
@@ -80,4 +73,4 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
     @staticmethod
     def dot(a: list[int], b: list[int]) -> float:
-        return sum(a * b for a, b in zip(a, b))
+        return sum(a * b for a, b in zip(a, b, strict=False))

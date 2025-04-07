@@ -151,7 +151,7 @@ type GenerateActionOutputConfig struct {
 	Constrained  bool           `json:"constrained,omitempty"`
 	ContentType  string         `json:"contentType,omitempty"`
 	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
+	Instructions *string        `json:"instructions,omitempty"`
 	JsonSchema   map[string]any `json:"jsonSchema,omitempty"`
 }
 
@@ -216,10 +216,11 @@ type Message struct {
 }
 
 type ModelInfo struct {
-	Label    string         `json:"label,omitempty"`
-	Stage    ModelStage     `json:"stage,omitempty"`
-	Supports *ModelSupports `json:"supports,omitempty"`
-	Versions []string       `json:"versions,omitempty"`
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
+	Label        string         `json:"label,omitempty"`
+	Stage        ModelStage     `json:"stage,omitempty"`
+	Supports     *ModelSupports `json:"supports,omitempty"`
+	Versions     []string       `json:"versions,omitempty"`
 }
 
 type ModelStage string
@@ -292,11 +293,10 @@ type ModelResponseChunk struct {
 // should conform to. If Format is [OutputFormatJSON], then Schema
 // can describe the desired form of the generated JSON.
 type ModelOutputConfig struct {
-	Constrained  bool           `json:"constrained,omitempty"`
-	ContentType  string         `json:"contentType,omitempty"`
-	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
-	Schema       map[string]any `json:"schema,omitempty"`
+	Constrained bool           `json:"constrained,omitempty"`
+	ContentType string         `json:"contentType,omitempty"`
+	Format      string         `json:"format,omitempty"`
+	Schema      map[string]any `json:"schema,omitempty"`
 }
 
 type PathMetadata struct {
