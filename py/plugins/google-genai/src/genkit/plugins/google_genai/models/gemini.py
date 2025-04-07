@@ -463,10 +463,10 @@ class GeminiModel:
         Returns:
             Schema or None
         """
-        if not defs:
+        if defs is None:
             defs = input_schema.get('$defs') if '$defs' in input_schema else {}
 
-        if not input_schema or 'type' not in input_schema:
+        if input_schema is None or 'type' not in input_schema:
             return None
 
         schema = genai_types.Schema()
@@ -689,8 +689,9 @@ class GeminiModel:
         content = []
         if response.candidates:
             for candidate in response.candidates:
-                for part in candidate.content.parts:
-                    content.append(PartConverter.from_gemini(part=part))
+                if candidate.content:
+                    for part in candidate.content.parts:
+                        content.append(PartConverter.from_gemini(part=part))
 
         return content
 

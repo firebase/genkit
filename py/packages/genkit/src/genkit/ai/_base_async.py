@@ -74,8 +74,8 @@ class GenkitBase(GenkitRegistry):
             None
         """
         self.registry.default_model = model
-        for format in built_in_formats:
-            self.define_format(format)
+        for fmt in built_in_formats:
+            self.define_format(fmt)
 
         if not plugins:
             logger.warning('No plugins provided to Genkit')
@@ -91,7 +91,7 @@ class GenkitBase(GenkitRegistry):
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
 
-    def run(self, user_coro: Coroutine[Any, Any, T]) -> T:
+    def run(self, coro: Coroutine[Any, Any, T]) -> T:
         """Run the user's main coroutine.
 
         In development mode (`GENKIT_ENV=dev`), this starts the Genkit reflection
@@ -102,14 +102,14 @@ class GenkitBase(GenkitRegistry):
         using `asyncio.run()`.
 
         Args:
-            user_coro: The main coroutine provided by the user.
+            coro: The main coroutine provided by the user.
 
         Returns:
             The result of the user's coroutine.
         """
         if not is_dev_environment():
             logger.info('Running in production mode.')
-            return run_loop(user_coro)
+            return run_loop(coro)
 
         # Development mode: Start reflection server and user coro concurrently.
         logger.info('Running in development mode.')
@@ -127,11 +127,11 @@ class GenkitBase(GenkitRegistry):
                 """Wraps user coroutine to capture result and signal completion."""
                 nonlocal user_result
                 try:
-                    user_result = await user_coro
+                    user_result = await coro
                     logger.debug('User coroutine completed successfully.')
-                except Exception as e:
+                except Exception as err:
                     # Log error but don't necessarily stop the server
-                    logger.error(f'User coroutine failed: {e}', exc_info=True)
+                    logger.error(f'User coroutine failed: {err}', exc_info=True)
                     # Store exception? Or let TaskGroup handle it if critical?
                     # Depending on desired behavior, could raise here to stop everything.
                     pass  # Continue running server for now
@@ -144,7 +144,7 @@ class GenkitBase(GenkitRegistry):
                 async with RuntimeManager(spec):
                     # We use anyio's task group because it's compatible with
                     # asyncio's event loop and works with Python 3.10
-                    # (asyncio.create_task_group was added in 3.11 and we can switch
+                    # (asyncio.create_task_group was added in 3.11, and we can switch
                     # to that if we drop support for 3.10).
                     async with anyio.create_task_group() as tg:
                         # Start reflection server in the background.

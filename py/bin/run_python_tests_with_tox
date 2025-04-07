@@ -27,4 +27,4 @@ echo "Running Python tests via tox..."
 # Use uv run to execute tox, passing the --parallel flag to tox
 # The '-p auto' flag tells tox to use available CPU cores for parallelism.
 # Any arguments passed to this script ($@) are forwarded to tox (and then pytest)
-uv run --directory "$PY_DIR" tox "$@"
+uv run --active --directory "$PY_DIR" tox "$@"

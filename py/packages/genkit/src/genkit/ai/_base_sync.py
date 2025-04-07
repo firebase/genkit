@@ -95,7 +95,7 @@ class GenkitBase(GenkitRegistry):
         return result
 
     def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:
-        """Initialize the registry for the Genkit instance.
+        """Initialize the registry for the Genkit sync instance.
 
         Args:
             model: Model name to use.
@@ -108,8 +108,8 @@ class GenkitBase(GenkitRegistry):
             None
         """
         self.registry.default_model = model
-        for format in built_in_formats:
-            self.define_format(format)
+        for fmt in built_in_formats:
+            self.define_format(fmt)
 
         if not plugins:
             logger.warning('No plugins provided to Genkit')
