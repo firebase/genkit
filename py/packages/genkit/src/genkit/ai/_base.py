@@ -58,22 +58,6 @@ class GenkitBase(GenkitRegistry):
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
 
-    # NOTE: Since we decided that Genkit classes should be bifurcated into sync
-    # and async variants, we will remove this method. For now, keeping it here
-    # so that documentation is not broken.
-    def run_async(self, coro: Coroutine[Any, Any, Any]) -> Any:
-        """Runs the provided coroutine on an event loop.
-
-        Deprecated: Use `run(coro)` instead.
-
-        Args:
-            coro: The coroutine to run.
-
-        Returns:
-            The result of the coroutine.
-        """
-        return self.run(coro)
-
     def run(self, coro: Coroutine[Any, Any, Any]) -> Any:
         """Runs the provided coroutine on an event loop.
 
