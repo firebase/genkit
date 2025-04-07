@@ -62,7 +62,7 @@ func TestVertexAILive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of?"))
+		resp, err := genkit.Generate(ctx, g, ai.WithPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestVertexAILive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write one paragraph about the Golden State Warriors."),
+			ai.WithPrompt("Write one paragraph about the Golden State Warriors."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				for _, p := range c.Content {
@@ -113,7 +113,7 @@ func TestVertexAILive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -125,10 +125,9 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(
-			ai.DocumentFromText("time flies like an arrow", nil),
-			ai.DocumentFromText("fruit flies like a banana", nil),
-		))
+		res, err := ai.Embed(ctx, embedder,
+			ai.WithTextDocs("time flies like an arrow", "fruit flies like a banana"),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,7 +160,7 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPromptText("write a summary of the content"),
+			ai.WithPrompt("write a summary of the content"),
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
@@ -188,7 +187,7 @@ func TestVertexAILive(t *testing.T) {
 				Version: "gemini-1.5-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),
-			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -219,7 +218,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystemText("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
@@ -255,7 +254,7 @@ func TestVertexAILive(t *testing.T) {
 			Country string
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Which country was Napoleon the emperor of?"),
+			ai.WithPrompt("Which country was Napoleon the emperor of?"),
 			ai.WithOutputType(outFormat{}),
 		)
 		if err != nil {

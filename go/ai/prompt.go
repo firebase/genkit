@@ -45,9 +45,8 @@ type Prompt struct {
 func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Prompt, error) {
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
-		err := opt.applyPrompt(pOpts)
-		if err != nil {
-			return nil, err
+		if err := opt.applyPrompt(pOpts); err != nil {
+			return nil, fmt.Errorf("ai.DefinePrompt: error applying options: %w", err)
 		}
 	}
 
@@ -71,7 +70,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 
 	var tools []string
-	for _, value := range pOpts.commonOptions.Tools {
+	for _, value := range pOpts.commonGenOptions.Tools {
 		tools = append(tools, fmt.Sprintf("%s/%s", toolProvider, value.Name()))
 	}
 
@@ -117,16 +116,15 @@ func (p *Prompt) Name() string { return p.action.Name() }
 
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
-func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*ModelResponse, error) {
+func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
-	genOpts := &promptGenerateOptions{}
+	genOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
-		err := opt.applyPromptGenerate(genOpts)
-		if err != nil {
-			return nil, err
+		if err := opt.applyPromptExecute(genOpts); err != nil {
+			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
 
@@ -165,8 +163,8 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptGenerateOption) (*Mo
 		actionOpts.MaxTurns = genOpts.MaxTurns
 	}
 
-	if genOpts.IsReturnToolRequestsSet {
-		actionOpts.ReturnToolRequests = genOpts.ReturnToolRequests
+	if genOpts.ReturnToolRequests != nil {
+		actionOpts.ReturnToolRequests = *genOpts.ReturnToolRequests
 	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
@@ -191,7 +189,7 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 }
 
 // mergeMessagesFn merges two messages functions.
-func mergeMessagesFn(promptFn, reqFn messagesFn) messagesFn {
+func mergeMessagesFn(promptFn, reqFn MessagesFn) MessagesFn {
 	if reqFn == nil {
 		return promptFn
 	}
@@ -270,7 +268,7 @@ fieldLoop:
 	return m, nil
 }
 
-// buildRequest prepares an [GenerateActionOptions] based on the prompt,
+// buildRequest prepares a [GenerateActionOptions] based on the prompt,
 // using the input variables and other information in the [Prompt].
 func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	m, err := buildVariables(input)
@@ -312,7 +310,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		Config:             config,
 		ToolChoice:         p.ToolChoice,
 		MaxTurns:           p.MaxTurns,
-		ReturnToolRequests: p.ReturnToolRequests,
+		ReturnToolRequests: p.ReturnToolRequests != nil && *p.ReturnToolRequests,
 		Messages:           messages,
 		Tools:              tools,
 		Output: &GenerateActionOutputConfig{
@@ -566,9 +564,11 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	maps.Copy(promptOptMetadata, metadata.Metadata)
 
 	opts := &promptOptions{
-		commonOptions: commonOptions{
+		commonGenOptions: commonGenOptions{
+			configOptions: configOptions{
+				Config: (map[string]any)(metadata.Config),
+			},
 			ModelName: metadata.Model,
-			Config:    (map[string]any)(metadata.Config),
 			Tools:     toolRefs,
 		},
 		DefaultInput: metadata.Input.Default,
@@ -585,8 +585,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); !ok {
-		opts.ReturnToolRequests = returnToolRequests
-		opts.IsReturnToolRequestsSet = true
+		opts.ReturnToolRequests = &returnToolRequests
 	}
 
 	if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {
@@ -605,7 +604,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt, err := DefinePrompt(r, key, opts, WithPromptText(parsedPrompt.Template))
+	prompt, err := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
 	if err != nil {
 		slog.Error("Failed to register dotprompt", "file", sourceFile, "error", err)
 		return nil, err

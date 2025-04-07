@@ -35,7 +35,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 {{media url=imageUrl}}`
 	readMenuPrompt, err := genkit.DefinePrompt(
 		g, "s05_readMenu",
-		ai.WithPromptText(text),
+		ai.WithPrompt(text),
 		ai.WithModel(model),
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
@@ -49,7 +49,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 
 	textMenuPrompt, err := genkit.DefinePrompt(
 		g, "s05_textMenu",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.

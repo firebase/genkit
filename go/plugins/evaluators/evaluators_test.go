@@ -43,7 +43,7 @@ func TestEvaluators(t *testing.T) {
 	}
 
 	t.Run("deep equal", func(t *testing.T) {
-		var dataset = ai.Dataset{
+		var dataset = []*ai.Example{
 			{
 				Input:     "sample",
 				Reference: "hello world",
@@ -60,7 +60,7 @@ func TestEvaluators(t *testing.T) {
 			},
 		}
 		var testRequest = ai.EvaluatorRequest{
-			Dataset:      &dataset,
+			Dataset:      dataset,
 			EvaluationId: "testrun",
 		}
 
@@ -81,7 +81,7 @@ func TestEvaluators(t *testing.T) {
 	})
 
 	t.Run("regex", func(t *testing.T) {
-		var dataset = ai.Dataset{
+		var dataset = []*ai.Example{
 			{
 				Input:     "sample",
 				Reference: "ba?a?a",
@@ -99,7 +99,7 @@ func TestEvaluators(t *testing.T) {
 			},
 		}
 		var testRequest = ai.EvaluatorRequest{
-			Dataset:      &dataset,
+			Dataset:      dataset,
 			EvaluationId: "testrun",
 		}
 
@@ -120,7 +120,7 @@ func TestEvaluators(t *testing.T) {
 	})
 
 	t.Run("jsonata", func(t *testing.T) {
-		var dataset = ai.Dataset{
+		var dataset = []*ai.Example{
 			{
 				Input:     "sample",
 				Reference: "age=33",
@@ -147,7 +147,7 @@ func TestEvaluators(t *testing.T) {
 			},
 		}
 		var testRequest = ai.EvaluatorRequest{
-			Dataset:      &dataset,
+			Dataset:      dataset,
 			EvaluationId: "testrun",
 		}
 

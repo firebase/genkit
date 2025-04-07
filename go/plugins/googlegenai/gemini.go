@@ -260,12 +260,12 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		provider = vertexAIProvider
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
 		// check if request options matches VertexAI configuration
-		if opts, _ := input.Options.(*EmbedOptions); opts != nil {
+		if opts, _ := req.Options.(*EmbedOptions); opts != nil {
 			if provider == googleAIProvider {
 				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
 			}
@@ -275,7 +275,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 			}
 		}
 
-		for _, doc := range input.Documents {
+		for _, doc := range req.Input {
 			parts, err := toGeminiParts(doc.Content)
 			if err != nil {
 				return nil, err
@@ -291,7 +291,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		}
 		var res ai.EmbedResponse
 		for _, emb := range r.Embeddings {
-			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: emb.Values})
+			res.Embeddings = append(res.Embeddings, &ai.Embedding{Embedding: emb.Values})
 		}
 		return &res, nil
 	})
