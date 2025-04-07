@@ -13,6 +13,7 @@ members = [
     "coffee-shop",
     "context-caching",
     "firestore-retreiver",
+    "flask-hello",
     "flow-sample1",
     "genkit",
     "genkit-plugin-chroma",
@@ -26,12 +27,11 @@ members = [
     "genkit-plugin-pinecone",
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
+    "google-genai-hello",
     "google-genai-image",
+    "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
     "hello",
-    "flask-hello",
-    "google-genai-hello",
-    "google-genai-vertexai-hello",
     "imagen",
     "menu",
     "multi-server",
@@ -45,6 +45,15 @@ members = [
     "vertex-ai-model-garden",
     "vertex-ai-reranker",
     "vertex-ai-vector-search",
+]
+
+[[package]]
+name = "aiofiles"
+version = "24.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/03/a88171e277e8caa88a4c77808c20ebb04ba74cc4681bf1e9416c862de237/aiofiles-24.1.0.tar.gz", hash = "sha256:22a075c9e5a3810f0c2e48f3008c94d68c65d763b9b03857924c99e57355166c", size = 30247 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/45/30bb92d442636f570cb5651bc661f52b610e2eec3f891a5dc3a4c3667db0/aiofiles-24.1.0-py3-none-any.whl", hash = "sha256:b4ec55f4195e3eb5d7abd1bf7e061763e864dd4954231fb8539a0ef8bb8260e5", size = 15896 },
 ]
 
 [[package]]
@@ -797,6 +806,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/4a/263763cb2ba3816dd94b08ad3a33d5fdae34ecb856678773cc40a3605829/dnspython-2.7.0.tar.gz", hash = "sha256:ce9c432eda0dc91cf618a5cedf1a4e142651196bbcd2c80e89ed5a907e5cfaf1", size = 345197 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/1b/e0a87d256e40e8c888847551b20a017a6b98139178505dc7ffb96f04e954/dnspython-2.7.0-py3-none-any.whl", hash = "sha256:b4c34b7d10b51bcc3a5071e7b8dee77939f1e878477eeecc965e9835f63c6c86", size = 313632 },
+]
+
+[[package]]
 name = "docstring-parser"
 version = "0.16"
 source = { registry = "https://pypi.org/simple" }
@@ -812,6 +830,32 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ae/ed/aefcc8cd0ba62a0560c3c18c33925362d46c6075480bfa4df87b28e169a9/docutils-0.21.2.tar.gz", hash = "sha256:3a6b18732edf182daa3cd12775bbb338cf5691468f91eeeb109deff6ebfa986f", size = 2204444 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8f/d7/9322c609343d929e75e7e5e6255e614fcc67572cfd083959cdef3b7aad79/docutils-0.21.2-py3-none-any.whl", hash = "sha256:dafca5b9e384f0e419294eb4d2ff9fa826435bf15f15b7bd45723e8ad76811b2", size = 587408 },
+]
+
+[[package]]
+name = "dotpromptz"
+version = "0.1.0"
+source = { git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main#d2ba21ff3e54f4ca4328b7e574bb6492699095bc" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "handlebarrz" },
+    { name = "pydantic", extra = ["email"] },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+    { name = "types-aiofiles" },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/ce/13508a1ec3f8bb981ae4ca79ea40384becc868bfae97fd1c942bb3a001b1/email_validator-2.2.0.tar.gz", hash = "sha256:cb690f344c617a714f22e66ae771445a1ceb46821152df8e165c5f9a364582b7", size = 48967 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/ee/bf0adb559ad3c786f12bcbc9296b3f5675f529199bef03e2df281fa1fadb/email_validator-2.2.0-py3-none-any.whl", hash = "sha256:561977c2d73ce3611850a06fa56b414621e0c8faa9d66f2611407d87465da631", size = 33521 },
 ]
 
 [[package]]
@@ -891,6 +935,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/89/50/dff6380f1c7f84135484e176e0cac8690af72fa90e932ad2a0a60e28c69b/flask-3.1.0.tar.gz", hash = "sha256:5f873c5184c897c8d9d1b05df1e3d01b14910ce69607a117bd3277098a5836ac", size = 680824 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/af/47/93213ee66ef8fae3b93b3e29206f6b251e65c97bd91d8e1c5596ef15af0a/flask-3.1.0-py3-none-any.whl", hash = "sha256:d667207822eb83f1c4b50949b1623c8fc8d51f2341d65f72e1a1815397551136", size = 102979 },
+]
+
+[[package]]
+name = "flask-hello"
+version = "0.1.0"
+source = { editable = "samples/flask-hello" }
+dependencies = [
+    { name = "flask" },
+    { name = "genkit" },
+    { name = "genkit-plugin-flask" },
+    { name = "genkit-plugin-google-genai" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flask" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-flask", editable = "plugins/flask" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
 ]
 
 [[package]]
@@ -1161,6 +1224,7 @@ name = "genkit-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "dotpromptz" },
     { name = "genkit" },
     { name = "genkit-plugin-chroma" },
     { name = "genkit-plugin-compat-oai" },
@@ -1201,6 +1265,7 @@ lint = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-chroma", editable = "plugins/chroma" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
@@ -1441,6 +1506,25 @@ wheels = [
 ]
 
 [[package]]
+name = "google-genai-hello"
+version = "0.1.0"
+source = { editable = "samples/google-genai-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
 name = "google-genai-image"
 version = "0.1.0"
 source = { editable = "samples/google-genai-image" }
@@ -1457,6 +1541,25 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pillow" },
     { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
+name = "google-genai-vertexai-hello"
+version = "0.1.0"
+source = { editable = "samples/google-genai-vertexai-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
@@ -1644,6 +1747,15 @@ wheels = [
 ]
 
 [[package]]
+name = "handlebarrz"
+version = "0.1.9"
+source = { git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fhandlebarrz&rev=main#d2ba21ff3e54f4ca4328b7e574bb6492699095bc" }
+dependencies = [
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[[package]]
 name = "hello"
 version = "0.1.0"
 source = { editable = "samples/hello" }
@@ -1658,63 +1770,6 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "structlog", specifier = ">=25.2.0" },
-]
-
-[[package]]
-name = "flask-hello"
-version = "0.1.0"
-source = { editable = "samples/flask-hello" }
-dependencies = [
-    { name = "flask" },
-    { name = "genkit" },
-    { name = "genkit-plugin-flask" },
-    { name = "genkit-plugin-google-genai" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "flask" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-flask", editable = "plugins/flask" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-]
-
-[[package]]
-name = "google-genai-hello"
-version = "0.1.0"
-source = { editable = "samples/google-genai-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "structlog", specifier = ">=25.2.0" },
-]
-
-[[package]]
-name = "google-genai-vertexai-hello"
-version = "0.1.0"
-source = { editable = "samples/google-genai-vertexai-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "structlog", specifier = ">=25.2.0" },
 ]
@@ -3422,6 +3477,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/bf/c2/0f3baea344d0b15e35cb3e04ad5b953fa05106b76efbf4c782a3f47f22f5/pydantic-2.11.2-py3-none-any.whl", hash = "sha256:7f17d25846bcdf89b670a86cdfe7b29a9f1c9ca23dee154221c9aa81845cfca7", size = 443295 },
 ]
 
+[package.optional-dependencies]
+email = [
+    { name = "email-validator" },
+]
+
 [[package]]
 name = "pydantic-core"
 version = "2.33.1"
@@ -4430,6 +4490,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c8/a2/6df94fc5c8e2170d21d7134a565c3a8fb84f9797c1dd65a5976aaf714418/twine-6.1.0.tar.gz", hash = "sha256:be324f6272eff91d07ee93f251edf232fc647935dd585ac003539b42404a8dbd", size = 168404 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/b6/74e927715a285743351233f33ea3c684528a0d374d2e43ff9ce9585b73fe/twine-6.1.0-py3-none-any.whl", hash = "sha256:a47f973caf122930bf0fbbf17f80b83bc1602c9ce393c7845f289a3001dc5384", size = 40791 },
+]
+
+[[package]]
+name = "types-aiofiles"
+version = "24.1.0.20250326"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8d/25/c76a9ee91eefac376ed8905b029272e27c44739e3f148faf5c00afe71e43/types_aiofiles-24.1.0.20250326.tar.gz", hash = "sha256:c4bbe432fd043911ba83fb635456f5cc54f6d05fda2aadf6bef12a84f07a6efe", size = 14369 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0e/18/1016ffd4c7775f24371f6a0309483dc5597e8245b5add67924e54ea3b83a/types_aiofiles-24.1.0.20250326-py3-none-any.whl", hash = "sha256:dfb58c9aa18bd449e80fb5d7f49dc3dd20d31de920a46223a61798ee4a521a70", size = 14344 },
 ]
 
 [[package]]
