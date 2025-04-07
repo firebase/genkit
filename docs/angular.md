@@ -178,10 +178,10 @@ API service you chose available.
   1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
       Gemini API using Google AI Studio.
 
-  1.  Set the `GOOGLE_GENAI_API_KEY` environment variable to your key:
+  1.  Set the `GEMINI_API_KEY` environment variable to your key:
 
       ```posix-terminal
-      export GOOGLE_GENAI_API_KEY=<your API key>
+      export GEMINI_API_KEY=<your API key>
       ```
 
 - {Gemini (Vertex AI)}
