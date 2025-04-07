@@ -23,7 +23,6 @@ dependencies = [
   "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
-  "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
 ]

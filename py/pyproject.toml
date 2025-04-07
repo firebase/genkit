@@ -2,14 +2,12 @@
 dependencies = [
   "dotpromptz",
   "genkit",
-  "genkit-plugin-chroma",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
   "genkit-plugin-firebase",
   "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
-  "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
   "liccheck>=0.9.2",
   "strenum>=0.4.15; python_version < '3.11'",
@@ -89,7 +87,6 @@ dotpromptz                          = { git = "https://github.com/google/dotprom
 flask-hello                         = { workspace = true }
 flow-sample1                        = { workspace = true }
 genkit                              = { workspace = true }
-genkit-plugin-chroma                = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
@@ -97,7 +94,6 @@ genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
-genkit-plugin-pinecone              = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
