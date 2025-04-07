@@ -42,7 +42,7 @@ requires-python = ">=3.10"
 version = "0.3.0.dev1"
 
 [project.optional-dependencies]
-dev-local-vector-store = ["genkit-plugin-dev-local-vectorstore"]
+dev-local-vectorstore  = ["genkit-plugin-dev-local-vectorstore"]
 flask                  = ["genkit-plugin-flask"]
 google-genai           = ["genkit-plugin-google-genai"]
 ollama                 = ["genkit-plugin-ollama"]

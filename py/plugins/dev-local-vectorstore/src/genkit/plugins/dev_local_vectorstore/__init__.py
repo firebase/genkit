@@ -14,20 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from .plugin_api import DevLocalVectorStore
 
-from typing import Any
-
-from pydantic import BaseModel
-
-from genkit.types import DocumentData, Embedding
-
-
-class Params(BaseModel):
-    index_name: str
-    embedder: str
-    embedder_options: dict[str, Any] | None = None
-
-
-class DbValue(BaseModel):
-    doc: DocumentData
-    embedding: Embedding
+__all__ = [
+    DevLocalVectorStore.__name__,
+]

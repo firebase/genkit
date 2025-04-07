@@ -12,6 +12,7 @@ members = [
     "coffee-shop",
     "compat-oai-hello",
     "context-caching",
+    "dev-local-vectorstore-hello",
     "firestore-retreiver",
     "flask-hello",
     "flow-sample1",
@@ -781,6 +782,27 @@ wheels = [
 ]
 
 [[package]]
+name = "dev-local-vectorstore-hello"
+version = "0.1.0"
+source = { editable = "samples/dev-local-vectorstore-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-dev-local-vectorstore" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
 name = "distlib"
 version = "0.3.9"
 source = { registry = "https://pypi.org/simple" }
@@ -993,7 +1015,7 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev-local-vector-store = [
+dev-local-vectorstore = [
     { name = "genkit-plugin-dev-local-vectorstore" },
 ]
 flask = [
@@ -1014,7 +1036,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.9.0" },
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "genkit-plugin-compat-oai", marker = "extra == 'openai'", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-dev-local-vectorstore", marker = "extra == 'dev-local-vector-store'", editable = "plugins/dev-local-vector-store" },
+    { name = "genkit-plugin-dev-local-vectorstore", marker = "extra == 'dev-local-vectorstore'", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-flask", marker = "extra == 'flask'", editable = "plugins/flask" },
     { name = "genkit-plugin-google-genai", marker = "extra == 'google-genai'", editable = "plugins/google-genai" },
     { name = "genkit-plugin-ollama", marker = "extra == 'ollama'", editable = "plugins/ollama" },
@@ -1054,7 +1076,7 @@ requires-dist = [
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
 version = "0.3.0.dev1"
-source = { editable = "plugins/dev-local-vector-store" }
+source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "genkit" },
     { name = "pytest-asyncio" },
@@ -1227,7 +1249,7 @@ requires-dist = [
     { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
+    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
@@ -2531,7 +2553,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
+    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },

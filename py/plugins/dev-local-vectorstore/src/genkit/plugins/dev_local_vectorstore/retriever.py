@@ -18,10 +18,9 @@
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Document
-from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
-    LocalVectorStoreAPI,
-)
-from genkit.types import Embedding, RetrieverRequest
+from genkit.types import Embedding, RetrieverRequest, RetrieverResponse
+
+from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class ScoredDocument(BaseModel):
@@ -34,21 +33,23 @@ class RetrieverOptionsSchema(BaseModel):
 
 
 class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
-    async def retrieve(self, request: RetrieverRequest, _: ActionRunContext):
+    async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
         document = Document.from_document_data(document_data=request.query)
         embeddings = await self.ai.embed(
-            embedder=self.params.embedder,
+            embedder=self.embedder,
             documents=[document],
-            options=self.params.embedder_options,
+            options=self.embedder_options,
         )
-        if self.params.embedder_options:
-            k = self.params.embedder_options.get('limit') or 3
+        if self.embedder_options:
+            k = self.embedder_options.get('limit') or 3
         else:
             k = 3
-        return self._get_closest_documents(
+        docs = self._get_closest_documents(
             k=k,
             query_embeddings=embeddings.embeddings[0],
         )
+
+        return RetrieverResponse(documents=[d.document for d in docs])
 
     def _get_closest_documents(self, k: int, query_embeddings: Embedding) -> list[ScoredDocument]:
         db = self._load_filestore()
@@ -56,7 +57,7 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
 
         for val in db.values():
             this_embedding = val.embedding.embedding
-            score = self.cosine_similarity(query_embeddings, this_embedding)
+            score = self.cosine_similarity(query_embeddings.embedding, this_embedding)
             scored_documents.append(
                 ScoredDocument(
                     score=score,
@@ -68,9 +69,9 @@ class DevLocalVectorStoreRetriever(LocalVectorStoreAPI):
         return scored_documents[:k]
 
     @classmethod
-    def cosine_similarity(cls, a: list[int], b: list[int]) -> float:
+    def cosine_similarity(cls, a: list[float], b: list[float]) -> float:
         return cls.dot(a, b) / ((cls.dot(a, a) ** 0.5) * (cls.dot(b, b) ** 0.5))
 
     @staticmethod
-    def dot(a: list[int], b: list[int]) -> float:
-        return sum(a * b for a, b in zip(a, b, strict=False))
+    def dot(a: list[float], b: list[float]) -> float:
+        return sum(av * bv for av, bv in zip(a, b, strict=False))

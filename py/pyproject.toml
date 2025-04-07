@@ -108,6 +108,7 @@ vertex-ai-imagen                    = { workspace = true }
 vertex-ai-model-garden              = { workspace = true }
 vertex-ai-reranker                  = { workspace = true }
 vertex-ai-vector-search             = { workspace = true }
+dev-local-vectorstore-hello         = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
@@ -199,7 +200,7 @@ mypy_path = [
   "packages/genkit/src",
   "plugins/chroma/src",
   "plugins/compat-oai/src",
-  "plugins/dev-local-vector-store/src",
+  "plugins/dev-local-vectorstore/src",
   "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
@@ -228,6 +229,7 @@ mypy_path = [
   "samples/vertex-ai-model-garden/src",
   "samples/vertex-ai-reranker/src",
   "samples/vertex-ai-vector-search/src",
+  "samples/dev-local-vectorstore-hello/src",
 ]
 namespace_packages = true
 strict = true
