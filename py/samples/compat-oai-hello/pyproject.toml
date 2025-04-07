@@ -25,7 +25,7 @@ dependencies = [
 ]
 description = "OpenAI sample"
 license = { text = "Apache-2.0" }
-name = "openai-sample"
+name = "compat-oai-hello"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
@@ -35,4 +35,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["src/compat_oai_hello.py"]
