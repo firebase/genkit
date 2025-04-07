@@ -18,6 +18,7 @@ package googlegenai
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -59,7 +60,7 @@ var (
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
-	GenkitClientHeader   = http.Header{
+	genkitClientHeader   = http.Header{
 		xGoogApiClientHeader: {fmt.Sprintf("genkit-go/%s", internal.Version)},
 	}
 )
@@ -170,6 +171,14 @@ type SafetySetting struct {
 	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
 }
 
+type Modality string
+
+const (
+	ImageMode Modality = "IMAGE"
+	TextMode  Modality = "TEXT"
+	AudioMode Modality = "AUDIO"
+)
+
 // GeminiConfig mirrors GenerateContentConfig without direct genai dependency
 type GeminiConfig struct {
 	// MaxOutputTokens is the maximum number of tokens to generate.
@@ -186,6 +195,8 @@ type GeminiConfig struct {
 	Version string `json:"version,omitempty"`
 	// SafetySettings is the list of safety settings to use for the model.
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+	// Response modalities for returned model messages
+	ResponseModalities []Modality `json:"responseModalities,omitempty"`
 }
 
 // configFromRequest converts any supported config type to [GeminiConfig].
@@ -325,6 +336,16 @@ func generate(
 	gcc, err := convertRequest(input, cache)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(config.ResponseModalities) > 0 {
+		err := validateResponseModalities(model, config.ResponseModalities)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range config.ResponseModalities {
+			gcc.ResponseModalities = append(gcc.ResponseModalities, string(m))
+		}
 	}
 
 	var contents []*genai.Content
@@ -503,6 +524,25 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 	}
 
 	return &gcc, nil
+}
+
+// validateResponseModalities checks if response modality is valid for the requested model
+func validateResponseModalities(model string, modalities []Modality) error {
+	for _, m := range modalities {
+		switch m {
+		case AudioMode:
+			return fmt.Errorf("AUDIO response modality is not supported for model %q", model)
+		case ImageMode:
+			if !slices.Contains(imageGenModels, model) {
+				return fmt.Errorf("IMAGE response modality is not supported for model %q", model)
+			}
+		case TextMode:
+			continue
+		default:
+			return fmt.Errorf("unknown response modality provided: %q", m)
+		}
+	}
+	return nil
 }
 
 // toGeminiTools translates a slice of [ai.ToolDefinition] to a slice of [genai.Tool].
@@ -703,7 +743,11 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		}
 		if part.InlineData != nil {
 			partFound++
-			p = ai.NewMediaPart(part.InlineData.MIMEType, string(part.InlineData.Data))
+			p = ai.NewMediaPart(part.InlineData.MIMEType, base64.StdEncoding.EncodeToString(part.InlineData.Data))
+		}
+		if part.FileData != nil {
+			partFound++
+			p = ai.NewMediaPart(part.FileData.MIMEType, part.FileData.FileURI)
 		}
 		if part.FunctionCall != nil {
 			partFound++

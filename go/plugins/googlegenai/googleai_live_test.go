@@ -288,6 +288,34 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
 		}
 	})
+	t.Run("image generation", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-exp")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
+			}),
+			ai.WithMessages(
+				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
+			),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Message.Content) == 0 {
+			t.Fatal("empty response")
+		}
+		part := resp.Message.Content[0]
+		if part.ContentType != "image/png" {
+			t.Errorf("expecting image/png content type but got: %q", part.ContentType)
+		}
+		if part.Kind != ai.PartMedia {
+			t.Errorf("expecting part to be Media type but got: %q", part.Kind)
+		}
+		if part.Text == "" {
+			t.Errorf("empty response")
+		}
+	})
 	t.Run("constrained generation", func(t *testing.T) {
 		type outFormat struct {
 			Country string

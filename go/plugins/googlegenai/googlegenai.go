@@ -85,7 +85,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		Backend: genai.BackendGeminiAPI,
 		APIKey:  apiKey,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: GenkitClientHeader,
+			Headers: genkitClientHeader,
 		},
 	}
 
@@ -159,7 +159,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		Project:  v.ProjectID,
 		Location: v.Location,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: GenkitClientHeader,
+			Headers: genkitClientHeader,
 		},
 	}
 
