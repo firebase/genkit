@@ -14,17 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A stub for the sample to come."""
+CONTEXT_CACHE_SUPPORTED_MODELS = [
+    'gemini-1.5-flash-001',
+    'gemini-1.5-pro-001',
+]
 
+INVALID_ARGUMENT_MESSAGES = {
+    'modelVersion': "Model version is required for context caching, supported only in ${CONTEXT_CACHE_SUPPORTED_MODELS.join(',')} models.",
+    'tools': 'Context caching cannot be used simultaneously with tools.',
+    'codeExecution': 'Context caching cannot be used simultaneously with code execution.',
+}
 
-def main() -> None:
-    """Main entry point for the context caching sample.
-
-    This function demonstrates how to use context caching in Genkit for
-    improved performance.
-    """
-    print('Hey')
-
-
-if __name__ == '__main__':
-    main()
+DEFAULT_TTL = 300

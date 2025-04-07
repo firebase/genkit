@@ -39,7 +39,7 @@ PROJECT_DIRS=(
   "samples/basic-gemini"
   "samples/coffee-shop"
   "samples/compat-oai-hello"
-  "samples/context-caching"
+  "samples/google-genai-context-caching"
   "samples/firestore-retreiver"
   "samples/flask-hello"
   "samples/flow-sample1"
