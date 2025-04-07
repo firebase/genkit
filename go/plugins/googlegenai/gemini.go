@@ -453,7 +453,7 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.ResponseMIMEType = "application/json"
 	}
 
-	if input.Output.Constrained {
+	if input.Output != nil && input.Output.Constrained {
 		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
 		if err != nil {
 			return nil, err
