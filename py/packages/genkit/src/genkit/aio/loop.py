@@ -41,7 +41,7 @@ def create_loop():
         return asyncio.new_event_loop()
 
 
-def run_async(loop: asyncio.AbstractEventLoop, fn: Callable):
+def run_async(loop: asyncio.AbstractEventLoop, fn: Callable) -> Any:
     """Runs an async callable on the given event loop and blocks until completion.
 
     If the loop is already running (e.g., called from within an async context),
@@ -61,8 +61,8 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable):
         Any exception raised by the callable `fn`.
     """
     if loop.is_running():
-        output = None
-        error = None
+        output: Any = None
+        error: Exception | None = None
         lock = threading.Lock()
         lock.acquire()
 

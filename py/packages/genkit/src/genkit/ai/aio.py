@@ -51,7 +51,7 @@ from genkit.types import (
     ToolChoice,
 )
 
-from .base import GenkitBase
+from ._base_sync import GenkitBase
 
 
 class Genkit(GenkitBase):
