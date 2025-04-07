@@ -59,6 +59,7 @@ addopts = [
   "-vv",
 ]
 asyncio_default_fixture_loop_scope = "session"
+python_files = ["test_*.py", "*_test.py"]
 testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"

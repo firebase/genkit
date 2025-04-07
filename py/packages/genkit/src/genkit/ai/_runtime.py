@@ -28,7 +28,7 @@ from types import TracebackType
 
 import structlog
 
-from genkit.ai.server import ServerSpec
+from ._server import ServerSpec
 
 logger = structlog.get_logger(__name__)
 

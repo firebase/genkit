@@ -31,7 +31,6 @@ over HTTP.
 import atexit
 import json
 import os
-import signal
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime

@@ -22,8 +22,9 @@ It provides a way to initialize and register plugin functionality.
 
 import abc
 
-from genkit.ai.registry import GenkitRegistry
 from genkit.core.registry import ActionKind
+
+from ._registry import GenkitRegistry
 
 
 class Plugin(abc.ABC):

@@ -14,8 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import GenkitRegistry, Plugin
 from genkit.core.action import Action
 from genkit.plugins.firebase.constant import FirestoreRetrieverConfig
 from genkit.plugins.firebase.retriever import FirestoreRetriever

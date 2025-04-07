@@ -23,15 +23,15 @@ import anyio
 import structlog
 import uvicorn
 
-from genkit.ai import server
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
 from genkit.aio.loop import run_loop
 from genkit.blocks.formats import built_in_formats
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.web.manager import find_free_port_sync
 
+from ._plugin import Plugin
+from ._registry import GenkitRegistry
+from ._server import ServerSpec
 from .runtime import RuntimeManager
 
 logger = structlog.get_logger(__name__)
@@ -46,7 +46,7 @@ class GenkitBase(GenkitRegistry):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec: server.ServerSpec | None = None,
+        reflection_server_spec: ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
@@ -89,7 +89,7 @@ class GenkitBase(GenkitRegistry):
 
                     self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                 else:
-                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 
     def run(self, coro: Coroutine[Any, Any, T]) -> T:
         """Run the user's main coroutine.
@@ -116,7 +116,7 @@ class GenkitBase(GenkitRegistry):
 
         spec = self._reflection_server_spec
         if not spec:
-            spec = server.ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
+            spec = ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
 
         async def dev_runner():
             """Internal async function to run tasks using AnyIO TaskGroup."""
@@ -177,7 +177,7 @@ class GenkitBase(GenkitRegistry):
         return anyio.run(dev_runner)
 
 
-def make_reflection_server(registry: GenkitRegistry, spec: server.ServerSpec) -> uvicorn.Server:
+def make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvicorn.Server:
     """Make a reflection server for the given registry and spec."""
     app = create_reflection_asgi_app(registry=registry)
     config = uvicorn.Config(app, host=spec.host, port=spec.port, loop='asyncio')

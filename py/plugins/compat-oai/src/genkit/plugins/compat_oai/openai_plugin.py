@@ -19,7 +19,7 @@
 
 from openai import OpenAI as OpenAIClient
 
-from genkit.ai import Genkit, Plugin
+from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_MODELS,
     OpenAIModelHandler,
@@ -47,7 +47,7 @@ class OpenAI(Plugin):
         self._openai_params = openai_params
         self._openai_client = OpenAIClient(**openai_params)
 
-    def initialize(self, ai: Genkit) -> None:
+    def initialize(self, ai: GenkitRegistry) -> None:
         """Registers supported OpenAI models in the given registry.
 
         Args:
