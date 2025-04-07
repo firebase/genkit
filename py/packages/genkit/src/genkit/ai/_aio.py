@@ -49,7 +49,7 @@ from genkit.types import (
     ToolChoice,
 )
 
-from ._base_sync import GenkitBase
+from ._base import GenkitBase
 from ._plugin import Plugin
 from ._server import ServerSpec
 
