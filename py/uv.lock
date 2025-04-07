@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -17,7 +16,6 @@ members = [
     "flask-hello",
     "flow-sample1",
     "genkit",
-    "genkit-plugin-chroma",
     "genkit-plugin-compat-oai",
     "genkit-plugin-dev-local-vectorstore",
     "genkit-plugin-firebase",
@@ -25,7 +23,6 @@ members = [
     "genkit-plugin-google-cloud",
     "genkit-plugin-google-genai",
     "genkit-plugin-ollama",
-    "genkit-plugin-pinecone",
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
     "google-genai-hello",
@@ -1036,22 +1033,6 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
-provides-extras = ["dev-local-vector-store", "flask", "google-genai", "ollama", "openai"]
-
-[[package]]
-name = "genkit-plugin-chroma"
-version = "0.1.0"
-source = { editable = "plugins/chroma" }
-dependencies = [
-    { name = "genkit" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
-]
 
 [[package]]
 name = "genkit-plugin-compat-oai"
@@ -1180,21 +1161,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "genkit-plugin-pinecone"
-version = "0.1.0"
-source = { editable = "plugins/pinecone" }
-dependencies = [
-    { name = "genkit" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
-]
-
-[[package]]
 name = "genkit-plugin-vertex-ai"
 version = "0.3.0.dev1"
 source = { editable = "plugins/vertex-ai" }
@@ -1222,14 +1188,12 @@ source = { virtual = "." }
 dependencies = [
     { name = "dotpromptz" },
     { name = "genkit" },
-    { name = "genkit-plugin-chroma" },
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-ollama" },
-    { name = "genkit-plugin-pinecone" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "liccheck" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
@@ -1262,14 +1226,12 @@ lint = [
 requires-dist = [
     { name = "dotpromptz", git = "https://github.com/google/dotprompt.git?subdirectory=python%2Fdotpromptz&rev=main" },
     { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-chroma", editable = "plugins/chroma" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vector-store" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "genkit-plugin-pinecone", editable = "plugins/pinecone" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "liccheck", specifier = ">=0.9.2" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
@@ -2562,7 +2524,6 @@ dependencies = [
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-ollama" },
-    { name = "genkit-plugin-pinecone" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "pydantic" },
 ]
@@ -2575,7 +2536,6 @@ requires-dist = [
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "genkit-plugin-pinecone", editable = "plugins/pinecone" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "pydantic", specifier = ">=2.10.5" },
 ]

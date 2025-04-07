@@ -190,5 +190,9 @@ func main() {
 		return resp.Text(), nil
 	})
 
+	genkit.DefineFlow(g, "echoFlow", func(ctx context.Context, input string) (string, error) {
+		return input, nil
+	})
+
 	<-ctx.Done()
 }

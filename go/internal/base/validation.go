@@ -91,3 +91,9 @@ func ValidateIsJSONArray(schema map[string]any) bool {
 
 	return true
 }
+
+// Validates if the given string is a valid JSON string
+func ValidJSON(s string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(s), &js) == nil
+}

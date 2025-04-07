@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -48,11 +49,12 @@ var (
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
 	Multimodal = ai.ModelSupports{
-		Multiturn:  true,
-		Tools:      true,
-		ToolChoice: true,
-		SystemRole: true,
-		Media:      true,
+		Multiturn:   true,
+		Tools:       true,
+		ToolChoice:  true,
+		SystemRole:  true,
+		Media:       true,
+		Constrained: ai.ConstrainedSupportNoTools,
 	}
 
 	// Attribution header
@@ -327,13 +329,16 @@ func generate(
 
 	var contents []*genai.Content
 	for _, m := range input.Messages {
+		// system parts are handled separately
 		if m.Role == ai.RoleSystem {
 			continue
 		}
+
 		parts, err := toGeminiParts(m.Content)
 		if err != nil {
 			return nil, err
 		}
+
 		contents = append(contents, &genai.Content{
 			Parts: parts,
 			Role:  string(m.Role),
@@ -448,6 +453,14 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.ResponseMIMEType = "application/json"
 	}
 
+	if input.Output != nil && input.Output.Constrained {
+		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
+		if err != nil {
+			return nil, err
+		}
+		gcc.ResponseSchema = schema
+	}
+
 	// Add tool configuration from input.Tools and input.ToolChoice directly
 	// This overrides any functionCallingConfig in the passed config
 	if len(input.Tools) > 0 {
@@ -545,11 +558,45 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 	if v, ok := genkitSchema["required"]; ok {
 		schema.Required = castToStringArray(v.([]any))
 	}
+	if v, ok := genkitSchema["propertyOrdering"]; ok {
+		schema.PropertyOrdering = castToStringArray(v.([]any))
+	}
 	if v, ok := genkitSchema["description"]; ok {
 		schema.Description = v.(string)
 	}
 	if v, ok := genkitSchema["format"]; ok {
 		schema.Format = v.(string)
+	}
+	if v, ok := genkitSchema["title"]; ok {
+		schema.Title = v.(string)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		i, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.MinItems = genai.Ptr[int64](i)
+	}
+	if v, ok := genkitSchema["maxItems"]; ok {
+		i, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.MaxItems = genai.Ptr[int64](i)
+	}
+	if v, ok := genkitSchema["maximum"]; ok {
+		i, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Maximum = genai.Ptr[float64](i)
+	}
+	if v, ok := genkitSchema["minimum"]; ok {
+		i, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Minimum = genai.Ptr[float64](i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
 		schema.Enum = castToStringArray(v.([]any))

@@ -288,6 +288,34 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
 		}
 	})
+	t.Run("constrained generation", func(t *testing.T) {
+		type outFormat struct {
+			Country string
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Which country was Napoleon the emperor of?"),
+			ai.WithOutputType(outFormat{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var ans outFormat
+		err = resp.Output(&ans)
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = "France"
+		if ans.Country != want {
+			t.Errorf("got %q, expecting %q", ans.Country, want)
+		}
+		if resp.Request == nil {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
 }
 
 func TestCacheHelper(t *testing.T) {
