@@ -126,17 +126,13 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retr
 		if err != nil {
 			return nil, err
 		}
-		embedding := make([]float64, len(eres.Embeddings[0].Embedding))
-		for i, v := range eres.Embeddings[0].Embedding {
-			embedding[i] = float64(v)
-		}
 		rows, err := db.QueryContext(ctx, `
 			SELECT episode_id, season_number, chunk as content
 			FROM embeddings
 			WHERE show_id = $1
 		  	ORDER BY embedding <#> $2
 		  	LIMIT 2`,
-			req.Options, pgv.NewVector(embedding))
+			req.Options, pgv.NewVector(eres.Embeddings[0].Embedding))
 		if err != nil {
 			return nil, err
 		}
@@ -194,11 +190,7 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 					return fmt.Errorf("doc[%d]: missing metadata key %q", i, k)
 				}
 			}
-			embedding := make([]float64, len(emb.Embedding))
-			for i, v := range emb.Embedding {
-				embedding[i] = float64(v)
-			}
-			args[3] = pgv.NewVector(embedding)
+			args[3] = pgv.NewVector(emb.Embedding)
 			if _, err := db.ExecContext(ctx, query, args...); err != nil {
 				return err
 			}
