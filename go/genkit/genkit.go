@@ -142,7 +142,6 @@ func WithPromptDir(dir string) GenkitOption {
 //
 //	import (
 //		"context"
-//		"fmt"
 //		"log"
 //		"os"
 //
@@ -156,9 +155,9 @@ func WithPromptDir(dir string) GenkitOption {
 //
 //		// Assumes a prompt file at ./prompts/jokePrompt.prompt
 //		g, err := genkit.Init(ctx,
-//			genkit.WithPlugins(googleai.Plugin(&googleai.Config{})), // Use the Google AI plugin
-//			genkit.WithDefaultModel("googleai/gemini-1.5-flash"),    // Set a default model
-//			genkit.WithPromptDir("./prompts"),                       // Load prompts from ./prompts
+//			genkit.WithPlugins(&googlegenai.GoogleAI{}),
+//			genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+//			genkit.WithPromptDir("./prompts"),
 //		)
 //		if err != nil {
 //			log.Fatalf("Failed to initialize Genkit: %v", err)
@@ -169,10 +168,10 @@ func WithPromptDir(dir string) GenkitOption {
 //		if err != nil {
 //			log.Fatalf("GenerateText failed: %v", err)
 //		}
-//		fmt.Println("Generated Fact:", funFact)
+//		log.Println("Generated Fact:", funFact)
 //
 //		// Look up and execute a loaded prompt
-//		jokePrompt, err := genkit.LookupPrompt(g, "", "jokePrompt") // Assumes jokePrompt.prompt exists
+//		jokePrompt, err := genkit.LookupPrompt(g, "", "jokePrompt")
 //		if err != nil {
 //			log.Fatalf("LookupPrompt failed: %v", err)
 //		}
@@ -184,7 +183,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		if err != nil {
 //			log.Fatalf("jokePrompt.Execute failed: %v", err)
 //		}
-//		fmt.Println("Generated Joke:", resp.Text())
+//		log.Println("Generated joke:", resp.Text())
 //	}
 func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -588,34 +587,17 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 // provided via [ai.GenerateOption] arguments. It's a convenient way to make
 // generation calls without pre-defining a prompt object.
 //
-// Available options include:
-//   - [ai.WithModel]: Sets the model to use for generation
-//   - [ai.WithModelName]: Sets the model name to use for generation
-//   - [ai.WithConfig]: Sets generation configuration parameters like temperature
-//   - [ai.WithPromptText]: Sets the prompt text for generation
-//   - [ai.WithSystemText]: Sets the system message text
-//   - [ai.WithMessages]: Sets the conversation messages
-//   - [ai.WithTools]: Sets the tools available to the model
-//   - [ai.WithToolChoice]: Controls whether to use a tool or not
-//   - [ai.WithMaxTurns]: Sets maximum number of tool call iterations
-//   - [ai.WithReturnToolRequests]: Controls whether to return tool requests
-//   - [ai.WithOutputType]: Sets the expected output schema
-//   - [ai.WithOutputFormat]: Sets the expected output format
-//   - [ai.WithMiddleware]: Sets middleware for request/response processing
-//   - [ai.WithStreaming]: Sets the streaming callback for generation
-//   - [ai.WithTextDocs]: Provides text documents as context
-//   - [ai.WithDocs]: Provides Document objects as context
-//
 // Example:
 //
 //	resp, err := genkit.Generate(ctx, g,
-//		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify model
+//		ai.WithModelName("googleai/gemini-2.0-flash"),
 //		ai.WithPromptText("Write a short poem about clouds."),
-//		ai.WithConfig(&ai.GenerationCommonConfig{MaxOutputTokens: 50}),
+//		ai.WithConfig(&googlegenai.GeminiConfig{MaxOutputTokens: 50}),
 //	)
 //	if err != nil {
 //		log.Fatalf("Generate failed: %v", err)
 //	}
+//
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
@@ -660,12 +642,13 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //	}
 //
 //	book, _, err := genkit.GenerateData[BookInfo](ctx, g,
-//		ai.WithPromptText("Provide information about 'The Hitchhiker's Guide to the Galaxy' as JSON."),
+//		ai.WithPromptText("Tell me about 'The Hitchhiker's Guide to the Galaxy'."),
 //	)
 //	if err != nil {
 //		log.Fatalf("GenerateData failed: %v", err)
 //	}
-//	fmt.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
+//
+//	log.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
 func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*Out, *ai.ModelResponse, error) {
 	return ai.GenerateData[Out](ctx, g.reg, opts...)
 }
