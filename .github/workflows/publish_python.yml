@@ -51,14 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PATH: ${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
-    strategy:
-      matrix:
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +73,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.12
 
       - name: Install Python dependencies
         run: |
@@ -97,7 +89,7 @@ jobs:
       - name: Upload build packages
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.python-version }}
+          name: dist
           path: py/dist/
 
   pypi_publish:
