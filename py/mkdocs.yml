@@ -74,6 +74,7 @@ plugins:
             - packages/genkit/src
             - plugins/ollama/src
             - plugins/google-genai/src
+            - plugins/firebase/src
           options:
             docstring_style: google
             annotations_path: full
@@ -98,6 +99,7 @@ nav:
     - reference/interrupts.md
     - Plugins:
       - reference/plugins/google-genai.md
+      - reference/plugins/firestore.md
       - reference/plugins/ollama.md
     - API:
       - reference/api/index.md
