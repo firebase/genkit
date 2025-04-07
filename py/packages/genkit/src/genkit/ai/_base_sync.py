@@ -24,14 +24,15 @@ from typing import Any
 
 import structlog
 
-from genkit.ai import server
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.web.manager import find_free_port_sync
+
+from ._plugin import Plugin
+from ._registry import GenkitRegistry
+from ._server import ServerSpec
 
 logger = structlog.get_logger(__name__)
 
@@ -43,7 +44,7 @@ class GenkitBase(GenkitRegistry):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec: server.ServerSpec | None = None,
+        reflection_server_spec: ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
@@ -123,9 +124,9 @@ class GenkitBase(GenkitRegistry):
 
                     self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                 else:
-                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 
-    def _initialize_server(self, reflection_server_spec: server.ServerSpec | None) -> None:
+    def _initialize_server(self, reflection_server_spec: ServerSpec | None) -> None:
         """Initialize the server for the Genkit instance.
 
         Args:
@@ -135,7 +136,7 @@ class GenkitBase(GenkitRegistry):
         self._loop = create_loop()
         if is_dev_environment():
             if not reflection_server_spec:
-                reflection_server_spec = server.ServerSpec(
+                reflection_server_spec = ServerSpec(
                     scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999)
                 )
             self._thread = threading.Thread(
@@ -153,7 +154,7 @@ class GenkitBase(GenkitRegistry):
         if is_dev_environment() and self._thread:
             self._thread.join()
 
-    def _start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
+    def _start_server(self, spec: ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.
 
         Args:

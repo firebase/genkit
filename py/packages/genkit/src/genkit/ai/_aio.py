@@ -24,8 +24,6 @@ from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
 
-from genkit.ai import server
-from genkit.ai.plugin import Plugin
 from genkit.aio import Channel
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
@@ -52,6 +50,8 @@ from genkit.types import (
 )
 
 from ._base_sync import GenkitBase
+from ._plugin import Plugin
+from ._server import ServerSpec
 
 
 class Genkit(GenkitBase):
@@ -61,7 +61,7 @@ class Genkit(GenkitBase):
         self,
         plugins: list[Plugin] | None = None,
         model: str | None = None,
-        reflection_server_spec: server.ServerSpec | None = None,
+        reflection_server_spec: ServerSpec | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
