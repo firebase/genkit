@@ -215,6 +215,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		if err := plugin.Init(ctx, g); err != nil {
 			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
 		}
+		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
 	ai.LoadPromptDir(r, gOpts.PromptDir, "")
