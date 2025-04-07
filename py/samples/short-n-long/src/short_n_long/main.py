@@ -190,7 +190,7 @@ async def embed_docs(docs: list[str]):
     """
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.embed(
-        model=googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
+        embedder=googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
