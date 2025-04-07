@@ -114,7 +114,7 @@ func TestSimpleEvaluator(t *testing.T) {
 	if got, want := (*resp)[0].Evaluation[0].Score, 1; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "PASS"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {
@@ -157,7 +157,7 @@ func TestFailingEvaluator(t *testing.T) {
 	if got, dontWant := (*resp)[0].Evaluation[0].Error, ""; got == dontWant {
 		t.Errorf("got %v, dontWant %v", got, dontWant)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "fail"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "FAIL"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
@@ -237,7 +237,7 @@ func TestEvaluate(t *testing.T) {
 	if got, want := (*resp)[0].Evaluation[0].Score, 1; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "PASS"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {
@@ -270,7 +270,7 @@ func TestBatchEvaluator(t *testing.T) {
 	if got, want := (*resp)[0].Evaluation[0].Score, true; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "PASS"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {
