@@ -15,7 +15,3 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Short and long sample."""
-
-from ._cli import parse_args
-
-__all__ = ['parse_args']
