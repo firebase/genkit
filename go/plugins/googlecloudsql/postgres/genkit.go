@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -44,33 +43,6 @@ func (gcsp *GoogleCloudSQLPostgres) Init(ctx context.Context, g *genkit.Genkit) 
 
 }
 
-type docStore struct {
-	engine          *engine
-	embedder        ai.Embedder
-	embedderOptions any
-}
-
-// newDocStore instantiate a docStore
-func (gcsp *GoogleCloudSQLPostgres) newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
-	gcsp.mu.Lock()
-	defer gcsp.mu.Unlock()
-	if !gcsp.initialized {
-		panic("googlecloudsql.postgres.Init not called")
-	}
-	if cfg.Name == "" {
-		return nil, errors.New("name is empty")
-	}
-	if cfg.Embedder == nil {
-		return nil, errors.New("embedder is required")
-	}
-
-	return &docStore{
-		engine:          gcsp.engine,
-		embedder:        cfg.Embedder,
-		embedderOptions: cfg.EmbedderOptions,
-	}, nil
-}
-
 // Config provides configuration options for [DefineIndexer] and [DefineRetriever].
 type Config struct {
 	Name            string      // Name to use.
@@ -82,39 +54,25 @@ type Config struct {
 func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retriever, error) {
 	gcsp := genkit.LookupPlugin(g, provider).(*GoogleCloudSQLPostgres)
 	if gcsp == nil {
-		return nil, errors.New("google cloud sql for postgres plugin not found; did you call genkit.Init with the pinecone plugin?")
+		return nil, fmt.Errorf("google cloud sql for postgres plugin not found. call genkit.Init with the googlecloudsql-postgres plugin")
 	}
 
-	ds, err := gcsp.newDocStore(ctx, cfg)
+	ds, err := newDocStore(ctx, gcsp.engine, cfg)
 	if err != nil {
 		return nil, err
 	}
 	return genkit.DefineRetriever(g, provider, cfg.Name, ds.Retrieve), nil
 }
 
-func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-	//TODO: implement method
-	return nil, nil
-}
-
 func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Indexer, error) {
 	gcsp := genkit.LookupPlugin(g, provider).(*GoogleCloudSQLPostgres)
 	if gcsp == nil {
-		return nil, errors.New("google cloud sql for postgres plugin not found; did you call genkit.Init with the pinecone plugin?")
+		return nil, fmt.Errorf("google cloud sql for postgres plugin not found. call genkit.Init with the googlecloudsql-postgres plugin")
 	}
 
-	ds, err := gcsp.newDocStore(ctx, cfg)
+	ds, err := newDocStore(ctx, gcsp.engine, cfg)
 	if err != nil {
 		return nil, err
 	}
 	return genkit.DefineIndexer(g, provider, cfg.Name, ds.Index), nil
-}
-
-// Index implements the genkit Retriever.Index method.
-func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
-	if len(req.Documents) == 0 {
-		return nil
-	}
-	//TODO: implement method
-	return nil
 }

@@ -23,7 +23,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
-	github.com/pgvector/pgvector-go v0.2.0
+	github.com/pgvector/pgvector-go v0.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/weaviate/weaviate v1.26.0-rc.1
 	github.com/weaviate/weaviate-go-client/v4 v4.15.0
@@ -35,7 +35,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.34.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
 	golang.org/x/oauth2 v0.28.0
-	golang.org/x/tools v0.23.0
+	golang.org/x/tools v0.31.0
 	google.golang.org/api v0.226.0
 	google.golang.org/genai v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -89,6 +89,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
