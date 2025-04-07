@@ -113,7 +113,6 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
           path: py/dist/
 
       - name: Publish distribution to PyPI
