@@ -43,7 +43,7 @@ type ConfigOption interface {
 	applyCommonGen(*commonGenOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptExecute(*promptGenerateOptions) error
+	applyPromptExecute(*promptExecutionOptions) error
 	applyEmbedder(*embedderOptions) error
 	applyRetriever(*retrieverOptions) error
 	applyEvaluator(*evaluatorOptions) error
@@ -77,7 +77,7 @@ func (o *configOptions) applyGenerate(opts *generateOptions) error {
 }
 
 // applyPromptExecute applies the option to the prompt generate options.
-func (o *configOptions) applyPromptExecute(opts *promptGenerateOptions) error {
+func (o *configOptions) applyPromptExecute(opts *promptExecutionOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
@@ -123,7 +123,7 @@ type CommonGenOption interface {
 	applyCommonGen(*commonGenOptions) error
 	applyPrompt(*promptOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptExecute(*promptGenerateOptions) error
+	applyPromptExecute(*promptExecutionOptions) error
 }
 
 // applyCommonGen applies the option to the common options.
@@ -193,7 +193,7 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 }
 
 // applyPromptExecute applies the option to the prompt request options.
-func (o *commonGenOptions) applyPromptExecute(reqOpts *promptGenerateOptions) error {
+func (o *commonGenOptions) applyPromptExecute(reqOpts *promptExecutionOptions) error {
 	return o.applyCommonGen(&reqOpts.commonGenOptions)
 }
 
@@ -536,7 +536,7 @@ type executionOptions struct {
 type ExecutionOption interface {
 	applyExecution(*executionOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptExecute(*promptGenerateOptions) error
+	applyPromptExecute(*promptExecutionOptions) error
 }
 
 // applyExecution applies the option to the runtime options.
@@ -557,7 +557,7 @@ func (o *executionOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // applyPromptExecute applies the option to the prompt request options.
-func (o *executionOptions) applyPromptExecute(pgOpts *promptGenerateOptions) error {
+func (o *executionOptions) applyPromptExecute(pgOpts *promptExecutionOptions) error {
 	return o.applyExecution(&pgOpts.executionOptions)
 }
 
@@ -577,7 +577,7 @@ type documentOptions struct {
 type DocumentOption interface {
 	applyDocument(*documentOptions) error
 	applyGenerate(*generateOptions) error
-	applyPromptExecute(*promptGenerateOptions) error
+	applyPromptExecute(*promptExecutionOptions) error
 	applyEmbedder(*embedderOptions) error
 	applyRetriever(*retrieverOptions) error
 	applyIndexer(*indexerOptions) error
@@ -601,7 +601,7 @@ func (o *documentOptions) applyGenerate(genOpts *generateOptions) error {
 }
 
 // applyPromptExecute applies the option to the prompt generate options.
-func (o *documentOptions) applyPromptExecute(pgOpts *promptGenerateOptions) error {
+func (o *documentOptions) applyPromptExecute(pgOpts *promptExecutionOptions) error {
 	return o.applyDocument(&pgOpts.documentOptions)
 }
 
@@ -794,21 +794,21 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 	return nil
 }
 
-// promptGenerateOptions are options for generating a model response by executing a prompt.
-type promptGenerateOptions struct {
+// promptExecutionOptions are options for generating a model response by executing a prompt.
+type promptExecutionOptions struct {
 	commonGenOptions
 	executionOptions
 	documentOptions
 	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
 }
 
-// PromptExecuteOption is an option for executing a prompt. It applies only to prompt.Execute().
+// PromptExecuteOption is an option for executing a prompt. It applies only to [Prompt.Execute].
 type PromptExecuteOption interface {
-	applyPromptExecute(*promptGenerateOptions) error
+	applyPromptExecute(*promptExecutionOptions) error
 }
 
 // applyPromptExecute applies the option to the prompt request options.
-func (o *promptGenerateOptions) applyPromptExecute(pgOpts *promptGenerateOptions) error {
+func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptions) error {
 	if err := o.commonGenOptions.applyPromptExecute(pgOpts); err != nil {
 		return err
 	}
@@ -834,5 +834,5 @@ func (o *promptGenerateOptions) applyPromptExecute(pgOpts *promptGenerateOptions
 // WithInput sets the input for the prompt request. Input must conform to the
 // prompt's input schema and can either be a map[string]any or a struct of the same type.
 func WithInput(input any) PromptExecuteOption {
-	return &promptGenerateOptions{Input: input}
+	return &promptExecutionOptions{Input: input}
 }

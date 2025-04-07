@@ -372,7 +372,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
-		ReturnToolRequests: *genOpts.ReturnToolRequests,
+		ReturnToolRequests: genOpts.ReturnToolRequests != nil && *genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema:   genOpts.OutputSchema,
 			Format:       genOpts.OutputFormat,

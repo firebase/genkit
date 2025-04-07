@@ -121,7 +121,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
-	genOpts := &promptGenerateOptions{}
+	genOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
 		if err := opt.applyPromptExecute(genOpts); err != nil {
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
@@ -310,7 +310,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		Config:             config,
 		ToolChoice:         p.ToolChoice,
 		MaxTurns:           p.MaxTurns,
-		ReturnToolRequests: *p.ReturnToolRequests,
+		ReturnToolRequests: p.ReturnToolRequests != nil && *p.ReturnToolRequests,
 		Messages:           messages,
 		Tools:              tools,
 		Output: &GenerateActionOutputConfig{
