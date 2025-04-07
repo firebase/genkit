@@ -50,10 +50,10 @@ def test_validate_version() -> None:
     SUPPORTED_OPENAI_MODELS[GPT_4] = MagicMock(versions=[GPT_4, GPT_3_5_TURBO])
     handler = OpenAIModelHandler(model)
 
-    handler.validate_version(GPT_4)  # Should not raise an error
+    handler._validate_version(GPT_4)  # Should not raise an error
 
     with pytest.raises(ValueError, match="Model version 'invalid-version' is not supported."):
-        handler.validate_version('invalid-version')
+        handler._validate_version('invalid-version')
 
 
 def test_handler_generate_non_streaming(sample_request: GenerateRequest) -> None:
