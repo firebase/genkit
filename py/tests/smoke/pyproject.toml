@@ -21,7 +21,6 @@ dependencies = [
   "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
-  "genkit-plugin-pinecone",
   "genkit-plugin-vertex-ai",
   "strenum>=0.4.15; python_version < '3.11'",
 ]
