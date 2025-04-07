@@ -17,9 +17,10 @@
 """Base/shared implementation for Genkit user-facing API."""
 
 import asyncio
-import os
 import threading
+from collections.abc import Coroutine
 from http.server import HTTPServer
+from typing import Any
 
 import structlog
 
@@ -53,24 +54,60 @@ class GenkitBase(GenkitRegistry):
                 server.
         """
         super().__init__()
-        self.registry.default_model = model
+        self._initialize_server(reflection_server_spec)
+        self._initialize_registry(model, plugins)
 
-        self.loop = create_loop()
-        if is_dev_environment():
-            if not reflection_server_spec:
-                reflection_server_spec = server.ServerSpec(
-                    scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999)
-                )
-            self.thread = threading.Thread(
-                target=self.start_server,
-                args=[reflection_server_spec, self.loop],
-                daemon=True,
-            )
-            self.thread.start()
+    # NOTE: Since we decided that Genkit classes should be bifurcated into sync
+    # and async variants, we will remove this method. For now, keeping it here
+    # so that documentation is not broken.
+    def run_async(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        """Runs the provided coroutine on an event loop.
+
+        Deprecated: Use `run(coro)` instead.
+
+        Args:
+            coro: The coroutine to run.
+
+        Returns:
+            The result of the coroutine.
+        """
+        return self.run(coro)
+
+    def run(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        """Runs the provided coroutine on an event loop.
+
+        Args:
+            coro: The coroutine to run.
+
+        Returns:
+            The result of the coroutine.
+        """
+        result = None
+        if self._loop:
+
+            async def run() -> Any:
+                return await coro
+
+            result = run_async(self._loop, run)
         else:
-            self.thread = None
-            self.loop = None
+            result = asyncio.run(coro)
+        self._join()
+        return result
 
+    def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:
+        """Initialize the registry for the Genkit instance.
+
+        Args:
+            model: Model name to use.
+            plugins: List of plugins to initialize.
+
+        Raises:
+            ValueError: If an invalid plugin is provided.
+
+        Returns:
+            None
+        """
+        self.registry.default_model = model
         for format in built_in_formats:
             self.define_format(format)
 
@@ -88,24 +125,35 @@ class GenkitBase(GenkitRegistry):
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.plugin.Plugin`')
 
-    def join(self):
-        """Block until Genkit internal threads are closed. Only blocking in dev mode."""
-        if is_dev_environment() and self.thread:
-            self.thread.join()
+    def _initialize_server(self, reflection_server_spec: server.ServerSpec | None) -> None:
+        """Initialize the server for the Genkit instance.
 
-    def run_async(self, async_fn):
-        """Runs the provided async function as a sync/blocking function."""
-        if self.loop:
-
-            async def run():
-                return await async_fn
-
-            run_async(self.loop, run)
+        Args:
+            reflection_server_spec: Server spec for the reflection
+                server.
+        """
+        self._loop = create_loop()
+        if is_dev_environment():
+            if not reflection_server_spec:
+                reflection_server_spec = server.ServerSpec(
+                    scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999)
+                )
+            self._thread = threading.Thread(
+                target=self._start_server,
+                args=[reflection_server_spec, self._loop],
+                daemon=True,
+            )
+            self._thread.start()
         else:
-            asyncio.run(async_fn)
-        self.join()
+            self._thread = None
+            self._loop = None
 
-    def start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
+    def _join(self):
+        """Block until Genkit internal threads are closed. Only blocking in dev mode."""
+        if is_dev_environment() and self._thread:
+            self._thread.join()
+
+    def _start_server(self, spec: server.ServerSpec, loop: asyncio.AbstractEventLoop) -> None:
         """Start the HTTP server for handling requests.
 
         Args:
@@ -119,10 +167,5 @@ class GenkitBase(GenkitRegistry):
         # We need to write the runtime file closest to the point of starting up
         # the server to avoid race conditions with the manager's runtime
         # handler.
-        runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
-        server.create_runtime(
-            runtime_dir=runtimes_dir,
-            reflection_server_spec=spec,
-            at_exit_fn=os.remove,
-        )
+        server.init_default_runtime(spec)
         httpd.serve_forever()

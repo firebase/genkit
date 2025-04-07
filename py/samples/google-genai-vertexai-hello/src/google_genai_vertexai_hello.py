@@ -299,9 +299,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
-
-
-# prevent app from exiting when genkit is running in dev mode
-# TODO: Clean this up.
-ai.join()
+    ai.run(main())

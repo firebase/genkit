@@ -36,6 +36,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 
 @dataclass
 class ServerSpec:
@@ -88,6 +92,20 @@ def create_runtime(
     })
     runtime_file_path.write_text(metadata, encoding='utf-8')
 
+    def cleanup_runtime() -> None:
+        logger.info('Cleaning up runtime file', path=runtime_file_path)
+        at_exit_fn(runtime_file_path)
+
     if at_exit_fn:
-        atexit.register(lambda: at_exit_fn(runtime_file_path))
+        atexit.register(cleanup_runtime)
     return runtime_file_path
+
+
+def init_default_runtime(spec: ServerSpec) -> None:
+    """Initialize the runtime for the Genkit instance."""
+    runtimes_dir = os.path.join(os.getcwd(), '.genkit/runtimes')
+    create_runtime(
+        runtime_dir=runtimes_dir,
+        reflection_server_spec=spec,
+        at_exit_fn=os.remove,
+    )
