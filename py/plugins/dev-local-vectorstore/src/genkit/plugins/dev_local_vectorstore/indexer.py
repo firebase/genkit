@@ -20,19 +20,21 @@ import json
 from hashlib import md5
 
 from genkit.blocks.document import Document
-from genkit.plugins.dev_local_vector_store.constant import DbValue
-from genkit.plugins.dev_local_vector_store.local_vector_store_api import (
+from genkit.codec import dump_json
+from genkit.types import DocumentData, Embedding
+
+from .constant import DbValue
+from .local_vector_store_api import (
     LocalVectorStoreAPI,
 )
-from genkit.types import Docs, Embedding
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
-    async def index(self, docs: Docs) -> None:
+    async def index(self, docs: list[DocumentData]) -> None:
         data = self._load_filestore()
         tasks = []
 
-        for doc_data in docs.root:
+        for doc_data in docs:
             tasks.append(
                 self.process_document(
                     document=Document.from_document_data(document_data=doc_data),
@@ -43,17 +45,17 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         await asyncio.gather(*tasks)
 
         with open(self.index_file_name, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+            f.write(dump_json(self._serialize_data(data=data), indent=2))
 
     async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
         embeddings = await self.ai.embed(
-            embedder=self.params.embedder,
+            embedder=self.embedder,
             documents=[document],
-            options=self.params.embedder_options,
+            options=self.embedder_options,
         )
         embedding_docs = document.get_embedding_documents(embeddings.embeddings)
 
-        for embedding, emb_doc in zip(embeddings, embedding_docs, strict=False):
+        for embedding, emb_doc in zip(embeddings.embeddings, embedding_docs, strict=False):
             self._add_document(data=data, embedding=embedding, doc=emb_doc)
 
     def _add_document(

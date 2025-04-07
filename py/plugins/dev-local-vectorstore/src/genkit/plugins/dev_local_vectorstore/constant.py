@@ -13,3 +13,13 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
+
+from pydantic import BaseModel
+
+from genkit.types import DocumentData, Embedding
+
+
+class DbValue(BaseModel):
+    doc: DocumentData
+    embedding: Embedding

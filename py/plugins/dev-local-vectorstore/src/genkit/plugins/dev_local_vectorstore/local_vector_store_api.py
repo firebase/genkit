@@ -23,19 +23,22 @@ from functools import cached_property
 from typing import Any
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vector_store.constant import DbValue, Params
+
+from .constant import DbValue
 
 
 class LocalVectorStoreAPI(ABC):
     _LOCAL_FILESTORE_TEMPLATE = '__db_{index_name}.json'
 
-    def __init__(self, ai: Genkit, params: Params):
+    def __init__(self, ai: Genkit, index_name: str, embedder: str, embedder_options: dict[str, Any] | None = None):
         self.ai = ai
-        self.params = params
+        self.index_name = index_name
+        self.embedder = embedder
+        self.embedder_options = embedder_options
 
     @cached_property
     def index_file_name(self):
-        return self._LOCAL_FILESTORE_TEMPLATE.format(index_name=self.params.index_name)
+        return self._LOCAL_FILESTORE_TEMPLATE.format(index_name=self.index_name)
 
     def _load_filestore(self) -> dict[str, DbValue]:
         data = {}
@@ -53,7 +56,7 @@ class LocalVectorStoreAPI(ABC):
     def _serialize_data(data: dict[str, DbValue]) -> dict[str, Any]:
         data = copy.deepcopy(data)
         for k in data:
-            data[k] = DbValue.model_dump(data[k])
+            data[k] = DbValue.model_dump(data[k], exclude_none=True)
         return data
 
     @staticmethod
