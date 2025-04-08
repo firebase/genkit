@@ -23,6 +23,10 @@ const (
 
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
+
+	imagen2     = "imagen2"
+	imagen3     = "imagen3"
+	imagen3Fast = "imagen3-fast"
 )
 
 var (
@@ -38,6 +42,10 @@ var (
 		gemini20FlashThinkingExp0121,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
+
+		imagen2,
+		imagen3,
+		imagen3Fast,
 	}
 
 	googleAIModels = []string{
@@ -50,6 +58,8 @@ var (
 		gemini20FlashThinkingExp0121,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
+
+		imagen3,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelInfo{
@@ -127,6 +137,25 @@ var (
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
+		},
+	}
+
+	supportedImagenModels = map[string]ai.ModelInfo{
+		imagen3: {
+			Label: "Imagen 3",
+			Versions: []string{
+				"imagen-3.0-generate-001",
+			},
+			Supports: nil,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3Fast: {
+			Label: "Imagen 3 - Fast",
+			Versions: []string{
+				"imagen-3.0-fast-generate-001",
+			},
+			Supports: nil,
+			Stage:    ai.ModelStageStable,
 		},
 	}
 

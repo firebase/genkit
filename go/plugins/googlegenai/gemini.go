@@ -58,6 +58,15 @@ var (
 		Constrained: ai.ConstrainedSupportNoTools,
 	}
 
+	// BasicMedia describes model capabitities for image-only Gemini models.
+	BasicMedia = ai.ModelSupports{
+		Media:      true,
+		Multiturn:  false,
+		Tools:      false,
+		ToolChoice: false,
+		SystemRole: false,
+	}
+
 	// Tool name regex
 	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 
