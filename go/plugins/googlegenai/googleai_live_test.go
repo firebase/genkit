@@ -197,7 +197,7 @@ func TestGoogleAILive(t *testing.T) {
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
 			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
 		if err != nil {
@@ -221,7 +221,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),
