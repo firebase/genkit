@@ -37,7 +37,7 @@ func TestEmbedValidRequest(t *testing.T) {
 	defer server.Close()
 
 	req := &ai.EmbedRequest{
-		Documents: []*ai.Document{
+		Input: []*ai.Document{
 			ai.DocumentFromText("test", nil),
 		},
 		Options: &EmbedOptions{Model: "all-minilm"},
@@ -55,7 +55,7 @@ func TestEmbedValidRequest(t *testing.T) {
 
 func TestEmbedInvalidServerAddress(t *testing.T) {
 	req := &ai.EmbedRequest{
-		Documents: []*ai.Document{
+		Input: []*ai.Document{
 			ai.DocumentFromText("test", nil),
 		},
 		Options: &EmbedOptions{Model: "all-minilm"},

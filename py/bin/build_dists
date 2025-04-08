@@ -29,7 +29,7 @@ TOP_DIR=$(git rev-parse --show-toplevel)
 PROJECT_DIRS=(
   "packages/genkit"
   "plugins/compat-oai"
-  "plugins/dev-local-vector-store"
+  "plugins/dev-local-vectorstore"
   "plugins/firebase"
   "plugins/flask"
   "plugins/google-cloud"

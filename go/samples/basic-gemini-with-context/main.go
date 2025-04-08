@@ -44,7 +44,7 @@ func main() {
 				Temperature: 1,
 				Version:     "gemini-2.0-flash-001",
 			}),
-			ai.WithPromptText(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
+			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
 			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
 		if err != nil {
 			return "", err

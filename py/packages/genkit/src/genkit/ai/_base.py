@@ -58,7 +58,7 @@ class GenkitBase(GenkitRegistry):
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
 
-    def run(self, coro: Coroutine[Any, Any, Any]) -> Any:
+    def run(self, coro: Coroutine[Any, Any, Any] | None = None) -> Any:
         """Runs the provided coroutine on an event loop.
 
         Args:
@@ -67,6 +67,14 @@ class GenkitBase(GenkitRegistry):
         Returns:
             The result of the coroutine.
         """
+
+        if not coro:
+
+            async def blank_coro():
+                pass
+
+            coro = blank_coro()
+
         result = None
         if self._loop:
 

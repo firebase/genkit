@@ -16,29 +16,19 @@
 
 """Local file-based vectorstore plugin that provides retriever and indexer for Genkit."""
 
+from typing import Any
+
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.core.action import Action
-from genkit.plugins.dev_local_vector_store.constant import Params
-from genkit.plugins.dev_local_vector_store.indexer import (
+from genkit.types import Docs
+
+from .indexer import (
     DevLocalVectorStoreIndexer,
 )
-from genkit.plugins.dev_local_vector_store.retriever import (
+from .retriever import (
     DevLocalVectorStoreRetriever,
     RetrieverOptionsSchema,
 )
-from genkit.types import Docs
-
-
-def dev_local_vectorstore_name(name: str) -> str:
-    """Create a Dev Local Vector Store action name.
-
-    Args:
-        name: Base name for the action.
-
-    Returns:
-        The fully qualified Dev Local Vector Store action name.
-    """
-    return f'devLocalVectorstore/{name}'
 
 
 class DevLocalVectorStore(Plugin):
@@ -50,8 +40,10 @@ class DevLocalVectorStore(Plugin):
     name = 'devLocalVectorstore'
     _indexers: dict[str, DevLocalVectorStoreIndexer] = {}
 
-    def __init__(self, params: list[Params]):
-        self.params = params
+    def __init__(self, name: str, embedder: str, embedder_options: dict[str, Any] | None = None):
+        self.index_name = name
+        self.embedder = embedder
+        self.embedder_options = embedder_options
 
     def initialize(self, ai: GenkitRegistry) -> None:
         """Initialize the plugin by registering actions with the registry.
@@ -65,12 +57,10 @@ class DevLocalVectorStore(Plugin):
         Returns:
             None
         """
-        for params in self.params:
-            self._configure_dev_local_retriever(ai=ai, params=params)
-            self._configure_dev_local_indexer(ai=ai, params=params)
+        self._configure_dev_local_retriever(ai=ai)
+        self._configure_dev_local_indexer(ai=ai)
 
-    @classmethod
-    def _configure_dev_local_retriever(cls, ai: GenkitRegistry, params: Params) -> Action:
+    def _configure_dev_local_retriever(self, ai: GenkitRegistry) -> Action:
         """Registers Local Vector Store retriever for provided parameters.
 
         Args:
@@ -82,17 +72,18 @@ class DevLocalVectorStore(Plugin):
         """
         retriever = DevLocalVectorStoreRetriever(
             ai=ai,
-            params=params,
+            index_name=self.index_name,
+            embedder=self.embedder,
+            embedder_options=self.embedder_options,
         )
 
         return ai.define_retriever(
-            name=dev_local_vectorstore_name(params.index_name),
+            name=self.index_name,
             config_schema=RetrieverOptionsSchema,
             fn=retriever.retrieve,
         )
 
-    @classmethod
-    def _configure_dev_local_indexer(cls, ai: GenkitRegistry, params: Params) -> Action:
+    def _configure_dev_local_indexer(self, ai: GenkitRegistry) -> Action:
         """Registers Local Vector Store indexer for provided parameters.
 
         Args:
@@ -104,10 +95,12 @@ class DevLocalVectorStore(Plugin):
         """
         indexer = DevLocalVectorStoreIndexer(
             ai=ai,
-            params=params,
+            index_name=self.index_name,
+            embedder=self.embedder,
+            embedder_options=self.embedder_options,
         )
 
-        cls._indexers[params.index_name] = indexer
+        DevLocalVectorStore._indexers[self.index_name] = indexer
 
     @classmethod
     async def index(cls, index_name: str, documents: Docs) -> None:

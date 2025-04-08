@@ -19,14 +19,13 @@ from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document
 from genkit.plugins.firebase.firestore import (
     FirestoreVectorStore,
     firestore_action_name,
 )
 from genkit.plugins.google_genai import VertexAI
 from genkit.types import (
-    DocumentData,
+    Document,
     TextPart,
 )
 
@@ -95,7 +94,7 @@ async def index_documents() -> None:
 @ai.flow()
 async def retreive_documents():
     return await ai.retrieve(
-        query=DocumentData(content=[TextPart(text='sci-fi film')]),
+        query=Document.from_text('sci-fi film'),
         retriever=firestore_action_name('filmsretriever'),
     )
 
