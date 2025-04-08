@@ -20,7 +20,7 @@ from genkit.ai import Genkit
 from genkit.plugins.flask import genkit_flask_handler
 
 
-def test_simple_post():
+def create_app():
     ai = Genkit()
 
     app = Flask(__name__)
@@ -38,7 +38,11 @@ def test_simple_post():
     async def say_hi(name: str):
         return {'bar': 'baz'}
 
-    client = app.test_client()
+    return app
+
+
+def test_simple_post():
+    client = create_app().test_client()
     response = client.post(
         '/chat', json={'data': 'banana'}, headers={'Authorization': 'Pavel', 'content-Type': 'application/json'}
     )
@@ -51,27 +55,7 @@ def test_simple_post():
 
 
 def test_streaming():
-    ai = Genkit()
-
-    app = Flask(__name__)
-    app.config.update({
-        'TESTING': True,
-    })
-
-    async def my_context_provider(request):
-        """Provide a context for the flow."""
-        return {'username': request.headers.get('authorization')}
-
-    @app.post('/chat')
-    @genkit_flask_handler(ai, context_provider=my_context_provider)
-    @ai.flow()
-    async def say_hi(name: str, ctx):
-        ctx.send_chunk(1)
-        ctx.send_chunk(2)
-        ctx.send_chunk({'foo': 'bar'})
-        return {'bar': 'baz'}
-
-    client = app.test_client()
+    client = create_app().test_client()
     response = client.post(
         '/chat',
         json={'data': 'banana'},
