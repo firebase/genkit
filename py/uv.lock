@@ -12,7 +12,7 @@ members = [
     "basic-gemini",
     "coffee-shop",
     "compat-oai-hello",
-    "context-caching",
+    "google-genai-context-caching",
     "dev-local-vectorstore-hello",
     "firestore-retreiver",
     "flask-hello",
@@ -545,15 +545,23 @@ requires-dist = [
 ]
 
 [[package]]
-name = "context-caching"
+name = "google-genai-context-caching"
 version = "0.1.0"
-source = { editable = "samples/context-caching" }
+source = { editable = "samples/google-genai-context-caching" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
 
 [[package]]
 name = "coverage"
