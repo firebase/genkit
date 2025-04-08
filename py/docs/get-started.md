@@ -43,15 +43,15 @@ This guide shows you how to get started with Genkit in a Python app.
 3. Install dependencies
 
    ```bash
-   pip3 install genkit=>0.3.0.dev1
-   pip3 install genkit-plugin-google-genai=>0.3.0.dev1
+   pip3 install genkit
+   pip3 install genkit-plugin-google-genai
    ```
 
    Or create a `requirements.txt` file
 
    ```
-   genkit==0.3.0.dev1
-   genkit-plugin-google-genai==0.3.0.dev1
+   genkit
+   genkit-plugin-google-genai
    ```
 
    and run:
