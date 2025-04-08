@@ -190,6 +190,7 @@ type GeminiConfig struct {
 	Version string `json:"version,omitempty"`
 	// SafetySettings is the list of safety settings to use for the model.
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
+	CodeExecution  bool             `json:"codeExecution,omitempty"`
 }
 
 // configFromRequest converts any supported config type to [GeminiConfig].
@@ -484,6 +485,18 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.ToolConfig = tc
 	}
 
+	// Add CodeExecution tool if enabled in config
+	if c.CodeExecution {
+		// Initialize tools array if it doesn't exist yet
+		if gcc.Tools == nil {
+			gcc.Tools = []*genai.Tool{}
+		}
+		// Add the CodeExecution tool
+		gcc.Tools = append(gcc.Tools, &genai.Tool{
+			CodeExecution: &genai.ToolCodeExecution{},
+		})
+	}
+
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
@@ -719,6 +732,22 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 				Input: part.FunctionCall.Args,
 			})
 		}
+		if part.CodeExecutionResult != nil {
+			partFound++
+			// Create a custom part for code execution result
+			p = NewCodeExecutionResultPart(
+				string(part.CodeExecutionResult.Outcome),
+				part.CodeExecutionResult.Output,
+			)
+		}
+		if part.ExecutableCode != nil {
+			partFound++
+			// Create a custom part for executable code
+			p = NewExecutableCodePart(
+				string(part.ExecutableCode.Language),
+				part.ExecutableCode.Code,
+			)
+		}
 		if partFound > 1 {
 			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
 		}
@@ -807,4 +836,24 @@ func validToolName(n string) bool {
 	re := regexp.MustCompile(toolNameRegex)
 
 	return re.MatchString(n)
+}
+
+// NewCodeExecutionResultPart returns a Part containing the result of code execution.
+func NewCodeExecutionResultPart(outcome string, output string) *ai.Part {
+	return ai.NewCustomPart(map[string]any{
+		"codeExecutionResult": map[string]any{
+			"outcome": outcome,
+			"output":  output,
+		},
+	})
+}
+
+// NewExecutableCodePart returns a Part containing executable code.
+func NewExecutableCodePart(language string, code string) *ai.Part {
+	return ai.NewCustomPart(map[string]any{
+		"executableCode": map[string]any{
+			"language": language,
+			"code":     code,
+		},
+	})
 }
