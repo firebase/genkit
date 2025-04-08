@@ -17,7 +17,7 @@
 """Module containing various core constants."""
 
 # The version of Genkit sent over HTTP in the headers.
-DEFAULT_GENKIT_VERSION = '0.0.1'
+DEFAULT_GENKIT_VERSION = '0.3.0'
 
 # TODO: make this dynamic
 GENKIT_VERSION = DEFAULT_GENKIT_VERSION

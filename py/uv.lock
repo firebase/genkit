@@ -12,7 +12,6 @@ members = [
     "basic-gemini",
     "coffee-shop",
     "compat-oai-hello",
-    "google-genai-context-caching",
     "dev-local-vectorstore-hello",
     "firestore-retreiver",
     "flask-hello",
@@ -27,6 +26,7 @@ members = [
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
+    "google-genai-context-caching",
     "google-genai-hello",
     "google-genai-image",
     "google-genai-vertexai-hello",
@@ -545,25 +545,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "google-genai-context-caching"
-version = "0.1.0"
-source = { editable = "samples/google-genai-context-caching" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "structlog", specifier = ">=25.2.0" },
-]
-
-[[package]]
 name = "coverage"
 version = "7.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1002,7 +983,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -1068,7 +1049,7 @@ provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -1085,7 +1066,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "genkit" },
@@ -1104,7 +1085,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -1121,7 +1102,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -1141,7 +1122,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -1156,7 +1137,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -1177,7 +1158,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -1194,7 +1175,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.3.0.dev2"
+version = "0.3.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
@@ -1493,6 +1474,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/17/b9/fae20a998946f811d81b14b4e2da41d0d7779c3e63dedf4538c16832fa56/google_genai-1.9.0.tar.gz", hash = "sha256:eda833dcef2e3b9a05bff96ff4e0066740988199bcee0b2480cfce9909b18a26", size = 151602 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/12/3a5a11589a0b967b371c773d35cc54c75f2f44259d3d767b826d708b6377/google_genai-1.9.0-py3-none-any.whl", hash = "sha256:2140f72e6e5b89d8105fa70ae551c699b5e39492ca5f95053e1f7e99ecbdbd35", size = 149646 },
+]
+
+[[package]]
+name = "google-genai-context-caching"
+version = "0.1.0"
+source = { editable = "samples/google-genai-context-caching" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
