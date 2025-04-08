@@ -80,6 +80,7 @@ omit = [
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 genkit                              = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -91,7 +92,6 @@ genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
-dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]
