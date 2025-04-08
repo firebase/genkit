@@ -15,8 +15,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from collections.abc import Callable
 from enum import StrEnum
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel, RootModel
 
@@ -27,8 +28,8 @@ class GenkitMetricType(StrEnum):
     """Enumeration of GenkitMetricType values."""
 
     FAITHFULNESS = 'FAITHFULNESS'
-    ANSWER_RELEVANCY = 'ANSWER_RELEVANCY'
-    MALICIOUSNESS = 'MALICIOUSNESS'
+    SEMANTIC_SIMILARITY = 'SEMANTIC_SIMILARITY'
+    ASPECT_CRITIC = 'ASPECT_CRITIC'
 
 
 class MetricConfig(BaseModel):
@@ -43,6 +44,7 @@ class MetricConfig(BaseModel):
     embedder: str | None = None
     embedder_config: dict[str, Any] | None = None
     status_override_fn: Callable[[Score], EvalStatusEnum] | None = None
+    metric_config: Any | None = None
 
 
 class PluginOptions(RootModel[list[MetricConfig]]):
