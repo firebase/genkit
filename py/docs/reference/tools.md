@@ -101,7 +101,7 @@ from genkit.plugins.google_genai import GoogleGenai
 
 ai = Genkit(
     plugins=[GoogleGenai()],
-    model='google_genai/gemini-2.0-flash',
+    model='googleai/gemini-2.0-flash',
 )
 
 class WeatherInput(BaseModel):

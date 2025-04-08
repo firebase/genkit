@@ -82,7 +82,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		streamText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(formatModel),
-			WithPromptText("generate json"),
+			WithPrompt("generate json"),
 			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
@@ -133,7 +133,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		streamText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(formatModel),
-			WithPromptText("generate json"),
+			WithPrompt("generate json"),
 			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
@@ -192,7 +192,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		streamText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(formatModel),
-			WithPromptText("generate json"),
+			WithPrompt("generate json"),
 			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
@@ -250,7 +250,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		streamText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(formatModel),
-			WithPromptText("generate json"),
+			WithPrompt("generate json"),
 			WithConfig(&GenerationCommonConfig{
 				Temperature: 1,
 			}),
@@ -305,7 +305,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		}
 
 		p, err := DefinePrompt(r, "formatPrompt",
-			WithPromptText("generate json"),
+			WithPrompt("generate json"),
 			WithModel(formatModel),
 			WithOutputType(struct {
 				Foo string `json:"foo"`

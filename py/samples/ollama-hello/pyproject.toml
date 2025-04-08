@@ -18,16 +18,13 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-firebase",
-  "genkit-plugin-google-ai",
-  "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
 ]
-description = "Ollama sample"
+description = "Ollama hello sample"
 license = { text = "Apache-2.0" }
-name = "ollama_example"
+name = "ollama-hello"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"

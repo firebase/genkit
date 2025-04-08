@@ -35,7 +35,7 @@ func dot01() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	prompt := genkit.LookupPrompt(g, "", "greeting")
+	prompt := genkit.LookupPrompt(g, "greeting")
 	// [END dot01_1]
 
 	// [START dot01_2]
@@ -89,7 +89,7 @@ func dot02() {
 		log.Fatal(err)
 	}
 
-	prompt := genkit.LookupPrompt(g, "", "greeting")
+	prompt := genkit.LookupPrompt(g, "greeting")
 	type GreetingPromptInput struct {
 		Location string `json:"location"`
 		Style    string `json:"style"`
@@ -126,7 +126,7 @@ func dot03() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	describeImagePrompt := genkit.LookupPrompt(g, "", "describe_image")
+	describeImagePrompt := genkit.LookupPrompt(g, "describe_image")
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func dot04() {
 	}
 
 	// [START dot04]
-	describeImagePrompt := genkit.LookupPrompt(g, "", "describe_image")
+	describeImagePrompt := genkit.LookupPrompt(g, "describe_image")
 	// [END dot04]
 	_ = err
 	_ = describeImagePrompt

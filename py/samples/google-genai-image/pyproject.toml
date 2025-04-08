@@ -19,12 +19,7 @@ classifiers = [
 dependencies = [
   "genkit",
   "pillow",
-  "genkit-plugin-firebase",
-  "genkit-plugin-google-ai",
-  "genkit-plugin-google-cloud",
-  "genkit-plugin-ollama",
-  "genkit-plugin-pinecone",
-  "genkit-plugin-vertex-ai",
+  "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
 ]
 description = "Vision API and Image Generation example"
@@ -39,4 +34,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/image_on_gemini"]
+packages = ["src/google_genai_image"]

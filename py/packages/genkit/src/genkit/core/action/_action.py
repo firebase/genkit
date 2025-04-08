@@ -14,11 +14,74 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Action module for defining and managing RPC-over-HTTP functions.
+"""Action module for defining and managing remotely callable functions.
 
-This module provides the core functionality for creating and managing actions in
-the Genkit framework. Actions are strongly-typed, named, observable,
-uninterrupted operations that can operate in streaming or non-streaming mode.
+This module provides the core `Action` class, the fundamental building block for
+defining operations within the Genkit framework.
+
+## What is an Action?
+
+An Action represents a named, observable, and strongly-typed unit of work that
+wraps a standard Python function (either synchronous or asynchronous). It serves
+as a consistent interface for executing logic like calling models, running tools,
+or orchestrating flows.
+
+## How it Works:
+
+1.  Initialization
+
+    *   An `Action` is created with a unique `name`, a `kind` (e.g., MODEL,
+        TOOL, FLOW), and the Python function (`fn`) containing the core logic.
+
+    *   It automatically inspects the function's type hints (specifically the
+        first argument for input and the return annotation for output) using
+        Pydantic's `TypeAdapter` to generate JSON schemas (`input_schema`,
+        `output_schema`). These are stored for validation and metadata. It
+        raises a `TypeError` if the function signature has more than two
+        arguments (input, context).
+
+    *   It internally creates tracing wrappers (`_fn`, `_afn`) around the
+        original function using the `_make_tracing_wrappers` helper. These
+        wrappers handle OpenTelemetry span creation, recording input/output
+        metadata, and standardizing error handling by raising `GenkitError`
+        with a trace ID. The `_afn` wrapper ensures even synchronous functions
+        can be awaited.
+
+2.  Execution Methods
+
+    *   `run()`: Executes the action synchronously. It calls the internal
+        synchronous tracing wrapper (`_fn`).
+
+    *   `arun()`: Executes the action asynchronously. It calls the internal
+        asynchronous tracing wrapper (`_afn`). This wrapper handles
+        awaiting the original function if it was async or running it via
+        `ensure_async` if it was sync.
+
+    *   `arun_raw()`: Similar to `arun`, but performs Pydantic validation on
+        the `raw_input` before calling `arun`.
+
+    *   `stream()`: Initiates an asynchronous execution via `arun` and returns
+        an `AsyncIterator` (via `Channel`) for receiving chunks and an
+        `asyncio.Future` that resolves with the final `ActionResponse`.
+
+3.  Streaming and Context
+
+    *   During execution (`run`/`arun`/`stream`), an `ActionRunContext` instance
+        is created.
+
+    *   This context holds an `on_chunk` callback (provided by the caller, e.g.,
+        by `stream()`) and any user-provided `context` dictionary.
+
+    *   If the wrapped function (`fn`) accepts a context argument (`ctx`), this
+        `ActionRunContext` instance is passed, allowing the function to send
+        intermediate chunks using `ctx.send_chunk()`.
+
+    *   A `ContextVar` (`_action_context`) is also used to propagate the user
+        context dictionary implicitly.
+
+The `Action` class provides a robust way to define executable units, abstracting
+away the complexities of sync/async handling (for async callers), schema
+generation, tracing, and streaming mechanics.
 """
 
 import asyncio
@@ -41,7 +104,6 @@ from .types import ActionKind, ActionMetadataKey, ActionResponse
 # TODO: add typing, generics
 StreamingCallback = Callable[[Any], None]
 
-
 _action_context: ContextVar[dict[str, Any] | None] = ContextVar('context')
 _action_context.set(None)
 
@@ -55,6 +117,7 @@ class ActionRunContext:
 
     Attributes:
         context: A dictionary containing arbitrary context data.
+        is_streaming: Whether the action is being executed in streaming mode.
     """
 
     def __init__(
@@ -75,7 +138,11 @@ class ActionRunContext:
                      dictionary.
         """
         self._on_chunk = on_chunk if on_chunk is not None else noop_streaming_callback
-        self.context = context if context is not None else {}
+        self._context = context if context is not None else {}
+
+    @property
+    def context(self) -> dict[str, Any]:
+        return self._context
 
     @cached_property
     def is_streaming(self) -> bool:
@@ -117,12 +184,13 @@ class Action:
     input validation, execution, tracing, and output serialization.
 
     Attributes:
-        kind: The type category of the action (e.g., MODEL, TOOL, FLOW).
         name: A unique identifier for the action.
+        kind: The type category of the action (e.g., MODEL, TOOL, FLOW).
         description: An optional human-readable description.
-        metadata: A dictionary for storing arbitrary metadata associated with the action.
         input_schema: The JSON schema definition for the expected input type.
         output_schema: The JSON schema definition for the expected output type.
+        metadata: A dictionary for storing arbitrary metadata associated with the action.
+        is_async: Whether the action is asynchronous.
     """
 
     def __init__(
@@ -147,119 +215,49 @@ class Action:
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
         """
-        self.kind = kind
-        self.name = name
+        self._kind = kind
+        self._name = name
+        self._metadata = metadata if metadata else {}
+        self._description = description
+        self._is_async = inspect.iscoroutinefunction(fn)
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         action_args, arg_types = extract_action_args_and_types(input_spec)
+        n_action_args = len(action_args)
+        self._fn, self._afn = _make_tracing_wrappers(name, kind, span_metadata, n_action_args, fn)
+        self._initialize_io_schemas(action_args, arg_types, input_spec)
 
-        afn = ensure_async(fn)
-        self.is_async = asyncio.iscoroutinefunction(fn)
+    @property
+    def kind(self) -> ActionKind:
+        return self._kind
 
-        async def async_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
-            """Wrap the function in an async tracing wrapper.
+    @property
+    def name(self) -> str:
+        return self._name
 
-            Args:
-                input: The input to the action.
-                ctx: The context to pass to the action.
+    @property
+    def description(self) -> str | None:
+        return self._description
 
-            Returns:
-                The action response.
-            """
-            with tracer.start_as_current_span(name) as span:
-                trace_id = str(span.get_span_context().trace_id)
-                record_input_metadata(
-                    span=span,
-                    kind=kind,
-                    name=name,
-                    span_metadata=span_metadata,
-                    input=input,
-                )
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self._metadata
 
-                try:
-                    match len(action_args):
-                        case 0:
-                            output = await afn()
-                        case 1:
-                            output = await afn(input)
-                        case 2:
-                            output = await afn(input, ctx)
-                        case _:
-                            raise ValueError('action fn must have 0-2 args...')
-                except Exception as e:
-                    raise GenkitError(
-                        cause=e.cause if isinstance(e, GenkitError) and e.cause else e,
-                        message=f'Error while running action {self.name}',
-                        trace_id=trace_id,
-                    )
+    @cached_property
+    def input_type(self) -> type | None:
+        return self._input_type
 
-                record_output_metadata(span, output=output)
-                return ActionResponse(response=output, trace_id=trace_id)
+    @cached_property
+    def input_schema(self) -> dict[str, Any]:
+        return self._input_schema
 
-        def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
-            """Wrap the function in a sync tracing wrapper.
+    @cached_property
+    def output_schema(self) -> dict[str, Any]:
+        return self._output_schema
 
-            Args:
-                input: The input to the action.
-                ctx: The context to pass to the action.
-
-            Returns:
-                The action response.
-            """
-            with tracer.start_as_current_span(name) as span:
-                trace_id = str(span.get_span_context().trace_id)
-                record_input_metadata(
-                    span=span,
-                    kind=kind,
-                    name=name,
-                    span_metadata=span_metadata,
-                    input=input,
-                )
-
-                try:
-                    match len(action_args):
-                        case 0:
-                            output = fn()
-                        case 1:
-                            output = fn(input)
-                        case 2:
-                            output = fn(input, ctx)
-                        case _:
-                            raise ValueError('action fn must have 0-2 args...')
-                except Exception as e:
-                    raise GenkitError(
-                        cause=e,
-                        message=f'Error while running action {self.name}',
-                        trace_id=trace_id,
-                    )
-
-                record_output_metadata(span, output=output)
-                return ActionResponse(response=output, trace_id=trace_id)
-
-        self.__fn = sync_tracing_wrapper
-        self.__afn = async_tracing_wrapper
-        self.description = description
-        self.metadata = metadata if metadata else {}
-
-        if len(action_args) > 2:
-            raise Exception(f'can only have up to 2 arg: {action_args}')
-        if len(action_args) > 0:
-            type_adapter = TypeAdapter(arg_types[0])
-            self.input_schema = type_adapter.json_schema()
-            self.input_type = type_adapter
-            self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
-        else:
-            self.input_schema = TypeAdapter(Any).json_schema()
-            self.input_type = None
-            self.metadata[ActionMetadataKey.INPUT_KEY] = self.input_schema
-
-        if ActionMetadataKey.RETURN in input_spec.annotations:
-            type_adapter = TypeAdapter(input_spec.annotations[ActionMetadataKey.RETURN])
-            self.output_schema = type_adapter.json_schema()
-            self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
-        else:
-            self.output_schema = TypeAdapter(Any).json_schema()
-            self.metadata[ActionMetadataKey.OUTPUT_KEY] = self.output_schema
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
 
     def run(
         self,
@@ -294,7 +292,7 @@ class Action:
         if context:
             _action_context.set(context)
 
-        return self.__fn(
+        return self._fn(
             input,
             ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
         )
@@ -331,7 +329,7 @@ class Action:
         if context:
             _action_context.set(context)
 
-        return await self.__afn(
+        return await self._afn(
             input,
             ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
         )
@@ -364,7 +362,7 @@ class Action:
         Raises:
             GenkitError: If an error occurs during action execution.
         """
-        input_action = self.input_type.validate_python(raw_input) if self.input_type is not None else None
+        input_action = self._input_type.validate_python(raw_input) if self._input_type is not None else None
         return await self.arun(
             input=input_action,
             on_chunk=on_chunk,
@@ -377,6 +375,7 @@ class Action:
         input: Any = None,
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> tuple[
         AsyncIterator,
         asyncio.Future[ActionResponse],
@@ -392,6 +391,7 @@ class Action:
                    input schema.
             context: An optional dictionary containing context data for the execution.
             telemetry_labels: Optional labels for telemetry.
+            timeout: Optional timeout for the stream.
 
         Returns:
             A tuple: (chunk_iterator, final_response_future)
@@ -399,7 +399,7 @@ class Action:
             - final_response_future: An asyncio.Future that will resolve to the
                                      complete ActionResponse when the action finishes.
         """
-        stream = Channel()
+        stream = Channel(timeout=timeout)
 
         resp = self.arun(
             input=input,
@@ -413,3 +413,146 @@ class Action:
         stream.closed.add_done_callback(lambda _: result_future.set_result(stream.closed.result().response))
 
         return (stream, result_future)
+
+    def _initialize_io_schemas(
+        self,
+        action_args: list[str],
+        arg_types: list[type],
+        input_spec: inspect.FullArgSpec,
+    ):
+        """Initializes input/output schemas based on function signature and hints.
+
+        Uses Pydantic's TypeAdapter to generate JSON schemas for the first
+        argument (if present) and the return type annotation (if present).
+        Stores schemas on the instance (input_schema, output_schema) and in
+        the metadata dictionary.
+
+        Args:
+            action_args: List of detected argument names.
+            arg_types: List of detected argument types.
+            input_spec: The FullArgSpec object from inspecting the function.
+
+        Raises:
+            TypeError: If the function has more than two arguments.
+        """
+        if len(action_args) > 2:
+            raise TypeError(f'can only have up to 2 arg: {action_args}')
+
+        if len(action_args) > 0:
+            type_adapter = TypeAdapter(arg_types[0])
+            self._input_schema = type_adapter.json_schema()
+            self._input_type = type_adapter
+            self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
+        else:
+            self._input_schema = TypeAdapter(Any).json_schema()
+            self._input_type = None
+            self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
+
+        if ActionMetadataKey.RETURN in input_spec.annotations:
+            type_adapter = TypeAdapter(input_spec.annotations[ActionMetadataKey.RETURN])
+            self._output_schema = type_adapter.json_schema()
+            self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
+        else:
+            self._output_schema = TypeAdapter(Any).json_schema()
+            self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
+
+
+_SyncTracingWrapper = Callable[[Any | None, ActionRunContext], ActionResponse]
+_AsyncTracingWrapper = Callable[[Any | None, ActionRunContext], ActionResponse]
+
+
+def _make_tracing_wrappers(
+    name: str, kind: ActionKind, span_metadata: dict[str, Any], n_action_args: int, fn: Callable[..., Any]
+) -> tuple[_SyncTracingWrapper, _AsyncTracingWrapper]:
+    """Make the sync and async tracing wrappers for an action function.
+
+    Args:
+        name: The name of the action.
+        kind: The kind of action.
+        span_metadata: The span metadata for the action.
+        n_action_args: The arguments of the action.
+        fn: The function to wrap.
+    """
+
+    async def async_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
+        """Wrap the function in an async tracing wrapper.
+
+        Args:
+            input: The input to the action.
+            ctx: The context to pass to the action.
+
+        Returns:
+            The action response.
+        """
+        afn = ensure_async(fn)
+        with tracer.start_as_current_span(name) as span:
+            trace_id = str(span.get_span_context().trace_id)
+            record_input_metadata(
+                span=span,
+                kind=kind,
+                name=name,
+                span_metadata=span_metadata,
+                input=input,
+            )
+
+            try:
+                match n_action_args:
+                    case 0:
+                        output = await afn()
+                    case 1:
+                        output = await afn(input)
+                    case 2:
+                        output = await afn(input, ctx)
+                    case _:
+                        raise ValueError('action fn must have 0-2 args...')
+            except Exception as e:
+                raise GenkitError(
+                    cause=e.cause if isinstance(e, GenkitError) and e.cause else e,
+                    message=f'Error while running action {name}',
+                    trace_id=trace_id,
+                ) from e
+
+            record_output_metadata(span, output=output)
+            return ActionResponse(response=output, trace_id=trace_id)
+
+    def sync_tracing_wrapper(input: Any | None, ctx: ActionRunContext) -> ActionResponse:
+        """Wrap the function in a sync tracing wrapper.
+
+        Args:
+            input: The input to the action.
+            ctx: The context to pass to the action.
+
+        Returns:
+            The action response.
+        """
+        with tracer.start_as_current_span(name) as span:
+            trace_id = str(span.get_span_context().trace_id)
+            record_input_metadata(
+                span=span,
+                kind=kind,
+                name=name,
+                span_metadata=span_metadata,
+                input=input,
+            )
+
+            try:
+                match n_action_args:
+                    case 0:
+                        output = fn()
+                    case 1:
+                        output = fn(input)
+                    case 2:
+                        output = fn(input, ctx)
+                    case _:
+                        raise ValueError('action fn must have 0-2 args...')
+            except Exception as e:
+                raise GenkitError(
+                    cause=e,
+                    message=f'Error while running action {name}',
+                    trace_id=trace_id,
+                ) from e
+
+            record_output_metadata(span, output=output)
+            return ActionResponse(response=output, trace_id=trace_id)
+
+    return sync_tracing_wrapper, async_tracing_wrapper

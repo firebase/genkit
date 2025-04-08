@@ -42,7 +42,7 @@ func setup02(g *genkit.Genkit, m ai.Model) error {
 	menuTool := genkit.DefineTool(g, "todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
 	dataMenuPrompt, err := genkit.DefinePrompt(g, "s02_dataMenu",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as a helpful AI assistant named Walt that can answer
 questions about the food available on the menu at Walt's Burgers.
 

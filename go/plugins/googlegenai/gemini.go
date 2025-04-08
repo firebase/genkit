@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -48,12 +50,16 @@ var (
 
 	//  Multimodal describes model capabilities for multimodal Gemini models.
 	Multimodal = ai.ModelSupports{
-		Multiturn:  true,
-		Tools:      true,
-		ToolChoice: true,
-		SystemRole: true,
-		Media:      true,
+		Multiturn:   true,
+		Tools:       true,
+		ToolChoice:  true,
+		SystemRole:  true,
+		Media:       true,
+		Constrained: ai.ConstrainedSupportNoTools,
 	}
+
+	// Tool name regex
+	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
@@ -258,12 +264,12 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		provider = vertexAIProvider
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
 		// check if request options matches VertexAI configuration
-		if opts, _ := input.Options.(*EmbedOptions); opts != nil {
+		if opts, _ := req.Options.(*EmbedOptions); opts != nil {
 			if provider == googleAIProvider {
 				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
 			}
@@ -273,7 +279,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 			}
 		}
 
-		for _, doc := range input.Documents {
+		for _, doc := range req.Input {
 			parts, err := toGeminiParts(doc.Content)
 			if err != nil {
 				return nil, err
@@ -289,7 +295,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 		}
 		var res ai.EmbedResponse
 		for _, emb := range r.Embeddings {
-			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: emb.Values})
+			res.Embeddings = append(res.Embeddings, &ai.Embedding{Embedding: emb.Values})
 		}
 		return &res, nil
 	})
@@ -327,13 +333,16 @@ func generate(
 
 	var contents []*genai.Content
 	for _, m := range input.Messages {
+		// system parts are handled separately
 		if m.Role == ai.RoleSystem {
 			continue
 		}
+
 		parts, err := toGeminiParts(m.Content)
 		if err != nil {
 			return nil, err
 		}
+
 		contents = append(contents, &genai.Content{
 			Parts: parts,
 			Role:  string(m.Role),
@@ -448,6 +457,14 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.ResponseMIMEType = "application/json"
 	}
 
+	if input.Output != nil && input.Output.Constrained {
+		schema, err := toGeminiSchema(input.Output.Schema, input.Output.Schema)
+		if err != nil {
+			return nil, err
+		}
+		gcc.ResponseSchema = schema
+	}
+
 	// Add tool configuration from input.Tools and input.ToolChoice directly
 	// This overrides any functionCallingConfig in the passed config
 	if len(input.Tools) > 0 {
@@ -496,6 +513,9 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
+		if !validToolName(t.Name) {
+			return nil, fmt.Errorf(`invalid tool name: %q, must start with a letter or an underscore, must be alphanumeric, underscores, dots or dashes with a max length of 64 chars`, t.Name)
+		}
 		inputSchema, err := toGeminiSchema(t.InputSchema, t.InputSchema)
 		if err != nil {
 			return nil, err
@@ -545,11 +565,45 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 	if v, ok := genkitSchema["required"]; ok {
 		schema.Required = castToStringArray(v.([]any))
 	}
+	if v, ok := genkitSchema["propertyOrdering"]; ok {
+		schema.PropertyOrdering = castToStringArray(v.([]any))
+	}
 	if v, ok := genkitSchema["description"]; ok {
 		schema.Description = v.(string)
 	}
 	if v, ok := genkitSchema["format"]; ok {
 		schema.Format = v.(string)
+	}
+	if v, ok := genkitSchema["title"]; ok {
+		schema.Title = v.(string)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		i, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.MinItems = genai.Ptr[int64](i)
+	}
+	if v, ok := genkitSchema["maxItems"]; ok {
+		i, err := strconv.ParseInt(v.(string), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.MaxItems = genai.Ptr[int64](i)
+	}
+	if v, ok := genkitSchema["maximum"]; ok {
+		i, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Maximum = genai.Ptr[float64](i)
+	}
+	if v, ok := genkitSchema["minimum"]; ok {
+		i, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Minimum = genai.Ptr[float64](i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
 		schema.Enum = castToStringArray(v.([]any))
@@ -742,4 +796,15 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	default:
 		panic("unknown part type in a request")
 	}
+}
+
+// validToolName checks whether the provided tool name matches the
+// following criteria:
+// - Start with a letter or an underscore
+// - Must be alphanumeric and can include underscores, dots or dashes
+// - Maximum length of 64 chars
+func validToolName(n string) bool {
+	re := regexp.MustCompile(toolNameRegex)
+
+	return re.MatchString(n)
 }

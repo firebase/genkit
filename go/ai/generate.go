@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -95,7 +94,6 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, fn ModelFunc) Model {
-
 	if info == nil {
 		// Always make sure there's at least minimal metadata.
 		info = &ModelInfo{
@@ -344,8 +342,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
-		err := opt.applyGenerate(genOpts)
-		if err != nil {
+		if err := opt.applyGenerate(genOpts); err != nil {
 			return nil, &core.GenkitError{
 				Message: fmt.Sprintf("ai.Generate: error applying options: %v", err),
 				Status:  core.INVALID_ARGUMENT,
@@ -367,7 +364,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 	messages := []*Message{}
 	if genOpts.SystemFn != nil {
-		system, err := genOpts.SystemFn(ctx, genOpts)
+		system, err := genOpts.SystemFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -375,7 +372,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewSystemTextMessage(system))
 	}
 	if genOpts.MessagesFn != nil {
-		msgs, err := genOpts.MessagesFn(ctx, genOpts)
+		msgs, err := genOpts.MessagesFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -383,7 +380,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, msgs...)
 	}
 	if genOpts.PromptFn != nil {
-		prompt, err := genOpts.PromptFn(ctx, genOpts)
+		prompt, err := genOpts.PromptFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -403,7 +400,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
-		ReturnToolRequests: genOpts.ReturnToolRequests,
+		ReturnToolRequests: genOpts.ReturnToolRequests != nil && *genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema:   genOpts.OutputSchema,
 			Format:       genOpts.OutputFormat,
@@ -427,20 +424,21 @@ func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOpt
 
 // Generate run generate request for this model. Returns ModelResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...GenerateOption) (*ModelResponse, error) {
+func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
+	var value Out
 	opts = append(opts, WithOutputType(value))
 
 	resp, err := Generate(ctx, r, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = resp.Output(value)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return resp, nil
+	return &value, resp, nil
 }
 
 // Name returns the name of the model.
@@ -629,21 +627,6 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	return newReq, nil, nil
 }
 
-// conformOutput appends a message to the request indicating conformance to the expected schema.
-func conformOutput(req *ModelRequest) error {
-	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
-		jsonBytes, err := json.Marshal(req.Output.Schema)
-		if err != nil {
-			return fmt.Errorf("expected schema is not valid: %w", err)
-		}
-
-		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
-		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
-	}
-	return nil
-}
-
 // Text returns the contents of the first candidate in a
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
@@ -656,21 +639,32 @@ func (gr *ModelResponse) Text() string {
 
 // History returns messages from the request combined with the response message
 // to represent the conversation history.
-func (gr *ModelResponse) History() []*Message {
-	if gr.Message == nil {
-		return gr.Request.Messages
+func (mr *ModelResponse) History() []*Message {
+	if mr.Message == nil {
+		return mr.Request.Messages
 	}
-	return append(gr.Request.Messages, gr.Message)
+	return append(mr.Request.Messages, mr.Message)
 }
 
 // Output unmarshals structured JSON output into the provided
 // struct pointer.
-func (gr *ModelResponse) Output(v any) error {
-	j := base.ExtractJSONFromMarkdown(gr.Text())
+func (mr *ModelResponse) Output(v any) error {
+	j := base.ExtractJSONFromMarkdown(mr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
 	return json.Unmarshal([]byte(j), v)
+}
+
+// ToolRequests returns the tool requests from the response.
+func (mr *ModelResponse) ToolRequests() ([]*ToolRequest, error) {
+	toolReqs := []*ToolRequest{}
+	for _, part := range mr.Message.Content {
+		if part.IsToolRequest() {
+			toolReqs = append(toolReqs, part.ToolRequest)
+		}
+	}
+	return toolReqs, nil
 }
 
 // Text returns the text content of the [ModelResponseChunk]

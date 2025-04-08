@@ -20,7 +20,10 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
+
+var _ genkit.Plugin = (*Ollama)(nil)
 
 func TestConcatMessages(t *testing.T) {
 	tests := []struct {

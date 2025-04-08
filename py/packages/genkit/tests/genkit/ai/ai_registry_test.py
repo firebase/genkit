@@ -23,7 +23,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import unittest
 
-from genkit.ai.registry import get_func_description
+from genkit.ai._registry import get_func_description
 
 
 class TestGetFuncDescription(unittest.TestCase):

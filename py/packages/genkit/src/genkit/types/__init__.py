@@ -19,7 +19,9 @@
 Users should import Genkit types from this module.
 """
 
+from genkit.blocks.document import Document
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
+from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.typing import (
     BaseEvalDataPoint,
@@ -33,6 +35,7 @@ from genkit.core.typing import (
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
+    GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -59,10 +62,12 @@ from genkit.core.typing import (
 )
 
 __all__ = [
+    ActionRunContext.__name__,
     BaseEvalDataPoint.__name__,
     CustomPart.__name__,
     Details.__name__,
     Docs.__name__,
+    Document.__name__,
     DocumentData.__name__,
     EmbedRequest.__name__,
     EmbedResponse.__name__,
@@ -70,6 +75,7 @@ __all__ = [
     EvalFnResponse.__name__,
     EvalRequest.__name__,
     EvalResponse.__name__,
+    GenerateActionOptions.__name__,
     GenerateRequest.__name__,
     GenerateResponse.__name__,
     GenerateResponseChunk.__name__,

@@ -17,8 +17,7 @@
 """Ollama Plugin for Genkit."""
 
 import ollama as ollama_api
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.ollama.embedders import OllamaEmbedder
 from genkit.plugins.ollama.models import (
     DEFAULT_OLLAMA_SERVER_URL,

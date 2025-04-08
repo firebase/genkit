@@ -20,16 +20,16 @@ import asyncio
 import json
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import ActionRunContext, Genkit
 from genkit.blocks.generate import generate_action
-from genkit.plugins.vertex_ai import (
-    GeminiVersion,
+from genkit.plugins.google_genai import (
     ImagenVersion,
     VertexAI,
     vertexai_name,
 )
+from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
     GenerateActionOptions,
     GenerateResponseChunk,
@@ -43,7 +43,7 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
+    model=vertexai_name(gemini.VertexAIGeminiVersion.GEMINI_2_0_FLASH),
 )
 
 
@@ -101,7 +101,7 @@ async def convert_with_tools(amount: float) -> str:
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
-            model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
+            model=vertexai_name(gemini.VertexAIGeminiVersion.GEMINI_2_0_FLASH),
             messages=[
                 Message(
                     role=Role.USER,
@@ -116,6 +116,7 @@ async def convert_with_tools(amount: float) -> str:
 
 @ai.flow()
 async def draw_image(description: str):
+    """Generates an image based on the provided description."""
     return await ai.generate(
         model=vertexai_name(ImagenVersion.IMAGEN3_FAST),
         messages=[
@@ -145,7 +146,7 @@ async def generate_structured_content(food: str):
         List of recipes that follows schema config.
     """
     response = await ai.generate(
-        model=vertexai_name(GeminiVersion.GEMINI_2_0_FLASH),
+        model=vertexai_name(gemini.VertexAIGeminiVersion.GEMINI_2_0_FLASH),
         messages=[
             Message(
                 role=Role.USER,
@@ -180,7 +181,7 @@ async def generate_long_joke(subject: str) -> str:
     """
     ctx = ActionRunContext()
     stream, res = ai.generate_stream(
-        model=vertexai_name(GeminiVersion.GEMINI_2_5_PRO_EXP_03_25),
+        model=vertexai_name(gemini.VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25),
         prompt=f'Tell a long and detailed joke about {subject}.',
     )
     async for chunk in stream:
@@ -201,10 +202,11 @@ async def main() -> None:
     framework.
     """
     await logger.ainfo(await generate_joke('banana'))
-    await logger.ainfo(await convert_with_tools(100.0))
     await draw_image('A panda playing soccer')
-    await logger.ainfo(await generate_structured_content('cookie'))
     await generate_long_joke('banana')
+    # TODO: fix this.
+    # await logger.ainfo(await convert_with_tools(100.0))
+    # await logger.ainfo(await generate_structured_content('cookie'))
 
 
 if __name__ == '__main__':

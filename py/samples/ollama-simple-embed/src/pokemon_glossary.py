@@ -102,7 +102,7 @@ async def embed_pokemons() -> None:
     """Embed the Pokemons."""
     for pokemon in pokemon_list:
         embedding_response = await ai.embed(
-            model=ollama_name(EMBEDDER_MODEL),
+            embedder=ollama_name(EMBEDDER_MODEL),
             documents=[Document.from_text(pokemon.description)],
         )
         if embedding_response.embeddings:
@@ -168,7 +168,7 @@ async def generate_response(question: str) -> GenerateResponse:
         A GenerateResponse object with the answer.
     """
     input_embedding = await ai.embed(
-        model=ollama_name(EMBEDDER_MODEL),
+        embedder=ollama_name(EMBEDDER_MODEL),
         documents=[Document.from_text(text=question)],
     )
     nearest_pokemon = find_nearest_pokemons(input_embedding.embeddings[0].embedding)

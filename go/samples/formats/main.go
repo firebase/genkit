@@ -43,7 +43,7 @@ func main() {
 	}
 
 	defaultPrompt, err := genkit.DefinePrompt(g, "defaultInstructions",
-		ai.WithPromptText("Generate a children's book story character about someone named {{name}}."),
+		ai.WithPrompt("Generate a children's book story character about someone named {{name}}."),
 		ai.WithOutputType([]StoryCharacter{}),
 		ai.WithOutputFormat(ai.OutputFormatJSONL),
 	)
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	customPrompt, err := genkit.DefinePrompt(g, "customInstructions",
-		ai.WithPromptText("Generate a children's book story character about someone named {{name}}."),
+		ai.WithPrompt("Generate a children's book story character about someone named {{name}}."),
 		ai.WithOutputInstructions("The output should be JSON and match the schema of the following object: "+
 			"{name: string, age: number, homeTown: string, profession: string}"),
 	)

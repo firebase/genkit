@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
@@ -49,7 +48,7 @@ func main() {
 			ai.WithConfig(&googlegenai.GeminiConfig{
 				Temperature: 1.0,
 			}),
-			ai.WithPromptText(fmt.Sprintf(`Tell short jokes about %s`, input)))
+			ai.WithPrompt(`Tell silly short jokes about %s`, input))
 		if err != nil {
 			return "", err
 		}

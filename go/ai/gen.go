@@ -71,8 +71,17 @@ type dataPart struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+type EmbedRequest struct {
+	Input   []*Document `json:"input,omitempty"`
+	Options any         `json:"options,omitempty"`
+}
+
+type EmbedResponse struct {
+	Embeddings []*Embedding `json:"embeddings,omitempty"`
+}
+
 type Embedding struct {
-	Embedding []float64      `json:"embedding,omitempty"`
+	Embedding []float32      `json:"embedding,omitempty"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
@@ -314,6 +323,15 @@ type RerankerRequest struct {
 
 type RerankerResponse struct {
 	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
+type RetrieverRequest struct {
+	Options any       `json:"options,omitempty"`
+	Query   *Document `json:"query,omitempty"`
+}
+
+type RetrieverResponse struct {
+	Documents []*Document `json:"documents,omitempty"`
 }
 
 // Role indicates which entity is responsible for the content of a message.

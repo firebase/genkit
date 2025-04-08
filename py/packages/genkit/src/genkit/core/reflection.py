@@ -416,7 +416,7 @@ def create_reflection_asgi_app(
 
             except Exception as e:
                 error_response = get_reflection_json(e).model_dump(by_alias=True)
-                await logger.aerror(
+                logger.error(
                     'Error streaming action',
                     error=error_response,
                 )
@@ -464,7 +464,7 @@ def create_reflection_asgi_app(
             )
         except Exception as e:
             error_response = get_reflection_json(e).model_dump(by_alias=True)
-            await logger.aerror('Error executing action', error=error_response)
+            logger.error('Error executing action', error=error_response)
             return JSONResponse(
                 content=error_response,
                 status_code=500,

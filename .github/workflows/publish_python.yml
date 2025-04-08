@@ -35,7 +35,7 @@ on:
         options:
           - genkit
           - compat-oai
-          - dev-local-vector-store
+          - dev-local-vectorstore
           - firebase
           - flask
           - google-cloud

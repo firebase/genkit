@@ -37,7 +37,7 @@ from genkit.types import (
 class OpenAIModelHandler:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: Any):
+    def __init__(self, model: Any) -> None:
         """Initializes the OpenAIModelHandler with a specified model.
 
         Args:
@@ -60,6 +60,7 @@ class OpenAIModelHandler:
         Args:
             model: The OpenAI model name.
             client: OpenAI client instance.
+            registry: Genkit registry instance.
 
         Returns:
             A callable function that acts as an action handler.
@@ -73,7 +74,7 @@ class OpenAIModelHandler:
         openai_model = OpenAIModel(model, client, registry)
         return cls(openai_model).generate
 
-    def validate_version(self, version: str):
+    def validate_version(self, version: str) -> None:
         """Validates whether the specified model version is supported.
 
         Args:

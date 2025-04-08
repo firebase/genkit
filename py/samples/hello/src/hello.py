@@ -99,7 +99,7 @@ async def embed_docs(docs: list[str]):
     """
     options = {'task': EmbeddingsTaskType.CLUSTERING}
     return await ai.embed(
-        model=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
+        embedder=vertexai_name(EmbeddingModels.TEXT_EMBEDDING_004_ENG),
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
@@ -180,17 +180,6 @@ async def streaming_async_flow(inp: str, ctx: ActionRunContext):
     ctx.send_chunk({'chunk': 'blah'})
     ctx.send_chunk(3)
     return 'streamingAsyncFlow 4'
-
-
-async def main() -> None:
-    """Main entry point for the hello sample.
-
-    This function demonstrates the usage of the AI flow by generating
-    greetings and performing simple arithmetic operations.
-    """
-    await logger.ainfo(await say_hi('John Doe'))
-    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
-    await logger.ainfo(await embed_docs(['banana muffins? ', 'banana bread? banana muffins?']))
 
 
 def my_model(request: GenerateRequest, ctx: ActionRunContext):
@@ -389,5 +378,16 @@ async def async_streamy_throwy(inp: str, ctx: ActionRunContext):
     ctx.send_chunk(3)
 
 
-# prevent app from exiting when genkit is running in dev mode
-ai.join()
+async def main() -> None:
+    """Main entry point for the hello sample.
+
+    This function demonstrates the usage of the AI flow by generating
+    greetings and performing simple arithmetic operations.
+    """
+    await logger.ainfo(await say_hi('John Doe'))
+    await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
+    await logger.ainfo(await embed_docs(['banana muffins? ', 'banana bread? banana muffins?']))
+
+
+if __name__ == '__main__':
+    ai.run(main())

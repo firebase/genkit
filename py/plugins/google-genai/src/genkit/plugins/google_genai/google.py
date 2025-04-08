@@ -21,8 +21,7 @@ from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
-from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,

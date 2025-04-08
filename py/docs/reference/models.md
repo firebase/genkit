@@ -64,7 +64,7 @@ from genkit.plugins.google_genai import GoogleGenai
 
 ai = Genkit(
     plugins=[GoogleGenai()],
-    model='google_genai/gemini-2.0-flash',
+    model='googleai/gemini-2.0-flash',
 )
 
 async def main() -> None:
@@ -104,7 +104,7 @@ You can also specify a model for a single `generate()` call:
 ```py
 result = await ai.generate(
     prompt='Invent a menu item for a pirate themed restaurant.',
-    model='google_genai/gemini-2.0-pro',
+    model='googleai/gemini-2.0-pro',
 )
 ```
 
