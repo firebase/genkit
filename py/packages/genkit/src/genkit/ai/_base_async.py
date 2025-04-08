@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Base/shared implementation for Genkit user-facing API."""
+"""Asynchronous server gateway interface implementation for Genkit."""
 
 from collections.abc import Coroutine
 from typing import Any, TypeVar
@@ -91,15 +91,17 @@ class GenkitBase(GenkitRegistry):
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 
-    def run(self, coro: Coroutine[Any, Any, T]) -> T:
+    def run_main(self, coro: Coroutine[Any, Any, T]) -> T:
         """Run the user's main coroutine.
 
-        In development mode (`GENKIT_ENV=dev`), this starts the Genkit reflection
-        server and runs the user's coroutine concurrently within the same event loop,
-        blocking until the server is stopped (e.g., via Ctrl+C).
+        In development mode (`GENKIT_ENV=dev`), this starts the Genkit
+        reflection server and runs the user's coroutine concurrently within the
+        same event loop, blocking until the server is stopped (e.g., via
+        Ctrl+C).
 
         In production mode, this simply runs the user's coroutine to completion
-        using `asyncio.run()`.
+        using `uvloop.run()` for performance if available, otherwise
+        `asyncio.run()`.
 
         Args:
             coro: The main coroutine provided by the user.
@@ -111,7 +113,6 @@ class GenkitBase(GenkitRegistry):
             logger.info('Running in production mode.')
             return run_loop(coro)
 
-        # Development mode: Start reflection server and user coro concurrently.
         logger.info('Running in development mode.')
 
         spec = self._reflection_server_spec
@@ -138,24 +139,23 @@ class GenkitBase(GenkitRegistry):
                 finally:
                     user_task_finished_event.set()
 
-            reflection_server = make_reflection_server(self.registry, spec)
+            reflection_server = _make_reflection_server(self.registry, spec)
 
             try:
                 async with RuntimeManager(spec):
-                    # We use anyio's task group because it's compatible with
+                    # We use anyio.TaskGroup because it is compatible with
                     # asyncio's event loop and works with Python 3.10
-                    # (asyncio.create_task_group was added in 3.11, and we can switch
-                    # to that if we drop support for 3.10).
+                    # (asyncio.TaskGroup was added in 3.11, and we can switch to
+                    # that when we drop support for 3.10).
                     async with anyio.create_task_group() as tg:
                         # Start reflection server in the background.
                         tg.start_soon(reflection_server.serve, name='genkit-reflection-server')
-                        await anyio.sleep(0.2)
-                        logger.info(f'Started Genkit reflection server at {spec.scheme}://{spec.host}:{spec.port}')
+                        logger.info(f'Started Genkit reflection server at {spec.url}')
 
                         # Start the (potentially short-lived) user coroutine wrapper
                         tg.start_soon(run_user_coro_wrapper, name='genkit-user-coroutine')
 
-                        # Block here until the TaskGroup is cancelled (e.g. Ctrl+C)
+                        # Block here until the task group is canceled (e.g. Ctrl+C)
                         # or a task raises an unhandled exception. It should not
                         # exit just because the user coroutine finishes.
 
@@ -166,7 +166,7 @@ class GenkitBase(GenkitRegistry):
                 logger.exception(e)
                 raise
 
-            # After the TaskGroup finishes (error or cancellation)
+            # After the TaskGroup finishes (error or cancelation).
             if user_task_finished_event.is_set():
                 logger.debug('User coroutine finished before TaskGroup exit.')
                 return user_result
@@ -177,8 +177,19 @@ class GenkitBase(GenkitRegistry):
         return anyio.run(dev_runner)
 
 
-def make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvicorn.Server:
-    """Make a reflection server for the given registry and spec."""
+def _make_reflection_server(registry: GenkitRegistry, spec: ServerSpec) -> uvicorn.Server:
+    """Make a reflection server for the given registry and spec.
+
+    This is a helper function to make it easier to test the reflection server
+    in isolation.
+
+    Args:
+        registry: The registry to use for the reflection server.
+        spec: The spec to use for the reflection server.
+
+    Returns:
+        A uvicorn server instance.
+    """
     app = create_reflection_asgi_app(registry=registry)
     config = uvicorn.Config(app, host=spec.host, port=spec.port, loop='asyncio')
     return uvicorn.Server(config)
