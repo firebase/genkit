@@ -37,7 +37,7 @@ def create_app():
     @ai.flow()
     async def say_hi(name: str, ctx):
         ctx.send_chunk(1)
-        ctx.send_chunk(2)
+        ctx.send_chunk({'username': ctx.context.get('username')})
         ctx.send_chunk({'foo': 'bar'})
         return {'bar': 'baz'}
 
@@ -73,7 +73,7 @@ def test_streaming():
 
     assert chunks == [
         b'data: {"message": 1}\n\n',
-        b'data: {"message": 2}\n\n',
+        b'data: {"message": {"username": "Pavel"}}\n\n',
         b'data: {"message": {"foo": "bar"}}\n\n',
         b'data: {"result": {"bar": "baz"}}\n\n',
     ]
