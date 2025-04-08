@@ -734,7 +734,6 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		}
 		if part.CodeExecutionResult != nil {
 			partFound++
-			// Create a custom part for code execution result
 			p = NewCodeExecutionResultPart(
 				string(part.CodeExecutionResult.Outcome),
 				part.CodeExecutionResult.Output,
@@ -742,7 +741,6 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		}
 		if part.ExecutableCode != nil {
 			partFound++
-			// Create a custom part for executable code
 			p = NewExecutableCodePart(
 				string(part.ExecutableCode.Language),
 				part.ExecutableCode.Code,
