@@ -157,7 +157,8 @@ func TestValidToolName(t *testing.T) {
 	}
 }
 
-// randToolName generates a random string from the given args
+// genToolName generates a string of a specified length using only
+// the valid characters for a Gemini Tool name
 func genToolName(length int, chars string) string {
 	r := make([]byte, length)
 
