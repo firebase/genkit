@@ -161,7 +161,7 @@ func TestVertexAILive(t *testing.T) {
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
 			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
 		if err != nil {
@@ -183,7 +183,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),

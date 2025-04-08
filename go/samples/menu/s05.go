@@ -64,7 +64,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.3,
 		}),
 	)
