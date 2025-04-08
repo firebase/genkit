@@ -28,8 +28,6 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-const toolProvider = "local"
-
 // ToolRef is a reference to a tool.
 type ToolRef interface {
 	Name() string
@@ -88,8 +86,8 @@ type ToolContext struct {
 
 // DefineTool defines a tool function with interrupt capability
 func DefineTool[In, Out any](r *registry.Registry, name, description string,
-	fn func(ctx *ToolContext, input In) (Out, error)) *ToolDef[In, Out] {
-
+	fn func(ctx *ToolContext, input In) (Out, error),
+) *ToolDef[In, Out] {
 	metadata := make(map[string]any)
 	metadata["type"] = "tool"
 	metadata["name"] = name
@@ -107,7 +105,7 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 		return fn(toolCtx, input)
 	}
 
-	toolAction := core.DefineAction(r, toolProvider, name, atype.Tool, metadata, wrappedFn)
+	toolAction := core.DefineAction(r, "", name, atype.Tool, metadata, wrappedFn)
 	return &ToolDef[In, Out]{
 		action: toolAction,
 	}
@@ -151,7 +149,6 @@ func definition(desc action.Desc) *ToolDefinition {
 // as map[string]any).
 func (ta *tool) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, ta.Definition(), ta.action, input)
-
 }
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
@@ -181,7 +178,11 @@ func runAction(ctx context.Context, def *ToolDefinition, action core.Action, inp
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
 func LookupTool(r *registry.Registry, name string) Tool {
-	action := r.LookupAction(fmt.Sprintf("/%s/%s/%s", atype.Tool, toolProvider, name))
+	if name == "" {
+		return nil
+	}
+
+	action := r.LookupAction(fmt.Sprintf("/%s/%s", atype.Tool, name))
 	if action == nil {
 		return nil
 	}
