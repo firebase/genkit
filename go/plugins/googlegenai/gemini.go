@@ -735,8 +735,13 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
-		r.Usage.InputTokens = int(*u.PromptTokenCount)
-		r.Usage.OutputTokens = int(*u.CandidatesTokenCount)
+		// not all responses from the SDK come with usage metadata
+		if tokens := u.PromptTokenCount; tokens != nil {
+			r.Usage.InputTokens = int(*tokens)
+		}
+		if tokens := u.CandidatesTokenCount; tokens != nil {
+			r.Usage.OutputTokens = int(*tokens)
+		}
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
 	return r

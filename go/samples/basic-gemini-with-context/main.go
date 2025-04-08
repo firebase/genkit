@@ -40,7 +40,7 @@ func main() {
 	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.0-flash"),
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Temperature: 1,
 				Version:     "gemini-2.0-flash-001",
 			}),
