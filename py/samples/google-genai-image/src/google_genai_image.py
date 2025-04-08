@@ -38,7 +38,7 @@ async def draw_image_with_gemini() -> str:
         The image.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Draw a cat in a hat.')])],
+        prompt='Draw a cat in a hat.',
         config={'response_modalities': ['Text', 'Image']},
         model=googleai_name('gemini-2.0-flash-exp'),
     )
