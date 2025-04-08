@@ -35,7 +35,7 @@ def create_app():
     @app.post('/chat')
     @genkit_flask_handler(ai, context_provider=my_context_provider)
     @ai.flow()
-    async def say_hi(name: str):
+    async def say_hi(name: str, ctx):
         ctx.send_chunk(1)
         ctx.send_chunk(2)
         ctx.send_chunk({'foo': 'bar'})
