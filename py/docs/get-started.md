@@ -102,7 +102,7 @@ This guide shows you how to get started with Genkit in a Python app.
     async def main() -> None:
         print(json.dumps(await generate_character('Goblorb'), indent=2))
 
-    ai.run(main())
+    ai.run_main(main())
    ```
 
 6. Run your app. Genkit apps are just regular python application. Run them
