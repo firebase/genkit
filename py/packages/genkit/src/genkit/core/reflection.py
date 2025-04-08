@@ -61,13 +61,17 @@ from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
 from genkit.core.registry import Registry
+from genkit.web import asgi
+from genkit.web.asgi import is_streaming_requested_from_scope
 from genkit.web.manager.signals import terminate_all_servers
-from genkit.web.requests import (
-    is_streaming_requested,
-)
+from genkit.web.requests import is_streaming_requested
 from genkit.web.typing import (
     Application,
+    HTTPScope,
     LifespanHandler,
+    Receive,
+    Scope,
+    Send,
 )
 
 logger = structlog.get_logger(__name__)
@@ -83,7 +87,9 @@ def make_reflection_server(
 
     Args:
         registry: The registry to use for the reflection server.
+        loop: The asyncio event loop to use for running async actions.
         encoding: The text encoding to use; default 'utf-8'.
+        quiet: If True, suppress request logging.
 
     Returns:
         A ReflectionServer class configured with the given registry.
@@ -100,7 +106,9 @@ def make_reflection_server(
             if not quiet:
                 message = format % args
                 logger.debug(
-                    f'{self.address_string()} - - [{self.log_date_time_string()}] {message.translate(self._control_char_table)}'
+                    f'{self.address_string()} - - '
+                    f'[{self.log_date_time_string()}] '
+                    f'{message.translate(self._control_char_table)}'
                 )
 
         def do_GET(self) -> None:  # noqa: N802
@@ -243,7 +251,7 @@ def make_reflection_server(
     return ReflectionServer
 
 
-def create_reflection_asgi_app(
+def create_reflection_starlette_asgi_app(
     registry: Registry,
     on_app_startup: LifespanHandler | None = None,
     on_app_shutdown: LifespanHandler | None = None,
@@ -389,38 +397,67 @@ def create_reflection_asgi_app(
             events.
         """
 
-        async def stream_generator() -> AsyncGenerator[str, None]:
-            """Server-Sent Events Generator for streaming JSON chunks.
+        queue = asyncio.Queue[bytes | None]()
 
-            Since we generate a stream of event objects, and the headers will
-            have been sent already if an error occurs at a later stage, we
-            indicate an error status by streaming an error object.
-            """
+        # Synchronous callback to put chunks onto the queue
+        def send_chunk_sync(chunk):
             try:
+                # Wrap the intermediate chunk in a standard object structure
+                chunk_obj = {'chunk': chunk}
+                out = json.dumps(chunk_obj)
+                # Add newline for intermediate chunks
+                queue.put_nowait(f'{out}\\n'.encode(encoding))
+            except Exception as e:
+                # Log error putting chunk, but don't crash the callback
+                logger.error('Error encoding/queueing stream chunk', error=e, chunk=chunk)
 
-                async def send_chunk(chunk):
-                    out = json.dumps(chunk)
-                    yield f'{out}\n'
-
+        async def run_action_and_get_result() -> tuple[Any | None, Exception | None]:
+            """Run the action in the background and return result or exception."""
+            output = None
+            error = None
+            try:
                 output = await action.arun_raw(
                     raw_input=payload['input'],
-                    on_chunk=send_chunk,
+                    on_chunk=send_chunk_sync,  # Pass the sync callback
                     context=context,
                 )
-
-                final_response = {
-                    'result': dump_dict(output.response),
-                    'telemetry': {'traceId': output.trace_id},
-                }
-                yield f'{json.dumps(final_response)}\n'
-
             except Exception as e:
-                error_response = get_reflection_json(e).model_dump(by_alias=True)
-                logger.error(
-                    'Error streaming action',
-                    error=error_response,
-                )
-                yield f'{json.dumps(error_response)}\n'
+                error = e
+            finally:
+                # Signal the end of chunks from the action itself
+                await queue.put(None)  # Use await put for the final signal
+            return output, error
+
+        async def stream_generator() -> AsyncGenerator[bytes, None]:
+            """Yields chunks from the queue and the final result/error."""
+            action_task = asyncio.create_task(run_action_and_get_result())
+            final_output = None
+            final_error = None
+
+            while True:
+                chunk = await queue.get()
+                if chunk is None:  # Sentinel indicating action completion (intermediate chunks done)
+                    queue.task_done()
+                    break
+                yield chunk
+                queue.task_done()
+
+            # Wait for the action task to fully complete and get its result/error
+            final_output, final_error = await action_task
+
+            if final_error:
+                error_response = get_reflection_json(final_error).model_dump(by_alias=True)
+                logger.error('Error streaming action', error=error_response)
+                # Errors are newline-terminated
+                yield f'{json.dumps(error_response)}\\n'.encode(encoding)
+            elif final_output:
+                # Send the final response WITH a trailing newline (matching Starlette?)
+                final_response_obj = {
+                    'result': dump_dict(final_output.response),
+                    'telemetry': {'traceId': final_output.trace_id},
+                }
+                yield f'{json.dumps(final_response_obj)}\\n'.encode(encoding)
+            # If no error and no output, yield nothing further
 
         return StreamingResponse(
             stream_generator(),
@@ -488,4 +525,307 @@ def create_reflection_asgi_app(
         ],
         on_startup=[on_app_startup] if on_app_startup else [],
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
+    )
+
+
+class ReflectionApp:
+    """ASGI application for the Genkit reflection API.
+
+    Caveats:
+
+        The reflection API server predates the flows server implementation and
+        differs in the protocol it uses to interface with the Dev UI. The
+        streaming protocol uses unadorned JSON per streamed chunk. This may
+        change in the future to use Server-Sent Events (SSE).
+
+    Key endpoints:
+
+        | Method | Path                | Handler               |
+        |--------|---------------------|-----------------------|
+        | GET    | /api/__health       | Health check          |
+        | GET    | /api/actions        | List actions          |
+        | POST   | /api/__quitquitquit | Trigger shutdown      |
+        | POST   | /api/notify         | Handle notification   |
+        | POST   | /api/runAction      | Run action (streaming)|
+    """
+
+    def __init__(
+        self,
+        registry: Registry,
+        on_app_startup: LifespanHandler | None = None,
+        on_app_shutdown: LifespanHandler | None = None,
+        version: str = DEFAULT_GENKIT_VERSION,
+        encoding: str = 'utf-8',
+    ):
+        """Initializes the ReflectionApp.
+
+        Args:
+            registry: The registry to use for the reflection server.
+            on_app_startup: Optional callback for lifespan startup.
+            on_app_shutdown: Optional callback for lifespan shutdown.
+            version: The Genkit version string.
+            encoding: The text encoding to use.
+        """
+        self._registry = registry
+        self._on_app_startup = on_app_startup
+        self._on_app_shutdown = on_app_shutdown
+        self._version = version
+        self._encoding = encoding
+
+    async def send_genkit_json_response(self, send: Send, status: int, obj: dict[str, Any]) -> None:
+        """Sends a JSON response with the Genkit version header."""
+        return await asgi.send_response(
+            send,
+            status,
+            [
+                (b'content-type', b'application/json'),
+                (b'x-genkit-version', self._version.encode(self._encoding)),
+            ],
+            json.dumps(obj).encode(self._encoding),
+        )
+
+    async def handle_health_check(self, scope: HTTPScope, receive: Receive, send: Send) -> None:
+        """Handles the /api/__health endpoint."""
+        return await self.send_genkit_json_response(
+            send,
+            200,
+            {'status': 'OK'},
+        )
+
+    async def handle_list_actions(self, scope: HTTPScope, receive: Receive, send: Send) -> None:
+        """Handles the /api/actions endpoint."""
+        actions = self._registry.list_serializable_actions()
+        return await self.send_genkit_json_response(
+            send,
+            200,
+            actions,
+        )
+
+    async def handle_terminate(self, scope: HTTPScope, receive: Receive, send: Send) -> None:
+        """Handles the /api/__quitquitquit endpoint."""
+        await logger.ainfo('Shutting down servers...')
+        terminate_all_servers()
+        return await self.send_genkit_json_response(
+            send,
+            200,
+            {'status': 'OK'},
+        )
+
+    async def handle_notify(self, scope: HTTPScope, receive: Receive, send: Send) -> None:
+        """Handles the /api/notify endpoint."""
+        await asgi.send_response(
+            send,
+            200,
+            [
+                (b'content-type', b'application/json'),
+                (b'x-genkit-version', self._version.encode(self._encoding)),
+            ],
+            b'',
+        )
+
+    async def handle_run_action(self, scope: HTTPScope, receive: Receive, send: Send) -> None:
+        """Handles the /api/runAction endpoint."""
+        body = await asgi.read_body(receive)
+        payload = json.loads(body.decode(self._encoding))
+        action = self._registry.lookup_action_by_key(payload['key'])
+        if action is None:
+            return await self.send_genkit_json_response(
+                send,
+                404,
+                {'error': f'Action not found: {payload["key"]}'},
+            )
+
+        context = payload.get('context', {})
+        stream = is_streaming_requested_from_scope(scope)
+
+        if stream:
+            await self.handle_streaming_action(send, action, payload, context)
+        else:
+            await self.handle_standard_action(send, action, payload, context)
+
+    async def handle_streaming_action(
+        self, send: Send, action: Action, payload: dict[str, Any], context: dict[str, Any]
+    ) -> None:
+        """Handles the streaming response for /api/runAction using asyncio.Queue."""
+        queue = asyncio.Queue[bytes | None]()
+
+        # Synchronous callback to put chunks onto the queue
+        def send_chunk_sync(chunk):
+            try:
+                # Wrap the intermediate chunk in a standard object structure
+                chunk_obj = {'chunk': chunk}
+                out = json.dumps(chunk_obj)
+                # Add newline for intermediate chunks
+                queue.put_nowait(f'{out}\\n'.encode(self._encoding))
+            except Exception as e:
+                # Log error putting chunk, but don't crash the callback
+                logger.error('Error encoding/queueing stream chunk', error=e, chunk=chunk)
+
+        async def run_action_and_get_result() -> tuple[Any | None, Exception | None]:
+            """Run the action in the background and return result or exception."""
+            output = None
+            error = None
+            try:
+                output = await action.arun_raw(
+                    raw_input=payload['input'],
+                    on_chunk=send_chunk_sync,  # Pass the sync callback
+                    context=context,
+                )
+            except Exception as e:
+                error = e
+            finally:
+                # Signal the end of chunks from the action itself
+                await queue.put(None)  # Use await put for the final signal
+            return output, error
+
+        async def stream_generator() -> AsyncGenerator[bytes, None]:
+            """Yields chunks from the queue and the final result/error."""
+            action_task = asyncio.create_task(run_action_and_get_result())
+            final_output = None
+            final_error = None
+
+            while True:
+                chunk = await queue.get()
+                if chunk is None:  # Sentinel indicating action completion (intermediate chunks done)
+                    queue.task_done()
+                    break
+                yield chunk
+                queue.task_done()
+
+            # Wait for the action task to fully complete and get its result/error
+            final_output, final_error = await action_task
+
+            if final_error:
+                error_response = get_reflection_json(final_error).model_dump(by_alias=True)
+                logger.error('Error streaming action', error=error_response)
+                # Errors are newline-terminated
+                yield f'{json.dumps(error_response)}\\n'.encode(self._encoding)
+            elif final_output:
+                # Send the final response WITH a trailing newline (matching Starlette?)
+                final_response_obj = {
+                    'result': dump_dict(final_output.response),
+                    'telemetry': {'traceId': final_output.trace_id},
+                }
+                yield f'{json.dumps(final_response_obj)}\\n'.encode(self._encoding)
+            # If no error and no output, yield nothing further
+
+        # Now, send the response using the generator that reads from the queue
+        await asgi.send_streaming_response(
+            send,
+            200,
+            [
+                (b'content-type', b'application/json'),
+                (b'x-genkit-version', self._version.encode(self._encoding)),
+            ],
+            stream_generator(),
+        )
+
+    async def handle_standard_action(
+        self, send: Send, action: Action, payload: dict[str, Any], context: dict[str, Any]
+    ) -> None:
+        """Handles the standard (non-streaming) response for /api/runAction."""
+        try:
+            output = await action.arun_raw(raw_input=payload['input'], context=context)
+            response = {
+                'result': dump_dict(output.response),
+                'telemetry': {'traceId': output.trace_id},
+            }
+            return await self.send_genkit_json_response(
+                send,
+                200,
+                response,
+            )
+        except Exception as e:
+            error_response = get_reflection_json(e).model_dump(by_alias=True)
+            logger.error('Error executing action', error=error_response)
+            return await self.send_genkit_json_response(
+                send,
+                500,
+                error_response,
+            )
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """ASGI application entry point."""
+        if scope['type'] == 'lifespan':
+            while True:
+                message = await receive()
+                if message['type'] == 'lifespan.startup':
+                    if self._on_app_startup:
+                        try:
+                            await self._on_app_startup(scope, receive, send)  # Pass args if handler expects them
+                            await send({'type': 'lifespan.startup.complete'})
+                        except Exception as e:
+                            await logger.aexception('Error during ASGI startup', exc_info=e)
+                            await send({'type': 'lifespan.startup.failed', 'message': str(e)})
+                            return  # Exit lifespan loop on startup failure
+                    else:
+                        await send({'type': 'lifespan.startup.complete'})
+                elif message['type'] == 'lifespan.shutdown':
+                    if self._on_app_shutdown:
+                        try:
+                            await self._on_app_shutdown(scope, receive, send)  # Pass args if handler expects them
+                            await send({'type': 'lifespan.shutdown.complete'})
+                        except Exception as e:
+                            await logger.aexception('Error during ASGI shutdown', exc_info=e)
+                            await send({'type': 'lifespan.shutdown.failed', 'message': str(e)})
+                    else:
+                        await send({'type': 'lifespan.shutdown.complete'})
+                    return  # Exit lifespan loop after shutdown
+
+        if scope['type'] != 'http':
+            await logger.awarn('Received non-HTTP message', scope_type=scope['type'])
+            # Optionally send a 400 Bad Request
+            return
+
+        path = scope['path']
+        method = scope['method']
+
+        handler = None
+        match method, path:
+            case 'GET', '/api/__health':
+                handler = self.handle_health_check
+            case 'GET', '/api/actions':
+                handler = self.handle_list_actions
+            case 'POST', '/api/__quitquitquit':
+                handler = self.handle_terminate
+            case 'POST', '/api/notify':
+                handler = self.handle_notify
+            case 'POST', '/api/runAction':
+                handler = self.handle_run_action
+
+        if handler:
+            await handler(scope, receive, send)
+        else:
+            # Use send_genkit_json_response for consistency
+            await self.send_genkit_json_response(send, 404, {'error': 'Not Found'})
+
+
+def create_reflection_asgi_app(
+    registry: Registry,
+    on_app_startup: LifespanHandler | None = None,
+    on_app_shutdown: LifespanHandler | None = None,
+    version: str = DEFAULT_GENKIT_VERSION,
+    encoding: str = 'utf-8',
+) -> Application:
+    """Creates a pure ASGI application instance for the Genkit reflection API.
+
+    Args:
+        registry: The registry to use for the reflection server.
+        on_app_startup: Optional callback to execute when the app's
+            lifespan starts. Must be an async function.
+        on_app_shutdown: Optional callback to execute when the app's
+            lifespan ends. Must be an async function.
+        version: The version string to use when setting the value of
+            the X-GENKIT-VERSION HTTP header.
+        encoding: The text encoding to use; default 'utf-8'.
+
+    Returns:
+        An instance of PureReflectionASGIApp conforming to the ASGI protocol.
+    """
+    return ReflectionApp(
+        registry=registry,
+        on_app_startup=on_app_startup,
+        on_app_shutdown=on_app_shutdown,
+        version=version,
+        encoding=encoding,
     )
