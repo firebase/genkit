@@ -39,3 +39,9 @@ To start as a server in dev mode:
 ```bash
 genkit start -- uv run src/short_n_long/main.py --server
 ```
+
+## Running with a specific version of Python
+
+```bash
+genkit start -- uv run --python python3.10 src/short_n_long/main.py
+```
