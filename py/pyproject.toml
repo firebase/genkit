@@ -5,6 +5,7 @@ dependencies = [
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
   "genkit-plugin-firebase",
+  "genkit-plugin-flask",
   "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
   "genkit-plugin-ollama",
