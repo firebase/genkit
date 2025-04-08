@@ -587,6 +587,7 @@ class FlowWrapper:
         input: Any = None,
         context: dict[str, Any] | None = None,
         telemetry_labels: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> tuple[
         AsyncIterator,
         asyncio.Future,
@@ -597,10 +598,11 @@ class FlowWrapper:
             input: The input to the action.
             context: The context to pass to the action.
             telemetry_labels: The telemetry labels to pass to the action.
+            timeout: The timeout for the streaming action.
 
         Returns:
             A tuple containing:
             - An AsyncIterator of the chunks from the action.
             - An asyncio.Future that resolves to the final result of the action.
         """
-        return self._action.stream(input=input, context=context, telemetry_labels=telemetry_labels)
+        return self._action.stream(input=input, context=context, telemetry_labels=telemetry_labels, timeout=timeout)
