@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -56,6 +57,9 @@ var (
 		Media:       true,
 		Constrained: ai.ConstrainedSupportNoTools,
 	}
+
+	// Tool name regex
+	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
@@ -509,6 +513,9 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
+		if !validToolName(t.Name) {
+			return nil, fmt.Errorf(`invalid tool name: %q, must start with a letter or an underscore, must be alphanumeric, underscores, dots or dashes with a max length of 64 chars`, t.Name)
+		}
 		inputSchema, err := toGeminiSchema(t.InputSchema, t.InputSchema)
 		if err != nil {
 			return nil, err
@@ -789,4 +796,15 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	default:
 		panic("unknown part type in a request")
 	}
+}
+
+// validToolName checks whether the provided tool name matches the
+// following criteria:
+// - Start with a letter or an underscore
+// - Must be alphanumeric and can include underscores, dots or dashes
+// - Maximum length of 64 chars
+func validToolName(n string) bool {
+	re := regexp.MustCompile(toolNameRegex)
+
+	return re.MatchString(n)
 }

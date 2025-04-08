@@ -71,7 +71,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 
 	var tools []string
 	for _, value := range pOpts.commonGenOptions.Tools {
-		tools = append(tools, fmt.Sprintf("%s/%s", toolProvider, value.Name()))
+		tools = append(tools, value.Name())
 	}
 
 	var inputSchema map[string]any
@@ -93,15 +93,15 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, toolProvider, name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, "", name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p, nil
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(r *registry.Registry, provider, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.ExecutablePrompt, provider, name)
+func LookupPrompt(r *registry.Registry, name string) *Prompt {
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.ExecutablePrompt, "", name)
 	if action == nil {
 		return nil
 	}
@@ -424,7 +424,6 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 		Input:   input,
 		Context: context,
 	}, additionalMetadata)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to render prompt: %w", err)
 	}
@@ -529,7 +528,6 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 
 	sourceFile := filepath.Join(dir, filename)
 	source, err := os.ReadFile(sourceFile)
-
 	if err != nil {
 		slog.Error("Failed to read prompt file", "file", sourceFile, "error", err)
 		return nil, nil

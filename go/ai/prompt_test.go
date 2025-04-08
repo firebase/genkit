@@ -867,7 +867,7 @@ Hello, {{name}}!
 	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example")
+	prompt := LookupPrompt(reg, "test-namespace/example")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
@@ -900,7 +900,7 @@ func TestLoadPrompt_FileNotFound(t *testing.T) {
 	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
-	prompt := LookupPrompt(reg, "test-namespace", "missing")
+	prompt := LookupPrompt(reg, "missing")
 	if prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a missing file")
 	}
@@ -928,7 +928,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
 
 	// Verify that the prompt was not registered
-	prompt := LookupPrompt(reg, "test-namespace", "invalid")
+	prompt := LookupPrompt(reg, "invalid")
 	if prompt != nil {
 		t.Fatalf("Prompt should not have been registered for an invalid file")
 	}
@@ -962,7 +962,7 @@ Hello, {{name}}!
 	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example.variant")
+	prompt := LookupPrompt(reg, "test-namespace/example.variant")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
@@ -1020,13 +1020,13 @@ Hello, {{name}}!
 	LoadPromptDir(reg, tempDir, "test-namespace")
 
 	// Verify that the prompt was registered correctly
-	prompt := LookupPrompt(reg, toolProvider, "test-namespace/example")
+	prompt := LookupPrompt(reg, "test-namespace/example")
 	if prompt == nil {
 		t.Fatalf("Prompt was not registered")
 	}
 
 	// Verify the prompt in the subdirectory was registered correctly
-	subPrompt := LookupPrompt(reg, toolProvider, "test-namespace/sub_example")
+	subPrompt := LookupPrompt(reg, "test-namespace/sub_example")
 	if subPrompt == nil {
 		t.Fatalf("Prompt in subdirectory was not registered")
 	}
@@ -1043,7 +1043,7 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	}
 
 	// Verify that no prompts were registered
-	prompt := LookupPrompt(reg, "test-namespace", "example")
+	prompt := LookupPrompt(reg, "example")
 	if prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}

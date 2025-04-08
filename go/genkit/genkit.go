@@ -171,7 +171,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		log.Println("Generated Fact:", funFact)
 //
 //		// Look up and execute a loaded prompt
-//		jokePrompt, err := genkit.LookupPrompt(g, "", "jokePrompt")
+//		jokePrompt, err := genkit.LookupPrompt(g, "jokePrompt")
 //		if err != nil {
 //			log.Fatalf("LookupPrompt failed: %v", err)
 //		}
@@ -551,13 +551,12 @@ func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, 
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.Prompt] by its provider and name.
+// LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
-// For prompts loaded from files without an explicit provider/namespace, use an empty string for `provider`.
-func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
-	return ai.LookupPrompt(g.reg, provider, name)
+func LookupPrompt(g *Genkit, name string) *ai.Prompt {
+	return ai.LookupPrompt(g.reg, name)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
@@ -571,7 +570,7 @@ func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
 //
 // Example (using options rendered from a prompt):
 //
-//	myPrompt, _ := genkit.LookupPrompt(g, "", "myDefinedPrompt")
+//	myPrompt, _ := genkit.LookupPrompt(g, "myDefinedPrompt")
 //	actionOpts, err := myPrompt.Render(ctx, map[string]any{"topic": "go programming"})
 //	if err != nil {
 //		// handle error
