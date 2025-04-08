@@ -58,7 +58,7 @@ func main() {
 		}
 
 		// generate a request with a large text content to be cached
-		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
+		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.7,
 			Version:     "gemini-1.5-flash-001",
 		}),
@@ -73,7 +73,7 @@ func main() {
 
 		// use previous messages to keep the conversation going and keep
 		// asking questions related to the large content that was cached
-		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
+		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.7,
 			Version:     "gemini-1.5-flash-001",
 		}),
