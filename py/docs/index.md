@@ -69,7 +69,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         async for chunk in stream:
             print(chunk.text)
 
-    asyncio.run(main())
+    ai.run_main(main())
     ```
 
 === "Structured output"
@@ -100,7 +100,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         )
         print(json.dumps(result.output))
 
-    asyncio.run(main())
+    ai.run_main(main())
     ```
 
 === "Tool calling"
@@ -131,7 +131,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         )
         print(result.text)
 
-    asyncio.run(main())
+    ai.run_main(main())
     ```
 
 ## Development tools
