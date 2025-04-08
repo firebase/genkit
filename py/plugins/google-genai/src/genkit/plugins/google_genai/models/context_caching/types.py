@@ -14,17 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A stub for the sample to come."""
+from typing import Union
+
+from pydantic import BaseModel, Field
 
 
-def main() -> None:
-    """Main entry point for the Vertex AI Reranker sample.
+class CacheConfigSchema(BaseModel):
+    ttl_seconds: int | None = Field(..., alias='ttlSeconds')
 
-    This function demonstrates how to use Vertex AI Reranker models
-    with the Genkit framework for improved search results.
-    """
-    print('Hey')
+    class Config:
+        extra = 'allow'
 
 
-if __name__ == '__main__':
-    main()
+CacheConfig = Union[bool, CacheConfigSchema]

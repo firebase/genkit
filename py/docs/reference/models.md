@@ -73,7 +73,7 @@ async def main() -> None:
     )
     print(result.text)
 
-asyncio.run(main())
+ai.run_main(main())
 ```
 
 When you run this brief example it will print out the output of the `generate()`
