@@ -36,6 +36,9 @@ def create_app():
     @genkit_flask_handler(ai, context_provider=my_context_provider)
     @ai.flow()
     async def say_hi(name: str):
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk({'foo': 'bar'})
         return {'bar': 'baz'}
 
     return app
