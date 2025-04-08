@@ -38,7 +38,7 @@ from genkit.core.action.types import ActionKind
 
 from ._aio import Genkit
 from ._plugin import Plugin
-from ._registry import GenkitRegistry
+from ._registry import FlowWrapper, GenkitRegistry
 
 __all__ = [
     ActionKind.__name__,
@@ -49,6 +49,7 @@ __all__ = [
     Plugin.__name__,
     ToolRunContext.__name__,
     tool_response.__name__,
+    FlowWrapper.__name__,
     'GENKIT_CLIENT_HEADER',
     'GENKIT_VERSION',
 ]
