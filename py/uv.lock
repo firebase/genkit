@@ -508,6 +508,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "google-genai-context-caching"
+version = "0.1.0"
+source = { editable = "samples/google-genai-context-caching" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
 name = "coverage"
 version = "7.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1428,16 +1447,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/be/12/3a5a11589a0b967b371c773d35cc54c75f2f44259d3d767b826d708b6377/google_genai-1.9.0-py3-none-any.whl", hash = "sha256:2140f72e6e5b89d8105fa70ae551c699b5e39492ca5f95053e1f7e99ecbdbd35", size = 149646 },
 ]
 
-[[package]]
-name = "google-genai-context-caching"
-version = "0.1.0"
-source = { editable = "samples/google-genai-context-caching" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
 
 [package.metadata]
 requires-dist = [
