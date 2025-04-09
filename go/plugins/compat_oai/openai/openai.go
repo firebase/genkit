@@ -121,6 +121,8 @@ func (o *OpenAI) Name() string {
 
 // Init implements genkit.Plugin.
 func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
+	// initialize OpenAICompatible
+	o.openAICompatible.Opts = o.Opts
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
