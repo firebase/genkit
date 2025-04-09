@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/firestore"
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
@@ -69,8 +70,13 @@ func main() {
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
 		VectorType:      firebase.Vector64,
 	}
+	firebaseApp, err := firebasev4.NewApp(ctx, nil)
+	if err != nil {
+		log.Fatalf("Error initializing Firebase App: %v", err)
+	}
 
 	f := &firebase.FireStore{
+		App:           firebaseApp,
 		RetrieverOpts: retrieverOptions,
 	}
 

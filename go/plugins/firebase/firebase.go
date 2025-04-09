@@ -30,13 +30,17 @@ import (
 // The provider used in the registry.
 const provider = "firebase"
 
+var appState struct {
+	mu  sync.Mutex      // Mutex to control access.
+	app *firebasev4.App // Holds the Firebase app instance
+}
+
 // FireStore passes configuration options to the plugin.
 type FireStore struct {
 	App           *firebasev4.App
 	RetrieverOpts RetrieverOptions
 	retriever     ai.Retriever
-	mu            sync.Mutex // Mutex to control access.
-	initted       bool       // Whether the plugin has been initialized.
+	initted       bool // Whether the plugin has been initialized.
 }
 
 // Name returns the name of the plugin.
@@ -46,8 +50,8 @@ func (f *FireStore) Name() string {
 
 // Init initializes the Firebase plugin..
 func (f *FireStore) Init(ctx context.Context, g *genkit.Genkit) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	appState.mu.Lock()
+	defer appState.mu.Unlock()
 
 	if f.initted {
 		log.Println("firebase.Init: plugin already initialized, returning without reinitializing")
@@ -55,12 +59,9 @@ func (f *FireStore) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	if f.App == nil {
-		firebaseApp, err := firebasev4.NewApp(ctx, nil)
-		if err != nil {
-			log.Fatalf("Error initializing Firebase app: %v", err)
-		}
-		f.App = firebaseApp
+		return fmt.Errorf("firebase.Init: no Firebase app provided")
 	}
+	appState.app = f.App
 
 	retriever, err := DefineFirestoreRetriever(g, f.RetrieverOpts)
 	if err != nil {
@@ -71,18 +72,34 @@ func (f *FireStore) Init(ctx context.Context, g *genkit.Genkit) error {
 	return nil
 }
 
+// App returns the cached Firebase app.
+func App(ctx context.Context) *firebasev4.App {
+	appState.mu.Lock()
+	defer appState.mu.Unlock()
+
+	if appState.app == nil {
+		firebaseApp, err := firebasev4.NewApp(ctx, nil)
+		if err != nil {
+			log.Fatalf("Error initializing Firebase app: %v", err)
+		}
+		appState.app = firebaseApp
+	}
+	return appState.app
+}
+
 // UnInit clears the initialized plugin state.
 func (f *FireStore) UnInit() {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	appState.mu.Lock()
+	defer appState.mu.Unlock()
 	f.initted = false
+	appState.app = nil
 	f.App = nil
 }
 
 // Retriever returns retriever created in firestore object
 func (f *FireStore) Retriever() (ai.Retriever, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	appState.mu.Lock()
+	defer appState.mu.Unlock()
 
 	if !f.initted {
 		return nil, fmt.Errorf("firebase.Retrievers: Plugin not initialized. Call Init first")

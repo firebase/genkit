@@ -16,9 +16,11 @@ package firebase
 
 import (
 	"context"
+	"log"
 	"testing"
 
 	"cloud.google.com/go/firestore"
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -73,11 +75,16 @@ func TestInit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			firebaseApp, err := firebasev4.NewApp(ctx, nil)
+			if err != nil {
+				log.Fatalf("Error initializing Firebase App: %v", err)
+			}
 			f := &FireStore{
+				App:           firebaseApp,
 				RetrieverOpts: tt.retrieverOptions,
 			}
 			defer f.UnInit()
-			err := f.Init(ctx, g)
+			err = f.Init(ctx, g)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {
