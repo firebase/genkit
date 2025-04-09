@@ -171,6 +171,25 @@ describe('localFileEvalStore', () => {
     });
   });
 
+  describe('delete', () => {
+    it('deletes an evalRun file by id', async () => {
+      fs.existsSync = jest.fn(() => true);
+      fs.promises.unlink = jest.fn(async () => Promise.resolve(undefined));
+      const response = await evalStore.delete(
+        EVAL_RUN_WITH_ACTION.key.evalRunId
+      );
+      expect(response).toBeUndefined();
+    });
+
+    it('returns undefined if file does not exist', async () => {
+      fs.existsSync = jest.fn(() => false);
+
+      expect(() =>
+        evalStore.delete(EVAL_RUN_WITH_ACTION.key.evalRunId)
+      ).rejects.toThrow();
+    });
+  });
+
   describe('list', () => {
     const EVAL_KEY_WITH_ACTION =
       JSON.stringify(EVAL_RUN_WITH_ACTION.key) + '\n';

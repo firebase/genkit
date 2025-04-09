@@ -15,7 +15,7 @@
  */
 
 import fs from 'fs';
-import { appendFile, readFile, writeFile } from 'fs/promises';
+import { appendFile, readFile, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 import { logger } from '../utils/logger';
 
@@ -117,6 +117,17 @@ export class LocalFileEvalStore implements EvalStore {
     return {
       evalRunKeys: keys,
     };
+  }
+
+  async delete(evalRunId: string): Promise<void> {
+    const filePath = path.resolve(
+      this.storeRoot,
+      this.generateFileName(evalRunId)
+    );
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Cannot find evalRun with id '${evalRunId}'`);
+    }
+    return await unlink(filePath);
   }
 
   private generateFileName(evalRunId: string): string {

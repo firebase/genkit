@@ -213,6 +213,12 @@ export interface EvalStore {
    * @param query (optional) filter criteria for the result list
    */
   list(query?: ListEvalKeysRequest): Promise<ListEvalKeysResponse>;
+
+  /**
+   * Delete EvalRun by ID
+   * @param evalRunId the ID of the EvalRun
+   */
+  delete(evalRunId: string): Promise<void>;
 }
 
 export const DatasetSchemaSchema = z.object({
