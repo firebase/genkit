@@ -26,7 +26,6 @@ from genkit.plugins.vertex_ai import (
     VertexAI,
     vertexai_name,
 )
-from genkit.types import Message, Role, TextPart
 
 ai = Genkit(plugins=[VertexAI()], model=vertexai_name(ImagenVersion.IMAGEN3_FAST))
 
@@ -37,12 +36,7 @@ async def draw_image(prompt: str):
     # config is optional
     config = ImagenOptions(number_of_images=3)
     return await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[TextPart(text=prompt)],
-            )
-        ],
+        prompt=prompt,
         config=config.model_dump(),
     )
 

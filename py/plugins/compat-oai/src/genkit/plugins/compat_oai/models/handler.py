@@ -74,7 +74,7 @@ class OpenAIModelHandler:
         openai_model = OpenAIModel(model, client, registry)
         return cls(openai_model).generate
 
-    def validate_version(self, version: str) -> None:
+    def _validate_version(self, version: str) -> None:
         """Validates whether the specified model version is supported.
 
         Args:
@@ -86,6 +86,16 @@ class OpenAIModelHandler:
         model_info = SUPPORTED_OPENAI_MODELS[self._model.name]
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
+
+    def _normalize_config(self, config: Any) -> OpenAIConfig:
+        """Ensures the config is an OpenAIConfig instance."""
+        if isinstance(config, OpenAIConfig):
+            return config
+
+        if isinstance(config, dict):
+            return OpenAIConfig(**config)
+
+        raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')
 
     def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
@@ -100,11 +110,10 @@ class OpenAIModelHandler:
         Raises:
             ValueError: If the specified model version is not supported.
         """
-        if isinstance(request.config, dict):
-            request.config = OpenAIConfig(**request.config)
+        request.config = self._normalize_config(request.config)
 
-        if request.config:
-            self.validate_version(request.config.model)
+        if request.config.model:
+            self._validate_version(request.config.model)
 
         if ctx.is_streaming:
             return self._model.generate_stream(request, ctx.send_chunk)

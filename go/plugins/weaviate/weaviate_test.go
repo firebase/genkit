@@ -98,7 +98,7 @@ func TestGenkit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ai.Index(ctx, indexer, ai.WithIndexerDocs(d1, d2, d3))
+	err = ai.Index(ctx, indexer, ai.WithDocs(d1, d2, d3))
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -108,8 +108,8 @@ func TestGenkit(t *testing.T) {
 		MetadataKeys: []string{"name"},
 	}
 	retrieverResp, err := ai.Retrieve(ctx, retriever,
-		ai.WithRetrieverDoc(d1),
-		ai.WithRetrieverOpts(retrieverOptions))
+		ai.WithDocs(d1),
+		ai.WithConfig(retrieverOptions))
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}

@@ -99,35 +99,43 @@ Date / Snapshot ID (e.g., `02-05`, `03-25`)
 
 The following models are currently supported by GoogleAI API:
 
-| Model                       | Description                   | Status     |
-|-----------------------------|-------------------------------|------------|
-| `gemini-1.0-pro`            | Gemini 1.0 Pro                | Obsolete   |
-| `gemini-1.5-pro`            | Gemini 1.5 Pro                | Deprecated |
-| `gemini-1.5-flash`          | Gemini 1.5 Flash              | Deprecated |
-| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B           | Deprecated |
-| `gemini-2.0-flash`          | Gemini 2.0 Flash              | Supported  |
-| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite         | Supported  |
-| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05      | Supported  |
-| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25      | Supported  |
-| `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Experimental | Supported  |
+| Model                                | Description                          | Status     |
+|--------------------------------------|--------------------------------------|------------|
+| `gemini-1.0-pro`                     | Gemini 1.0 Pro                       | Obsolete   |
+| `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated |
+| `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated |
+| `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated |
+| `gemini-2.0-flash`                   | Gemini 2.0 Flash                     | Supported  |
+| `gemini-2.0-flash-lite`              | Gemini 2.0 Flash Lite                | Supported  |
+| `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported  |
+| `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported  |
+| `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Experimental        | Supported  |
+| `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported  |
+| `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
 
 
 The following models are currently supported by VertexAI API:
 
-| Model                       | Description                   | Status       |
-|-----------------------------|-------------------------------|--------------|
-| `gemini-1.0-pro`            | Gemini 1.0 Pro                | Obsolete     |
-| `gemini-1.5-pro`            | Gemini 1.5 Pro                | Deprecated   |
-| `gemini-1.5-flash`          | Gemini 1.5 Flash              | Deprecated   |
-| `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B           | Deprecated   |
-| `gemini-2.0-flash`          | Gemini 2.0 Flash              | Supported    |
-| `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite         | Supported    |
-| `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05      | Supported    |
-| `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25      | Supported    |
-| `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Experimental | Unavailable  |
+| Model                                | Description                          | Status       |
+|--------------------------------------|--------------------------------------|--------------|
+| `gemini-1.0-pro`                     | Gemini 1.0 Pro                       | Obsolete     |
+| `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated   |
+| `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated   |
+| `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated   |
+| `gemini-2.0-flash`                   | Gemini 2.0 Flash                     | Supported    |
+| `gemini-2.0-flash-lite`              | Gemini 2.0 Flash Lite                | Supported    |
+| `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported    |
+| `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported    |
+| `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Experimental        | Unavailable  |
+| `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported    |
+| `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
 """
 
 import sys  # noqa
+from datetime import datetime, timezone, timedelta
+
+from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
+from genkit.plugins.google_genai.models.context_caching.utils import validate_context_cache_request, generate_cache_key
 
 if sys.version_info < (3, 11):  # noqa
     from strenum import StrEnum  # noqa
@@ -291,8 +299,32 @@ GEMINI_2_0_FLASH_EXP_IMAGEN = ModelInfo(
     ),
 )
 
+GEMINI_2_0_FLASH_THINKING_EXP_01_21 = ModelInfo(
+    label='Google AI - Gemini 2.0 Flash Thinking Exp 01-21',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
 GEMINI_2_5_PRO_EXP_03_25 = ModelInfo(
     label='Google AI - Gemini 2.5 Pro Exp 03-25',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
+GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
+    label='Google AI - Gemini 2.5 Pro Preview 03-25',
     supports=Supports(
         multiturn=True,
         media=True,
@@ -317,16 +349,18 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
 
     Model Support:
 
-    | Model                       | Description               | Status     |
-    |-----------------------------|---------------------------|------------|
-    | `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
-    | `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
-    | `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
-    | `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Exp      | Supported  |
-    | `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | Supported  |
-    | `gemini-2.0-flash`          | Gemini 2.0 Flash          | Supported  |
-    | `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | Supported  |
-    | `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
+    | Model                                | Description                          | Status       |
+    |--------------------------------------|--------------------------------------|--------------|
+    | `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated   |
+    | `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated   |
+    | `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated   |
+    | `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Exp                 | Supported    |
+    | `gemini-2.0-flash-lite`              | Gemini 2.0 Flash Lite                | Supported    |
+    | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported    |
+    | `gemini-2.0-flash`                   | Gemini 2.0 Flash                     | Supported    |
+    | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported    |
+    | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported    |
+    | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -335,8 +369,10 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
     GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
+    GEMINI_2_0_FLASH_THINKING_EXP_01_21 = 'gemini-2.0-flash-thinking-exp-01-21'
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
+    GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
 
 
 class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -344,16 +380,18 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
 
     Model Support:
 
-    | Model                       | Description               | Status     |
-    |-----------------------------|---------------------------|------------|
-    | `gemini-1.5-flash-8b`       | Gemini 1.5 Flash 8B       | Deprecated |
-    | `gemini-1.5-flash`          | Gemini 1.5 Flash          | Deprecated |
-    | `gemini-1.5-pro`            | Gemini 1.5 Pro            | Deprecated |
-    | `gemini-2.0-flash-exp`      | Gemini 2.0 Flash Exp      | Supported  |
-    | `gemini-2.0-flash-lite`     | Gemini 2.0 Flash Lite     | Supported  |
-    | `gemini-2.0-flash`          | Gemini 2.0 Flash          | Supported  |
-    | `gemini-2.0-pro-exp-02-05`  | Gemini 2.0 Pro Exp 02-05  | Supported  |
-    | `gemini-2.5-pro-exp-03-25`  | Gemini 2.5 Pro Exp 03-25  | Supported  |
+    | Model                                | Description                          | Status     |
+    |--------------------------------------|--------------------------------------|------------|
+    | `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated |
+    | `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated |
+    | `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated |
+    | `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Exp                 | Supported  |
+    | `gemini-2.0-flash-lite`              | Gemini 2.0 Flash Lite                | Supported  |
+    | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported  |
+    | `gemini-2.0-flash`                   | Gemini 2.0 Flash                     | Supported  |
+    | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported  |
+    | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported  |
+    | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -362,8 +400,10 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
     GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
+    GEMINI_2_0_FLASH_THINKING_EXP_01_21 = 'gemini-2.0-flash-thinking-exp-01-21'
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
+    GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
 
 
 SUPPORTED_MODELS = {
@@ -373,16 +413,20 @@ SUPPORTED_MODELS = {
     GoogleAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
     GoogleAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
     GoogleAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
+    GoogleAIGeminiVersion.GEMINI_2_0_FLASH_THINKING_EXP_01_21: GEMINI_2_0_FLASH_THINKING_EXP_01_21,
     GoogleAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
+    GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
     VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
+    VertexAIGeminiVersion.GEMINI_2_0_FLASH_THINKING_EXP_01_21: GEMINI_2_0_FLASH_THINKING_EXP_01_21,
     VertexAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
+    VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
 }
 
 
@@ -528,6 +572,51 @@ class GeminiModel:
             ]
         )
 
+    async def _retrieve_cached_content(
+        self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
+    ) -> genai_types.CachedContent:
+        """Retrieves cached content from the Google API if exists.
+        If content is present - increases storage ttl based on the configured `ttl_seconds`
+        If content is not present - creates it and returns creates instance.
+
+        Args:
+            request: incoming generation instance
+            model_name: name of the generation model to use
+            cache_config: user-defined cache configuration (e.g. ttl_seconds)
+            contents: content to submit for cached context creation
+
+        Returns:
+            Cached Content instance based on provided params
+        """
+        validate_context_cache_request(request=request, model_name=model_name)
+
+        ttl = cache_config.get('ttl_seconds', DEFAULT_TTL)
+        cache_key = generate_cache_key(request=request)
+
+        iterator_config = genai_types.ListCachedContentsConfig()
+        cache = None
+        pages = await self._client.aio.caches.list(config=iterator_config)
+
+        async for item in pages:
+            if item.display_name == cache_key:
+                cache = item
+                break
+        if cache:
+            updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
+            cache = await self._client.aio.caches.update(
+                name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
+            )
+        else:
+            cache = await self._client.aio.caches.create(
+                model=model_name,
+                config=genai_types.CreateCachedContentConfig(
+                    contents=contents,
+                    display_name=cache_key,
+                    ttl=f'{ttl}s',
+                ),
+            )
+        return cache
+
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
@@ -538,13 +627,28 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-        request_cfg = self._genkit_to_googleai_cfg(request)
-        request_contents = self._build_messages(request)
+
+        try:
+            model_name = request.config.version
+        except AttributeError:
+            model_name = self._version
+
+        # TODO: do not move - this method mutates `request` by extracting system prompts into configuration object
+        request_cfg = self._genkit_to_googleai_cfg(request=request)
+
+        request_contents, cached_content = await self._build_messages(request=request, model_name=model_name)
+
+        if cached_content:
+            request_cfg.cached_content = cached_content.name
 
         if ctx.is_streaming:
-            response = await self._streaming_generate(request_contents, request_cfg, ctx)
+            response = await self._streaming_generate(
+                request_contents=request_contents, request_cfg=request_cfg, ctx=ctx, model_name=model_name
+            )
         else:
-            response = await self._generate(request_contents, request_cfg)
+            response = await self._generate(
+                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name
+            )
 
         response.usage = self._create_usage_stats(request=request, response=response)
 
@@ -554,12 +658,14 @@ class GeminiModel:
         self,
         request_contents: list[genai_types.Content],
         request_cfg: genai_types.GenerateContentConfig,
+        model_name: str,
     ) -> GenerateResponse:
         """Call google-genai generate.
 
         Args:
             request_contents: request contents
             request_cfg: request configuration
+            model_name: name of generation model to use
 
         Returns:
             genai response.
@@ -571,13 +677,13 @@ class GeminiModel:
                     {
                         'config': dump_dict(request_cfg),
                         'contents': [dump_dict(c) for c in request_contents],
-                        'model': self._version,
+                        'model': model_name,
                     },
                     fallback=lambda _: '[!! failed to serialize !!]',
                 ),
             )
             response = await self._client.aio.models.generate_content(
-                model=self._version, contents=request_contents, config=request_cfg
+                model=model_name, contents=request_contents, config=request_cfg
             )
             span.set_attribute('genkit:output', dump_json(response))
 
@@ -595,6 +701,7 @@ class GeminiModel:
         request_contents: list[genai_types.Content],
         request_cfg: genai_types.GenerateContentConfig | None,
         ctx: ActionRunContext,
+        model_name: str,
     ) -> GenerateResponse:
         """Call google-genai generate for streaming.
 
@@ -602,6 +709,7 @@ class GeminiModel:
             request_contents: request contents
             request_cfg: request configuration
             ctx: action context
+            model_name: name of generation model to use
 
         Returns:
             empty genai response
@@ -612,11 +720,11 @@ class GeminiModel:
                 dump_json({
                     'config': dump_dict(request_cfg),
                     'contents': [dump_dict(c) for c in request_contents],
-                    'model': self._version,
+                    'model': model_name,
                 }),
             )
             generator = self._client.aio.models.generate_content_stream(
-                model=self._version, contents=request_contents, config=request_cfg
+                model=model_name, contents=request_contents, config=request_cfg
             )
         accumulated_content = []
         async for response_chunk in await generator:
@@ -658,16 +766,20 @@ class GeminiModel:
         """
         return SUPPORTED_MODELS[self._version].supports.media
 
-    def _build_messages(self, request: GenerateRequest) -> list[genai_types.Content]:
+    async def _build_messages(
+        self, request: GenerateRequest, model_name: str
+    ) -> tuple[list[genai_types.Content], genai_types.CachedContent]:
         """Build google-genai request contents from Genkit request.
 
         Args:
             request: Genkit request.
+            model_name: name of generation model to use
 
         Returns:
             list of google-genai contents.
         """
         request_contents: list[genai_types.Content] = []
+        cache = None
 
         for msg in request.messages:
             content_parts: list[genai_types.Part] = []
@@ -675,7 +787,15 @@ class GeminiModel:
                 content_parts.append(PartConverter.to_gemini(p))
             request_contents.append(genai_types.Content(parts=content_parts, role=msg.role))
 
-        return request_contents
+            if msg.metadata and msg.metadata.get('cache'):
+                cache = await self._retrieve_cached_content(
+                    request=request,
+                    model_name=model_name,
+                    cache_config=msg.metadata['cache'],
+                    contents=request_contents,
+                )
+
+        return request_contents, cache
 
     def _contents_from_response(self, response: genai_types.GenerateContentResponse) -> list:
         """Retrieve contents from google-genai response.

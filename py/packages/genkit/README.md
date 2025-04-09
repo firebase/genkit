@@ -16,15 +16,14 @@ pip install genkit-plugin-google-genai
 ```
 
 ```python
-import asyncio
 import json
 from pydantic import BaseModel, Field
 from genkit.ai import Genkit
-from genkit.plugins.google_genai import GoogleGenai
+from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(
-    plugins=[GoogleGenai()],
-    model='google_genai/gemini-2.0-flash',
+    plugins=[GoogleAI()],
+    model='googleai/gemini-2.0-flash',
 )
 
 class RpgCharacter(BaseModel):
@@ -47,5 +46,7 @@ async def main() -> None:
     """Main function."""
     print(json.dumps(await generate_character('Goblorb')))
 
-asyncio.run(main())
+ai.run_main(main())
 ```
+
+See https://python.api.genkit.dev for more details.

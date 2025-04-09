@@ -17,12 +17,10 @@
 """Smoke tests for package structure."""
 
 from genkit.core import package_name as core_package_name
-from genkit.plugins.chroma import package_name as chroma_package_name
 from genkit.plugins.firebase import package_name as firebase_package_name
 from genkit.plugins.google_cloud import package_name as google_cloud_package_name
 from genkit.plugins.google_genai import package_name as google_genai_package_name
 from genkit.plugins.ollama import package_name as ollama_package_name
-from genkit.plugins.pinecone import package_name as pinecone_package_name
 from genkit.plugins.vertex_ai import package_name as vertex_ai_package_name
 
 
@@ -44,13 +42,11 @@ def test_package_names() -> None:
     This test verifies that the package imports work correctly from the
     end-user perspective.
     """
-    assert chroma_package_name() == 'genkit.plugins.chroma'
     assert core_package_name() == 'genkit.core'
     assert firebase_package_name() == 'genkit.plugins.firebase'
     assert google_cloud_package_name() == 'genkit.plugins.google_cloud'
     assert google_genai_package_name() == 'genkit.plugins.google_genai'
     assert ollama_package_name() == 'genkit.plugins.ollama'
-    assert pinecone_package_name() == 'genkit.plugins.pinecone'
     assert vertex_ai_package_name() == 'genkit.plugins.vertex_ai'
 
 

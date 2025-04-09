@@ -57,7 +57,7 @@ func vertexaiEx(ctx context.Context) error {
 	// [START gen]
 	genRes, err := genkit.GenerateText(ctx, g,
 		ai.WithModel(langModel),
-		ai.WithPromptText("Tell me a joke."))
+		ai.WithPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func vertexaiEx(ctx context.Context) error {
 	// [END embedder]
 
 	// [START embed]
-	embedRes, err := ai.Embed(ctx, embeddingModel, ai.WithEmbedText(userInput))
+	embedRes, err := ai.Embed(ctx, embeddingModel, ai.WithTextDocs(userInput))
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func vertexaiEx(ctx context.Context) error {
 	var myRetriever ai.Retriever
 
 	// [START retrieve]
-	retrieveRes, err := ai.Retrieve(ctx, myRetriever, ai.WithRetrieverText(userInput))
+	retrieveRes, err := ai.Retrieve(ctx, myRetriever, ai.WithTextDocs(userInput))
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func vertexaiEx(ctx context.Context) error {
 	var docsToIndex []*ai.Document
 
 	// [START index]
-	if err := ai.Index(ctx, myIndexer, ai.WithIndexerDocs(docsToIndex...)); err != nil {
+	if err := ai.Index(ctx, myIndexer, ai.WithDocs(docsToIndex...)); err != nil {
 		return err
 	}
 	// [END index]

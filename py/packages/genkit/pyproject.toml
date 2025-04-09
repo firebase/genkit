@@ -39,14 +39,14 @@ license = { text = "Apache-2.0" }
 name = "genkit"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.3.0.dev1"
+version = "0.3.1"
 
 [project.optional-dependencies]
-dev-local-vector-store = ["genkit-plugin-dev-local-vectorstore"]
-flask                  = ["genkit-plugin-flask"]
-google-genai           = ["genkit-plugin-google-genai"]
-ollama                 = ["genkit-plugin-ollama"]
-openai                 = ["genkit-plugin-compat-oai"]
+dev-local-vectorstore = ["genkit-plugin-dev-local-vectorstore"]
+flask                 = ["genkit-plugin-flask"]
+google-genai          = ["genkit-plugin-google-genai"]
+ollama                = ["genkit-plugin-ollama"]
+openai                = ["genkit-plugin-compat-oai"]
 
 [build-system]
 build-backend = "hatchling.build"

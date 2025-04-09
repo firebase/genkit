@@ -42,6 +42,7 @@ Key features demonstrated in this sample:
 """
 
 import argparse
+import asyncio
 
 import structlog
 import uvicorn
@@ -114,8 +115,8 @@ async def simple_generate_with_tools_flow(value: int) -> str:
     return response.text
 
 
-@ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext):
+@ai.tool(name='interruptingTool')
+def interrupting_tool(input_: GablorkenInput, ctx: ToolRunContext):
     """The user-defined tool function.
 
     Args:
@@ -146,7 +147,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
                 content=[TextPart(text=f'what is a gablorken of {value}')],
             ),
         ],
-        tools=['gablorkenTool2'],
+        tools=['interruptingTool'],
     )
     await logger.ainfo(f'len(response.tool_requests)={len(response1.tool_requests)}')
     if len(response1.interrupts) == 0:
@@ -231,6 +232,29 @@ async def say_hi_stream(name: str, ctx):
             result += part.root.text
 
     return result
+
+
+@ai.flow()
+async def stream_greeting(name: str, ctx) -> str:
+    """Stream a greeting for the given name.
+
+    Args:
+        name: the name to send to test function
+        ctx: the context of the tool
+
+    Returns:
+        The generated response with a function.
+    """
+    chunks = [
+        'hello',
+        name,
+        'how are you?',
+    ]
+    for data in chunks:
+        await asyncio.sleep(1)
+        ctx.send_chunk(data)
+
+    return 'test streaming response'
 
 
 class Skills(BaseModel):
@@ -358,4 +382,4 @@ async def main(ai: Genkit) -> None:
 if __name__ == '__main__':
     config: argparse.Namespace = parse_args()
     runner = server_main if config.server else main
-    ai.run(runner(ai))
+    ai.run_main(runner(ai))
