@@ -191,7 +191,14 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 			}),
 		})
 	}
-	g.request.Tools = openai.F(toolParams)
+
+	// Set the tools in the request
+	// If no tools are provided, set it to nil
+	// This is important to avoid sending an empty array in the request
+	// which is not supported by some vendor APIs
+	if len(toolParams) > 0 {
+		g.request.Tools = openai.F(toolParams)
+	}
 
 	switch choice {
 	case ai.ToolChoiceAuto:

@@ -24,29 +24,22 @@ import (
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		log.Fatalf("failed to create Genkit: %v", err)
-	}
-
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	apiKeyOption := option.WithAPIKey(apiKey)
-	baseURLOption := option.WithBaseURL("https://api.anthropic.com/v1/")
 
 	oai := compat_oai.OpenAICompatible{
-		Opts:     []option.RequestOption{apiKeyOption, baseURLOption},
+		Opts: []option.RequestOption{
+			option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
+			option.WithBaseURL("https://api.anthropic.com/v1/"),
+		},
 		Provider: "anthropic",
 	}
-	err = oai.Init(ctx, g)
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&oai))
 	if err != nil {
 		log.Fatalf("failed to initialize OpenAICompatible: %v", err)
 	}
 
-	genkit.WithPlugins(&oai)
-
 	genkit.DefineFlow(g, "anthropic", func(ctx context.Context, subject string) (string, error) {
 
-		sonnet37, err := oai.DefineModel(g, "claude-3-7-sonnet-20250219", ai.ModelInfo{Label: "Claude Sonnet", Supports: compat_oai.Multimodal.Supports}, "anthropic")
+		sonnet37, err := oai.DefineModel(g, "claude-3-7-sonnet-20250219", "anthropic", ai.ModelInfo{Label: "Claude Sonnet", Supports: compat_oai.Multimodal.Supports})
 		if err != nil {
 			return "", err
 		}
