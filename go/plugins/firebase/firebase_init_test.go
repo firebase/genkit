@@ -20,7 +20,6 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/genkit"
-	"google.golang.org/api/option"
 )
 
 func TestInit(t *testing.T) {
@@ -28,7 +27,7 @@ func TestInit(t *testing.T) {
 
 	ctx := context.Background()
 	g, err := genkit.Init(ctx)
-	firestoreClient, err := firestore.NewClient(ctx, "test-prj", option.WithCredentialsFile(""))
+	firestoreClient := &firestore.Client{} // Create dummy client
 	if err != nil {
 		t.Fatal(err)
 	}
