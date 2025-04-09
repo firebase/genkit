@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.0.0",
-    "@trpc/server": "10.45.0",
+    "@trpc/server": "^10.45.2",
     "adm-zip": "^0.5.12",
     "axios": "^1.7.7",
     "body-parser": "^1.20.2",
