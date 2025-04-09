@@ -31,6 +31,7 @@ import (
 const defaultModel = "gpt-4o-mini"
 
 func setupTestClient(t *testing.T) *compat_oai.ModelGenerator {
+	t.Helper()
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
@@ -92,9 +93,6 @@ func TestGenerator_Stream(t *testing.T) {
 	handleChunk := func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 		for _, part := range chunk.Content {
 			chunks = append(chunks, part.Text)
-
-			// log each chunk as it arrives
-			t.Logf("Chunk: %s", part.Text)
 		}
 		return nil
 	}
@@ -179,13 +177,19 @@ func TestWithConfig(t *testing.T) {
 		},
 	}
 
+	messages := []*ai.Message{
+		{
+			Role: ai.RoleUser,
+			Content: []*ai.Part{
+				ai.NewTextPart("Tell me a joke"),
+			},
+		},
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := &openai.Client{}
-			generator := compat_oai.NewModelGenerator(client, "test-model")
-
-			// Apply the config and check for errors
-			result, err := generator.WithConfig(tt.config)
+			generator := setupTestClient(t)
+			result, err := generator.WithMessages(messages).WithConfig(tt.config).Generate(context.Background(), nil)
 
 			if tt.expectError {
 				assert.Error(t, err, "Expected an error for config type %T", tt.config)
@@ -202,7 +206,7 @@ func TestWithConfig(t *testing.T) {
 				request := generator.GetRequestConfig()
 
 				// Validate the result
-				tt.validate(t, request.(*openai.ChatCompletionNewParams))
+				tt.validate(t, request)
 			}
 		})
 	}

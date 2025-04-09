@@ -35,19 +35,19 @@ func TestPlugin(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Initialize genkit with GPT-4o-min as default model
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("openai/gpt-4o-mini"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("genkit initialized")
-
 	// Initialize the OpenAI plugin
 	apiKeyOption := option.WithAPIKey(apiKey)
 	oai := openai.OpenAI{
 		Opts: []option.RequestOption{apiKeyOption},
 	}
-	oai.Init(ctx, g)
+	g, err := genkit.Init(context.Background(),
+		genkit.WithDefaultModel("openai/gpt-4o-mini"),
+		genkit.WithPlugins(&oai),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("genkit initialized")
 
 	// Define a tool for calculating gablorkens
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
@@ -63,6 +63,8 @@ func TestPlugin(t *testing.T) {
 	t.Log("openai plugin initialized")
 
 	t.Run("embedder", func(t *testing.T) {
+
+		// define embedder
 		embedder := oai.Embedder(g, "text-embedding-3-small")
 		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
 		if err != nil {
@@ -212,10 +214,5 @@ func TestPlugin(t *testing.T) {
 		}
 
 		t.Logf("system message response: %+v", out)
-	})
-
-	t.Run("multi-turn conversation", func(t *testing.T) {
-		// TODO: Implement multi-turn conversation
-		t.Log("skipping multi-turn conversation")
 	})
 }

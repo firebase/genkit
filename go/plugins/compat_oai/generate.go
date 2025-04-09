@@ -30,9 +30,11 @@ type ModelGenerator struct {
 	client    *openai.Client
 	modelName string
 	request   *openai.ChatCompletionNewParams
+	// Store any errors that occur during building
+	err error
 }
 
-func (g *ModelGenerator) GetRequestConfig() any {
+func (g *ModelGenerator) GetRequestConfig() *openai.ChatCompletionNewParams {
 	return g.request
 }
 
@@ -49,6 +51,15 @@ func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator 
 
 // WithMessages adds messages to the request
 func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
+	// Return early if we already have an error
+	if g.err != nil {
+		return g
+	}
+
+	if messages == nil {
+		return g
+	}
+
 	oaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
 	for _, msg := range messages {
 		content := g.concatenateContent(msg.Content)
@@ -92,15 +103,19 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 }
 
 // WithConfig adds configuration parameters from the model request
-func (g *ModelGenerator) WithConfig(config any) (*ModelGenerator, error) {
+func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
+	// Return early if we already have an error
+	if g.err != nil {
+		return g
+	}
+
 	if config == nil {
-		return g, nil
+		return g
 	}
 
 	// Handle only the supported config types with a type switch
 	switch cfg := config.(type) {
 	case *openai.ChatCompletionNewParams:
-		// Handle OpenAI-specific config
 		if cfg != nil {
 			// Copy all non-nil fields directly from the OpenAI config
 			srcVal := reflect.ValueOf(cfg).Elem()
@@ -138,29 +153,25 @@ func (g *ModelGenerator) WithConfig(config any) (*ModelGenerator, error) {
 		// Provide detailed error message for unsupported types
 		configType := reflect.TypeOf(config)
 		if configType == nil {
-			return g, fmt.Errorf("invalid nil config of unknown type")
+			g.err = fmt.Errorf("invalid nil config of unknown type")
+		} else if configType.Kind() != reflect.Pointer {
+			g.err = fmt.Errorf("config must be a pointer, got %s", configType.Kind())
+		} else if reflect.ValueOf(config).IsNil() {
+			g.err = fmt.Errorf("config is a nil %s pointer", configType.Elem().Name())
+		} else {
+			g.err = fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
 		}
-
-		// Check if it's a pointer to a struct
-		if configType.Kind() != reflect.Pointer {
-			return g, fmt.Errorf("config must be a pointer, got %s", configType.Kind())
-		}
-
-		// If it's a nil pointer, give specific error
-		if reflect.ValueOf(config).IsNil() {
-			return g, fmt.Errorf("config is a nil %s pointer", configType.Elem().Name())
-		}
-
-		// Give helpful message about what types are supported
-		return g, fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
 	}
-
-	return g, nil
+	return g
 }
 
 // WithTools adds tools to the request
 func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolChoice) *ModelGenerator {
-	if len(tools) == 0 {
+	if g.err != nil {
+		return g
+	}
+
+	if tools == nil {
 		return g
 	}
 
@@ -196,6 +207,16 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 
 // Generate executes the generation request
 func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+	// Check for any errors that occurred during building
+	if g.err != nil {
+		return nil, g.err
+	}
+
+	// Ensure messages are set
+	if g.request.Messages.Value == nil || len(g.request.Messages.Value) == 0 {
+		return nil, fmt.Errorf("no messages provided")
+	}
+
 	if handleChunk != nil {
 		return g.generateStream(ctx, handleChunk)
 	}
@@ -315,6 +336,9 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 			OutputTokens: int(completion.Usage.CompletionTokens),
 			TotalTokens:  int(completion.Usage.TotalTokens),
 		},
+		Message: &ai.Message{
+			Role: ai.RoleModel,
+		},
 	}
 
 	choice := completion.Choices[0]
@@ -332,10 +356,6 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 		resp.FinishReason = ai.FinishReasonUnknown
 	}
 
-	message := &ai.Message{
-		Role: ai.RoleModel,
-	}
-
 	// handle tool calls
 	var toolRequestParts []*ai.Part
 	for _, toolCall := range choice.Message.ToolCalls {
@@ -345,15 +365,13 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 		}))
 	}
 	if len(toolRequestParts) > 0 {
-		message.Content = toolRequestParts
-		resp.Message = message
+		resp.Message.Content = toolRequestParts
 		return resp, nil
 	}
 
-	message.Content = []*ai.Part{
+	resp.Message.Content = []*ai.Part{
 		ai.NewTextPart(completion.Choices[0].Message.Content),
 	}
-	resp.Message = message
 	return resp, nil
 }
 
