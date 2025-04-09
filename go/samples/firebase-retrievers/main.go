@@ -21,8 +21,6 @@ import (
 	"os"
 
 	"cloud.google.com/go/firestore"
-	firebasev4 "firebase.google.com/go/v4"
-
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
@@ -50,29 +48,36 @@ func main() {
 	}
 	defer firestoreClient.Close()
 
-	// Firebase app configuration and initialization
-	firebaseApp, err := firebasev4.NewApp(ctx, nil)
-	if err != nil {
-		log.Fatalf("Error initializing Firebase app: %v", err)
-	}
-
-	// Firebase configuration using the initialized app
-	firebaseConfig := &firebase.FirebasePluginConfig{
-		App: firebaseApp, // Pass the pre-initialized Firebase app
-	}
-
 	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Initialize Firebase plugin
-	if err := firebase.Init(ctx, g, firebaseConfig); err != nil {
-		log.Fatalf("Error initializing Firebase: %v", err)
-	}
-
 	// Mock embedder
 	embedder := &MockEmbedder{}
+
+	// Firestore Retriever Configuration
+	retrieverOptions := firebase.RetrieverOptions{
+		Name:            "example-retriever",
+		Client:          firestoreClient,
+		Collection:      collectionName,
+		Embedder:        embedder,
+		VectorField:     "embedding",
+		ContentField:    "text",
+		MetadataFields:  []string{"metadata"},
+		Limit:           10,
+		DistanceMeasure: firestore.DistanceMeasureEuclidean,
+		VectorType:      firebase.Vector64,
+	}
+
+	f := &firebase.FireStore{
+		RetrieverOpts: retrieverOptions,
+	}
+
+	// Initialize Firebase plugin
+	if err := f.Init(ctx, g); err != nil {
+		log.Fatalf("Error initializing Firebase: %v", err)
+	}
 
 	// Famous films text
 	films := []string{
@@ -107,22 +112,8 @@ func main() {
 		return "10 film documents indexed successfully", nil
 	})
 
-	// Firestore Retriever Configuration
-	retrieverOptions := firebase.RetrieverOptions{
-		Name:            "example-retriever",
-		Client:          firestoreClient,
-		Collection:      collectionName,
-		Embedder:        embedder,
-		VectorField:     "embedding",
-		ContentField:    "text",
-		MetadataFields:  []string{"metadata"},
-		Limit:           10,
-		DistanceMeasure: firestore.DistanceMeasureEuclidean,
-		VectorType:      firebase.Vector64,
-	}
-
-	// Define Firestore Retriever
-	retriever, err := firebase.DefineFirestoreRetriever(g, retrieverOptions)
+	//// Define Firestore Retriever
+	//retriever, err := firebase.DefineFirestoreRetriever(g, retrieverOptions)
 	if err != nil {
 		log.Fatalf("Error defining Firestore retriever: %v", err)
 	}
@@ -134,6 +125,7 @@ func main() {
 			Query: ai.DocumentFromText(query, nil),
 		}
 		log.Println("Starting retrieval with query:", query)
+		retriever, _ := f.Retriever()
 		resp, err := retriever.Retrieve(ctx, req)
 		if err != nil {
 			return "", fmt.Errorf("retriever error: %w", err)

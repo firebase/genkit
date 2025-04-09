@@ -22,87 +22,70 @@ import (
 	"log"
 	"sync"
 
-	firebase "firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/auth"
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 )
 
-var state struct {
-	mu         sync.Mutex     // Ensures thread-safe access to state
-	initted    bool           // Tracks if the plugin has been initialized
-	app        *firebase.App  // Holds the Firebase app instance
-	retrievers []ai.Retriever // Holds the list of initialized retrievers
+// The provider used in the registry.
+const provider = "firebase"
+
+// FireStore passes configuration options to the plugin.
+type FireStore struct {
+	App           *firebasev4.App
+	RetrieverOpts RetrieverOptions
+	retriever     ai.Retriever
+	mu            sync.Mutex // Mutex to control access.
+	initted       bool       // Whether the plugin has been initialized.
 }
 
-// FirebaseApp is an interface to represent the Firebase App object
-type FirebaseApp interface {
-	Auth(ctx context.Context) (*auth.Client, error)
+// Name returns the name of the plugin.
+func (f *FireStore) Name() string {
+	return provider
 }
 
-// FirebasePluginConfig is the configuration for the Firebase plugin.
-type FirebasePluginConfig struct {
-	App        *firebase.App      // Pre-initialized Firebase app
-	Retrievers []RetrieverOptions // Array of retriever options
-}
+// Init initializes the Firebase plugin..
+func (f *FireStore) Init(ctx context.Context, g *genkit.Genkit) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
-// Init initializes the plugin with the provided configuration.
-func Init(ctx context.Context, g *genkit.Genkit, cfg *FirebasePluginConfig) error {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-
-	if state.initted {
+	if f.initted {
 		log.Println("firebase.Init: plugin already initialized, returning without reinitializing")
 		return nil
 	}
 
-	if cfg.App == nil {
-		return fmt.Errorf("firebase.Init: no Firebase app provided")
-	}
-
-	state.app = cfg.App
-
-	var retrievers []ai.Retriever
-	for _, retrieverCfg := range cfg.Retrievers {
-		retriever, err := DefineFirestoreRetriever(g, retrieverCfg)
+	if f.App == nil {
+		firebaseApp, err := firebasev4.NewApp(ctx, nil)
 		if err != nil {
-			return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", retrieverCfg.Name, err)
+			log.Fatalf("Error initializing Firebase app: %v", err)
 		}
-		retrievers = append(retrievers, retriever)
+		f.App = firebaseApp
 	}
 
-	state.retrievers = retrievers
-	state.initted = true
+	retriever, err := DefineFirestoreRetriever(g, f.RetrieverOpts)
+	if err != nil {
+		return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", f.RetrieverOpts.Name, err)
+	}
+	f.retriever = retriever
+	f.initted = true
 	return nil
 }
 
-// unInit clears the initialized plugin state.
-func unInit() {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	state.initted = false
-	state.app = nil
-	state.retrievers = nil
+// UnInit clears the initialized plugin state.
+func (f *FireStore) UnInit() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.initted = false
+	f.App = nil
 }
 
-// App returns the cached Firebase app.
-func App(ctx context.Context) (*firebase.App, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
+// Retriever returns retriever created in firestore object
+func (f *FireStore) Retriever() (ai.Retriever, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
-	if !state.initted {
-		return nil, fmt.Errorf("firebase.App: Firebase app not initialized. Call Init first")
-	}
-	return state.app, nil
-}
-
-// Retrievers returns the cached list of retrievers.
-func Retrievers(ctx context.Context) ([]ai.Retriever, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-
-	if !state.initted {
+	if !f.initted {
 		return nil, fmt.Errorf("firebase.Retrievers: Plugin not initialized. Call Init first")
 	}
-	return state.retrievers, nil
+	return f.retriever, nil
 }

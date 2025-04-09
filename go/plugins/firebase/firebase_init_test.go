@@ -18,8 +18,9 @@ import (
 	"context"
 	"testing"
 
-	firebase "firebase.google.com/go/v4"
+	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/genkit"
+	"google.golang.org/api/option"
 )
 
 func TestInit(t *testing.T) {
@@ -27,60 +28,57 @@ func TestInit(t *testing.T) {
 
 	ctx := context.Background()
 	g, err := genkit.Init(ctx)
+	firestoreClient, err := firestore.NewClient(ctx, "test-prj", option.WithCredentialsFile(""))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	tests := []struct {
-		name          string
-		config        *FirebasePluginConfig
-		expectedError string
-		setup         func() error
+		name             string
+		expectedError    string
+		retrieverOptions RetrieverOptions
 	}{
 		{
 			name: "Successful initialization",
-			config: &FirebasePluginConfig{
-				App: &firebase.App{}, // Mock Firebase app
+			retrieverOptions: RetrieverOptions{
+				Name:            "example-retriever1",
+				Client:          firestoreClient,
+				Collection:      "test",
+				Embedder:        nil,
+				VectorField:     "embedding",
+				ContentField:    "text",
+				MetadataFields:  []string{"metadata"},
+				Limit:           10,
+				DistanceMeasure: firestore.DistanceMeasureEuclidean,
+				VectorType:      Vector64,
 			},
 			expectedError: "",
-			setup: func() error {
-				return nil // No setup required, first call should succeed
-			},
-		},
-		{
-			name: "Initialization when already initialized",
-			config: &FirebasePluginConfig{
-				App: &firebase.App{}, // Mock Firebase app
-			},
-			expectedError: "",
-			setup: func() error {
-				// Initialize once
-				return Init(ctx, g, &FirebasePluginConfig{
-					App: &firebase.App{}, // Mock Firebase app
-				})
-			},
 		},
 		{
 			name: "Initialization with missing App",
-			config: &FirebasePluginConfig{
-				App: nil, // No app provided
+			retrieverOptions: RetrieverOptions{
+				Name:            "example-retriever2",
+				Client:          nil,
+				Collection:      "test",
+				Embedder:        nil,
+				VectorField:     "embedding",
+				ContentField:    "text",
+				MetadataFields:  []string{"metadata"},
+				Limit:           10,
+				DistanceMeasure: firestore.DistanceMeasureEuclidean,
+				VectorType:      Vector64,
 			},
-			expectedError: "firebase.Init: no Firebase app provided", // Expecting an error when no app is passed
-			setup: func() error {
-				return nil // No setup required
-			},
+			expectedError: "firebase.Init: failed to initialize retriever example-retriever2: DefineFirestoreRetriever: Firestore client is not provided", // Expecting an error when no app is passed
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer unInit()
-
-			if err := tt.setup(); err != nil {
-				t.Fatalf("Setup failed: %v", err)
+			f := &FireStore{
+				RetrieverOpts: tt.retrieverOptions,
 			}
-
-			err := Init(ctx, g, tt.config)
+			defer f.UnInit()
+			err := f.Init(ctx, g)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {
@@ -89,6 +87,7 @@ func TestInit(t *testing.T) {
 			} else if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
+
 		})
 	}
 }

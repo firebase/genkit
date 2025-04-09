@@ -29,8 +29,6 @@ const (
 	Vector64 VectorType = iota
 )
 
-const provider = "firebase"
-
 type RetrieverOptions struct {
 	Name            string
 	Label           string
@@ -43,6 +41,35 @@ type RetrieverOptions struct {
 	Limit           int
 	DistanceMeasure firestore.DistanceMeasure
 	VectorType      VectorType
+}
+
+//Convert a Firestore document snapshot to a Genkit Document object.
+func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField string, metadataFields []string) []*ai.Document {
+
+	// Prepare the documents to return in the response
+	var documents []*ai.Document
+	for _, result := range docSnapshots {
+		data := result.Data()
+
+		// Ensure content field exists and is of type string
+		content, ok := data[contentField].(string)
+		if !ok {
+			fmt.Printf("Content field %s missing or not a string in document %s", contentField, result.Ref.ID)
+			continue
+		}
+
+		// Extract metadata fields
+		metadata := make(map[string]interface{})
+		for _, field := range metadataFields {
+			if value, ok := data[field]; ok {
+				metadata[field] = value
+			}
+		}
+
+		doc := ai.DocumentFromText(content, metadata)
+		documents = append(documents, doc)
+	}
+	return documents
 }
 
 func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions) (ai.Retriever, error) {
@@ -93,31 +120,7 @@ func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions) (ai.Retrie
 		if err != nil {
 			return nil, fmt.Errorf("DefineFirestoreRetriever: FindNearest query failed: %v", err)
 		}
-
-		// Prepare the documents to return in the response
-		var documents []*ai.Document
-		for _, result := range results {
-			data := result.Data()
-
-			// Ensure content field exists and is of type string
-			content, ok := data[cfg.ContentField].(string)
-			if !ok {
-				fmt.Printf("Content field %s missing or not a string in document %s", cfg.ContentField, result.Ref.ID)
-				continue
-			}
-
-			// Extract metadata fields
-			metadata := make(map[string]interface{})
-			for _, field := range cfg.MetadataFields {
-				if value, ok := data[field]; ok {
-					metadata[field] = value
-				}
-			}
-
-			doc := ai.DocumentFromText(content, metadata)
-			documents = append(documents, doc)
-		}
-
+		documents := convertToDoc(results, cfg.ContentField, cfg.MetadataFields)
 		return &ai.RetrieverResponse{Documents: documents}, nil
 	}
 
