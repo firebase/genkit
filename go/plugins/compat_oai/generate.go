@@ -38,6 +38,20 @@ func (g *ModelGenerator) GetRequestConfig() *openai.ChatCompletionNewParams {
 	return g.request
 }
 
+func (g *ModelGenerator) TransformToGenkitGenerationCommonConfig(cfg *openai.ChatCompletionNewParams) *ai.GenerationCommonConfig {
+	// Transform the OpenAI config to Genkit config
+	if cfg == nil {
+		return nil
+	}
+
+	return &ai.GenerationCommonConfig{
+		Temperature:     cfg.Temperature.Value,
+		MaxOutputTokens: int(cfg.MaxTokens.Value),
+		TopP:            cfg.TopP.Value,
+		Version:         cfg.Model.Value,
+	}
+}
+
 // NewModelGenerator creates a new ModelGenerator instance
 func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator {
 	return &ModelGenerator{
