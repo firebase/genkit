@@ -178,8 +178,11 @@ type SafetySetting struct {
 type Modality string
 
 const (
+	// Indicates the model should return images
 	ImageMode Modality = "IMAGE"
-	TextMode  Modality = "TEXT"
+	// Indicates the model should return text
+	TextMode Modality = "TEXT"
+	// Indicates the model should return audio
 	AudioMode Modality = "AUDIO"
 )
 

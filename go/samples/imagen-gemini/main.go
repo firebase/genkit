@@ -61,7 +61,7 @@ func main() {
 					googlegenai.TextMode,
 				},
 			}),
-			ai.WithPromptText(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
+			ai.WithPrompt(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
 		if err != nil {
 			return "", err
 		}
