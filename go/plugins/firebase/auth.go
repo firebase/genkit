@@ -40,8 +40,10 @@ type AuthClient interface {
 
 // ContextProvider creates a Firebase context provider for Genkit actions.
 func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvider, error) {
-	app := App(ctx)
-
+	app, err := App(ctx)
+	if err != nil {
+		return nil, err
+	}
 	client, err := app.Auth(ctx)
 	if err != nil {
 		return nil, err
