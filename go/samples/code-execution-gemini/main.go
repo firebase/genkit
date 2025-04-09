@@ -58,32 +58,11 @@ func main() {
 			return "", err
 		}
 
-		// Parse and display the code execution parts
-		fmt.Println("\n=== CODE EXECUTION RESULTS ===")
-		msg := resp.Message
+		// You can also use the helper function for simpler code
+		fmt.Println("\n=== INTERNAL CODE EXECUTION ===")
+		displayCodeExecution(resp.Message)
 
-		for _, part := range msg.Content {
-			if part.IsCustom() {
-				if codeExec, ok := part.Custom["codeExecutionResult"]; ok {
-					result := codeExec.(map[string]any)
-					fmt.Println("\nExecution result:")
-					fmt.Println("Status:", result["outcome"])
-					fmt.Println("Output:")
-					fmt.Println(formatOutput(result["output"].(string)))
-				} else if execCode, ok := part.Custom["executableCode"]; ok {
-					code := execCode.(map[string]any)
-					fmt.Println("Language: ", code["language"])
-					fmt.Println("```" + code["language"].(string))
-					fmt.Println(code["code"])
-					fmt.Println("```")
-				}
-			} else if part.IsText() {
-				fmt.Println("\nExplanation:")
-				fmt.Println(part.Text)
-			}
-		}
-
-		fmt.Println("\n=== COMPLETE RESPONSE ===")
+		fmt.Println("\n=== COMPLETE INTERNAL CODE EXECUTION ===")
 		text := resp.Text()
 		fmt.Println(text)
 
@@ -92,15 +71,32 @@ func main() {
 	<-ctx.Done()
 }
 
-// formatOutput adds indentation to execution output for readability
-func formatOutput(output string) string {
-	if strings.TrimSpace(output) == "" {
-		return "  <no output>"
+// DisplayCodeExecution prints the code execution results from a message in a formatted way.
+// This is a helper for applications that want to display code execution results to users.
+func displayCodeExecution(msg *ai.Message) {
+	// Extract and display executable code
+	code := googlegenai.GetExecutableCode(msg)
+	fmt.Printf("Language: %s\n", code.Language)
+	fmt.Printf("```%s\n%s\n```\n", code.Language, code.Code)
+
+	// Extract and display execution results
+	result := googlegenai.GetCodeExecutionResult(msg)
+	fmt.Printf("\nExecution result:\n")
+	fmt.Printf("Status: %s\n", result.Outcome)
+	fmt.Printf("Output:\n")
+	if strings.TrimSpace(result.Output) == "" {
+		fmt.Printf("  <no output>\n")
+	} else {
+		lines := strings.Split(result.Output, "\n")
+		for _, line := range lines {
+			fmt.Printf("  %s\n", line)
+		}
 	}
 
-	lines := strings.Split(output, "\n")
-	for i, line := range lines {
-		lines[i] = "  " + line
+	// Display any explanatory text
+	for _, part := range msg.Content {
+		if part.IsText() {
+			fmt.Printf("\nExplanation:\n%s\n", part.Text)
+		}
 	}
-	return strings.Join(lines, "\n")
 }
