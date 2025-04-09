@@ -23,7 +23,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/openai/openai-go/option"
 )
@@ -36,13 +35,14 @@ func TestPlugin(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Initialize genkit with GPT-4o-min as default model
-	compat_oai_plugin := &compat_oai.OpenAICompatible{
-		Opts: []option.RequestOption{option.WithAPIKey(apiKey)},
+	// Initialize the OpenAI plugin
+	apiKeyOption := option.WithAPIKey(apiKey)
+	oai := openai.OpenAI{
+		Opts: []option.RequestOption{apiKeyOption},
 	}
 	g, err := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
-		genkit.WithPlugins(compat_oai_plugin),
+		genkit.WithPlugins(&oai),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -63,12 +63,6 @@ func TestPlugin(t *testing.T) {
 	t.Log("openai plugin initialized")
 
 	t.Run("embedder", func(t *testing.T) {
-		// Initialize the OpenAI plugin
-		apiKeyOption := option.WithAPIKey(apiKey)
-		oai := openai.OpenAI{
-			Opts: []option.RequestOption{apiKeyOption},
-		}
-		oai.Init(ctx, g)
 
 		// define embedder
 		embedder := oai.Embedder(g, "text-embedding-3-small")
