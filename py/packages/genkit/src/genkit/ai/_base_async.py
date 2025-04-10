@@ -150,10 +150,11 @@ class GenkitBase(GenkitRegistry):
                     async with anyio.create_task_group() as tg:
                         # Start reflection server in the background.
                         tg.start_soon(reflection_server.serve, name='genkit-reflection-server')
-                        logger.info(f'Started Genkit reflection server at {spec.url}')
+                        await logger.ainfo(f'Started Genkit reflection server at {spec.url}')
 
                         # Start the (potentially short-lived) user coroutine wrapper
                         tg.start_soon(run_user_coro_wrapper, name='genkit-user-coroutine')
+                        await logger.ainfo('Started Genkit user coroutine')
 
                         # Block here until the task group is canceled (e.g. Ctrl+C)
                         # or a task raises an unhandled exception. It should not
@@ -168,10 +169,10 @@ class GenkitBase(GenkitRegistry):
 
             # After the TaskGroup finishes (error or cancelation).
             if user_task_finished_event.is_set():
-                logger.debug('User coroutine finished before TaskGroup exit.')
+                await logger.adebug('User coroutine finished before TaskGroup exit.')
                 return user_result
             else:
-                logger.debug('User coroutine did not finish before TaskGroup exit.')
+                await logger.adebug('User coroutine did not finish before TaskGroup exit.')
                 return None
 
         return anyio.run(dev_runner)
