@@ -22,17 +22,19 @@ import (
 	// Import Genkit and the Google AI plugin
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
 	ctx := context.Background()
+	ctx = core.WithActionContext(ctx, core.ActionContext{
+		"greeting": "hello",
+		"name":     "John Doe",
+	})
 
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
-		genkit.WithPlugins(&googlegenai.GoogleAI{}),
-	)
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,10 +50,7 @@ func main() {
 
 	p, err := genkit.DefinePrompt(g, "test", ai.WithPrompt(`{{> header}} {{uppercase greeting}}`))
 
-	result, err := p.Execute(context.Background(), ai.WithInput(map[string]any{
-		"name":     "User",
-		"greeting": "hello",
-	}))
+	result, err := p.Execute(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
