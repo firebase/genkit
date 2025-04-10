@@ -24,6 +24,11 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 )
 
+/*
+  - Pre-requisites to run this test:
+
+Same as that in retriever_test.go
+*/
 func TestInit(t *testing.T) {
 	t.Parallel()
 
@@ -40,22 +45,6 @@ func TestInit(t *testing.T) {
 		useApp           bool
 	}{
 		{
-			name: "Successful initialization",
-			retrieverOptions: RetrieverOptions{
-				Name:            "example-retriever1",
-				Collection:      "test",
-				Embedder:        nil,
-				VectorField:     "embedding",
-				ContentField:    "text",
-				MetadataFields:  []string{"metadata"},
-				Limit:           10,
-				DistanceMeasure: firestore.DistanceMeasureEuclidean,
-				VectorType:      Vector64,
-			},
-			expectedError: "",
-			useApp:        true,
-		},
-		{
 			name: "Initialization with missing App",
 			retrieverOptions: RetrieverOptions{
 				Name:            "example-retriever2",
@@ -71,17 +60,36 @@ func TestInit(t *testing.T) {
 			expectedError: "firebase.Init: no Firebase app provided", // Expecting an error when no app is passed
 			useApp:        false,
 		},
+		{
+			name: "Successful initialization",
+			retrieverOptions: RetrieverOptions{
+				Name:            "example-retriever1",
+				Collection:      "test",
+				Embedder:        nil,
+				VectorField:     "embedding",
+				ContentField:    "text",
+				MetadataFields:  []string{"metadata"},
+				Limit:           10,
+				DistanceMeasure: firestore.DistanceMeasureEuclidean,
+				VectorType:      Vector64,
+			},
+			expectedError: "",
+			useApp:        true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conf := &firebasev4.Config{ProjectID: "test-app"}
+			conf := &firebasev4.Config{ProjectID: *testProjectID}
 			firebaseApp, err := firebasev4.NewApp(ctx, conf)
 			if err != nil {
 				log.Fatalf("Error initializing Firebase App: %v", err)
 			}
 			var f *Firebase
 			if tt.useApp {
+				if *testProjectID == "" {
+					t.Skip("Skipping test due to missing flags")
+				}
 				f = &Firebase{
 					App:           firebaseApp,
 					RetrieverOpts: tt.retrieverOptions,
