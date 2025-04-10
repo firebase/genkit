@@ -30,9 +30,7 @@ func main() {
 	ctx := context.Background()
 
 	g, err := genkit.Init(ctx, genkit.WithPlugins(
-		modelgarden.WithProviders(&anthropic.Anthropic{}),
-	),
-	)
+		modelgarden.WithProviders(&anthropic.Anthropic{})))
 	if err != nil {
 		log.Fatal(err)
 	}
