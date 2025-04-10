@@ -19,7 +19,6 @@ package firebase
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	firebasev4 "firebase.google.com/go/v4"
@@ -54,8 +53,7 @@ func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
 	defer f.mu.Unlock()
 
 	if f.initted {
-		log.Println("firebase.Init: plugin already initialized, returning without reinitializing")
-		return nil
+		return fmt.Errorf("firebase.Init: plugin already initialized")
 	}
 
 	if f.App == nil {
@@ -74,6 +72,7 @@ func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
 
 // App returns the cached Firebase app.
 func App(ctx context.Context) (*firebasev4.App, error) {
+
 	if appState.app == nil {
 		return nil, fmt.Errorf("firebase.App: Firebase app not initialized. Call Init first")
 	}
