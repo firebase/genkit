@@ -22,56 +22,56 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type jsonlFormatter struct{}
+type arrayFormatter struct{}
 
 // Name returns the name of the formatter.
-func (j jsonlFormatter) Name() string {
-	return OutputFormatJSONL
+func (a arrayFormatter) Name() string {
+	return OutputFormatArray
 }
 
 // Handler returns a new formatter handler for the given schema.
-func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
+func (a arrayFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	if schema == nil || !base.ValidateIsJSONArray(schema) {
-		return nil, fmt.Errorf("schema is not valid JSONL")
+		return nil, fmt.Errorf("schema is not valid JSON array")
 	}
 
 	jsonBytes, err := json.Marshal(schema["items"])
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling schema to JSONL: %w", err)
+		return nil, fmt.Errorf("error marshalling schema to JSON, must supply an 'array' schema type when using the 'array' parser format.: %w", err)
 	}
+	instructions := fmt.Sprintf("Output should be a JSON array conforming to the following schema:\n\n```%s```", string(jsonBytes))
 
-	instructions := fmt.Sprintf("Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```%s```", string(jsonBytes))
-
-	handler := &jsonlHandler{
-		instructions: instructions,
-		config: ModelOutputConfig{
-			Format:      OutputFormatJSONL,
+	handler := &arrayHandler{
+		instruction: instructions,
+		output: ModelOutputConfig{
+			Format:      OutputFormatArray,
 			Schema:      schema,
-			ContentType: "application/jsonl",
+			Constrained: true,
+			ContentType: "application/json",
 		},
 	}
 
 	return handler, nil
 }
 
-type jsonlHandler struct {
-	instructions string
-	config       ModelOutputConfig
+type arrayHandler struct {
+	instruction string
+	output      ModelOutputConfig
 }
 
 // Instructions returns the instructions for the formatter.
-func (j jsonlHandler) Instructions() string {
-	return j.instructions
+func (a arrayHandler) Instructions() string {
+	return a.instruction
 }
 
 // Config returns the output config for the formatter.
-func (j jsonlHandler) Config() ModelOutputConfig {
-	return j.config
+func (a arrayHandler) Config() ModelOutputConfig {
+	return a.output
 }
 
 // ParseMessage parses the message and returns the formatted message.
-func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
-	if j.config.Format == OutputFormatJSONL {
+func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
+	if a.output.Format == OutputFormatArray {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -86,15 +86,13 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 			} else {
 				lines := base.GetJsonObjectLines(part.Text)
 				for _, line := range lines {
-					if j.config.Schema != nil {
-						var schemaBytes []byte
-						schemaBytes, err := json.Marshal(j.config.Schema["items"])
-						if err != nil {
-							return nil, fmt.Errorf("expected schema is not valid: %w", err)
-						}
-						if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
-							return nil, err
-						}
+					var schemaBytes []byte
+					schemaBytes, err := json.Marshal(a.output.Schema["items"])
+					if err != nil {
+						return nil, fmt.Errorf("expected schema is not valid: %w", err)
+					}
+					if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
+						return nil, err
 					}
 
 					newParts = append(newParts, NewJSONPart(line))

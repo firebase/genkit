@@ -25,6 +25,8 @@ const (
 	OutputFormatJSON  string = "json"
 	OutputFormatJSONL string = "jsonl"
 	OutputFormatMedia string = "media"
+	OutputFormatArray string = "array"
+	OutputFormatEnum  string = "enum"
 )
 
 // Default formats get automatically registered on registry init
@@ -32,6 +34,8 @@ var DEFAULT_FORMATS = []Formatter{
 	jsonFormatter{},
 	jsonlFormatter{},
 	textFormatter{},
+	arrayFormatter{},
+	enumFormatter{},
 }
 
 // Formatter represents the Formatter interface.
