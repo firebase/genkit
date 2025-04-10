@@ -112,6 +112,12 @@ export const GetEvalRunRequestSchema = z.object({
 });
 export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
 
+export const DeleteEvalRunRequestSchema = z.object({
+  // Eval run name in the form evalRuns/{evalRunId}
+  name: z.string(),
+});
+export type DeleteEvalRunRequest = z.infer<typeof DeleteEvalRunRequestSchema>;
+
 export const CreateDatasetRequestSchema = z.object({
   data: InferenceDatasetSchema,
   datasetId: z.string().optional(),
