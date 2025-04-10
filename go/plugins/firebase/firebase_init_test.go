@@ -29,7 +29,6 @@ func TestInit(t *testing.T) {
 
 	ctx := context.Background()
 	g, err := genkit.Init(ctx)
-	firestoreClient := &firestore.Client{} // Create dummy client
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,12 +37,12 @@ func TestInit(t *testing.T) {
 		name             string
 		expectedError    string
 		retrieverOptions RetrieverOptions
+		useApp           bool
 	}{
 		{
 			name: "Successful initialization",
 			retrieverOptions: RetrieverOptions{
 				Name:            "example-retriever1",
-				Client:          firestoreClient,
 				Collection:      "test",
 				Embedder:        nil,
 				VectorField:     "embedding",
@@ -54,12 +53,12 @@ func TestInit(t *testing.T) {
 				VectorType:      Vector64,
 			},
 			expectedError: "",
+			useApp:        true,
 		},
 		{
 			name: "Initialization with missing App",
 			retrieverOptions: RetrieverOptions{
 				Name:            "example-retriever2",
-				Client:          nil,
 				Collection:      "test",
 				Embedder:        nil,
 				VectorField:     "embedding",
@@ -69,20 +68,30 @@ func TestInit(t *testing.T) {
 				DistanceMeasure: firestore.DistanceMeasureEuclidean,
 				VectorType:      Vector64,
 			},
-			expectedError: "firebase.Init: failed to initialize retriever example-retriever2: DefineFirestoreRetriever: Firestore client is not provided", // Expecting an error when no app is passed
+			expectedError: "firebase.Init: no Firebase app provided", // Expecting an error when no app is passed
+			useApp:        false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			firebaseApp, err := firebasev4.NewApp(ctx, nil)
+			conf := &firebasev4.Config{ProjectID: "test-app"}
+			firebaseApp, err := firebasev4.NewApp(ctx, conf)
 			if err != nil {
 				log.Fatalf("Error initializing Firebase App: %v", err)
 			}
-			f := &Firebase{
-				App:           firebaseApp,
-				RetrieverOpts: tt.retrieverOptions,
+			var f *Firebase
+			if tt.useApp {
+				f = &Firebase{
+					App:           firebaseApp,
+					RetrieverOpts: tt.retrieverOptions,
+				}
+			} else {
+				f = &Firebase{
+					RetrieverOpts: tt.retrieverOptions,
+				}
 			}
+
 			defer f.UnInit()
 			err = f.Init(ctx, g)
 

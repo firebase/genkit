@@ -222,7 +222,6 @@ func TestFirestoreRetriever(t *testing.T) {
 	retrieverOptions := RetrieverOptions{
 		Name:            "test-retriever",
 		Label:           "Test Retriever",
-		Client:          client,
 		Collection:      *testCollection,
 		Embedder:        embedder,
 		VectorField:     *testVectorField,
@@ -234,7 +233,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	// Define the retriever
-	retriever, err := DefineFirestoreRetriever(g, retrieverOptions)
+	retriever, err := DefineFirestoreRetriever(g, retrieverOptions, client)
 	if err != nil {
 		t.Fatalf("Failed to define retriever: %v", err)
 	}
