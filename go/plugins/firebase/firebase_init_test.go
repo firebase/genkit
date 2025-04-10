@@ -79,7 +79,7 @@ func TestInit(t *testing.T) {
 			if err != nil {
 				log.Fatalf("Error initializing Firebase App: %v", err)
 			}
-			f := &FireStore{
+			f := &Firebase{
 				App:           firebaseApp,
 				RetrieverOpts: tt.retrieverOptions,
 			}

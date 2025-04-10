@@ -25,7 +25,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
-	"google.golang.org/api/option"
 )
 
 func main() {
@@ -42,13 +41,6 @@ func main() {
 		log.Fatal("Environment variable FIRESTORE_COLLECTION is not set")
 	}
 
-	// Initialize Firestore client
-	firestoreClient, err := firestore.NewClient(ctx, projectID, option.WithCredentialsFile(""))
-	if err != nil {
-		log.Fatalf("Error creating Firestore client: %v", err)
-	}
-	defer firestoreClient.Close()
-
 	g, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -56,6 +48,19 @@ func main() {
 
 	// Mock embedder
 	embedder := &MockEmbedder{}
+	// Initialize firebase app
+	conf := &firebasev4.Config{ProjectID: projectID}
+	firebaseApp, err := firebasev4.NewApp(ctx, conf)
+	if err != nil {
+		log.Fatalf("Error initializing Firebase App: %v", err)
+	}
+
+	// Initialize Firestore client
+	firestoreClient, err := firebaseApp.Firestore(ctx)
+	if err != nil {
+		log.Fatalf("Error creating Firestore client: %v", err)
+	}
+	defer firestoreClient.Close()
 
 	// Firestore Retriever Configuration
 	retrieverOptions := firebase.RetrieverOptions{
@@ -70,12 +75,8 @@ func main() {
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
 		VectorType:      firebase.Vector64,
 	}
-	firebaseApp, err := firebasev4.NewApp(ctx, nil)
-	if err != nil {
-		log.Fatalf("Error initializing Firebase App: %v", err)
-	}
 
-	f := &firebase.FireStore{
+	f := &firebase.Firebase{
 		App:           firebaseApp,
 		RetrieverOpts: retrieverOptions,
 	}
