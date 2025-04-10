@@ -19,6 +19,7 @@ package firebase
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	firebasev4 "firebase.google.com/go/v4"
@@ -61,7 +62,13 @@ func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 	appState.app = f.App
 
-	retriever, err := DefineFirestoreRetriever(g, f.RetrieverOpts)
+	// Initialize Firestore client
+	firestoreClient, err := f.App.Firestore(ctx)
+	if err != nil {
+		log.Fatalf("Error creating Firestore client: %v", err)
+	}
+
+	retriever, err := DefineFirestoreRetriever(g, f.RetrieverOpts, firestoreClient)
 	if err != nil {
 		return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", f.RetrieverOpts.Name, err)
 	}

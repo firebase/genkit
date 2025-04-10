@@ -65,7 +65,6 @@ func main() {
 	// Firestore Retriever Configuration
 	retrieverOptions := firebase.RetrieverOptions{
 		Name:            "example-retriever",
-		Client:          firestoreClient,
 		Collection:      collectionName,
 		Embedder:        embedder,
 		VectorField:     "embedding",

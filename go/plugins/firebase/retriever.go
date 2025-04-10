@@ -32,7 +32,6 @@ const (
 type RetrieverOptions struct {
 	Name            string
 	Label           string
-	Client          *firestore.Client
 	Collection      string
 	Embedder        ai.Embedder
 	VectorField     string
@@ -43,7 +42,7 @@ type RetrieverOptions struct {
 	VectorType      VectorType
 }
 
-//Convert a Firestore document snapshot to a Genkit Document object.
+// Convert a Firestore document snapshot to a Genkit Document object.
 func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField string, metadataFields []string) []*ai.Document {
 
 	// Prepare the documents to return in the response
@@ -72,11 +71,11 @@ func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField strin
 	return documents
 }
 
-func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions) (ai.Retriever, error) {
+func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *firestore.Client) (ai.Retriever, error) {
 	if cfg.VectorType != Vector64 {
 		return nil, fmt.Errorf("DefineFirestoreRetriever: only Vector64 is supported")
 	}
-	if cfg.Client == nil {
+	if client == nil {
 		return nil, fmt.Errorf("DefineFirestoreRetriever: Firestore client is not provided")
 	}
 
@@ -107,7 +106,7 @@ func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions) (ai.Retrie
 			queryEmbedding64[i] = float64(val)
 		}
 		// Perform the FindNearest query
-		vectorQuery := cfg.Client.Collection(cfg.Collection).FindNearest(
+		vectorQuery := client.Collection(cfg.Collection).FindNearest(
 			cfg.VectorField,
 			firestore.Vector64(queryEmbedding64),
 			cfg.Limit,
