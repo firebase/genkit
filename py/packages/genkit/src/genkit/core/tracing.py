@@ -204,7 +204,9 @@ if is_dev_environment():
         )
         provider.add_span_processor(processor)
     else:
-        logger.warn('GENKIT_TELEMETRY_SERVER is not set. If running with `genkit start`, make sure `genkit-cli` is up to date.')
+        logger.warn(
+            'GENKIT_TELEMETRY_SERVER is not set. If running with `genkit start`, make sure `genkit-cli` is up to date.'
+        )
     # Sets the global default tracer provider
     trace_api.set_tracer_provider(provider)
     tracer = trace_api.get_tracer('genkit-tracer', 'v1', provider)
