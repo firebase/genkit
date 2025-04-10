@@ -29,21 +29,17 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Initialize Genkit with the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google AI plugin will get the API key from the
-	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
-	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{},
-		modelgarden.WithProviders(
-			&anthropic.Anthropic{Location: "us-east5", Project: "devshop-mosaic-11010494"},
-		)))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(
+		modelgarden.WithProviders(&anthropic.Anthropic{}),
+	),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-pro-preview-03-25")
+		m := anthropic.Model(g, "claude-3-5-sonnet-v2")
 		if m == nil {
 			return "", errors.New("jokesFlow: failed to find model")
 		}
@@ -53,7 +49,7 @@ func main() {
 			ai.WithConfig(&googlegenai.GeminiConfig{
 				Temperature: 1.0,
 			}),
-			ai.WithPrompt(`Tell silly short jokes about %s`, input))
+			ai.WithPrompt(`Tell a short joke about %s`, input))
 		if err != nil {
 			return "", err
 		}
