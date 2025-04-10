@@ -24,6 +24,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
@@ -34,7 +35,9 @@ func main() {
 	})
 
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.0-flash"))
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
