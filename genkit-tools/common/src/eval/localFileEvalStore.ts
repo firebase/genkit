@@ -17,8 +17,7 @@
 import fs from 'fs';
 import { appendFile, readFile, unlink, writeFile } from 'fs/promises';
 import path from 'path';
-import { logger } from '../utils/logger';
-
+import * as readline from 'readline';
 import { ListEvalKeysRequest, ListEvalKeysResponse } from '../types/apis';
 import {
   EvalRun,
@@ -27,6 +26,7 @@ import {
   EvalRunSchema,
   EvalStore,
 } from '../types/eval';
+import { logger } from '../utils/logger';
 
 /**
  * A local, file-based EvalStore implementation.
@@ -127,7 +127,9 @@ export class LocalFileEvalStore implements EvalStore {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Cannot find evalRun with id '${evalRunId}'`);
     }
-    return await unlink(filePath);
+    return await unlink(filePath).then(() =>
+      this.deleteEvalRunFromIndex(evalRunId)
+    );
   }
 
   private generateFileName(evalRunId: string): string {
@@ -144,5 +146,26 @@ export class LocalFileEvalStore implements EvalStore {
 
   private generateRootPath(): string {
     return path.resolve(process.cwd(), `.genkit/evals`);
+  }
+
+  private async deleteEvalRunFromIndex(evalRunId: string): Promise<void> {
+    const entries = [];
+    const fileStream = fs.createReadStream(this.getIndexFilePath());
+    const rl = readline.createInterface({
+      input: fileStream,
+    });
+
+    for await (const line of rl) {
+      const entry = EvalRunKeySchema.parse(JSON.parse(line));
+      if (entry.evalRunId !== evalRunId) {
+        entries.push(line);
+      }
+    }
+
+    await writeFile(
+      this.getIndexFilePath(),
+      // end with delimiter to parse correctly
+      entries.join(this.INDEX_DELIMITER) + this.INDEX_DELIMITER
+    );
   }
 }

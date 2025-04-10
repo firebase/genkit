@@ -191,6 +191,15 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         return evalRun;
       }),
 
+    /** Deletes a single eval run by ID */
+    deleteEvalRun: loggedProcedure
+      .input(apis.DeleteEvalRunRequestSchema)
+      .mutation(async ({ input }) => {
+        const parts = input.name.split('/');
+        const evalRunId = parts[1];
+        await getEvalStore().delete(evalRunId);
+      }),
+
     /** Retrieves all eval datasets */
     listDatasets: loggedProcedure
       .output(z.array(evals.DatasetMetadataSchema))
