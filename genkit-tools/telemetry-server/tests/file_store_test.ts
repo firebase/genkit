@@ -498,17 +498,17 @@ describe('index', () => {
       result1.data.map((d) => d.id),
       ['trace_19', 'trace_18', 'trace_17']
     );
-    assert.strictEqual(result1.stopIndex, 3);
+    assert.strictEqual(result1.pageLastIndex, 3);
 
     const result2 = index.search({
       limit: 3,
-      startFromIndex: result1.stopIndex,
+      startFromIndex: result1.pageLastIndex,
     });
     assert.deepStrictEqual(
       result2.data.map((d) => d.id),
       ['trace_16', 'trace_15', 'trace_14']
     );
-    assert.strictEqual(result2.stopIndex, 6);
+    assert.strictEqual(result2.pageLastIndex, 6);
 
     // check edge conditions
 
@@ -517,13 +517,13 @@ describe('index', () => {
       result3.data.map((d) => d.id),
       ['trace_2', 'trace_1', 'trace_0']
     );
-    assert.strictEqual(result3.stopIndex, undefined);
+    assert.strictEqual(result3.pageLastIndex, undefined);
 
     const result4 = index.search({ limit: 10, startFromIndex: 18 });
     assert.deepStrictEqual(
       result4.data.map((d) => d.id),
       ['trace_1', 'trace_0']
     );
-    assert.strictEqual(result4.stopIndex, undefined);
+    assert.strictEqual(result4.pageLastIndex, undefined);
   });
 });

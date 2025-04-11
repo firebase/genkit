@@ -170,8 +170,8 @@ export class LocalFileTraceStore implements TraceStore {
 
     return {
       traces: loadedTraces.filter((t) => !!t) as TraceData[],
-      continuationToken: searchResult.stopIndex
-        ? `${searchResult.stopIndex}`
+      continuationToken: searchResult.pageLastIndex
+        ? `${searchResult.pageLastIndex}`
         : undefined,
     };
   }
@@ -228,7 +228,7 @@ export class LocalFileTraceStore implements TraceStore {
 }
 
 export interface IndexSearchResult {
-  stopIndex?: number;
+  pageLastIndex?: number;
   data: Record<string, string>[];
 }
 
@@ -326,7 +326,7 @@ export class Index {
 
     // if there are more results, populate stop index.
     if (startFromIndex + query.limit < fullData.length) {
-      result.stopIndex = startFromIndex + query.limit;
+      result.pageLastIndex = startFromIndex + query.limit;
     }
 
     return result;
