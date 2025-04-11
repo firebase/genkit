@@ -458,7 +458,7 @@ func TestHandlers(t *testing.T) {
 					},
 					"additionalProperties": false,
 				},
-				Constrained: true,
+				Constrained: false,
 				ContentType: "application/json",
 			},
 			instructions: "Output should be a JSON array conforming to the following schema:\n\n```{\"properties\":{\"id\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
@@ -471,7 +471,7 @@ func TestHandlers(t *testing.T) {
 			output: ModelOutputConfig{
 				Format:      OutputFormatEnum,
 				Schema:      enumSchema,
-				Constrained: true,
+				Constrained: false,
 				ContentType: "text/enum",
 			},
 			instructions: "Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n```red\ngreen\nblue```",

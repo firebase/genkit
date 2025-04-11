@@ -39,11 +39,10 @@ func (e enumFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	instructions := fmt.Sprintf("Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n```%s```", strings.Join(enums, "\n"))
 
 	handler := &enumHandler{
-		instruction: instructions,
-		output: ModelOutputConfig{
+		instructions: instructions,
+		config: ModelOutputConfig{
 			Format:      OutputFormatEnum,
 			Schema:      schema,
-			Constrained: true,
 			ContentType: "text/enum",
 		},
 		enums: enums,
@@ -53,24 +52,24 @@ func (e enumFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type enumHandler struct {
-	instruction string
-	output      ModelOutputConfig
-	enums       []string
+	instructions string
+	config       ModelOutputConfig
+	enums        []string
 }
 
 // Instructions returns the instructions for the formatter.
 func (e enumHandler) Instructions() string {
-	return e.instruction
+	return e.instructions
 }
 
 // Config returns the output config for the formatter.
 func (e enumHandler) Config() ModelOutputConfig {
-	return e.output
+	return e.config
 }
 
 // ParseMessage parses the message and returns the formatted message.
 func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
-	if e.output.Format == OutputFormatEnum {
+	if e.config.Format == OutputFormatEnum {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}

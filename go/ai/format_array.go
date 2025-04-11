@@ -42,11 +42,10 @@ func (a arrayFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 	instructions := fmt.Sprintf("Output should be a JSON array conforming to the following schema:\n\n```%s```", string(jsonBytes))
 
 	handler := &arrayHandler{
-		instruction: instructions,
-		output: ModelOutputConfig{
+		instructions: instructions,
+		config: ModelOutputConfig{
 			Format:      OutputFormatArray,
 			Schema:      schema,
-			Constrained: true,
 			ContentType: "application/json",
 		},
 	}
@@ -55,23 +54,23 @@ func (a arrayFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type arrayHandler struct {
-	instruction string
-	output      ModelOutputConfig
+	instructions string
+	config       ModelOutputConfig
 }
 
 // Instructions returns the instructions for the formatter.
 func (a arrayHandler) Instructions() string {
-	return a.instruction
+	return a.instructions
 }
 
 // Config returns the output config for the formatter.
 func (a arrayHandler) Config() ModelOutputConfig {
-	return a.output
+	return a.config
 }
 
 // ParseMessage parses the message and returns the formatted message.
 func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
-	if a.output.Format == OutputFormatArray {
+	if a.config.Format == OutputFormatArray {
 		if m == nil {
 			return nil, errors.New("message is empty")
 		}
@@ -87,7 +86,7 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 				lines := base.GetJsonObjectLines(part.Text)
 				for _, line := range lines {
 					var schemaBytes []byte
-					schemaBytes, err := json.Marshal(a.output.Schema["items"])
+					schemaBytes, err := json.Marshal(a.config.Schema["items"])
 					if err != nil {
 						return nil, fmt.Errorf("expected schema is not valid: %w", err)
 					}
